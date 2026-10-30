@@ -30,6 +30,16 @@ jobs:
         run: pnpm test
       - name: 构建
         run: pnpm build
+      - name: 安装 Chromium（画面回归用）
+        run: pnpm exec playwright-core install --with-deps chromium
+      - name: 画面回归（Hollow Creek 四个角度 vs 基准图）
+        run: pnpm screenshot
+      - name: 上传截图和差异图
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots
+          path: tools/screenshot/out/
       - name: 上传 sandbox 构建（预览）
         uses: actions/upload-artifact@v4
         with:

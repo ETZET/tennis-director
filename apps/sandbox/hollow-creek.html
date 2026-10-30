@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Hollow Creek Tennis Club</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600;700&family=Silkscreen:wght@400;700&display=swap">
+<link rel="stylesheet" href="./src/hollow-creek/style.css">
+</head>
+<body>
+<div id="stage"></div>
+<div id="vignette"></div>
+<div id="labels"></div>
+<div class="toast" id="toast" hidden></div>
+
+<div id="hud">
+  <header class="title">
+    <div class="crest" aria-hidden="true">HC</div>
+    <div style="min-width:0">
+      <h1>Hollow Creek Tennis Club</h1>
+      <div class="sub">Stage 2 · Community Club · est. 1974</div>
+      <div class="chips">
+        <span class="chip clock" id="clock">Sat 4:10 PM</span>
+        <span class="chip">Your salary $29k <span class="down">▼30%</span></span>
+        <span class="chip">Members <span id="mem">47</span></span>
+        <span class="chip" id="hcChip">Head coach: Dale Pruitt</span>
+      </div>
+    </div>
+  </header>
+
+  <details class="report" id="report" open>
+    <summary>Program report</summary>
+    <div class="qrow">
+      <div class="grade" id="grade">C</div>
+      <div>
+        <div class="qnum"><span id="qnum">58</span><small> / 100</small></div>
+        <div class="qlab">Tennis program quality</div>
+        <div class="trend" id="trend">■ flat</div>
+      </div>
+    </div>
+    <canvas id="spark" width="276" height="64" aria-label="Program quality over this session"></canvas>
+    <dl class="stats">
+      <dt>Tennis courts usable</dt><dd class="bad">1 of 4</dd>
+      <dt>Court 2</dt><dd class="pk">Rented · pickleball</dd>
+      <dt>Balls left lying on court 1</dt><dd id="sBalls">0</dd>
+      <dt>Coach phone time</dt><dd id="sPhone">0 min</dd>
+      <dt>Lesson shots that went in</dt><dd id="sIn">—</dd>
+      <dt>Member complaints</dt><dd id="sComp">3</dd>
+    </dl>
+    <div class="logh">Incident log</div>
+    <ol id="log"></ol>
+  </details>
+
+  <div class="bar" role="toolbar" aria-label="Camera controls">
+    <button id="rotL" title="Rotate left (Q)" aria-label="Rotate left">↺</button>
+    <button id="rotR" title="Rotate right (E)" aria-label="Rotate right">↻</button>
+    <button id="zoomOut" title="Zoom out (−)" aria-label="Zoom out">−</button>
+    <button id="zoomIn" title="Zoom in (+)" aria-label="Zoom in">+</button>
+    <button id="resetView">Reset view</button>
+    <span class="sep"></span>
+    <button id="follow" aria-pressed="true">Follow story</button>
+    <button id="pix">Pixels: Mid</button>
+    <button id="lblBtn" aria-pressed="true">Labels</button>
+    <button id="spd">Speed 1×</button>
+    <button id="pause">Pause</button>
+    <button id="replay" class="go" hidden>Replay scene</button>
+  </div>
+</div>
+
+<script type="module" src="./src/hollow-creek/main.ts"></script>
+</body>
+</html>

@@ -15,12 +15,16 @@
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "check:deps": "depcruise packages apps --config .dependency-cruiser.cjs",
+    "screenshot": "node tools/screenshot/compare.mjs",
     "check": "pnpm typecheck && pnpm lint && pnpm check:deps && pnpm test && pnpm build"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.4",
     "@swc/core": "1.16.20",
     "dependency-cruiser": "18.7.0",
+    "pixelmatch": "8.0.0",
+    "playwright-core": "1.63.0",
+    "pngjs": "7.0.0",
     "typescript": "7.0.2",
     "vite": "8.3.5",
     "vitest": "5.0.5"

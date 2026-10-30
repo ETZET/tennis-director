@@ -1,0 +1,21 @@
+{
+  "name": "@td/sandbox",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "场景查看器和活动动画库：美术和动画可以脱离完整游戏单独开发和展示",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@td/render": "workspace:*",
+    "@td/shared": "workspace:*",
+    "three": "0.128.0"
+  },
+  "devDependencies": {
+    "@types/three": "0.128.0"
+  }
+}
