@@ -47,12 +47,18 @@ export class VoxelBatcher {
   }
 
   /** 合并成一个网格并加入场景。 */
-  build(scene: THREE.Object3D, cast: boolean, recv: boolean): THREE.Mesh {
+  build(
+    scene: THREE.Object3D,
+    cast: boolean,
+    recv: boolean,
+    /** 额外的材质参数，例如岛底剖面用一点自发光，背光面也看得清 */
+    mat: THREE.MeshLambertMaterialParameters = {},
+  ): THREE.Mesh {
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(this.p, 3));
     g.setAttribute('normal', new THREE.Float32BufferAttribute(this.n, 3));
     g.setAttribute('color', new THREE.Float32BufferAttribute(this.c, 3));
-    const m = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ vertexColors: true }));
+    const m = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ vertexColors: true, ...mat }));
     m.castShadow = cast;
     m.receiveShadow = recv;
     scene.add(m);

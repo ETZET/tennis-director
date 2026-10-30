@@ -110,61 +110,66 @@ export const DOG_WAYPOINTS = [
   [-2, 24],
 ] as const;
 
-/** 车从停车场开出去的路线。 */
-export const EXIT_ROUTE: readonly XZ[] = [
-  { x: 39, z: -31 },
-  { x: 45, z: -30 },
-  { x: 45, z: 12 },
-  // 沿堤道一直开进雾里
-  { x: 45, z: 190 },
-];
-
 /**
- * 岛屿：俱乐部所在的整块地是一座孤岛，四周是海，只有东侧公路沿堤道离岛。
- * 形状是一个圆角矩形，海岸线向外有起伏（确定性的正弦叠加，不消耗随机数），
- * 保证所有台地、场地、树和小溪都在岛上。
+ * 浮空岛：俱乐部所在的整块地是一块悬在天上的方形土台（设计稿「Floating island」）。
+ * 边缘是笔直的硬边，四角切掉一点；边外什么都没有，只有天空和云。
+ * 所有台地、场地、树、小溪和公路都在岛上；小溪从东西两侧的边缘落下去。
  */
 export const ISLAND = {
-  cx: 2,
-  cz: -10,
-  /** 圆角矩形半宽、半高 */
-  hx: 70,
-  hz: 70,
-  /** 圆角半径 */
-  r: 26,
-  /** 海面高度（低于下层台地 y=0） */
-  seaY: -1.1,
-  /** 悬崖底（埋在海面以下） */
-  floorY: -3.2,
+  x0: -66,
+  x1: 70,
+  z0: -78,
+  z1: 58,
+  /** 四角切角（米） */
+  chamfer: 4,
 } as const;
 
-/** 海岸线在某个方位角上向外鼓出的距离（米），1 到约 8。 */
-function coastWobble(theta: number): number {
-  return Math.max(
-    1,
-    2.5 + 2.5 * Math.sin(3 * theta + 1) + 1.8 * Math.sin(5 * theta + 2.3) + 1.2 * Math.sin(9 * theta + 0.7),
-  );
-}
+/** 岛底剖面：下层台地 y=0 往下。两层土，下面的岩层逐层往里收，收成一个钝底。 */
+export const UNDERSIDE = {
+  /** 草皮唇边 */
+  lip: -0.6,
+  soil: [
+    { to: -4, col: '#6f5a42' },
+    { to: -8, col: '#5f4b37' },
+  ],
+  stone: [
+    { to: -11, inset: 0, col: '#7b7468' },
+    { to: -15, inset: 3, col: '#6b655a' },
+    { to: -19, inset: 7, col: '#5e594f' },
+    { to: -23, inset: 12, col: '#514c44' },
+    { to: -27, inset: 18, col: '#46423b' },
+    { to: -30, inset: 25, col: '#3f3c37' },
+  ],
+} as const;
 
-/** 到海岸线的有向距离：负数在岛上，正数在海里。 */
-export function coastDistance(x: number, z: number): number {
-  const { cx, cz, hx, hz, r } = ISLAND;
-  const px = Math.abs(x - cx) - (hx - r);
-  const pz = Math.abs(z - cz) - (hz - r);
-  const outside = Math.hypot(Math.max(px, 0), Math.max(pz, 0));
-  const sd = outside + Math.min(Math.max(px, pz), 0) - r;
-  return sd - coastWobble(Math.atan2(z - cz, x - cx));
+/** 到岛边的有向距离（米）：负数在岛上，正数在岛外。inset 把边界往里收。 */
+export function coastDistance(x: number, z: number, inset = 0): number {
+  const { x0, x1, z0, z1, chamfer } = ISLAND;
+  const dx = Math.max(x0 + inset - x, x - (x1 - inset));
+  const dz = Math.max(z0 + inset - z, z - (z1 - inset));
+  // 切角：到 45° 斜线的距离
+  const cx = Math.min(x - (x0 + inset), x1 - inset - x);
+  const cz = Math.min(z - (z0 + inset), z1 - inset - z);
+  const dc = (chamfer - cx - cz) / Math.SQRT2;
+  return Math.max(dx, dz, dc);
 }
 
 /** 这个点在不在岛上。 */
 export const onIsland = (x: number, z: number): boolean => coastDistance(x, z) < 0;
 
-/** 东侧公路离岛的位置：沿 x=45 往南找到海岸线。 */
-export function causewayStartZ(): number {
-  let z = 0;
-  while (onIsland(45, z + 0.5)) z += 1;
-  return z;
-}
+/** 东侧公路在岛的南边缘断开，路就到这里为止。 */
+export const ROAD_END_Z = ISLAND.z1 - 1;
 
-/** 堤道终点：在雾里，玩家看不到尽头。 */
-export const CAUSEWAY_END_Z = 200;
+/** 车从停车场开出去的路线：顺着公路开到岛的南边缘，在那里消失。 */
+export const EXIT_ROUTE: readonly XZ[] = [
+  { x: 39, z: -31 },
+  { x: 45, z: -30 },
+  { x: 45, z: 12 },
+  { x: 45, z: ROAD_END_Z - 3 },
+];
+
+/** 小溪从岛边落下去的两个位置（西、东）。 */
+export const CREEK_OUTFALLS: readonly XZ[] = [
+  { x: ISLAND.x0, z: creekZ(ISLAND.x0) },
+  { x: ISLAND.x1, z: creekZ(ISLAND.x1) },
+];

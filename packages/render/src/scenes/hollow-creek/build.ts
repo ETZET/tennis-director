@@ -45,7 +45,7 @@ export interface HollowCreekStatic {
 
 export function buildHollowCreek(ctx: BuildContext): HollowCreekStatic {
   groundPlane(ctx);
-  // 原型的场景铺满整张 460×460 的地面；现在是一座岛，海岸线外的东西（小溪两头、
+  // 原型的场景铺满整张 460×460 的地面；现在是一座浮空岛，岛边外的东西（小溪两头、
   // 公路南段）照常算随机数，但不放盒子
   ctx.flat.clip = ctx.solid.clip = onIsland;
   terrain(ctx);

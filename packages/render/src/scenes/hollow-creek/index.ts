@@ -1,9 +1,11 @@
 import { mulberry32 } from '@td/shared';
 import * as THREE from 'three';
+import { createIslandSky, type IslandSky } from '../../ambient/sky';
 import type { CameraPose, OrbitLimits } from '../../camera/orbit';
 import { createBuildContext } from '../../world/build-context';
 import type { LightingDef, Stage } from '../../world/stage';
 import { buildHollowCreek, type HollowCreekStatic } from './build';
+import { CREEK_OUTFALLS, ISLAND, UNDERSIDE } from './layout';
 
 export * from './layout';
 
@@ -11,9 +13,10 @@ export * from './layout';
 export const HOLLOW_CREEK_SEED = 1974;
 
 export const HOLLOW_CREEK_LIGHTING: LightingDef = {
-  sky: '#8e979a',
-  // 岛上最远处的视线深度约 280，雾从 290 开始，海面到 470 完全融进天色
-  fog: { near: 290, far: 470 },
+  // 设计稿 Day · Cloud（多云的下午）
+  sky: '#a3bac8',
+  // 岛下很深处的云渐渐融进天色
+  fog: { near: 300, far: 520 },
   hemi: { sky: '#c3cbcf', ground: '#5e5545', intensity: 0.78 },
   sun: {
     color: '#dfe2e0',
@@ -31,21 +34,33 @@ export const HOLLOW_CREEK_LIGHTING: LightingDef = {
 export const HOLLOW_CREEK_RAIN = {
   hemi: [0.78, 0.62],
   sun: [0.5, 0.3],
-  sky: new THREE.Color('#8e979a'),
-  skyRain: new THREE.Color('#6c7477'),
+  sky: new THREE.Color('#a3bac8'),
+  // 设计稿 Day · Rain
+  skyRain: new THREE.Color('#728694'),
 } as const;
 
 export const HOLLOW_CREEK_CAMERA: Record<'overview', CameraPose> = {
   overview: { yaw: -0.62, pitch: 0.66, zoom: 0.74, tx: 9, tz: 0.5 },
 };
 
-/** 最远能拉到看见整座岛和四周的海（原型最远 0.5）。 */
+/** 最远能拉到看见整座浮空岛、岛底和四周的云（原型最远 0.5）。 */
 export const HOLLOW_CREEK_CAMERA_LIMITS: OrbitLimits = {
-  zoom: [0.32, 3.2],
+  zoom: [0.26, 3.2],
   pitch: [0.4, 1.3],
   tx: [-55, 60],
   tz: [-55, 55],
 };
+
+/** 岛四周的天空：云、浮在岛边的小土块、瀑布。 */
+export function createHollowCreekSky(stage: Stage): IslandSky {
+  return createIslandSky(stage.scene, {
+    island: ISLAND,
+    seed: 0xc10d5,
+    cloud: ['#d0d5d9', '#8a939b'],
+    outfalls: CREEK_OUTFALLS,
+    depth: UNDERSIDE.stone[UNDERSIDE.stone.length - 1]?.to ?? -13.5,
+  });
+}
 
 /** 在已经建好的舞台上构建 Hollow Creek 的静态场景。 */
 export function buildHollowCreekStage(stage: Stage, seed = HOLLOW_CREEK_SEED): HollowCreekStatic {

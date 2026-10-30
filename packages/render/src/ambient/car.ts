@@ -18,6 +18,8 @@ export function createCar(
   col: string,
   trim: string,
   path: readonly XZ[],
+  /** 开到路线尽头就缩小消失（浮空岛：路在岛边断开，边外什么都没有） */
+  vanishAtEnd = false,
 ): Car {
   const g = new THREE.Group();
   g.position.set(x, carY(x, z), z);
@@ -51,6 +53,7 @@ export function createCar(
   let v = 0;
   let pi = 0;
   let pt = 0;
+  let goneT: number | null = null;
   return {
     g,
     start() {
@@ -66,6 +69,13 @@ export function createCar(
         p.m.material.opacity = 0.45 * (1 - a / 1.2);
         p.m.position.y += dt * 0.5;
         p.m.scale.setScalar(1 + a * 1.5);
+      }
+      if (moving && vanishAtEnd && pi >= path.length) {
+        goneT ??= now;
+        const k = Math.min(1, (now - goneT) / 0.8);
+        g.scale.setScalar(Math.max(0.001, 1 - k));
+        if (k >= 1) g.visible = false;
+        return;
       }
       if (!moving || pi >= path.length) return;
       const tg = path[pi] as XZ;

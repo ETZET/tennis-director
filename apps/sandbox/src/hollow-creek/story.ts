@@ -487,10 +487,29 @@ export function createHollowCreekDemo(env: DemoEnv): Demo {
   crows.push(new Crow(scene, -10, UP + 5.2, -26, 0.4));
   const dog = createDog(scene, hollowCreek.groundY, hollowCreek.DOG_WAYPOINTS);
   const EXIT = hollowCreek.EXIT_ROUTE;
-  const daleCar = createCar(scene, hollowCreek.carY, 27, -27, '#6b7480', '#7a4a2e', [{ x: 34, z: -27.5 }, ...EXIT]);
-  const carterCar = createCar(scene, hollowCreek.carY, 30, -36.5, '#3d4f6a', '#3d4f6a', [{ x: 36, z: -34 }, ...EXIT]);
+  const daleCar = createCar(
+    scene,
+    hollowCreek.carY,
+    27,
+    -27,
+    '#6b7480',
+    '#7a4a2e',
+    [{ x: 34, z: -27.5 }, ...EXIT],
+    true,
+  );
+  const carterCar = createCar(
+    scene,
+    hollowCreek.carY,
+    30,
+    -36.5,
+    '#3d4f6a',
+    '#3d4f6a',
+    [{ x: 36, z: -34 }, ...EXIT],
+    true,
+  );
   const cars = [daleCar, carterCar];
   const rain = createRain(stage, hollowCreek.HOLLOW_CREEK_RAIN);
+  const sky = hollowCreek.createHollowCreekSky(stage);
 
   /* ---------- 地点标签 ---------- */
   const FL = (fr: typeof FA, x: number, y: number, z: number) => () => fr.w({ x, y, z });
@@ -709,7 +728,10 @@ export function createHollowCreekDemo(env: DemoEnv): Demo {
       marker.position.y = 2.55 + Math.sin(ts / 350) * 0.12;
       marker.rotation.y = ts / 600;
     },
-    updateRain: (sdt, cx, cz) => rain.update(sdt, cx, cz),
+    updateRain(sdt, cx, cz) {
+      rain.update(sdt, cx, cz);
+      sky.update(sdt, sched.now, rain.amount());
+    },
     lessonBalls: () => pool.balls.filter((b) => b.inUse && b.owner === lesson).length,
   };
 }

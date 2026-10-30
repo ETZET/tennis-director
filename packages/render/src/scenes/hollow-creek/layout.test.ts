@@ -1,16 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import {
   ANCHORS,
-  CAUSEWAY_END_Z,
-  causewayStartZ,
+  CREEK_OUTFALLS,
+  coastDistance,
   DECK,
   EXIT_ROUTE,
   FA,
   FB,
   FRAMES,
   groundY,
+  ISLAND,
   MID,
   onIsland,
+  ROAD_END_Z,
   terrainY,
   UP,
 } from './layout';
@@ -54,15 +56,19 @@ describe('Hollow Creek 布局', () => {
   });
 });
 
-describe('Hollow Creek 岛屿', () => {
-  it('台地、场地四角和所有命名锚点都在岛上', () => {
-    const corners = [
+describe('Hollow Creek 浮空岛', () => {
+  it('台地、场地四角、所有命名锚点和树都在岛上', () => {
+    for (const [x, z] of [
       [-58, -70],
       [42, -70],
       [-58, 9],
       [42, 9],
-    ];
-    for (const [x, z] of corners) expect(onIsland(x as number, z as number)).toBe(true);
+      // 最外面的几棵树（含树冠半径）
+      [60 + 2.5, 0],
+      [-58 - 2.5, 40],
+      [24, 50 + 2.5],
+    ])
+      expect(onIsland(x as number, z as number)).toBe(true);
     for (const fr of FRAMES)
       for (const [lx, lz] of [
         [-fr.hx, -fr.hz],
@@ -76,23 +82,29 @@ describe('Hollow Creek 岛屿', () => {
     for (const a of Object.values(ANCHORS)) expect(onIsland(a.x, a.z)).toBe(true);
   });
 
-  it('岛外是海：远处和四个方向都不在岛上', () => {
+  it('边外什么都没有：四个方向和切掉的四角都在岛外', () => {
     for (const [x, z] of [
-      [0, -95],
-      [0, 75],
-      [-85, 0],
-      [90, 0],
-      [200, 200],
+      [0, ISLAND.z0 - 1],
+      [0, ISLAND.z1 + 1],
+      [ISLAND.x0 - 1, 0],
+      [ISLAND.x1 + 1, 0],
+      [ISLAND.x0 + 0.5, ISLAND.z0 + 0.5],
+      [ISLAND.x1 - 0.5, ISLAND.z1 - 0.5],
     ])
       expect(onIsland(x as number, z as number)).toBe(false);
   });
 
-  it('公路从岛的南岸接上堤道，车开出去的终点在堤道上', () => {
-    const z = causewayStartZ();
-    expect(z).toBeGreaterThan(55);
-    expect(z).toBeLessThan(75);
+  it('有向距离：边上为 0，往里为负，inset 把边界往里收', () => {
+    expect(coastDistance(ISLAND.x1, 0)).toBeCloseTo(0);
+    expect(coastDistance(ISLAND.x1 - 5, 0)).toBeCloseTo(-5);
+    expect(coastDistance(ISLAND.x1 - 5, 0, 5)).toBeCloseTo(0);
+  });
+
+  it('公路开到岛的南边缘为止，车在路上消失；小溪从东西两边落下', () => {
     const end = EXIT_ROUTE[EXIT_ROUTE.length - 1];
     expect(end?.x).toBe(45);
-    expect(end?.z).toBeLessThan(CAUSEWAY_END_Z);
+    expect(end && onIsland(end.x, end.z)).toBe(true);
+    expect(onIsland(45, ROAD_END_Z + 2)).toBe(false);
+    expect(CREEK_OUTFALLS.map((p) => p.x)).toEqual([ISLAND.x0, ISLAND.x1]);
   });
 });

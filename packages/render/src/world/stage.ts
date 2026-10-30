@@ -3,7 +3,7 @@ import * as THREE from 'three';
 /** 场景的光照和天色。每个场景各有一套（Hollow Creek 是阴天）。 */
 export interface LightingDef {
   sky: string;
-  /** 雾：远处的海面渐渐融进天色（正交相机按视线方向的深度算） */
+  /** 雾：岛下很深处的云渐渐融进天色（正交相机按视线方向的深度算） */
   fog?: { near: number; far: number };
   hemi: { sky: string; ground: string; intensity: number };
   sun: {

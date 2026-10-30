@@ -5,6 +5,8 @@ import type { Stage } from '../world/stage';
 
 export interface Rain {
   start(): void;
+  /** 0 晴到 1 雨，淡入淡出的当前值 */
+  amount(): number;
   /** 雨跟着相机目标点走；同时把天色和灯光压暗 */
   update(dt: number, cx: number, cz: number): void;
 }
@@ -29,7 +31,8 @@ export function createRain(stage: Stage, lighting: RainLighting, n = 800): Rain 
   mesh.frustumCulled = false;
   stage.scene.add(mesh);
   const P: { x: number; y: number; z: number }[] = [];
-  for (let i = 0; i < n; i++) P.push({ x: rr(-50, 50), y: rr(0, 26), z: rr(-50, 50) });
+  // 浮空岛：雨一直落到岛底下的虚空里
+  for (let i = 0; i < n; i++) P.push({ x: rr(-50, 50), y: rr(-40, 26), z: rr(-50, 50) });
   const d = new THREE.Object3D();
   let on = 0;
   let target = 0;
@@ -38,6 +41,7 @@ export function createRain(stage: Stage, lighting: RainLighting, n = 800): Rain 
     start() {
       target = 1;
     },
+    amount: () => on,
     update(dt, cx, cz) {
       on = lerp(on, target, 1 - Math.exp(-dt * 0.5));
       mat.opacity = 0.5 * on;
@@ -50,7 +54,7 @@ export function createRain(stage: Stage, lighting: RainLighting, n = 800): Rain 
         const p = P[i] as (typeof P)[number];
         p.y -= 17 * dt;
         p.x += 2.5 * dt;
-        if (p.y < 0) {
+        if (p.y < -40) {
           p.y = rr(20, 26);
           p.x = rr(-50, 50);
           p.z = rr(-50, 50);
@@ -65,7 +69,7 @@ export function createRain(stage: Stage, lighting: RainLighting, n = 800): Rain 
       stage.sun.intensity = lerp(lighting.sun[0], lighting.sun[1], on);
       const sky = lighting.sky.clone().lerp(lighting.skyRain, on);
       stage.renderer.setClearColor(sky);
-      // 雾和天色一起变暗，海面尽头才不会露出一条亮边
+      // 雾和天色一起变暗，远处的云才不会露出一圈亮边
       if (stage.scene.fog) stage.scene.fog.color.copy(sky);
     },
   };

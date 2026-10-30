@@ -2,6 +2,7 @@ export * from './ambient/car';
 export * from './ambient/crow';
 export * from './ambient/dog';
 export * from './ambient/rain';
+export * from './ambient/sky';
 export * from './camera/orbit';
 export * from './choreo/scheduler';
 export * from './choreo/shots';
