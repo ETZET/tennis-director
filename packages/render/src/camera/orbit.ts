@@ -24,13 +24,6 @@ export interface OrbitLimits {
   tz: readonly [number, number];
 }
 
-/** 像素化档位：w 是目标渲染宽度，0 表示原生分辨率。 */
-export const PIXEL_MODES = [
-  { n: 'Fine', w: 0 },
-  { n: 'Mid', w: 640 },
-  { n: 'Chunky', w: 400 },
-] as const;
-
 const KEYS = ['yaw', 'pitch', 'zoom', 'tx', 'tz'] as const;
 
 /**
@@ -40,7 +33,6 @@ const KEYS = ['yaw', 'pitch', 'zoom', 'tx', 'tz'] as const;
 export class OrbitCamera {
   readonly target: CameraPose;
   readonly smooth: CameraPose;
-  pixIdx = 1;
   followStory = true;
   private lastUser = -1e9;
 
@@ -81,22 +73,12 @@ export class OrbitCamera {
     cam.updateProjectionMatrix();
   }
 
+  /** 始终按屏幕原生分辨率渲染（Fine），高清屏最多 2 倍。原型的像素化档位已经去掉。 */
   resize(): void {
-    const W = this.el.clientWidth;
-    const H = this.el.clientHeight;
-    const pw = PIXEL_MODES[this.pixIdx]?.w ?? 0;
     const { renderer } = this.stage;
-    if (!pw) renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-    else renderer.setPixelRatio(1 / Math.max(1, Math.round(W / pw)));
-    renderer.setSize(W, H);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.setSize(this.el.clientWidth, this.el.clientHeight);
     this.apply();
-  }
-
-  /** 切换到下一个像素化档位，返回档位名。 */
-  cyclePixels(): string {
-    this.pixIdx = (this.pixIdx + 1) % PIXEL_MODES.length;
-    this.resize();
-    return PIXEL_MODES[this.pixIdx]?.n ?? '';
   }
 
   touched(): void {

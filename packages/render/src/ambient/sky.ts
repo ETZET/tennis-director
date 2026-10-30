@@ -1,4 +1,4 @@
-import { lerp, mulberry32, range, type XZ } from '@td/shared';
+import { mulberry32, range } from '@td/shared';
 import * as THREE from 'three';
 import { part } from '../people/parts';
 
@@ -6,7 +6,6 @@ import { part } from '../people/parts';
  * 浮空岛的天空（设计稿「Floating island」）：
  * - 方块云在岛的四周和下方慢慢漂，下雨时变成灰色
  * - 几块长着草的小土块浮在岛边，轻轻上下晃
- * - 小溪从岛边落下的瀑布一直在流；下雨时岛的边缘多出几道细瀑布
  *
  * 用自己的种子随机流，不碰 Math.random（演出的随机回合不受影响）。
  */
@@ -23,10 +22,6 @@ export interface IslandSkyOptions {
   seed: number;
   /** 晴 / 雨两种云色 */
   cloud: readonly [string, string];
-  /** 常年流的瀑布（小溪落下去的地方），在岛边上 */
-  outfalls: readonly XZ[];
-  /** 岛底最深处（瀑布从唇边落到比这更深的地方） */
-  depth: number;
 }
 
 export interface IslandSky {
@@ -39,8 +34,6 @@ interface Cloud {
   speed: number;
   wrap: number;
 }
-
-const FALL_COLOR = '#cfe6f2';
 
 export function createIslandSky(scene: THREE.Object3D, o: IslandSkyOptions): IslandSky {
   const rand = mulberry32(o.seed);
@@ -105,46 +98,6 @@ export function createIslandSky(scene: THREE.Object3D, o: IslandSkyOptions): Isl
   addChunk(cx + hx * 0.25, -20, z1 + 24, 3.6);
   addChunk(cx - hx * 0.5, -10, z0 - 20, 2.8);
 
-  /* ---------- 瀑布 ---------- */
-  interface Fall {
-    mesh: THREE.Mesh;
-    mat: THREE.MeshBasicMaterial;
-    base: number;
-    rainOnly: boolean;
-    phase: number;
-  }
-  const falls: Fall[] = [];
-  const fallLen = -o.depth + 40;
-  const addFall = (x: number, z: number, w: number, base: number, rainOnly: boolean) => {
-    const mat = new THREE.MeshBasicMaterial({
-      color: FALL_COLOR,
-      transparent: true,
-      opacity: rainOnly ? 0 : base,
-      depthWrite: false,
-    });
-    const m = new THREE.Mesh(new THREE.BoxGeometry(w, fallLen, w), mat);
-    // 从唇边往下落，长度比岛底深得多，落进下面的云里
-    m.position.set(x, -0.3 - fallLen / 2, z);
-    m.visible = !rainOnly;
-    scene.add(m);
-    falls.push({ mesh: m, mat, base, rainOnly, phase: R(0, Math.PI * 2) });
-  };
-  const out = 0.35;
-  for (const p of o.outfalls) {
-    const ox = p.x <= x0 ? -out : p.x >= x1 ? out : 0;
-    addFall(p.x + ox, p.z, 2.4, 0.75, false);
-  }
-  // 雨天：沿四条边各几道细瀑布
-  const edgeFalls: XZ[] = [];
-  for (let k = 0; k < 5; k++) {
-    const t = (k + 0.5) / 5 + R(-0.06, 0.06);
-    edgeFalls.push({ x: lerp(x0 + 8, x1 - 8, t), z: z1 + out });
-    edgeFalls.push({ x: lerp(x0 + 8, x1 - 8, t), z: z0 - out });
-    edgeFalls.push({ x: x1 + out, z: lerp(z0 + 8, z1 - 8, t) });
-    edgeFalls.push({ x: x0 - out, z: lerp(z0 + 8, z1 - 8, t) });
-  }
-  for (const p of edgeFalls) addFall(p.x, p.z, 0.35, 0.65, true);
-
   const tmp = new THREE.Color();
   return {
     update(dt, now, rain) {
@@ -154,12 +107,6 @@ export function createIslandSky(scene: THREE.Object3D, o: IslandSkyOptions): Isl
       }
       cloudMat.color.copy(tmp.copy(sunny).lerp(rainy, rain));
       for (const k of chunks) k.g.position.y = k.y0 + Math.sin(now * 0.6 + k.phase) * 0.35;
-      for (const f of falls) {
-        const shimmer = 0.85 + 0.15 * Math.sin(now * 7 + f.phase);
-        const a = (f.rainOnly ? f.base * rain : f.base) * shimmer;
-        f.mat.opacity = a;
-        f.mesh.visible = a > 0.01;
-      }
     },
   };
 }

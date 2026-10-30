@@ -5,7 +5,7 @@ import type { CameraPose, OrbitLimits } from '../../camera/orbit';
 import { createBuildContext } from '../../world/build-context';
 import type { LightingDef, Stage } from '../../world/stage';
 import { buildHollowCreek, type HollowCreekStatic } from './build';
-import { CREEK_OUTFALLS, ISLAND, UNDERSIDE } from './layout';
+import { ISLAND } from './layout';
 
 export * from './layout';
 
@@ -51,14 +51,12 @@ export const HOLLOW_CREEK_CAMERA_LIMITS: OrbitLimits = {
   tz: [-55, 55],
 };
 
-/** 岛四周的天空：云、浮在岛边的小土块、瀑布。 */
+/** 岛四周的天空：云、浮在岛边的小土块。 */
 export function createHollowCreekSky(stage: Stage): IslandSky {
   return createIslandSky(stage.scene, {
     island: ISLAND,
     seed: 0xc10d5,
     cloud: ['#d0d5d9', '#8a939b'],
-    outfalls: CREEK_OUTFALLS,
-    depth: UNDERSIDE.stone[UNDERSIDE.stone.length - 1]?.to ?? -13.5,
   });
 }
 

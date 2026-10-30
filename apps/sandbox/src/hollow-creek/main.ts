@@ -50,9 +50,6 @@ $('follow').onclick = () => {
   camera.setFollow(!camera.followStory);
   $('follow').setAttribute('aria-pressed', String(camera.followStory));
 };
-$('pix').onclick = () => {
-  $('pix').textContent = `Pixels: ${camera.cyclePixels()}`;
-};
 $('lblBtn').onclick = () => {
   labels.show = !labels.show;
   $('lblBtn').setAttribute('aria-pressed', String(labels.show));

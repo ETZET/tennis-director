@@ -24,7 +24,7 @@ packages/content 只由 sim 读取
 
 - `packages/render/src/scenes/<场景>/`：`layout.ts`（坐标、场地坐标系、地面高度、锚点）、`build.ts`（静态场景）、`index.ts`（光照、相机预设）。
 - `packages/render/src/voxel|props|people|motion|choreo|ambient|camera|world`：共享的渲染构件。
-- 每个场景是一座浮空岛（ADR 0005）：放在岛上的东西用 `onIsland` 检查，岛边外不放任何东西；岛四周的云、小土块、瀑布在 `ambient/sky.ts`。
+- 每个场景是一座浮空岛（ADR 0005）：放在岛上的东西用 `onIsland` 检查，岛边外不放任何东西；岛四周的云和小土块在 `ambient/sky.ts`。
 - `apps/sandbox`：场景查看器和活动动画库，写死的演示剧情放这里，不放进 render。
 - `prototypes/`：最初的单文件原型，只作参考和截图对比基准，不要修改。
 - `docs/adr/`：重要决策一个文件。违反架构原则的改动先写 ADR。

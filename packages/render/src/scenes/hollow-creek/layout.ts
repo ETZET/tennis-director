@@ -113,7 +113,7 @@ export const DOG_WAYPOINTS = [
 /**
  * 浮空岛：俱乐部所在的整块地是一块悬在天上的方形土台（设计稿「Floating island」）。
  * 边缘是笔直的硬边，四角切掉一点；边外什么都没有，只有天空和云。
- * 所有台地、场地、树、小溪和公路都在岛上；小溪从东西两侧的边缘落下去。
+ * 所有台地、场地、树、小溪和公路都在岛上；小溪两头在岛边截断，不往外流。
  */
 export const ISLAND = {
   x0: -66,
@@ -166,10 +166,4 @@ export const EXIT_ROUTE: readonly XZ[] = [
   { x: 45, z: -30 },
   { x: 45, z: 12 },
   { x: 45, z: ROAD_END_Z - 3 },
-];
-
-/** 小溪从岛边落下去的两个位置（西、东）。 */
-export const CREEK_OUTFALLS: readonly XZ[] = [
-  { x: ISLAND.x0, z: creekZ(ISLAND.x0) },
-  { x: ISLAND.x1, z: creekZ(ISLAND.x1) },
 ];

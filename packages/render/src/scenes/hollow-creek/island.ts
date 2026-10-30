@@ -7,7 +7,7 @@ import { coastDistance, creekZ, ISLAND, UNDERSIDE } from './layout';
 /**
  * 浮空岛的静态部分（设计稿「Floating island」）：
  * 只铺在岛上的草地顶面；岛底剖面（草皮唇边、两层土、往里收的岩层）；
- * 从土层垂下的根须、崖边的杂草和裂开的岩块；小溪从东西两侧边缘落下去的水口。
+ * 从土层垂下的根须、崖边的杂草和裂开的岩块。
  *
  * 用单独的随机流（不碰场景主随机流），所以岛上原有的每块石头、每丛草都不变。
  */
@@ -63,6 +63,23 @@ export function islandGround(tex: THREE.Texture): THREE.Mesh {
   return m;
 }
 
+/** 一丛探出崖边的杂草。y0 是草根的高度。 */
+function weedTuft(ctx: BuildContext, x: number, z: number, y0: number): void {
+  for (let k = 0; k < 3; k++)
+    ctx.solid.box(
+      x + sr(ctx, 0.2, 0.8),
+      y0,
+      z + sr(ctx, 0.2, 0.8),
+      sr(ctx, 0.06, 0.12),
+      sr(ctx, 0.15, 0.45),
+      sr(ctx, 0.06, 0.12),
+      jit(ctx, pick(['#5e7a2e', '#6d7f34', '#7d8a3c'], ctx.rand), 0.05),
+      sr(ctx, 0, 3),
+      sr(ctx, -0.3, 0.3),
+      sr(ctx, -0.3, 0.3),
+    );
+}
+
 /** 某个格子在 inset 收边后是不是该层的外圈（往外一格就出界）。 */
 function ringCell(x: number, z: number, inset: number): boolean {
   if (!cellIn(x, z, inset)) return false;
@@ -88,7 +105,7 @@ function outward(x: number, z: number): { x: number; z: number } {
   return { x: gx / n, z: gz / n };
 }
 
-/** 岛底剖面、根须、崖边细节、小溪水口（自己建网格）。 */
+/** 岛底剖面、根须、崖边细节（自己建网格）。 */
 export function buildIsland(base: BuildContext): void {
   // 岛底单独一个批次：背着太阳的剖面也要看得出土是棕的、石头是灰的（设计稿的两种面色）
   const ctx: BuildContext = { ...base, solid: new VoxelBatcher(), rand: mulberry32(ISLAND_SEED) };
@@ -181,19 +198,7 @@ export function buildIsland(base: BuildContext): void {
       if (!cellIn(x, z) || cellIn(x, z, 1.2) || inCreekMouth(x, z)) continue;
       const r = ctx.rand();
       if (r < 0.1) {
-        for (let k = 0; k < 3; k++)
-          solid.box(
-            x + sr(ctx, 0.2, 0.8),
-            0,
-            z + sr(ctx, 0.2, 0.8),
-            sr(ctx, 0.06, 0.12),
-            sr(ctx, 0.15, 0.45),
-            sr(ctx, 0.06, 0.12),
-            jit(ctx, pick(['#5e7a2e', '#6d7f34', '#7d8a3c'], ctx.rand), 0.05),
-            sr(ctx, 0, 3),
-            sr(ctx, -0.3, 0.3),
-            sr(ctx, -0.3, 0.3),
-          );
+        weedTuft(ctx, x, z, 0);
       } else if (r < 0.13) {
         const o = outward(x, z);
         solid.box(
@@ -211,11 +216,12 @@ export function buildIsland(base: BuildContext): void {
       }
     }
 
-  // 小溪水口：溪水流到岛边，从剖面上冲出一道缺口
+  // 小溪两头：在岛边前面用一道矮石岸截住，水不往外流
   for (let z = Z0; z < Z1; z++)
     for (let x = X0; x < X1; x++) {
-      if (!ringCell(x, z, 0) || !inCreekMouth(x, z)) continue;
-      solid.box(x + 0.5, -0.9, z + 0.5, 1.02, 0.88, 1.02, jit(ctx, ctx.rand() < 0.5 ? '#8fa6aa' : '#a9bcbd', 0.04));
+      if (!cellIn(x, z) || cellIn(x, z, 1.6) || !inCreekMouth(x, z)) continue;
+      solid.box(x + 0.5, -0.6, z + 0.5, 1.02, 0.78, 1.02, jit(ctx, ctx.rand() < 0.4 ? '#8b867b' : '#7b7468', 0.06));
+      if (ctx.rand() < 0.5) weedTuft(ctx, x, z, 0.18);
     }
 
   solid.build(ctx.scene, true, true, { emissive: new THREE.Color('#3a3128') });

@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
   ANCHORS,
-  CREEK_OUTFALLS,
   coastDistance,
   DECK,
   EXIT_ROUTE,
@@ -100,11 +99,10 @@ describe('Hollow Creek 浮空岛', () => {
     expect(coastDistance(ISLAND.x1 - 5, 0, 5)).toBeCloseTo(0);
   });
 
-  it('公路开到岛的南边缘为止，车在路上消失；小溪从东西两边落下', () => {
+  it('公路开到岛的南边缘为止，车在路上消失', () => {
     const end = EXIT_ROUTE[EXIT_ROUTE.length - 1];
     expect(end?.x).toBe(45);
     expect(end && onIsland(end.x, end.z)).toBe(true);
     expect(onIsland(45, ROAD_END_Z + 2)).toBe(false);
-    expect(CREEK_OUTFALLS.map((p) => p.x)).toEqual([ISLAND.x0, ISLAND.x1]);
   });
 });
