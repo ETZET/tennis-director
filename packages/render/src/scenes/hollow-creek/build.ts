@@ -4,7 +4,27 @@ import { courtLines, frameSign, net, pen, surface, weed } from '../../props/cour
 import { bareTree, LEAF_LITTER, sparseTree, stoneWall } from '../../props/landscape';
 import { sign } from '../../voxel/text';
 import { type BuildContext, cbox, jit, sr } from '../../world/build-context';
-import { creekZ, DECK, FA, FB, FC, FD, LOT, MID, POOL, roadY, STAIRS, UP, XE, XW, ZB, ZL, ZU } from './layout';
+import { buildIsland, islandGround } from './island';
+import {
+  creekZ,
+  DECK,
+  FA,
+  FB,
+  FC,
+  FD,
+  LOT,
+  MID,
+  onIsland,
+  POOL,
+  roadY,
+  STAIRS,
+  UP,
+  XE,
+  XW,
+  ZB,
+  ZL,
+  ZU,
+} from './layout';
 
 /**
  * 构建 Hollow Creek 的静态场景。
@@ -25,6 +45,9 @@ export interface HollowCreekStatic {
 
 export function buildHollowCreek(ctx: BuildContext): HollowCreekStatic {
   groundPlane(ctx);
+  // 原型的场景铺满整张 460×460 的地面；现在是一座岛，海岸线外的东西（小溪两头、
+  // 公路南段）照常算随机数，但不放盒子
+  ctx.flat.clip = ctx.solid.clip = onIsland;
   terrain(ctx);
   court1(ctx);
   court2(ctx);
@@ -34,12 +57,14 @@ export function buildHollowCreek(ctx: BuildContext): HollowCreekStatic {
   creek(ctx);
   trees(ctx);
   daleChair(ctx);
+  ctx.flat.clip = ctx.solid.clip = null;
+  buildIsland(ctx);
   ctx.flat.build(ctx.scene, false, true);
   ctx.solid.build(ctx.scene, true, true);
   return { bubblePeaks };
 }
 
-/** 460×460 的草地底面，64×64 像素的随机草色贴图。 */
+/** 岛上的草地顶面，64×64 像素的随机草色贴图（原型里是 460×460 的整片平面）。 */
 function groundPlane(ctx: BuildContext): void {
   const c = document.createElement('canvas');
   c.width = c.height = 64;
@@ -57,11 +82,7 @@ function groundPlane(ctx: BuildContext): void {
   tex.minFilter = THREE.NearestFilter;
   tex.generateMipmaps = false;
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-  tex.repeat.set(460 / 32, 460 / 32);
-  const g = new THREE.Mesh(new THREE.PlaneGeometry(460, 460), new THREE.MeshLambertMaterial({ map: tex }));
-  g.rotation.x = -Math.PI / 2;
-  g.receiveShadow = true;
-  ctx.scene.add(g);
+  ctx.scene.add(islandGround(tex));
 }
 
 function body(ctx: BuildContext, x0: number, x1: number, z0: number, z1: number, h: number, col = '#6f5a42'): void {

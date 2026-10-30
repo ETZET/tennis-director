@@ -20,9 +20,16 @@ export class VoxelBatcher {
   private readonly p: number[] = [];
   private readonly n: number[] = [];
   private readonly c: number[] = [];
+  /**
+   * 裁剪：返回 false 的位置（盒子底面中心）不放盒子。
+   * 盒子的参数（包括随机颜色）在调用前已经算好，所以裁掉的盒子照样消耗了随机数，
+   * 不会让后面的细节变样。
+   */
+  clip: ((x: number, z: number) => boolean) | null = null;
 
   /** 加一个盒子。(x,y,z) 是底面中心；旋转顺序 YXZ。 */
   box(x: number, y: number, z: number, w: number, h: number, d: number, col: ColorLike, ry = 0, rx = 0, rz = 0): void {
+    if (this.clip && !this.clip(x, z)) return;
     const c = col instanceof THREE.Color ? col : new THREE.Color(col);
     _e.set(rx, ry, rz, 'YXZ');
     _q.setFromEuler(_e);

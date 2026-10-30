@@ -3,7 +3,7 @@
  * 画面回归：Hollow Creek 四个角度的截图对比。
  *
  *   node tools/screenshot/compare.mjs                 # sandbox 构建 vs 基准图（CI 用）
- *   node tools/screenshot/compare.mjs --against prototype   # sandbox 构建 vs 原型（M0 闸口）
+ *   node tools/screenshot/compare.mjs --against prototype   # sandbox 构建 vs 原型（M0 闸口；岛屿改动后只在 498030d 上成立）
  *   node tools/screenshot/compare.mjs --update        # 用 sandbox 构建重写基准图
  *
  * 先运行 pnpm build。为了让两边逐帧一致：

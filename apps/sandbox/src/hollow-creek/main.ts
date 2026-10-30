@@ -31,7 +31,7 @@ const demo = createHollowCreekDemo({ stage, sched, world, pool, hud, labels, bub
 hud.collapseOnPhone();
 
 /* ---------- 相机 ---------- */
-const camera = new OrbitCamera(stage, HOME);
+const camera = new OrbitCamera(stage, HOME, hollowCreek.HOLLOW_CREEK_CAMERA_LIMITS);
 window.addEventListener('resize', () => camera.resize());
 camera.resize();
 camera.bindPointer(stage.renderer.domElement);

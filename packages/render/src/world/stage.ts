@@ -3,6 +3,8 @@ import * as THREE from 'three';
 /** 场景的光照和天色。每个场景各有一套（Hollow Creek 是阴天）。 */
 export interface LightingDef {
   sky: string;
+  /** 雾：远处的海面渐渐融进天色（正交相机按视线方向的深度算） */
+  fog?: { near: number; far: number };
   hemi: { sky: string; ground: string; intensity: number };
   sun: {
     color: string;
@@ -34,6 +36,7 @@ export function createStage(container: HTMLElement, L: LightingDef): Stage {
   renderer.setClearColor(new THREE.Color(L.sky));
   container.appendChild(renderer.domElement);
   const scene = new THREE.Scene();
+  if (L.fog) scene.fog = new THREE.Fog(new THREE.Color(L.sky), L.fog.near, L.fog.far);
   const cam = new THREE.OrthographicCamera(-1, 1, 1, -1, 1, 700);
   const hemi = new THREE.HemisphereLight(L.hemi.sky, L.hemi.ground, L.hemi.intensity);
   scene.add(hemi);

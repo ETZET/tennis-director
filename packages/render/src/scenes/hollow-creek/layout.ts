@@ -115,5 +115,56 @@ export const EXIT_ROUTE: readonly XZ[] = [
   { x: 39, z: -31 },
   { x: 45, z: -30 },
   { x: 45, z: 12 },
-  { x: 45, z: 90 },
+  // 沿堤道一直开进雾里
+  { x: 45, z: 190 },
 ];
+
+/**
+ * 岛屿：俱乐部所在的整块地是一座孤岛，四周是海，只有东侧公路沿堤道离岛。
+ * 形状是一个圆角矩形，海岸线向外有起伏（确定性的正弦叠加，不消耗随机数），
+ * 保证所有台地、场地、树和小溪都在岛上。
+ */
+export const ISLAND = {
+  cx: 2,
+  cz: -10,
+  /** 圆角矩形半宽、半高 */
+  hx: 70,
+  hz: 70,
+  /** 圆角半径 */
+  r: 26,
+  /** 海面高度（低于下层台地 y=0） */
+  seaY: -1.1,
+  /** 悬崖底（埋在海面以下） */
+  floorY: -3.2,
+} as const;
+
+/** 海岸线在某个方位角上向外鼓出的距离（米），1 到约 8。 */
+function coastWobble(theta: number): number {
+  return Math.max(
+    1,
+    2.5 + 2.5 * Math.sin(3 * theta + 1) + 1.8 * Math.sin(5 * theta + 2.3) + 1.2 * Math.sin(9 * theta + 0.7),
+  );
+}
+
+/** 到海岸线的有向距离：负数在岛上，正数在海里。 */
+export function coastDistance(x: number, z: number): number {
+  const { cx, cz, hx, hz, r } = ISLAND;
+  const px = Math.abs(x - cx) - (hx - r);
+  const pz = Math.abs(z - cz) - (hz - r);
+  const outside = Math.hypot(Math.max(px, 0), Math.max(pz, 0));
+  const sd = outside + Math.min(Math.max(px, pz), 0) - r;
+  return sd - coastWobble(Math.atan2(z - cz, x - cx));
+}
+
+/** 这个点在不在岛上。 */
+export const onIsland = (x: number, z: number): boolean => coastDistance(x, z) < 0;
+
+/** 东侧公路离岛的位置：沿 x=45 往南找到海岸线。 */
+export function causewayStartZ(): number {
+  let z = 0;
+  while (onIsland(45, z + 0.5)) z += 1;
+  return z;
+}
+
+/** 堤道终点：在雾里，玩家看不到尽头。 */
+export const CAUSEWAY_END_Z = 200;

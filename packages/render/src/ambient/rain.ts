@@ -63,7 +63,10 @@ export function createRain(stage: Stage, lighting: RainLighting, n = 800): Rain 
       mesh.instanceMatrix.needsUpdate = true;
       stage.hemi.intensity = lerp(lighting.hemi[0], lighting.hemi[1], on);
       stage.sun.intensity = lerp(lighting.sun[0], lighting.sun[1], on);
-      stage.renderer.setClearColor(lighting.sky.clone().lerp(lighting.skyRain, on));
+      const sky = lighting.sky.clone().lerp(lighting.skyRain, on);
+      stage.renderer.setClearColor(sky);
+      // 雾和天色一起变暗，海面尽头才不会露出一条亮边
+      if (stage.scene.fog) stage.scene.fog.color.copy(sky);
     },
   };
 }

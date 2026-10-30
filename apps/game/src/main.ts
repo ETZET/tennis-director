@@ -11,7 +11,7 @@ const container = document.getElementById('stage');
 if (!container) throw new Error('#stage missing');
 const stage = createStage(container, hollowCreek.HOLLOW_CREEK_LIGHTING);
 hollowCreek.buildHollowCreekStage(stage);
-const camera = new OrbitCamera(stage, hollowCreek.HOLLOW_CREEK_CAMERA.overview);
+const camera = new OrbitCamera(stage, hollowCreek.HOLLOW_CREEK_CAMERA.overview, hollowCreek.HOLLOW_CREEK_CAMERA_LIMITS);
 camera.bindPointer(stage.renderer.domElement);
 window.addEventListener('resize', () => camera.resize());
 camera.resize();
