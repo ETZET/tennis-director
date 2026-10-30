@@ -1,5 +1,20 @@
-/**
- * 画面层（three.js）。M0-2 起放入从原型拆出的体素构建器、场地坐标系、人物和场景。
- * 规则：不引用 @td/ui，不读 @td/content，不写模拟状态。
- */
-export const RENDER_VERSION = 0;
+export * from './ambient/car';
+export * from './ambient/crow';
+export * from './ambient/dog';
+export * from './ambient/rain';
+export * from './camera/orbit';
+export * from './choreo/scheduler';
+export * from './choreo/shots';
+export * from './motion/ball';
+export * from './motion/ballistics';
+export * from './people/parts';
+export * from './people/person';
+export * from './people/poses';
+export * from './props/court';
+export * from './props/landscape';
+export * as hollowCreek from './scenes/hollow-creek';
+export * from './voxel/batcher';
+export * from './voxel/text';
+export * from './world/build-context';
+export * from './world/frame';
+export * from './world/stage';
