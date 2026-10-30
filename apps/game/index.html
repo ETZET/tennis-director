@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>网球总监</title>
+<style>
+  html, body { height: 100%; margin: 0; background: #8e979a; overflow: hidden; }
+  #stage { position: fixed; inset: 0; }
+  #stage canvas { display: block; image-rendering: pixelated; touch-action: none; }
+  #note { position: fixed; left: 16px; bottom: 16px; font: 13px/1.4 system-ui, sans-serif; background: rgba(25,25,23,.85); color: #e8e2d2; padding: 8px 12px; }
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<div id="note">网球总监 · 游戏入口（M1 起接入模拟核心）。现在只显示 Hollow Creek 静态场景。</div>
+<script type="module" src="./src/main.ts"></script>
+</body>
+</html>

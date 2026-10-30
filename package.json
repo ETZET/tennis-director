@@ -1,0 +1,28 @@
+{
+  "name": "tennis-director",
+  "private": true,
+  "description": "网球总监 · 3D 体素网球中心经营模拟（浏览器版）",
+  "type": "module",
+  "packageManager": "pnpm@10.18.3",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @td/sandbox dev",
+    "build": "pnpm -r --filter \"./apps/**\" build",
+    "typecheck": "pnpm -r typecheck",
+    "test": "vitest run",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "check:deps": "depcruise packages apps --config .dependency-cruiser.cjs",
+    "check": "pnpm typecheck && pnpm lint && pnpm check:deps && pnpm test && pnpm build"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.6.4",
+    "@swc/core": "1.16.20",
+    "dependency-cruiser": "18.7.0",
+    "typescript": "7.0.2",
+    "vite": "8.3.5",
+    "vitest": "5.0.5"
+  }
+}

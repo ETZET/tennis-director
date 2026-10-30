@@ -1,0 +1,9 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`mulberry32 > 与原型的实现逐位一致（Hollow Creek 用种子 1974） 1`] = `
+[
+  0.30664723995141685,
+  0.38498808327130973,
+  0.03513905080035329,
+]
+`;

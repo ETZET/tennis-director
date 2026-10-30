@@ -1,0 +1,17 @@
+{
+  "name": "@td/sim-cli",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "命令行无头跑局和平衡报告（M3 起）",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@td/shared": "workspace:*",
+    "@td/sim": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5"
+  }
+}

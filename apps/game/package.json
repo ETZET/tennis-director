@@ -1,0 +1,19 @@
+{
+  "name": "@td/game",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "正式游戏入口：把 sim、render、ui 组装起来（M1 起）",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@td/render": "workspace:*",
+    "@td/shared": "workspace:*",
+    "@td/sim": "workspace:*",
+    "@td/ui": "workspace:*"
+  }
+}
