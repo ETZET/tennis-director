@@ -16,6 +16,7 @@ import {
 import { clamp, lerp, mulberry32, type XZ } from '@td/shared';
 import { type ContentBundle, coachAttention, type GameState, type SimEvent, worldOf } from '@td/sim';
 import * as THREE from 'three';
+import { type PerformInput, perform, planPerformance } from './perform';
 
 /**
  * 游戏画面里的"活"的部分：总监沿路线走、教练和孩子们、设施状态、活动演出、下雨。
@@ -211,16 +212,6 @@ export function createGameScene(stage: Stage, content0: ContentBundle): GameScen
     extras.push(p);
   }
   const taken = new Set<Person>();
-  const borrow = (n: number, from = 4): Person[] => {
-    const out: Person[] = [];
-    for (let i = from; i < extras.length && out.length < n; i++) {
-      const p = extras[i] as Person;
-      if (taken.has(p)) continue;
-      taken.add(p);
-      out.push(p);
-    }
-    return out;
-  };
   const place = (p: Person, at: XZ, base: Person['base'] = 'relaxed', lock: number | null = null) => {
     p.clearMoves();
     p.pos.x = at.x;
@@ -277,161 +268,18 @@ export function createGameScene(stage: Stage, content0: ContentBundle): GameScen
     };
   }
 
-  /** 人群在一块地方转悠、说话、欢呼 */
-  function mill(
-    ps: readonly Person[],
-    spots: () => XZ,
-    gestures: readonly ('talk' | 'cheer' | 'wave' | 'point')[],
-  ): Perf {
-    let alive = true;
-    const loop = (p: Person, t: number) => {
-      if (!alive) return;
-      const r = rnd();
-      if (r < 0.45) {
-        const s = spots();
-        p.go(s.x, s.z, 1.1 + rnd() * 0.6);
-      } else p.gesture(gestures[Math.floor(rnd() * gestures.length)] ?? 'talk', t, 1.6 + rnd());
-      sched.at(t + 2.5 + rnd() * 3, (tt) => loop(p, tt));
-    };
-    for (const p of ps) sched.at(sched.now + rnd() * 2, (t) => loop(p, t));
-    return {
-      stop() {
-        alive = false;
-      },
-    };
-  }
-
-  const inFrame = (fr: typeof FA, x0: number, x1: number, z0: number, z1: number) => () =>
-    fr.w({ x: lerp(x0, x1, rnd()), z: lerp(z0, z1, rnd()) });
-
-  /* ---------- 演出库：模拟的 performance 名字 → 画面 ---------- */
+  /* ---------- 演出：模拟的 performance 名字 → 活动动画库（perform.ts，ADR 0010） ---------- */
   let state: GameState | null = null;
   const headCoach = () => (state?.headCoach ? (cast.get(state.headCoach) ?? null) : null);
-
-  const PERFS: Record<string, () => Perf> = {
-    lesson() {
-      const coach = headCoach();
-      const ty = cast.get('tyler') as Person;
-      if (!coach) return { stop() {} };
-      place(coach, A(9, 0), 'ready', FA.yaw(WEST));
-      place(ty, A(-9.5, -1.5), 'ready', FA.yaw(EAST));
-      place(mason, A(-9.5, 2.5), 'ready', FA.yaw(EAST));
-      const r1 = rally(coach, ty, { miss: 0.18 });
-      const r2 = rally(coach, mason, { miss: 0.3, speed: 7 });
-      return {
-        stop() {
-          r1.stop();
-          r2.stop();
-          idleCourt1();
-        },
-      };
-    },
-    trial_day() {
-      const coach = headCoach();
-      const guests = borrow(6);
-      for (const [i, g] of guests.entries()) place(g, A(-6 + i * 2.4, 7.4));
-      const m = mill(guests, inFrame(FA, -12, 12, 6, 8.4), ['talk', 'cheer', 'wave']);
-      let r: Perf | null = null;
-      const kid = guests[0];
-      if (coach && kid) {
-        place(coach, A(9, 0), 'ready', FA.yaw(WEST));
-        place(kid, A(-9, 0), 'ready', FA.yaw(EAST));
-        r = rally(coach, kid, { miss: 0.35, speed: 6 });
-      }
-      return {
-        stop() {
-          r?.stop();
-          m.stop();
-          giveBack(guests);
-          idleCourt1();
-        },
-      };
-    },
-    match() {
-      const ty = cast.get('tyler') as Person;
-      const [rival, ...fans] = borrow(5);
-      if (!rival) return { stop() {} };
-      place(ty, A(-10, 0), 'ready', FA.yaw(EAST));
-      place(rival, A(10, 0), 'ready', FA.yaw(WEST));
-      for (const [i, f] of fans.entries()) place(f, A(-8 + i * 4, -8.2));
-      const r = rally(ty, rival, { speed: 11, miss: 0.15 });
-      const m = mill(fans, inFrame(FA, -12, 12, -8.6, -7.6), ['cheer', 'point']);
-      return {
-        stop() {
-          r.stop();
-          m.stop();
-          giveBack([rival, ...fans]);
-          idleCourt1();
-        },
-      };
-    },
-    workday() {
-      const crew = borrow(5);
-      for (const c of crew) place(c, inFrame(FD, -12, 12, -7, 7)(), 'carry');
-      const m = mill(crew, inFrame(FD, -14, 14, -8, 8), ['point', 'talk']);
-      return {
-        stop() {
-          m.stop();
-          giveBack(crew);
-        },
-      };
-    },
-    contractor() {
-      const crew = borrow(3);
-      for (const c of crew) place(c, inFrame(FD, -10, 10, -6, 6)(), 'carry');
-      const m = mill(crew, inFrame(FD, -14, 14, -8, 8), ['point']);
-      return {
-        stop() {
-          m.stop();
-          giveBack(crew);
-        },
-      };
-    },
-    fundraiser() {
-      const d = hollowCreek.DECK;
-      const guests = borrow(7);
-      const spot = () => ({ x: lerp(d.x0 + 1.5, d.x1 - 1.5, rnd()), z: lerp(d.z0 + 1, d.z1 - 1, rnd()) });
-      for (const g of guests) place(g, spot());
-      const m = mill(guests, spot, ['talk', 'cheer', 'wave']);
-      return {
-        stop() {
-          m.stop();
-          giveBack(guests);
-        },
-      };
-    },
-    tug_of_war() {
-      const tennis = borrow(4);
-      // 匹克球那一队就是 2 号场上打球的那四位
-      for (const r of pickleRallies) r.stop();
-      pickleRallies = [];
-      const pickle = extras.slice(0, 4);
-      for (const p of pickle) taken.add(p);
-      for (const [i, p] of tennis.entries()) place(p, FB.w({ x: -2 - i * 1.4, z: 0 }), 'carry', FB.yaw(EAST));
-      for (const [i, p] of pickle.entries()) place(p, FB.w({ x: 2 + i * 1.4, z: 0 }), 'carry', FB.yaw(WEST));
-      let alive = true;
-      const tug = (t: number) => {
-        if (!alive) return;
-        const off = (rnd() - 0.5) * 1.6;
-        tennis.forEach((p, i) => {
-          const w = FB.w({ x: -2 - i * 1.4 + off, z: 0 });
-          p.go(w.x, w.z, 0.8);
-        });
-        pickle.forEach((p, i) => {
-          const w = FB.w({ x: 2 + i * 1.4 + off, z: 0 });
-          p.go(w.x, w.z, 0.8);
-        });
-        sched.at(t + 1.4, tug);
-      };
-      sched.at(sched.now + 0.3, tug);
-      return {
-        stop() {
-          alive = false;
-          giveBack([...tennis, ...pickle]);
-          syncPickleball(true);
-        },
-      };
-    },
+  const performInput = (): PerformInput => {
+    const ps = state?.people ?? {};
+    const jr = ['tyler', 'mason'].map((id) => ps[id]?.fatigue ?? 0);
+    const coachId = state?.headCoach;
+    return {
+      weather: rain.amount() > 0.3 ? 'rain' : 'cloud',
+      fatigue: jr.reduce((a, b) => a + b, 0) / jr.length,
+      coachSkill: coachId ? (ps[coachId]?.skill ?? 40) : 0,
+    };
   };
 
   /* ---------- 2 号场的匹克球：设施状态决定他们在不在 ---------- */
@@ -486,8 +334,34 @@ export function createGameScene(stage: Stage, content0: ContentBundle): GameScen
   const running = new Map<number, Perf>();
   function startActivity(uid: number, performance: string): void {
     running.get(uid)?.stop();
-    const f = PERFS[performance];
-    if (f) running.set(uid, f());
+    running.delete(uid);
+    const plan = planPerformance(performance);
+    if (!plan) return;
+    // 2 号场上的演出：先把正在打匹克球的四位请下场，演完再回来
+    const court2 = plan.area === 'court_2';
+    if (court2) {
+      for (const r of pickleRallies) r.stop();
+      pickleRallies = [];
+      giveBack(extras.slice(0, 4));
+    }
+    const lang = document.documentElement.lang.startsWith('zh') ? 'zh' : 'en';
+    const p = perform(
+      { scene: stage.scene, sched, world, lang },
+      performance,
+      performInput(),
+      {
+        coach: headCoach(),
+        juniors: [cast.get('tyler') as Person, mason],
+      },
+      uid,
+    );
+    running.set(uid, {
+      stop() {
+        p.stop();
+        if (court2) syncPickleball(true);
+        idleCourt1();
+      },
+    });
   }
 
   function sync(s: GameState): void {
