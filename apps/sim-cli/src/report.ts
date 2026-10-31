@@ -64,7 +64,7 @@ export function botReport(
     };
     for (let i = 0; i < o.games; i++) {
       const seed = (o.seed0 ?? 1) + i;
-      const r = runGame(content, BOTS[name](seed), seed, { act, director, maxDays: 30 });
+      const r = runGame(content, BOTS[name](seed), seed, { act, director, maxDays: 60 });
       total++;
       if (r.outcome?.result === 'won') sum.wins++;
       const ending = r.outcome?.ending ?? '(none)';

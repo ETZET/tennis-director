@@ -1,5 +1,6 @@
 import type { Card, ContentBundle, Effect, OptionKey } from '@td/content';
 import { type OptionStatus, optionStatus } from './cards';
+import { actionStatus } from './director';
 import { advance, type Command, type LoggedCommand, newGame } from './game';
 import type { GameState } from './state';
 import { type World, worldFor } from './world';
@@ -36,7 +37,14 @@ export function randomBot(seed: number): Bot {
     name: 'random',
     decide(s, content) {
       const w = worldFor(content, s.act, s.directorConfig);
+      if (s.planning) return [{ type: 'lockPlan' }];
       const cmds: Command[] = [];
+      // 偶尔随手做件事
+      if (!s.cards.open.length && !s.director.task && !s.director.leg && r() < 0.005) {
+        const ok = [...w.actions.values()].filter((a) => actionStatus(s, w, a).available);
+        const a = ok[Math.floor(r() * ok.length)];
+        if (a) cmds.push({ type: 'act', action: a.id });
+      }
       for (const o of s.cards.open) {
         let p = plan.get(o.uid);
         if (!p) {
@@ -114,13 +122,18 @@ function worstCase(c: Card, st: OptionStatus): number {
  * 需要总监到场就走过去；没事做时站在主教练身边盯课。
  */
 export function greedyBot(): Bot {
-  return pickerBot('greedy', (w, c, st) => scoreOption(w, c, st, false), { firstNeed: true });
+  return pickerBot('greedy', (w, c, st) => scoreOption(w, c, st, false), {
+    firstNeed: true,
+    act: { min: 3, energyCost: 0.15 },
+  });
 }
 
 /** 谨慎型：选最坏情况最不坏的选项（不赌判定、不乱花钱），而且不爱走动。 */
 export function cautiousBot(): Bot {
   return pickerBot('cautious', (_w, c, st) => worstCase(c, st) - (st.requiresDirectorAt ? 2 : 0), {
     standByCoach: false,
+    act: { min: 6, energyCost: 0.3, avoidChecks: true },
+    plan: 'calm',
   });
 }
 
@@ -128,20 +141,89 @@ export function cautiousBot(): Bot {
 export function walkerBot(): Bot {
   return pickerBot('walker', (w, c, st) => scoreOption(w, c, st, true) + (st.requiresDirectorAt ? 6 : 0), {
     goToTrouble: true,
+    act: { min: 1, energyCost: 0.05 },
   });
+}
+
+/** 一串效果"立刻能看到的好处"的期望分 */
+function effectScore(w: World, effs: readonly Effect[], k = 1): number {
+  let score = 0;
+  for (const e of effs) {
+    const m = k * (typeof e.chance === 'number' ? e.chance : 1);
+    if ('stat' in e && 'add' in e && typeof e.add === 'number') score += m * e.add * (WEIGHT[e.stat] ?? 0);
+    else if ('stat' in e && 'add' in e) score += m * 6 * (WEIGHT[e.stat] ?? 0);
+    if ('facility' in e) score += m * 12;
+    if ('activity' in e) score += m * 8;
+    if ('flag' in e) score += m * 2;
+    if ('person' in e) score += m * 2;
+  }
+  return score;
+}
+
+/** 机器人怎么排公告板：贪心型排满课（不超过教练负荷）、每周一次开放日、周末自由打球、周五社交夜 */
+function planCommands(s: GameState, w: World, style: 'busy' | 'calm'): Command[] {
+  const want: Record<string, (string | null)[]> =
+    style === 'busy'
+      ? {
+          am: [null, 'adult_clinic', null, null, null, 'open_play', 'open_play'],
+          pm: ['junior_lesson', 'junior_lesson', 'junior_lesson', 'junior_lesson', 'open_day', null, null],
+          eve: [null, 'pickleball_hours', null, 'pickleball_hours', 'social_night', null, null],
+        }
+      : {
+          am: [null, null, null, null, null, 'open_play', 'open_play'],
+          pm: ['junior_lesson', null, 'junior_lesson', null, 'junior_lesson', null, null],
+          eve: [null, null, null, null, 'social_night', null, null],
+        };
+  const cmds: Command[] = [];
+  for (const [part, week] of Object.entries(want)) {
+    if (!(part in w.act.schedule.parts)) continue;
+    week.forEach((activity, weekday) => {
+      if (activity && !w.activities.get(activity)?.program) return;
+      if ((s.plan[part]?.[weekday] ?? null) !== activity) cmds.push({ type: 'setPlan', part, weekday, activity });
+    });
+  }
+  cmds.push({ type: 'lockPlan' });
+  return cmds;
 }
 
 function pickerBot(
   name: string,
   score: (w: World, c: Card, st: OptionStatus) => number,
-  o: { standByCoach?: boolean; goToTrouble?: boolean; firstNeed?: boolean } = {},
+  o: {
+    standByCoach?: boolean;
+    goToTrouble?: boolean;
+    firstNeed?: boolean;
+    /** 主动做事：分数至少多少才做；精力每点折多少分；null = 不主动做事 */
+    act?: { min: number; energyCost: number; avoidChecks?: boolean } | null;
+    plan?: 'busy' | 'calm';
+  } = {},
 ): Bot {
-  const { standByCoach = true, goToTrouble = false, firstNeed = false } = o;
+  const { standByCoach = true, goToTrouble = false, firstNeed = false, act = null, plan = 'busy' } = o;
   return {
     name,
     decide(s, content) {
       const w = worldFor(content, s.act, s.directorConfig);
+      if (s.planning) return planCommands(s, w, plan);
       const cmds: Command[] = [];
+      // 手上没事、没卡要处理时，挑一件最划算的事去做
+      if (act && !s.cards.open.length && !s.director.task) {
+        let best: { id: string; score: number } | null = null;
+        for (const a of w.actions.values()) {
+          const st = actionStatus(s, w, a);
+          if (!st.available) continue;
+          if (act.avoidChecks && st.chance !== null && st.chance < 0.7) continue;
+          const p = st.chance ?? 1;
+          const sc =
+            effectScore(w, a.effects) +
+            effectScore(w, a.onSuccess, p) +
+            effectScore(w, a.onFail, 1 - p) -
+            a.cost * (WEIGHT.cash ?? 0) -
+            st.energy * act.energyCost;
+          if (sc >= act.min && (!best || sc > best.score)) best = { id: a.id, score: sc };
+        }
+        if (best) return [{ type: 'act', action: best.id }];
+      }
+      if (s.director.task) return cmds;
       let wantAt: string | null = null;
       for (const o of s.cards.open) {
         const c = w.cards.get(o.card);
@@ -187,7 +269,7 @@ export function runGame(
     ...(o.act ? { act: o.act } : {}),
     ...(o.director ? { director: o.director } : {}),
   });
-  const limit = (o.maxDays ?? 30) * 1440;
+  const limit = (o.maxDays ?? 60) * 1440;
   const stepMin = o.step ?? 5;
   const commands: LoggedCommand[] = [];
   while (!s.outcome && s.t < limit) {

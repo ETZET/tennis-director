@@ -1,0 +1,14 @@
+# 公告板：红土场时段（红土场整好以后）。
+id: clay_session
+duration: 2h
+anchor: clay_court
+performance: open_play
+program:
+  parts: [am, pm]
+  requires:
+    all:
+      - { facility: clay, is: restored }
+      - { not: { weather: rain } }
+effects:
+  - { stat: cash, add: 30 }
+  - { stat: members, add: 1, chance: 0.1 }

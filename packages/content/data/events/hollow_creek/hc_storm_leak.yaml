@@ -3,10 +3,10 @@ id: hc_storm_leak
 act: hollow_creek
 source: random
 tone: crisis
-when: { all: [{ day: { gte: 3 } }, { not: { flag: roof_patched } }] }
+when: { all: [{ weather: rain }, { not: { flag: roof_patched } }] }
 once: false
 cooldown: 4d
-weight: 0.5
+weight: 3
 countdown: 3h
 location: deck
 options:

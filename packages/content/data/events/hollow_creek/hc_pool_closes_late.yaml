@@ -1,0 +1,13 @@
+# 多开的那一周过去了：这回真的要关了。
+id: hc_pool_closes_late
+act: hollow_creek
+source: consequence
+tone: neutral
+countdown: 6h
+location: pool
+options:
+  A:
+    effects:
+      - { facility: pool, set: drained }
+      - { stat: members, add: 1, chance: 0.4 }
+default: { then: A }

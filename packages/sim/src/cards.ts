@@ -209,5 +209,7 @@ export function directorDraw(ctx: Ctx): void {
     eligibleCards(s, w).map((x) => ({ item: x.card, weight: x.weight })),
   );
   if (pick) openCard(ctx, pick, null);
-  s.cards.nextDraw = s.t + (pick ? interval : Math.round(interval / 3));
+  // 间隔带一点随机，抽卡不总在一天里的同一个钟点
+  const base = pick ? interval : Math.round(interval / 3);
+  s.cards.nextDraw = s.t + Math.round(base * (0.75 + rand(s) * 0.5));
 }

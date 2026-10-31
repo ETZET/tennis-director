@@ -27,6 +27,8 @@ export type Cond =
   | { open: string }
   | { coach: string }
   | { activity: string; running?: boolean }
+  | { weather: string }
+  | { season: string }
   | { expr: string };
 
 export const cond: z.ZodType<Cond> = z.lazy(() =>
@@ -52,6 +54,10 @@ export const cond: z.ZodType<Cond> = z.lazy(() =>
     /** 现任主教练是谁；'none' 表示空缺 */
     z.strictObject({ coach: id }),
     z.strictObject({ activity: id, running: z.boolean().optional() }),
+    /** 今天的天气：sun / cloud / rain / wind */
+    z.strictObject({ weather: z.enum(['sun', 'cloud', 'rain', 'wind']) }),
+    /** 当前季节（幕里 seasons 的 id） */
+    z.strictObject({ season: id }),
     z.strictObject({ expr: z.string() }),
   ]),
 );
@@ -83,6 +89,8 @@ export const effect = z.union([
   z.strictObject({ ...gate, endAct: z.enum(['won', 'lost']), ending: id }),
   /** 「谁跟我走」：这个人进入跨幕继承 */
   z.strictObject({ ...gate, follow: id }),
+  /** 总监精力加减（0..100） */
+  z.strictObject({ ...gate, energy: amount }),
 ]);
 export type Effect = z.infer<typeof effect>;
 
@@ -144,8 +152,19 @@ export const activity = z.strictObject({
   anchor: id,
   /** 渲染层的演出名（render/choreo 注册表里的键） */
   performance: id,
-  /** 进行中每天的开销（例如外包施工） */
+  /** 活动结束时结算的效果 */
   effects: z.array(effect).default([]),
+  /**
+   * 能钉到会所公告板（季度日程）上的活动：课程、开放打球、匹克球时段、社交夜……
+   * parts：能排在一天的哪些时段（幕里 schedule.parts 的 id）；requires：到了那天能不能开（场地状态、天气）。
+   * 在哪儿办就是活动的 anchor。
+   */
+  program: z
+    .strictObject({
+      parts: z.array(id).min(1),
+      requires: cond.optional(),
+    })
+    .optional(),
 });
 export type Activity = z.infer<typeof activity>;
 
@@ -162,6 +181,8 @@ export type Stat = z.infer<typeof stat>;
 export const facilityState = z.strictObject({
   /** 这个状态下能打网球的场地数 */
   courts: z.number().default(0),
+  /** 下雨天也能用（气膜、室内）；默认下雨天不能用 */
+  rain_ok: z.boolean().default(false),
   /** 对项目质量目标值的贡献 */
   quality: z.number().default(0),
   /** 每周收入 / 支出（美元） */
@@ -208,6 +229,34 @@ export const director = z.strictObject({
 });
 export type DirectorConfig = z.infer<typeof director>;
 
+/* ---------------- 主动经营：点场景里的地点或人，总监去做的事 ---------------- */
+
+export const action = z.strictObject({
+  id,
+  act: id,
+  /** 在哪个锚点点出来（也是要亲自到场时总监要去的地方） */
+  at: id,
+  /** 什么时候出现在这个地点的动作列表里 */
+  when: cond.optional(),
+  /** 花多少钱（开始做的时候扣；钱不够不能做） */
+  cost: z.number().min(0).default(0),
+  /** 花多少精力（亲自做的事才花） */
+  energy: z.number().min(0).default(0),
+  /** 要总监亲自到场：先走过去，在那儿待 duration（精力低时更久） */
+  onsite: z.boolean().default(false),
+  duration: duration.default('0m'),
+  /** 做完多久以后才能再做 */
+  cooldown: duration.optional(),
+  once: z.boolean().default(false),
+  /** 总监在现场演哪个动作（渲染层的演出名） */
+  performance: id.optional(),
+  check: z.union([z.strictObject({ stat: id, vs: z.number() }), z.strictObject({ chance: z.string() })]).optional(),
+  effects: z.array(effect).default([]),
+  onSuccess: z.array(effect).default([]),
+  onFail: z.array(effect).default([]),
+});
+export type Action = z.infer<typeof action>;
+
 /* ---------------- 幕 ---------------- */
 
 export const act = z.strictObject({
@@ -242,6 +291,30 @@ export const act = z.strictObject({
   }),
   /** 每天固定开的活动（例如下午的青少年课） */
   daily: z.array(z.strictObject({ hour: z.number(), activity: id, if: cond.optional() })).default([]),
+  /** 季节：从第几天开始（第一个从第 1 天开始）。换季时总监精力回满、重新排日程 */
+  seasons: z.array(z.strictObject({ id, from_day: z.number().int().min(1) })).default([]),
+  /** 每个季节的天气权重 */
+  weather: z
+    .record(id, z.strictObject({ sun: z.number(), cloud: z.number(), rain: z.number(), wind: z.number() }))
+    .default({}),
+  /** 总监精力：每晚恢复多少；走路和做事的速度从 slow（精力 0）到 fast（精力满）线性变化 */
+  energy: z
+    .strictObject({
+      overnight: z.number().default(10),
+      slow: z.number().positive().default(0.6),
+      fast: z.number().positive().default(1.5),
+    })
+    .default({ overnight: 10, slow: 0.6, fast: 1.5 }),
+  /**
+   * 季度日程（会所公告板）：一天分几个时段、各几点开始（行），开局的默认日程
+   * 时段 → [周一..周日] 的活动 id 或 null。一个格子钉一张便条。
+   */
+  schedule: z
+    .strictObject({
+      parts: z.record(id, z.number().min(0).max(24)).default({}),
+      start: z.record(id, z.array(id.nullable()).length(7)).default({}),
+    })
+    .default({ parts: {}, start: {} }),
 });
 export type Act = z.infer<typeof act>;
 
@@ -256,6 +329,7 @@ export interface ContentBundle {
   traits: Trait[];
   directors: DirectorConfig[];
   activities: Activity[];
+  actions: Action[];
   acts: Act[];
   cards: Card[];
   /** 语言 → 扁平的文案键值表 */

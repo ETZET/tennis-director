@@ -1,0 +1,9 @@
+# 停车场：在路口挂一块招生牌。
+id: recruit_sign
+act: hollow_creek
+at: lot
+cost: 40
+cooldown: 7d
+effects:
+  - { stat: members, add: 1, chance: 0.5 }
+  - { stat: members, add: 1, chance: 0.2 }

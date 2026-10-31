@@ -1,0 +1,14 @@
+# 公告板：把 2 号场按小时租给匹克球（2 号场分时段或收回来以后才有意义）。
+id: pickleball_hours
+duration: 3h
+anchor: court_2
+performance: pickleball
+program:
+  parts: [am, pm, eve]
+  requires:
+    all:
+      - { not: { facility: court_2, is: rented_pickleball } }
+      - { not: { weather: rain } }
+effects:
+  - { stat: cash, add: 30 }
+  - { stat: pickleball_pressure, add: -2 }

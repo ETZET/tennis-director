@@ -1,7 +1,7 @@
 import type { Cond } from '@td/content';
 import { type ExprEnv, evalBool, evalNumber, type Value } from '@td/shared';
 import { rand } from './rng';
-import { dayOf, type GameState, minuteOfDay } from './state';
+import { dayOf, type GameState, minuteOfDay, weekdayOf } from './state';
 import type { World } from './world';
 
 /**
@@ -20,17 +20,20 @@ export function coachAttention(s: GameState, w: World): number {
   return traits.reduce((m, t) => Math.min(m, w.traits.get(t)?.attention ?? 1), 1);
 }
 
+/** 设施合计。下雨天只有能挡雨的（rain_ok）场地算开放、有场地收入。 */
 export function facilityTotals(s: GameState, w: World) {
   let courts = 0;
   let quality = 0;
   let income = 0;
   let upkeep = 0;
+  const rain = s.weather === 'rain';
   for (const [id, state] of Object.entries(s.facilities)) {
     const f = w.facilities.get(id)?.states[state];
     if (!f) continue;
-    courts += f.courts;
+    const usable = !rain || f.rain_ok;
+    courts += usable ? f.courts : 0;
     quality += f.quality;
-    income += f.income_week;
+    income += usable ? f.income_week : 0;
     upkeep += f.upkeep_week;
   }
   return { courts, quality, income, upkeep };
@@ -76,7 +79,18 @@ export function makeEnv(s: GameState, w: World, extra: Record<string, Value> = {
           return undefined;
         }
         case 'director':
-          return rest === 'at' ? (s.director.at ?? '') : undefined;
+          return rest === 'at' ? (s.director.at ?? '') : rest === 'energy' ? s.director.energy : undefined;
+        case 'weather':
+          return s.weather;
+        case 'season':
+          return s.season;
+        case 'weekday':
+          return weekdayOf(s.t);
+        case 'plan': {
+          let n = 0;
+          for (const week of Object.values(s.plan)) for (const x of week) if (x === rest) n++;
+          return n;
+        }
         case 'courts_open':
           return facs().courts;
         case 'facility_quality':
@@ -133,6 +147,8 @@ export function test(s: GameState, w: World, c: Cond | undefined): boolean {
   if ('seen' in c) return (s.cards.seen[c.seen] ?? 0) > 0;
   if ('open' in c) return s.cards.open.some((o) => o.card === c.open);
   if ('coach' in c) return c.coach === 'none' ? s.headCoach === null : s.headCoach === c.coach;
+  if ('weather' in c) return s.weather === c.weather;
+  if ('season' in c) return s.season === c.season;
   if ('activity' in c) {
     const running = s.activities.some((a) => a.id === c.activity && a.started);
     return (c.running ?? true) === running;

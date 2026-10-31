@@ -3,7 +3,7 @@ id: hc_pickleball_lease
 act: hollow_creek
 source: threshold
 tone: neutral
-when: { all: [{ day: { gte: 3 } }, { facility: court_2, is: rented_pickleball }] }
+when: { all: [{ day: { gte: 6 } }, { facility: court_2, is: rented_pickleball }] }
 countdown: 1d
 location: court_2
 stage: { anchor: court_2, performance: pickleball }

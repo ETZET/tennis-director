@@ -1,0 +1,18 @@
+# 红土场：发起社区劳动日。免费、长口碑，但要你在那儿干一下午；来的人不够就只能清一角。
+id: clay_workday
+act: hollow_creek
+at: clay_court
+when: { facility: clay, is: overgrown }
+onsite: true
+energy: 25
+duration: 4h
+cooldown: 3d
+performance: workday
+check: { stat: reputation, vs: 35 }
+onSuccess:
+  - { facility: clay, set: restored }
+  - { stat: reputation, add: 4 }
+  - { stat: members, add: "round(1 + rand() * 2)" }
+onFail:
+  - { stat: reputation, add: 1 }
+  - { log: log.workday_thin }

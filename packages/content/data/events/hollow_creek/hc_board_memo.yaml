@@ -26,7 +26,7 @@ options:
     effects:
       - { flag: dale_second_chance, set: true }
       - { person: dale, add: { morale: 10 } }
-      - { schedule: hc_dale_relapse, in: 1d }
+      - { schedule: hc_dale_relapse, in: 3d }
 default:
   then: C
   extra:

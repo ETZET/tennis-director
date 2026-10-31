@@ -51,7 +51,7 @@ describe('Session', () => {
     const proj = new Projector(CONTENT, text);
     const bot = randomBot(3);
     session.speedIndex = 2;
-    for (let f = 0; f < 60 * 60 * 20 && !session.s.outcome; f++) {
+    for (let f = 0; f < 60 * 60 * 60 && !session.s.outcome; f++) {
       for (const c of bot.decide(session.s, CONTENT)) session.send(c);
       session.paused = false;
       const ev = session.frame(1 / 60);
@@ -69,7 +69,13 @@ describe('Session', () => {
 
   it('a walk-first option walks there and then gets chosen', () => {
     const session = Session.fresh(CONTENT, 7);
-    session.frame(0.25); // 第一分钟：开场卡打开
+    session.send({ type: 'lockPlan' });
+    session.paused = false;
+    // 周一 15:30 Dale 玩手机的卡打开（会请求暂停）
+    for (let i = 0; i < 20000 && !session.s.cards.open.some((o) => o.card === 'hc_dale_phone'); i++) {
+      session.paused = false;
+      session.frame(1 / 60);
+    }
     const card = session.s.cards.open.find((o) => o.card === 'hc_dale_phone');
     expect(card).toBeDefined();
     expect(session.choose(card?.uid ?? 0, 'A')).toBe(true);

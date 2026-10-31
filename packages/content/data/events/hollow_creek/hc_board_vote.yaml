@@ -9,8 +9,8 @@ location: deck
 options:
   A:
     requiresDirectorAt: deck
-    # 表决永远有风险：信心满格也只有八成五；再差也有一成多的机会
-    check: { chance: "clamp((stat.board_support - 25) / 70, 0.12, 0.85)" }
+    # 表决永远有风险：信心满格也只有八成五；再差也有一点机会
+    check: { chance: "clamp((stat.board_support - 40) / 50, 0.08, 0.85)" }
     onSuccess:
       - { flag: board_vote_passed, set: true }
       - { log: log.vote_passed }
@@ -19,7 +19,7 @@ options:
       - { log: log.vote_failed }
       - { endAct: lost, ending: club_sold }
   B:
-    check: { chance: "clamp((stat.board_support - 35) / 70, 0.08, 0.75)" }
+    check: { chance: "clamp((stat.board_support - 50) / 50, 0.05, 0.75)" }
     onSuccess:
       - { flag: board_vote_passed, set: true }
       - { log: log.vote_passed }

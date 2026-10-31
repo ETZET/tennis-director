@@ -19,10 +19,14 @@ function until(s: GameState, f: (s: GameState) => boolean, max = 20000, content:
 }
 
 describe('开局', () => {
-  it('按幕配置建好状态：第 1 天 15:00，Dale 是主教练，总监在露台', () => {
+  it('按幕配置建好状态：第 1 天 8:00，夏末，公告板打开，总监精力满格在露台', () => {
     const s = fresh();
     expect(dayOf(s.t)).toBe(1);
-    expect(minuteOfDay(s.t)).toBe(15 * 60);
+    expect(minuteOfDay(s.t)).toBe(8 * 60);
+    expect(s.season).toBe('late_summer');
+    expect(s.planning).toBe(true);
+    expect(s.director.energy).toBe(100);
+    expect(s.plan.pm?.[0]).toBe('junior_lesson');
     expect(s.headCoach).toBe('dale');
     expect(s.director.at).toBe('deck');
     expect(s.stats.cash).toBe(1800);
@@ -30,12 +34,13 @@ describe('开局', () => {
     expect(s.log[0]?.cause.kind).toBe('start');
   });
 
-  it('第一个 tick 打开教学卡并请求暂停；下午的课开始', () => {
+  it('周一下午按公告板开课；15:30 Dale 玩手机的卡打开并请求暂停', () => {
     const s = fresh();
-    const r = advance(s, CONTENT, [], 1);
+    advance(s, CONTENT, [{ type: 'lockPlan' }], 0);
+    const r = advance(s, CONTENT, [], 7.5 * 60 + 1);
     expect(s.cards.open.map((o) => o.card)).toEqual(['hc_dale_phone']);
     expect(r.events.some((e) => e.type === 'requestPause')).toBe(true);
-    expect(r.events.some((e) => e.type === 'activityStarted' && e.activity === 'lesson')).toBe(true);
+    expect(r.events.some((e) => e.type === 'activityStarted' && e.activity === 'junior_lesson')).toBe(true);
   });
 });
 
@@ -47,14 +52,20 @@ describe('总监走位', () => {
     });
   });
 
-  it('走到目的地要按导航图的分钟数；到之前不算在场', () => {
+  it('走路分钟数 = 导航图分钟 ÷ 精力速度：精力满时跑着去，累了慢慢走', () => {
     const s = fresh();
     advance(s, CONTENT, [{ type: 'moveDirector', to: 'court_1' }], 0);
     expect(s.director.at).toBeNull();
-    advance(s, CONTENT, [], 38);
+    advance(s, CONTENT, [], 25);
     expect(s.director.at).toBeNull();
     advance(s, CONTENT, [], 1);
-    expect(s.director.at).toBe('court_1');
+    expect(s.director.at).toBe('court_1'); // 39 ÷ 1.5 = 26 分钟
+    const t = fresh();
+    t.director.energy = 0;
+    advance(t, CONTENT, [{ type: 'moveDirector', to: 'court_1' }], 64);
+    expect(t.director.at).toBeNull();
+    advance(t, CONTENT, [], 1);
+    expect(t.director.at).toBe('court_1'); // 39 ÷ 0.6 = 65 分钟
   });
 
   it('总监在 1 号场时，玩手机的教练专注度回到 1', () => {
@@ -68,13 +79,13 @@ describe('总监走位', () => {
 describe('事件卡', () => {
   it('需要亲临的选项在总监到场前不能选，到了就能选', () => {
     const s = fresh();
-    advance(s, CONTENT, [], 1);
+    until(s, (x) => x.cards.open.some((o) => o.card === 'hc_dale_phone'));
     const uid = openUid(s, 'hc_dale_phone');
     expect(optionStatus(s, W(), uid).find((o) => o.key === 'A')).toMatchObject({
       available: false,
       blocked: 'director',
     });
-    advance(s, CONTENT, [{ type: 'moveDirector', to: 'court_1' }], 39);
+    advance(s, CONTENT, [{ type: 'moveDirector', to: 'court_1' }], 40);
     expect(optionStatus(s, W(), uid).find((o) => o.key === 'A')?.available).toBe(true);
     const q = s.stats.quality ?? 0;
     const r = advance(s, CONTENT, [{ type: 'chooseOption', uid, option: 'A' }], 0);
@@ -86,18 +97,18 @@ describe('事件卡', () => {
 
   it('不能选的选项被拒绝，不进命令日志', () => {
     const s = fresh();
-    advance(s, CONTENT, [], 1);
+    until(s, (x) => x.cards.open.some((o) => o.card === 'hc_dale_phone'));
     const r = advance(s, CONTENT, [{ type: 'chooseOption', uid: openUid(s, 'hc_dale_phone'), option: 'A' }], 0);
     expect(r.accepted).toHaveLength(0);
   });
 
   it('倒计时到了执行默认后果，并记成"默认"', () => {
     const s = fresh();
-    advance(s, CONTENT, [], 1);
+    until(s, (x) => x.cards.open.some((o) => o.card === 'hc_dale_phone'));
     const q = s.stats.quality ?? 0;
     advance(s, CONTENT, [], 61);
     expect(s.cards.open.some((o) => o.card === 'hc_dale_phone')).toBe(false);
-    const e = s.log.find((x) => x.cause.kind === 'default');
+    const e = s.log.find((x) => x.cause.kind === 'default' && x.cause.card === 'hc_dale_phone');
     expect(e?.cause).toEqual({ kind: 'default', card: 'hc_dale_phone', option: 'C' });
     expect(e?.effects).toContainEqual({ kind: 'stat', stat: 'quality', delta: -3 });
     expect(s.stats.quality).toBeLessThan(q);
@@ -106,6 +117,7 @@ describe('事件卡', () => {
   it('后续事件带着原因链：董事会备忘的日志条目指向安排它的那次选择', () => {
     const s = fresh();
     s.stats.quality = 30;
+    s.cards.scheduled = s.cards.scheduled.filter((x) => x.card !== 'hc_board_memo');
     expect(until(s, (x) => x.cards.open.some((o) => o.card === 'hc_parent_complaint'))).toBe(true);
     const uid = openUid(s, 'hc_parent_complaint');
     advance(s, CONTENT, [{ type: 'chooseOption', uid, option: 'B' }], 0);
@@ -120,7 +132,7 @@ describe('事件卡', () => {
     s.stats.quality = 30;
     until(s, (x) => (x.cards.seen.hc_board_memo ?? 0) > 0 || x.cards.open.some((o) => o.card === 'hc_board_memo'));
     until(s, (x) => (x.cards.seen.hc_board_memo ?? 0) > 0);
-    until(s, (x) => dayOf(x.t) >= 3);
+    until(s, (x) => dayOf(x.t) >= 4);
     expect(s.cards.shown.hc_board_memo).toBe(1);
   });
 
@@ -134,15 +146,86 @@ describe('事件卡', () => {
 });
 
 describe('时间', () => {
-  it('收盘时结算这一天，夜里跳过，第二天 8 点开门并排上下午的课', () => {
+  it('收盘时结算这一天，夜里跳过，第二天 8 点开门并按公告板排上周二下午的课', () => {
     const s = fresh();
     const cash = s.stats.cash ?? 0;
-    const r = advance(s, CONTENT, [], 5 * 60);
+    const r = advance(s, CONTENT, [{ type: 'lockPlan' }], 12 * 60);
     expect(dayOf(s.t)).toBe(2);
     expect(minuteOfDay(s.t)).toBe(8 * 60);
     expect(r.events.some((e) => e.type === 'dayEnded' && e.day === 1)).toBe(true);
     expect(s.stats.cash).not.toBe(cash);
-    expect(s.activities.some((a) => a.id === 'lesson' && a.start === at(2, 15))).toBe(true);
+    expect(s.activities.some((a) => a.id === 'junior_lesson' && a.start === at(2, 15))).toBe(true);
+  });
+});
+
+describe('经营循环 v2', () => {
+  it('季度日程：排日程时改是免费的；季中改要花精力，当天还没开始的活动跟着重排', () => {
+    const s = fresh();
+    advance(s, CONTENT, [{ type: 'setPlan', part: 'pm', weekday: 0, activity: 'open_day' }], 0);
+    expect(s.director.energy).toBe(100);
+    advance(s, CONTENT, [{ type: 'lockPlan' }], 0);
+    expect(s.activities.some((a) => a.id === 'open_day' && a.start === at(1, 15))).toBe(true);
+    expect(s.activities.some((a) => a.id === 'junior_lesson' && a.start === at(1, 15))).toBe(false);
+    const r = advance(s, CONTENT, [{ type: 'setPlan', part: 'pm', weekday: 0, activity: 'junior_lesson' }], 0);
+    expect(r.accepted).toHaveLength(1);
+    expect(s.director.energy).toBe(96);
+    expect(s.activities.some((a) => a.id === 'junior_lesson' && a.start === at(1, 15))).toBe(true);
+    // 课只能排在下午
+    expect(
+      advance(s, CONTENT, [{ type: 'setPlan', part: 'am', weekday: 1, activity: 'junior_lesson' }], 0).accepted,
+    ).toHaveLength(0);
+  });
+
+  it('动作：不用到场的立刻生效并扣钱；要到场的先走过去、在那儿忙、忙完才结算', () => {
+    const s = fresh();
+    advance(s, CONTENT, [{ type: 'lockPlan' }], 0);
+    advance(s, CONTENT, [{ type: 'act', action: 'patch_court1' }], 0);
+    expect(s.facilities.court_1).toBe('repaired');
+    expect(s.stats.cash).toBe(1800 - 350);
+    const r = advance(s, CONTENT, [{ type: 'act', action: 'clay_workday' }], 0);
+    expect(r.accepted).toHaveLength(1);
+    expect(s.director.task?.phase).toBe('going');
+    until(s, (x) => x.director.task?.phase === 'working');
+    expect(s.director.at).toBe('clay_court');
+    expect(s.director.energy).toBe(75);
+    // 忙的时候走不开
+    expect(advance(s, CONTENT, [{ type: 'moveDirector', to: 'deck' }], 0).accepted).toHaveLength(0);
+    until(s, (x) => x.director.task === null);
+    expect(s.log.at(-1)?.cause).toMatchObject({ kind: 'action', action: 'clay_workday' });
+  });
+
+  it('动作在路上时点了别处就取消，不扣精力', () => {
+    const s = fresh();
+    advance(s, CONTENT, [{ type: 'lockPlan' }, { type: 'act', action: 'clay_workday' }], 5);
+    advance(s, CONTENT, [{ type: 'moveDirector', to: 'deck' }], 0);
+    expect(s.director.task).toBeNull();
+    expect(s.director.energy).toBe(100);
+  });
+
+  it('换季：初秋第 22 天精力回满、公告板重新打开；天气按季节的权重抽', () => {
+    const s = fresh(5);
+    advance(s, CONTENT, [{ type: 'lockPlan' }], 0);
+    s.director.energy = 20;
+    const seen = new Set<string>();
+    for (let i = 0; i < 21 * 720 && dayOf(s.t) < 22; i++) {
+      advance(s, CONTENT, [], 1);
+      seen.add(s.weather);
+      for (const o of [...s.cards.open]) advance(s, CONTENT, [{ type: 'chooseOption', uid: o.uid, option: 'A' }], 0);
+    }
+    expect(s.season).toBe('early_autumn');
+    expect(s.planning).toBe(true);
+    expect(s.director.energy).toBe(100);
+    expect(seen.size).toBeGreaterThan(1);
+  });
+
+  it('不操作时局面基本不动：一周里会员只在周日收盘时小幅变化', () => {
+    const s = fresh(9);
+    advance(s, CONTENT, [{ type: 'lockPlan' }], 0);
+    s.cards.scheduled = [];
+    s.cards.nextDraw = Number.POSITIVE_INFINITY;
+    const m0 = s.stats.members ?? 0;
+    advance(s, CONTENT, [], 5 * 720);
+    expect(Math.abs((s.stats.members ?? 0) - m0)).toBeLessThanOrEqual(1);
   });
 });
 
@@ -213,10 +296,15 @@ describe('存档', () => {
     delete old.state.legacy;
     delete old.state.cards.shown;
     old.state.version = 0;
+    delete old.state.actions;
+    delete old.state.plan;
+    delete old.state.director.energy;
     const { save } = fromSave(old);
-    expect(save.version).toBe(1);
+    expect(save.version).toBe(2);
     expect(save.state.legacy).toEqual([]);
     expect(save.state.cards.shown).toEqual({});
+    expect(save.state.director.energy).toBe(100);
+    expect(save.state.actions).toEqual({ cooldowns: {}, done: {} });
   });
 
   it('不是存档、来自更新版本的存档都报错；内容版本不一致只警告', () => {

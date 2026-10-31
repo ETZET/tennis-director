@@ -6,7 +6,7 @@ import type { OptionKey } from '@td/content';
  */
 
 /** 存档格式版本；改了格式就加一个迁移函数（见 save.ts） */
-export const SAVE_VERSION = 1;
+export const SAVE_VERSION = 2;
 
 export interface PersonState {
   id: string;
@@ -33,6 +33,8 @@ export type Cause =
   | { kind: 'default'; card: string; option: OptionKey | null; success?: boolean }
   | { kind: 'activity'; activity: string }
   | { kind: 'day'; day: number }
+  | { kind: 'action'; action: string; success?: boolean }
+  | { kind: 'plan'; season: string }
   | { kind: 'debug'; what: string };
 
 export type EffectRecord =
@@ -47,6 +49,7 @@ export type EffectRecord =
   | { kind: 'person'; person: string; attr: 'skill' | 'morale' | 'fatigue'; delta: number }
   | { kind: 'text'; key: string }
   | { kind: 'follow'; person: string }
+  | { kind: 'energy'; delta: number }
   | { kind: 'end'; result: 'won' | 'lost'; ending: string };
 
 export interface OpenCard {
@@ -83,6 +86,19 @@ export interface DirectorState {
   leg: { from: string; to: string; start: number; end: number } | null;
   /** 这一段之后还要经过的锚点 */
   route: string[];
+  /** 精力 0..100：季初满格，做事花掉，夜里恢复一点 */
+  energy: number;
+  /** 手上的事：先走过去（going），再在那儿忙（working，到 end 为止） */
+  task: DirectorTask | null;
+}
+
+export interface DirectorTask {
+  action: string;
+  at: string;
+  phase: 'going' | 'working';
+  start: number;
+  end: number;
+  cause: number | null;
 }
 
 export interface GameState {
@@ -113,6 +129,15 @@ export interface GameState {
     nextDraw: number;
   };
   activities: RunningActivity[];
+  /** 主动经营的动作：冷却到什么时候、做过几次 */
+  actions: { cooldowns: Record<string, number>; done: Record<string, number> };
+  /** 季度日程（会所公告板）：时段 → 周一到周日每天钉的活动（null 表示空着） */
+  plan: Record<string, (string | null)[]>;
+  /** 正在排日程（换季时打开，玩家确认后关上；排日程时游戏暂停） */
+  planning: boolean;
+  /** 当前季节 id 和今天的天气 */
+  season: string;
+  weather: 'sun' | 'cloud' | 'rain' | 'wind';
   flags: Record<string, boolean | number | string>;
   log: CausalEntry[];
   /** 「谁跟我走」选中的人 */
@@ -126,3 +151,5 @@ export const dayOf = (t: number): number => Math.floor(t / 1440) + 1;
 /** 绝对分钟 → 当天的分钟 */
 export const minuteOfDay = (t: number): number => t % 1440;
 export const at = (day: number, hour: number): number => (day - 1) * 1440 + Math.round(hour * 60);
+/** 第 1 天是周一：0 = 周一 … 6 = 周日 */
+export const weekdayOf = (t: number): number => (dayOf(t) - 1) % 7;

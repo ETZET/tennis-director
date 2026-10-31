@@ -22,4 +22,10 @@ export type SimEvent =
   | { type: 'directorArrived'; at: string }
   | { type: 'log'; entry: CausalEntry }
   | { type: 'dayEnded'; day: number }
-  | { type: 'actEnded'; result: 'won' | 'lost'; ending: string };
+  | { type: 'actEnded'; result: 'won' | 'lost'; ending: string }
+  | { type: 'seasonStarted'; season: string }
+  | { type: 'weather'; weather: 'sun' | 'cloud' | 'rain' | 'wind' }
+  | { type: 'planOpened'; season: string }
+  | { type: 'planLocked'; season: string }
+  | { type: 'actionStarted'; action: string; at: string; performance: string | null; end: number }
+  | { type: 'actionFinished'; action: string; success?: boolean };

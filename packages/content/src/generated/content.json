@@ -1,5 +1,5 @@
 {
- "version": "a428ae39",
+ "version": "357fc5b9",
  "stats": [
   {
    "id": "cash",
@@ -51,12 +51,14 @@
    "states": {
     "worn": {
      "courts": 1,
+     "rain_ok": false,
      "quality": 0,
      "income_week": 0,
      "upkeep_week": 20
     },
     "repaired": {
      "courts": 1,
+     "rain_ok": false,
      "quality": 8,
      "income_week": 0,
      "upkeep_week": 20
@@ -69,18 +71,21 @@
    "states": {
     "rented_pickleball": {
      "courts": 0,
+     "rain_ok": false,
      "quality": 0,
      "income_week": 240,
      "upkeep_week": 0
     },
     "shared": {
      "courts": 1,
+     "rain_ok": false,
      "quality": 3,
      "income_week": 120,
      "upkeep_week": 0
     },
     "tennis": {
      "courts": 1,
+     "rain_ok": false,
      "quality": 5,
      "income_week": 0,
      "upkeep_week": 0
@@ -93,14 +98,16 @@
    "states": {
     "collapsed": {
      "courts": 0,
+     "rain_ok": false,
      "quality": -2,
      "income_week": 0,
      "upkeep_week": 0
     },
     "inflated": {
      "courts": 1,
+     "rain_ok": true,
      "quality": 8,
-     "income_week": 0,
+     "income_week": 150,
      "upkeep_week": 120
     }
    }
@@ -111,14 +118,16 @@
    "states": {
     "overgrown": {
      "courts": 0,
+     "rain_ok": false,
      "quality": -3,
      "income_week": 0,
      "upkeep_week": 0
     },
     "restored": {
      "courts": 1,
+     "rain_ok": false,
      "quality": 6,
-     "income_week": 0,
+     "income_week": 60,
      "upkeep_week": 30
     }
    }
@@ -127,8 +136,16 @@
    "id": "pool",
    "anchor": "pool",
    "states": {
+    "open": {
+     "courts": 0,
+     "rain_ok": false,
+     "quality": 0,
+     "income_week": 0,
+     "upkeep_week": 40
+    },
     "drained": {
      "courts": 0,
+     "rain_ok": false,
      "quality": -1,
      "income_week": 0,
      "upkeep_week": 0
@@ -278,8 +295,8 @@
   },
   {
    "id": "steady",
-   "interval": "90m",
-   "max_open": 2,
+   "interval": "2d",
+   "max_open": 1,
    "pressure": "clamp((1500 - stat.cash) / 1500, 0, 1) * 0.4 + clamp(open_cards / 3, 0, 1) * 0.3 + clamp((50 - stat.quality) / 30, 0, 1) * 0.3",
    "weights": {
     "crisis": "1.2 - pressure",
@@ -290,6 +307,115 @@
   }
  ],
  "activities": [
+  {
+   "id": "adult_clinic",
+   "duration": "90m",
+   "anchor": "court_1",
+   "performance": "lesson",
+   "effects": [
+    {
+     "stat": "cash",
+     "add": 35
+    },
+    {
+     "chance": 0.12,
+     "stat": "members",
+     "add": 1
+    }
+   ],
+   "program": {
+    "parts": [
+     "am",
+     "eve"
+    ],
+    "requires": {
+     "all": [
+      {
+       "not": {
+        "coach": "none"
+       }
+      },
+      {
+       "any": [
+        {
+         "not": {
+          "weather": "rain"
+         }
+        },
+        {
+         "facility": "bubble",
+         "is": "inflated"
+        }
+       ]
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "bubble_session",
+   "duration": "2h",
+   "anchor": "bubble_court",
+   "performance": "open_play",
+   "effects": [
+    {
+     "stat": "cash",
+     "add": 40
+    },
+    {
+     "chance": 0.06,
+     "stat": "members",
+     "add": 1
+    }
+   ],
+   "program": {
+    "parts": [
+     "am",
+     "pm",
+     "eve"
+    ],
+    "requires": {
+     "facility": "bubble",
+     "is": "inflated"
+    }
+   }
+  },
+  {
+   "id": "clay_session",
+   "duration": "2h",
+   "anchor": "clay_court",
+   "performance": "open_play",
+   "effects": [
+    {
+     "stat": "cash",
+     "add": 30
+    },
+    {
+     "chance": 0.1,
+     "stat": "members",
+     "add": 1
+    }
+   ],
+   "program": {
+    "parts": [
+     "am",
+     "pm"
+    ],
+    "requires": {
+     "all": [
+      {
+       "facility": "clay",
+       "is": "restored"
+      },
+      {
+       "not": {
+        "weather": "rain"
+       }
+      }
+     ]
+    }
+   }
+  },
   {
    "id": "contractor",
    "duration": "1d",
@@ -307,39 +433,15 @@
    ]
   },
   {
-   "id": "fundraiser",
-   "duration": "3h",
-   "anchor": "deck",
-   "performance": "fundraiser",
-   "effects": [
-    {
-     "stat": "cash",
-     "add": "round(300 + stat.reputation * 12 + rand() * 400)"
-    },
-    {
-     "stat": "reputation",
-     "add": 2
-    },
-    {
-     "flag": "fundraiser_held",
-     "set": true
-    },
-    {
-     "if": {
-      "facility": "bubble",
-      "is": "collapsed"
-     },
-     "schedule": "hc_bubble_quote",
-     "in": "1d"
-    }
-   ]
-  },
-  {
-   "id": "lesson",
+   "id": "junior_lesson",
    "duration": "2h",
    "anchor": "court_1",
    "performance": "lesson",
    "effects": [
+    {
+     "stat": "cash",
+     "add": 45
+    },
     {
      "person": "mason",
      "add": {
@@ -352,7 +454,34 @@
       "skill": "0.4 * coach.attention"
      }
     }
-   ]
+   ],
+   "program": {
+    "parts": [
+     "pm"
+    ],
+    "requires": {
+     "all": [
+      {
+       "not": {
+        "coach": "none"
+       }
+      },
+      {
+       "any": [
+        {
+         "not": {
+          "weather": "rain"
+         }
+        },
+        {
+         "facility": "bubble",
+         "is": "inflated"
+        }
+       ]
+      }
+     ]
+    }
+   }
   },
   {
    "id": "match_juniors",
@@ -453,6 +582,50 @@
    ]
   },
   {
+   "id": "open_day",
+   "duration": "3h",
+   "anchor": "court_1",
+   "performance": "trial_day",
+   "effects": [
+    {
+     "stat": "cash",
+     "add": -60
+    },
+    {
+     "stat": "members",
+     "add": "round(1 + stat.reputation / 20 + rand() * 2)"
+    },
+    {
+     "if": {
+      "directorAt": "court_1"
+     },
+     "stat": "members",
+     "add": 1
+    },
+    {
+     "if": {
+      "directorAt": "court_1"
+     },
+     "log": "log.trial_onsite"
+    },
+    {
+     "chance": "clamp(0.25 + coach.skill / 200, 0, 0.9)",
+     "schedule": "hc_discover_kid",
+     "in": "30m"
+    }
+   ],
+   "program": {
+    "parts": [
+     "pm"
+    ],
+    "requires": {
+     "not": {
+      "weather": "rain"
+     }
+    }
+   }
+  },
+  {
    "id": "open_house",
    "duration": "4h",
    "anchor": "court_1",
@@ -473,68 +646,102 @@
    ]
   },
   {
-   "id": "trial_day_big",
+   "id": "open_play",
    "duration": "3h",
    "anchor": "court_1",
-   "performance": "trial_day",
+   "performance": "open_play",
    "effects": [
     {
-     "stat": "members",
-     "add": "round(3 + stat.reputation / 12 + rand() * 3)"
+     "stat": "reputation",
+     "add": 0.3
     },
     {
-     "if": {
-      "directorAt": "court_1"
-     },
+     "chance": 0.05,
      "stat": "members",
-     "add": 2
+     "add": 1
+    }
+   ],
+   "program": {
+    "parts": [
+     "am",
+     "pm",
+     "eve"
+    ],
+    "requires": {
+     "not": {
+      "weather": "rain"
+     }
+    }
+   }
+  },
+  {
+   "id": "pickleball_hours",
+   "duration": "3h",
+   "anchor": "court_2",
+   "performance": "pickleball",
+   "effects": [
+    {
+     "stat": "cash",
+     "add": 30
     },
     {
-     "if": {
-      "directorAt": "court_1"
-     },
-     "log": "log.trial_onsite"
+     "stat": "pickleball_pressure",
+     "add": -2
+    }
+   ],
+   "program": {
+    "parts": [
+     "am",
+     "pm",
+     "eve"
+    ],
+    "requires": {
+     "all": [
+      {
+       "not": {
+        "facility": "court_2",
+        "is": "rented_pickleball"
+       }
+      },
+      {
+       "not": {
+        "weather": "rain"
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "social_night",
+   "duration": "2h",
+   "anchor": "deck",
+   "performance": "fundraiser",
+   "effects": [
+    {
+     "stat": "cash",
+     "add": 25
     },
     {
      "stat": "reputation",
-     "add": 2
+     "add": 0.5
     },
     {
-     "chance": "clamp(0.5 + coach.skill / 200, 0, 0.95)",
-     "schedule": "hc_discover_kid",
-     "in": "30m"
-    }
-   ]
-  },
-  {
-   "id": "trial_day",
-   "duration": "3h",
-   "anchor": "court_1",
-   "performance": "trial_day",
-   "effects": [
-    {
-     "stat": "members",
-     "add": "round(1 + stat.reputation / 20 + rand() * 2)"
-    },
-    {
-     "if": {
-      "directorAt": "court_1"
-     },
+     "chance": 0.1,
      "stat": "members",
      "add": 1
-    },
-    {
-     "if": {
-      "directorAt": "court_1"
-     },
-     "log": "log.trial_onsite"
-    },
-    {
-     "chance": "clamp(0.3 + coach.skill / 200, 0, 0.9)",
-     "schedule": "hc_discover_kid",
-     "in": "30m"
     }
-   ]
+   ],
+   "program": {
+    "parts": [
+     "eve"
+    ],
+    "requires": {
+     "not": {
+      "weather": "rain"
+     }
+    }
+   }
   },
   {
    "id": "tug_of_war",
@@ -555,13 +762,82 @@
      "set": true
     }
    ]
+  }
+ ],
+ "actions": [
+  {
+   "id": "ball_machine",
+   "act": "hollow_creek",
+   "at": "court_1",
+   "cost": 400,
+   "energy": 0,
+   "onsite": false,
+   "duration": "0m",
+   "once": true,
+   "effects": [
+    {
+     "flag": "ball_machine",
+     "set": true
+    },
+    {
+     "log": "log.ball_machine"
+    }
+   ],
+   "onSuccess": [],
+   "onFail": []
   },
   {
-   "id": "workday",
-   "duration": "4h",
-   "anchor": "clay_court",
-   "performance": "workday",
+   "id": "clay_contractor",
+   "act": "hollow_creek",
+   "at": "clay_court",
+   "when": {
+    "all": [
+     {
+      "facility": "clay",
+      "is": "overgrown"
+     },
+     {
+      "not": {
+       "activity": "contractor",
+       "running": true
+      }
+     }
+    ]
+   },
+   "cost": 900,
+   "energy": 0,
+   "onsite": false,
+   "duration": "0m",
+   "once": false,
    "effects": [
+    {
+     "activity": "contractor"
+    }
+   ],
+   "onSuccess": [],
+   "onFail": []
+  },
+  {
+   "id": "clay_workday",
+   "act": "hollow_creek",
+   "at": "clay_court",
+   "when": {
+    "facility": "clay",
+    "is": "overgrown"
+   },
+   "cost": 0,
+   "energy": 25,
+   "onsite": true,
+   "duration": "4h",
+   "cooldown": "3d",
+   "once": false,
+   "performance": "workday",
+   "check": {
+    "stat": "reputation",
+    "vs": 35
+   },
+   "effects": [],
+   "onSuccess": [
     {
      "facility": "clay",
      "set": "restored"
@@ -574,7 +850,417 @@
      "stat": "members",
      "add": "round(1 + rand() * 2)"
     }
+   ],
+   "onFail": [
+    {
+     "stat": "reputation",
+     "add": 1
+    },
+    {
+     "log": "log.workday_thin"
+    }
    ]
+  },
+  {
+   "id": "fill_pothole",
+   "act": "hollow_creek",
+   "at": "lot",
+   "cost": 120,
+   "energy": 0,
+   "onsite": false,
+   "duration": "0m",
+   "once": true,
+   "effects": [
+    {
+     "stat": "reputation",
+     "add": 2
+    }
+   ],
+   "onSuccess": [],
+   "onFail": []
+  },
+  {
+   "id": "hit_with_tyler",
+   "act": "hollow_creek",
+   "at": "court_1",
+   "when": {
+    "hour": {
+     "gte": 10
+    }
+   },
+   "cost": 0,
+   "energy": 10,
+   "onsite": true,
+   "duration": "1h",
+   "cooldown": "2d",
+   "once": false,
+   "performance": "rally",
+   "effects": [
+    {
+     "person": "tyler",
+     "add": {
+      "skill": 2,
+      "morale": 10
+     }
+    },
+    {
+     "stat": "quality",
+     "add": 1
+    }
+   ],
+   "onSuccess": [],
+   "onFail": []
+  },
+  {
+   "id": "host_fundraiser",
+   "act": "hollow_creek",
+   "at": "deck",
+   "when": {
+    "all": [
+     {
+      "not": {
+       "weather": "rain"
+      }
+     },
+     {
+      "hour": {
+       "gte": 12
+      }
+     }
+    ]
+   },
+   "cost": 0,
+   "energy": 18,
+   "onsite": true,
+   "duration": "3h",
+   "cooldown": "7d",
+   "once": false,
+   "performance": "fundraiser",
+   "effects": [
+    {
+     "stat": "cash",
+     "add": "round(300 + stat.reputation * 12 + rand() * 300)"
+    },
+    {
+     "stat": "reputation",
+     "add": 1
+    }
+   ],
+   "onSuccess": [],
+   "onFail": []
+  },
+  {
+   "id": "inflate_bubble",
+   "act": "hollow_creek",
+   "at": "bubble_court",
+   "when": {
+    "facility": "bubble",
+    "is": "collapsed"
+   },
+   "cost": 2400,
+   "energy": 0,
+   "onsite": false,
+   "duration": "0m",
+   "once": false,
+   "effects": [
+    {
+     "facility": "bubble",
+     "set": "inflated"
+    }
+   ],
+   "onSuccess": [],
+   "onFail": []
+  },
+  {
+   "id": "members_coffee",
+   "act": "hollow_creek",
+   "at": "deck",
+   "cost": 15,
+   "energy": 6,
+   "onsite": true,
+   "duration": "1h",
+   "cooldown": "2d",
+   "once": false,
+   "performance": "talk",
+   "effects": [
+    {
+     "stat": "reputation",
+     "add": 1
+    },
+    {
+     "chance": 0.3,
+     "stat": "members",
+     "add": 1
+    }
+   ],
+   "onSuccess": [],
+   "onFail": []
+  },
+  {
+   "id": "mentor_mason",
+   "act": "hollow_creek",
+   "at": "court_1",
+   "when": {
+    "flag": "kid_noticed"
+   },
+   "cost": 0,
+   "energy": 12,
+   "onsite": true,
+   "duration": "1h",
+   "cooldown": "3d",
+   "once": false,
+   "performance": "feed",
+   "effects": [
+    {
+     "person": "mason",
+     "add": {
+      "skill": 4,
+      "morale": 5
+     }
+    },
+    {
+     "flag": "kid_mentored",
+     "set": true
+    }
+   ],
+   "onSuccess": [],
+   "onFail": []
+  },
+  {
+   "id": "new_net",
+   "act": "hollow_creek",
+   "at": "court_1",
+   "when": {
+    "all": [
+     {
+      "facility": "court_1",
+      "is": "worn"
+     },
+     {
+      "not": {
+       "flag": "new_net"
+      }
+     }
+    ]
+   },
+   "cost": 80,
+   "energy": 0,
+   "onsite": false,
+   "duration": "0m",
+   "once": false,
+   "effects": [
+    {
+     "flag": "new_net",
+     "set": true
+    },
+    {
+     "stat": "quality",
+     "add": 2
+    }
+   ],
+   "onSuccess": [],
+   "onFail": []
+  },
+  {
+   "id": "patch_court1",
+   "act": "hollow_creek",
+   "at": "court_1",
+   "when": {
+    "facility": "court_1",
+    "is": "worn"
+   },
+   "cost": 350,
+   "energy": 0,
+   "onsite": false,
+   "duration": "0m",
+   "once": false,
+   "effects": [
+    {
+     "facility": "court_1",
+     "set": "repaired"
+    }
+   ],
+   "onSuccess": [],
+   "onFail": []
+  },
+  {
+   "id": "patch_roof",
+   "act": "hollow_creek",
+   "at": "deck",
+   "cost": 250,
+   "energy": 0,
+   "onsite": false,
+   "duration": "0m",
+   "once": true,
+   "effects": [
+    {
+     "flag": "roof_patched",
+     "set": true
+    },
+    {
+     "stat": "reputation",
+     "add": 1
+    },
+    {
+     "log": "log.roof_fixed"
+    }
+   ],
+   "onSuccess": [],
+   "onFail": []
+  },
+  {
+   "id": "pool_kids",
+   "act": "hollow_creek",
+   "at": "pool",
+   "when": {
+    "all": [
+     {
+      "facility": "pool",
+      "is": "open"
+     },
+     {
+      "not": {
+       "weather": "rain"
+      }
+     }
+    ]
+   },
+   "cost": 0,
+   "energy": 10,
+   "onsite": true,
+   "duration": "1h",
+   "cooldown": "3d",
+   "once": false,
+   "performance": "talk",
+   "effects": [
+    {
+     "chance": 0.6,
+     "stat": "members",
+     "add": 1
+    },
+    {
+     "chance": 0.3,
+     "stat": "members",
+     "add": 1
+    },
+    {
+     "stat": "quality",
+     "add": -1
+    }
+   ],
+   "onSuccess": [],
+   "onFail": []
+  },
+  {
+   "id": "recruit_sign",
+   "act": "hollow_creek",
+   "at": "lot",
+   "cost": 40,
+   "energy": 0,
+   "onsite": false,
+   "duration": "0m",
+   "cooldown": "7d",
+   "once": false,
+   "effects": [
+    {
+     "chance": 0.5,
+     "stat": "members",
+     "add": 1
+    },
+    {
+     "chance": 0.2,
+     "stat": "members",
+     "add": 1
+    }
+   ],
+   "onSuccess": [],
+   "onFail": []
+  },
+  {
+   "id": "talk_pickleball",
+   "act": "hollow_creek",
+   "at": "court_2",
+   "when": {
+    "stat": "pickleball_pressure",
+    "gt": 10
+   },
+   "cost": 0,
+   "energy": 10,
+   "onsite": true,
+   "duration": "1h",
+   "cooldown": "3d",
+   "once": false,
+   "performance": "talk",
+   "check": {
+    "stat": "reputation",
+    "vs": 40
+   },
+   "effects": [],
+   "onSuccess": [
+    {
+     "stat": "pickleball_pressure",
+     "add": -10
+    },
+    {
+     "stat": "reputation",
+     "add": 1
+    }
+   ],
+   "onFail": [
+    {
+     "stat": "reputation",
+     "add": -1
+    },
+    {
+     "stat": "pickleball_pressure",
+     "add": 3
+    }
+   ]
+  },
+  {
+   "id": "watch_lesson",
+   "act": "hollow_creek",
+   "at": "court_1",
+   "when": {
+    "all": [
+     {
+      "not": {
+       "coach": "none"
+      }
+     },
+     {
+      "any": [
+       {
+        "activity": "junior_lesson",
+        "running": true
+       },
+       {
+        "activity": "adult_clinic",
+        "running": true
+       }
+      ]
+     }
+    ]
+   },
+   "cost": 0,
+   "energy": 8,
+   "onsite": true,
+   "duration": "90m",
+   "cooldown": "1d",
+   "once": false,
+   "performance": "watch",
+   "effects": [
+    {
+     "stat": "quality",
+     "add": 2
+    },
+    {
+     "stat": "reputation",
+     "add": 0.5
+    }
+   ],
+   "onSuccess": [],
+   "onFail": []
   }
  ],
  "acts": [
@@ -582,7 +1268,7 @@
    "id": "hollow_creek",
    "start": {
     "day": 1,
-    "hour": 15
+    "hour": 8
    },
    "hours": {
     "open": 8,
@@ -601,7 +1287,7 @@
     "court_2": "rented_pickleball",
     "bubble": "collapsed",
     "clay": "overgrown",
-    "pool": "drained"
+    "pool": "open"
    },
    "people": [
     {
@@ -680,50 +1366,48 @@
      9
     ]
    ],
-   "start_cards": [
-    "hc_dale_phone"
-   ],
+   "start_cards": [],
    "calendar": [
     {
-     "day": 2,
+     "day": 1,
+     "hour": 15.5,
+     "card": "hc_dale_phone"
+    },
+    {
+     "day": 3,
      "hour": 10,
      "card": "hc_board_memo"
     },
     {
-     "day": 5,
-     "hour": 9,
-     "card": "hc_trial_day"
-    },
-    {
-     "day": 6,
+     "day": 21,
      "hour": 11,
-     "card": "hc_bubble_quote"
-    },
-    {
-     "day": 7,
-     "hour": 10,
      "card": "hc_board_chair"
     },
     {
-     "day": 11,
+     "day": 21,
+     "hour": 17,
+     "card": "hc_pool_closes"
+    },
+    {
+     "day": 35,
      "hour": 10,
      "card": "hc_community_match"
     },
     {
-     "day": 12,
+     "day": 42,
      "hour": 15,
      "card": "hc_board_vote"
     }
    ],
    "director_config": "steady",
    "rules": {
-    "quality_target": "22 + coach.skill * 0.45 * coach.attention + facility_quality + courts_open * 2",
+    "quality_target": "20 + coach.skill * 0.4 * coach.attention * min(1, (plan.junior_lesson + plan.adult_clinic) / 3) + facility_quality + courts_open * 2 + (flag.ball_machine ? 4 : 0) + (flag.volunteer_helping ? 3 : 0) - max(0, plan.junior_lesson + plan.adult_clinic - 5) * 3",
     "quality_rate": 0.25,
-    "member_drift": "round((stat.quality - 46) / 12 + (stat.reputation - 40) / 25 + rand() * 1.2 - 0.6)",
-    "reputation_drift": "(stat.quality - 50) / 40",
+    "member_drift": "weekday == 6 ? round((stat.quality - 50) / 15) : 0",
+    "reputation_drift": "weekday == 6 ? (stat.quality - 50) / 30 : 0",
     "dues_week": 12,
     "derived": {
-     "board_support": "clamp(45 + (stat.quality - 55) * 0.9 + (stat.members - 50) * 1.0 + (stat.reputation - 40) * 0.5 + (flag.match_won ? 8 : 0) + (flag.match_played ? 2 : 0) - (flag.pickleball_lease ? 3 : 0) + (flag.chair_impressed ? 6 : 0) - (flag.chair_worried ? 6 : 0) - (flag.board_impatient ? 8 : 0) + (flag.open_house_held ? 6 : 0) + (flag.turnaround_promised ? 10 : 0) - (flag.broken_promise ? 18 : 0), 0, 100)"
+     "board_support": "clamp(40 + (stat.quality - 55) * 0.9 + (stat.members - 50) * 1.0 + (stat.reputation - 40) * 0.5 + (flag.match_won ? 8 : 0) + (flag.match_played ? 2 : 0) - (flag.pickleball_lease ? 3 : 0) + (flag.chair_impressed ? 6 : 0) - (flag.chair_worried ? 6 : 0) - (flag.board_impatient ? 8 : 0) + (flag.open_house_held ? 6 : 0) + (flag.turnaround_promised ? 10 : 0) - (flag.broken_promise ? 18 : 0), 0, 100)"
     },
     "lose_if": {
      "when": {
@@ -733,77 +1417,75 @@
      "ending": "bankrupt"
     }
    },
-   "daily": [
+   "daily": [],
+   "seasons": [
     {
-     "hour": 15,
-     "activity": "lesson",
-     "if": {
-      "not": {
-       "coach": "none"
-      }
-     }
+     "id": "late_summer",
+     "from_day": 1
+    },
+    {
+     "id": "early_autumn",
+     "from_day": 22
     }
-   ]
+   ],
+   "weather": {
+    "late_summer": {
+     "sun": 5,
+     "cloud": 3,
+     "rain": 1.5,
+     "wind": 0.5
+    },
+    "early_autumn": {
+     "sun": 3,
+     "cloud": 3,
+     "rain": 2.5,
+     "wind": 1.5
+    }
+   },
+   "energy": {
+    "overnight": 6,
+    "slow": 0.6,
+    "fast": 1.5
+   },
+   "schedule": {
+    "parts": {
+     "am": 9,
+     "pm": 15,
+     "eve": 18
+    },
+    "start": {
+     "am": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      "open_play",
+      "open_play"
+     ],
+     "pm": [
+      "junior_lesson",
+      "junior_lesson",
+      null,
+      "junior_lesson",
+      null,
+      null,
+      null
+     ],
+     "eve": [
+      null,
+      "pickleball_hours",
+      null,
+      "pickleball_hours",
+      null,
+      "pickleball_hours",
+      null
+     ]
+    }
+   }
   }
  ],
  "cards": [
-  {
-   "id": "hc_ball_order",
-   "act": "hollow_creek",
-   "source": "random",
-   "tone": "neutral",
-   "when": {
-    "hour": {
-     "lte": 12
-    }
-   },
-   "weight": 0.8,
-   "cooldown": "3d",
-   "countdown": "3h",
-   "pause": false,
-   "location": "court_1",
-   "options": {
-    "A": {
-     "cost": 60,
-     "effects": [
-      {
-       "stat": "quality",
-       "add": 2
-      }
-     ],
-     "onSuccess": [],
-     "onFail": []
-    },
-    "B": {
-     "effects": [
-      {
-       "stat": "quality",
-       "add": -1
-      }
-     ],
-     "onSuccess": [],
-     "onFail": []
-    },
-    "C": {
-     "effects": [
-      {
-       "stat": "reputation",
-       "add": -1
-      },
-      {
-       "stat": "quality",
-       "add": 1
-      }
-     ],
-     "onSuccess": [],
-     "onFail": []
-    }
-   },
-   "default": {
-    "then": "B",
-    "extra": []
-   }
-  },
   {
    "id": "hc_board_chair",
    "act": "hollow_creek",
@@ -939,7 +1621,7 @@
       },
       {
        "schedule": "hc_dale_relapse",
-       "in": "1d"
+       "in": "3d"
       }
      ],
      "onSuccess": [],
@@ -970,7 +1652,7 @@
      "requiresDirectorAt": "deck",
      "effects": [],
      "check": {
-      "chance": "clamp((stat.board_support - 25) / 70, 0.12, 0.85)"
+      "chance": "clamp((stat.board_support - 40) / 50, 0.08, 0.85)"
      },
      "onSuccess": [
       {
@@ -998,7 +1680,7 @@
     "B": {
      "effects": [],
      "check": {
-      "chance": "clamp((stat.board_support - 35) / 70, 0.08, 0.75)"
+      "chance": "clamp((stat.board_support - 50) / 50, 0.05, 0.75)"
      },
      "onSuccess": [
       {
@@ -1026,197 +1708,6 @@
    },
    "default": {
     "then": "B",
-    "extra": []
-   }
-  },
-  {
-   "id": "hc_bubble_quote",
-   "act": "hollow_creek",
-   "source": "calendar",
-   "tone": "neutral",
-   "weight": 1,
-   "countdown": "1d",
-   "pause": false,
-   "location": "bubble_court",
-   "options": {
-    "A": {
-     "cost": 2400,
-     "effects": [
-      {
-       "facility": "bubble",
-       "set": "inflated"
-      }
-     ],
-     "onSuccess": [],
-     "onFail": []
-    },
-    "B": {
-     "requires": {
-      "not": {
-       "flag": "fundraiser_held"
-      }
-     },
-     "effects": [
-      {
-       "activity": "fundraiser",
-       "in": "3h"
-      }
-     ],
-     "onSuccess": [],
-     "onFail": []
-    },
-    "C": {
-     "effects": [],
-     "onSuccess": [],
-     "onFail": []
-    }
-   },
-   "default": {
-    "then": "C",
-    "extra": []
-   }
-  },
-  {
-   "id": "hc_clay_workday",
-   "act": "hollow_creek",
-   "source": "threshold",
-   "tone": "relief",
-   "when": {
-    "all": [
-     {
-      "day": {
-       "gte": 4
-      }
-     },
-     {
-      "facility": "clay",
-      "is": "overgrown"
-     },
-     {
-      "stat": "reputation",
-      "gte": 30
-     }
-    ]
-   },
-   "weight": 1,
-   "cooldown": "2d",
-   "countdown": "1d",
-   "pause": false,
-   "location": "clay_court",
-   "options": {
-    "A": {
-     "requiresDirectorAt": "clay_court",
-     "effects": [],
-     "check": {
-      "stat": "reputation",
-      "vs": 35
-     },
-     "onSuccess": [
-      {
-       "activity": "workday",
-       "in": "1h"
-      }
-     ],
-     "onFail": [
-      {
-       "stat": "reputation",
-       "add": 1
-      },
-      {
-       "log": "log.workday_thin"
-      }
-     ]
-    },
-    "B": {
-     "cost": 900,
-     "effects": [
-      {
-       "activity": "contractor"
-      }
-     ],
-     "onSuccess": [],
-     "onFail": []
-    },
-    "C": {
-     "effects": [],
-     "onSuccess": [],
-     "onFail": []
-    }
-   },
-   "default": {
-    "then": "C",
-    "extra": []
-   }
-  },
-  {
-   "id": "hc_coach_feedback",
-   "act": "hollow_creek",
-   "source": "random",
-   "tone": "neutral",
-   "when": {
-    "all": [
-     {
-      "not": {
-       "coach": "none"
-      }
-     },
-     {
-      "not": {
-       "coach": "dale"
-      }
-     },
-     {
-      "hour": {
-       "gte": 12
-      }
-     }
-    ]
-   },
-   "weight": 0.9,
-   "cooldown": "2d",
-   "countdown": "2h",
-   "pause": false,
-   "location": "court_1",
-   "options": {
-    "A": {
-     "requiresDirectorAt": "court_1",
-     "effects": [
-      {
-       "stat": "quality",
-       "add": 2
-      }
-     ],
-     "onSuccess": [],
-     "onFail": []
-    },
-    "B": {
-     "cost": 120,
-     "effects": [
-      {
-       "stat": "quality",
-       "add": 3
-      }
-     ],
-     "onSuccess": [],
-     "onFail": []
-    },
-    "C": {
-     "effects": [
-      {
-       "stat": "quality",
-       "add": -1
-      },
-      {
-       "stat": "reputation",
-       "add": 1
-      }
-     ],
-     "onSuccess": [],
-     "onFail": []
-    }
-   },
-   "default": {
-    "then": "C",
     "extra": []
    }
   },
@@ -1283,7 +1774,7 @@
    "when": {
     "all": [
      {
-      "activity": "lesson",
+      "activity": "junior_lesson",
       "running": true
      },
      {
@@ -1293,8 +1784,8 @@
      }
     ]
    },
-   "weight": 0.6,
-   "cooldown": "3d",
+   "weight": 0.5,
+   "cooldown": "10d",
    "once": false,
    "countdown": "1h",
    "pause": false,
@@ -1613,7 +2104,7 @@
     "all": [
      {
       "day": {
-       "gte": 4
+       "gte": 10
       }
      },
      {
@@ -1655,7 +2146,7 @@
      "effects": [
       {
        "schedule": "hc_developer_return",
-       "in": "2d"
+       "in": "5d"
       }
      ],
      "onSuccess": [],
@@ -1764,8 +2255,8 @@
      }
     ]
    },
-   "weight": 0.8,
-   "cooldown": "2d",
+   "weight": 0.6,
+   "cooldown": "10d",
    "countdown": "1h",
    "pause": false,
    "location": "court_1",
@@ -1818,73 +2309,6 @@
    }
   },
   {
-   "id": "hc_fix_court1",
-   "act": "hollow_creek",
-   "source": "threshold",
-   "tone": "neutral",
-   "when": {
-    "all": [
-     {
-      "facility": "court_1",
-      "is": "worn"
-     },
-     {
-      "stat": "cash",
-      "gte": 400
-     },
-     {
-      "day": {
-       "gte": 2
-      }
-     }
-    ]
-   },
-   "weight": 1,
-   "cooldown": "2d",
-   "once": false,
-   "countdown": "1d",
-   "pause": false,
-   "location": "court_1",
-   "options": {
-    "A": {
-     "cost": 350,
-     "effects": [
-      {
-       "facility": "court_1",
-       "set": "repaired"
-      }
-     ],
-     "onSuccess": [],
-     "onFail": []
-    },
-    "B": {
-     "cost": 80,
-     "effects": [
-      {
-       "stat": "quality",
-       "add": 2
-      }
-     ],
-     "onSuccess": [],
-     "onFail": []
-    },
-    "C": {
-     "effects": [
-      {
-       "stat": "quality",
-       "add": -1
-      }
-     ],
-     "onSuccess": [],
-     "onFail": []
-    }
-   },
-   "default": {
-    "then": "C",
-    "extra": []
-   }
-  },
-  {
    "id": "hc_hire_coach",
    "act": "hollow_creek",
    "source": "consequence",
@@ -1898,10 +2322,6 @@
      "effects": [
       {
        "hire": "jess_park"
-      },
-      {
-       "schedule": "hc_trial_day",
-       "in": "6h"
       }
      ],
      "onSuccess": [],
@@ -1911,10 +2331,6 @@
      "effects": [
       {
        "hire": "walt_hendricks"
-      },
-      {
-       "schedule": "hc_trial_day",
-       "in": "6h"
       }
      ],
      "onSuccess": [],
@@ -1929,10 +2345,6 @@
       {
        "stat": "reputation",
        "add": 4
-      },
-      {
-       "schedule": "hc_trial_day",
-       "in": "6h"
       }
      ],
      "onSuccess": [],
@@ -1950,78 +2362,6 @@
    }
   },
   {
-   "id": "hc_junior_hit",
-   "act": "hollow_creek",
-   "source": "random",
-   "tone": "relief",
-   "when": {
-    "hour": {
-     "gte": 9
-    }
-   },
-   "weight": 0.7,
-   "cooldown": "1d",
-   "countdown": "1h",
-   "pause": false,
-   "location": "court_1",
-   "options": {
-    "A": {
-     "requiresDirectorAt": "court_1",
-     "effects": [
-      {
-       "person": "tyler",
-       "add": {
-        "skill": 2,
-        "morale": 10
-       }
-      },
-      {
-       "stat": "quality",
-       "add": 1
-      }
-     ],
-     "onSuccess": [],
-     "onFail": []
-    },
-    "B": {
-     "effects": [
-      {
-       "person": "tyler",
-       "add": {
-        "skill": 1,
-        "morale": -5
-       }
-      }
-     ],
-     "onSuccess": [],
-     "onFail": []
-    },
-    "C": {
-     "effects": [
-      {
-       "person": "tyler",
-       "add": {
-        "skill": 1
-       }
-      },
-      {
-       "person": "mason",
-       "add": {
-        "skill": 2,
-        "morale": -5
-       }
-      }
-     ],
-     "onSuccess": [],
-     "onFail": []
-    }
-   },
-   "default": {
-    "then": "B",
-    "extra": []
-   }
-  },
-  {
    "id": "hc_last_chance",
    "act": "hollow_creek",
    "source": "threshold",
@@ -2030,12 +2370,12 @@
     "all": [
      {
       "day": {
-       "gte": 5
+       "gte": 15
       }
      },
      {
       "day": {
-       "lte": 10
+       "lte": 34
       }
      },
      {
@@ -2069,7 +2409,7 @@
       },
       {
        "schedule": "hc_turnaround_check",
-       "in": "3d"
+       "in": "7d"
       }
      ],
      "onSuccess": [],
@@ -2077,70 +2417,6 @@
     },
     "C": {
      "effects": [],
-     "onSuccess": [],
-     "onFail": []
-    }
-   },
-   "default": {
-    "then": "C",
-    "extra": []
-   }
-  },
-  {
-   "id": "hc_lot_pothole",
-   "act": "hollow_creek",
-   "source": "random",
-   "tone": "crisis",
-   "when": {
-    "day": {
-     "gte": 2
-    }
-   },
-   "weight": 0.7,
-   "once": true,
-   "countdown": "3h",
-   "pause": false,
-   "location": "lot",
-   "options": {
-    "A": {
-     "cost": 120,
-     "effects": [
-      {
-       "stat": "reputation",
-       "add": 1
-      }
-     ],
-     "onSuccess": [],
-     "onFail": []
-    },
-    "B": {
-     "requiresDirectorAt": "lot",
-     "effects": [
-      {
-       "stat": "reputation",
-       "add": 1
-      },
-      {
-       "chance": 0.2,
-       "stat": "members",
-       "add": -1
-      }
-     ],
-     "onSuccess": [],
-     "onFail": []
-    },
-    "C": {
-     "effects": [
-      {
-       "stat": "reputation",
-       "add": -2
-      },
-      {
-       "chance": 0.5,
-       "stat": "members",
-       "add": -1
-      }
-     ],
      "onSuccess": [],
      "onFail": []
     }
@@ -2235,8 +2511,8 @@
      "gte": 2
     }
    },
-   "weight": 0.8,
-   "cooldown": "2d",
+   "weight": 0.6,
+   "cooldown": "10d",
    "countdown": "2h",
    "pause": false,
    "location": "deck",
@@ -2385,7 +2661,7 @@
     "all": [
      {
       "day": {
-       "gte": 3
+       "gte": 6
       }
      },
      {
@@ -2562,45 +2838,21 @@
    }
   },
   {
-   "id": "hc_pool_kids",
+   "id": "hc_pool_closes_late",
    "act": "hollow_creek",
-   "source": "random",
-   "tone": "relief",
-   "when": {
-    "day": {
-     "gte": 2
-    }
-   },
-   "weight": 0.6,
-   "cooldown": "2d",
-   "countdown": "2h",
+   "source": "consequence",
+   "tone": "neutral",
+   "weight": 1,
+   "countdown": "6h",
    "pause": false,
    "location": "pool",
    "options": {
     "A": {
-     "requiresDirectorAt": "pool",
      "effects": [
       {
-       "chance": 0.6,
-       "stat": "members",
-       "add": 1
+       "facility": "pool",
+       "set": "drained"
       },
-      {
-       "chance": 0.3,
-       "stat": "members",
-       "add": 1
-      },
-      {
-       "stat": "quality",
-       "add": -1
-      }
-     ],
-     "onSuccess": [],
-     "onFail": []
-    },
-    "B": {
-     "cost": 20,
-     "effects": [
       {
        "chance": 0.4,
        "stat": "members",
@@ -2609,15 +2861,51 @@
      ],
      "onSuccess": [],
      "onFail": []
+    }
+   },
+   "default": {
+    "then": "A",
+    "extra": []
+   }
+  },
+  {
+   "id": "hc_pool_closes",
+   "act": "hollow_creek",
+   "source": "calendar",
+   "tone": "neutral",
+   "weight": 1,
+   "countdown": "1d",
+   "pause": false,
+   "location": "pool",
+   "options": {
+    "A": {
+     "effects": [
+      {
+       "facility": "pool",
+       "set": "drained"
+      }
+     ],
+     "onSuccess": [],
+     "onFail": []
     },
-    "C": {
-     "effects": [],
+    "B": {
+     "cost": 60,
+     "effects": [
+      {
+       "stat": "reputation",
+       "add": 2
+      },
+      {
+       "schedule": "hc_pool_closes_late",
+       "in": "7d"
+      }
+     ],
      "onSuccess": [],
      "onFail": []
     }
    },
    "default": {
-    "then": "C",
+    "then": "A",
     "extra": []
    }
   },
@@ -2756,9 +3044,7 @@
    "when": {
     "all": [
      {
-      "day": {
-       "gte": 3
-      }
+      "weather": "rain"
      },
      {
       "not": {
@@ -2767,7 +3053,7 @@
      }
     ]
    },
-   "weight": 0.5,
+   "weight": 3,
    "cooldown": "4d",
    "once": false,
    "countdown": "3h",
@@ -2830,13 +3116,16 @@
    "when": {
     "all": [
      {
+      "weather": "wind"
+     },
+     {
       "day": {
-       "gte": 6
+       "gte": 10
       }
      },
      {
       "stat": "board_support",
-      "gt": 65
+      "gt": 60
      }
     ]
    },
@@ -2901,57 +3190,6 @@
    },
    "default": {
     "then": "C",
-    "extra": []
-   }
-  },
-  {
-   "id": "hc_trial_day",
-   "act": "hollow_creek",
-   "source": "calendar",
-   "tone": "relief",
-   "weight": 1,
-   "countdown": "6h",
-   "pause": true,
-   "location": "court_1",
-   "options": {
-    "A": {
-     "cost": 150,
-     "effects": [
-      {
-       "activity": "trial_day_big",
-       "in": "1h"
-      }
-     ],
-     "onSuccess": [],
-     "onFail": []
-    },
-    "B": {
-     "effects": [
-      {
-       "activity": "trial_day",
-       "in": "1h"
-      }
-     ],
-     "onSuccess": [],
-     "onFail": []
-    },
-    "C": {
-     "effects": [
-      {
-       "stat": "reputation",
-       "add": -1
-      },
-      {
-       "stat": "quality",
-       "add": 2
-      }
-     ],
-     "onSuccess": [],
-     "onFail": []
-    }
-   },
-   "default": {
-    "then": "B",
     "extra": []
    }
   },
@@ -3099,7 +3337,7 @@
      },
      {
       "day": {
-       "gte": 4
+       "gte": 8
       }
      }
     ]
@@ -3251,13 +3489,17 @@
    "facilities.bubble.inflated": "Bubble · inflated",
    "facilities.clay.overgrown": "Clay court · overgrown",
    "facilities.clay.restored": "Clay court · restored",
+   "facilities.pool.open": "Pool · open",
    "facilities.pool.drained": "Pool · drained",
-   "activities.lesson.title": "Junior lesson",
-   "activities.trial_day.title": "Free trial day",
-   "activities.trial_day_big.title": "Free trial day (full push)",
-   "activities.workday.title": "Community workday",
+   "activities.junior_lesson.title": "Junior lesson",
+   "activities.adult_clinic.title": "Adult clinic",
+   "activities.open_play.title": "Open play",
+   "activities.pickleball_hours.title": "Pickleball rental",
+   "activities.open_day.title": "Open day",
+   "activities.social_night.title": "Social night",
+   "activities.clay_session.title": "Clay court session",
+   "activities.bubble_session.title": "Bubble court session",
    "activities.contractor.title": "Contractors on the clay court",
-   "activities.fundraiser.title": "Fundraiser on the deck",
    "activities.tug_of_war.title": "Tug-of-war vs pickleball",
    "activities.match_strong.title": "Community match vs Pine Crown",
    "activities.match_juniors.title": "Community match vs Pine Crown (juniors)",
@@ -3304,18 +3546,6 @@
    "events.hc_hire_coach.options.A": "Jess Park · eager rookie, $250/wk",
    "events.hc_hire_coach.options.B": "Walt Hendricks · tired veteran, $420/wk",
    "events.hc_hire_coach.options.C": "Nadia Volkov · former pro, $900/wk + $600 signing",
-   "events.hc_fix_court1.topic": "Facilities",
-   "events.hc_fix_court1.title": "Court 1 is falling apart",
-   "events.hc_fix_court1.body": "The cracks have weeds in them and the net sags in the middle. A local crew can patch it this week.",
-   "events.hc_fix_court1.options.A": "Patch the cracks and replace the net · −$350",
-   "events.hc_fix_court1.options.B": "Just replace the net · −$80",
-   "events.hc_fix_court1.options.C": "Not now · the cracks spread",
-   "events.hc_trial_day.topic": "Recruiting",
-   "events.hc_trial_day.title": "Host a free trial day?",
-   "events.hc_trial_day.body": "Open the gates for an afternoon and see who shows up. Being on Court 1 yourself brings in a few more.",
-   "events.hc_trial_day.options.A": "Go all out with flyers and a banner · −$150",
-   "events.hc_trial_day.options.B": "Keep it low-key",
-   "events.hc_trial_day.options.C": "Skip it · reputation −1, coach keeps teaching",
    "events.hc_discover_kid.topic": "Talent",
    "events.hc_discover_kid.title": "Mason has a natural swing",
    "events.hc_discover_kid.body": "The kid who sat on the court during Dale's lessons just hit three clean backhands in a row.",
@@ -3340,18 +3570,6 @@
    "events.hc_tug_of_war.options.A": "Send the juniors · they miss a lesson",
    "events.hc_tug_of_war.options.B": "Join in yourself (go to Court 2)",
    "events.hc_tug_of_war.options.C": "Decline · keep the lesson going",
-   "events.hc_clay_workday.topic": "Facilities",
-   "events.hc_clay_workday.title": "Rescue the clay court?",
-   "events.hc_clay_workday.body": "A tree is lying on the fence and the clay is more weed than court. Neighbors have offered to help.",
-   "events.hc_clay_workday.options.A": "Run a community workday (go to the clay court; depends on reputation)",
-   "events.hc_clay_workday.options.B": "Hire contractors · −$900, a pro surface",
-   "events.hc_clay_workday.options.C": "Leave it",
-   "events.hc_bubble_quote.topic": "Facilities",
-   "events.hc_bubble_quote.title": "The bubble company sent a quote",
-   "events.hc_bubble_quote.body": "Re-inflating the dome costs $2,400. It would give you a court for rainy days.",
-   "events.hc_bubble_quote.options.A": "Re-inflate it · −$2,400",
-   "events.hc_bubble_quote.options.B": "Hold a fundraiser on the deck first",
-   "events.hc_bubble_quote.options.C": "Not this year",
    "events.hc_developer_visit.topic": "Offer",
    "events.hc_developer_visit.title": "A developer wants to buy the land",
    "events.hc_developer_visit.body": "$2.1 million for the whole site. Townhouses, he says. The board would take it.",
@@ -3421,48 +3639,27 @@
    "events.hc_member_saturday.options.A": "Give tennis Saturdays back · pickleball pressure rises",
    "events.hc_member_saturday.options.B": "Buy him a coffee and listen (on the deck) · −$10",
    "events.hc_member_saturday.options.C": "Brush it off",
-   "events.hc_junior_hit.topic": "Juniors",
-   "events.hc_junior_hit.title": "Tyler asks if you'll hit a few with him",
-   "events.hc_junior_hit.body": "He is standing at the gate of Court 1 with two rackets.",
-   "events.hc_junior_hit.options.A": "Hit with him (go to Court 1)",
-   "events.hc_junior_hit.options.B": "Send him to the practice wall",
-   "events.hc_junior_hit.options.C": "Have Mason hit with him",
-   "events.hc_coach_feedback.topic": "Coaching",
-   "events.hc_coach_feedback.title": "Your coach wants feedback after the lesson",
-   "events.hc_coach_feedback.body": "\"Am I doing this right? Honest answer.\"",
-   "events.hc_coach_feedback.options.A": "Watch the next lesson first (go to Court 1)",
-   "events.hc_coach_feedback.options.B": "Approve a ball machine · −$120",
-   "events.hc_coach_feedback.options.C": "Another day · coach loses heart",
-   "events.hc_pool_kids.topic": "Recruiting",
-   "events.hc_pool_kids.title": "Kids from the pool are watching the courts",
-   "events.hc_pool_kids.body": "Four of them are hanging on the fence in wet towels.",
-   "events.hc_pool_kids.options.A": "Invite them for a hit (go to the pool)",
-   "events.hc_pool_kids.options.B": "Hand out flyers · −$20",
-   "events.hc_pool_kids.options.C": "Leave them be",
-   "events.hc_lot_pothole.topic": "Facilities",
-   "events.hc_lot_pothole.title": "A member scraped her car in the parking lot pothole",
-   "events.hc_lot_pothole.body": "She is still standing next to the car, looking at the bumper.",
-   "events.hc_lot_pothole.options.A": "Fill the pothole · −$120",
-   "events.hc_lot_pothole.options.B": "Apologize in person and cone it off (go to the parking lot)",
-   "events.hc_lot_pothole.options.C": "Not our problem",
    "events.hc_volunteer_coach.topic": "Members",
    "events.hc_volunteer_coach.title": "A retired member offers to help coach on weekends",
    "events.hc_volunteer_coach.body": "He played college tennis forty years ago and still has the forehand.",
    "events.hc_volunteer_coach.options.A": "Welcome him on court · quality +3",
    "events.hc_volunteer_coach.options.B": "Ask him to help recruit instead",
    "events.hc_volunteer_coach.options.C": "Thank him warmly, no · reputation +2",
-   "events.hc_ball_order.topic": "Equipment",
-   "events.hc_ball_order.title": "The lesson balls are dead",
-   "events.hc_ball_order.body": "They barely bounce past the service line. Tyler is using one as a stress ball.",
-   "events.hc_ball_order.options.A": "Order a fresh case · −$60",
-   "events.hc_ball_order.options.B": "Make do · quality −1",
-   "events.hc_ball_order.options.C": "Ask members to bring their own · reputation −1",
    "events.hc_double_booked.topic": "Bookings",
    "events.hc_double_booked.title": "Court 1 is double-booked this morning",
    "events.hc_double_booked.body": "Two tennis regulars and four pickleball players are standing at the gate with the same time slot.",
    "events.hc_double_booked.options.A": "Give it to the tennis regulars · pickleball pressure rises",
    "events.hc_double_booked.options.B": "Give it to the pickleball group",
    "events.hc_double_booked.options.C": "Sort it out in person (go to Court 1)",
+   "events.hc_pool_closes.topic": "Season",
+   "events.hc_pool_closes.title": "Time to close the pool for the season",
+   "events.hc_pool_closes.body": "The nights are getting cold. Keeping it open another week costs a little, and the families love it.",
+   "events.hc_pool_closes.options.A": "Close it on schedule",
+   "events.hc_pool_closes.options.B": "Keep it open one more week · −$60",
+   "events.hc_pool_closes_late.topic": "Season",
+   "events.hc_pool_closes_late.title": "The extra pool week is over",
+   "events.hc_pool_closes_late.body": "The last swimmers are packing up their towels.",
+   "events.hc_pool_closes_late.options.A": "Close the pool",
    "events.hc_storm_leak.topic": "Weather",
    "events.hc_storm_leak.title": "The clubhouse roof is leaking",
    "events.hc_storm_leak.body": "Rain is coming through over the trophy case. Members are moving chairs.",
@@ -3486,6 +3683,7 @@
    "events.hc_who_follows.options.A": "Bring your head coach",
    "events.hc_who_follows.options.B": "Bring Mason",
    "events.hc_who_follows.options.C": "Go alone",
+   "log.ball_machine": "The ball machine arrived; lessons are sharper now",
    "log.started": "You took over Hollow Creek Tennis Club.",
    "log.workday_thin": "Only a handful of neighbors showed up; the clay is still a mess",
    "log.roof_fixed": "The roof is fixed for good",
@@ -3497,6 +3695,43 @@
    "log.promise_broken": "You broke your promise to the board",
    "log.promise_kept": "You kept your promise to the board",
    "log.tree_cleared": "The tree is cleared and lessons go on",
+   "actions.patch_court1.title": "Patch the cracks",
+   "actions.patch_court1.note": "A crew fixes Court 1 by tomorrow",
+   "actions.new_net.title": "Replace the net",
+   "actions.new_net.note": "Cheap; the court stays cracked",
+   "actions.watch_lesson.title": "Watch the lesson",
+   "actions.watch_lesson.note": "Stand courtside; the coach stays focused",
+   "actions.hit_with_tyler.title": "Hit with Tyler",
+   "actions.hit_with_tyler.note": "He has been asking all week",
+   "actions.mentor_mason.title": "Work on Mason's backhand",
+   "actions.mentor_mason.note": "One-on-one, after class",
+   "actions.ball_machine.title": "Buy a ball machine",
+   "actions.ball_machine.note": "Lessons get better for good",
+   "actions.talk_pickleball.title": "Talk to the pickleball group",
+   "actions.talk_pickleball.note": "Depends on your reputation",
+   "actions.clay_workday.title": "Run a community workday",
+   "actions.clay_workday.note": "Free if enough neighbors come",
+   "actions.clay_contractor.title": "Hire contractors",
+   "actions.clay_contractor.note": "A pro surface, no help needed",
+   "actions.inflate_bubble.title": "Re-inflate the bubble",
+   "actions.inflate_bubble.note": "A court for rainy days",
+   "actions.host_fundraiser.title": "Host a fundraiser",
+   "actions.host_fundraiser.note": "You run the evening yourself",
+   "actions.members_coffee.title": "Coffee with the regulars",
+   "actions.members_coffee.note": "Hear what they want",
+   "actions.patch_roof.title": "Fix the clubhouse roof",
+   "actions.patch_roof.note": "No more buckets",
+   "actions.recruit_sign.title": "Put up a recruiting sign",
+   "actions.recruit_sign.note": "At the road turn-off",
+   "actions.fill_pothole.title": "Fill the pothole",
+   "actions.fill_pothole.note": "Before someone else scrapes a car",
+   "actions.pool_kids.title": "Invite the pool kids for a hit",
+   "actions.pool_kids.note": "Some might sign up",
+   "seasons.late_summer": "Late summer",
+   "seasons.early_autumn": "Early autumn",
+   "parts.am": "Morning",
+   "parts.pm": "Afternoon",
+   "parts.eve": "Evening",
    "ui.board": "Board confidence",
    "ui.board_in": "Board · vote in {days}d",
    "ui.board_today": "Board · vote today",
@@ -3548,13 +3783,17 @@
    "facilities.bubble.inflated": "气膜 · 充起来了",
    "facilities.clay.overgrown": "红土场 · 长满杂草",
    "facilities.clay.restored": "红土场 · 救回来了",
-   "facilities.pool.drained": "泳池 · 干涸",
-   "activities.lesson.title": "青少年课",
-   "activities.trial_day.title": "免费试训日",
-   "activities.trial_day_big.title": "免费试训日（大张旗鼓）",
-   "activities.workday.title": "社区劳动日",
+   "facilities.pool.open": "泳池 · 开放",
+   "facilities.pool.drained": "泳池 · 已放水",
+   "activities.junior_lesson.title": "青少年课",
+   "activities.adult_clinic.title": "成人训练班",
+   "activities.open_play.title": "会员自由打球",
+   "activities.pickleball_hours.title": "租给匹克球",
+   "activities.open_day.title": "免费开放日",
+   "activities.social_night.title": "露台社交夜",
+   "activities.clay_session.title": "红土场时段",
+   "activities.bubble_session.title": "气膜场时段",
    "activities.contractor.title": "外包施工队在红土场",
-   "activities.fundraiser.title": "露台募捐晚会",
    "activities.tug_of_war.title": "和匹克球队拔河",
    "activities.match_strong.title": "社区对抗赛 vs 松冠俱乐部",
    "activities.match_juniors.title": "社区对抗赛 vs 松冠俱乐部（青少年上场）",
@@ -3601,18 +3840,6 @@
    "events.hc_hire_coach.options.A": "Jess Park · 热血新人，每周 $250",
    "events.hc_hire_coach.options.B": "Walt Hendricks · 疲惫的老手，每周 $420",
    "events.hc_hire_coach.options.C": "Nadia Volkov · 前职业球员，每周 $900，签约费 $600",
-   "events.hc_fix_court1.topic": "设施",
-   "events.hc_fix_court1.title": "1 号场快散架了",
-   "events.hc_fix_court1.body": "裂缝里长了草，球网中间塌下去。本地的施工队这周能来补。",
-   "events.hc_fix_court1.options.A": "补裂缝、换球网 · −$350",
-   "events.hc_fix_court1.options.B": "只换球网 · −$80",
-   "events.hc_fix_court1.options.C": "先不修 · 裂缝会更大",
-   "events.hc_trial_day.topic": "招生",
-   "events.hc_trial_day.title": "办一场免费试训日？",
-   "events.hc_trial_day.body": "开放一下午，看看谁会来。你亲自到 1 号场，能多拉来几个人。",
-   "events.hc_trial_day.options.A": "大张旗鼓，发传单挂横幅 · −$150",
-   "events.hc_trial_day.options.B": "低调办",
-   "events.hc_trial_day.options.C": "不办 · 声望 −1，教练专心上课",
    "events.hc_discover_kid.topic": "天赋",
    "events.hc_discover_kid.title": "Mason 的挥拍是天生的",
    "events.hc_discover_kid.body": "在 Dale 课上坐在地上发呆的那个孩子，刚刚连着打了三个干净的反手。",
@@ -3637,18 +3864,6 @@
    "events.hc_tug_of_war.options.A": "派青少年上 · 他们少上一节课",
    "events.hc_tug_of_war.options.B": "你亲自上（走到 2 号场）",
    "events.hc_tug_of_war.options.C": "婉拒 · 课照常上",
-   "events.hc_clay_workday.topic": "设施",
-   "events.hc_clay_workday.title": "把红土场救回来？",
-   "events.hc_clay_workday.body": "一棵树倒在围网上，场地上草比土多。邻居们说可以来帮忙。",
-   "events.hc_clay_workday.options.A": "发起社区劳动日（走到红土场，成败看声望）",
-   "events.hc_clay_workday.options.B": "请施工队 · −$900，专业场地",
-   "events.hc_clay_workday.options.C": "先不管",
-   "events.hc_bubble_quote.topic": "设施",
-   "events.hc_bubble_quote.title": "气膜公司发来报价",
-   "events.hc_bubble_quote.body": "重新充气要 $2,400。充起来以后，下雨天也有场地可用。",
-   "events.hc_bubble_quote.options.A": "充气 · −$2,400",
-   "events.hc_bubble_quote.options.B": "先在露台上办一场募捐晚会",
-   "events.hc_bubble_quote.options.C": "今年不弄了",
    "events.hc_developer_visit.topic": "报价",
    "events.hc_developer_visit.title": "开发商想买下这块地",
    "events.hc_developer_visit.body": "整块地 210 万美元。他说要盖联排别墅。董事会会同意的。",
@@ -3718,48 +3933,27 @@
    "events.hc_member_saturday.options.A": "把周六上午还给网球 · 匹克球那边会更不满",
    "events.hc_member_saturday.options.B": "请他喝杯咖啡慢慢聊（在露台）· −$10",
    "events.hc_member_saturday.options.C": "敷衍过去",
-   "events.hc_junior_hit.topic": "青少年",
-   "events.hc_junior_hit.title": "Tyler 问你能不能陪他打几拍",
-   "events.hc_junior_hit.body": "他拿着两支拍子站在 1 号场门口。",
-   "events.hc_junior_hit.options.A": "陪他打（走到 1 号场）",
-   "events.hc_junior_hit.options.B": "让他去对墙练",
-   "events.hc_junior_hit.options.C": "叫 Mason 陪他打",
-   "events.hc_coach_feedback.topic": "教练",
-   "events.hc_coach_feedback.title": "教练下课后想听听你的意见",
-   "events.hc_coach_feedback.body": "“我这样教对不对？说实话。”",
-   "events.hc_coach_feedback.options.A": "先看完下一节课再说（走到 1 号场）",
-   "events.hc_coach_feedback.options.B": "批一台发球机 · −$120",
-   "events.hc_coach_feedback.options.C": "改天再说 · 教练有点泄气",
-   "events.hc_pool_kids.topic": "招生",
-   "events.hc_pool_kids.title": "泳池边的孩子们在看网球",
-   "events.hc_pool_kids.body": "四个孩子裹着湿毛巾，趴在围网上。",
-   "events.hc_pool_kids.options.A": "请他们进场打几拍（走到泳池）",
-   "events.hc_pool_kids.options.B": "发几张传单 · −$20",
-   "events.hc_pool_kids.options.C": "随他们去",
-   "events.hc_lot_pothole.topic": "设施",
-   "events.hc_lot_pothole.title": "一位会员的车在停车场的坑里刮了底盘",
-   "events.hc_lot_pothole.body": "她还站在车旁边看着保险杠。",
-   "events.hc_lot_pothole.options.A": "把坑补上 · −$120",
-   "events.hc_lot_pothole.options.B": "当面道歉，放个路锥（走到停车场）",
-   "events.hc_lot_pothole.options.C": "不关我们的事",
    "events.hc_volunteer_coach.topic": "会员",
    "events.hc_volunteer_coach.title": "一位退休会员想周末来帮忙带课",
    "events.hc_volunteer_coach.body": "他四十年前打过大学校队，正手还在。",
    "events.hc_volunteer_coach.options.A": "欢迎他上场 · 质量 +3",
    "events.hc_volunteer_coach.options.B": "请他帮忙招生",
    "events.hc_volunteer_coach.options.C": "客气地谢绝 · 声望 +2",
-   "events.hc_ball_order.topic": "器材",
-   "events.hc_ball_order.title": "上课用的球都没气了",
-   "events.hc_ball_order.body": "弹不过发球线。Tyler 拿一个当解压球捏。",
-   "events.hc_ball_order.options.A": "订一箱新球 · −$60",
-   "events.hc_ball_order.options.B": "凑合用 · 质量 −1",
-   "events.hc_ball_order.options.C": "请会员自己带球 · 声望 −1",
    "events.hc_double_booked.topic": "预约",
    "events.hc_double_booked.title": "1 号场上午约重了",
    "events.hc_double_booked.body": "两位网球老会员和四个打匹克球的人拿着同一个时段站在门口。",
    "events.hc_double_booked.options.A": "给网球老会员 · 匹克球那边更不满",
    "events.hc_double_booked.options.B": "给打匹克球的人",
    "events.hc_double_booked.options.C": "过去当面协调（走到 1 号场）",
+   "events.hc_pool_closes.topic": "换季",
+   "events.hc_pool_closes.title": "泳池该关了",
+   "events.hc_pool_closes.body": "夜里开始凉了。多开一周要花点钱，但家长们很喜欢。",
+   "events.hc_pool_closes.options.A": "按时关",
+   "events.hc_pool_closes.options.B": "再开一周 · −$60",
+   "events.hc_pool_closes_late.topic": "换季",
+   "events.hc_pool_closes_late.title": "多开的那一周过去了",
+   "events.hc_pool_closes_late.body": "最后几个游泳的人在收毛巾。",
+   "events.hc_pool_closes_late.options.A": "关掉泳池",
    "events.hc_storm_leak.topic": "天气",
    "events.hc_storm_leak.title": "会所屋顶漏雨",
    "events.hc_storm_leak.body": "雨水从奖杯柜上方漏下来，会员们在搬椅子。",
@@ -3783,6 +3977,7 @@
    "events.hc_who_follows.options.A": "带上你的主教练",
    "events.hc_who_follows.options.B": "带上 Mason",
    "events.hc_who_follows.options.C": "一个人去",
+   "log.ball_machine": "发球机到了，课更扎实了",
    "log.started": "你接手了 Hollow Creek 网球俱乐部。",
    "log.workday_thin": "只来了几个邻居，红土场还是一团糟",
    "log.roof_fixed": "屋顶彻底补好了",
@@ -3794,6 +3989,43 @@
    "log.promise_broken": "你没兑现对董事会的承诺",
    "log.promise_kept": "你兑现了对董事会的承诺",
    "log.tree_cleared": "树清走了，课照常上",
+   "actions.patch_court1.title": "补裂缝",
+   "actions.patch_court1.note": "施工队明天完工",
+   "actions.new_net.title": "换球网",
+   "actions.new_net.note": "便宜；场地还是裂的",
+   "actions.watch_lesson.title": "在场边看课",
+   "actions.watch_lesson.note": "你在，教练就专心",
+   "actions.hit_with_tyler.title": "陪 Tyler 打一会儿",
+   "actions.hit_with_tyler.note": "他问了一整周了",
+   "actions.mentor_mason.title": "单独带 Mason 练反手",
+   "actions.mentor_mason.note": "下课以后，一对一",
+   "actions.ball_machine.title": "买一台发球机",
+   "actions.ball_machine.note": "课从此好一截",
+   "actions.talk_pickleball.title": "去和匹克球那帮人聊聊",
+   "actions.talk_pickleball.note": "成不成看声望",
+   "actions.clay_workday.title": "发起社区劳动日",
+   "actions.clay_workday.note": "人来得够就不花钱",
+   "actions.clay_contractor.title": "请施工队",
+   "actions.clay_contractor.note": "专业场地，不用求人",
+   "actions.inflate_bubble.title": "给气膜重新充气",
+   "actions.inflate_bubble.note": "下雨天也有场地",
+   "actions.host_fundraiser.title": "办一场募捐晚会",
+   "actions.host_fundraiser.note": "整晚要你亲自张罗",
+   "actions.members_coffee.title": "请老会员喝咖啡",
+   "actions.members_coffee.note": "听听他们想要什么",
+   "actions.patch_roof.title": "把会所屋顶补好",
+   "actions.patch_roof.note": "不用再摆桶了",
+   "actions.recruit_sign.title": "挂一块招生牌",
+   "actions.recruit_sign.note": "挂在路口",
+   "actions.fill_pothole.title": "把停车场的坑补上",
+   "actions.fill_pothole.note": "免得再刮到车",
+   "actions.pool_kids.title": "请泳池边的孩子来打几拍",
+   "actions.pool_kids.note": "也许有人会报名",
+   "seasons.late_summer": "夏末",
+   "seasons.early_autumn": "初秋",
+   "parts.am": "上午",
+   "parts.pm": "下午",
+   "parts.eve": "晚上",
    "ui.board": "董事会信心",
    "ui.board_in": "董事会 · {days} 天后表决",
    "ui.board_today": "董事会 · 今天表决",

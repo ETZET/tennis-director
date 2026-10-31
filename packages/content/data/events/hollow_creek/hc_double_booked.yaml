@@ -4,8 +4,8 @@ act: hollow_creek
 source: random
 tone: comedy
 when: { all: [{ hour: { lte: 12 } }, { not: { facility: court_2, is: tennis } }] }
-cooldown: 2d
-weight: 0.8
+cooldown: 10d
+weight: 0.6
 countdown: 1h
 location: court_1
 options:

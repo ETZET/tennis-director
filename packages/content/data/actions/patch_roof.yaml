@@ -1,0 +1,10 @@
+# 露台：把会所漏雨的屋顶彻底补好。
+id: patch_roof
+act: hollow_creek
+at: deck
+cost: 250
+once: true
+effects:
+  - { flag: roof_patched, set: true }
+  - { stat: reputation, add: 1 }
+  - { log: log.roof_fixed }

@@ -4,7 +4,7 @@ act: hollow_creek
 source: threshold
 tone: crisis
 pause: true
-when: { all: [{ day: { gte: 4 } }, { stat: cash, lt: 700 }] }
+when: { all: [{ day: { gte: 10 } }, { stat: cash, lt: 700 }] }
 countdown: 6h
 location: lot
 options:
@@ -17,5 +17,5 @@ options:
       - { flag: developer_declined, set: true }
   C:
     effects:
-      - { schedule: hc_developer_return, in: 2d }
+      - { schedule: hc_developer_return, in: 5d }
 default: { then: C }

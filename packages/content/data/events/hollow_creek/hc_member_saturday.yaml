@@ -4,8 +4,8 @@ act: hollow_creek
 source: random
 tone: neutral
 when: { day: { gte: 2 } }
-cooldown: 2d
-weight: 0.8
+cooldown: 10d
+weight: 0.6
 countdown: 2h
 location: deck
 options:

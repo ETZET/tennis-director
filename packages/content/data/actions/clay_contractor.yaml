@@ -1,0 +1,8 @@
+# 红土场：请施工队。贵，但一定成，而且是专业的场地；你不用去。
+id: clay_contractor
+act: hollow_creek
+at: clay_court
+when: { all: [{ facility: clay, is: overgrown }, { not: { activity: contractor, running: true } }] }
+cost: 900
+effects:
+  - { activity: contractor }

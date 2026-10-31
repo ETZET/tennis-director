@@ -1,7 +1,8 @@
-# 第一幕 · Hollow Creek：救活。
-# 12 天后董事会表决；质量、会员、声望和对抗赛的结果决定票数。
+# 第一幕 · Hollow Creek：救活（经营循环 v2）。
+# 6 周：夏末（第 1–3 周）到初秋（第 4–6 周）。第 42 天下午董事会表决。
+# 俱乐部变好主要靠你：季初在会所公告板上排日程，季中点场景里的地点和人去做事。事件是偶发的。
 id: hollow_creek
-start: { day: 1, hour: 15 }
+start: { day: 1, hour: 8 }
 hours: { open: 8, close: 20 }
 stats:
   cash: 1800
@@ -15,7 +16,7 @@ facilities:
   court_2: rented_pickleball
   bubble: collapsed
   clay: overgrown
-  pool: drained
+  pool: open
 people:
   - { id: dale, at: court_1, head_coach: true }
   - { id: tyler, at: court_1 }
@@ -23,7 +24,7 @@ people:
 director: { at: deck }
 anchors: [deck, court_1, court_2, bubble_court, clay_court, lot, pool, creek_bridge]
 # 总监步行分钟数：按画面里的路径长度换算（1.5 米 / 游戏分钟，见 render 的 WALK_METERS_PER_MINUTE）。
-# 模拟用它算总监走到某处要多久；画面在 hollow-creek/layout.ts 的 ROUTES 里给每条边的路径点。
+# 这是精力一般时的时间；精力满时跑着去更快，累了更慢（energy.fast / slow）。
 nav:
   - [deck, court_1, 39]
   - [deck, pool, 13]
@@ -34,28 +35,47 @@ nav:
   - [court_2, creek_bridge, 15]
   - [creek_bridge, bubble_court, 9]
   - [creek_bridge, clay_court, 9]
-start_cards: [hc_dale_phone]
+seasons:
+  - { id: late_summer, from_day: 1 }
+  - { id: early_autumn, from_day: 22 }
+weather:
+  late_summer: { sun: 5, cloud: 3, rain: 1.5, wind: 0.5 }
+  early_autumn: { sun: 3, cloud: 3, rain: 2.5, wind: 1.5 }
+energy: { overnight: 6, slow: 0.6, fast: 1.5 }
+# 会所公告板：上午 9 点、下午 3 点、晚上 6 点三个时段；开局的默认日程（周一到周日）
+schedule:
+  parts: { am: 9, pm: 15, eve: 18 }
+  start:
+    am: [null, null, null, null, null, open_play, open_play]
+    pm: [junior_lesson, junior_lesson, null, junior_lesson, null, null, null]
+    eve: [null, pickleball_hours, null, pickleball_hours, null, pickleball_hours, null]
+start_cards: []
 calendar:
-  - { day: 2, hour: 10, card: hc_board_memo }
-  - { day: 5, hour: 9, card: hc_trial_day }
-  - { day: 6, hour: 11, card: hc_bubble_quote }
-  - { day: 7, hour: 10, card: hc_board_chair }
-  - { day: 11, hour: 10, card: hc_community_match }
-  - { day: 12, hour: 15, card: hc_board_vote }
+  - { day: 1, hour: 15.5, card: hc_dale_phone }
+  - { day: 3, hour: 10, card: hc_board_memo }
+  - { day: 21, hour: 11, card: hc_board_chair }
+  - { day: 21, hour: 17, card: hc_pool_closes }
+  - { day: 35, hour: 10, card: hc_community_match }
+  - { day: 42, hour: 15, card: hc_board_vote }
 director_config: steady
 rules:
-  # 质量每分钟向目标靠近；目标看教练水平和专注度、场地、能用的网球场
+  # 质量每分钟向目标靠近。目标由你搭起来的东西决定：教练、场地、公告板上排的课，以及买过的器材。
+  # 课排得太满教练会累（每周超过 5 节，每多一节 −3）。
   quality_target: >-
-    22 + coach.skill * 0.45 * coach.attention + facility_quality + courts_open * 2
+    20 + coach.skill * 0.4 * coach.attention * min(1, (plan.junior_lesson + plan.adult_clinic) / 3)
+    + facility_quality + courts_open * 2
+    + (flag.ball_machine ? 4 : 0) + (flag.volunteer_helping ? 3 : 0)
+    - max(0, plan.junior_lesson + plan.adult_clinic - 5) * 3
   quality_rate: 0.25
-  # 每天收盘时的会员变化
+  # 不操作时局面基本不动：会员和声望只在每周日收盘时按质量小幅调整一次
   member_drift: >-
-    round((stat.quality - 46) / 12 + (stat.reputation - 40) / 25 + rand() * 1.2 - 0.6)
-  reputation_drift: (stat.quality - 50) / 40
+    weekday == 6 ? round((stat.quality - 50) / 15) : 0
+  reputation_drift: >-
+    weekday == 6 ? (stat.quality - 50) / 30 : 0
   dues_week: 12
   derived:
     board_support: >-
-      clamp(45 + (stat.quality - 55) * 0.9 + (stat.members - 50) * 1.0 + (stat.reputation - 40) * 0.5
+      clamp(40 + (stat.quality - 55) * 0.9 + (stat.members - 50) * 1.0 + (stat.reputation - 40) * 0.5
       + (flag.match_won ? 8 : 0) + (flag.match_played ? 2 : 0)
       - (flag.pickleball_lease ? 3 : 0)
       + (flag.chair_impressed ? 6 : 0) - (flag.chair_worried ? 6 : 0) - (flag.board_impatient ? 8 : 0)
@@ -63,5 +83,4 @@ rules:
   lose_if:
     when: { stat: cash, lt: -1500 }
     ending: bankrupt
-daily:
-  - { hour: 15, activity: lesson, if: { not: { coach: none } } }
+daily: []

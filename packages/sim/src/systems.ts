@@ -1,7 +1,9 @@
 import { minutes } from '@td/content';
 import { directorDraw, expireCards, openScheduled } from './cards';
+import { speedFactor, taskSystem } from './director';
 import { type Ctx, run, setStat } from './effects';
-import { at, dayOf, minuteOfDay } from './state';
+import { weightedPick } from './rng';
+import { at, dayOf, minuteOfDay, weekdayOf } from './state';
 import { coachAttention, facilityTotals, makeEnv, num, test, wagesWeek } from './vars';
 import type { World } from './world';
 
@@ -47,13 +49,18 @@ export function shortestRoute(w: World, from: string, to: string): { route: stri
   return { route, minutes: dist.get(to) ?? 0 };
 }
 
-const edgeMinutes = (w: World, a: string, b: string): number => w.nav.get(a)?.find(([n]) => n === b)?.[1] ?? 1;
+const baseEdge = (w: World, a: string, b: string): number => w.nav.get(a)?.find(([n]) => n === b)?.[1] ?? 1;
+/** 这一段要走几分钟：精力满时跑着去，累了慢慢走 */
+const edgeMinutes = (ctx: Ctx, a: string, b: string): number =>
+  Math.max(1, Math.round(baseEdge(ctx.w, a, b) / speedFactor(ctx.s, ctx.w)));
 
 /** 命令：让总监走到某个锚点。走在路上时从下一个锚点改道。 */
 export function moveDirector(ctx: Ctx, to: string): boolean {
   const { s, w } = ctx;
   if (!w.act.anchors.includes(to)) return false;
   const d = s.director;
+  // 正在现场忙的时候走不开
+  if (d.task?.phase === 'working') return false;
   const origin = d.at ?? d.leg?.to;
   if (!origin) return false;
   const r = shortestRoute(w, origin, to);
@@ -65,7 +72,7 @@ export function moveDirector(ctx: Ctx, to: string): boolean {
   }
   if (!r.route.length) return true;
   const [next, ...rest] = r.route as [string, ...string[]];
-  d.leg = { from: origin, to: next, start: s.t, end: s.t + edgeMinutes(w, origin, next) };
+  d.leg = { from: origin, to: next, start: s.t, end: s.t + edgeMinutes(ctx, origin, next) };
   d.route = rest;
   d.at = null;
   ctx.events.push({ type: 'directorDeparted', from: origin, to, route: r.route, arrive: s.t + r.minutes });
@@ -73,13 +80,13 @@ export function moveDirector(ctx: Ctx, to: string): boolean {
 }
 
 function directorSystem(ctx: Ctx): void {
-  const { s, w } = ctx;
+  const { s } = ctx;
   const d = s.director;
   while (d.leg && d.leg.end <= s.t) {
     const here = d.leg.to;
     const [next, ...rest] = d.route;
     if (next) {
-      d.leg = { from: here, to: next, start: d.leg.end, end: d.leg.end + edgeMinutes(w, here, next) };
+      d.leg = { from: here, to: next, start: d.leg.end, end: d.leg.end + edgeMinutes(ctx, here, next) };
       d.route = rest;
     } else {
       d.leg = null;
@@ -127,11 +134,15 @@ function activitySystem(ctx: Ctx): void {
 
 const OPEN_MINUTES = (w: World) => (w.act.hours.close - w.act.hours.open) * 60;
 
+/** 每 10 分钟算一次目标、一次走 10 分钟的量（目标是表达式，每分钟都算太慢） */
+const QUALITY_STEP = 10;
 function qualitySystem(ctx: Ctx): void {
   const { s, w } = ctx;
+  if (minuteOfDay(s.t) % QUALITY_STEP !== 0) return;
   const target = num(s, w, w.act.rules.quality_target);
   const q = s.stats.quality ?? 0;
-  setStat(ctx, 'quality', q + ((target - q) * w.act.rules.quality_rate) / OPEN_MINUTES(w));
+  const k = 1 - (1 - w.act.rules.quality_rate / OPEN_MINUTES(w)) ** QUALITY_STEP;
+  setStat(ctx, 'quality', q + (target - q) * k);
 }
 
 /* ---------------- 收盘：人员、经济、会员、声望、派生量、失败条件 ---------------- */
@@ -168,6 +179,8 @@ function closeDay(ctx: Ctx): void {
     { stat: 'reputation', add: Math.round(rep * 10) / 10 },
   ];
   run(ctx, { kind: 'day', day }, null, effects);
+  // 一夜过去，总监恢复一点精力（不会回满：一季里能亲自做的事是有限的）
+  s.director.energy = Math.min(100, s.director.energy + w.act.energy.overnight);
   recomputeDerived(ctx);
   ctx.events.push({ type: 'dayEnded', day });
   const lose = w.act.rules.lose_if;
@@ -175,9 +188,78 @@ function closeDay(ctx: Ctx): void {
     run(ctx, { kind: 'day', day }, null, [{ endAct: 'lost', ending: lose.ending }]);
 }
 
-/** 新的一天开门：排上当天固定的活动（例如下午的青少年课）。 */
+/** 今天属于哪个季节（幕里的 seasons；没有季节时返回 ''） */
+export function seasonOn(w: World, day: number): string {
+  let id = '';
+  for (const x of w.act.seasons) if (day >= x.from_day) id = x.id;
+  return id;
+}
+
+function pushActivity(ctx: Ctx, id: string, start: number, cause: number | null): void {
+  const { s, w } = ctx;
+  const a = w.activities.get(id);
+  if (!a) return;
+  s.activities.push({
+    uid: s.nextUid++,
+    id: a.id,
+    anchor: a.anchor,
+    start,
+    end: start + minutes(a.duration),
+    started: false,
+    cause,
+  });
+}
+
+/** 按公告板排上这一天还没过去的活动 */
+export function schedulePlan(ctx: Ctx, day: number, fromMinute = 0): void {
+  const { s, w } = ctx;
+  const wd = weekdayOf(at(day, 12));
+  for (const [part, hour] of Object.entries(w.act.schedule.parts)) {
+    const id = s.plan[part]?.[wd];
+    if (!id) continue;
+    const start = at(day, hour);
+    if (start < s.t || minuteOfDay(start) < fromMinute) continue;
+    const a = w.activities.get(id);
+    if (!a?.program || (a.program.requires && !test(s, w, a.program.requires))) continue;
+    pushActivity(ctx, id, start, null);
+  }
+}
+
+/** 公告板改了：今天还没开始的日程活动按新的重排 */
+export function reschedulePlanToday(ctx: Ctx): void {
+  const { s, w } = ctx;
+  const day = dayOf(s.t);
+  s.activities = s.activities.filter(
+    (a) => a.started || a.cause !== null || !w.activities.get(a.id)?.program || dayOf(a.start) !== day,
+  );
+  schedulePlan(ctx, day);
+}
+
+/**
+ * 新的一天开门：换季（精力回满、打开公告板排日程）、今天的天气、
+ * 按公告板排上今天的活动，再加上每天固定的活动。
+ */
 export function openDay(ctx: Ctx, day: number, fromMinute = 0): void {
   const { s, w } = ctx;
+  const season = seasonOn(w, day);
+  if (season !== s.season) {
+    s.season = season;
+    s.director.energy = 100;
+    s.planning = true;
+    ctx.events.push({ type: 'seasonStarted', season });
+    ctx.events.push({ type: 'planOpened', season });
+    ctx.events.push({ type: 'requestPause', reason: 'plan' });
+  }
+  const weights = w.act.weather[season];
+  if (weights) {
+    const pick = weightedPick(
+      s,
+      (['sun', 'cloud', 'rain', 'wind'] as const).map((k) => ({ item: k, weight: weights[k] })),
+    );
+    if (pick) s.weather = pick;
+    ctx.events.push({ type: 'weather', weather: s.weather });
+  }
+  schedulePlan(ctx, day, fromMinute);
   for (const d of w.act.daily) {
     const start = at(day, d.hour);
     if (start < s.t || minuteOfDay(start) < fromMinute) continue;
@@ -209,6 +291,7 @@ export function tick(ctx: Ctx): void {
   directorDraw(ctx); // 导演：要不要发新卡
   s.t += 1;
   directorSystem(ctx); // 总监走位：这一分钟走完，到没到
+  taskSystem(ctx); // 总监手上的事：到了就开始忙，忙完结算
 
   if (minuteOfDay(s.t) >= w.act.hours.close * 60 && !s.outcome) {
     closeDay(ctx);

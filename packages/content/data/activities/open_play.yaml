@@ -1,0 +1,11 @@
+# 公告板：会员自由打球。不赚钱，会员觉得这里是"自己的俱乐部"。
+id: open_play
+duration: 3h
+anchor: court_1
+performance: open_play
+program:
+  parts: [am, pm, eve]
+  requires: { not: { weather: rain } }
+effects:
+  - { stat: reputation, add: 0.3 }
+  - { stat: members, add: 1, chance: 0.05 }

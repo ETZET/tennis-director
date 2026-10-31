@@ -27,15 +27,18 @@ facilities:
     }
   bubble: { collapsed: Bubble · collapsed, inflated: Bubble · inflated }
   clay: { overgrown: Clay court · overgrown, restored: Clay court · restored }
-  pool: { drained: Pool · drained }
+  pool: { open: Pool · open, drained: Pool · drained }
 
 activities:
-  lesson: { title: Junior lesson }
-  trial_day: { title: Free trial day }
-  trial_day_big: { title: Free trial day (full push) }
-  workday: { title: Community workday }
+  junior_lesson: { title: Junior lesson }
+  adult_clinic: { title: Adult clinic }
+  open_play: { title: Open play }
+  pickleball_hours: { title: Pickleball rental }
+  open_day: { title: Open day }
+  social_night: { title: Social night }
+  clay_session: { title: Clay court session }
+  bubble_session: { title: Bubble court session }
   contractor: { title: Contractors on the clay court }
-  fundraiser: { title: Fundraiser on the deck }
   tug_of_war: { title: Tug-of-war vs pickleball }
   match_strong: { title: Community match vs Pine Crown }
   match_juniors: { title: Community match vs Pine Crown (juniors) }
@@ -102,22 +105,6 @@ events:
       A: Jess Park · eager rookie, $250/wk
       B: Walt Hendricks · tired veteran, $420/wk
       C: Nadia Volkov · former pro, $900/wk + $600 signing
-  hc_fix_court1:
-    topic: Facilities
-    title: Court 1 is falling apart
-    body: The cracks have weeds in them and the net sags in the middle. A local crew can patch it this week.
-    options:
-      A: Patch the cracks and replace the net · −$350
-      B: Just replace the net · −$80
-      C: Not now · the cracks spread
-  hc_trial_day:
-    topic: Recruiting
-    title: Host a free trial day?
-    body: Open the gates for an afternoon and see who shows up. Being on Court 1 yourself brings in a few more.
-    options:
-      A: Go all out with flyers and a banner · −$150
-      B: Keep it low-key
-      C: Skip it · reputation −1, coach keeps teaching
   hc_discover_kid:
     topic: Talent
     title: Mason has a natural swing
@@ -150,22 +137,6 @@ events:
       A: Send the juniors · they miss a lesson
       B: Join in yourself (go to Court 2)
       C: Decline · keep the lesson going
-  hc_clay_workday:
-    topic: Facilities
-    title: Rescue the clay court?
-    body: A tree is lying on the fence and the clay is more weed than court. Neighbors have offered to help.
-    options:
-      A: Run a community workday (go to the clay court; depends on reputation)
-      B: Hire contractors · −$900, a pro surface
-      C: Leave it
-  hc_bubble_quote:
-    topic: Facilities
-    title: The bubble company sent a quote
-    body: Re-inflating the dome costs $2,400. It would give you a court for rainy days.
-    options:
-      A: Re-inflate it · −$2,400
-      B: Hold a fundraiser on the deck first
-      C: Not this year
   hc_developer_visit:
     topic: Offer
     title: A developer wants to buy the land
@@ -259,38 +230,6 @@ events:
       A: Give tennis Saturdays back · pickleball pressure rises
       B: Buy him a coffee and listen (on the deck) · −$10
       C: Brush it off
-  hc_junior_hit:
-    topic: Juniors
-    title: Tyler asks if you'll hit a few with him
-    body: He is standing at the gate of Court 1 with two rackets.
-    options:
-      A: Hit with him (go to Court 1)
-      B: Send him to the practice wall
-      C: Have Mason hit with him
-  hc_coach_feedback:
-    topic: Coaching
-    title: Your coach wants feedback after the lesson
-    body: '"Am I doing this right? Honest answer."'
-    options:
-      A: Watch the next lesson first (go to Court 1)
-      B: Approve a ball machine · −$120
-      C: Another day · coach loses heart
-  hc_pool_kids:
-    topic: Recruiting
-    title: Kids from the pool are watching the courts
-    body: Four of them are hanging on the fence in wet towels.
-    options:
-      A: Invite them for a hit (go to the pool)
-      B: Hand out flyers · −$20
-      C: Leave them be
-  hc_lot_pothole:
-    topic: Facilities
-    title: A member scraped her car in the parking lot pothole
-    body: She is still standing next to the car, looking at the bumper.
-    options:
-      A: Fill the pothole · −$120
-      B: Apologize in person and cone it off (go to the parking lot)
-      C: Not our problem
   hc_volunteer_coach:
     topic: Members
     title: A retired member offers to help coach on weekends
@@ -299,14 +238,6 @@ events:
       A: Welcome him on court · quality +3
       B: Ask him to help recruit instead
       C: Thank him warmly, no · reputation +2
-  hc_ball_order:
-    topic: Equipment
-    title: The lesson balls are dead
-    body: They barely bounce past the service line. Tyler is using one as a stress ball.
-    options:
-      A: Order a fresh case · −$60
-      B: Make do · quality −1
-      C: Ask members to bring their own · reputation −1
   hc_double_booked:
     topic: Bookings
     title: Court 1 is double-booked this morning
@@ -315,6 +246,19 @@ events:
       A: Give it to the tennis regulars · pickleball pressure rises
       B: Give it to the pickleball group
       C: Sort it out in person (go to Court 1)
+  hc_pool_closes:
+    topic: Season
+    title: Time to close the pool for the season
+    body: The nights are getting cold. Keeping it open another week costs a little, and the families love it.
+    options:
+      A: Close it on schedule
+      B: Keep it open one more week · −$60
+  hc_pool_closes_late:
+    topic: Season
+    title: The extra pool week is over
+    body: The last swimmers are packing up their towels.
+    options:
+      A: Close the pool
   hc_storm_leak:
     topic: Weather
     title: The clubhouse roof is leaking
@@ -348,6 +292,7 @@ events:
       C: Go alone
 
 log:
+  ball_machine: The ball machine arrived; lessons are sharper now
   started: You took over Hollow Creek Tennis Club.
   workday_thin: Only a handful of neighbors showed up; the clay is still a mess
   roof_fixed: The roof is fixed for good
@@ -361,6 +306,31 @@ log:
   tree_cleared: The tree is cleared and lessons go on
 
 # 界面文案（游戏 app 用）。{x} 是占位符。
+actions:
+  patch_court1: { title: "Patch the cracks", note: "A crew fixes Court 1 by tomorrow" }
+  new_net: { title: "Replace the net", note: "Cheap; the court stays cracked" }
+  watch_lesson: { title: "Watch the lesson", note: "Stand courtside; the coach stays focused" }
+  hit_with_tyler: { title: "Hit with Tyler", note: "He has been asking all week" }
+  mentor_mason: { title: "Work on Mason's backhand", note: "One-on-one, after class" }
+  ball_machine: { title: "Buy a ball machine", note: "Lessons get better for good" }
+  talk_pickleball: { title: "Talk to the pickleball group", note: "Depends on your reputation" }
+  clay_workday: { title: "Run a community workday", note: "Free if enough neighbors come" }
+  clay_contractor: { title: "Hire contractors", note: "A pro surface, no help needed" }
+  inflate_bubble: { title: "Re-inflate the bubble", note: "A court for rainy days" }
+  host_fundraiser: { title: "Host a fundraiser", note: "You run the evening yourself" }
+  members_coffee: { title: "Coffee with the regulars", note: "Hear what they want" }
+  patch_roof: { title: "Fix the clubhouse roof", note: "No more buckets" }
+  recruit_sign: { title: "Put up a recruiting sign", note: "At the road turn-off" }
+  fill_pothole: { title: "Fill the pothole", note: "Before someone else scrapes a car" }
+  pool_kids: { title: "Invite the pool kids for a hit", note: "Some might sign up" }
+seasons:
+  late_summer: Late summer
+  early_autumn: Early autumn
+parts:
+  am: Morning
+  pm: Afternoon
+  eve: Evening
+
 ui:
   board: Board confidence
   board_in: "Board · vote in {days}d"

@@ -22,15 +22,18 @@ facilities:
   court_2: { rented_pickleball: 2 号场 · 租给匹克球, shared: 2 号场 · 分时段, tennis: 2 号场 · 收回打网球 }
   bubble: { collapsed: 气膜 · 塌了, inflated: 气膜 · 充起来了 }
   clay: { overgrown: 红土场 · 长满杂草, restored: 红土场 · 救回来了 }
-  pool: { drained: 泳池 · 干涸 }
+  pool: { open: 泳池 · 开放, drained: 泳池 · 已放水 }
 
 activities:
-  lesson: { title: 青少年课 }
-  trial_day: { title: 免费试训日 }
-  trial_day_big: { title: 免费试训日（大张旗鼓） }
-  workday: { title: 社区劳动日 }
+  junior_lesson: { title: 青少年课 }
+  adult_clinic: { title: 成人训练班 }
+  open_play: { title: 会员自由打球 }
+  pickleball_hours: { title: 租给匹克球 }
+  open_day: { title: 免费开放日 }
+  social_night: { title: 露台社交夜 }
+  clay_session: { title: 红土场时段 }
+  bubble_session: { title: 气膜场时段 }
   contractor: { title: 外包施工队在红土场 }
-  fundraiser: { title: 露台募捐晚会 }
   tug_of_war: { title: 和匹克球队拔河 }
   match_strong: { title: 社区对抗赛 vs 松冠俱乐部 }
   match_juniors: { title: 社区对抗赛 vs 松冠俱乐部（青少年上场） }
@@ -97,22 +100,6 @@ events:
       A: Jess Park · 热血新人，每周 $250
       B: Walt Hendricks · 疲惫的老手，每周 $420
       C: Nadia Volkov · 前职业球员，每周 $900，签约费 $600
-  hc_fix_court1:
-    topic: 设施
-    title: 1 号场快散架了
-    body: 裂缝里长了草，球网中间塌下去。本地的施工队这周能来补。
-    options:
-      A: 补裂缝、换球网 · −$350
-      B: 只换球网 · −$80
-      C: 先不修 · 裂缝会更大
-  hc_trial_day:
-    topic: 招生
-    title: 办一场免费试训日？
-    body: 开放一下午，看看谁会来。你亲自到 1 号场，能多拉来几个人。
-    options:
-      A: 大张旗鼓，发传单挂横幅 · −$150
-      B: 低调办
-      C: 不办 · 声望 −1，教练专心上课
   hc_discover_kid:
     topic: 天赋
     title: Mason 的挥拍是天生的
@@ -145,22 +132,6 @@ events:
       A: 派青少年上 · 他们少上一节课
       B: 你亲自上（走到 2 号场）
       C: 婉拒 · 课照常上
-  hc_clay_workday:
-    topic: 设施
-    title: 把红土场救回来？
-    body: 一棵树倒在围网上，场地上草比土多。邻居们说可以来帮忙。
-    options:
-      A: 发起社区劳动日（走到红土场，成败看声望）
-      B: 请施工队 · −$900，专业场地
-      C: 先不管
-  hc_bubble_quote:
-    topic: 设施
-    title: 气膜公司发来报价
-    body: 重新充气要 $2,400。充起来以后，下雨天也有场地可用。
-    options:
-      A: 充气 · −$2,400
-      B: 先在露台上办一场募捐晚会
-      C: 今年不弄了
   hc_developer_visit:
     topic: 报价
     title: 开发商想买下这块地
@@ -254,38 +225,6 @@ events:
       A: 把周六上午还给网球 · 匹克球那边会更不满
       B: 请他喝杯咖啡慢慢聊（在露台）· −$10
       C: 敷衍过去
-  hc_junior_hit:
-    topic: 青少年
-    title: Tyler 问你能不能陪他打几拍
-    body: 他拿着两支拍子站在 1 号场门口。
-    options:
-      A: 陪他打（走到 1 号场）
-      B: 让他去对墙练
-      C: 叫 Mason 陪他打
-  hc_coach_feedback:
-    topic: 教练
-    title: 教练下课后想听听你的意见
-    body: “我这样教对不对？说实话。”
-    options:
-      A: 先看完下一节课再说（走到 1 号场）
-      B: 批一台发球机 · −$120
-      C: 改天再说 · 教练有点泄气
-  hc_pool_kids:
-    topic: 招生
-    title: 泳池边的孩子们在看网球
-    body: 四个孩子裹着湿毛巾，趴在围网上。
-    options:
-      A: 请他们进场打几拍（走到泳池）
-      B: 发几张传单 · −$20
-      C: 随他们去
-  hc_lot_pothole:
-    topic: 设施
-    title: 一位会员的车在停车场的坑里刮了底盘
-    body: 她还站在车旁边看着保险杠。
-    options:
-      A: 把坑补上 · −$120
-      B: 当面道歉，放个路锥（走到停车场）
-      C: 不关我们的事
   hc_volunteer_coach:
     topic: 会员
     title: 一位退休会员想周末来帮忙带课
@@ -294,14 +233,6 @@ events:
       A: 欢迎他上场 · 质量 +3
       B: 请他帮忙招生
       C: 客气地谢绝 · 声望 +2
-  hc_ball_order:
-    topic: 器材
-    title: 上课用的球都没气了
-    body: 弹不过发球线。Tyler 拿一个当解压球捏。
-    options:
-      A: 订一箱新球 · −$60
-      B: 凑合用 · 质量 −1
-      C: 请会员自己带球 · 声望 −1
   hc_double_booked:
     topic: 预约
     title: 1 号场上午约重了
@@ -310,6 +241,19 @@ events:
       A: 给网球老会员 · 匹克球那边更不满
       B: 给打匹克球的人
       C: 过去当面协调（走到 1 号场）
+  hc_pool_closes:
+    topic: 换季
+    title: 泳池该关了
+    body: 夜里开始凉了。多开一周要花点钱，但家长们很喜欢。
+    options:
+      A: 按时关
+      B: 再开一周 · −$60
+  hc_pool_closes_late:
+    topic: 换季
+    title: 多开的那一周过去了
+    body: 最后几个游泳的人在收毛巾。
+    options:
+      A: 关掉泳池
   hc_storm_leak:
     topic: 天气
     title: 会所屋顶漏雨
@@ -343,6 +287,7 @@ events:
       C: 一个人去
 
 log:
+  ball_machine: 发球机到了，课更扎实了
   started: 你接手了 Hollow Creek 网球俱乐部。
   workday_thin: 只来了几个邻居，红土场还是一团糟
   roof_fixed: 屋顶彻底补好了
@@ -356,6 +301,31 @@ log:
   tree_cleared: 树清走了，课照常上
 
 # 界面文案（游戏 app 用）。{x} 是占位符。
+actions:
+  patch_court1: { title: "补裂缝", note: "施工队明天完工" }
+  new_net: { title: "换球网", note: "便宜；场地还是裂的" }
+  watch_lesson: { title: "在场边看课", note: "你在，教练就专心" }
+  hit_with_tyler: { title: "陪 Tyler 打一会儿", note: "他问了一整周了" }
+  mentor_mason: { title: "单独带 Mason 练反手", note: "下课以后，一对一" }
+  ball_machine: { title: "买一台发球机", note: "课从此好一截" }
+  talk_pickleball: { title: "去和匹克球那帮人聊聊", note: "成不成看声望" }
+  clay_workday: { title: "发起社区劳动日", note: "人来得够就不花钱" }
+  clay_contractor: { title: "请施工队", note: "专业场地，不用求人" }
+  inflate_bubble: { title: "给气膜重新充气", note: "下雨天也有场地" }
+  host_fundraiser: { title: "办一场募捐晚会", note: "整晚要你亲自张罗" }
+  members_coffee: { title: "请老会员喝咖啡", note: "听听他们想要什么" }
+  patch_roof: { title: "把会所屋顶补好", note: "不用再摆桶了" }
+  recruit_sign: { title: "挂一块招生牌", note: "挂在路口" }
+  fill_pothole: { title: "把停车场的坑补上", note: "免得再刮到车" }
+  pool_kids: { title: "请泳池边的孩子来打几拍", note: "也许有人会报名" }
+seasons:
+  late_summer: 夏末
+  early_autumn: 初秋
+parts:
+  am: 上午
+  pm: 下午
+  eve: 晚上
+
 ui:
   board: 董事会信心
   board_in: "董事会 · {days} 天后表决"

@@ -14,13 +14,16 @@
   anchor: bubble_court
   states:
     collapsed: { courts: 0, quality: -2 }
-    inflated: { courts: 1, quality: 8, upkeep_week: 120 }
+    # 气膜：下雨天也能打
+    inflated: { courts: 1, quality: 8, upkeep_week: 120, income_week: 150, rain_ok: true }
 - id: clay
   anchor: clay_court
   states:
     overgrown: { courts: 0, quality: -3 }
-    restored: { courts: 1, quality: 6, upkeep_week: 30 }
+    restored: { courts: 1, quality: 6, upkeep_week: 30, income_week: 60 }
 - id: pool
   anchor: pool
   states:
+    # 夏末开着，初秋关门（季节卡把它关上）
+    open: { quality: 0, upkeep_week: 40 }
     drained: { quality: -1 }

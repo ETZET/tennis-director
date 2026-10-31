@@ -4,6 +4,7 @@ import type { z } from 'zod';
 import {
   type Act,
   act,
+  action,
   activity,
   type Card,
   type Cond,
@@ -54,10 +55,16 @@ export const COMPUTED_VARS = [
   'day',
   'hour',
   'pressure',
+  'weather',
+  'season',
+  'weekday',
+  'director.energy',
 ] as const;
+/** 日程变量：plan.<活动 id> = 本季日程里这一项每周排了几次 */
+export const PLAN_VAR = /^plan\.([a-z][a-z0-9_]*)$/;
 export const PERSON_ATTRS = ['skill', 'morale', 'fatigue', 'talent', 'hired'] as const;
 
-const ONE_PER_FILE = /^(events\/[a-z0-9_]+|activities|directors|acts)\/([a-z0-9_]+)\.ya?ml$/;
+const ONE_PER_FILE = /^(events\/[a-z0-9_]+|activities|actions|directors|acts)\/([a-z0-9_]+)\.ya?ml$/;
 
 function flatten(o: unknown, prefix: string, out: Record<string, string>): void {
   if (o && typeof o === 'object' && !Array.isArray(o)) {
@@ -79,6 +86,7 @@ export function compileContent(files: Record<string, string>): CompileResult {
     traits: [],
     directors: [],
     activities: [],
+    actions: [],
     acts: [],
     cards: [],
     i18n: {},
@@ -124,9 +132,11 @@ export function compileContent(files: Record<string, string>): CompileResult {
         ? card
         : dir === 'activities'
           ? activity
-          : dir === 'directors'
-            ? director
-            : act;
+          : dir === 'actions'
+            ? action
+            : dir === 'directors'
+              ? director
+              : act;
       const v = take(file, schema, raw) as { id: string } | null;
       if (!v) continue;
       if (v.id !== fileId) err(file, `id '${v.id}' must match the file name '${fileId}'`);
@@ -135,6 +145,7 @@ export function compileContent(files: Record<string, string>): CompileResult {
         if (`events/${c.act}` !== dir) err(file, `card act '${c.act}' must match its folder '${dir}'`);
         b.cards.push(c);
       } else if (dir === 'activities') b.activities.push(v as z.infer<typeof activity>);
+      else if (dir === 'actions') b.actions.push(v as z.infer<typeof action>);
       else if (dir === 'directors') b.directors.push(v as z.infer<typeof director>);
       else b.acts.push(v as Act);
       origin.set(`${dir}:${v.id}`, file);
@@ -156,6 +167,7 @@ export function compileContent(files: Record<string, string>): CompileResult {
   const traits = index('trait', b.traits, 'traits.yaml');
   const directors = index('directors', b.directors, 'directors/');
   const activities = index('activities', b.activities, 'activities/');
+  index('actions', b.actions, 'actions/');
   const acts = index('acts', b.acts, 'acts/');
   const cards = new Map<string, Card>();
   for (const c of b.cards) {
@@ -184,10 +196,17 @@ export function compileContent(files: Record<string, string>): CompileResult {
     walkEffects(a.effects, (e) => {
       if ('flag' in e) flagWrites.add(e.flag);
     });
+  for (const a of b.actions)
+    for (const effs of [a.effects, a.onSuccess, a.onFail])
+      walkEffects(effs, (e) => {
+        if ('flag' in e) flagWrites.add(e.flag);
+      });
 
   /* ---------- 表达式 ---------- */
   const knownVar = (p: string): boolean => {
     if ((COMPUTED_VARS as readonly string[]).includes(p)) return true;
+    const pv = PLAN_VAR.exec(p);
+    if (pv) return activities.has(pv[1] as string);
     const [head, a, attr] = p.split('.');
     if (head === 'stat') return !!a && stats.has(a) && attr === undefined;
     if (head === 'flag') return !!a && flagWrites.has(a) && attr === undefined;
@@ -232,6 +251,8 @@ export function compileContent(files: Record<string, string>): CompileResult {
     if ('open' in c && !cards.has(c.open)) err(file, `${where}: unknown card '${c.open}'`);
     if ('coach' in c && c.coach !== 'none' && !people.has(c.coach)) err(file, `${where}: unknown person '${c.coach}'`);
     if ('activity' in c && !activities.has(c.activity)) err(file, `${where}: unknown activity '${c.activity}'`);
+    if ('season' in c && !b.acts.some((a) => a.seasons.some((x) => x.id === c.season)))
+      err(file, `${where}: unknown season '${c.season}'`);
     if ('expr' in c) checkExpr(file, c.expr, where);
   };
   const checkEffects = (file: string, effs: readonly Effect[], where: string) =>
@@ -254,6 +275,7 @@ export function compileContent(files: Record<string, string>): CompileResult {
         if (k in e && !people.has((e as unknown as Record<string, string>)[k] as string))
           err(file, `${w}: unknown person '${(e as unknown as Record<string, string>)[k]}'`);
       if ('person' in e) for (const v of Object.values(e.add)) checkExpr(file, v, w);
+      if ('energy' in e) checkExpr(file, e.energy, w);
       if ('log' in e) needText(file, e.log);
       if ('endAct' in e) {
         needText(file, `endings.${e.ending}.title`);
@@ -318,6 +340,30 @@ export function compileContent(files: Record<string, string>): CompileResult {
     minutes(a.duration);
     checkEffects(file, a.effects, 'effects');
     needText(file, `activities.${a.id}.title`);
+    if (a.program) {
+      for (const p of a.program.parts)
+        if (!b.acts.some((x) => p in x.schedule.parts)) err(file, `program.parts: unknown day part '${p}'`);
+      checkCond(file, a.program.requires, 'program.requires');
+    }
+  }
+
+  /* ---------- 主动经营的动作 ---------- */
+  for (const a of b.actions) {
+    const file = `actions/${a.id}.yaml`;
+    const ac = acts.get(a.act);
+    if (!ac) err(file, `unknown act '${a.act}'`);
+    else if (!ac.anchors.includes(a.at)) err(file, `at: unknown anchor '${a.at}'`);
+    checkCond(file, a.when, 'when');
+    if (a.check && 'stat' in a.check && !stats.has(a.check.stat)) err(file, 'check: unknown stat');
+    if (a.check && 'chance' in a.check) checkExpr(file, a.check.chance, 'check');
+    checkEffects(file, a.effects, 'effects');
+    checkEffects(file, a.onSuccess, 'onSuccess');
+    checkEffects(file, a.onFail, 'onFail');
+    if (!a.onsite && a.energy) warn(file, 'energy only applies to onsite actions');
+    if (a.onsite && !a.energy) warn(file, 'an onsite action costs no energy (tenet 2: every choice costs something)');
+    if (!a.effects.length && !a.onSuccess.length && !a.onFail.length) warn(file, 'action has no effects');
+    needText(file, `actions.${a.id}.title`);
+    needText(file, `actions.${a.id}.note`);
   }
   for (const p of b.people)
     for (const t of p.traits) if (!traits.has(t)) err('people/', `${p.id}: unknown trait '${t}'`);
@@ -370,6 +416,24 @@ export function compileContent(files: Record<string, string>): CompileResult {
       checkCond(file, d.if, 'daily.if');
     }
     for (const n of a.anchors) needText(file, `anchors.${n}`);
+    // 季节、天气、日程
+    if (a.seasons.length && a.seasons[0]?.from_day !== 1) err(file, 'seasons: the first season must start on day 1');
+    for (const s of a.seasons) {
+      needText(file, `seasons.${s.id}`);
+      if (Object.keys(a.weather).length && !a.weather[s.id]) err(file, `weather: no weights for season '${s.id}'`);
+    }
+    for (const k of Object.keys(a.weather))
+      if (!a.seasons.some((s) => s.id === k)) err(file, `weather: unknown season '${k}'`);
+    for (const p of Object.keys(a.schedule.parts)) needText(file, `parts.${p}`);
+    for (const [p, week] of Object.entries(a.schedule.start)) {
+      if (!(p in a.schedule.parts)) err(file, `schedule.start: '${p}' is not in schedule.parts`);
+      for (const x of week) {
+        if (x === null) continue;
+        const act2 = activities.get(x);
+        if (!act2) err(file, `schedule.start.${p}: unknown activity '${x}'`);
+        else if (!act2.program?.parts.includes(p)) err(file, `schedule.start.${p}: '${x}' cannot be scheduled then`);
+      }
+    }
     if (!directors.has(a.director_config)) err(file, `director_config: unknown director '${a.director_config}'`);
     for (const k of ['quality_target', 'member_drift', 'reputation_drift'] as const)
       checkExpr(file, a.rules[k], `rules.${k}`);
@@ -403,6 +467,7 @@ export function compileContent(files: Record<string, string>): CompileResult {
     scheduleTargets(c.default?.extra ?? []);
   }
   for (const a of b.activities) scheduleTargets(a.effects);
+  for (const a of b.actions) for (const effs of [a.effects, a.onSuccess, a.onFail]) scheduleTargets(effs);
   for (const c of b.cards)
     if (!reachable.has(c.id)) warn(`events/${c.act}/${c.id}.yaml`, `card '${c.id}' is never scheduled by anything`);
 

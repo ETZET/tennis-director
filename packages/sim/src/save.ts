@@ -43,6 +43,18 @@ export const MIGRATIONS: Record<number, Migration> = {
     state.version = 1;
     return { ...save, version: 1, state };
   },
+  // 1 → 2（经营循环 v2）：总监精力和手上的事、主动经营的动作、季度日程、季节和天气
+  1: (save) => {
+    const state = { ...(save.state as Record<string, unknown>) };
+    state.director = { energy: 100, task: null, ...(state.director as Record<string, unknown>) };
+    state.actions ??= { cooldowns: {}, done: {} };
+    state.plan ??= {};
+    state.planning ??= false;
+    state.season ??= '';
+    state.weather ??= 'sun';
+    state.version = 2;
+    return { ...save, version: 2, state };
+  },
 };
 
 export class SaveError extends Error {}

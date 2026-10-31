@@ -3,7 +3,7 @@ id: hc_volunteer_coach
 act: hollow_creek
 source: threshold
 tone: relief
-when: { all: [{ stat: reputation, gte: 45 }, { day: { gte: 4 } }] }
+when: { all: [{ stat: reputation, gte: 45 }, { day: { gte: 8 } }] }
 once: true
 weight: 1
 countdown: 1d

@@ -1,0 +1,12 @@
+# 公告板：露台社交夜（晚上）。小赚一点，口碑好。
+id: social_night
+duration: 2h
+anchor: deck
+performance: fundraiser
+program:
+  parts: [eve]
+  requires: { not: { weather: rain } }
+effects:
+  - { stat: cash, add: 25 }
+  - { stat: reputation, add: 0.5 }
+  - { stat: members, add: 1, chance: 0.1 }

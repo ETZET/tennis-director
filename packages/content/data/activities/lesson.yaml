@@ -1,8 +1,0 @@
-# 每天下午的青少年课。质量的变化由幕规则按教练专注度算；这里是课上顺带的成长。
-id: lesson
-duration: 2h
-anchor: court_1
-performance: lesson
-effects:
-  - { person: mason, add: { skill: "0.6 * coach.attention" } }
-  - { person: tyler, add: { skill: "0.4 * coach.attention" } }

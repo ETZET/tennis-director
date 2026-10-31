@@ -1,10 +1,11 @@
 import type { ContentBundle, OptionKey } from '@td/content';
 import { fnv1a, stableStringify } from '@td/shared';
 import { openCard, resolveCard } from './cards';
+import { cancelGoing, startAction } from './director';
 import { type Ctx, run, setStat } from './effects';
 import type { SimEvent } from './events';
 import { at, type GameState, SAVE_VERSION } from './state';
-import { moveDirector, openDay, recomputeDerived, tick } from './systems';
+import { moveDirector, openDay, recomputeDerived, reschedulePlanToday, tick } from './systems';
 import { type World, worldFor } from './world';
 
 /**
@@ -17,6 +18,12 @@ import { type World, worldFor } from './world';
 export type Command =
   | { type: 'chooseOption'; uid: number; option: OptionKey }
   | { type: 'moveDirector'; to: string }
+  /** 主动经营：做一个动作（点场景里的地点或人） */
+  | { type: 'act'; action: string }
+  /** 公告板：把一张便条钉到某个时段（null 表示拿掉） */
+  | { type: 'setPlan'; part: string; weekday: number; activity: string | null }
+  /** 公告板排好了 */
+  | { type: 'lockPlan' }
   | { type: 'debugSetStat'; stat: string; value: number }
   | { type: 'debugSetFlag'; flag: string; value: boolean | number | string }
   | { type: 'debugForceCard'; card: string }
@@ -50,9 +57,16 @@ export function newGame(content: ContentBundle, o: NewGameOptions): GameState {
     facilities: { ...a.facilities },
     people: {},
     headCoach: null,
-    director: { at: a.director.at, leg: null, route: [] },
+    director: { at: a.director.at, leg: null, route: [], energy: 100, task: null },
     cards: { open: [], scheduled: [], cooldowns: {}, seen: {}, shown: {}, nextDraw: 0 },
     activities: [],
+    actions: { cooldowns: {}, done: {} },
+    plan: Object.fromEntries(
+      Object.keys(a.schedule.parts).map((p) => [p, [...(a.schedule.start[p] ?? Array(7).fill(null))]]),
+    ),
+    planning: false,
+    season: '',
+    weather: 'sun',
     flags: {},
     log: [],
     legacy: [],
@@ -81,12 +95,43 @@ export function newGame(content: ContentBundle, o: NewGameOptions): GameState {
   return s;
 }
 
+/** 季中改日程要花精力（总监得重新协调人和场地）；排日程的时候改是免费的 */
+export const PLAN_CHANGE_ENERGY = 4;
+
+function setPlan(ctx: Ctx, part: string, weekday: number, activity: string | null): boolean {
+  const { s, w } = ctx;
+  if (!(part in w.act.schedule.parts) || weekday < 0 || weekday > 6) return false;
+  if (activity !== null && !w.activities.get(activity)?.program?.parts.includes(part)) return false;
+  const row = s.plan[part] ?? (s.plan[part] = Array(7).fill(null));
+  if (row[weekday] === activity) return false;
+  if (!s.planning) {
+    if (s.director.energy < PLAN_CHANGE_ENERGY) return false;
+    s.director.energy -= PLAN_CHANGE_ENERGY;
+  }
+  row[weekday] = activity;
+  if (!s.planning) reschedulePlanToday(ctx);
+  return true;
+}
+
 function applyCommand(ctx: Ctx, cmd: Command): boolean {
   switch (cmd.type) {
     case 'chooseOption':
       return resolveCard(ctx, cmd.uid, cmd.option, 'player');
     case 'moveDirector':
+      // 玩家点了别处：还在路上的事作废
+      cancelGoing(ctx.s);
       return moveDirector(ctx, cmd.to);
+    case 'act':
+      return startAction(ctx, cmd.action, moveDirector);
+    case 'setPlan':
+      return setPlan(ctx, cmd.part, cmd.weekday, cmd.activity);
+    case 'lockPlan':
+      if (!ctx.s.planning) return false;
+      ctx.s.planning = false;
+      reschedulePlanToday(ctx);
+      ctx.events.push({ type: 'planLocked', season: ctx.s.season });
+      run(ctx, { kind: 'plan', season: ctx.s.season }, null, []);
+      return true;
     case 'debugSetStat':
       setStat(ctx, cmd.stat, cmd.value);
       run(ctx, { kind: 'debug', what: `set ${cmd.stat} = ${cmd.value}` }, null, []);

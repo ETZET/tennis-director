@@ -1,7 +1,7 @@
 # 稳健型导演：压力高时多发喘息和好消息，压力低时才扔危机。
 id: steady
-interval: 90m
-max_open: 2
+interval: 2d
+max_open: 1
 pressure: >-
   clamp((1500 - stat.cash) / 1500, 0, 1) * 0.4
   + clamp(open_cards / 3, 0, 1) * 0.3

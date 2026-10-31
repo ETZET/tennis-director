@@ -1,0 +1,13 @@
+# 1 号场：站在场边看完这节课。你在场，教练就专心；看完给他几句反馈。
+id: watch_lesson
+act: hollow_creek
+at: court_1
+when: { all: [{ not: { coach: none } }, { any: [{ activity: junior_lesson, running: true }, { activity: adult_clinic, running: true }] }] }
+onsite: true
+energy: 8
+duration: 90m
+cooldown: 1d
+performance: watch
+effects:
+  - { stat: quality, add: 2 }
+  - { stat: reputation, add: 0.5 }

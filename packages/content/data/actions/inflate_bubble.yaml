@@ -1,0 +1,8 @@
+# 气膜场：重新充气。很贵；充起来以后下雨天也能上课。
+id: inflate_bubble
+act: hollow_creek
+at: bubble_court
+when: { facility: bubble, is: collapsed }
+cost: 2400
+effects:
+  - { facility: bubble, set: inflated }

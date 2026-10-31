@@ -1,0 +1,9 @@
+# 1 号场：只换球网。便宜，质量好一点，场地还是裂的。
+id: new_net
+act: hollow_creek
+at: court_1
+when: { all: [{ facility: court_1, is: worn }, { not: { flag: new_net } }] }
+cost: 80
+effects:
+  - { flag: new_net, set: true }
+  - { stat: quality, add: 2 }

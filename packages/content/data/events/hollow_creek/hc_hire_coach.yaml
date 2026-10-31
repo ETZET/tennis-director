@@ -10,17 +10,14 @@ options:
   A:
     effects:
       - { hire: jess_park }
-      - { schedule: hc_trial_day, in: 6h }
   B:
     effects:
       - { hire: walt_hendricks }
-      - { schedule: hc_trial_day, in: 6h }
   C:
     cost: 600
     effects:
       - { hire: nadia_volkov }
       - { stat: reputation, add: 4 }
-      - { schedule: hc_trial_day, in: 6h }
 default:
   then: A
   extra:

@@ -118,6 +118,11 @@ export function applyEffects(ctx: Ctx, effects: readonly Effect[], entryId: numb
     } else if ('follow' in e) {
       if (!s.legacy.includes(e.follow)) s.legacy.push(e.follow);
       out.push({ kind: 'follow', person: e.follow });
+    } else if ('energy' in e) {
+      const before = s.director.energy;
+      s.director.energy = clamp(before + num(s, w, e.energy), 0, 100);
+      const delta = s.director.energy - before;
+      if (delta !== 0) out.push({ kind: 'energy', delta });
     }
   }
 }

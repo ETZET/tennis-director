@@ -3,7 +3,7 @@ id: hc_storm_tree
 act: hollow_creek
 source: threshold
 tone: crisis
-when: { all: [{ day: { gte: 6 } }, { stat: board_support, gt: 65 }] }
+when: { all: [{ weather: wind }, { day: { gte: 10 } }, { stat: board_support, gt: 60 }] }
 once: true
 weight: 3
 countdown: 4h

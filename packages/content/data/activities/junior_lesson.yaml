@@ -1,0 +1,15 @@
+# 公告板：青少年课（下午）。下雨天停课，除非气膜充起来了。
+id: junior_lesson
+duration: 2h
+anchor: court_1
+performance: lesson
+program:
+  parts: [pm]
+  requires:
+    all:
+      - { not: { coach: none } }
+      - { any: [{ not: { weather: rain } }, { facility: bubble, is: inflated }] }
+effects:
+  - { stat: cash, add: 45 }
+  - { person: mason, add: { skill: "0.6 * coach.attention" } }
+  - { person: tyler, add: { skill: "0.4 * coach.attention" } }

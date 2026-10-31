@@ -1,4 +1,15 @@
-import type { Act, Activity, Card, ContentBundle, DirectorConfig, Facility, Person, Stat, Trait } from '@td/content';
+import type {
+  Act,
+  Action,
+  Activity,
+  Card,
+  ContentBundle,
+  DirectorConfig,
+  Facility,
+  Person,
+  Stat,
+  Trait,
+} from '@td/content';
 import { type CompiledExpr, compileExpr } from '@td/shared';
 
 /**
@@ -11,6 +22,8 @@ export interface World {
   readonly director: DirectorConfig;
   readonly cards: ReadonlyMap<string, Card>;
   readonly activities: ReadonlyMap<string, Activity>;
+  /** 本幕的主动经营动作 */
+  readonly actions: ReadonlyMap<string, Action>;
   readonly people: ReadonlyMap<string, Person>;
   readonly traits: ReadonlyMap<string, Trait>;
   readonly stats: ReadonlyMap<string, Stat>;
@@ -46,6 +59,7 @@ export function worldFor(content: ContentBundle, actId: string, directorId?: str
     director,
     cards: byId(content.cards),
     activities: byId(content.activities),
+    actions: byId((content.actions ?? []).filter((x) => x.act === act.id)),
     people: byId(content.people),
     traits: byId(content.traits),
     stats: byId(content.stats),
