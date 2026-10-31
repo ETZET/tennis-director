@@ -5,3 +5,4 @@ coverage/
 .DS_Store
 .vite/
 tools/screenshot/out/
+tools/playtest/out/

@@ -1,11 +1,13 @@
 import { writeFileSync } from 'node:fs';
 import { CONTENT, SIM_VERSION } from '@td/sim';
+import { playabilityReport } from './playability';
 import { BOT_NAMES, type BotName, botReport, determinismCheck, reportMarkdown } from './report';
 
 /**
  * 命令行无头跑局。只依赖 @td/sim 和 @td/shared，不碰 three.js 或 DOM。
  *
  *   pnpm sim determinism [--games 1000]        # M1 闸口：同种子重放结果一致
+ *   pnpm sim playability [--games 200] [--out playability.md]   # 节奏、取舍、后果分叉
  *   pnpm sim bots [--games 1000] [--bots greedy,random] [--director steady] [--out report.md]
  */
 
@@ -43,6 +45,13 @@ export function main(): number {
       writeFileSync(out.replace(/\.md$/, '.json'), `${JSON.stringify(r, null, 1)}\n`);
       console.log(`报告已写入 ${out}`);
     }
+    console.log(md);
+    return 0;
+  }
+  if (cmd === 'playability') {
+    const md = playabilityReport(CONTENT, Number(arg('games', '200')));
+    const out = arg('out', '');
+    if (out) writeFileSync(out, `${md}\n`);
     console.log(md);
     return 0;
   }

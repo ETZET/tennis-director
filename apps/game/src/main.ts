@@ -8,7 +8,7 @@ import { GameLabels } from './labels';
 import { clearAutosave, downloadSave, readAutosave, writeAutosave } from './persist';
 import { Projector } from './project';
 import { createGameScene } from './scene';
-import { Session } from './session';
+import { MINUTES_PER_SECOND, Session } from './session';
 import { createText, type Lang } from './text';
 
 /**
@@ -286,9 +286,48 @@ if (import.meta.hot)
     console.info(`[content] hot-reloaded ${data.bundle.version}`);
   });
 
+/**
+ * 试玩桥（tools/playtest 用）：一分钟一分钟地快进，直到有新卡打开、要求暂停、本幕结束，或走满 max 分钟。
+ * 走完停在暂停状态，像回合制一样把决定交还给试玩者。
+ */
+function fastForward(max: number): { minutes: number; stop: string } {
+  const t0 = session.s.t;
+  session.paused = false;
+  let stop = 'time';
+  for (let i = 0; i < max; i++) {
+    const ev = session.frame(1 / (MINUTES_PER_SECOND * session.speed));
+    pump(ev);
+    if (session.s.outcome) stop = 'actEnded';
+    else if (ev.some((e) => e.type === 'cardOpened')) stop = 'cardOpened';
+    else if (session.paused) stop = 'pause';
+    else continue;
+    break;
+  }
+  session.paused = true;
+  draw();
+  return { minutes: session.s.t - t0, stop };
+}
+
 declare global {
   interface Window {
-    __td?: { session: () => Session; setContent: (c: ContentBundle) => void; resync: () => void };
+    __td?: {
+      session: () => Session;
+      setContent: (c: ContentBundle) => void;
+      resync: () => void;
+      fastForward: (max: number) => { minutes: number; stop: string };
+      answer: (key: 1 | 2 | 3) => void;
+      walk: (anchor: string) => void;
+    };
   }
 }
-window.__td = { session: () => session, setContent, resync: () => scene.sync(session.s) };
+window.__td = {
+  session: () => session,
+  setContent,
+  resync: () => scene.sync(session.s),
+  fastForward,
+  answer,
+  walk: (a) => {
+    session.walkTo(a);
+    pump([]);
+  },
+};
