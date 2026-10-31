@@ -44,6 +44,7 @@ function Note({
       style={{ background: note.color }}
       onPointerDown={onDown}
       title={note.label}
+      data-note={note.id}
     >
       {short ? note.short : note.label}
     </span>

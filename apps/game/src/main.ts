@@ -159,7 +159,7 @@ const ground = (a: string, dy: number) => () => {
 const destination = (s: GameState) =>
   s.director.leg ? (s.director.route[s.director.route.length - 1] ?? s.director.leg.to) : null;
 for (const a of content.acts[0]?.anchors ?? []) {
-  labels.add(
+  const placeLabel = labels.add(
     {
       get: ground(a, 0.2),
       lift: 34,
@@ -182,6 +182,7 @@ for (const a of content.acts[0]?.anchors ?? []) {
       draw();
     },
   );
+  placeLabel.el.dataset.anchor = a;
   const center = (hollowCreek.ANCHORS as Record<string, { x: number; z: number }>)[a];
   labels.add({
     // 活动牌挂在场地中央（地点牌在门口），两块牌子不叠在一起
@@ -330,11 +331,17 @@ function fastForward(max: number): { minutes: number; stop: string } {
   session.paused = false;
   let stop = 'time';
   for (let i = 0; i < max; i++) {
+    if (session.held) {
+      stop = 'held';
+      break;
+    }
     const ev = session.frame(1 / (MINUTES_PER_SECOND * session.speed * (session.idle ? PACE.idleSpeedup : 1)));
     pump(ev);
     if (session.s.outcome) stop = 'actEnded';
     else if (ev.some((e) => e.type === 'cardOpened')) stop = 'cardOpened';
     else if (session.paused) stop = 'pause';
+    else if (ev.some((e) => e.type === 'actionFinished')) stop = 'actionFinished';
+    else if (session.held) stop = 'held';
     else continue;
     break;
   }
@@ -355,7 +362,11 @@ declare global {
       /** 试玩桥：点一个地点会弹出的动作圈（数据） */
       ring: (anchor: string) => unknown;
       act: (id: string) => void;
-      plan: (part: string, weekday: number, note: string | null) => void;
+      /** 返回 null，或者这一步为什么没成（例如这张便条不能放在这一格） */
+      plan: (part: string, weekday: number, note: string | null) => string | null;
+      tap: (anchor: string) => void;
+      close: () => void;
+      ringData: () => unknown;
       lockPlan: () => void;
       openPlanner: () => void;
       planner: () => unknown;
@@ -374,7 +385,23 @@ window.__td = {
   },
   ring: (a) => projector.ring(session, a, 0, 0),
   act: (id) => hudActions.act?.(id),
-  plan: (part, weekday, note) => hudActions.plan?.(part, weekday, note),
+  plan: (part, weekday, note) => {
+    const n = session.log.length;
+    hudActions.plan?.(part, weekday, note);
+    return session.log.length > n
+      ? null
+      : 'rejected (that note cannot go in that slot, or no energy to change the plan)';
+  },
+  tap: (a) => {
+    const el = [...document.querySelectorAll<HTMLElement>('#labels .pl')].find((x) => x.dataset.anchor === a);
+    if (el) el.click();
+  },
+  close: () => {
+    session.ring = null;
+    session.plannerOpen = false;
+    draw();
+  },
+  ringData: () => (session.ring ? projector.ring(session, session.ring.anchor, 0, 0) : null),
   lockPlan: () => hudActions.lockPlan?.(),
   openPlanner: () => {
     session.plannerOpen = true;
