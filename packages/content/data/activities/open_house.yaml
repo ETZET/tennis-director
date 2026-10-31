@@ -2,7 +2,7 @@
 id: open_house
 duration: 4h
 anchor: court_1
-performance: trial_day
+performance: open_day
 effects:
   - { stat: members, add: "round(2 + stat.quality / 20 + rand() * 3)" }
   - { stat: reputation, add: 3 }

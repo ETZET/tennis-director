@@ -121,7 +121,7 @@ const STATE = () => {
             text: t('.td-answer-text', a),
             chips: [...a.querySelectorAll('.td-chip')].map((x) => x.textContent.trim()),
             hint: t('.td-answer-hint', a),
-            then: t('.td-answer-then', a),
+            after: t('.td-answer-then', a),
             locked: a.getAttribute('aria-disabled') === 'true',
             walkFirst: a.classList.contains('td-walk'),
             chosen: a.classList.contains('td-chosen'),

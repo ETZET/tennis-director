@@ -2,7 +2,7 @@
 id: open_day
 duration: 3h
 anchor: court_1
-performance: trial_day
+performance: open_day
 program:
   parts: [pm]
   requires: { not: { weather: rain } }

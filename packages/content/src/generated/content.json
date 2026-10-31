@@ -1,5 +1,5 @@
 {
- "version": "d137f3c4",
+ "version": "e69321fe",
  "stats": [
   {
    "id": "cash",
@@ -585,7 +585,7 @@
    "id": "open_day",
    "duration": "3h",
    "anchor": "court_1",
-   "performance": "trial_day",
+   "performance": "open_day",
    "effects": [
     {
      "stat": "cash",
@@ -629,7 +629,7 @@
    "id": "open_house",
    "duration": "4h",
    "anchor": "court_1",
-   "performance": "trial_day",
+   "performance": "open_day",
    "effects": [
     {
      "stat": "members",

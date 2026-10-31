@@ -1,3 +1,4 @@
+export * as activities from './activities';
 export * from './ambient/car';
 export * from './ambient/crow';
 export * from './ambient/dog';
@@ -6,6 +7,9 @@ export * from './ambient/sky';
 export * from './camera/orbit';
 export * from './choreo/scheduler';
 export * from './choreo/shots';
+export * from './fx/icons';
+export * from './fx/particles';
+export * from './fx/sprites';
 export * from './motion/ball';
 export * from './motion/ballistics';
 export * from './people/parts';

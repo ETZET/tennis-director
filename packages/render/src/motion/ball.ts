@@ -4,7 +4,15 @@ import { boxGeo } from '../people/parts';
 import type { CourtFrame } from '../world/frame';
 import { arcVelocity, type Bounds, G, simulateBounce } from './ballistics';
 
-type Seg = { k: 'arc'; t0: number; t1: number; p0: XYZ; v: XYZ } | { k: 'sim'; t0: number; t1: number; pts: number[] };
+type Seg =
+  | { k: 'arc'; t0: number; t1: number; p0: XYZ; v: XYZ; d?: { x: number; z: number } }
+  | { k: 'sim'; t0: number; t1: number; pts: number[] };
+
+/** 换一种球：颜色和大小（水球、红色小球）。 */
+export interface BallLook {
+  color?: string;
+  size?: number;
+}
 
 /**
  * 球池：网球和匹克球共用。球的轨迹是预先排好的一段段（抛物线或预积分的弹跳），
@@ -37,8 +45,10 @@ export class BallPool {
     this.blobGeo.rotateX(-Math.PI / 2);
   }
 
+  private readonly colorMats = new Map<string, THREE.MeshLambertMaterial>();
+
   /** 取一颗空闲的球（没有就新建）。owner 用来统计"谁的球"。 */
-  get(owner: unknown, pickleball = false): Ball {
+  get(owner: unknown, pickleball = false, look?: BallLook): Ball {
     let b = this.balls.find((x) => !x.inUse);
     if (!b) {
       b = new Ball(this);
@@ -50,10 +60,20 @@ export class BallPool {
     b.hold = null;
     b.fadeT = null;
     b.hist.length = 0;
-    b.m.scale.setScalar(1);
-    b.m.material = pickleball ? this.pickleMat : this.tennisMat;
+    b.size = look?.size ?? 1;
+    b.m.scale.setScalar(b.size);
+    b.m.material = look?.color ? this.colorMat(look.color) : pickleball ? this.pickleMat : this.tennisMat;
     b.vis(true);
     return b;
+  }
+
+  private colorMat(hex: string): THREE.MeshLambertMaterial {
+    let m = this.colorMats.get(hex);
+    if (!m) {
+      m = new THREE.MeshLambertMaterial({ color: hex });
+      this.colorMats.set(hex, m);
+    }
+    return m;
   }
 
   update(now: number): void {
@@ -71,6 +91,10 @@ export class Ball {
   owner: unknown = null;
   hold: THREE.Object3D | null = null;
   fadeT: number | null = null;
+  /** 缩放（默认 1） */
+  size = 1;
+  /** 上一段抛物线的终点（有风偏时和目标点不同） */
+  lastEnd: XYZ = { x: 0, y: 0, z: 0 };
 
   constructor(private readonly pool: BallPool) {
     this.m = new THREE.Mesh(pool.geo, pool.tennisMat);
@@ -98,6 +122,7 @@ export class Ball {
     this.hold = null;
     this.segs = [];
     this.fadeT = null;
+    this.size = 1;
     this.m.scale.setScalar(1);
     this.vis(false);
   }
@@ -108,10 +133,18 @@ export class Ball {
     this.segs = [];
   }
 
-  /** 排一段抛物线（世界坐标），返回到达时刻。 */
-  arc(p0: XYZ, p1: XYZ, t0: number, dur: number): number {
+  /**
+   * 排一段抛物线（世界坐标），返回到达时刻。
+   * drift 是水平方向的恒定加速度（风），终点会偏开 drift·dur²，偏开后的终点记在 lastEnd。
+   */
+  arc(p0: XYZ, p1: XYZ, t0: number, dur: number, drift?: { x: number; z: number }): number {
     this.hold = null;
-    this.segs.push({ k: 'arc', t0, t1: t0 + dur, p0: { x: p0.x, y: p0.y, z: p0.z }, v: arcVelocity(p0, p1, dur) });
+    const seg: Seg = { k: 'arc', t0, t1: t0 + dur, p0: { x: p0.x, y: p0.y, z: p0.z }, v: arcVelocity(p0, p1, dur) };
+    if (drift && (drift.x || drift.z)) seg.d = { x: drift.x, z: drift.z };
+    this.segs.push(seg);
+    this.lastEnd = seg.d
+      ? { x: p1.x + seg.d.x * dur * dur, y: p1.y, z: p1.z + seg.d.z * dur * dur }
+      : { x: p1.x, y: p1.y, z: p1.z };
     return t0 + dur;
   }
 
@@ -144,7 +177,13 @@ export class Ball {
       const t = Math.max(s.t0, Math.min(now, s.t1));
       if (s.k === 'arc') {
         const u = t - s.t0;
-        p.set(s.p0.x + s.v.x * u, s.p0.y + s.v.y * u - 0.5 * G * u * u, s.p0.z + s.v.z * u);
+        if (s.d)
+          p.set(
+            s.p0.x + s.v.x * u + s.d.x * u * u,
+            s.p0.y + s.v.y * u - 0.5 * G * u * u,
+            s.p0.z + s.v.z * u + s.d.z * u * u,
+          );
+        else p.set(s.p0.x + s.v.x * u, s.p0.y + s.v.y * u - 0.5 * G * u * u, s.p0.z + s.v.z * u);
       } else {
         const pts = s.pts;
         const n = pts.length / 3;
@@ -168,7 +207,7 @@ export class Ball {
         this.release();
         return;
       }
-      this.m.scale.setScalar(Math.max(0.01, 1 - k));
+      this.m.scale.setScalar(Math.max(0.01, 1 - k) * this.size);
     }
     this.hist.unshift(p.x, p.y, p.z);
     if (this.hist.length > 24) this.hist.length = 24;
