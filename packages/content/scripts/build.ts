@@ -4,27 +4,9 @@
  *   pnpm content          # 编译并写出 JSON
  *   pnpm content --check  # 只校验，并确认 JSON 和 YAML 一致（CI 用）
  */
-import { readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
-import { dirname, join, relative } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { compileContent, formatIssues } from '../src/compile';
-
-const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const DATA = join(ROOT, 'data');
-const OUT = join(ROOT, 'src/generated/content.json');
-
-export function readContentFiles(dir = DATA): Record<string, string> {
-  const files: Record<string, string> = {};
-  const walk = (d: string) => {
-    for (const n of readdirSync(d)) {
-      const p = join(d, n);
-      if (statSync(p).isDirectory()) walk(p);
-      else if (/\.ya?ml$/.test(n)) files[relative(dir, p).split('\\').join('/')] = readFileSync(p, 'utf8');
-    }
-  };
-  walk(dir);
-  return files;
-}
+import { GENERATED_JSON as OUT, readContentFiles } from '../src/node';
 
 const check = process.argv.includes('--check');
 const r = compileContent(readContentFiles());

@@ -183,6 +183,14 @@ events:
       A: 一笑了之
       B: 给球筐加个盖 · −$40
       C: 不管
+  hc_rival_flyer:
+    topic: 对手
+    title: Pine Crown 把招生传单贴到了我们的围网上
+    body: "「真正的教练，真正的场地，首月八折。」已经有三位家长拍了照。"
+    options:
+      A: 换成我们自己的传单
+      B: 打电话去 Pine Crown 抗议
+      C: 随它去
   hc_storm_leak:
     topic: 天气
     title: 会所屋顶漏雨

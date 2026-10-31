@@ -188,6 +188,14 @@ events:
       A: Laugh it off
       B: Put a lid on the basket · −$40
       C: Ignore it
+  hc_rival_flyer:
+    topic: Rivals
+    title: Pine Crown taped a recruiting flyer to our fence
+    body: '"Real coaching. Real courts. 20% off your first month." Three parents have already taken a photo of it.'
+    options:
+      A: Swap it for our own flyer
+      B: Call Pine Crown and complain
+      C: Leave it
   hc_storm_leak:
     topic: Weather
     title: The clubhouse roof is leaking

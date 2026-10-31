@@ -29,6 +29,8 @@ packages/content 只由 sim 读取
 - `prototypes/`：最初的单文件原型，只作参考和截图对比基准，不要修改。
 - `docs/adr/`：重要决策一个文件。违反架构原则的改动先写 ADR。
 - `packages/content/data/`：所有游戏内容（YAML）。卡在 `events/<幕>/<id>.yaml`，文件名就是 id；文案在 `i18n/en.yaml`、`i18n/zh.yaml`。改完运行 `pnpm content`，生成的 `src/generated/content.json` 一起提交。
+- `apps/game/src/`：`session.ts`（实时 → 游戏分钟、命令队列、"先走过去"的意图）、`project.ts`（状态 → HUD 快照）、`scene.ts`（只读模拟的演出）、`debug.ts`（调试面板）、`text.ts`（i18n 拼句）。
+- 内容热重载插件在 `@td/content/vite`，Node 专用代码在 `@td/content/node`；两者都不要从 `@td/content` 入口导出。
 - `packages/sim/src/`：`effects.ts`（白名单效果）、`vars.ts`（条件和表达式变量）、`cards.ts`（事件引擎和导演）、`systems.ts`（每个 tick 的系统顺序）、`game.ts`（命令、推进、重放）、`save.ts`（存档和迁移）。
 
 ## 不要做的事
@@ -39,11 +41,15 @@ packages/content 只由 sim 读取
 - 不要把文案写死在代码里（M1 起走 i18n 键值表）。
 - 不要在 sim 里新增效果或条件而不更新 `@td/content` 的 schema 和编译器校验；两边的变量表（`COMPUTED_VARS`）必须一致。
 - 不要手改 `src/generated/content.json`；改 YAML 再运行 `pnpm content`。
+- 不要在 `apps/game/src/scene.ts` 里改模拟状态；画面只读状态、只订阅领域事件。
+- 改了平衡相关的数值，重跑 `pnpm sim bots --games 1000 > docs/balance/hollow-creek.md` 一起提交；`balance.test.ts` 守着区间。
+- 新的界面文字放进 i18n 的 `ui.*`，两种语言都要有。
 - 不要在 M0 升级 three.js 以外的方式改画面；改了画面要更新截图基准，并说明原因。
 
 ## 常用命令
 
 ```
+pnpm game           # 游戏开发服务器（` 调试面板；改 YAML 热重载）
 pnpm dev            # sandbox 开发服务器
 pnpm typecheck      # 全部包类型检查（TypeScript 7）
 pnpm lint           # Biome

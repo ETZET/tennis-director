@@ -9,14 +9,15 @@ location: deck
 options:
   A:
     requiresDirectorAt: deck
-    check: { chance: "clamp((stat.board_support - 40) / 20, 0, 1)" }
+    # 表决永远有风险：信心满格也只有八成五；再差也有一成多的机会
+    check: { chance: "clamp((stat.board_support - 25) / 70, 0.12, 0.85)" }
     onSuccess:
       - { flag: board_vote_passed, set: true }
       - { schedule: hc_who_follows, in: 1h }
     onFail:
       - { endAct: lost, ending: club_sold }
   B:
-    check: { chance: "clamp((stat.board_support - 50) / 20, 0, 1)" }
+    check: { chance: "clamp((stat.board_support - 35) / 70, 0.08, 0.75)" }
     onSuccess:
       - { flag: board_vote_passed, set: true }
       - { schedule: hc_who_follows, in: 1h }

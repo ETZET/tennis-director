@@ -399,6 +399,17 @@ export function compileContent(files: Record<string, string>): CompileResult {
   for (const c of b.cards)
     if (!reachable.has(c.id)) warn(`events/${c.act}/${c.id}.yaml`, `card '${c.id}' is never scheduled by anything`);
 
+  /* ---------- 各语言的键对齐：一种语言有、另一种没有的文案 ---------- */
+  const allKeys = new Set(langs.flatMap((l) => Object.keys(b.i18n[l] ?? {})));
+  for (const l of langs) {
+    const missing = [...allKeys].filter((k) => !(k in (b.i18n[l] ?? {})));
+    if (missing.length)
+      warn(
+        `i18n/${l}.yaml`,
+        `missing ${missing.length} key(s) other languages have: ${missing.slice(0, 5).join(', ')}${missing.length > 5 ? ', …' : ''}`,
+      );
+  }
+
   if (errors.length) return { bundle: null, errors, warnings };
   b.version = fnv1a(stableStringify({ ...b, version: '' }));
   return { bundle: b, errors, warnings };

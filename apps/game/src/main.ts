@@ -3,8 +3,9 @@ import { clamp } from '@td/shared';
 import { CONTENT, type ContentBundle, type GameState, type SimEvent, worldOf } from '@td/sim';
 import { mountHud } from '@td/ui';
 import type * as THREE from 'three';
+import { createDebug } from './debug';
 import { GameLabels } from './labels';
-import { clearAutosave, readAutosave, writeAutosave } from './persist';
+import { clearAutosave, downloadSave, readAutosave, writeAutosave } from './persist';
 import { Projector } from './project';
 import { createGameScene } from './scene';
 import { Session } from './session';
@@ -121,8 +122,10 @@ labels.occluders = () =>
   [...document.querySelectorAll('.td-bug,.td-strip-wrap,.td-card,.td-wire,.td-bug-status')].map((el) =>
     el.getBoundingClientRect(),
   );
+// 红土场的站位就在桥头，牌子挪到场地北边线上，不和"人行桥"叠在一起
+const LABEL_AT: Record<string, { x: number; z: number }> = { clay_court: hollowCreek.FD.w({ x: 0, z: -10.4 }) };
 const ground = (a: string, dy: number) => () => {
-  const p = hollowCreek.STANDS[a] ?? { x: 0, z: 0 };
+  const p = LABEL_AT[a] ?? hollowCreek.STANDS[a] ?? { x: 0, z: 0 };
   return { x: p.x, y: hollowCreek.groundY(p.x, p.z) + dy, z: p.z };
 };
 const destination = (s: GameState) =>
@@ -179,7 +182,9 @@ labels.add({
 window.addEventListener('keydown', (e) => {
   const t = e.target as HTMLElement | null;
   if (t?.closest?.('button,summary,input,select') && (e.key === ' ' || e.key === 'Enter')) return;
-  if (e.key === 'q' || e.key === 'Q') camera.rotate(1);
+  if (t?.closest?.('.tdd') && e.key !== '`') return;
+  if (e.key === '`' && debug) debug.toggle();
+  else if (e.key === 'q' || e.key === 'Q') camera.rotate(1);
   else if (e.key === 'e' || e.key === 'E') camera.rotate(-1);
   else if (e.key === '+' || e.key === '=') camera.zoomIn();
   else if (e.key === '-' || e.key === '_') camera.zoomOut();
@@ -227,6 +232,7 @@ function frame(ts: number) {
     uiT = 0;
     draw();
   }
+  debug?.frame(dt);
   saveT += dt;
   if (saveT > 30 && !session.s.outcome) {
     saveT = 0;
@@ -242,20 +248,47 @@ async function boot(): Promise<void> {
 }
 void boot();
 
-/* ---------- 开发用 ---------- */
+/* ---------- 开发用：调试面板（` 键）和内容热重载 ---------- */
+function setContent(c: ContentBundle): void {
+  content = c;
+  text = createText(c, lang);
+  session.content = c;
+  projector.setContent(c, text);
+  scene.setContent(c);
+  draw();
+}
+
+const debug =
+  import.meta.env.DEV || params.has('debug')
+    ? createDebug(
+        $('debug'),
+        {
+          session: () => session,
+          content: () => content,
+          text: () => text,
+          exportSave: () => downloadSave(session),
+          newGame: (seed) => {
+            void clearAutosave();
+            const s = Session.fresh(content, seed ?? Math.floor(Math.random() * 2 ** 31), session.s.directorConfig);
+            begin(s);
+          },
+          pump: () => pump([]),
+        },
+        params.has('debug'),
+      )
+    : null;
+
+if (import.meta.hot)
+  import.meta.hot.on('td:content', (data: { bundle: ContentBundle; warnings: string[] }) => {
+    document.querySelector('vite-error-overlay')?.remove();
+    setContent(data.bundle);
+    debug?.note(data.warnings);
+    console.info(`[content] hot-reloaded ${data.bundle.version}`);
+  });
+
 declare global {
   interface Window {
-    __td?: { session: () => Session; setContent: (c: ContentBundle) => void };
+    __td?: { session: () => Session; setContent: (c: ContentBundle) => void; resync: () => void };
   }
 }
-window.__td = {
-  session: () => session,
-  setContent(c) {
-    content = c;
-    text = createText(c, lang);
-    session.content = c;
-    projector = new Projector(c, text);
-    scene.setContent(c);
-    draw();
-  },
-};
+window.__td = { session: () => session, setContent, resync: () => scene.sync(session.s) };

@@ -1,0 +1,25 @@
+/* 调试面板：左侧一条深色窄栏，等宽数字。只在开发版出现。 */
+.tdd{position:fixed;left:12px;top:120px;bottom:max(72px,calc(100vh - 560px));width:300px;z-index:6;overflow:auto;background:rgba(10,16,28,.94);color:#dfe6ef;font:12px/1.35 ui-monospace,SFMono-Regular,Menlo,monospace;box-shadow:0 6px 18px rgba(0,0,0,.4);padding:0 0 10px}
+.tdd button,.tdd input,.tdd select{font:inherit;color:inherit;background:#1d2a40;border:1px solid #33445f;padding:3px 6px}
+.tdd button{cursor:pointer}
+.tdd button:hover{background:#2a3b58}
+.tdd :focus-visible{outline:2px solid #d7ff3c;outline-offset:1px}
+.tdd-head{position:sticky;top:0;display:flex;gap:8px;align-items:center;padding:8px 10px;background:#0a101c;border-bottom:1px solid #33445f}
+.tdd-head b{color:#d7ff3c}
+.tdd-head span{flex:1;color:#a9b6c7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tdd-x{border:0 !important;background:none !important;font-size:16px !important;line-height:1}
+.tdd-meta{padding:6px 10px;color:#a9b6c7}
+.tdd-notes{margin:0 10px 6px;padding:6px 8px 6px 20px;background:#3a1d1d;color:#ffb3a3}
+.tdd-sec{border-top:1px solid #22314a;padding:0 10px}
+.tdd-sec summary{cursor:pointer;padding:7px 0;color:#d7ff3c;font-weight:700}
+.tdd-row{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 8px}
+.tdd-row input,.tdd-row select{flex:1;min-width:0}
+.tdd-table{width:100%;border-collapse:collapse;margin-bottom:8px}
+.tdd-table th{text-align:left;font-weight:500;padding:2px 6px 2px 0;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tdd-table td{padding:2px 0;text-align:right}
+.tdd-table input{width:84px;text-align:right}
+.tdd-num{color:#a9b6c7;padding-right:6px !important}
+.tdd-list{margin:0 0 8px;padding:0;list-style:none}
+.tdd-list b{color:#a9b6c7;font-weight:500;margin-right:4px}
+.tdd-dim{color:#7d8ba0;margin:0 0 8px}
+@media (max-width:760px){.tdd{left:8px;right:8px;width:auto;top:auto;bottom:100px;max-height:50vh}}

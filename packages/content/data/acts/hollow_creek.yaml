@@ -49,12 +49,12 @@ rules:
   quality_rate: 0.25
   # 每天收盘时的会员变化
   member_drift: >-
-    round((stat.quality - 50) / 12 + (stat.reputation - 40) / 25 + rand() * 1.2 - 0.6)
+    round((stat.quality - 46) / 12 + (stat.reputation - 40) / 25 + rand() * 1.2 - 0.6)
   reputation_drift: (stat.quality - 50) / 40
   dues_week: 12
   derived:
     board_support: >-
-      clamp(50 + (stat.quality - 55) * 1.2 + (stat.members - 55) * 1.5 + (stat.reputation - 40) * 0.6
+      clamp(45 + (stat.quality - 55) * 0.9 + (stat.members - 50) * 1.0 + (stat.reputation - 40) * 0.5
       + (flag.match_won ? 8 : 0) + (flag.match_played ? 2 : 0)
       - (flag.pickleball_lease ? 3 : 0), 0, 100)
   lose_if:

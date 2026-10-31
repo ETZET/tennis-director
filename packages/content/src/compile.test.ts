@@ -29,10 +29,9 @@ describe('内容编译', () => {
     expect(r.bundle?.version).toBe(CONTENT.version);
   });
 
-  it('第一幕的切片有 15–20 张卡', () => {
+  it('第一幕至少有切片要求的 15 张卡（M3 起策划可以继续加）', () => {
     const n = CONTENT.cards.filter((c) => c.act === 'hollow_creek').length;
     expect(n).toBeGreaterThanOrEqual(15);
-    expect(n).toBeLessThanOrEqual(20);
   });
 
   it('引用不存在的卡、锚点、状态量都会报错', () => {

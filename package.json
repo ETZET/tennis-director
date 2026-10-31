@@ -9,6 +9,7 @@
   },
   "scripts": {
     "dev": "pnpm --filter @td/sandbox dev",
+    "game": "pnpm --filter @td/game dev",
     "build": "pnpm -r --filter \"./apps/**\" build",
     "typecheck": "pnpm -r typecheck",
     "test": "vitest run",

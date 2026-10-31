@@ -39,11 +39,13 @@ export class Projector {
 
   constructor(
     private content: ContentBundle,
-    private readonly text: Text,
+    private text: Text,
   ) {}
 
-  setContent(c: ContentBundle): void {
+  /** 内容热重载：换内容和文案，快讯和曲线保留 */
+  setContent(c: ContentBundle, text: Text): void {
     this.content = c;
+    this.text = text;
   }
 
   /** 吃掉这一帧的领域事件：攒快讯 */
@@ -236,5 +238,3 @@ export class Projector {
     return card;
   }
 }
-
-export const KEY_INDEX = KEYS;

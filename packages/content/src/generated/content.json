@@ -1,5 +1,5 @@
 {
- "version": "e8441da5",
+ "version": "fe59be06",
  "stats": [
   {
    "id": "cash",
@@ -638,11 +638,11 @@
    "rules": {
     "quality_target": "22 + coach.skill * 0.45 * coach.attention + facility_quality + courts_open * 2",
     "quality_rate": 0.25,
-    "member_drift": "round((stat.quality - 50) / 12 + (stat.reputation - 40) / 25 + rand() * 1.2 - 0.6)",
+    "member_drift": "round((stat.quality - 46) / 12 + (stat.reputation - 40) / 25 + rand() * 1.2 - 0.6)",
     "reputation_drift": "(stat.quality - 50) / 40",
     "dues_week": 12,
     "derived": {
-     "board_support": "clamp(50 + (stat.quality - 55) * 1.2 + (stat.members - 55) * 1.5 + (stat.reputation - 40) * 0.6 + (flag.match_won ? 8 : 0) + (flag.match_played ? 2 : 0) - (flag.pickleball_lease ? 3 : 0), 0, 100)"
+     "board_support": "clamp(45 + (stat.quality - 55) * 0.9 + (stat.members - 50) * 1.0 + (stat.reputation - 40) * 0.5 + (flag.match_won ? 8 : 0) + (flag.match_played ? 2 : 0) - (flag.pickleball_lease ? 3 : 0), 0, 100)"
     },
     "lose_if": {
      "when": {
@@ -769,7 +769,7 @@
      "requiresDirectorAt": "deck",
      "effects": [],
      "check": {
-      "chance": "clamp((stat.board_support - 40) / 20, 0, 1)"
+      "chance": "clamp((stat.board_support - 25) / 70, 0.12, 0.85)"
      },
      "onSuccess": [
       {
@@ -791,7 +791,7 @@
     "B": {
      "effects": [],
      "check": {
-      "chance": "clamp((stat.board_support - 50) / 20, 0, 1)"
+      "chance": "clamp((stat.board_support - 35) / 70, 0.08, 0.75)"
      },
      "onSuccess": [
       {
@@ -1701,6 +1701,72 @@
    }
   },
   {
+   "id": "hc_rival_flyer",
+   "act": "hollow_creek",
+   "source": "random",
+   "tone": "comedy",
+   "when": {
+    "stat": "members",
+    "lt": 60
+   },
+   "weight": 0.8,
+   "cooldown": "4d",
+   "countdown": "2h",
+   "pause": false,
+   "location": "lot",
+   "options": {
+    "A": {
+     "requiresDirectorAt": "lot",
+     "effects": [
+      {
+       "stat": "reputation",
+       "add": 2
+      },
+      {
+       "chance": 0.5,
+       "stat": "members",
+       "add": 1
+      }
+     ],
+     "onSuccess": [],
+     "onFail": []
+    },
+    "B": {
+     "effects": [],
+     "check": {
+      "stat": "reputation",
+      "vs": 40
+     },
+     "onSuccess": [
+      {
+       "stat": "reputation",
+       "add": 1
+      }
+     ],
+     "onFail": [
+      {
+       "stat": "reputation",
+       "add": -2
+      }
+     ]
+    },
+    "C": {
+     "effects": [
+      {
+       "stat": "members",
+       "add": -1
+      }
+     ],
+     "onSuccess": [],
+     "onFail": []
+    }
+   },
+   "default": {
+    "then": "C",
+    "extra": []
+   }
+  },
+  {
    "id": "hc_storm_leak",
    "act": "hollow_creek",
    "source": "random",
@@ -2069,6 +2135,12 @@
    "events.hc_crow_ball.options.A": "Laugh it off",
    "events.hc_crow_ball.options.B": "Put a lid on the basket · −$40",
    "events.hc_crow_ball.options.C": "Ignore it",
+   "events.hc_rival_flyer.topic": "Rivals",
+   "events.hc_rival_flyer.title": "Pine Crown taped a recruiting flyer to our fence",
+   "events.hc_rival_flyer.body": "\"Real coaching. Real courts. 20% off your first month.\" Three parents have already taken a photo of it.",
+   "events.hc_rival_flyer.options.A": "Swap it for our own flyer",
+   "events.hc_rival_flyer.options.B": "Call Pine Crown and complain",
+   "events.hc_rival_flyer.options.C": "Leave it",
    "events.hc_storm_leak.topic": "Weather",
    "events.hc_storm_leak.title": "The clubhouse roof is leaking",
    "events.hc_storm_leak.body": "Rain is coming through over the trophy case. Members are moving chairs.",
@@ -2257,6 +2329,12 @@
    "events.hc_crow_ball.options.A": "一笑了之",
    "events.hc_crow_ball.options.B": "给球筐加个盖 · −$40",
    "events.hc_crow_ball.options.C": "不管",
+   "events.hc_rival_flyer.topic": "对手",
+   "events.hc_rival_flyer.title": "Pine Crown 把招生传单贴到了我们的围网上",
+   "events.hc_rival_flyer.body": "「真正的教练，真正的场地，首月八折。」已经有三位家长拍了照。",
+   "events.hc_rival_flyer.options.A": "换成我们自己的传单",
+   "events.hc_rival_flyer.options.B": "打电话去 Pine Crown 抗议",
+   "events.hc_rival_flyer.options.C": "随它去",
    "events.hc_storm_leak.topic": "天气",
    "events.hc_storm_leak.title": "会所屋顶漏雨",
    "events.hc_storm_leak.body": "雨水从奖杯柜上方漏下来，会员们在搬椅子。",
