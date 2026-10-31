@@ -1,6 +1,6 @@
 {
   "extends": "../../tsconfig.base.json",
   // 纯逻辑包：按下标取值必须处理 undefined
-  "compilerOptions": { "types": [], "noUncheckedIndexedAccess": true },
-  "include": ["src"]
+  "compilerOptions": { "types": ["node"], "noUncheckedIndexedAccess": true },
+  "include": ["src", "scripts"]
 }

@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "命令行无头跑局和平衡报告（M3 起）",
+  "description": "命令行无头跑局：确定性闸口、机器人跑局和平衡报告",
   "scripts": {
     "typecheck": "tsc -p tsconfig.json"
   },

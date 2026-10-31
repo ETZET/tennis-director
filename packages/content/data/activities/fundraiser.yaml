@@ -1,0 +1,8 @@
+# 露台上的募捐晚会。
+id: fundraiser
+duration: 3h
+anchor: deck
+performance: fundraiser
+effects:
+  - { stat: cash, add: "round(300 + stat.reputation * 12 + rand() * 400)" }
+  - { stat: reputation, add: 2 }

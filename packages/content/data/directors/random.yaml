@@ -1,0 +1,6 @@
+# 随机型导演：不看压力，各类卡一视同仁。
+id: random
+interval: 75m
+max_open: 2
+pressure: "0"
+weights: { crisis: 1, relief: 1, comedy: 1, neutral: 1 }

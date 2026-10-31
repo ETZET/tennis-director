@@ -1,0 +1,18 @@
+# 日历：气膜公司的报价。贵；解锁雨天训练。
+id: hc_bubble_quote
+act: hollow_creek
+source: calendar
+tone: neutral
+countdown: 1d
+location: bubble_court
+options:
+  A:
+    cost: 2400
+    effects:
+      - { facility: bubble, set: inflated }
+  B:
+    effects:
+      - { activity: fundraiser, in: 3h }
+  C:
+    effects: []
+default: { then: C }

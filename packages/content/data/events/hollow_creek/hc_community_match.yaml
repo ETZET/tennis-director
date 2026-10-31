@@ -1,0 +1,20 @@
+# Boss 前奏：社区对抗赛 vs 松冠俱乐部，结果影响董事会票数。
+id: hc_community_match
+act: hollow_creek
+source: calendar
+tone: crisis
+pause: true
+countdown: 2h
+location: court_1
+options:
+  A:
+    requires: { not: { coach: none } }
+    effects:
+      - { activity: match_strong, in: 30m }
+  B:
+    effects:
+      - { activity: match_juniors, in: 30m }
+  C:
+    effects:
+      - { stat: reputation, add: -5 }
+default: { then: B }

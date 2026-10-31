@@ -1,0 +1,6 @@
+# 特质修正。attention：教练在总监不在场时的专注度（1 = 正常）。
+- { id: phone_addict, attention: 0.35, morale_drift: -0.5 }
+- { id: eager, attention: 1, morale_drift: 0.5 }
+- { id: burnt_out, attention: 0.8, morale_drift: -0.5 }
+- { id: star, attention: 1, reputation_drift: 0.4 }
+- { id: daydreamer, attention: 1 }

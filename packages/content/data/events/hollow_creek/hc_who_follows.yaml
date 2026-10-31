@@ -1,0 +1,25 @@
+# 过渡：枫岭高中发来邀请。「谁跟我走」——随行名额只有一个。
+id: hc_who_follows
+act: hollow_creek
+source: consequence
+tone: relief
+pause: true
+countdown: 1d
+location: deck
+options:
+  A:
+    requires: { not: { coach: none } }
+    effects:
+      - { follow: jess_park, if: { coach: jess_park } }
+      - { follow: walt_hendricks, if: { coach: walt_hendricks } }
+      - { follow: nadia_volkov, if: { coach: nadia_volkov } }
+      - { endAct: won, ending: saved_with_coach }
+  B:
+    requires: { flag: kid_noticed }
+    effects:
+      - { follow: mason }
+      - { endAct: won, ending: saved_with_kid }
+  C:
+    effects:
+      - { endAct: won, ending: saved_alone }
+default: { then: C }

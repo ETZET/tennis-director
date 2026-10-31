@@ -1,0 +1,25 @@
+# Boss：董事会表决。要亲自到露台上去讲；不去的话，董事会在你缺席时投票。
+id: hc_board_vote
+act: hollow_creek
+source: calendar
+tone: crisis
+pause: true
+countdown: 3h
+location: deck
+options:
+  A:
+    requiresDirectorAt: deck
+    check: { chance: "clamp((stat.board_support - 40) / 20, 0, 1)" }
+    onSuccess:
+      - { flag: board_vote_passed, set: true }
+      - { schedule: hc_who_follows, in: 1h }
+    onFail:
+      - { endAct: lost, ending: club_sold }
+  B:
+    check: { chance: "clamp((stat.board_support - 50) / 20, 0, 1)" }
+    onSuccess:
+      - { flag: board_vote_passed, set: true }
+      - { schedule: hc_who_follows, in: 1h }
+    onFail:
+      - { endAct: lost, ending: club_sold }
+default: { then: B }

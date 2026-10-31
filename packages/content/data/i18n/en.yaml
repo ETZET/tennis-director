@@ -1,0 +1,224 @@
+# English text. Every key a card, activity, stat or ending uses must exist here and in zh.yaml.
+stats:
+  cash: Cash
+  reputation: Reputation
+  quality: Program quality
+  members: Members
+  pickleball_pressure: Pickleball pressure
+  board_support: Board confidence
+
+anchors:
+  deck: Clubhouse deck
+  court_1: Court 1
+  court_2: Court 2
+  bubble_court: Bubble court
+  clay_court: Clay court
+  lot: Parking lot
+  pool: Pool
+  creek_bridge: Footbridge
+
+facilities:
+  court_1: { worn: Court 1 · cracked, repaired: Court 1 · repaired }
+  court_2:
+    {
+      rented_pickleball: Court 2 · rented to pickleball,
+      shared: Court 2 · shared hours,
+      tennis: Court 2 · tennis again,
+    }
+  bubble: { collapsed: Bubble · collapsed, inflated: Bubble · inflated }
+  clay: { overgrown: Clay court · overgrown, restored: Clay court · restored }
+  pool: { drained: Pool · drained }
+
+activities:
+  lesson: { title: Junior lesson }
+  trial_day: { title: Free trial day }
+  trial_day_big: { title: Free trial day (full push) }
+  workday: { title: Community workday }
+  contractor: { title: Contractors on the clay court }
+  fundraiser: { title: Fundraiser on the deck }
+  tug_of_war: { title: Tug-of-war vs pickleball }
+  match_strong: { title: Community match vs Pine Crown }
+  match_juniors: { title: Community match vs Pine Crown (juniors) }
+
+endings:
+  saved_with_coach:
+    title: Hollow Creek is saved
+    body: The board votes to keep the club. Maple Ridge High calls with a job offer, and your coach comes with you.
+  saved_with_kid:
+    title: Hollow Creek is saved
+    body: The board votes to keep the club. Maple Ridge High offers you the program, and Mason enrolls there too.
+  saved_alone:
+    title: Hollow Creek is saved
+    body: The board votes to keep the club. You head to Maple Ridge High on your own.
+  club_sold:
+    title: The club is sold
+    body: The board votes to sell. The FOR SALE sign stays up, and Hollow Creek closes at the end of the month.
+  sold_to_developer:
+    title: Sold to the developer
+    body: You take the money. The courts will be townhouses by spring.
+  bankrupt:
+    title: Out of money
+    body: The club cannot make payroll. The bank takes over and the act ends.
+
+events:
+  hc_dale_phone:
+    topic: Coaching
+    title: Coach Dale is on his phone during the junior lesson
+    body: Tyler is hitting balls into the fence and Mason is sitting on the court. Dale has not looked up in ten minutes.
+    options:
+      A: Walk down to Court 1 and talk to him
+      B: Text him from the deck
+      C: Let it slide · quality −3
+  hc_parent_complaint:
+    topic: Members
+    title: Ms. Carter wants a word about the lessons
+    body: '"My son paid for lessons, not babysitting." She is standing at the gate of Court 1.'
+    options:
+      A: Refund this week's lesson · −$60
+      B: Promise things will change · −1 member
+      C: Back the coach · −2 members, reputation −3
+  hc_board_memo:
+    topic: Board memo
+    title: The board wants you to deal with Coach Dale
+    body: Program quality has collapsed and members are leaving. The board expects action today.
+    options:
+      A: Fire him in front of the class
+      B: Let him go privately on the deck
+      C: Give him one more chance
+  hc_dale_relapse:
+    topic: Coaching
+    title: Dale is back on his phone
+    body: One more chance lasted a day. The juniors are hitting balls at each other.
+    options:
+      A: Fire him now
+      B: Dock his pay
+      C: Ignore it · quality −4, −2 members
+  hc_hire_coach:
+    topic: Staff
+    title: Hire a new head coach
+    body: Three people answered the ad. Whoever you pick could follow you after Hollow Creek.
+    options:
+      A: Jess Park · eager rookie, $250/wk
+      B: Walt Hendricks · tired veteran, $420/wk
+      C: Nadia Volkov · former pro, $900/wk + $600 signing
+  hc_fix_court1:
+    topic: Facilities
+    title: Court 1 is falling apart
+    body: The cracks have weeds in them and the net sags in the middle. A local crew can patch it this week.
+    options:
+      A: Patch the cracks and replace the net · −$350
+      B: Just replace the net · −$80
+      C: Not now
+  hc_trial_day:
+    topic: Recruiting
+    title: Host a free trial day?
+    body: Open the gates for an afternoon and see who shows up. Being on Court 1 yourself brings in a few more.
+    options:
+      A: Go all out with flyers and a banner · −$150
+      B: Keep it low-key
+      C: Skip it · reputation −1
+  hc_discover_kid:
+    topic: Talent
+    title: Mason has a natural swing
+    body: The kid who sat on the court during Dale's lessons just hit three clean backhands in a row.
+    options:
+      A: Pay for private lessons · −$200
+      B: Tell his parents he has talent
+      C: Keep an eye on him
+  hc_pickleball_lease:
+    topic: Pickleball
+    title: The pickleball group wants a full-year lease
+    body: They offer $800 up front to lock in Court 2 for the year. Your tennis members are not thrilled.
+    options:
+      A: Sign the lease · +$800, members grumble
+      B: Take Court 2 back for tennis
+      C: Offer shared hours (go to Court 2; depends on reputation)
+  hc_pickleball_rant:
+    topic: Pickleball
+    title: The pickleball group is venting in the community chat
+    body: '"Hollow Creek doesn''t want new people." The thread has forty replies.'
+    options:
+      A: Post a calm reply (depends on reputation)
+      B: Invite them to a friendly
+      C: Ignore it · reputation −3
+  hc_tug_of_war:
+    topic: Community
+    title: The pickleball team challenges you to tug-of-war
+    body: Loser buys the lemonade. Tennis has never won one of these.
+    options:
+      A: Send the juniors
+      B: Join in yourself (go to Court 2)
+      C: Decline
+  hc_clay_workday:
+    topic: Facilities
+    title: Rescue the clay court?
+    body: A tree is lying on the fence and the clay is more weed than court. Neighbors have offered to help.
+    options:
+      A: Run a community workday (go to the clay court)
+      B: Hire contractors · −$900
+      C: Leave it
+  hc_bubble_quote:
+    topic: Facilities
+    title: The bubble company sent a quote
+    body: Re-inflating the dome costs $2,400. It would give you a court for rainy days.
+    options:
+      A: Re-inflate it · −$2,400
+      B: Hold a fundraiser on the deck first
+      C: Not this year
+  hc_developer_visit:
+    topic: Offer
+    title: A developer wants to buy the land
+    body: $2.1 million for the whole site. Townhouses, he says. The board would take it.
+    options:
+      A: Accept · ends the act
+      B: Decline
+      C: Ask for time to think
+  hc_developer_return:
+    topic: Offer
+    title: The developer is back with a final offer
+    body: Same money, a firm deadline. This is the last time he asks.
+    options:
+      A: Accept · ends the act
+      B: Decline for good
+  hc_crow_ball:
+    topic: Court 1
+    title: A crow just stole a ball from the basket
+    body: It is sitting on the fence post, looking pleased with itself. The juniors are delighted.
+    options:
+      A: Laugh it off
+      B: Put a lid on the basket · −$40
+      C: Ignore it
+  hc_storm_leak:
+    topic: Weather
+    title: The clubhouse roof is leaking
+    body: Rain is coming through over the trophy case. Members are moving chairs.
+    options:
+      A: Patch the roof · −$250
+      B: Put out buckets
+      C: Close the clubhouse today · −1 member
+  hc_community_match:
+    topic: Match day
+    title: Community match against Pine Crown
+    body: Pine Crown is the club across the valley. Half the board will be watching.
+    options:
+      A: Field the strongest lineup with your coach
+      B: Give the juniors a chance
+      C: Forfeit · reputation −5
+  hc_board_vote:
+    topic: Board vote
+    title: The board votes on selling the club
+    body: Quality, members, reputation and the Pine Crown match all count. Present your case on the deck.
+    options:
+      A: Present in person on the deck
+      B: Let the numbers speak for themselves
+  hc_who_follows:
+    topic: Next chapter
+    title: Maple Ridge High wants you to run their program
+    body: You can bring one person with you.
+    options:
+      A: Bring your head coach
+      B: Bring Mason
+      C: Go alone
+
+log:
+  started: You took over Hollow Creek Tennis Club.

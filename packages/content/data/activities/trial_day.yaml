@@ -1,0 +1,9 @@
+# 免费试训日（低调版）：来的人不多，五花八门。
+id: trial_day
+duration: 3h
+anchor: court_1
+performance: trial_day
+effects:
+  - { stat: members, add: "round(1 + stat.reputation / 20 + rand() * 2)" }
+  - { stat: members, add: 1, if: { directorAt: court_1 } }
+  - { schedule: hc_discover_kid, in: 30m, chance: "clamp(0.3 + coach.skill / 200, 0, 0.9)" }

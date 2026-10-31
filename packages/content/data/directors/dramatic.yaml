@@ -1,0 +1,13 @@
+# 戏剧型导演：压力越高越往上加码，节奏起伏大。
+id: dramatic
+interval: 60m
+max_open: 3
+pressure: >-
+  clamp((1500 - stat.cash) / 1500, 0, 1) * 0.4
+  + clamp(open_cards / 3, 0, 1) * 0.3
+  + clamp((50 - stat.quality) / 30, 0, 1) * 0.3
+weights:
+  crisis: 1 + pressure
+  relief: 0.4
+  comedy: 0.8
+  neutral: 1

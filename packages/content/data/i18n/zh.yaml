@@ -1,0 +1,219 @@
+# 中文文案。和 en.yaml 的键一一对应。
+stats:
+  cash: 现金
+  reputation: 声望
+  quality: 项目质量
+  members: 会员
+  pickleball_pressure: 匹克球压力
+  board_support: 董事会信心
+
+anchors:
+  deck: 会所露台
+  court_1: 1 号场
+  court_2: 2 号场
+  bubble_court: 气膜场
+  clay_court: 红土场
+  lot: 停车场
+  pool: 泳池
+  creek_bridge: 人行桥
+
+facilities:
+  court_1: { worn: 1 号场 · 开裂, repaired: 1 号场 · 修好了 }
+  court_2: { rented_pickleball: 2 号场 · 租给匹克球, shared: 2 号场 · 分时段, tennis: 2 号场 · 收回打网球 }
+  bubble: { collapsed: 气膜 · 塌了, inflated: 气膜 · 充起来了 }
+  clay: { overgrown: 红土场 · 长满杂草, restored: 红土场 · 救回来了 }
+  pool: { drained: 泳池 · 干涸 }
+
+activities:
+  lesson: { title: 青少年课 }
+  trial_day: { title: 免费试训日 }
+  trial_day_big: { title: 免费试训日（大张旗鼓） }
+  workday: { title: 社区劳动日 }
+  contractor: { title: 外包施工队在红土场 }
+  fundraiser: { title: 露台募捐晚会 }
+  tug_of_war: { title: 和匹克球队拔河 }
+  match_strong: { title: 社区对抗赛 vs 松冠俱乐部 }
+  match_juniors: { title: 社区对抗赛 vs 松冠俱乐部（青少年上场） }
+
+endings:
+  saved_with_coach:
+    title: Hollow Creek 保住了
+    body: 董事会投票保留俱乐部。枫岭高中发来聘书，你的教练跟你一起走。
+  saved_with_kid:
+    title: Hollow Creek 保住了
+    body: 董事会投票保留俱乐部。枫岭高中请你去带网球队，Mason 也考进了枫岭。
+  saved_alone:
+    title: Hollow Creek 保住了
+    body: 董事会投票保留俱乐部。你一个人去了枫岭高中。
+  club_sold:
+    title: 俱乐部被卖了
+    body: 董事会投票出售。停车场的出售牌没摘下来，Hollow Creek 月底关门。
+  sold_to_developer:
+    title: 卖给了开发商
+    body: 你收了钱。到明年春天，这些球场会变成联排别墅。
+  bankrupt:
+    title: 钱花光了
+    body: 俱乐部发不出工资，银行接管，本幕结束。
+
+events:
+  hc_dale_phone:
+    topic: 教学
+    title: Dale 在青少年课上玩手机
+    body: Tyler 把球一个个打进围网，Mason 坐在场地上发呆。Dale 已经十分钟没抬头了。
+    options:
+      A: 走到 1 号场，当面跟他说
+      B: 在露台上给他发短信
+      C: 算了 · 质量 −3
+  hc_parent_complaint:
+    topic: 会员
+    title: Carter 女士要找你谈课程的事
+    body: “我儿子交的是课时费，不是托管费。”她就站在 1 号场门口。
+    options:
+      A: 退这周的课时费 · −$60
+      B: 保证会改 · 会员 −1
+      C: 站在教练一边 · 会员 −2，声望 −3
+  hc_board_memo:
+    topic: 董事会备忘
+    title: 董事会要你处理 Dale
+    body: 项目质量崩了，会员在流失。董事会要你今天就拿出办法。
+    options:
+      A: 当着学生的面开除他
+      B: 在露台上私下谈，请他走人
+      C: 再给他一次机会
+  hc_dale_relapse:
+    topic: 教学
+    title: Dale 又在看手机了
+    body: 再给一次机会只撑了一天。孩子们在拿球互相打。
+    options:
+      A: 现在就开除他
+      B: 扣他工资
+      C: 不管 · 质量 −4，会员 −2
+  hc_hire_coach:
+    topic: 人事
+    title: 招一个新的主教练
+    body: 三个人回了招聘启事。你选的人，以后可能跟你去下一站。
+    options:
+      A: Jess Park · 热血新人，每周 $250
+      B: Walt Hendricks · 疲惫的老手，每周 $420
+      C: Nadia Volkov · 前职业球员，每周 $900，签约费 $600
+  hc_fix_court1:
+    topic: 设施
+    title: 1 号场快散架了
+    body: 裂缝里长了草，球网中间塌下去。本地的施工队这周能来补。
+    options:
+      A: 补裂缝、换球网 · −$350
+      B: 只换球网 · −$80
+      C: 先不修
+  hc_trial_day:
+    topic: 招生
+    title: 办一场免费试训日？
+    body: 开放一下午，看看谁会来。你亲自到 1 号场，能多拉来几个人。
+    options:
+      A: 大张旗鼓，发传单挂横幅 · −$150
+      B: 低调办
+      C: 不办 · 声望 −1
+  hc_discover_kid:
+    topic: 天赋
+    title: Mason 的挥拍是天生的
+    body: 在 Dale 课上坐在地上发呆的那个孩子，刚刚连着打了三个干净的反手。
+    options:
+      A: 出钱给他上私教课 · −$200
+      B: 告诉他父母他有天赋
+      C: 先留意着
+  hc_pickleball_lease:
+    topic: 匹克球
+    title: 匹克球那帮人想签一整年的租约
+    body: 他们先付 $800，把 2 号场包一整年。网球会员不太高兴。
+    options:
+      A: 签约 · +$800，会员抱怨
+      B: 把 2 号场收回来打网球
+      C: 提议分时段（走到 2 号场去谈，成败看声望）
+  hc_pickleball_rant:
+    topic: 匹克球
+    title: 匹克球那帮人在社区群里吐槽你
+    body: “Hollow Creek 不欢迎新人。”帖子底下已经四十条回复。
+    options:
+      A: 心平气和地回一帖（成败看声望）
+      B: 请他们来打一场友谊赛
+      C: 不理 · 声望 −3
+  hc_tug_of_war:
+    topic: 社区
+    title: 匹克球队向你们发起拔河挑战
+    body: 输的一方请喝柠檬水。网球这边从来没赢过。
+    options:
+      A: 派青少年上
+      B: 你亲自上（走到 2 号场）
+      C: 婉拒
+  hc_clay_workday:
+    topic: 设施
+    title: 把红土场救回来？
+    body: 一棵树倒在围网上，场地上草比土多。邻居们说可以来帮忙。
+    options:
+      A: 发起社区劳动日（走到红土场）
+      B: 请施工队 · −$900
+      C: 先不管
+  hc_bubble_quote:
+    topic: 设施
+    title: 气膜公司发来报价
+    body: 重新充气要 $2,400。充起来以后，下雨天也有场地可用。
+    options:
+      A: 充气 · −$2,400
+      B: 先在露台上办一场募捐晚会
+      C: 今年不弄了
+  hc_developer_visit:
+    topic: 报价
+    title: 开发商想买下这块地
+    body: 整块地 210 万美元。他说要盖联排别墅。董事会会同意的。
+    options:
+      A: 接受 · 本幕结束
+      B: 拒绝
+      C: 说要考虑一下
+  hc_developer_return:
+    topic: 报价
+    title: 开发商带着最后报价回来了
+    body: 一样的价钱，有明确的期限。这是他最后一次开口。
+    options:
+      A: 接受 · 本幕结束
+      B: 彻底拒绝
+  hc_crow_ball:
+    topic: 1 号场
+    title: 一只乌鸦从球筐里叼走了一个球
+    body: 它站在围网柱子上，一脸得意。孩子们乐坏了。
+    options:
+      A: 一笑了之
+      B: 给球筐加个盖 · −$40
+      C: 不管
+  hc_storm_leak:
+    topic: 天气
+    title: 会所屋顶漏雨
+    body: 雨水从奖杯柜上方漏下来，会员们在搬椅子。
+    options:
+      A: 补屋顶 · −$250
+      B: 摆几个桶接着
+      C: 今天会所关门 · 会员 −1
+  hc_community_match:
+    topic: 比赛日
+    title: 社区对抗赛 vs 松冠俱乐部
+    body: 松冠是山谷对面那家俱乐部。董事会一半的人会来看。
+    options:
+      A: 派出最强阵容，教练带队
+      B: 让青少年上场
+      C: 弃权 · 声望 −5
+  hc_board_vote:
+    topic: 董事会表决
+    title: 董事会就出售俱乐部投票
+    body: 质量、会员、声望和对松冠的比赛结果都算数。到露台上去讲你的理由。
+    options:
+      A: 亲自到露台上陈述
+      B: 让数字自己说话
+  hc_who_follows:
+    topic: 下一站
+    title: 枫岭高中请你去带他们的网球队
+    body: 你可以带一个人一起走。
+    options:
+      A: 带上你的主教练
+      B: 带上 Mason
+      C: 一个人去
+
+log:
+  started: 你接手了 Hollow Creek 网球俱乐部。

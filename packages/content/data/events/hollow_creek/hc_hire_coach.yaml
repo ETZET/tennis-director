@@ -1,0 +1,27 @@
+# 招新教练，三选一。招来的人有资格跟你去下一幕。
+id: hc_hire_coach
+act: hollow_creek
+source: consequence
+tone: relief
+pause: true
+countdown: 1d
+location: deck
+options:
+  A:
+    effects:
+      - { hire: jess_park }
+      - { schedule: hc_trial_day, in: 6h }
+  B:
+    effects:
+      - { hire: walt_hendricks }
+      - { schedule: hc_trial_day, in: 6h }
+  C:
+    cost: 600
+    effects:
+      - { hire: nadia_volkov }
+      - { stat: reputation, add: 4 }
+      - { schedule: hc_trial_day, in: 6h }
+default:
+  then: A
+  extra:
+    - { stat: reputation, add: -1 }

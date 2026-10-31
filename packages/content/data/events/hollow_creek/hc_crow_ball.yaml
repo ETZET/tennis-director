@@ -1,0 +1,23 @@
+# 喜剧事件：乌鸦从球筐里叼走一个球。
+id: hc_crow_ball
+act: hollow_creek
+source: random
+tone: comedy
+when: { activity: lesson, running: true }
+once: false
+cooldown: 3d
+weight: 0.6
+countdown: 1h
+location: court_1
+options:
+  A:
+    effects:
+      - { stat: reputation, add: 1 }
+  B:
+    cost: 40
+    effects:
+      - { stat: quality, add: 1 }
+  C:
+    effects:
+      - { stat: quality, add: -1 }
+default: { then: C }

@@ -1,5 +1,21 @@
 /**
- * 内容数据（M1 开始实现）：事件卡、活动、状态量、人物、导演配置、文案。
- * 用 YAML 编写，构建时校验并编译成 JSON。只由 @td/sim 读取。
+ * 内容数据：事件卡、活动、状态量、人物、导演配置、文案。
+ * 用 YAML 写在 data/，构建时校验并编译成 src/generated/content.json。只由 @td/sim 读取。
  */
-export const CONTENT_VERSION = 0;
+
+import bundle from './generated/content.json';
+import type { ContentBundle } from './schema';
+
+/** 编译好的内容包（YAML 改了以后运行 pnpm content 重新生成） */
+export const CONTENT = bundle as unknown as ContentBundle;
+export const CONTENT_VERSION = CONTENT.version;
+
+export {
+  COMPUTED_VARS,
+  type CompileResult,
+  type ContentIssue,
+  compileContent,
+  formatIssues,
+  PERSON_ATTRS,
+} from './compile';
+export * from './schema';

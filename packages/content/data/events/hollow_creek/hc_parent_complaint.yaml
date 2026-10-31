@@ -1,0 +1,26 @@
+# 质量掉到 D 以下，家长找上门。
+id: hc_parent_complaint
+act: hollow_creek
+source: threshold
+tone: crisis
+when: { all: [{ stat: quality, lt: 42 }, { coach: dale }] }
+countdown: 2h
+location: court_1
+options:
+  A:
+    cost: 60
+    effects:
+      - { stat: reputation, add: 2 }
+      - { schedule: hc_board_memo, in: 3h }
+  B:
+    effects:
+      - { flag: promised_change, set: true }
+      - { stat: members, add: -1 }
+      - { schedule: hc_board_memo, in: 2h }
+  C:
+    effects:
+      - { stat: members, add: -2 }
+      - { stat: reputation, add: -3 }
+      - { schedule: hc_board_memo, in: 3h }
+default:
+  then: C

@@ -1,0 +1,9 @@
+# 社区劳动日：会员和邻居一起拔草、搬倒下的树，把红土场救回来。
+id: workday
+duration: 4h
+anchor: clay_court
+performance: workday
+effects:
+  - { facility: clay, set: restored }
+  - { stat: reputation, add: 4 }
+  - { stat: members, add: "round(1 + rand() * 2)" }

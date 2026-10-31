@@ -1,0 +1,23 @@
+# 暴雨，会所屋顶漏水。
+id: hc_storm_leak
+act: hollow_creek
+source: random
+tone: crisis
+when: { day: { gte: 3 } }
+once: false
+cooldown: 4d
+weight: 0.5
+countdown: 3h
+location: deck
+options:
+  A:
+    cost: 250
+    effects: []
+  B:
+    effects:
+      - { stat: quality, add: -2 }
+      - { stat: reputation, add: -1 }
+  C:
+    effects:
+      - { stat: members, add: -1 }
+default: { then: B }

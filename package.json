@@ -16,7 +16,10 @@
     "lint:fix": "biome check --write .",
     "check:deps": "depcruise packages apps --config .dependency-cruiser.cjs",
     "screenshot": "node tools/screenshot/compare.mjs",
-    "check": "pnpm typecheck && pnpm lint && pnpm check:deps && pnpm test && pnpm build"
+    "check": "pnpm typecheck && pnpm lint && pnpm check:deps && pnpm check:content && pnpm test && pnpm build",
+    "content": "tsx packages/content/scripts/build.ts",
+    "check:content": "tsx packages/content/scripts/build.ts --check",
+    "sim": "tsx apps/sim-cli/src/main.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.4",
@@ -25,6 +28,7 @@
     "pixelmatch": "8.0.0",
     "playwright-core": "1.63.0",
     "pngjs": "7.0.0",
+    "tsx": "4.23.15",
     "typescript": "7.0.2",
     "vite": "8.3.5",
     "vitest": "5.0.5"

@@ -1,0 +1,33 @@
+# 里程碑：董事会让你处理 Dale。怎么开除他会留下标记，影响他以后怎么出场。
+id: hc_board_memo
+act: hollow_creek
+source: milestone
+tone: crisis
+pause: true
+countdown: 3h
+location: deck
+options:
+  A:
+    requiresDirectorAt: court_1
+    effects:
+      - { fire: dale }
+      - { flag: dale_fired_publicly, set: true }
+      - { stat: reputation, add: -1 }
+      - { stat: quality, add: 2 }
+      - { schedule: hc_hire_coach, in: 1h }
+  B:
+    requiresDirectorAt: deck
+    effects:
+      - { fire: dale }
+      - { flag: dale_fired_privately, set: true }
+      - { stat: reputation, add: 1 }
+      - { schedule: hc_hire_coach, in: 1h }
+  C:
+    effects:
+      - { flag: dale_second_chance, set: true }
+      - { person: dale, add: { morale: 10 } }
+      - { schedule: hc_dale_relapse, in: 1d }
+default:
+  then: C
+  extra:
+    - { stat: reputation, add: -2 }

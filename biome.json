@@ -6,7 +6,16 @@
     "useIgnoreFile": true
   },
   "files": {
-    "includes": ["**", "!prototypes", "!**/dist", "!tools/screenshot/baselines", "!**/*.snap", "!**/*.md"]
+    "includes": [
+      "**",
+      "!prototypes",
+      "!**/dist",
+      "!tools/screenshot/baselines",
+      "!**/*.snap",
+      "!**/*.md",
+      "!**/generated",
+      "!packages/content/data"
+    ]
   },
   "formatter": {
     "enabled": true,

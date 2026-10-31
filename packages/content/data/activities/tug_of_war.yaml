@@ -1,0 +1,9 @@
+# 网球青少年和匹克球队拔河。网球这边从来没赢过。
+id: tug_of_war
+duration: 1h
+anchor: court_2
+performance: tug_of_war
+effects:
+  - { stat: reputation, add: 3 }
+  - { stat: pickleball_pressure, add: -15 }
+  - { flag: lost_tug_of_war, set: true }

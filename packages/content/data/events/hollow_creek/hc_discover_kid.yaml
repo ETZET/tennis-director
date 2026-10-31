@@ -1,0 +1,24 @@
+# 里程碑：发现那个孩子。Dale 课上坐在地上发呆的 Mason，其实挥拍天生就对。
+id: hc_discover_kid
+act: hollow_creek
+source: consequence
+tone: relief
+pause: true
+countdown: 1d
+location: court_1
+options:
+  A:
+    cost: 200
+    effects:
+      - { person: mason, add: { skill: 8, morale: 15 } }
+      - { flag: kid_mentored, set: true }
+      - { flag: kid_noticed, set: true }
+  B:
+    effects:
+      - { stat: reputation, add: 3 }
+      - { stat: members, add: 1 }
+      - { flag: kid_noticed, set: true }
+  C:
+    effects:
+      - { flag: kid_noticed, set: true }
+default: { then: C }

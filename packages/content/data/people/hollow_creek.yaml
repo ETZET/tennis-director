@@ -1,0 +1,16 @@
+# 第一幕的人物。candidate 是可以招来当主教练的人。
+- { id: dale, name: Coach Dale Pruitt, role: coach, skill: 40, morale: 30, wage_week: 350, traits: [phone_addict] }
+- { id: tyler, name: Tyler, role: junior, skill: 35, morale: 50 }
+- { id: mason, name: Mason, role: junior, skill: 22, morale: 40, talent: 92, traits: [daydreamer] }
+- { id: ms_carter, name: Ms. Carter, role: parent, skill: 0 }
+- { id: jess_park, name: Jess Park, role: candidate, skill: 52, morale: 85, wage_week: 250, traits: [eager] }
+- {
+    id: walt_hendricks,
+    name: Walt Hendricks,
+    role: candidate,
+    skill: 68,
+    morale: 40,
+    wage_week: 420,
+    traits: [burnt_out],
+  }
+- { id: nadia_volkov, name: Nadia Volkov, role: candidate, skill: 86, morale: 70, wage_week: 900, traits: [star] }

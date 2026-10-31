@@ -1,0 +1,24 @@
+# 再给一次机会之后：Dale 又在课上看手机。
+id: hc_dale_relapse
+act: hollow_creek
+source: consequence
+tone: crisis
+pause: true
+countdown: 2h
+location: court_1
+options:
+  A:
+    effects:
+      - { fire: dale }
+      - { flag: dale_fired_publicly, set: true }
+      - { schedule: hc_hire_coach, in: 1h }
+  B:
+    effects:
+      - { person: dale, add: { morale: -20 } }
+      - { stat: quality, add: -2 }
+      - { flag: dale_docked, set: true }
+  C:
+    effects:
+      - { stat: quality, add: -4 }
+      - { stat: members, add: -2 }
+default: { then: C }

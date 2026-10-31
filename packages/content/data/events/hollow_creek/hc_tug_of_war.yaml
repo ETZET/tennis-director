@@ -1,0 +1,20 @@
+# 喜剧事件：拔河输给匹克球队。
+id: hc_tug_of_war
+act: hollow_creek
+source: consequence
+tone: comedy
+countdown: 6h
+location: court_2
+options:
+  A:
+    effects:
+      - { activity: tug_of_war, in: 30m }
+  B:
+    requiresDirectorAt: court_2
+    effects:
+      - { activity: tug_of_war, in: 30m }
+      - { stat: reputation, add: 2 }
+  C:
+    effects:
+      - { stat: pickleball_pressure, add: 10 }
+default: { then: C }

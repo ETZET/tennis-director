@@ -1,0 +1,22 @@
+# 后果：匹克球那帮人在社区群里吐槽你。
+id: hc_pickleball_rant
+act: hollow_creek
+source: consequence
+tone: crisis
+countdown: 4h
+location: court_2
+options:
+  A:
+    check: { stat: reputation, vs: 45 }
+    onSuccess:
+      - { stat: reputation, add: 2 }
+    onFail:
+      - { stat: reputation, add: -3 }
+  B:
+    effects:
+      - { stat: pickleball_pressure, add: -10 }
+      - { schedule: hc_tug_of_war, in: 1d }
+  C:
+    effects:
+      - { stat: reputation, add: -3 }
+default: { then: C }

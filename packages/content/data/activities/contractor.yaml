@@ -1,0 +1,7 @@
+# 外包施工：贵，但不用求人。
+id: contractor
+duration: 1d
+anchor: clay_court
+performance: contractor
+effects:
+  - { facility: clay, set: restored }

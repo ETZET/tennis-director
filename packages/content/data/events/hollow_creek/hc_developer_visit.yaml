@@ -1,0 +1,21 @@
+# 诱惑型选择：开发商出大价钱买地。接受就提前结束本幕，进坏结局。
+id: hc_developer_visit
+act: hollow_creek
+source: threshold
+tone: crisis
+pause: true
+when: { all: [{ day: { gte: 4 } }, { stat: cash, lt: 700 }] }
+countdown: 6h
+location: lot
+options:
+  A:
+    effects:
+      - { endAct: lost, ending: sold_to_developer }
+  B:
+    effects:
+      - { stat: reputation, add: 2 }
+      - { flag: developer_declined, set: true }
+  C:
+    effects:
+      - { schedule: hc_developer_return, in: 2d }
+default: { then: C }

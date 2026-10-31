@@ -1,0 +1,23 @@
+# 教学卡：开局时 Dale 在课上玩手机。教玩家"走过去"这件事。
+id: hc_dale_phone
+act: hollow_creek
+source: milestone
+tone: crisis
+pause: true
+countdown: 1h
+location: court_1
+stage: { anchor: court_1, performance: lesson }
+options:
+  A:
+    requiresDirectorAt: court_1
+    effects:
+      - { flag: dale_warned, set: true }
+      - { stat: quality, add: 2 }
+      - { person: dale, add: { morale: -5 } }
+  B:
+    effects:
+      - { flag: dale_texted, set: true }
+  C:
+    effects:
+      - { stat: quality, add: -3 }
+default: { then: C }

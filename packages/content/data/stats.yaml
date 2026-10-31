@@ -1,0 +1,8 @@
+# 状态量注册表：每个状态量的 id、取值范围、显示方式和所属的幕。
+# 新的状态量在这里注册，不用改模拟核心的代码。
+- { id: cash, min: -100000, max: 10000000, display: money, act: all }
+- { id: reputation, min: 0, max: 100, display: number, act: all }
+- { id: quality, min: 0, max: 100, display: grade, act: all }
+- { id: members, min: 0, max: 500, display: number, act: all }
+- { id: pickleball_pressure, min: 0, max: 100, display: number, act: hollow_creek }
+- { id: board_support, min: 0, max: 100, display: number, act: hollow_creek }
