@@ -3,7 +3,7 @@ id: hc_crow_ball
 act: hollow_creek
 source: random
 tone: comedy
-when: { activity: lesson, running: true }
+when: { all: [{ activity: lesson, running: true }, { not: { flag: crow_lid } }] }
 once: false
 cooldown: 3d
 weight: 0.6
@@ -11,13 +11,18 @@ countdown: 1h
 location: court_1
 options:
   A:
+    # 停下来一起笑：家长喜欢，这几分钟的课就散了
     effects:
       - { stat: reputation, add: 1 }
+      - { stat: quality, add: -1 }
   B:
+    # 给球筐加盖：花钱，乌鸦就没办法了（真的吗？）
     cost: 40
     effects:
       - { stat: quality, add: 1 }
+      - { flag: crow_lid, set: true }
+      - { schedule: hc_crow_lid, in: 3d }
   C:
-    effects:
-      - { stat: quality, add: -1 }
+    # 不管：课照上，乌鸦还会来
+    effects: []
 default: { then: C }

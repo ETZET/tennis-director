@@ -11,6 +11,7 @@ options:
     effects:
       - { facility: bubble, set: inflated }
   B:
+    requires: { not: { flag: fundraiser_held } }
     effects:
       - { activity: fundraiser, in: 3h }
   C:

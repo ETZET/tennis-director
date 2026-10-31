@@ -3,7 +3,7 @@ id: hc_storm_leak
 act: hollow_creek
 source: random
 tone: crisis
-when: { day: { gte: 3 } }
+when: { all: [{ day: { gte: 3 } }, { not: { flag: roof_patched } }] }
 once: false
 cooldown: 4d
 weight: 0.5
@@ -11,8 +11,12 @@ countdown: 3h
 location: deck
 options:
   A:
+    # 修屋顶：花钱，一劳永逸，会员看在眼里
     cost: 250
-    effects: []
+    effects:
+      - { flag: roof_patched, set: true }
+      - { stat: reputation, add: 1 }
+      - { log: log.roof_fixed }
   B:
     effects:
       - { stat: quality, add: -2 }

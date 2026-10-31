@@ -6,5 +6,6 @@ performance: trial_day
 effects:
   - { stat: members, add: "round(3 + stat.reputation / 12 + rand() * 3)" }
   - { stat: members, add: 2, if: { directorAt: court_1 } }
+  - { log: log.trial_onsite, if: { directorAt: court_1 } }
   - { stat: reputation, add: 2 }
   - { schedule: hc_discover_kid, in: 30m, chance: "clamp(0.5 + coach.skill / 200, 0, 0.95)" }

@@ -17,4 +17,5 @@ options:
   C:
     effects:
       - { stat: reputation, add: -5 }
+      - { stat: quality, add: 2 }
 default: { then: B }

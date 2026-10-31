@@ -13,14 +13,19 @@ options:
       - { stat: reputation, add: 2 }
       - { schedule: hc_board_memo, in: 3h }
   B:
+    # 许诺：她暂时留下，但董事会会更早来要说法
     effects:
       - { flag: promised_change, set: true }
-      - { stat: members, add: -1 }
-      - { schedule: hc_board_memo, in: 2h }
+      - { stat: reputation, add: 1 }
+      - { schedule: hc_board_memo, in: 1h }
   C:
+    # 站在教练这边：家长不高兴，但 Dale 被撑腰后会认真一点
     effects:
       - { stat: members, add: -2 }
       - { stat: reputation, add: -3 }
+      - { person: dale, add: { morale: 15 } }
+      - { stat: quality, add: 3 }
+      - { flag: backed_dale, set: true }
       - { schedule: hc_board_memo, in: 3h }
 default:
   then: C

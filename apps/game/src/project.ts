@@ -1,4 +1,5 @@
 import {
+  at,
   type CausalEntry,
   type ContentBundle,
   facilityTotals,
@@ -69,13 +70,24 @@ export class Projector {
     if (this.wire.length > 10) this.wire.length = 10;
   }
 
-  /** 玩家现在该看的那张卡：最快过期的排前面，不会过期的按打开先后 */
-  static focusCard(s: GameState): OpenCard | null {
+  /** 玩家现在该看的那张卡：要紧的（会暂停的：董事会、比赛、人事）排最前；同一级里最快过期的在前 */
+  static focusCard(s: GameState, content: ContentBundle): OpenCard | null {
+    const w = worldOf(s, content);
+    const rank = (o: OpenCard) => (w.cards.get(o.card)?.pause ? 0 : 1);
     const open = [...s.cards.open].sort(
       (a, b) =>
-        (a.expires ?? Number.POSITIVE_INFINITY) - (b.expires ?? Number.POSITIVE_INFINITY) || a.opened - b.opened,
+        rank(a) - rank(b) ||
+        (a.expires ?? Number.POSITIVE_INFINITY) - (b.expires ?? Number.POSITIVE_INFINITY) ||
+        a.opened - b.opened,
     );
     return open[0] ?? null;
+  }
+
+  /** 本幕的最后一个日程（第一幕是董事会表决）：状态条上倒数 */
+  private deadline(s: GameState): number | null {
+    const act = worldOf(s, this.content).act;
+    const last = act.calendar[act.calendar.length - 1];
+    return last ? at(last.day, last.hour) : null;
   }
 
   /** 走到某处还要几分钟（正在路上就从这一段的终点算起） */
@@ -115,6 +127,7 @@ export class Projector {
         value: String(Math.round(s.stats.pickleball_pressure ?? 0)),
         ...((s.stats.pickleball_pressure ?? 0) > 50 ? { tone: 'pickle' as const } : {}),
       },
+      { label: T.tr('ui.details.courts'), value: `${fac.courts}/${totalCourts}` },
       { label: T.tr('ui.details.wages'), value: `$${wagesWeek(s, w)}` },
       ...Object.entries(s.facilities)
         .filter(([id]) => id !== 'pool')
@@ -142,9 +155,10 @@ export class Projector {
 
     return {
       club: { badge: T.tr('ui.club.badge'), name: T.tr('ui.club.name'), clock: `${T.day(s.t)} · ${T.clock(s.t)}` },
-      quality: { value: q, grade: grade(q), trend: trend(this.history, !!s.outcome), history: this.history },
+      quality: { value: q, grade: grade(q), trend: trend(this.history, false), history: this.history },
       members: Math.round(s.stats.members ?? 0),
       courts: { open: fac.courts, total: totalCourts },
+      board: this.board(s),
       salary: {
         text: `${cash < 0 ? '−' : ''}$${Math.abs(cash) >= 1000 ? `${(Math.abs(cash) / 1000).toFixed(1)}K` : Math.round(Math.abs(cash))}`,
         label: T.tr('ui.cash'),
@@ -157,6 +171,23 @@ export class Projector {
       status: this.status(session),
       story,
       controls: { paused: session.paused, speed: `${session.speed}×` },
+    };
+  }
+
+  /** 状态条上的董事会信心：决定表决的那个数，加上还有几天表决 */
+  private board(s: GameState): NonNullable<HudSnapshot['board']> {
+    const v = Math.round(s.stats.board_support ?? 0);
+    const end = this.deadline(s);
+    const days = end === null ? null : Math.max(0, Math.ceil((end - s.t) / 1440));
+    return {
+      value: v,
+      label:
+        days === null || s.outcome
+          ? this.text.tr('ui.board')
+          : days === 0
+            ? this.text.tr('ui.board_today')
+            : this.text.fmt('ui.board_in', { days }),
+      ...(v < 40 ? { tone: 'bad' as const } : {}),
     };
   }
 
@@ -188,7 +219,7 @@ export class Projector {
         action: { id: 'replay', label: T.tr('ui.end.again') },
       };
     }
-    const o = Projector.focusCard(s);
+    const o = Projector.focusCard(s, this.content);
     if (!o) return null;
     const w = worldOf(s, this.content);
     const c = w.cards.get(o.card);

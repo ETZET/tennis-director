@@ -1,0 +1,26 @@
+# 日常：泳池边的孩子们趴在围网上看网球。
+id: hc_pool_kids
+act: hollow_creek
+source: random
+tone: relief
+when: { day: { gte: 2 } }
+cooldown: 2d
+weight: 0.6
+countdown: 2h
+location: pool
+options:
+  A:
+    # 亲自过去请他们进场打几拍：有人会留下，今天的课更挤
+    requiresDirectorAt: pool
+    effects:
+      - { stat: members, add: 1, chance: 0.6 }
+      - { stat: members, add: 1, chance: 0.3 }
+      - { stat: quality, add: -1 }
+  B:
+    # 发几张传单
+    cost: 20
+    effects:
+      - { stat: members, add: 1, chance: 0.4 }
+  C:
+    effects: []
+default: { then: C }

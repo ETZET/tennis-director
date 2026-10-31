@@ -199,7 +199,8 @@ export function directorDraw(ctx: Ctx): void {
   const { s, w } = ctx;
   if (s.t < s.cards.nextDraw) return;
   const interval = minutes(w.director.interval);
-  if (s.cards.open.length >= w.director.max_open) {
+  // 开太多，或者有一张要紧的卡（会暂停的那种）还没处理：先不发新卡，免得把它盖住
+  if (s.cards.open.length >= w.director.max_open || s.cards.open.some((o) => w.cards.get(o.card)?.pause)) {
     s.cards.nextDraw = s.t + Math.round(interval / 3);
     return;
   }

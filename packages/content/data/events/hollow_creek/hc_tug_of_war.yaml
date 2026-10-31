@@ -7,14 +7,20 @@ countdown: 6h
 location: court_2
 options:
   A:
+    # 派孩子们去：孩子们玩得开心，那一小时的课就泡汤了
     effects:
       - { activity: tug_of_war, in: 30m }
+      - { person: tyler, add: { morale: 10 } }
+      - { person: mason, add: { morale: 10 } }
+      - { stat: quality, add: -1 }
   B:
     requiresDirectorAt: court_2
     effects:
       - { activity: tug_of_war, in: 30m }
       - { stat: reputation, add: 2 }
   C:
+    # 不去：孩子们照常上课
     effects:
       - { stat: pickleball_pressure, add: 10 }
+      - { stat: quality, add: 1 }
 default: { then: C }

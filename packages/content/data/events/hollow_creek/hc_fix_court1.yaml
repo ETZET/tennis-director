@@ -18,5 +18,7 @@ options:
     effects:
       - { stat: quality, add: 2 }
   C:
-    effects: []
+    # 先不修：钱留着，裂缝会更大
+    effects:
+      - { stat: quality, add: -1 }
 default: { then: C }

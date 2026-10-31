@@ -43,9 +43,19 @@ function ScoreBug({
   );
 }
 
-function Cell({ value, label, extra }: { value: string; label: string; extra?: string | undefined }) {
+function Cell({
+  value,
+  label,
+  extra,
+  tone,
+}: {
+  value: string;
+  label: string;
+  extra?: string | undefined;
+  tone?: string | undefined;
+}) {
   return (
-    <span class="td-cell">
+    <span class={`td-cell${tone ? ` td-cell-${tone}` : ''}`}>
       <span class="td-num">
         {value}
         {extra ? <span class="td-down"> {extra}</span> : null}
@@ -125,7 +135,11 @@ function StatStrip({ s }: { s: HudSnapshot }) {
           </span>
         </span>
         <Cell value={String(s.members)} label={STR.members} />
-        <Cell value={`${s.courts.open}/${s.courts.total}`} label={STR.courtsOpen} />
+        {s.board ? (
+          <Cell value={String(s.board.value)} label={s.board.label} tone={s.board.tone} />
+        ) : (
+          <Cell value={`${s.courts.open}/${s.courts.total}`} label={STR.courtsOpen} />
+        )}
         <Cell value={s.salary.text} label={s.salary.label ?? STR.salary} extra={s.salary.change} />
         <span class="td-chev" aria-hidden="true">
           {open ? '▴' : '▾'}

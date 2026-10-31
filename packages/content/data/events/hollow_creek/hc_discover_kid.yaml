@@ -14,11 +14,15 @@ options:
       - { flag: kid_mentored, set: true }
       - { flag: kid_noticed, set: true }
   B:
+    # 告诉家长：口碑马上就有，但家长会盯着你兑现
     effects:
-      - { stat: reputation, add: 3 }
+      - { stat: reputation, add: 2 }
       - { stat: members, add: 1 }
       - { flag: kid_noticed, set: true }
+      - { schedule: hc_mason_parents, in: 2d }
   C:
+    # 先不声张：不给孩子压力
     effects:
       - { flag: kid_noticed, set: true }
+      - { person: mason, add: { morale: 8, skill: 2 } }
 default: { then: C }

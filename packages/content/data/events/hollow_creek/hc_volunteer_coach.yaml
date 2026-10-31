@@ -1,0 +1,25 @@
+# 口碑好起来以后：一位退休会员想周末来帮忙带课。
+id: hc_volunteer_coach
+act: hollow_creek
+source: threshold
+tone: relief
+when: { all: [{ stat: reputation, gte: 45 }, { day: { gte: 4 } }] }
+once: true
+weight: 1
+countdown: 1d
+location: deck
+options:
+  A:
+    # 欢迎：课更好
+    effects:
+      - { stat: quality, add: 3 }
+      - { flag: volunteer_helping, set: true }
+  B:
+    # 请他帮忙招生
+    effects:
+      - { stat: members, add: "round(1 + rand() * 2)" }
+  C:
+    # 婉拒：他到处说你待人周到
+    effects:
+      - { stat: reputation, add: 2 }
+default: { then: C }

@@ -5,7 +5,7 @@ act: hollow_creek
 source: random
 tone: comedy
 when: { stat: members, lt: 60 }
-cooldown: 4d
+once: true
 weight: 0.8
 countdown: 2h
 location: lot
@@ -16,6 +16,7 @@ options:
     effects:
       - { stat: reputation, add: 2 }
       - { stat: members, add: 1, chance: 0.5 }
+      - { schedule: hc_rival_van, in: 2d }
   B:
     # 打电话给 Pine Crown 抗议：看声望够不够硬
     check: { stat: reputation, vs: 40 }

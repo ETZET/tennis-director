@@ -296,6 +296,13 @@ export function compileContent(files: Record<string, string>): CompileResult {
       checkEffects(file, o.effects, `${w}.effects`);
       checkEffects(file, o.onSuccess, `${w}.onSuccess`);
       checkEffects(file, o.onFail, `${w}.onFail`);
+      // 玩法准则 2：选了以后玩家什么也看不到（只改了暗处的标记）的选项，是一个哑选项
+      const all = [...o.effects, ...o.onSuccess, ...o.onFail];
+      if (all.length && all.every((e) => 'flag' in e) && !o.cost)
+        warn(
+          file,
+          `${w}: only sets hidden flags; the player sees no result (tenet 2: every option gains and costs something)`,
+        );
       const sig = stableStringify({ e: o.effects, s: o.onSuccess, f: o.onFail, c: o.cost, k: o.check });
       const dup = seen.get(sig);
       if (dup && keys.length > 1)

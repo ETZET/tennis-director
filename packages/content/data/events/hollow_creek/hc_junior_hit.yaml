@@ -1,0 +1,27 @@
+# 日常：Tyler 问你能不能陪他打几拍。
+id: hc_junior_hit
+act: hollow_creek
+source: random
+tone: relief
+when: { hour: { gte: 9 } }
+cooldown: 1d
+weight: 0.7
+countdown: 1h
+location: court_1
+options:
+  A:
+    # 下场陪他打：孩子高兴，你这一小时就耗在这儿了
+    requiresDirectorAt: court_1
+    effects:
+      - { person: tyler, add: { skill: 2, morale: 10 } }
+      - { stat: quality, add: 1 }
+  B:
+    # 让他去对墙练
+    effects:
+      - { person: tyler, add: { skill: 1, morale: -5 } }
+  C:
+    # 叫 Mason 陪他打：两个孩子都练到了，Mason 有点怯场
+    effects:
+      - { person: tyler, add: { skill: 1 } }
+      - { person: mason, add: { skill: 2, morale: -5 } }
+default: { then: B }

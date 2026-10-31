@@ -5,3 +5,5 @@ anchor: clay_court
 performance: contractor
 effects:
   - { facility: clay, set: restored }
+  # 专业施工：场地比义务劳动的更好
+  - { stat: quality, add: 4 }

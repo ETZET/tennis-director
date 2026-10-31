@@ -38,8 +38,11 @@ describe('内容编译', () => {
     const f = files();
     f['events/hollow_creek/hc_fix_court1.yaml'] = (f['events/hollow_creek/hc_fix_court1.yaml'] as string)
       .replace('location: court_1', 'location: court_9')
-      .replace('{ stat: quality, add: 2 }', '{ stat: qualty, add: 2 }')
-      .replace('effects: []', 'effects: [{ schedule: hc_nope, in: 1h }]');
+      .replace('{ stat: quality, add: 2 }', '{ stat: qualty, add: 2 }');
+    f['events/hollow_creek/hc_bubble_quote.yaml'] = (f['events/hollow_creek/hc_bubble_quote.yaml'] as string).replace(
+      'effects: []',
+      'effects: [{ schedule: hc_nope, in: 1h }]',
+    );
     const r = compileContent(f);
     expect(r.bundle).toBeNull();
     const m = msgs(r);
@@ -67,12 +70,24 @@ describe('内容编译', () => {
 
   it('只被读、从未被写的标记给出警告；两个选项效果相同给出警告', () => {
     const f = files();
-    f['events/hollow_creek/hc_crow_ball.yaml'] = (f['events/hollow_creek/hc_crow_ball.yaml'] as string)
-      .replace('when: { activity: lesson, running: true }', 'when: { flag: crow_friend }')
-      .replace('      - { stat: quality, add: -1 }', '      - { stat: reputation, add: 1 }');
+    f['events/hollow_creek/hc_ball_order.yaml'] = (f['events/hollow_creek/hc_ball_order.yaml'] as string)
+      .replace('when: { hour: { lte: 12 } }', 'when: { flag: crow_friend }')
+      .replace(
+        '      - { stat: reputation, add: -1 }\n      - { stat: quality, add: 1 }',
+        '      - { stat: quality, add: -1 }',
+      );
     const r = compileContent(f);
     expect(msgs(r, 'warnings')).toMatch(/flag 'crow_friend' is read but never written/);
-    expect(msgs(r, 'warnings')).toMatch(/options A and C have identical effects/);
+    expect(msgs(r, 'warnings')).toMatch(/options B and C have identical effects/);
+  });
+
+  it('只改暗处标记的选项给出警告（玩法准则 2）', () => {
+    const f = files();
+    f['events/hollow_creek/hc_dale_phone.yaml'] = (f['events/hollow_creek/hc_dale_phone.yaml'] as string).replace(
+      '      - { stat: quality, add: 1 }\n      - { stat: reputation, add: -1 }\n',
+      '',
+    );
+    expect(msgs(compileContent(f), 'warnings')).toMatch(/options\.B: only sets hidden flags/);
   });
 
   it('文件名必须和 id 一致', () => {

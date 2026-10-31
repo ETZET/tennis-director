@@ -13,12 +13,21 @@ options:
       - { flag: dale_fired_publicly, set: true }
       - { schedule: hc_hire_coach, in: 1h }
   B:
+    # 扣一周的钱：省下工资，Dale 更没心思上课
     effects:
       - { person: dale, add: { morale: -20 } }
+      - { stat: cash, add: 175 }
       - { stat: quality, add: -2 }
       - { flag: dale_docked, set: true }
   C:
+    # 自己下场把课上完：课救回来了，Dale 觉得被当众拆台
+    requiresDirectorAt: court_1
     effects:
-      - { stat: quality, add: -4 }
-      - { stat: members, add: -2 }
-default: { then: C }
+      - { stat: quality, add: 3 }
+      - { person: dale, add: { morale: -10 } }
+      - { stat: reputation, add: 1 }
+default:
+  then: null
+  extra:
+    - { stat: quality, add: -4 }
+    - { stat: members, add: -2 }

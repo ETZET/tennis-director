@@ -6,3 +6,6 @@ performance: fundraiser
 effects:
   - { stat: cash, add: "round(300 + stat.reputation * 12 + rand() * 400)" }
   - { stat: reputation, add: 2 }
+  - { flag: fundraiser_held, set: true }
+  # 筹款是为了气膜：钱到手后报价再来一次
+  - { schedule: hc_bubble_quote, in: 1d, if: { facility: bubble, is: collapsed } }

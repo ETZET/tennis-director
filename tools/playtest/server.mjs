@@ -106,7 +106,9 @@ const STATE = () => {
         heading: x.classList.contains('pl-dest'),
         alert: x.classList.contains('pl-card'),
       })),
-    activities: [...document.querySelectorAll('#labels .act')].filter((x) => !x.hidden).map((x) => x.textContent.trim()),
+    activities: [...document.querySelectorAll('#labels .act')]
+      .filter((x) => !x.hidden)
+      .map((x) => x.textContent.trim()),
     outcome: s.s.outcome ? { result: s.s.outcome.result } : null,
   };
 };
@@ -119,7 +121,10 @@ async function report() {
   const r = await page.evaluate(() => {
     const d = document.querySelector('.td-details');
     if (!d) return null;
-    const rows = [...d.querySelectorAll('.td-rows dt')].map((dt) => [dt.textContent.trim(), dt.nextElementSibling?.textContent.trim()]);
+    const rows = [...d.querySelectorAll('.td-rows dt')].map((dt) => [
+      dt.textContent.trim(),
+      dt.nextElementSibling?.textContent.trim(),
+    ]);
     return {
       trend: d.querySelector('.td-trend')?.textContent.trim(),
       rows: Object.fromEntries(rows),
@@ -160,7 +165,9 @@ const api = createServer(async (q, r) => {
       return send(200, await page.evaluate(STATE));
     }
     if (cmd === 'walk') {
-      const id = Object.keys(ANCHORS).find((k) => k === a || ANCHORS[k].toLowerCase() === decodeURIComponent(a ?? '').toLowerCase());
+      const id = Object.keys(ANCHORS).find(
+        (k) => k === a || ANCHORS[k].toLowerCase() === decodeURIComponent(a ?? '').toLowerCase(),
+      );
       if (!id) return send(400, { error: `unknown place; one of ${Object.keys(ANCHORS).join(', ')}` });
       await page.evaluate((x) => window.__td.walk(x), id);
       return send(200, await page.evaluate(STATE));

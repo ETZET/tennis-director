@@ -17,6 +17,9 @@ options:
       - { stat: pickleball_pressure, add: -10 }
       - { schedule: hc_tug_of_war, in: 1d }
   C:
+    # 在群里把他们踢了：老会员叫好，外面的口碑更差，矛盾更大
     effects:
-      - { stat: reputation, add: -3 }
+      - { stat: reputation, add: -2 }
+      - { stat: members, add: 1 }
+      - { stat: pickleball_pressure, add: 10 }
 default: { then: C }

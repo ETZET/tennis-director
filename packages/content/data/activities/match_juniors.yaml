@@ -11,3 +11,5 @@ effects:
   - { stat: reputation, add: 3 }
   - { flag: kid_shined, set: true, if: { flag: kid_mentored } }
   - { person: mason, add: { skill: 4 }, if: { flag: kid_mentored } }
+  - { log: log.match_won, if: { flag: match_won } }
+  - { log: log.match_lost, if: { not: { flag: match_won } } }

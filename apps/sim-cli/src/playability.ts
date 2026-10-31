@@ -1,3 +1,4 @@
+import { PACE } from '@td/shared';
 import {
   advance,
   type Bot,
@@ -20,7 +21,8 @@ import {
  * - 后果：同一种子不同打法，见过的卡有多不同；结局分布。
  */
 
-const SECONDS_PER_MINUTE = 1 / 4; // 1× 每秒 4 游戏分钟
+const SECONDS_PER_MINUTE = 1 / PACE.minutesPerSecond;
+const IDLE_SECONDS_PER_MINUTE = SECONDS_PER_MINUTE / PACE.idleSpeedup;
 const BOTS: Record<string, (seed: number) => Bot> = {
   greedy: () => greedyBot(),
   random: (seed) => randomBot(seed * 7919),
@@ -35,9 +37,11 @@ export interface GameTrace {
   decisions: number;
   defaults: number;
   openMinutes: number;
-  /** 营业时间里连续没有开着的卡的最长分钟数 */
+  /** 1× 下的真实秒数（闲着的时候时间走得快） */
+  realSeconds: number;
+  /** 营业时间里连续没有开着的卡的最长真实秒数（1×） */
   maxIdle: number;
-  /** 空档超过 6 游戏分钟（1× 下约 90 秒）的次数 */
+  /** 超过 90 秒真实时间的空档次数 */
   longIdles: number;
   maxOpen: number;
   cardsSeen: string[];
@@ -54,6 +58,7 @@ export function traceGame(content: ContentBundle, botName: string, seed: number)
     decisions: 0,
     defaults: 0,
     openMinutes: 0,
+    realSeconds: 0,
     maxIdle: 0,
     longIdles: 0,
     maxOpen: 0,
@@ -63,7 +68,7 @@ export function traceGame(content: ContentBundle, botName: string, seed: number)
   let idle = 0;
   const flushIdle = () => {
     if (idle > tr.maxIdle) tr.maxIdle = idle;
-    if (idle * SECONDS_PER_MINUTE > 90) tr.longIdles++;
+    if (idle > 90) tr.longIdles++;
     idle = 0;
   };
   const limit = 30 * 1440;
@@ -85,7 +90,9 @@ export function traceGame(content: ContentBundle, botName: string, seed: number)
       flushIdle(); // 夜里跳过：空档不跨天
     else {
       tr.openMinutes++;
-      if (s.cards.open.length === 0) idle++;
+      const quiet = s.cards.open.length === 0 && !s.director.leg;
+      tr.realSeconds += quiet ? IDLE_SECONDS_PER_MINUTE : SECONDS_PER_MINUTE;
+      if (s.cards.open.length === 0) idle += quiet ? IDLE_SECONDS_PER_MINUTE : SECONDS_PER_MINUTE;
       else flushIdle();
     }
   }
@@ -117,7 +124,7 @@ export function dominatedOptions(content: ContentBundle): { card: string; option
         if (a === b) continue;
         const x = sum(a);
         const y = sum(b);
-        if (!x || !y || x.story) continue;
+        if (!x || !y || x.story || y.story) continue;
         if (y.walk && !x.walk) continue;
         const stats = new Set([...Object.keys(x.v), ...Object.keys(y.v)]);
         let ge = true;
@@ -149,10 +156,10 @@ export function playabilityReport(content: ContentBundle, games: number): string
   for (const b of bots) {
     const t = traces[b] ?? [];
     const dec = avg(t.map((x) => x.decisions));
-    const secs = avg(t.map((x) => (x.openMinutes * SECONDS_PER_MINUTE) / Math.max(1, x.decisions + x.defaults)));
+    const secs = avg(t.map((x) => x.realSeconds / Math.max(1, x.decisions + x.defaults)));
     lines.push(
       `| ${b} | ${dec.toFixed(1)} | ${avg(t.map((x) => x.defaults)).toFixed(1)} | ${secs.toFixed(0)} s | ${Math.round(
-        avg(t.map((x) => x.maxIdle)) * SECONDS_PER_MINUTE,
+        avg(t.map((x) => x.maxIdle)),
       )} s | ${avg(t.map((x) => x.longIdles)).toFixed(1)} | ${Math.max(...t.map((x) => x.maxOpen))} |`,
     );
   }

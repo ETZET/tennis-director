@@ -1,0 +1,24 @@
+# 传单战升级：Pine Crown 把试训车开进了我们的停车场。
+id: hc_rival_van
+act: hollow_creek
+source: consequence
+tone: comedy
+countdown: 3h
+location: lot
+options:
+  A:
+    # 当面请他们离开
+    requiresDirectorAt: lot
+    effects:
+      - { stat: reputation, add: 2 }
+      - { stat: members, add: -1, chance: 0.3 }
+  B:
+    # 隔壁摆一张自己的桌子：花钱，抢人
+    cost: 120
+    effects:
+      - { stat: members, add: "round(1 + rand() * 2)" }
+      - { stat: reputation, add: -1 }
+  C:
+    effects:
+      - { stat: members, add: -2 }
+default: { then: C }

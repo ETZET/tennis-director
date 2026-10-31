@@ -34,6 +34,7 @@ activities:
   tug_of_war: { title: 和匹克球队拔河 }
   match_strong: { title: 社区对抗赛 vs 松冠俱乐部 }
   match_juniors: { title: 社区对抗赛 vs 松冠俱乐部（青少年上场） }
+  open_house: { title: 开放日 }
 
 endings:
   saved_with_coach:
@@ -62,16 +63,16 @@ events:
     body: Tyler 把球一个个打进围网，Mason 坐在场地上发呆。Dale 已经十分钟没抬头了。
     options:
       A: 走到 1 号场，当面跟他说
-      B: 在露台上给他发短信
-      C: 算了 · 质量 −3
+      B: 在露台上给他发短信 · 质量 +1，声望 −1
+      C: 算了 · 质量 −3，Dale 记你的好
   hc_parent_complaint:
     topic: 会员
     title: Carter 女士要找你谈课程的事
     body: “我儿子交的是课时费，不是托管费。”她就站在 1 号场门口。
     options:
       A: 退这周的课时费 · −$60
-      B: 保证会改 · 会员 −1
-      C: 站在教练一边 · 会员 −2，声望 −3
+      B: 保证会改 · 董事会会更早来问
+      C: 站在教练一边 · 会员 −2，声望 −3，Dale 会更上心
   hc_board_memo:
     topic: 董事会备忘
     title: 董事会要你处理 Dale
@@ -86,8 +87,8 @@ events:
     body: 再给一次机会只撑了一天。孩子们在拿球互相打。
     options:
       A: 现在就开除他
-      B: 扣他工资
-      C: 不管 · 质量 −4，会员 −2
+      B: 扣他工资 · +$175，Dale 闹情绪
+      C: 你自己下场把课上完
   hc_hire_coach:
     topic: 人事
     title: 招一个新的主教练
@@ -103,7 +104,7 @@ events:
     options:
       A: 补裂缝、换球网 · −$350
       B: 只换球网 · −$80
-      C: 先不修
+      C: 先不修 · 裂缝会更大
   hc_trial_day:
     topic: 招生
     title: 办一场免费试训日？
@@ -111,15 +112,15 @@ events:
     options:
       A: 大张旗鼓，发传单挂横幅 · −$150
       B: 低调办
-      C: 不办 · 声望 −1
+      C: 不办 · 声望 −1，教练专心上课
   hc_discover_kid:
     topic: 天赋
     title: Mason 的挥拍是天生的
     body: 在 Dale 课上坐在地上发呆的那个孩子，刚刚连着打了三个干净的反手。
     options:
       A: 出钱给他上私教课 · −$200
-      B: 告诉他父母他有天赋
-      C: 先留意着
+      B: 告诉他父母他有天赋 · 他们会等着你安排
+      C: 先不声张
   hc_pickleball_lease:
     topic: 匹克球
     title: 匹克球那帮人想签一整年的租约
@@ -135,22 +136,22 @@ events:
     options:
       A: 心平气和地回一帖（成败看声望）
       B: 请他们来打一场友谊赛
-      C: 不理 · 声望 −3
+      C: 把他们踢出群 · 老会员叫好
   hc_tug_of_war:
     topic: 社区
     title: 匹克球队向你们发起拔河挑战
     body: 输的一方请喝柠檬水。网球这边从来没赢过。
     options:
-      A: 派青少年上
+      A: 派青少年上 · 他们少上一节课
       B: 你亲自上（走到 2 号场）
-      C: 婉拒
+      C: 婉拒 · 课照常上
   hc_clay_workday:
     topic: 设施
     title: 把红土场救回来？
     body: 一棵树倒在围网上，场地上草比土多。邻居们说可以来帮忙。
     options:
-      A: 发起社区劳动日（走到红土场）
-      B: 请施工队 · −$900
+      A: 发起社区劳动日（走到红土场，成败看声望）
+      B: 请施工队 · −$900，专业场地
       C: 先不管
   hc_bubble_quote:
     topic: 设施
@@ -180,7 +181,7 @@ events:
     title: 一只乌鸦从球筐里叼走了一个球
     body: 它站在围网柱子上，一脸得意。孩子们乐坏了。
     options:
-      A: 一笑了之
+      A: 和孩子们一起笑 · 声望 +1，课停了一会儿
       B: 给球筐加个盖 · −$40
       C: 不管
   hc_rival_flyer:
@@ -191,13 +192,131 @@ events:
       A: 换成我们自己的传单
       B: 打电话去 Pine Crown 抗议
       C: 随它去
+  hc_board_chair:
+    topic: 董事会
+    title: 董事会主席要来俱乐部看看
+    body: 她中午到露台。离表决还有一半时间，她想知道你这套办法管不管用。
+    options:
+      A: 亲自带她转一圈（在露台；成败看董事会信心）
+      B: 把数字发邮件给她 · 声望 −1
+      C: 开口要钱要时间 · +$600，董事会会不耐烦
+  hc_last_chance:
+    topic: 董事会
+    title: 一位董事想拉你一把
+    body: “表决形势不妙。要么让他们看到点什么，要么给他们一个承诺。”
+    options:
+      A: 这周末办开放日 · −$300
+      B: 立军令状：三天内质量回到 50 以上
+      C: 谢过他，照原样做
+  hc_turnaround_check:
+    topic: 董事会
+    title: 三天到了
+    body: 董事会来看你有没有兑现承诺：质量要回到 50 以上。
+    options:
+      A: 去见董事会
+  hc_storm_tree:
+    topic: 天气
+    title: 暴风雨把一棵树刮倒在 1 号场的围网上
+    body: 树枝横在底线上，围网塌了进去。这样没法上课。
+    options:
+      A: 马上请人清走 · −$450
+      B: 叫会员一起来清（走到 1 号场，成败看声望）
+      C: 先把 1 号场关了 · 场地又坏了
+  hc_crow_lid:
+    topic: 1 号场
+    title: 乌鸦学会了开盖子
+    body: 它用嘴把盖子掀开，叼走一个球就飞。孩子们在给乌鸦加油。
+    options:
+      A: 让孩子们给它起个名字 · 声望 +2
+      B: 买把挂锁 · −$25
+      C: 不管
+  hc_rival_van:
+    topic: 对手
+    title: Pine Crown 把试训车开进了我们的停车场
+    body: 免费试拍，打八折。我们的会员去球场得从车旁边走过。
+    options:
+      A: 当面请他们离开（走到停车场）
+      B: 在旁边摆我们自己的桌子 · −$120
+      C: 随它去
+  hc_mason_parents:
+    topic: 天赋
+    title: Mason 的父母问什么时候开始正经练
+    body: “你说他有天赋。那接下来呢？”
+    options:
+      A: 请专业教练上私教课 · −$200
+      B: 让主教练多带带他 · 课会受点影响
+      C: 还不是时候 · 声望 −3
+  hc_member_saturday:
+    topic: 会员
+    title: 一位老会员拦住你，说起周六上午的场地
+    body: “周六 9 点到 11 点一直是打网球的，现在成了匹克球。”
+    options:
+      A: 把周六上午还给网球 · 匹克球那边会更不满
+      B: 请他喝杯咖啡慢慢聊（在露台）· −$10
+      C: 敷衍过去
+  hc_junior_hit:
+    topic: 青少年
+    title: Tyler 问你能不能陪他打几拍
+    body: 他拿着两支拍子站在 1 号场门口。
+    options:
+      A: 陪他打（走到 1 号场）
+      B: 让他去对墙练
+      C: 叫 Mason 陪他打
+  hc_coach_feedback:
+    topic: 教练
+    title: 教练下课后想听听你的意见
+    body: “我这样教对不对？说实话。”
+    options:
+      A: 先看完下一节课再说（走到 1 号场）
+      B: 批一台发球机 · −$120
+      C: 改天再说 · 教练有点泄气
+  hc_pool_kids:
+    topic: 招生
+    title: 泳池边的孩子们在看网球
+    body: 四个孩子裹着湿毛巾，趴在围网上。
+    options:
+      A: 请他们进场打几拍（走到泳池）
+      B: 发几张传单 · −$20
+      C: 随他们去
+  hc_lot_pothole:
+    topic: 设施
+    title: 一位会员的车在停车场的坑里刮了底盘
+    body: 她还站在车旁边看着保险杠。
+    options:
+      A: 把坑补上 · −$120
+      B: 当面道歉，放个路锥（走到停车场）
+      C: 不关我们的事
+  hc_volunteer_coach:
+    topic: 会员
+    title: 一位退休会员想周末来帮忙带课
+    body: 他四十年前打过大学校队，正手还在。
+    options:
+      A: 欢迎他上场 · 质量 +3
+      B: 请他帮忙招生
+      C: 客气地谢绝 · 声望 +2
+  hc_ball_order:
+    topic: 器材
+    title: 上课用的球都没气了
+    body: 弹不过发球线。Tyler 拿一个当解压球捏。
+    options:
+      A: 订一箱新球 · −$60
+      B: 凑合用 · 质量 −1
+      C: 请会员自己带球 · 声望 −1
+  hc_double_booked:
+    topic: 预约
+    title: 1 号场上午约重了
+    body: 两位网球老会员和四个打匹克球的人拿着同一个时段站在门口。
+    options:
+      A: 给网球老会员 · 匹克球那边更不满
+      B: 给打匹克球的人
+      C: 过去当面协调（走到 1 号场）
   hc_storm_leak:
     topic: 天气
     title: 会所屋顶漏雨
     body: 雨水从奖杯柜上方漏下来，会员们在搬椅子。
     options:
-      A: 补屋顶 · −$250
-      B: 摆几个桶接着
+      A: 把屋顶彻底补好 · −$250
+      B: 摆几个桶接着 · 质量 −2，声望 −1
       C: 今天会所关门 · 会员 −1
   hc_community_match:
     topic: 比赛日
@@ -206,11 +325,11 @@ events:
     options:
       A: 派出最强阵容，教练带队
       B: 让青少年上场
-      C: 弃权 · 声望 −5
+      C: 弃权 · 声望 −5，孩子们休息
   hc_board_vote:
     topic: 董事会表决
     title: 董事会就出售俱乐部投票
-    body: 质量、会员、声望和对松冠的比赛结果都算数。到露台上去讲你的理由。
+    body: 看董事会信心。到露台上亲自陈述，或者让数字自己说话。
     options:
       A: 亲自到露台上陈述
       B: 让数字自己说话
@@ -225,9 +344,22 @@ events:
 
 log:
   started: 你接手了 Hollow Creek 网球俱乐部。
+  workday_thin: 只来了几个邻居，红土场还是一团糟
+  roof_fixed: 屋顶彻底补好了
+  vote_passed: 董事会投票保留俱乐部
+  vote_failed: 董事会投票出售俱乐部
+  trial_onsite: 你在 1 号场门口迎接，多来了几个人
+  match_won: Hollow Creek 赢了 Pine Crown
+  match_lost: Pine Crown 赢了比赛
+  promise_broken: 你没兑现对董事会的承诺
+  promise_kept: 你兑现了对董事会的承诺
+  tree_cleared: 树清走了，课照常上
 
 # 界面文案（游戏 app 用）。{x} 是占位符。
 ui:
+  board: 董事会信心
+  board_in: "董事会 · {days} 天后表决"
+  board_today: "董事会 · 今天表决"
   club: { name: 霍洛溪网球俱乐部, badge: HC }
   cash: 现金
   you: 你
@@ -244,6 +376,7 @@ ui:
     cash: 现金不够
   details:
     wages: 每周工资
+    courts: Courts open
     director: 导演风格
     seed: 种子
   activity: "{title} · 还剩 {time}"

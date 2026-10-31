@@ -1,0 +1,27 @@
+# 日常：一位会员的车在停车场的坑里刮了底盘。
+id: hc_lot_pothole
+act: hollow_creek
+source: random
+tone: crisis
+when: { day: { gte: 2 } }
+once: true
+weight: 0.7
+countdown: 3h
+location: lot
+options:
+  A:
+    # 把坑补上
+    cost: 120
+    effects:
+      - { stat: reputation, add: 1 }
+  B:
+    # 过去当面道歉，放个路锥
+    requiresDirectorAt: lot
+    effects:
+      - { stat: reputation, add: 1 }
+      - { stat: members, add: -1, chance: 0.2 }
+  C:
+    effects:
+      - { stat: reputation, add: -2 }
+      - { stat: members, add: -1, chance: 0.5 }
+default: { then: C }

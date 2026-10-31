@@ -72,6 +72,8 @@ export interface HudSnapshot {
   quality: { value: number; grade: Grade; trend: Trend; history: readonly number[] };
   members: number;
   courts: { open: number; total: number };
+  /** 有它时状态条第三格显示董事会信心（代替开放场地数） */
+  board?: { value: number; label: string; tone?: Tone };
   /** 状态条第四格；label 不填就是"你的薪水" */
   salary: { text: string; change?: string; label?: string; tone?: Tone };
   headCoach: { name: string; vacant: boolean };

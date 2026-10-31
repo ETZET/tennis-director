@@ -1,0 +1,26 @@
+# 日常：一位老会员在路上拦住你，要回周六上午的场地时间。
+id: hc_member_saturday
+act: hollow_creek
+source: random
+tone: neutral
+when: { day: { gte: 2 } }
+cooldown: 2d
+weight: 0.8
+countdown: 2h
+location: deck
+options:
+  A:
+    # 答应他：老会员高兴，匹克球那边不高兴
+    effects:
+      - { stat: members, add: 1 }
+      - { stat: pickleball_pressure, add: 6 }
+  B:
+    # 请他喝杯咖啡慢慢聊
+    requiresDirectorAt: deck
+    cost: 10
+    effects:
+      - { stat: reputation, add: 1 }
+  C:
+    effects:
+      - { stat: members, add: -1, chance: 0.4 }
+default: { then: C }

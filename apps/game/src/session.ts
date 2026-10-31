@@ -1,3 +1,4 @@
+import { PACE } from '@td/shared';
 import {
   advance,
   type Command,
@@ -15,12 +16,13 @@ import {
  * 一局游戏的运行时：持有模拟状态和命令日志，把真实时间换成游戏分钟喂给模拟。
  *
  * - 1× 每秒走 4 游戏分钟（营业日 12 小时约 3 分钟）；2×、4× 按倍数。
+ * - 没有卡开着、总监也没在走路时，时间再快 2 倍（PACE.idleSpeedup）：没事可做就别让玩家干等。
  * - 玩家的命令先排队，下一帧和这一帧该走的分钟一起交给 advance()；暂停时命令也立刻生效。
  * - 选了"要先走过去"的选项：先发 moveDirector，记下这个意图；总监一到、选项可用，就替玩家选定。
  * - 模拟发出 requestPause（例如要紧的卡打开）就自动暂停。
  */
 
-export const MINUTES_PER_SECOND = 4;
+export const MINUTES_PER_SECOND = PACE.minutesPerSecond;
 export const SPEEDS = [1, 2, 4] as const;
 
 export interface Intent {
@@ -49,6 +51,11 @@ export class Session {
 
   get speed(): number {
     return SPEEDS[this.speedIndex] ?? 1;
+  }
+
+  /** 现在是不是"闲着"：没卡、没在走路、没有等着替玩家选的意图 */
+  get idle(): boolean {
+    return !this.s.cards.open.length && !this.s.director.leg && !this.intent;
   }
 
   /** 当前的连续游戏时间（带零头），画面插值用 */
@@ -91,7 +98,7 @@ export class Session {
   frame(dt: number): SimEvent[] {
     let ticks = 0;
     if (!this.paused && !this.s.outcome) {
-      this.frac += dt * MINUTES_PER_SECOND * this.speed;
+      this.frac += dt * MINUTES_PER_SECOND * this.speed * (this.idle ? PACE.idleSpeedup : 1);
       ticks = Math.floor(this.frac);
       this.frac -= ticks;
     }

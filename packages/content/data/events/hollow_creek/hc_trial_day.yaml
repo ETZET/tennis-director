@@ -15,6 +15,8 @@ options:
     effects:
       - { activity: trial_day, in: 1h }
   C:
+    # 不办：教练专心上课
     effects:
       - { stat: reputation, add: -1 }
+      - { stat: quality, add: 2 }
 default: { then: B }

@@ -15,9 +15,14 @@ options:
       - { stat: quality, add: 2 }
       - { person: dale, add: { morale: -5 } }
   B:
+    # 远程半管：质量回来一点，家长看见你没下来
     effects:
       - { flag: dale_texted, set: true }
+      - { stat: quality, add: 1 }
+      - { stat: reputation, add: -1 }
   C:
+    # 放过他：课更糟，但 Dale 记你的好
     effects:
       - { stat: quality, add: -3 }
+      - { person: dale, add: { morale: 5 } }
 default: { then: C }

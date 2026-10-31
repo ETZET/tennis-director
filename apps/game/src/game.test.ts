@@ -25,6 +25,17 @@ describe('Hollow Creek map ↔ act nav', () => {
 });
 
 describe('text', () => {
+  it('every ui.* key the game uses exists in both languages', async () => {
+    const { readFileSync, readdirSync } = await import('node:fs');
+    const dir = new URL('.', import.meta.url).pathname;
+    const keys = new Set<string>();
+    for (const f of readdirSync(dir).filter((x) => x.endsWith('.ts') && !x.endsWith('.test.ts')))
+      for (const m of readFileSync(dir + f, 'utf8').matchAll(/['`](ui\.[a-z_.]+)['`]/g)) keys.add(m[1] as string);
+    expect(keys.size).toBeGreaterThan(10);
+    for (const lang of ['en', 'zh'])
+      for (const k of keys) expect(CONTENT.i18n[lang]?.[k], `${lang}: ${k}`).toBeDefined();
+  });
+
   it('every UI key exists in both languages', () => {
     const en = CONTENT.i18n.en ?? {};
     const zh = CONTENT.i18n.zh ?? {};

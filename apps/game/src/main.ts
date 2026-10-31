@@ -1,5 +1,5 @@
 import { createStage, hollowCreek, OrbitCamera } from '@td/render';
-import { clamp } from '@td/shared';
+import { clamp, PACE } from '@td/shared';
 import { CONTENT, type ContentBundle, type GameState, type SimEvent, worldOf } from '@td/sim';
 import { mountHud } from '@td/ui';
 import type * as THREE from 'three';
@@ -100,7 +100,7 @@ const ui = mountHud($('hud'), {
 });
 
 function answer(key: 1 | 2 | 3): void {
-  const o = Projector.focusCard(session.s);
+  const o = Projector.focusCard(session.s, content);
   if (!o || session.s.outcome) return;
   const w = worldOf(session.s, content);
   const c = w.cards.get(o.card);
@@ -295,7 +295,7 @@ function fastForward(max: number): { minutes: number; stop: string } {
   session.paused = false;
   let stop = 'time';
   for (let i = 0; i < max; i++) {
-    const ev = session.frame(1 / (MINUTES_PER_SECOND * session.speed));
+    const ev = session.frame(1 / (MINUTES_PER_SECOND * session.speed * (session.idle ? PACE.idleSpeedup : 1)));
     pump(ev);
     if (session.s.outcome) stop = 'actEnded';
     else if (ev.some((e) => e.type === 'cardOpened')) stop = 'cardOpened';

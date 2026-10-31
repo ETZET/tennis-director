@@ -39,6 +39,7 @@ activities:
   tug_of_war: { title: Tug-of-war vs pickleball }
   match_strong: { title: Community match vs Pine Crown }
   match_juniors: { title: Community match vs Pine Crown (juniors) }
+  open_house: { title: Open house }
 
 endings:
   saved_with_coach:
@@ -67,16 +68,16 @@ events:
     body: Tyler is hitting balls into the fence and Mason is sitting on the court. Dale has not looked up in ten minutes.
     options:
       A: Walk down to Court 1 and talk to him
-      B: Text him from the deck
-      C: Let it slide · quality −3
+      B: Text him from the deck · quality +1, reputation −1
+      C: Let it slide · quality −3, Dale likes you
   hc_parent_complaint:
     topic: Members
     title: Ms. Carter wants a word about the lessons
     body: '"My son paid for lessons, not babysitting." She is standing at the gate of Court 1.'
     options:
       A: Refund this week's lesson · −$60
-      B: Promise things will change · −1 member
-      C: Back the coach · −2 members, reputation −3
+      B: Promise things will change · the board hears sooner
+      C: Back the coach · −2 members, reputation −3, Dale tries harder
   hc_board_memo:
     topic: Board memo
     title: The board wants you to deal with Coach Dale
@@ -91,8 +92,8 @@ events:
     body: One more chance lasted a day. The juniors are hitting balls at each other.
     options:
       A: Fire him now
-      B: Dock his pay
-      C: Ignore it · quality −4, −2 members
+      B: Dock his pay · +$175, Dale sulks
+      C: Finish the lesson yourself
   hc_hire_coach:
     topic: Staff
     title: Hire a new head coach
@@ -108,7 +109,7 @@ events:
     options:
       A: Patch the cracks and replace the net · −$350
       B: Just replace the net · −$80
-      C: Not now
+      C: Not now · the cracks spread
   hc_trial_day:
     topic: Recruiting
     title: Host a free trial day?
@@ -116,15 +117,15 @@ events:
     options:
       A: Go all out with flyers and a banner · −$150
       B: Keep it low-key
-      C: Skip it · reputation −1
+      C: Skip it · reputation −1, coach keeps teaching
   hc_discover_kid:
     topic: Talent
     title: Mason has a natural swing
     body: The kid who sat on the court during Dale's lessons just hit three clean backhands in a row.
     options:
       A: Pay for private lessons · −$200
-      B: Tell his parents he has talent
-      C: Keep an eye on him
+      B: Tell his parents he has talent · they will expect lessons
+      C: Keep it quiet for now
   hc_pickleball_lease:
     topic: Pickleball
     title: The pickleball group wants a full-year lease
@@ -140,22 +141,22 @@ events:
     options:
       A: Post a calm reply (depends on reputation)
       B: Invite them to a friendly
-      C: Ignore it · reputation −3
+      C: Kick them out of the chat · old members cheer
   hc_tug_of_war:
     topic: Community
     title: The pickleball team challenges you to tug-of-war
     body: Loser buys the lemonade. Tennis has never won one of these.
     options:
-      A: Send the juniors
+      A: Send the juniors · they miss a lesson
       B: Join in yourself (go to Court 2)
-      C: Decline
+      C: Decline · keep the lesson going
   hc_clay_workday:
     topic: Facilities
     title: Rescue the clay court?
     body: A tree is lying on the fence and the clay is more weed than court. Neighbors have offered to help.
     options:
-      A: Run a community workday (go to the clay court)
-      B: Hire contractors · −$900
+      A: Run a community workday (go to the clay court; depends on reputation)
+      B: Hire contractors · −$900, a pro surface
       C: Leave it
   hc_bubble_quote:
     topic: Facilities
@@ -185,7 +186,7 @@ events:
     title: A crow just stole a ball from the basket
     body: It is sitting on the fence post, looking pleased with itself. The juniors are delighted.
     options:
-      A: Laugh it off
+      A: Laugh it off with the juniors · reputation +1, lesson stalls
       B: Put a lid on the basket · −$40
       C: Ignore it
   hc_rival_flyer:
@@ -196,13 +197,131 @@ events:
       A: Swap it for our own flyer
       B: Call Pine Crown and complain
       C: Leave it
+  hc_board_chair:
+    topic: Board
+    title: The board chair is coming to see the club
+    body: She will be on the deck at noon. Halfway to the vote, she wants to know whether this is working.
+    options:
+      A: Show her around yourself (on the deck; depends on board confidence)
+      B: Email her the numbers · reputation −1
+      C: Ask for more money and time · +$600, the board gets impatient
+  hc_last_chance:
+    topic: Board
+    title: A board member offers you a lifeline
+    body: '"The vote is going badly. Give them something to see, or give them a promise."'
+    options:
+      A: Throw an open house this weekend · −$300
+      B: Promise quality back over 50 in three days
+      C: Thank him and carry on
+  hc_turnaround_check:
+    topic: Board
+    title: Three days are up
+    body: The board wants to see whether you kept your promise. Quality had to be back over 50.
+    options:
+      A: Face the board
+  hc_storm_tree:
+    topic: Weather
+    title: A storm dropped a tree on Court 1's fence
+    body: Branches across the baseline, the fence folded in. Lessons cannot run like this.
+    options:
+      A: Pay a crew to clear it now · −$450
+      B: Get members to help (go to Court 1; depends on reputation)
+      C: Close Court 1 for now · the court breaks again
+  hc_crow_lid:
+    topic: Court 1
+    title: The crow has learned to open the lid
+    body: It flips the lid with its beak, takes one ball, and leaves. The juniors are cheering for the crow.
+    options:
+      A: Let the juniors name it · reputation +2
+      B: Buy a padlock · −$25
+      C: Ignore it
+  hc_rival_van:
+    topic: Rivals
+    title: Pine Crown parked a demo van in our lot
+    body: Free racket demos and 20% off. Our members have to walk past it to get to the courts.
+    options:
+      A: Ask them to leave (go to the parking lot)
+      B: Set up our own table next to it · −$120
+      C: Let it be
+  hc_mason_parents:
+    topic: Talent
+    title: Mason's parents want to know when proper lessons start
+    body: '"You said he has talent. So what happens now?"'
+    options:
+      A: Private lessons with a pro · −$200
+      B: Ask your head coach to work with him · lessons suffer a bit
+      C: Not yet · reputation −3
+  hc_member_saturday:
+    topic: Members
+    title: An old member stops you about Saturday mornings
+    body: '"Saturday 9 to 11 was always tennis. Now it is pickleball."'
+    options:
+      A: Give tennis Saturdays back · pickleball pressure rises
+      B: Buy him a coffee and listen (on the deck) · −$10
+      C: Brush it off
+  hc_junior_hit:
+    topic: Juniors
+    title: Tyler asks if you'll hit a few with him
+    body: He is standing at the gate of Court 1 with two rackets.
+    options:
+      A: Hit with him (go to Court 1)
+      B: Send him to the practice wall
+      C: Have Mason hit with him
+  hc_coach_feedback:
+    topic: Coaching
+    title: Your coach wants feedback after the lesson
+    body: '"Am I doing this right? Honest answer."'
+    options:
+      A: Watch the next lesson first (go to Court 1)
+      B: Approve a ball machine · −$120
+      C: Another day · coach loses heart
+  hc_pool_kids:
+    topic: Recruiting
+    title: Kids from the pool are watching the courts
+    body: Four of them are hanging on the fence in wet towels.
+    options:
+      A: Invite them for a hit (go to the pool)
+      B: Hand out flyers · −$20
+      C: Leave them be
+  hc_lot_pothole:
+    topic: Facilities
+    title: A member scraped her car in the parking lot pothole
+    body: She is still standing next to the car, looking at the bumper.
+    options:
+      A: Fill the pothole · −$120
+      B: Apologize in person and cone it off (go to the parking lot)
+      C: Not our problem
+  hc_volunteer_coach:
+    topic: Members
+    title: A retired member offers to help coach on weekends
+    body: He played college tennis forty years ago and still has the forehand.
+    options:
+      A: Welcome him on court · quality +3
+      B: Ask him to help recruit instead
+      C: Thank him warmly, no · reputation +2
+  hc_ball_order:
+    topic: Equipment
+    title: The lesson balls are dead
+    body: They barely bounce past the service line. Tyler is using one as a stress ball.
+    options:
+      A: Order a fresh case · −$60
+      B: Make do · quality −1
+      C: Ask members to bring their own · reputation −1
+  hc_double_booked:
+    topic: Bookings
+    title: Court 1 is double-booked this morning
+    body: Two tennis regulars and four pickleball players are standing at the gate with the same time slot.
+    options:
+      A: Give it to the tennis regulars · pickleball pressure rises
+      B: Give it to the pickleball group
+      C: Sort it out in person (go to Court 1)
   hc_storm_leak:
     topic: Weather
     title: The clubhouse roof is leaking
     body: Rain is coming through over the trophy case. Members are moving chairs.
     options:
-      A: Patch the roof · −$250
-      B: Put out buckets
+      A: Patch the roof for good · −$250
+      B: Put out buckets · quality −2, reputation −1
       C: Close the clubhouse today · −1 member
   hc_community_match:
     topic: Match day
@@ -211,11 +330,11 @@ events:
     options:
       A: Field the strongest lineup with your coach
       B: Give the juniors a chance
-      C: Forfeit · reputation −5
+      C: Forfeit · reputation −5, juniors rest
   hc_board_vote:
     topic: Board vote
     title: The board votes on selling the club
-    body: Quality, members, reputation and the Pine Crown match all count. Present your case on the deck.
+    body: Board confidence decides it. Present in person on the deck, or let the numbers speak.
     options:
       A: Present in person on the deck
       B: Let the numbers speak for themselves
@@ -230,9 +349,22 @@ events:
 
 log:
   started: You took over Hollow Creek Tennis Club.
+  workday_thin: Only a handful of neighbors showed up; the clay is still a mess
+  roof_fixed: The roof is fixed for good
+  vote_passed: The board voted to keep the club
+  vote_failed: The board voted to sell
+  trial_onsite: you were on Court 1 to welcome them, so a few more signed up
+  match_won: Hollow Creek beat Pine Crown
+  match_lost: Pine Crown won the match
+  promise_broken: You broke your promise to the board
+  promise_kept: You kept your promise to the board
+  tree_cleared: The tree is cleared and lessons go on
 
 # 界面文案（游戏 app 用）。{x} 是占位符。
 ui:
+  board: Board confidence
+  board_in: "Board · vote in {days}d"
+  board_today: "Board · vote today"
   club: { name: Hollow Creek TC, badge: HC }
   cash: Cash
   you: You
@@ -249,6 +381,7 @@ ui:
     cash: Not enough cash
   details:
     wages: Wages / week
+    courts: Courts open
     director: Director style
     seed: Seed
   activity: "{title} · {time} left"

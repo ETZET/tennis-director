@@ -39,6 +39,7 @@ calendar:
   - { day: 2, hour: 10, card: hc_board_memo }
   - { day: 5, hour: 9, card: hc_trial_day }
   - { day: 6, hour: 11, card: hc_bubble_quote }
+  - { day: 7, hour: 10, card: hc_board_chair }
   - { day: 11, hour: 10, card: hc_community_match }
   - { day: 12, hour: 15, card: hc_board_vote }
 director_config: steady
@@ -56,7 +57,9 @@ rules:
     board_support: >-
       clamp(45 + (stat.quality - 55) * 0.9 + (stat.members - 50) * 1.0 + (stat.reputation - 40) * 0.5
       + (flag.match_won ? 8 : 0) + (flag.match_played ? 2 : 0)
-      - (flag.pickleball_lease ? 3 : 0), 0, 100)
+      - (flag.pickleball_lease ? 3 : 0)
+      + (flag.chair_impressed ? 6 : 0) - (flag.chair_worried ? 6 : 0) - (flag.board_impatient ? 8 : 0)
+      + (flag.open_house_held ? 6 : 0) + (flag.turnaround_promised ? 10 : 0) - (flag.broken_promise ? 18 : 0), 0, 100)
   lose_if:
     when: { stat: cash, lt: -1500 }
     ending: bankrupt

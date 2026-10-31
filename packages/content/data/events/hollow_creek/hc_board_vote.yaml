@@ -13,14 +13,18 @@ options:
     check: { chance: "clamp((stat.board_support - 25) / 70, 0.12, 0.85)" }
     onSuccess:
       - { flag: board_vote_passed, set: true }
+      - { log: log.vote_passed }
       - { schedule: hc_who_follows, in: 1h }
     onFail:
+      - { log: log.vote_failed }
       - { endAct: lost, ending: club_sold }
   B:
     check: { chance: "clamp((stat.board_support - 35) / 70, 0.08, 0.75)" }
     onSuccess:
       - { flag: board_vote_passed, set: true }
+      - { log: log.vote_passed }
       - { schedule: hc_who_follows, in: 1h }
     onFail:
+      - { log: log.vote_failed }
       - { endAct: lost, ending: club_sold }
 default: { then: B }
