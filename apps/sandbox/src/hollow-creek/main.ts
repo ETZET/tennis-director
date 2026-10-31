@@ -26,7 +26,13 @@ const pool = new BallPool(stage.scene, hollowCreek.groundY);
 const now = () => sched.now;
 const hud = new Hud(now);
 const labels = new LabelLayer($('labels'), stage.cam, now);
-const HOME = hollowCreek.HOLLOW_CREEK_CAMERA.overview;
+labels.occluders = () =>
+  [...document.querySelectorAll('.td-bug,.td-strip-wrap,.td-card,.td-wire')].map((el) => el.getBoundingClientRect());
+// 竖屏手机用岛铺满宽度的默认视角
+const HOME =
+  container.clientWidth / Math.max(1, container.clientHeight) < 0.8
+    ? hollowCreek.HOLLOW_CREEK_CAMERA_PORTRAIT
+    : hollowCreek.HOLLOW_CREEK_CAMERA.overview;
 
 const demo = createHollowCreekDemo({ stage, sched, world, pool, hud, labels, bubblePeaks, home: HOME });
 
@@ -95,12 +101,22 @@ function frame(ts: number) {
   camera.update(dt, demo.focus());
   demo.updateRain(sdt, camera.smooth.tx, camera.smooth.tz);
   stage.renderer.render(stage.scene, stage.cam);
+  // 一米不到 4 个像素时，编号牌只留编号
+  labels.compact = container.clientHeight / (stage.cam.top - stage.cam.bottom) < 4;
   labels.place(container.clientWidth, container.clientHeight);
   uiT += dt;
   if (uiT > 0.25) {
     uiT = 0;
     draw();
   }
+}
+// 开发用：?t=60 打开时把剧情快进到第 60 秒（不渲染，只推进演出），方便看某一拍
+const skipTo = Number(new URLSearchParams(location.search).get('t')) || 0;
+for (let k = 0; k < skipTo / 0.05; k++) {
+  sched.advance(0.05);
+  demo.tickStats(0.05);
+  demo.updateActors(0.05, sched.now, k * 50);
+  demo.updateRain(0.05, camera.smooth.tx, camera.smooth.tz);
 }
 draw();
 requestAnimationFrame(frame);

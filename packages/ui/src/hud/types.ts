@@ -41,6 +41,8 @@ export interface EventCardData {
   body?: string;
   /** 剩余比例 0..1 和显示的剩余时间（游戏内时间） */
   countdown?: { ratio: number; label: string };
+  /** 快讯卡自动收起前剩下的比例 0..1（卡片底部一条细线） */
+  timer?: number;
   answers?: CardAnswer[];
   /** 选项下面的一行小字 */
   note?: string;

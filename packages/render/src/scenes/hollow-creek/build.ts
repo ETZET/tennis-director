@@ -41,9 +41,9 @@ import {
  */
 
 /** 草色：同一族绿，只在明度上有一点起伏（原型是八种颜色拼花，看着乱）。 */
-const GRASS = ['#7d8448', '#7a8446', '#808a4a', '#768043', '#7f8649', '#78823f'];
+const GRASS = ['#7d8448', '#7b8547', '#7f8749', '#7a8346'];
 /** 草皮里零星的深色块（原型是裸土的棕色）。 */
-const GRASS_DARK = '#6f7a40';
+const GRASS_DARK = '#768143';
 const TRASH = ['#b23a2c', '#c9c9c2', '#3b6ea8', '#e8e2d0', '#5c8a3a'];
 const WILLOW = ['#8a8a4a', '#7a7d42', '#9a8c4e', '#6f7440'];
 
@@ -157,8 +157,8 @@ function terrain(ctx: BuildContext): void {
   body(ctx, POOL.x1, XE, ZB, ZU, UP);
   body(ctx, POOL.x0, POOL.x1, ZB, POOL.z0, UP);
   body(ctx, POOL.x0, POOL.x1, POOL.z1, ZU, UP);
-  body(ctx, POOL.x0, shallowX, POOL.z0, POOL.z1, 1.5, '#6c9fa3');
-  body(ctx, shallowX, POOL.x1, POOL.z0, POOL.z1, 0.55, '#5f9095');
+  body(ctx, POOL.x0, shallowX, POOL.z0, POOL.z1, 1.5, '#a9bfc2');
+  body(ctx, shallowX, POOL.x1, POOL.z0, POOL.z1, 0.55, '#97adb0');
   body(ctx, XW, XE, ZU, ZL, MID);
 
   const inPool = (x: number, z: number) =>
@@ -296,6 +296,10 @@ function bubbleCourt(ctx: BuildContext): XYZ[] {
       if (h < 0.4 && ctx.rand() < 0.45) col = jit(ctx, '#aaa698', 0.04);
       if (h < 0.3 && ctx.rand() < 0.25) col = jit(ctx, '#7b8a8f', 0.03);
       if (ctx.rand() < 0.07) col = jit(ctx, '#8f9a6a', 0.04);
+      // 气膜的接缝：每 4 米一道深色褶子，读得出是一张塌下来的膜，不是一堆雪
+      if (x % 4 === 0 && h > 0.25) col = jit(ctx, '#9aa3a8', 0.03);
+      // 膜的四角翘起，露出底下的蓝色场地
+      if (Math.abs(x) > 16 && Math.abs(z) > 7) continue;
       cbox(ctx, FC, x, -0.01, z, 1.0, h, 1.0, col);
     }
   for (let i = 0; i < 6; i++)
@@ -305,6 +309,8 @@ function bubbleCourt(ctx: BuildContext): XYZ[] {
   cbox(ctx, FC, -21, 0, -6, 1.6, 1.3, 1.4, '#7b7f80');
   cbox(ctx, FC, -20.15, 0.3, -6, 0.04, 0.8, 0.9, '#2f3336');
   cbox(ctx, FC, -19.8, 0, -6, 1.4, 0.28, 1.0, '#cfcabd');
+  // 鼓风机上的橙色警示灯
+  cbox(ctx, FC, -21, 1.3, -6, 0.32, 0.32, 0.32, '#f0782a');
 
   frameSign(ctx, FC, 'BUBBLE CLOSED · NO INSURANCE', 5.4, 0.5, -10, 0.75, FC.hz + 1.1, '#d4601f', '#1e1e1e', 13);
   cbox(ctx, FC, -12.4, 0, FC.hz + 1.1, 0.08, 0.8, 0.08, '#5a5550');
@@ -320,7 +326,8 @@ function clayCourt(ctx: BuildContext): void {
     for (let z = -9; z < 9; z += 2) {
       const p = fr.w({ x: x + 1, z: z + 1 });
       const r = ctx.rand();
-      ctx.flat.box(p.x, y, p.z, 2, 0.06, 2, r < 0.3 ? jit(ctx, '#6e7a4a', 0.05) : jit(ctx, '#7c8569', 0.05), fr.a);
+      // 褪了色的红土，三成已经被草吃掉
+      ctx.flat.box(p.x, y, p.z, 2, 0.06, 2, r < 0.3 ? jit(ctx, '#6e7a4a', 0.05) : jit(ctx, '#a3654a', 0.05), fr.a);
       if (r < 0.35) {
         for (let k = 0; k < 3; k++) {
           const q = fr.w({ x: x + sr(ctx, 0, 2), z: z + sr(ctx, 0, 2) });
@@ -499,7 +506,7 @@ function clubhouse(ctx: BuildContext): void {
       1,
       UP - 0.55,
       0.1,
-      ctx.rand() < 0.2 ? jit(ctx, '#5f7f80', 0.04) : jit(ctx, '#7fb3b8', 0.04),
+      ctx.rand() < 0.2 ? jit(ctx, '#8fa5a8', 0.04) : jit(ctx, '#b9cdd0', 0.04),
     );
     solid.box(
       x + 0.5,
@@ -508,11 +515,11 @@ function clubhouse(ctx: BuildContext): void {
       1,
       UP - 0.55,
       0.1,
-      ctx.rand() < 0.2 ? jit(ctx, '#5f7f80', 0.04) : jit(ctx, '#7fb3b8', 0.04),
+      ctx.rand() < 0.2 ? jit(ctx, '#8fa5a8', 0.04) : jit(ctx, '#b9cdd0', 0.04),
     );
   }
-  solid.box(P.x0 + 0.05, 1.5, (P.z0 + P.z1) / 2, 0.1, UP - 1.5, P.z1 - P.z0, '#7fb3b8');
-  solid.box(P.x1 - 0.05, 0.55, (P.z0 + P.z1) / 2, 0.1, UP - 0.55, P.z1 - P.z0, '#7fb3b8');
+  solid.box(P.x0 + 0.05, 1.5, (P.z0 + P.z1) / 2, 0.1, UP - 1.5, P.z1 - P.z0, '#b9cdd0');
+  solid.box(P.x1 - 0.05, 0.55, (P.z0 + P.z1) / 2, 0.1, UP - 0.55, P.z1 - P.z0, '#b9cdd0');
   for (let x = P.x0; x < P.x1; x += 1)
     for (let z = P.z0; z < P.z1; z += 1) {
       const fy = x < shallowX ? 1.5 : 0.55;

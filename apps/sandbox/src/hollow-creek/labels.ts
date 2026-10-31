@@ -26,6 +26,10 @@ export class LabelLayer {
   private readonly labels: Label[] = [];
   private readonly pv = new THREE.Vector3();
   show = true;
+  /** 远景：场地编号牌只留编号方块，"你"的牌子收起来 */
+  compact = false;
+  /** 界面面板的屏幕矩形：编号牌落在面板下面就不画，免得透过面板露出来 */
+  occluders: () => readonly DOMRect[] = () => [];
 
   constructor(
     private readonly layer: HTMLElement,
@@ -90,6 +94,8 @@ export class LabelLayer {
 
   place(W: number, H: number): void {
     const now = this.now();
+    this.layer.classList.toggle('compact', this.compact);
+    const occ = this.occluders();
     for (let i = this.labels.length - 1; i >= 0; i--) {
       const l = this.labels[i] as Label;
       if (l.kind === 'say' && now > (l.until ?? 0)) {
@@ -106,7 +112,10 @@ export class LabelLayer {
       this.pv.set(p.x, p.y, p.z).project(this.cam);
       const x = (this.pv.x * 0.5 + 0.5) * W;
       const y = (-this.pv.y * 0.5 + 0.5) * H;
-      const off = x < -100 || x > W + 100 || y < -40 || y > H + 40;
+      let off = x < -100 || x > W + 100 || y < -40 || y > H + 40;
+      // 编号牌的锚点在牌子底边中间；牌子大约 140×24
+      if (!off && l.kind === 'lbl')
+        off = occ.some((r) => x + 70 > r.left && x - 70 < r.right && y > r.top && y - 26 < r.bottom);
       l.el.hidden = off;
       if (!off)
         l.el.style.transform =

@@ -202,9 +202,9 @@ export function pen(
   { gate = null, holes = [], H = 3.2, col = '#55504a', lean = 0.2, peel = -1 }: PenOptions = {},
 ): void {
   const mat = new THREE.MeshLambertMaterial({
-    color: '#3a3935',
+    color: '#1d2a24',
     transparent: true,
-    opacity: 0.12,
+    opacity: 0.08,
     side: THREE.DoubleSide,
     depthWrite: false,
   });

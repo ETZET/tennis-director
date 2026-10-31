@@ -10,14 +10,14 @@ import './hud.css';
  * 左上记分牌、右上状态条（点开看明细）、下三分之一事件卡、底部滚动的俱乐部快讯带着视角控制。
  */
 
-function ScoreBug({ club }: { club: HudSnapshot['club'] }) {
+function ScoreBug({ club, paused }: { club: HudSnapshot['club']; paused: boolean }) {
   return (
     <header class="td-bug">
       <span class="td-bug-badge" aria-hidden="true">
         {club.badge}
       </span>
       <h1 class="td-bug-name">{club.name}</h1>
-      <span class="td-bug-clock">{club.clock}</span>
+      <span class={`td-bug-clock${paused ? ' td-paused' : ''}`}>{paused ? STR.paused : club.clock}</span>
     </header>
   );
 }
@@ -35,18 +35,40 @@ function Cell({ value, label, extra }: { value: string; label: string; extra?: s
 }
 
 function Spark({ history }: { history: readonly number[] }) {
-  // 横向拉伸铺满面板宽度；线宽不随拉伸变化
+  // 横向拉伸铺满面板宽度；线宽不随拉伸变化。刻度和图例用 HTML 叠在旁边，不跟着拉伸变形
   const W = 260;
-  const H = 56;
+  const H = 64;
   const y = (v: number) => H - 4 - (v / 100) * (H - 8);
+  const pct = (v: number) => `${(y(v) / H) * 100}%`;
   return (
-    <svg class="td-spark" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img" aria-label={STR.qualityChart}>
-      <rect x="0" y={y(40)} width={W} height={H - y(40)} class="td-spark-fail" />
-      {[40, 55, 70].map((v) => (
-        <line key={v} x1="0" x2={W} y1={y(v)} y2={y(v)} class="td-spark-grid" />
-      ))}
-      <polyline points={sparkPoints(history, W, H)} class="td-spark-line" />
-    </svg>
+    <div class="td-chart">
+      <div class="td-chart-plot">
+        <svg
+          class="td-spark"
+          viewBox={`0 0 ${W} ${H}`}
+          preserveAspectRatio="none"
+          role="img"
+          aria-label={STR.qualityChart}
+        >
+          <rect x="0" y={y(40)} width={W} height={H - y(40)} class="td-spark-fail" />
+          {[40, 55, 70].map((v) => (
+            <line key={v} x1="0" x2={W} y1={y(v)} y2={y(v)} class="td-spark-grid" />
+          ))}
+          <polyline points={sparkPoints(history, W, H)} class="td-spark-line" />
+        </svg>
+        <span class="td-chart-zone" style={{ top: pct(40) }}>
+          {STR.failZone}
+        </span>
+        {history.length < 3 ? <span class="td-chart-empty">{STR.chartEmpty}</span> : null}
+      </div>
+      <div class="td-chart-axis" aria-hidden="true">
+        {[100, 50, 0].map((v) => (
+          <span key={v} style={{ top: pct(v) }}>
+            {v}
+          </span>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -61,7 +83,11 @@ function StatStrip({ s }: { s: HudSnapshot }) {
         aria-expanded={open}
         aria-controls="td-details"
         title={STR.details}
-        onClick={() => setOpen(!open)}
+        onClick={(e) => {
+          setOpen(!open);
+          // 鼠标点开后不留键盘焦点框（键盘操作仍然有）
+          if (e.detail > 0) (e.currentTarget as HTMLElement).blur();
+        }}
       >
         <span class="td-cell td-cell-q">
           <span class="td-grade" style={{ background: GRADE_COLOR[g] }}>
@@ -91,8 +117,8 @@ function StatStrip({ s }: { s: HudSnapshot }) {
             <dd class={s.headCoach.vacant ? 'td-bad' : ''}>{s.headCoach.vacant ? STR.vacant : s.headCoach.name}</dd>
             {s.details.map((r) => [
               <dt key={`${r.label}-t`}>{r.label}</dt>,
-              <dd key={`${r.label}-d`} class={r.tone ? `td-${r.tone}` : ''}>
-                {r.value}
+              <dd key={`${r.label}-d`} class={r.tone ? `td-${r.tone}` : r.value ? '' : 'td-none'}>
+                {r.value || STR.notYet}
               </dd>,
             ])}
           </dl>
@@ -120,6 +146,11 @@ function EventCard({ c, actions }: { c: EventCardData; actions: HudActions }) {
             <span class="td-count-label">{c.countdown.label}</span>
           </div>
         ) : null}
+        {c.timer !== undefined ? (
+          <div class="td-timer" aria-hidden="true">
+            <div style={{ width: `${Math.round(c.timer * 1000) / 10}%` }} />
+          </div>
+        ) : null}
         {c.answers ? (
           <div class="td-answers">
             {c.answers.map((a) => (
@@ -134,7 +165,8 @@ function EventCard({ c, actions }: { c: EventCardData; actions: HudActions }) {
                 }}
               >
                 <span class="td-key">{a.key}</span>
-                {a.text}
+                <span class="td-answer-text">{a.text}</span>
+                {a.disabled ? <LockIcon /> : null}
               </button>
             ))}
           </div>
@@ -153,6 +185,22 @@ function EventCard({ c, actions }: { c: EventCardData; actions: HudActions }) {
     </section>
   );
 }
+
+const LockIcon = () => (
+  <svg
+    class="td-lock"
+    width="14"
+    height="14"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="2.2"
+    aria-hidden="true"
+  >
+    <rect x="5" y="11" width="14" height="10" />
+    <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+  </svg>
+);
 
 const RotL = () => (
   <svg
@@ -232,7 +280,7 @@ function ClubWire({ s, actions }: { s: HudSnapshot; actions: HudActions }) {
 export function Hud({ s, actions }: { s: HudSnapshot; actions: HudActions }) {
   return (
     <div class="td-hud">
-      <ScoreBug club={s.club} />
+      <ScoreBug club={s.club} paused={s.controls.paused} />
       <StatStrip s={s} />
       {s.card ? <EventCard c={s.card} actions={actions} /> : null}
       <ClubWire s={s} actions={actions} />

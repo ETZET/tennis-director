@@ -515,7 +515,7 @@ export function createHollowCreekDemo(env: DemoEnv): Demo {
   const FL = (fr: typeof FA, x: number, y: number, z: number) => () => fr.w({ x, y, z });
   labels.court(1, () => ({ text: lesson.active ? 'Lesson' : 'No coach', open: true }), FL(FA, 0, 3.4, -FA.hz));
   labels.court(2, () => ({ text: 'Pickleball', open: true }), FL(FB, 0, 3.4, -FB.hz));
-  labels.court(3, () => ({ text: 'Closed', open: false }), FL(FC, 7, 3.2, 2.5));
+  labels.court(3, () => ({ text: 'Closed', open: false }), FL(FC, 0, 3.4, -FC.hz));
   labels.court(4, () => ({ text: 'Closed', open: false }), FL(FD, 0, 3.4, -FD.hz));
   labels.tag('You', () => ({ x: you.pos.x, y: you.root.position.y + 3.2, z: you.pos.z }), 'you');
 

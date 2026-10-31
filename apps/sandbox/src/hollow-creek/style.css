@@ -39,3 +39,5 @@ body{background:var(--sky);color:var(--navy);font-family:var(--f-text);overflow:
 .say.pk b{color:#3c8a2c}
 .say::after{content:"";position:absolute;left:50%;bottom:-7px;width:12px;height:7px;margin-left:-6px;background:#ffffff;clip-path:polygon(0 0,100% 0,50% 100%)}
 .lbl[hidden],.say[hidden]{display:none!important}
+/* 远景：只留编号方块 */
+#labels.compact .mk-t,#labels.compact .lbl.you{display:none}

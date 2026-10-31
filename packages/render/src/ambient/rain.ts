@@ -24,8 +24,8 @@ export interface RainLighting {
 export function createRain(stage: Stage, lighting: RainLighting, n = 800): Rain {
   const rr = (a: number, b: number) => range(Math.random, a, b);
   const mesh = new THREE.InstancedMesh(
-    boxGeo(0.03, 0.5, 0.03),
-    new THREE.MeshBasicMaterial({ color: '#c7d3da', transparent: true, opacity: 0 }),
+    boxGeo(0.06, 0.9, 0.06),
+    new THREE.MeshBasicMaterial({ color: '#e2eaef', transparent: true, opacity: 0 }),
     n,
   );
   mesh.frustumCulled = false;
@@ -44,7 +44,7 @@ export function createRain(stage: Stage, lighting: RainLighting, n = 800): Rain 
     amount: () => on,
     update(dt, cx, cz) {
       on = lerp(on, target, 1 - Math.exp(-dt * 0.5));
-      mat.opacity = 0.5 * on;
+      mat.opacity = 0.6 * on;
       if (on < 0.01) {
         mesh.visible = false;
         return;

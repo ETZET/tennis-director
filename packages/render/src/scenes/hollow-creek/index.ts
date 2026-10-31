@@ -32,17 +32,20 @@ export const HOLLOW_CREEK_LIGHTING: LightingDef = {
 
 /** 下雨时的天色和灯光（Dale 被开除后开始下雨）。 */
 export const HOLLOW_CREEK_RAIN = {
-  hemi: [0.78, 0.62],
-  sun: [0.5, 0.3],
+  hemi: [0.78, 0.56],
+  sun: [0.5, 0.24],
   sky: new THREE.Color('#a3bac8'),
   // 设计稿 Day · Rain
-  skyRain: new THREE.Color('#728694'),
+  skyRain: new THREE.Color('#6f8291'),
 } as const;
 
 /** 默认视角：一打开就看到整座浮空岛（岛底、四周的天空），两岸和中间的小溪都在画面里。 */
 export const HOLLOW_CREEK_CAMERA: Record<'overview', CameraPose> = {
   overview: { yaw: -0.62, pitch: 0.66, zoom: 0.37, tx: -3, tz: 5 },
 };
+
+/** 竖屏手机：岛铺满屏幕宽度。 */
+export const HOLLOW_CREEK_CAMERA_PORTRAIT: CameraPose = { yaw: -0.62, pitch: 0.66, zoom: 0.46, tx: -3, tz: 5 };
 
 /** 最远能拉到看见整座浮空岛、岛底和四周的云。 */
 export const HOLLOW_CREEK_CAMERA_LIMITS: OrbitLimits = {

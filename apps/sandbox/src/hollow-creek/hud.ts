@@ -45,6 +45,7 @@ interface DecisionCard {
 
 interface ActiveCard {
   card: EventCardData | DecisionCard;
+  from: number;
   until: number;
 }
 
@@ -107,7 +108,11 @@ export class Hud {
   /** 新闻快讯卡：dur 秒（演出时间）后自动收起；dur 为 0 表示一直留着。 */
   news(card: Omit<EventCardData, 'kind' | 'id'>, dur: number): void {
     const t = this.now();
-    this.active = { card: { ...card, kind: 'news', id: `n${t}` }, until: dur ? t + dur : Number.POSITIVE_INFINITY };
+    this.active = {
+      card: { ...card, kind: 'news', id: `n${t}` },
+      from: t,
+      until: dur ? t + dur : Number.POSITIVE_INFINITY,
+    };
   }
 
   /**
@@ -132,6 +137,7 @@ export class Hud {
         t1: t + dur,
         chosen: null,
       },
+      from: t,
       until: t + dur + hold,
     };
   }
@@ -150,7 +156,11 @@ export class Hud {
       this.active = null;
       return null;
     }
-    if (!isDecision(a.card)) return a.card;
+    if (!isDecision(a.card)) {
+      // 会自动收起的快讯卡底部有一条细线倒数
+      if (!Number.isFinite(a.until)) return a.card;
+      return { ...a.card, timer: Math.max(0, (a.until - t) / (a.until - a.from)) };
+    }
     const d = a.card;
     if (t >= d.t1 && d.chosen === null) d.chosen = d.pick;
     const left = Math.max(0, d.t1 - t);
@@ -175,7 +185,7 @@ export class Hud {
         ...(lessonBalls > 12 ? { tone: 'bad' } : {}),
       },
       { label: 'Coach phone time', value: `${Math.floor(S.phoneMin)} min` },
-      { label: 'Lesson shots that went in', value: S.shots ? `${Math.round((S.ins / S.shots) * 100)}%` : '—' },
+      { label: 'Lesson shots that went in', value: S.shots ? `${Math.round((S.ins / S.shots) * 100)}%` : '' },
       { label: 'Member complaints', value: String(S.complaints), ...(S.complaints > 3 ? { tone: 'bad' } : {}) },
       { label: 'Longest pickleball rally', value: String(S.pbBest) },
     ];
