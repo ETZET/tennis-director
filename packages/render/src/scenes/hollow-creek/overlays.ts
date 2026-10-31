@@ -2,10 +2,11 @@ import { mulberry32 } from '@td/shared';
 import * as THREE from 'three';
 import { courtLines, net, surface } from '../../props/court';
 import { VoxelBatcher } from '../../voxel/batcher';
+import { sign } from '../../voxel/text';
 import type { BuildContext } from '../../world/build-context';
 import { CourtFrame } from '../../world/frame';
 import type { Stage } from '../../world/stage';
-import { FA, FB, FC, FD } from './layout';
+import { FA, FB, FC, FD, POOL, UP } from './layout';
 
 /**
  * 设施状态的画面：模拟里设施换了状态，就把对应的一层盖上去（或收起来）。
@@ -15,6 +16,7 @@ import { FA, FB, FC, FD } from './layout';
  * - court_2.tennis：盖掉匹克球胶带的蓝色场地
  * - clay.restored：新红土和白线
  * - bubble.inflated：重新充起来的白色气膜
+ * - pool.open：一池水，"POOL CLOSED" 的牌子换成 "POOL OPEN"（静态场景里的泳池是干的）
  */
 
 export interface FacilityOverlays {
@@ -68,12 +70,25 @@ function dome(ctx: BuildContext): void {
     }
 }
 
+function poolWater(ctx: BuildContext): void {
+  const P = POOL;
+  for (let x = P.x0; x < P.x1; x += 1)
+    for (let z = P.z0; z < P.z1; z += 1)
+      ctx.flat.box(x + 0.5, UP - 0.45, z + 0.5, 1, 0.1, 1, ctx.rand() < 0.3 ? '#5db4d4' : '#4ea6c8');
+  // 水线上几条泳道浮绳
+  for (const z of [P.z0 + 2.7, P.z0 + 5.3])
+    for (let x = P.x0 + 0.5; x < P.x1; x += 1)
+      ctx.flat.box(x, UP - 0.36, z, 0.5, 0.06, 0.16, (x - P.x0) % 2 < 1 ? '#e8e2d0' : '#c84a3a');
+  sign(ctx.scene, 'POOL OPEN', 2.4, 0.4, P.x0 + 7, UP + 1.0, P.z1 + 0.97, 0, '#e8e2d0', '#2f7a5a', 13);
+}
+
 export function createFacilityOverlays(stage: Stage): FacilityOverlays {
   const layers: Record<string, THREE.Group> = {
     'court_1.repaired': layer(0xc0471, freshCourt(lift(FA, 0.03), '#3f6d9c', '#3c7a5a', true)),
     'court_2.tennis': layer(0xc0472, freshCourt(lift(FB, 0.03), '#4f6a86', '#5a7562', false)),
     'clay.restored': layer(0xc0474, clayCourt),
     'bubble.inflated': layer(0xc0473, dome),
+    'pool.open': layer(0xc0475, poolWater),
   };
   for (const g of Object.values(layers)) stage.scene.add(g);
   return {

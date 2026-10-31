@@ -16,6 +16,7 @@ import {
 import { clamp, lerp, mulberry32, type XZ } from '@td/shared';
 import { type ContentBundle, coachAttention, type GameState, type SimEvent, worldOf } from '@td/sim';
 import * as THREE from 'three';
+import { createLife } from './life';
 
 /**
  * 游戏画面里的"活"的部分：总监沿路线走、教练和孩子们、设施状态、活动演出、下雨。
@@ -528,6 +529,7 @@ export function createGameScene(stage: Stage, content0: ContentBundle): GameScen
     running.clear();
     for (const [f, st] of Object.entries(s.facilities)) overlays.set(f, st);
     giveBack(extras.slice(4));
+    life.reset();
     idleCourt1();
     syncPickleball(true);
     const w = worldOf(s, content);
@@ -539,6 +541,38 @@ export function createGameScene(stage: Stage, content0: ContentBundle): GameScen
     you.pos.x = at.x;
     you.pos.z = at.z;
   }
+
+  /* ---------- 会所的日常：来打球的会员、路人、落叶（准则 6） ---------- */
+  const locals: Person[] = [];
+  const life = createLife({
+    stage,
+    sched,
+    rnd,
+    person: (i) => {
+      const p = mk({
+        name: `Member ${i + 1}`,
+        x: 0,
+        z: 0,
+        base: 'relaxed',
+        shirt: SHIRTS[(i * 5 + 2) % SHIRTS.length] as string,
+        shorts: i % 2 ? '#f1ece0' : '#3a3f4a',
+        pants: i % 5 === 4,
+        skin: SK[(i * 3 + 1) % SK.length] as string,
+        hair: HAIRS[(i * 2 + 1) % HAIRS.length] as string,
+        hairStyle: STYLES[(i + 2) % STYLES.length],
+        cap: SHIRTS[(i + 5) % SHIRTS.length] as string,
+        shoes: '#f1ece0',
+        reach: 0.8,
+        ...(i < 6 ? { racket: ['#d6362f', '#3a8fd9', '#f0a020'][i % 3] as string } : {}),
+      });
+      p.root.visible = false;
+      locals.push(p);
+      return p;
+    },
+    rally: (a, b, o) => rally(a, b, o),
+    busy: (anchor) =>
+      !!state && state.activities.some((x) => x.started && x.anchor === anchor && state && state.t < x.end),
+  });
 
   /* ---------- 卡片的镜头 ---------- */
   let focusAnchor: string | null = null;
@@ -620,6 +654,7 @@ export function createGameScene(stage: Stage, content0: ContentBundle): GameScen
         }
       }
       updatePuffs(sdt);
+      life.update(s, sdt);
       // 在现场忙的时候：比划、说话、指点
       if (d.task?.phase === 'working' && sdt > 0) {
         workT -= sdt;
