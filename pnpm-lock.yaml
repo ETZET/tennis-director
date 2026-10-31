@@ -53,6 +53,16 @@ importers:
       '@td/ui':
         specifier: workspace:*
         version: link:../../packages/ui
+      preact:
+        specifier: 10.29.8
+        version: 10.29.8
+      three:
+        specifier: 0.128.0
+        version: 0.128.0
+    devDependencies:
+      '@types/three':
+        specifier: 0.128.0
+        version: 0.128.0
 
   apps/sandbox:
     dependencies:

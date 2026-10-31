@@ -8,6 +8,7 @@ import { buildHollowCreek, type HollowCreekStatic } from './build';
 import { ISLAND } from './layout';
 
 export * from './layout';
+export { createFacilityOverlays, type FacilityOverlays } from './overlays';
 
 /** 第一幕：Hollow Creek 网球俱乐部（1974 年建，阴天，正在出售）。 */
 export const HOLLOW_CREEK_SEED = 1974;

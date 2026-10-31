@@ -222,3 +222,30 @@ events:
 
 log:
   started: You took over Hollow Creek Tennis Club.
+
+# 界面文案（游戏 app 用）。{x} 是占位符。
+ui:
+  club: { name: Hollow Creek TC, badge: HC }
+  cash: Cash
+  you: You
+  walking: "Walking to {place} · {time}"
+  standing: "At {place}"
+  closed: Club closed for the night
+  left: "{time} left"
+  decided: Decided
+  hint:
+    walk: "Walk to {place} first · {time}"
+    cost: "Costs ${n}"
+    chance: "{p}% chance"
+    requires: Not possible right now
+    cash: Not enough cash
+  details:
+    wages: Wages / week
+    director: Director style
+    seed: Seed
+  activity: "{title} · {time} left"
+  end:
+    again: Play again
+    won: Act 1 complete
+    lost: Act 1 over
+    legacy: "Coming with you: {names}"

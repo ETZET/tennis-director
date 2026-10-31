@@ -21,6 +21,11 @@ export const STR = {
   pause: 'Pause (Space)',
   resume: 'Resume (Space)',
   speed: 'Change speed',
+  story: 'How we got here',
+  because: 'Because',
+  so: 'so',
+  more: (n: number) => `+${n} more`,
+  walkThere: 'Walks there first',
   trend: {
     falling: 'Falling',
     recovering: 'Recovering',

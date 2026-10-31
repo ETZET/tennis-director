@@ -10,9 +10,22 @@ import './hud.css';
  * 左上记分牌、右上状态条（点开看明细）、下三分之一事件卡、底部滚动的俱乐部快讯带着视角控制。
  */
 
-function ScoreBug({ club, paused }: { club: HudSnapshot['club']; paused: boolean }) {
+function ScoreBug({
+  club,
+  paused,
+  status,
+}: {
+  club: HudSnapshot['club'];
+  paused: boolean;
+  status?: string | null | undefined;
+}) {
   return (
     <header class="td-bug">
+      {status ? (
+        <span class="td-bug-status" aria-live="polite">
+          {status}
+        </span>
+      ) : null}
       <span class="td-bug-badge" aria-hidden="true">
         {club.badge}
       </span>
@@ -113,7 +126,7 @@ function StatStrip({ s }: { s: HudSnapshot }) {
         </span>
         <Cell value={String(s.members)} label={STR.members} />
         <Cell value={`${s.courts.open}/${s.courts.total}`} label={STR.courtsOpen} />
-        <Cell value={s.salary.text} label={STR.salary} extra={s.salary.change} />
+        <Cell value={s.salary.text} label={s.salary.label ?? STR.salary} extra={s.salary.change} />
         <span class="td-chev" aria-hidden="true">
           {open ? '▴' : '▾'}
         </span>
@@ -135,6 +148,20 @@ function StatStrip({ s }: { s: HudSnapshot }) {
               </dd>,
             ])}
           </dl>
+          {s.story?.length ? (
+            <div class="td-story">
+              <div class="td-details-head">
+                <span>{STR.story}</span>
+              </div>
+              <ol>
+                {s.story.map((x) => (
+                  <li key={x.id} class={x.tone ? `td-${x.tone}` : ''}>
+                    <b>{x.time}</b> {STR.because} {x.because}, {STR.so} {x.so}
+                  </li>
+                ))}
+              </ol>
+            </div>
+          ) : null}
         </section>
       ) : null}
     </div>
@@ -147,6 +174,7 @@ function EventCard({ c, actions }: { c: EventCardData; actions: HudActions }) {
       <div class="td-card-tags">
         <span class="td-tag-topic">{c.topic}</span>
         <span class="td-tag-loc">{c.location}</span>
+        {c.more ? <span class="td-tag-more">{STR.more(c.more)}</span> : null}
       </div>
       <div class="td-card-body">
         <h2 class="td-card-head">{c.headline}</h2>
@@ -170,16 +198,20 @@ function EventCard({ c, actions }: { c: EventCardData; actions: HudActions }) {
               <button
                 type="button"
                 key={a.key}
-                class={`td-answer${a.chosen ? ' td-chosen' : ''}`}
+                class={`td-answer${a.chosen ? ' td-chosen' : ''}${a.walk ? ' td-walk' : ''}`}
                 aria-disabled={a.disabled ? 'true' : undefined}
                 aria-pressed={a.chosen ? 'true' : 'false'}
+                title={a.walk ? STR.walkThere : undefined}
                 onClick={() => {
                   if (!a.disabled) actions.answer(a.key);
                 }}
               >
                 <span class="td-key">{a.key}</span>
-                <span class="td-answer-text">{a.text}</span>
-                {a.disabled ? <LockIcon /> : null}
+                <span class="td-answer-col">
+                  <span class="td-answer-text">{a.text}</span>
+                  {a.hint ? <span class="td-answer-hint">{a.hint}</span> : null}
+                </span>
+                {a.disabled ? <LockIcon /> : a.walk ? <WalkIcon /> : null}
               </button>
             ))}
           </div>
@@ -212,6 +244,22 @@ const LockIcon = () => (
   >
     <rect x="5" y="11" width="14" height="10" />
     <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+  </svg>
+);
+
+const WalkIcon = () => (
+  <svg
+    class="td-lock"
+    width="14"
+    height="14"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="2.2"
+    aria-hidden="true"
+  >
+    <circle cx="13" cy="4" r="2" />
+    <path d="M9 21l3-7 3 3v4M12 14l-1-5 4 2 3 1M11 9l-4 2-1 3" />
   </svg>
 );
 
@@ -293,7 +341,7 @@ function ClubWire({ s, actions }: { s: HudSnapshot; actions: HudActions }) {
 export function Hud({ s, actions }: { s: HudSnapshot; actions: HudActions }) {
   return (
     <div class="td-hud">
-      <ScoreBug club={s.club} paused={s.controls.paused} />
+      <ScoreBug club={s.club} paused={s.controls.paused} status={s.status} />
       <StatStrip s={s} />
       {s.card ? <EventCard c={s.card} actions={actions} /> : null}
       <ClubWire s={s} actions={actions} />

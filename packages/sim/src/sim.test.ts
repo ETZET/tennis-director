@@ -43,7 +43,7 @@ describe('总监走位', () => {
   it('导航图上的最短路', () => {
     expect(shortestRoute(W(), 'deck', 'clay_court')).toEqual({
       route: ['court_1', 'creek_bridge', 'clay_court'],
-      minutes: 11,
+      minutes: 63,
     });
   });
 
@@ -51,7 +51,7 @@ describe('总监走位', () => {
     const s = fresh();
     advance(s, CONTENT, [{ type: 'moveDirector', to: 'court_1' }], 0);
     expect(s.director.at).toBeNull();
-    advance(s, CONTENT, [], 3);
+    advance(s, CONTENT, [], 38);
     expect(s.director.at).toBeNull();
     advance(s, CONTENT, [], 1);
     expect(s.director.at).toBe('court_1');
@@ -74,7 +74,7 @@ describe('事件卡', () => {
       available: false,
       blocked: 'director',
     });
-    advance(s, CONTENT, [{ type: 'moveDirector', to: 'court_1' }], 4);
+    advance(s, CONTENT, [{ type: 'moveDirector', to: 'court_1' }], 39);
     expect(optionStatus(s, W(), uid).find((o) => o.key === 'A')?.available).toBe(true);
     const q = s.stats.quality ?? 0;
     const r = advance(s, CONTENT, [{ type: 'chooseOption', uid, option: 'A' }], 0);

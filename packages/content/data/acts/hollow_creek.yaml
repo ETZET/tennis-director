@@ -22,17 +22,18 @@ people:
   - { id: mason, at: court_1 }
 director: { at: deck }
 anchors: [deck, court_1, court_2, bubble_court, clay_court, lot, pool, creek_bridge]
-# 总监步行分钟数（模拟用它算走路要多久；画面另有每条边的路径点）
+# 总监步行分钟数：按画面里的路径长度换算（1.5 米 / 游戏分钟，见 render 的 WALK_METERS_PER_MINUTE）。
+# 模拟用它算总监走到某处要多久；画面在 hollow-creek/layout.ts 的 ROUTES 里给每条边的路径点。
 nav:
-  - [deck, court_1, 4]
-  - [deck, pool, 3]
-  - [deck, lot, 6]
-  - [court_1, court_2, 3]
-  - [court_2, lot, 5]
-  - [court_1, creek_bridge, 4]
-  - [court_2, creek_bridge, 4]
-  - [creek_bridge, bubble_court, 3]
-  - [creek_bridge, clay_court, 3]
+  - [deck, court_1, 39]
+  - [deck, pool, 13]
+  - [deck, lot, 41]
+  - [court_1, court_2, 10]
+  - [court_2, lot, 28]
+  - [court_1, creek_bridge, 15]
+  - [court_2, creek_bridge, 15]
+  - [creek_bridge, bubble_court, 9]
+  - [creek_bridge, clay_court, 9]
 start_cards: [hc_dale_phone]
 calendar:
   - { day: 2, hour: 10, card: hc_board_memo }

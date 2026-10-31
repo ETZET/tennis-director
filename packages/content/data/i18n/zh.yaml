@@ -217,3 +217,30 @@ events:
 
 log:
   started: 你接手了 Hollow Creek 网球俱乐部。
+
+# 界面文案（游戏 app 用）。{x} 是占位符。
+ui:
+  club: { name: 霍洛溪网球俱乐部, badge: HC }
+  cash: 现金
+  you: 你
+  walking: "正走去{place} · 还要 {time}"
+  standing: "在{place}"
+  closed: 俱乐部已关门过夜
+  left: "还剩 {time}"
+  decided: 已决定
+  hint:
+    walk: "要先走去{place} · {time}"
+    cost: "花费 ${n}"
+    chance: "成功率 {p}%"
+    requires: 现在做不到
+    cash: 现金不够
+  details:
+    wages: 每周工资
+    director: 导演风格
+    seed: 种子
+  activity: "{title} · 还剩 {time}"
+  end:
+    again: 再来一局
+    won: 第一幕完成
+    lost: 第一幕结束
+    legacy: "跟你走的人：{names}"

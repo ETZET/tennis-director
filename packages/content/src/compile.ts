@@ -251,8 +251,8 @@ export function compileContent(files: Record<string, string>): CompileResult {
       if ('schedule' in e && !cards.has(e.schedule)) err(file, `${w}: unknown card '${e.schedule}'`);
       if ('activity' in e && !activities.has(e.activity)) err(file, `${w}: unknown activity '${e.activity}'`);
       for (const k of ['hire', 'fire', 'person', 'follow'] as const)
-        if (k in e && !people.has((e as Record<string, string>)[k] as string))
-          err(file, `${w}: unknown person '${(e as Record<string, string>)[k]}'`);
+        if (k in e && !people.has((e as unknown as Record<string, string>)[k] as string))
+          err(file, `${w}: unknown person '${(e as unknown as Record<string, string>)[k]}'`);
       if ('person' in e) for (const v of Object.values(e.add)) checkExpr(file, v, w);
       if ('log' in e) needText(file, e.log);
       if ('endAct' in e) {

@@ -186,3 +186,86 @@ export const EXIT_ROUTE: readonly XZ[] = [
   { x: 45, z: ROAD_Z },
   { x: ROAD_END_X - 3, z: ROAD_Z },
 ];
+
+/* ---------------- 总监走位：站位和每条导航边的路径点 ---------------- */
+
+/**
+ * 每个锚点上总监站在哪里（锚点本身可能是场地中心，人不能站在网上）。
+ * 名字和内容里幕配置的锚点一一对应。
+ */
+export const STANDS: Record<string, XZ> = {
+  deck: ANCHORS.director_post,
+  court_1: ANCHORS.court_1_gate_in,
+  court_2: FB.w({ x: -15.6, z: 0 }),
+  bubble_court: FC.w({ x: 16, z: -10.6 }),
+  clay_court: FD.w({ x: -14, z: -10.4 }),
+  lot: { x: LOT.x0 + 4, z: LOT.z1 - 2 },
+  pool: { x: (POOL.x0 + POOL.x1) / 2, z: POOL.z1 + 2.2 },
+  creek_bridge: { x: SPINE_X, z: creekZ(SPINE_X) },
+};
+
+const B_N = { x: SPINE_X, z: creekZ(SPINE_X) - 3.6 };
+const B_S = { x: SPINE_X, z: creekZ(SPINE_X) + 3.6 };
+const ZL_TOP = { x: SPINE_X, z: ZL - 0.4 };
+const ZL_BOT = { x: SPINE_X, z: ZL + 3.9 };
+const FB_GATE_OUT = FB.w({ x: -18.6, z: 0 });
+
+/** 导航边 a|b 的中间路径点（从 a 的站位走向 b 的站位，不含两头）。反方向自动倒过来。 */
+const ROUTES: Record<string, readonly XZ[]> = {
+  'deck|court_1': [
+    ANCHORS.deck_approach,
+    ANCHORS.upper_path,
+    ANCHORS.stairs_top,
+    ANCHORS.stairs_bottom,
+    ANCHORS.mid_walk,
+    ANCHORS.court_1_gate_out,
+  ],
+  'deck|pool': [{ x: DECK.x0 - 1.5, z: DECK.z0 + 2 }],
+  'deck|lot': [ANCHORS.deck_approach, ANCHORS.upper_path, ANCHORS.lot_path],
+  'court_1|court_2': [ANCHORS.court_1_gate_out, ANCHORS.mid_walk, FB_GATE_OUT],
+  'court_2|lot': [
+    FB_GATE_OUT,
+    ANCHORS.mid_walk,
+    ANCHORS.stairs_bottom,
+    ANCHORS.stairs_top,
+    ANCHORS.upper_path,
+    ANCHORS.lot_path,
+  ],
+  'court_1|creek_bridge': [ANCHORS.court_1_gate_out, { x: SPINE_X, z: -2 }, ZL_TOP, ZL_BOT, B_N],
+  'court_2|creek_bridge': [FB_GATE_OUT, { x: SPINE_X, z: -2 }, ZL_TOP, ZL_BOT, B_N],
+  'creek_bridge|bubble_court': [B_S, ANCHORS.south_landing],
+  'creek_bridge|clay_court': [B_S, ANCHORS.south_landing],
+};
+
+/** 一条导航边的完整折线（含两头的站位）。没有这条边时返回 null。 */
+export function routeLine(a: string, b: string): XZ[] | null {
+  const A = STANDS[a];
+  const B = STANDS[b];
+  if (!A || !B) return null;
+  const fwd = ROUTES[`${a}|${b}`];
+  const mid = fwd ?? (ROUTES[`${b}|${a}`] ? [...(ROUTES[`${b}|${a}`] as readonly XZ[])].reverse() : null);
+  return mid ? [A, ...mid, B] : null;
+}
+
+export const polylineLength = (pts: readonly XZ[]): number =>
+  pts.reduce((sum, p, i) => (i ? sum + Math.hypot(p.x - (pts[i - 1] as XZ).x, p.z - (pts[i - 1] as XZ).z) : 0), 0);
+
+/** 折线上走过比例 u（0..1）处的点。 */
+export function pointAlong(pts: readonly XZ[], u: number): XZ {
+  const total = polylineLength(pts);
+  let left = Math.max(0, Math.min(1, u)) * total;
+  for (let i = 1; i < pts.length; i++) {
+    const a = pts[i - 1] as XZ;
+    const b = pts[i] as XZ;
+    const d = Math.hypot(b.x - a.x, b.z - a.z);
+    if (left <= d || i === pts.length - 1) {
+      const f = d > 0 ? Math.min(1, left / d) : 1;
+      return { x: a.x + (b.x - a.x) * f, z: a.z + (b.z - a.z) * f };
+    }
+    left -= d;
+  }
+  return pts[pts.length - 1] ?? { x: 0, z: 0 };
+}
+
+/** 画面里总监走路的速度（米 / 游戏分钟）。内容里导航边的分钟数按它从路径长度换算。 */
+export const WALK_METERS_PER_MINUTE = 1.5;

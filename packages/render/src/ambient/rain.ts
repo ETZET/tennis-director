@@ -5,6 +5,8 @@ import type { Stage } from '../world/stage';
 
 export interface Rain {
   start(): void;
+  /** 雨停（慢慢淡出） */
+  stop(): void;
   /** 0 晴到 1 雨，淡入淡出的当前值 */
   amount(): number;
   /** 雨跟着相机目标点走；同时把天色和灯光压暗 */
@@ -40,6 +42,9 @@ export function createRain(stage: Stage, lighting: RainLighting, n = 800): Rain 
   return {
     start() {
       target = 1;
+    },
+    stop() {
+      target = 0;
     },
     amount: () => on,
     update(dt, cx, cz) {

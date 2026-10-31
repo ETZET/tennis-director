@@ -1,0 +1,35 @@
+/* 页面基础样式 */
+:root{color-scheme:light;box-sizing:border-box}
+[hidden]:not([hidden=until-found i]){display:none!important}
+
+/* 整页一座浮空岛；转播 HUD（@td/ui）在四角和底边，地点牌浮在场景上 */
+:root{
+  --sky:#a3bac8;
+  --navy:#0f1f3a;
+  --panel:rgba(15,31,58,.88);
+  --optic:#d7ff3c;
+  --green:#1f6b4f;
+  --paper:#ffffff;
+  --f-cond:'Saira Semi Condensed','Arial Narrow',system-ui,sans-serif;
+  --f-text:'Saira',system-ui,sans-serif;
+}
+html,body{height:100%;margin:0}
+body{background:var(--sky);color:var(--navy);font-family:var(--f-text);overflow:hidden}
+#stage{position:fixed;inset:0}
+#stage canvas{display:block;touch-action:none;cursor:grab;image-rendering:pixelated}
+#stage canvas.drag{cursor:grabbing}
+#labels{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:3}
+
+/* 地点牌：点一下总监走过去。总监在这儿是绿色，正走去的地方亮黄，有事的地方带一个感叹号 */
+.pl,.act,.you{position:absolute;left:0;top:0;white-space:nowrap}
+.pl{pointer-events:auto;cursor:pointer;height:24px;padding:0 9px;border:0;display:flex;align-items:center;gap:6px;background:var(--panel);color:var(--paper);font:700 12px/1 var(--f-cond);letter-spacing:.06em;text-transform:uppercase;box-shadow:0 2px 6px rgba(15,31,58,.3)}
+.pl::after{content:"";position:absolute;left:50%;top:100%;width:2px;height:34px;margin-left:-1px;background:var(--navy);opacity:.55;pointer-events:none}
+.pl:hover{background:var(--navy);outline:2px solid var(--optic)}
+.pl:focus-visible{outline:2px solid var(--optic);outline-offset:2px}
+.pl-here{background:var(--green)}
+.pl-dest{background:var(--optic);color:var(--navy)}
+.pl-card::before{content:"!";display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;margin-left:-4px;background:#ff8a6b;color:var(--navy);font:800 13px/1 var(--f-cond)}
+.act{padding:5px 8px;background:#ffffff;color:var(--navy);font:600 12px/1.1 var(--f-text);box-shadow:0 2px 6px rgba(15,31,58,.3);border-left:4px solid var(--optic)}
+.you{height:20px;padding:0 7px;display:flex;align-items:center;background:var(--green);color:var(--paper);font:800 11px/1 var(--f-cond);letter-spacing:.1em;text-transform:uppercase;box-shadow:0 2px 6px rgba(15,31,58,.3)}
+#labels.compact .pl{font-size:10px;height:20px;padding:0 6px}
+#labels.compact .act{display:none}

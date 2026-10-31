@@ -85,7 +85,18 @@
 .td-answer{display:flex;gap:10px;align-items:center;padding:10px 12px;background:var(--td-white);color:var(--td-navy) !important;border:0;text-align:left;font:600 14px/1.25 var(--td-text) !important}
 .td-answer .td-key{background:var(--td-navy);color:var(--td-white)}
 .td-answer:hover:not([aria-disabled="true"]){background:#eef3d0}
-.td-answer-text{flex:1;min-width:0}
+.td-answer-col{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.td-answer-text{min-width:0}
+.td-answer-hint{font:600 11px/1.2 var(--td-text);letter-spacing:.02em;opacity:.72}
+.td-answer.td-walk{background:#e6ecf3}
+.td-tag-more{padding:0 10px;background:var(--td-panel);display:flex;align-items:center;font:700 12px/1 var(--td-cond);letter-spacing:.06em;color:var(--td-optic);white-space:nowrap}
+.td-bug-status{position:absolute;left:0;top:calc(100% + 6px);padding:6px 10px;background:var(--td-panel);font:600 12px/1.2 var(--td-text);letter-spacing:.02em;text-transform:none;white-space:nowrap;box-shadow:var(--td-shadow)}
+.td-story ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;max-height:180px;overflow:auto}
+.td-story li{font:500 12px/1.35 var(--td-text);color:#dfe6ef}
+.td-story li b{font:700 12px/1 var(--td-cond);color:var(--td-dim);margin-right:4px;font-variant-numeric:tabular-nums}
+.td-story li.td-bad{color:var(--td-down)}
+.td-story li.td-good{color:var(--td-optic)}
+.td-story{display:flex;flex-direction:column;gap:8px;border-top:1px solid var(--td-line);padding-top:10px}
 .td-answer[aria-disabled="true"]{background:rgba(255,255,255,.07);color:#c8cfd8 !important;cursor:not-allowed}
 .td-answer[aria-disabled="true"] .td-key{background:rgba(255,255,255,.22);color:var(--td-white)}
 .td-lock{flex:none;opacity:.8}
@@ -133,6 +144,8 @@
   .td-answers{grid-template-columns:minmax(0,1fr)}
   .td-chev{display:none}
   .td-strip{padding-right:10px}
+  /* 状态条在记分牌下面，状态行再往下让一格 */
+  .td-bug-status{top:calc(100% + 62px);font-size:11px;padding:5px 8px}
 }
 @media (max-width:600px){
   /* 手机：快讯独占一行，控制按钮在下面一行 */

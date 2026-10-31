@@ -1,5 +1,5 @@
 {
- "version": "2b303ac3",
+ "version": "e8441da5",
  "stats": [
   {
    "id": "cash",
@@ -561,47 +561,47 @@
     [
      "deck",
      "court_1",
-     4
+     39
     ],
     [
      "deck",
      "pool",
-     3
+     13
     ],
     [
      "deck",
      "lot",
-     6
+     41
     ],
     [
      "court_1",
      "court_2",
-     3
+     10
     ],
     [
      "court_2",
      "lot",
-     5
+     28
     ],
     [
      "court_1",
      "creek_bridge",
-     4
+     15
     ],
     [
      "court_2",
      "creek_bridge",
-     4
+     15
     ],
     [
      "creek_bridge",
      "bubble_court",
-     3
+     9
     ],
     [
      "creek_bridge",
      "clay_court",
-     3
+     9
     ]
    ],
    "start_cards": [
@@ -2092,7 +2092,29 @@
    "events.hc_who_follows.options.A": "Bring your head coach",
    "events.hc_who_follows.options.B": "Bring Mason",
    "events.hc_who_follows.options.C": "Go alone",
-   "log.started": "You took over Hollow Creek Tennis Club."
+   "log.started": "You took over Hollow Creek Tennis Club.",
+   "ui.club.name": "Hollow Creek TC",
+   "ui.club.badge": "HC",
+   "ui.cash": "Cash",
+   "ui.you": "You",
+   "ui.walking": "Walking to {place} · {time}",
+   "ui.standing": "At {place}",
+   "ui.closed": "Club closed for the night",
+   "ui.left": "{time} left",
+   "ui.decided": "Decided",
+   "ui.hint.walk": "Walk to {place} first · {time}",
+   "ui.hint.cost": "Costs ${n}",
+   "ui.hint.chance": "{p}% chance",
+   "ui.hint.requires": "Not possible right now",
+   "ui.hint.cash": "Not enough cash",
+   "ui.details.wages": "Wages / week",
+   "ui.details.director": "Director style",
+   "ui.details.seed": "Seed",
+   "ui.activity": "{title} · {time} left",
+   "ui.end.again": "Play again",
+   "ui.end.won": "Act 1 complete",
+   "ui.end.lost": "Act 1 over",
+   "ui.end.legacy": "Coming with you: {names}"
   },
   "zh": {
    "stats.cash": "现金",
@@ -2258,7 +2280,29 @@
    "events.hc_who_follows.options.A": "带上你的主教练",
    "events.hc_who_follows.options.B": "带上 Mason",
    "events.hc_who_follows.options.C": "一个人去",
-   "log.started": "你接手了 Hollow Creek 网球俱乐部。"
+   "log.started": "你接手了 Hollow Creek 网球俱乐部。",
+   "ui.club.name": "霍洛溪网球俱乐部",
+   "ui.club.badge": "HC",
+   "ui.cash": "现金",
+   "ui.you": "你",
+   "ui.walking": "正走去{place} · 还要 {time}",
+   "ui.standing": "在{place}",
+   "ui.closed": "俱乐部已关门过夜",
+   "ui.left": "还剩 {time}",
+   "ui.decided": "已决定",
+   "ui.hint.walk": "要先走去{place} · {time}",
+   "ui.hint.cost": "花费 ${n}",
+   "ui.hint.chance": "成功率 {p}%",
+   "ui.hint.requires": "现在做不到",
+   "ui.hint.cash": "现金不够",
+   "ui.details.wages": "每周工资",
+   "ui.details.director": "导演风格",
+   "ui.details.seed": "种子",
+   "ui.activity": "{title} · 还剩 {time}",
+   "ui.end.again": "再来一局",
+   "ui.end.won": "第一幕完成",
+   "ui.end.lost": "第一幕结束",
+   "ui.end.legacy": "跟你走的人：{names}"
   }
  }
 }

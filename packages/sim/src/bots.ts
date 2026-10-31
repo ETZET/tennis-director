@@ -85,7 +85,7 @@ export function greedyBot(): Bot {
           if (st.blocked === 'cost' || st.blocked === 'requires') continue;
           const opt = c.options[st.key];
           if (!opt) continue;
-          let score = -st.cost * WEIGHT.cash;
+          let score = -st.cost * (WEIGHT.cash ?? 0);
           const effs = [...opt.effects, ...(st.chance === null ? [] : st.chance >= 0.5 ? opt.onSuccess : opt.onFail)];
           for (const e of effs) {
             if ('stat' in e && 'add' in e && typeof e.add === 'number') score += e.add * (WEIGHT[e.stat] ?? 0);

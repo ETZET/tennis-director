@@ -28,8 +28,12 @@ export interface CardAnswer {
   text: string;
   /** 已经选定（倒计时结束或玩家按了键） */
   chosen?: boolean;
-  /** 演示里不能选的选项 */
+  /** 不能选的选项（条件不满足、钱不够；演示里不走的那几项） */
   disabled?: boolean;
+  /** 要先走过去才能选：按下去总监出发，到了自动选定 */
+  walk?: boolean;
+  /** 选项下面的一行小字：花费、成功率、要去哪儿 */
+  hint?: string;
 }
 
 /** 转播下三分之一的事件卡：话题标签、地点标签、标题、倒计时、三个编号选项。 */
@@ -50,6 +54,17 @@ export interface EventCardData {
   action?: { label: string; id: string };
   /** news：新闻快讯（没有选项）；decision：要你拍板 */
   kind: 'news' | 'decision';
+  /** 后面还排着几张卡 */
+  more?: number;
+}
+
+/** 「因为……所以……」：因果日志的一条，讲给玩家听 */
+export interface StoryItem {
+  id: number;
+  time: string;
+  because: string;
+  so: string;
+  tone?: Tone;
 }
 
 export interface HudSnapshot {
@@ -57,13 +72,18 @@ export interface HudSnapshot {
   quality: { value: number; grade: Grade; trend: Trend; history: readonly number[] };
   members: number;
   courts: { open: number; total: number };
-  salary: { text: string; change?: string };
+  /** 状态条第四格；label 不填就是"你的薪水" */
+  salary: { text: string; change?: string; label?: string; tone?: Tone };
   headCoach: { name: string; vacant: boolean };
   /** 点开状态条后看到的明细 */
   details: readonly StatRow[];
   /** 最新的在前 */
   wire: readonly WireItem[];
   card: EventCardData | null;
+  /** 记分牌下面的一行状态，例如"正在走去 1 号场 · 还要 12 分钟" */
+  status?: string | null;
+  /** 俱乐部报告里的"来龙去脉"（最新的在前） */
+  story?: readonly StoryItem[];
   controls: { paused: boolean; speed: string };
 }
 
