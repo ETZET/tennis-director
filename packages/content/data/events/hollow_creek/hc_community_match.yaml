@@ -6,6 +6,7 @@ tone: crisis
 pause: true
 countdown: 2h
 location: court_1
+who: rival
 options:
   A:
     requires: { not: { coach: none } }

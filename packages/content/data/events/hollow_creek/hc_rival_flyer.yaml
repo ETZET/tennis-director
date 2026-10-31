@@ -9,6 +9,7 @@ once: true
 weight: 0.8
 countdown: 2h
 location: lot
+who: rival
 options:
   A:
     # 亲自去停车场，把传单换成我们自己的

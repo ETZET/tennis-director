@@ -5,6 +5,7 @@ source: consequence
 tone: crisis
 countdown: 4h
 location: court_2
+who: pickleball
 options:
   A:
     check: { stat: reputation, vs: 45 }

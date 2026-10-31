@@ -6,6 +6,7 @@ tone: crisis
 pause: true
 countdown: 1h
 location: court_1
+who: dale
 stage: { anchor: court_1, performance: lesson }
 options:
   A:

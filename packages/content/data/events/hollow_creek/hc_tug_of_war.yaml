@@ -5,6 +5,7 @@ source: consequence
 tone: comedy
 countdown: 6h
 location: court_2
+who: pickleball
 options:
   A:
     # 派孩子们去：孩子们玩得开心，那一小时的课就泡汤了

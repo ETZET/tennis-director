@@ -6,6 +6,7 @@ tone: relief
 pause: true
 countdown: 1d
 location: deck
+who: maple
 options:
   A:
     requires: { not: { coach: none } }

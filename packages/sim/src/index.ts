@@ -5,7 +5,7 @@
  * 同一套模拟能在浏览器里跑，也能在 apps/sim-cli 里无头跑一千局。
  */
 
-export type { Action, Activity, Card, ContentBundle, OptionKey } from '@td/content';
+export type { Action, Activity, Card, ContentBundle, Effect, OptionKey } from '@td/content';
 export { CONTENT } from '@td/content';
 export * from './bots';
 export {
@@ -19,6 +19,7 @@ export {
 export { type ActionBlock, type ActionStatus, actionStatus, actionsAt, speedFactor } from './director';
 export type { SimEvent } from './events';
 export * from './game';
+export { type PlanPreview, planPreview } from './plan';
 export * from './save';
 export * from './state';
 export { seasonOn, shortestRoute } from './systems';

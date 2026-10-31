@@ -8,6 +8,7 @@ cooldown: 10d
 weight: 0.6
 countdown: 1h
 location: court_1
+who: member
 options:
   A:
     # 给网球会员

@@ -6,6 +6,7 @@ tone: crisis
 pause: true
 countdown: 6h
 location: lot
+who: developer
 options:
   A:
     effects:

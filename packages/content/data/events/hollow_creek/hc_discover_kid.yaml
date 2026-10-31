@@ -6,6 +6,7 @@ tone: relief
 pause: true
 countdown: 1d
 location: court_1
+who: mason
 options:
   A:
     cost: 200

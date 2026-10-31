@@ -1,5 +1,5 @@
 {
- "version": "357fc5b9",
+ "version": "d137f3c4",
  "stats": [
   {
    "id": "cash",
@@ -1474,11 +1474,11 @@
      ],
      "eve": [
       null,
-      "pickleball_hours",
       null,
-      "pickleball_hours",
       null,
-      "pickleball_hours",
+      null,
+      "social_night",
+      null,
       null
      ]
     }
@@ -1495,6 +1495,7 @@
    "countdown": "3h",
    "pause": true,
    "location": "deck",
+   "who": "board",
    "options": {
     "A": {
      "requiresDirectorAt": "deck",
@@ -1558,6 +1559,7 @@
    "countdown": "3h",
    "pause": true,
    "location": "deck",
+   "who": "board",
    "options": {
     "A": {
      "requiresDirectorAt": "court_1",
@@ -1647,6 +1649,7 @@
    "countdown": "3h",
    "pause": true,
    "location": "deck",
+   "who": "board",
    "options": {
     "A": {
      "requiresDirectorAt": "deck",
@@ -1720,6 +1723,7 @@
    "countdown": "2h",
    "pause": true,
    "location": "court_1",
+   "who": "rival",
    "options": {
     "A": {
      "requires": {
@@ -1902,6 +1906,7 @@
    "countdown": "1h",
    "pause": true,
    "location": "court_1",
+   "who": "dale",
    "stage": {
     "anchor": "court_1",
     "performance": "lesson"
@@ -1977,6 +1982,7 @@
    "countdown": "2h",
    "pause": true,
    "location": "court_1",
+   "who": "dale",
    "options": {
     "A": {
      "effects": [
@@ -2064,6 +2070,7 @@
    "countdown": "6h",
    "pause": true,
    "location": "lot",
+   "who": "developer",
    "options": {
     "A": {
      "effects": [
@@ -2117,6 +2124,7 @@
    "countdown": "6h",
    "pause": true,
    "location": "lot",
+   "who": "developer",
    "options": {
     "A": {
      "effects": [
@@ -2167,6 +2175,7 @@
    "countdown": "1d",
    "pause": true,
    "location": "court_1",
+   "who": "mason",
    "options": {
     "A": {
      "cost": 200,
@@ -2260,6 +2269,7 @@
    "countdown": "1h",
    "pause": false,
    "location": "court_1",
+   "who": "member",
    "options": {
     "A": {
      "effects": [
@@ -2317,6 +2327,7 @@
    "countdown": "1d",
    "pause": true,
    "location": "deck",
+   "who": "board",
    "options": {
     "A": {
      "effects": [
@@ -2389,6 +2400,7 @@
    "countdown": "1d",
    "pause": false,
    "location": "deck",
+   "who": "board",
    "options": {
     "A": {
      "cost": 300,
@@ -2435,6 +2447,7 @@
    "countdown": "1d",
    "pause": false,
    "location": "court_1",
+   "who": "parents",
    "options": {
     "A": {
      "cost": 200,
@@ -2516,6 +2529,7 @@
    "countdown": "2h",
    "pause": false,
    "location": "deck",
+   "who": "member",
    "options": {
     "A": {
      "effects": [
@@ -2580,6 +2594,7 @@
    "countdown": "2h",
    "pause": false,
    "location": "court_1",
+   "who": "ms_carter",
    "options": {
     "A": {
      "cost": 60,
@@ -2674,6 +2689,7 @@
    "countdown": "1d",
    "pause": false,
    "location": "court_2",
+   "who": "pickleball",
    "stage": {
     "anchor": "court_2",
     "performance": "pickleball"
@@ -2779,6 +2795,7 @@
    "countdown": "4h",
    "pause": false,
    "location": "court_2",
+   "who": "pickleball",
    "options": {
     "A": {
      "effects": [],
@@ -2923,6 +2940,7 @@
    "countdown": "2h",
    "pause": false,
    "location": "lot",
+   "who": "rival",
    "options": {
     "A": {
      "requiresDirectorAt": "lot",
@@ -2988,6 +3006,7 @@
    "countdown": "3h",
    "pause": false,
    "location": "lot",
+   "who": "rival",
    "options": {
     "A": {
      "requiresDirectorAt": "lot",
@@ -3202,6 +3221,7 @@
    "countdown": "6h",
    "pause": false,
    "location": "court_2",
+   "who": "pickleball",
    "options": {
     "A": {
      "effects": [
@@ -3273,6 +3293,7 @@
    "countdown": "2h",
    "pause": true,
    "location": "deck",
+   "who": "board",
    "options": {
     "A": {
      "effects": [
@@ -3347,6 +3368,7 @@
    "countdown": "1d",
    "pause": false,
    "location": "deck",
+   "who": "member",
    "options": {
     "A": {
      "effects": [
@@ -3397,6 +3419,7 @@
    "countdown": "1d",
    "pause": true,
    "location": "deck",
+   "who": "maple",
    "options": {
     "A": {
      "requires": {
@@ -3492,13 +3515,21 @@
    "facilities.pool.open": "Pool · open",
    "facilities.pool.drained": "Pool · drained",
    "activities.junior_lesson.title": "Junior lesson",
+   "activities.junior_lesson.short": "Junior lesson",
    "activities.adult_clinic.title": "Adult clinic",
+   "activities.adult_clinic.short": "Adult clinic",
    "activities.open_play.title": "Open play",
+   "activities.open_play.short": "Open play",
    "activities.pickleball_hours.title": "Pickleball rental",
+   "activities.pickleball_hours.short": "Pickle rental",
    "activities.open_day.title": "Open day",
+   "activities.open_day.short": "Open day",
    "activities.social_night.title": "Social night",
+   "activities.social_night.short": "Social night",
    "activities.clay_session.title": "Clay court session",
+   "activities.clay_session.short": "Clay court",
    "activities.bubble_session.title": "Bubble court session",
+   "activities.bubble_session.short": "Bubble court",
    "activities.contractor.title": "Contractors on the clay court",
    "activities.tug_of_war.title": "Tug-of-war vs pickleball",
    "activities.match_strong.title": "Community match vs Pine Crown",
@@ -3732,8 +3763,81 @@
    "parts.am": "Morning",
    "parts.pm": "Afternoon",
    "parts.eve": "Evening",
+   "who.board.name": "The Board",
+   "who.board.role": "Five volunteers who can sell the club",
+   "who.parents.name": "Mason's parents",
+   "who.parents.role": "Quiet",
+   "who.pickleball.name": "The pickleball group",
+   "who.pickleball.role": "Twelve regulars",
+   "who.rival.name": "Pine Crown TC",
+   "who.rival.role": "The club across the valley",
+   "who.developer.name": "Rick Dorsey",
+   "who.developer.role": "Property developer",
+   "who.member.name": "A longtime member",
+   "who.member.role": "Here since 1994",
+   "who.maple.name": "Maple Ridge High",
+   "who.maple.role": "Athletic director",
+   "roles.coach": "Head coach",
+   "roles.junior": "Junior player",
+   "roles.parent": "Parent",
+   "roles.candidate": "Coach applicant",
+   "roles.staff": "Staff",
+   "roles.rival": "Rival",
+   "ui.week": "Wk {n}",
+   "ui.weather.sun": "Sunny",
+   "ui.weather.cloud": "Cloudy",
+   "ui.weather.rain": "Rain · outdoor courts closed",
+   "ui.weather.wind": "Windy",
+   "ui.days.0": "Mon",
+   "ui.days.1": "Tue",
+   "ui.days.2": "Wed",
+   "ui.days.3": "Thu",
+   "ui.days.4": "Fri",
+   "ui.days.5": "Sat",
+   "ui.days.6": "Sun",
+   "ui.chip.hire": "{name} joins",
+   "ui.chip.fire": "{name} leaves",
+   "ui.chip.energy": "Energy {n}",
+   "ui.chip.walk": "{time} walk",
+   "ui.chip.work": "{time} on site",
+   "ui.chip.chance": "{p}% chance",
+   "ui.chip.cost": "−${n}",
+   "ui.chip.cooldown": "Again in {time}",
+   "ui.attr.skill": "skill",
+   "ui.attr.morale": "morale",
+   "ui.attr.fatigue": "fatigue",
+   "ui.then": "Then: {what}",
+   "ui.ring.go": "Go do it",
+   "ui.ring.walk": "Walk here",
+   "ui.ring.walk_note": "The director goes and stands here",
+   "ui.ring.board": "Open the noticeboard",
+   "ui.ring.board_note": "Change this season's plan",
+   "ui.ring.empty": "Nothing to do here right now",
+   "ui.ring.why.cooldown": "Done recently",
+   "ui.ring.why.cost": "Not enough cash",
+   "ui.ring.why.energy": "Too tired",
+   "ui.ring.why.busy": "Busy elsewhere",
+   "ui.plan.title": "Clubhouse noticeboard",
+   "ui.plan.subtitle": "{season} · weeks {from}–{to} · drag notes onto the week",
+   "ui.plan.tray": "Notes (drag onto the board)",
+   "ui.plan.lock": "Pin it up",
+   "ui.plan.lock_mid": "Done",
+   "ui.plan.free": "Changes are free while you plan the season.",
+   "ui.plan.costs": "Mid-season, every change costs {n} energy.",
+   "ui.plan.cash": "Cash per week",
+   "ui.plan.members": "New members per week",
+   "ui.plan.quality": "Quality settles at",
+   "ui.plan.pressure": "Pickleball pressure per week",
+   "ui.plan.lessons": "Lessons per week",
+   "ui.plan.lessons_over": "Lessons per week · coach overworked",
+   "ui.plan.blocked": "Slots that can't run yet",
+   "ui.ctx.board": "Board {n} · vote in {days}d",
+   "ui.ctx.cash": "Cash ${n}",
+   "ui.ctx.members": "Members {n}",
+   "ui.ctx.energy": "Your energy {n}",
+   "ui.work": "{what} · {time} left",
    "ui.board": "Board confidence",
-   "ui.board_in": "Board · vote in {days}d",
+   "ui.board_in": "Board · {days}d left",
    "ui.board_today": "Board · vote today",
    "ui.club.name": "Hollow Creek TC",
    "ui.club.badge": "HC",
@@ -3786,13 +3890,21 @@
    "facilities.pool.open": "泳池 · 开放",
    "facilities.pool.drained": "泳池 · 已放水",
    "activities.junior_lesson.title": "青少年课",
+   "activities.junior_lesson.short": "青少年课",
    "activities.adult_clinic.title": "成人训练班",
+   "activities.adult_clinic.short": "成人班",
    "activities.open_play.title": "会员自由打球",
+   "activities.open_play.short": "自由打球",
    "activities.pickleball_hours.title": "租给匹克球",
+   "activities.pickleball_hours.short": "租匹克球",
    "activities.open_day.title": "免费开放日",
+   "activities.open_day.short": "开放日",
    "activities.social_night.title": "露台社交夜",
+   "activities.social_night.short": "社交夜",
    "activities.clay_session.title": "红土场时段",
+   "activities.clay_session.short": "红土场",
    "activities.bubble_session.title": "气膜场时段",
+   "activities.bubble_session.short": "气膜场",
    "activities.contractor.title": "外包施工队在红土场",
    "activities.tug_of_war.title": "和匹克球队拔河",
    "activities.match_strong.title": "社区对抗赛 vs 松冠俱乐部",
@@ -4026,8 +4138,81 @@
    "parts.am": "上午",
    "parts.pm": "下午",
    "parts.eve": "晚上",
+   "who.board.name": "董事会",
+   "who.board.role": "五位能决定卖掉俱乐部的志愿者",
+   "who.parents.name": "Mason 的父母",
+   "who.parents.role": "话不多，心里有期待",
+   "who.pickleball.name": "匹克球那帮人",
+   "who.pickleball.role": "十二个常客，嗓门大",
+   "who.rival.name": "Pine Crown 俱乐部",
+   "who.rival.role": "山谷对面那家",
+   "who.developer.name": "Rick Dorsey",
+   "who.developer.role": "地产开发商",
+   "who.member.name": "一位老会员",
+   "who.member.role": "1994 年就在这儿",
+   "who.maple.name": "枫岭高中",
+   "who.maple.role": "体育主任",
+   "roles.coach": "主教练",
+   "roles.junior": "青少年球员",
+   "roles.parent": "家长",
+   "roles.candidate": "教练应聘者",
+   "roles.staff": "员工",
+   "roles.rival": "对手",
+   "ui.week": "第 {n} 周",
+   "ui.weather.sun": "晴",
+   "ui.weather.cloud": "多云",
+   "ui.weather.rain": "下雨 · 露天场地关闭",
+   "ui.weather.wind": "大风",
+   "ui.days.0": "一",
+   "ui.days.1": "二",
+   "ui.days.2": "三",
+   "ui.days.3": "四",
+   "ui.days.4": "五",
+   "ui.days.5": "六",
+   "ui.days.6": "日",
+   "ui.chip.hire": "{name} 上任",
+   "ui.chip.fire": "{name} 离开",
+   "ui.chip.energy": "精力 {n}",
+   "ui.chip.walk": "走过去 {time}",
+   "ui.chip.work": "现场 {time}",
+   "ui.chip.chance": "成功率 {p}%",
+   "ui.chip.cost": "−${n}",
+   "ui.chip.cooldown": "{time} 后可再做",
+   "ui.attr.skill": "球技",
+   "ui.attr.morale": "士气",
+   "ui.attr.fatigue": "疲劳",
+   "ui.then": "之后：{what}",
+   "ui.ring.go": "去做",
+   "ui.ring.walk": "走到这儿",
+   "ui.ring.walk_note": "总监走过去站在这儿",
+   "ui.ring.board": "打开公告板",
+   "ui.ring.board_note": "改这一季的日程",
+   "ui.ring.empty": "这儿现在没什么可做的",
+   "ui.ring.why.cooldown": "刚做过",
+   "ui.ring.why.cost": "现金不够",
+   "ui.ring.why.energy": "太累了",
+   "ui.ring.why.busy": "在别处忙",
+   "ui.plan.title": "会所公告板",
+   "ui.plan.subtitle": "{season} · 第 {from}–{to} 周 · 把便条拖进这一周",
+   "ui.plan.tray": "便条（拖到板上）",
+   "ui.plan.lock": "钉好了",
+   "ui.plan.lock_mid": "完成",
+   "ui.plan.free": "排日程的时候改是免费的。",
+   "ui.plan.costs": "季中每改一处，花 {n} 点精力。",
+   "ui.plan.cash": "每周现金",
+   "ui.plan.members": "每周新会员",
+   "ui.plan.quality": "质量会停在",
+   "ui.plan.pressure": "每周匹克球压力",
+   "ui.plan.lessons": "每周课时",
+   "ui.plan.lessons_over": "每周课时 · 教练太累",
+   "ui.plan.blocked": "暂时开不了的格子",
+   "ui.ctx.board": "董事会 {n} · {days} 天后表决",
+   "ui.ctx.cash": "现金 ${n}",
+   "ui.ctx.members": "会员 {n}",
+   "ui.ctx.energy": "你的精力 {n}",
+   "ui.work": "{what} · 还剩 {time}",
    "ui.board": "董事会信心",
-   "ui.board_in": "董事会 · {days} 天后表决",
+   "ui.board_in": "董事会 · 剩 {days} 天",
    "ui.board_today": "董事会 · 今天表决",
    "ui.club.name": "霍洛溪网球俱乐部",
    "ui.club.badge": "HC",

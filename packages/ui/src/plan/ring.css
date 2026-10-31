@@ -1,0 +1,30 @@
+/* 动作圈：圆形动作围着点中的地方；中间是说明和"去做"按钮。 */
+.tdr{position:fixed;inset:0;z-index:7;pointer-events:auto;touch-action:manipulation}
+.tdr-ring{position:absolute;width:0;height:0}
+.tdr-btn{position:absolute;left:-44px;top:-34px;width:88px;display:flex;flex-direction:column;align-items:center;gap:4px;border:0;background:none;padding:0;cursor:pointer;color:#fff;animation:tdr-in .28s cubic-bezier(.2,.8,.2,1) both}
+@keyframes tdr-in{from{opacity:0;scale:.6}to{opacity:1;scale:1}}
+.tdr-o{width:56px;height:56px;border-radius:50%;background:#fff;color:var(--td-navy,#0f1f3a);display:flex;align-items:center;justify-content:center;border:3px solid var(--td-navy,#0f1f3a);box-shadow:0 4px 10px rgba(15,31,58,.45)}
+.tdr-o svg{width:26px;height:26px}
+.tdr-l{max-width:88px;background:var(--td-panel,rgba(15,31,58,.92));font:700 11px/1.15 var(--td-cond,sans-serif);letter-spacing:.03em;text-transform:uppercase;padding:3px 5px;text-align:center}
+.tdr-sel .tdr-o{background:var(--td-optic,#d7ff3c);border-color:#fff}
+.tdr-off .tdr-o{background:#c9ced6;color:#6a7488}
+.tdr-hub{position:absolute;left:0;top:0;transform:translate(-50%,-50%);box-sizing:border-box;max-width:100px;pointer-events:none;background:var(--td-panel-2,rgba(15,31,58,.96));border:2px solid var(--td-optic,#d7ff3c);padding:8px 9px;display:flex;flex-direction:column;align-items:center;gap:5px;text-align:center;box-shadow:0 6px 16px rgba(0,0,0,.4)}
+.tdr-hub b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:80px;font:800 13px/1.1 var(--td-cond,sans-serif);letter-spacing:.05em;text-transform:uppercase}
+.tdr-note{font:500 11px/1.3 var(--td-text,sans-serif);color:#dfe6ef}
+.tdr-sheet{position:fixed;left:max(12px,env(safe-area-inset-left,0px));right:max(12px,env(safe-area-inset-right,0px));bottom:calc(96px + env(safe-area-inset-bottom,0px));max-width:520px;margin:0 auto;background:var(--td-panel-2,rgba(15,31,58,.96));border-top:3px solid var(--td-optic,#d7ff3c);padding:12px 14px;display:flex;flex-direction:column;gap:8px;box-shadow:0 8px 20px rgba(0,0,0,.45);color:#fff;animation:tdr-up .22s ease-out}
+.tdr-sheet b{font:800 17px/1.1 var(--td-cond,sans-serif);letter-spacing:.04em;text-transform:uppercase}
+.tdr-sheet .tdr-note{font-size:13px}
+.tdr-sheet .td-chips{justify-content:flex-start}
+.tdr-sheet .td-chip{font-size:12.5px;padding:4px 6px}
+.tdr-sheet .tdr-go{min-height:48px;font-size:16px;color:var(--td-navy,#0f1f3a)}
+@keyframes tdr-up{from{transform:translateY(14px)}to{transform:none}}
+.tdr-why{font:600 11px/1.3 var(--td-text,sans-serif);color:var(--td-down,#ff8a6b)}
+.tdr-go{min-height:44px;width:100%;border:0;background:var(--td-optic,#d7ff3c);color:var(--td-navy,#0f1f3a);font:800 14px/1 var(--td-cond,sans-serif);letter-spacing:.08em;text-transform:uppercase;cursor:pointer}
+.td-chips{display:flex;flex-wrap:wrap;gap:3px;justify-content:center}
+.td-chip{font:700 11px/1 var(--td-cond,sans-serif);padding:3px 5px;letter-spacing:.02em;white-space:nowrap;background:#fff;color:var(--td-navy,#0f1f3a)}
+.td-chip-cost,.td-chip-loss{background:#ffe2d8}
+.td-chip-gain{background:#e3f5d6}
+.td-chip-energy{background:var(--td-optic,#d7ff3c)}
+.td-chip-time{background:#dde7f2}
+.td-chip-risk{background:#fff1c2}
+@media (prefers-reduced-motion:reduce){.tdr-btn{animation:none}}

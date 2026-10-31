@@ -1,8 +1,10 @@
 import { render } from 'preact';
 import { useState } from 'preact/hooks';
+import { ActionRing, Chips } from '../plan/ActionRing';
+import { Planner } from '../plan/Planner';
 import { GRADE_COLOR, sparkPoints } from './format';
 import { STR } from './strings';
-import type { EventCardData, HudActions, HudSnapshot } from './types';
+import type { EventCardData, HudActions, HudSnapshot, SeasonInfo } from './types';
 import './hud.css';
 
 /**
@@ -10,22 +12,62 @@ import './hud.css';
  * 左上记分牌、右上状态条（点开看明细）、下三分之一事件卡、底部滚动的俱乐部快讯带着视角控制。
  */
 
+const WX: Record<SeasonInfo['weather'], string> = {
+  sun: 'M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10zM12 1v3M12 20v3M1 12h3M20 12h3M4 4l2 2M18 18l2 2M4 20l2-2M18 6l2-2',
+  cloud: 'M7 18h10a4 4 0 0 0 0-8 6 6 0 0 0-11.5 1.5A3.3 3.3 0 0 0 7 18z',
+  rain: 'M7 14h10a4 4 0 0 0 0-8 6 6 0 0 0-11.5 1.5A3.3 3.3 0 0 0 7 14zM8 17l-1 3M12 17l-1 3M16 17l-1 3',
+  wind: 'M3 8h11a3 3 0 1 0-3-3M3 12h16a3 3 0 1 1-3 3M3 16h8',
+};
+
+function SeasonRow({ s, status }: { s?: SeasonInfo | undefined; status?: string | null | undefined }) {
+  if (!s && !status) return null;
+  const pct = Math.max(0, Math.min(100, s?.energy ?? 0));
+  return (
+    <span class="td-bug-status" aria-live="polite">
+      {s ? (
+        <>
+          <span class="td-season" title={s.weatherLabel}>
+            <svg
+              width="15"
+              height="15"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              aria-hidden="true"
+            >
+              <path d={WX[s.weather]} />
+            </svg>
+            {s.label}
+          </span>
+          <span class="td-energy" title={s.energyLabel}>
+            <span class="td-energy-bar" aria-hidden="true">
+              <i style={{ width: `${pct}%` }} class={pct < 30 ? 'td-low' : ''} />
+            </span>
+            <span class="td-sr">{s.energyLabel}</span>
+            {Math.round(pct)}
+          </span>
+        </>
+      ) : null}
+      {status ? <span class="td-where">{status}</span> : null}
+    </span>
+  );
+}
+
 function ScoreBug({
   club,
   paused,
   status,
+  season,
 }: {
   club: HudSnapshot['club'];
   paused: boolean;
   status?: string | null | undefined;
+  season?: SeasonInfo | undefined;
 }) {
   return (
     <header class="td-bug">
-      {status ? (
-        <span class="td-bug-status" aria-live="polite">
-          {status}
-        </span>
-      ) : null}
+      <SeasonRow s={season} status={status} />
       <span class="td-bug-badge" aria-hidden="true">
         {club.badge}
       </span>
@@ -185,6 +227,17 @@ function StatStrip({ s }: { s: HudSnapshot }) {
 function EventCard({ c, actions }: { c: EventCardData; actions: HudActions }) {
   return (
     <section class={`td-card td-card-${c.kind}`} key={c.id} aria-live="polite">
+      {c.who ? (
+        <div class="td-who">
+          <span class="td-face" style={{ background: c.who.color }} aria-hidden="true">
+            {c.who.initials}
+          </span>
+          <span class="td-who-col">
+            <b>{c.who.name}</b>
+            <span>{c.who.role}</span>
+          </span>
+        </div>
+      ) : null}
       <div class="td-card-tags">
         <span class="td-tag-topic">{c.topic}</span>
         <span class="td-tag-loc">{c.location}</span>
@@ -193,6 +246,15 @@ function EventCard({ c, actions }: { c: EventCardData; actions: HudActions }) {
       <div class="td-card-body">
         <h2 class="td-card-head">{c.headline}</h2>
         {c.body ? <p class="td-card-text">{c.body}</p> : null}
+        {c.context?.length ? (
+          <div class="td-ctx">
+            {c.context.map((x) => (
+              <span key={x.text} class={x.tone === 'loss' ? 'td-bad' : x.tone === 'gain' ? 'td-good' : ''}>
+                {x.text}
+              </span>
+            ))}
+          </div>
+        ) : null}
         {c.countdown ? (
           <div class="td-count">
             <div class="td-count-track">
@@ -223,7 +285,9 @@ function EventCard({ c, actions }: { c: EventCardData; actions: HudActions }) {
                 <span class="td-key">{a.key}</span>
                 <span class="td-answer-col">
                   <span class="td-answer-text">{a.text}</span>
+                  {a.chips?.length ? <Chips chips={a.chips} /> : null}
                   {a.hint ? <span class="td-answer-hint">{a.hint}</span> : null}
+                  {a.then ? <span class="td-answer-then">{a.then}</span> : null}
                 </span>
                 {a.disabled ? <LockIcon /> : a.walk ? <WalkIcon /> : null}
               </button>
@@ -355,10 +419,12 @@ function ClubWire({ s, actions }: { s: HudSnapshot; actions: HudActions }) {
 export function Hud({ s, actions }: { s: HudSnapshot; actions: HudActions }) {
   return (
     <div class="td-hud">
-      <ScoreBug club={s.club} paused={s.controls.paused} status={s.status} />
+      <ScoreBug club={s.club} paused={s.controls.paused} status={s.status} season={s.season} />
       <StatStrip s={s} />
       {s.card ? <EventCard c={s.card} actions={actions} /> : null}
       <ClubWire s={s} actions={actions} />
+      {s.ring && !s.card && !s.planner ? <ActionRing r={s.ring} actions={actions} /> : null}
+      {s.planner ? <Planner p={s.planner} actions={actions} /> : null}
     </div>
   );
 }

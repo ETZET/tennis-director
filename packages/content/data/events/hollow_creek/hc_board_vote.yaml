@@ -6,6 +6,7 @@ tone: crisis
 pause: true
 countdown: 3h
 location: deck
+who: board
 options:
   A:
     requiresDirectorAt: deck

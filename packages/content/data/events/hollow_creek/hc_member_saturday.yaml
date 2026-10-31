@@ -8,6 +8,7 @@ cooldown: 10d
 weight: 0.6
 countdown: 2h
 location: deck
+who: member
 options:
   A:
     # 答应他：老会员高兴，匹克球那边不高兴

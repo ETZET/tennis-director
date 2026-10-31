@@ -6,6 +6,7 @@ tone: neutral
 when: { all: [{ day: { gte: 6 } }, { facility: court_2, is: rented_pickleball }] }
 countdown: 1d
 location: court_2
+who: pickleball
 stage: { anchor: court_2, performance: pickleball }
 options:
   A:

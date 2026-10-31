@@ -25,14 +25,14 @@ facilities:
   pool: { open: 泳池 · 开放, drained: 泳池 · 已放水 }
 
 activities:
-  junior_lesson: { title: 青少年课 }
-  adult_clinic: { title: 成人训练班 }
-  open_play: { title: 会员自由打球 }
-  pickleball_hours: { title: 租给匹克球 }
-  open_day: { title: 免费开放日 }
-  social_night: { title: 露台社交夜 }
-  clay_session: { title: 红土场时段 }
-  bubble_session: { title: 气膜场时段 }
+  junior_lesson: { title: 青少年课, short: 青少年课 }
+  adult_clinic: { title: 成人训练班, short: 成人班 }
+  open_play: { title: 会员自由打球, short: 自由打球 }
+  pickleball_hours: { title: 租给匹克球, short: 租匹克球 }
+  open_day: { title: 免费开放日, short: 开放日 }
+  social_night: { title: 露台社交夜, short: 社交夜 }
+  clay_session: { title: 红土场时段, short: 红土场 }
+  bubble_session: { title: 气膜场时段, short: 气膜场 }
   contractor: { title: 外包施工队在红土场 }
   tug_of_war: { title: 和匹克球队拔河 }
   match_strong: { title: 社区对抗赛 vs 松冠俱乐部 }
@@ -326,9 +326,72 @@ parts:
   pm: 下午
   eve: 晚上
 
+who:
+  board: { name: 董事会, role: 五位能决定卖掉俱乐部的志愿者 }
+  parents: { name: Mason 的父母, role: 话不多，心里有期待 }
+  pickleball: { name: 匹克球那帮人, role: 十二个常客，嗓门大 }
+  rival: { name: Pine Crown 俱乐部, role: 山谷对面那家 }
+  developer: { name: Rick Dorsey, role: 地产开发商 }
+  member: { name: 一位老会员, role: 1994 年就在这儿 }
+  maple: { name: 枫岭高中, role: 体育主任 }
+roles:
+  coach: 主教练
+  junior: 青少年球员
+  parent: 家长
+  candidate: 教练应聘者
+  staff: 员工
+  rival: 对手
+
 ui:
+  week: "第 {n} 周"
+  weather: { sun: 晴, cloud: 多云, rain: 下雨 · 露天场地关闭, wind: 大风 }
+  days: { "0": 一, "1": 二, "2": 三, "3": 四, "4": 五, "5": 六, "6": 日 }
+  chip:
+    hire: "{name} 上任"
+    fire: "{name} 离开"
+    energy: "精力 {n}"
+    walk: "走过去 {time}"
+    work: "现场 {time}"
+    chance: "成功率 {p}%"
+    cost: "−${n}"
+    cooldown: "{time} 后可再做"
+  attr: { skill: 球技, morale: 士气, fatigue: 疲劳 }
+  then: "之后：{what}"
+  ring:
+    go: 去做
+    walk: 走到这儿
+    walk_note: 总监走过去站在这儿
+    board: 打开公告板
+    board_note: 改这一季的日程
+    empty: 这儿现在没什么可做的
+    why:
+      cooldown: 刚做过
+      cost: 现金不够
+      energy: 太累了
+      busy: 在别处忙
+  plan:
+    title: 会所公告板
+    subtitle: "{season} · 第 {from}–{to} 周 · 把便条拖进这一周"
+    tray: 便条（拖到板上）
+    lock: 钉好了
+    lock_mid: 完成
+    free: 排日程的时候改是免费的。
+    costs: "季中每改一处，花 {n} 点精力。"
+    cash: 每周现金
+    members: 每周新会员
+    quality: 质量会停在
+    pressure: 每周匹克球压力
+    lessons: 每周课时
+    lessons_over: "每周课时 · 教练太累"
+    blocked: 暂时开不了的格子
+  ctx:
+    board: "董事会 {n} · {days} 天后表决"
+    cash: "现金 ${n}"
+    members: "会员 {n}"
+    energy: "你的精力 {n}"
+  work: "{what} · 还剩 {time}"
   board: 董事会信心
-  board_in: "董事会 · {days} 天后表决"
+  board_in: "董事会 · 剩 {days} 天"
   board_today: "董事会 · 今天表决"
   club: { name: 霍洛溪网球俱乐部, badge: HC }
   cash: 现金

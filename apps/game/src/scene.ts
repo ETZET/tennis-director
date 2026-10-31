@@ -164,6 +164,38 @@ export function createGameScene(stage: Stage, content0: ContentBundle): GameScen
   marker.position.y = 2.75;
   you.root.add(marker);
 
+  /* ---------- 跑步冒的烟（精力足的时候） ---------- */
+  const puffGeo = new THREE.BoxGeometry(0.3, 0.3, 0.3);
+  const puffs: { m: THREE.Mesh; life: number }[] = [];
+  let puffT = 0;
+  let workT = 0;
+  function spawnPuff(x: number, z: number): void {
+    let p = puffs.find((q) => q.life <= 0);
+    if (!p) {
+      const m = new THREE.Mesh(
+        puffGeo,
+        new THREE.MeshLambertMaterial({ color: '#efe9da', transparent: true, opacity: 0.8, depthWrite: false }),
+      );
+      stage.scene.add(m);
+      p = { m, life: 0 };
+      puffs.push(p);
+    }
+    p.life = 0.6;
+    p.m.visible = true;
+    p.m.position.set(x + (rnd() - 0.5) * 0.4, hollowCreek.groundY(x, z) + 0.15, z + (rnd() - 0.5) * 0.4);
+  }
+  function updatePuffs(dt: number): void {
+    for (const p of puffs) {
+      if (p.life <= 0) continue;
+      p.life -= dt;
+      const k = Math.max(0, p.life / 0.6);
+      p.m.scale.setScalar(0.6 + (1 - k) * 1.4);
+      p.m.position.y += dt * 0.8;
+      (p.m.material as THREE.MeshLambertMaterial).opacity = 0.8 * k;
+      if (p.life <= 0) p.m.visible = false;
+    }
+  }
+
   /* ---------- 教练和孩子 ---------- */
   const COACH_SPOT = A(3.6, -1.6);
   const cast = new Map<string, Person>();
@@ -541,9 +573,11 @@ export function createGameScene(stage: Stage, content0: ContentBundle): GameScen
             focusAnchor = loc;
             focusUntil = sched.now + 6;
           }
-          if (e.card === 'hc_storm_leak') rain.start();
-        } else if (e.type === 'cardResolved' && e.card === 'hc_storm_leak') rain.stop();
-        else if (e.type === 'dayEnded') rain.stop();
+        } else if (e.type === 'weather') {
+          // 天气由模拟决定：雨天下雨，其他天放晴
+          if (e.weather === 'rain') rain.start();
+          else rain.stop();
+        }
       }
     },
     update(s, time, dt, paused) {
@@ -575,6 +609,25 @@ export function createGameScene(stage: Stage, content0: ContentBundle): GameScen
         const distracted = coachAttention(s, worldOf(s, content)) < 0.6;
         coach.base = distracted ? 'phoneStand' : 'relaxed';
         if (coach.phone) coach.phone.visible = distracted;
+      }
+
+      // 精力足的时候总监是跑着去的，脚下冒烟；累了就慢慢走，不冒烟
+      if (d.leg && sdt > 0 && s.director.energy > 65) {
+        puffT -= sdt;
+        if (puffT <= 0) {
+          puffT = 0.08;
+          spawnPuff(you.pos.x, you.pos.z);
+        }
+      }
+      updatePuffs(sdt);
+      // 在现场忙的时候：比划、说话、指点
+      if (d.task?.phase === 'working' && sdt > 0) {
+        workT -= sdt;
+        if (workT <= 0) {
+          workT = 1.6 + rnd() * 1.2;
+          const g = (['talk', 'point', 'cheer', 'wave'] as const)[Math.floor(rnd() * 4)] ?? 'talk';
+          you.gesture(g, sched.now, 1.4);
+        }
       }
 
       for (const p of world.people) p.update(sdt, sched.now);

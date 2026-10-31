@@ -37,6 +37,15 @@ export class Session {
   /** 本帧还没走完的零头分钟（0..1），画面用它在两个 tick 之间插值 */
   frac = 0;
   intent: Intent | null = null;
+  /** 季中自己打开的公告板（季初排日程时由 s.planning 决定） */
+  plannerOpen = false;
+  /** 打开着的动作圈：哪个地点、屏幕上的位置 */
+  ring: { anchor: string; x: number; y: number } | null = null;
+
+  /** 有界面盖在画面上（公告板、动作圈）时时间停住 */
+  get held(): boolean {
+    return this.s.planning || this.plannerOpen || this.ring !== null;
+  }
   private queue: Command[] = [];
 
   constructor(
@@ -53,9 +62,9 @@ export class Session {
     return SPEEDS[this.speedIndex] ?? 1;
   }
 
-  /** 现在是不是"闲着"：没卡、没在走路、没有等着替玩家选的意图 */
+  /** 现在是不是"闲着"：没卡、没在走路、没在忙、没有等着替玩家选的意图 */
   get idle(): boolean {
-    return !this.s.cards.open.length && !this.s.director.leg && !this.intent;
+    return !this.s.cards.open.length && !this.s.director.leg && !this.s.director.task && !this.intent;
   }
 
   /** 当前的连续游戏时间（带零头），画面插值用 */
@@ -97,7 +106,7 @@ export class Session {
   /** 推进 dt 秒真实时间。返回这一帧的领域事件。 */
   frame(dt: number): SimEvent[] {
     let ticks = 0;
-    if (!this.paused && !this.s.outcome) {
+    if (!this.paused && !this.held && !this.s.outcome) {
       this.frac += dt * MINUTES_PER_SECOND * this.speed * (this.idle ? PACE.idleSpeedup : 1);
       ticks = Math.floor(this.frac);
       this.frac -= ticks;

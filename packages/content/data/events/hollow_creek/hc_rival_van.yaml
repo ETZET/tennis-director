@@ -5,6 +5,7 @@ source: consequence
 tone: comedy
 countdown: 3h
 location: lot
+who: rival
 options:
   A:
     # 当面请他们离开

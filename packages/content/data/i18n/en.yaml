@@ -30,14 +30,14 @@ facilities:
   pool: { open: Pool · open, drained: Pool · drained }
 
 activities:
-  junior_lesson: { title: Junior lesson }
-  adult_clinic: { title: Adult clinic }
-  open_play: { title: Open play }
-  pickleball_hours: { title: Pickleball rental }
-  open_day: { title: Open day }
-  social_night: { title: Social night }
-  clay_session: { title: Clay court session }
-  bubble_session: { title: Bubble court session }
+  junior_lesson: { title: Junior lesson, short: Junior lesson }
+  adult_clinic: { title: Adult clinic, short: Adult clinic }
+  open_play: { title: Open play, short: Open play }
+  pickleball_hours: { title: Pickleball rental, short: Pickle rental }
+  open_day: { title: Open day, short: Open day }
+  social_night: { title: Social night, short: Social night }
+  clay_session: { title: Clay court session, short: Clay court }
+  bubble_session: { title: Bubble court session, short: Bubble court }
   contractor: { title: Contractors on the clay court }
   tug_of_war: { title: Tug-of-war vs pickleball }
   match_strong: { title: Community match vs Pine Crown }
@@ -331,9 +331,72 @@ parts:
   pm: Afternoon
   eve: Evening
 
+who:
+  board: { name: The Board, role: Five volunteers who can sell the club }
+  parents: { name: Mason's parents, role: Quiet, hopeful }
+  pickleball: { name: The pickleball group, role: Twelve regulars, loud }
+  rival: { name: Pine Crown TC, role: The club across the valley }
+  developer: { name: Rick Dorsey, role: Property developer }
+  member: { name: A longtime member, role: Here since 1994 }
+  maple: { name: Maple Ridge High, role: Athletic director }
+roles:
+  coach: Head coach
+  junior: Junior player
+  parent: Parent
+  candidate: Coach applicant
+  staff: Staff
+  rival: Rival
+
 ui:
+  week: "Wk {n}"
+  weather: { sun: Sunny, cloud: Cloudy, rain: Rain · outdoor courts closed, wind: Windy }
+  days: { "0": Mon, "1": Tue, "2": Wed, "3": Thu, "4": Fri, "5": Sat, "6": Sun }
+  chip:
+    hire: "{name} joins"
+    fire: "{name} leaves"
+    energy: "Energy {n}"
+    walk: "{time} walk"
+    work: "{time} on site"
+    chance: "{p}% chance"
+    cost: "−${n}"
+    cooldown: "Again in {time}"
+  attr: { skill: skill, morale: morale, fatigue: fatigue }
+  then: "Then: {what}"
+  ring:
+    go: Go do it
+    walk: Walk here
+    walk_note: The director goes and stands here
+    board: Open the noticeboard
+    board_note: Change this season's plan
+    empty: Nothing to do here right now
+    why:
+      cooldown: Done recently
+      cost: Not enough cash
+      energy: Too tired
+      busy: Busy elsewhere
+  plan:
+    title: Clubhouse noticeboard
+    subtitle: "{season} · weeks {from}–{to} · drag notes onto the week"
+    tray: Notes (drag onto the board)
+    lock: Pin it up
+    lock_mid: Done
+    free: Changes are free while you plan the season.
+    costs: "Mid-season, every change costs {n} energy."
+    cash: Cash per week
+    members: New members per week
+    quality: Quality settles at
+    pressure: Pickleball pressure per week
+    lessons: Lessons per week
+    lessons_over: "Lessons per week · coach overworked"
+    blocked: Slots that can't run yet
+  ctx:
+    board: "Board {n} · vote in {days}d"
+    cash: "Cash ${n}"
+    members: "Members {n}"
+    energy: "Your energy {n}"
+  work: "{what} · {time} left"
   board: Board confidence
-  board_in: "Board · vote in {days}d"
+  board_in: "Board · {days}d left"
   board_today: "Board · vote today"
   club: { name: Hollow Creek TC, badge: HC }
   cash: Cash

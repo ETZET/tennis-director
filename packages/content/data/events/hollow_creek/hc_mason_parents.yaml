@@ -5,6 +5,7 @@ source: consequence
 tone: neutral
 countdown: 1d
 location: court_1
+who: parents
 options:
   A:
     cost: 200

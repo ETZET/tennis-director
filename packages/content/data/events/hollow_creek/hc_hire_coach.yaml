@@ -6,6 +6,7 @@ tone: relief
 pause: true
 countdown: 1d
 location: deck
+who: board
 options:
   A:
     effects:

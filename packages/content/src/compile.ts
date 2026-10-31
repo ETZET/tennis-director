@@ -302,6 +302,10 @@ export function compileContent(files: Record<string, string>): CompileResult {
     checkEffects(file, c.default?.extra ?? [], 'default.extra');
     needText(file, `events.${c.id}.title`);
     needText(file, `events.${c.id}.body`);
+    if (c.who && !people.has(c.who)) {
+      needText(file, `who.${c.who}.name`);
+      needText(file, `who.${c.who}.role`);
+    } else if (c.who) needText(file, `roles.${people.get(c.who)?.role}`);
     const seen = new Map<string, string>();
     for (const k of keys) {
       const o = c.options[k];

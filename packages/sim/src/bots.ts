@@ -146,7 +146,7 @@ export function walkerBot(): Bot {
 }
 
 /** 一串效果"立刻能看到的好处"的期望分 */
-function effectScore(w: World, effs: readonly Effect[], k = 1): number {
+function effectScore(effs: readonly Effect[], k = 1): number {
   let score = 0;
   for (const e of effs) {
     const m = k * (typeof e.chance === 'number' ? e.chance : 1);
@@ -214,9 +214,9 @@ function pickerBot(
           if (act.avoidChecks && st.chance !== null && st.chance < 0.7) continue;
           const p = st.chance ?? 1;
           const sc =
-            effectScore(w, a.effects) +
-            effectScore(w, a.onSuccess, p) +
-            effectScore(w, a.onFail, 1 - p) -
+            effectScore(a.effects) +
+            effectScore(a.onSuccess, p) +
+            effectScore(a.onFail, 1 - p) -
             a.cost * (WEIGHT.cash ?? 0) -
             st.energy * act.energyCost;
           if (sc >= act.min && (!best || sc > best.score)) best = { id: a.id, score: sc };

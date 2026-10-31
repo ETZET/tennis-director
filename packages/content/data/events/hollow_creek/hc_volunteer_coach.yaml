@@ -8,6 +8,7 @@ once: true
 weight: 1
 countdown: 1d
 location: deck
+who: member
 options:
   A:
     # 欢迎：课更好

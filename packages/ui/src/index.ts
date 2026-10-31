@@ -9,4 +9,6 @@ export { GRADE_COLOR, grade, mmss, sparkPoints, trend } from './hud/format';
 export { Hud, type HudHandle, mountHud } from './hud/Hud';
 export { STR } from './hud/strings';
 export type * from './hud/types';
+export { ActionRing, Chips } from './plan/ActionRing';
+export { Planner } from './plan/Planner';
 export const UI_VERSION = 1;

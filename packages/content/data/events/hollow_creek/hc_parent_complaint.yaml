@@ -6,6 +6,7 @@ tone: crisis
 when: { all: [{ stat: quality, lt: 42 }, { coach: dale }] }
 countdown: 2h
 location: court_1
+who: ms_carter
 options:
   A:
     cost: 60

@@ -1,4 +1,5 @@
 import {
+  actionStatus,
   at,
   type CausalEntry,
   type ContentBundle,
@@ -6,21 +7,30 @@ import {
   type GameState,
   type OpenCard,
   optionStatus,
+  PLAN_CHANGE_ENERGY,
+  planPreview,
   type SimEvent,
   shortestRoute,
+  speedFactor,
   wagesWeek,
   worldOf,
 } from '@td/sim';
 import {
   type CardAnswer,
+  type Chip,
   type EventCardData,
   grade,
   type HudSnapshot,
+  type PlannerData,
+  type RingAction,
+  type RingData,
+  type SeasonInfo,
   type StatRow,
   type StoryItem,
   trend,
   type WireItem,
 } from '@td/ui';
+import { effectChips, thenLine } from './chips';
 import type { Session } from './session';
 import { entryTone, type Text } from './text';
 
@@ -96,7 +106,8 @@ export class Projector {
     const d = s.director;
     const from = d.leg ? d.leg.to : (d.at ?? to);
     const rest = d.leg ? d.leg.end - s.t : 0;
-    return rest + (shortestRoute(w, from, to)?.minutes ?? 0);
+    // 导航图的分钟是"精力一般"时的；现在跑得快还是走得慢看精力
+    return Math.round(rest + (shortestRoute(w, from, to)?.minutes ?? 0) / speedFactor(s, w));
   }
 
   snapshot(session: Session): HudSnapshot {
@@ -170,6 +181,9 @@ export class Projector {
       card: this.card(session),
       status: this.status(session),
       story,
+      season: this.season(s),
+      planner: s.planning || session.plannerOpen ? this.planner(session) : null,
+      ring: session.ring ? this.ring(session, session.ring.anchor, session.ring.x, session.ring.y) : null,
       controls: { paused: session.paused, speed: `${session.speed}×` },
     };
   }
@@ -191,10 +205,200 @@ export class Projector {
     };
   }
 
+  /** 谁来找你：人物用名字和身份，群体用文案表里的名字 */
+  private who(id: string): NonNullable<EventCardData['who']> {
+    const T = this.text;
+    const p = this.content.people.find((x) => x.id === id);
+    const name = p ? p.name : T.tr(`who.${id}.name`);
+    const role = p ? T.tr(`roles.${p.role}`) : T.tr(`who.${id}.role`);
+    const initials = name
+      .replace(/^(Coach|Ms\.|Mr\.)\s+/, '')
+      .split(/\s+/)
+      .map((x) => x[0] ?? '')
+      .join('')
+      .slice(0, 2)
+      .toUpperCase();
+    const COLORS = ['#d7ff3c', '#9be07f', '#ffc8b5', '#c9e8ff', '#fff7a8', '#e6d0ff'];
+    let h = 0;
+    for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+    return { name, role, initials, color: COLORS[h % COLORS.length] as string };
+  }
+
+  /** 卡片上的"此刻的局面"：董事会、现金、会员、精力 */
+  private context(s: GameState): Chip[] {
+    const T = this.text;
+    const b = Math.round(s.stats.board_support ?? 0);
+    const end = this.deadline(s);
+    const days = end === null ? 0 : Math.max(0, Math.ceil((end - s.t) / 1440));
+    return [
+      { text: T.fmt('ui.ctx.board', { n: b, days }), tone: b < 40 ? 'loss' : 'info' },
+      {
+        text: T.fmt('ui.ctx.cash', { n: Math.round(s.stats.cash ?? 0) }),
+        tone: (s.stats.cash ?? 0) < 0 ? 'loss' : 'info',
+      },
+      { text: T.fmt('ui.ctx.members', { n: Math.round(s.stats.members ?? 0) }) },
+      {
+        text: T.fmt('ui.ctx.energy', { n: Math.round(s.director.energy) }),
+        tone: s.director.energy < 30 ? 'loss' : 'info',
+      },
+    ];
+  }
+
+  /** 季节、天气、精力 */
+  private season(s: GameState): SeasonInfo {
+    const T = this.text;
+    const week = Math.floor(Math.floor(s.t / 1440) / 7) + 1;
+    return {
+      label: `${T.tr(`seasons.${s.season}`, '')} · ${T.fmt('ui.week', { n: week })}`,
+      weather: s.weather,
+      weatherLabel: T.tr(`ui.weather.${s.weather}`),
+      energy: s.director.energy,
+      energyLabel: T.fmt('ui.ctx.energy', { n: Math.round(s.director.energy) }),
+    };
+  }
+
+  /** 动作圈：点了某个地点以后能做的事 */
+  ring(session: Session, anchor: string, x: number, y: number): RingData {
+    const { s } = session;
+    const T = this.text;
+    const w = worldOf(s, this.content);
+    const acts: RingAction[] = [];
+    const ICON: Record<string, RingAction['icon']> = {
+      watch: 'eye',
+      talk: 'talk',
+      rally: 'racket',
+      feed: 'racket',
+      fundraiser: 'coins',
+      workday: 'spade',
+    };
+    if (s.director.at !== anchor)
+      acts.push({
+        id: `walk:${anchor}`,
+        title: T.tr('ui.ring.walk'),
+        note: T.tr('ui.ring.walk_note'),
+        chips: [{ text: T.fmt('ui.chip.walk', { time: T.duration(this.walkMinutes(s, anchor)) }), tone: 'time' }],
+        icon: 'walk',
+      });
+    if (anchor === 'deck')
+      acts.push({
+        id: 'plan',
+        title: T.tr('ui.ring.board'),
+        note: T.tr('ui.ring.board_note'),
+        chips: [],
+        icon: 'board',
+      });
+    for (const a of w.actions.values()) {
+      if (a.at !== anchor) continue;
+      const st = actionStatus(s, w, a);
+      if (st.blocked === 'when' || st.blocked === 'once') continue;
+      const chips: Chip[] = [];
+      if (a.cost) chips.push({ text: T.fmt('ui.chip.cost', { n: a.cost }), tone: 'cost' });
+      if (st.onsite) {
+        chips.push({ text: T.fmt('ui.chip.energy', { n: `−${a.energy}` }), tone: 'energy' });
+        if (s.director.at !== anchor)
+          chips.push({ text: T.fmt('ui.chip.walk', { time: T.duration(this.walkMinutes(s, anchor)) }), tone: 'time' });
+        chips.push({ text: T.fmt('ui.chip.work', { time: T.duration(st.minutes) }), tone: 'time' });
+      }
+      if (st.chance !== null)
+        chips.push({ text: T.fmt('ui.chip.chance', { p: Math.round(st.chance * 100) }), tone: 'risk' });
+      chips.push(...effectChips(T, a.effects));
+      if (st.chance !== null) chips.push(...effectChips(T, a.onSuccess, st.chance));
+      const cd = st.blocked === 'cooldown' ? (s.actions.cooldowns[a.id] ?? s.t) - s.t : 0;
+      acts.push({
+        id: a.id,
+        title: T.tr(`actions.${a.id}.title`),
+        note: T.tr(`actions.${a.id}.note`),
+        chips,
+        icon: a.onsite ? (ICON[a.performance ?? ''] ?? 'spark') : a.cost ? 'wrench' : 'sign',
+        ...(st.blocked
+          ? {
+              disabled:
+                st.blocked === 'cooldown'
+                  ? T.fmt('ui.chip.cooldown', { time: T.duration(cd) })
+                  : T.tr(`ui.ring.why.${st.blocked}`),
+            }
+          : {}),
+      });
+    }
+    return {
+      x,
+      y,
+      title: T.anchor(anchor),
+      ...(acts.length <= (s.director.at !== anchor ? 1 : 0) ? { subtitle: T.tr('ui.ring.empty') } : {}),
+      actions: acts.slice(0, 6),
+      goLabel: T.tr('ui.ring.go'),
+    };
+  }
+
+  /** 公告板：便条、格子、"这样排每周会怎样" */
+  planner(session: Session): PlannerData {
+    const { s } = session;
+    const T = this.text;
+    const w = worldOf(s, this.content);
+    const parts = Object.keys(w.act.schedule.parts);
+    const notes = [...w.activities.values()]
+      .filter((a) => a.program)
+      .map((a, i) => {
+        const COLORS = ['#fff7a8', '#c9e8ff', '#d6f5c4', '#ffffff', '#ffc8b5', '#e6d0ff', '#ffe0a8', '#d0f0ec'];
+        const label = T.tr(`activities.${a.id}.title`);
+        return {
+          id: a.id,
+          label,
+          short: T.tr(`activities.${a.id}.short`, label),
+          color: COLORS[i % COLORS.length] as string,
+          parts: a.program?.parts ?? [],
+        };
+      });
+    const pv = planPreview(s, this.content, s.plan);
+    const seasons = w.act.seasons;
+    const idx = Math.max(
+      0,
+      seasons.findIndex((x) => x.id === s.season),
+    );
+    const from = Math.floor(((seasons[idx]?.from_day ?? 1) - 1) / 7) + 1;
+    const lastDay = (seasons[idx + 1]?.from_day ?? (w.act.calendar.at(-1)?.day ?? 42) + 1) - 1;
+    const to = Math.floor((lastDay - 1) / 7) + 1;
+    const money = (n: number) => `${n < 0 ? '−' : '+'}$${Math.abs(n)}`;
+    return {
+      title: T.tr('ui.plan.title'),
+      subtitle: T.fmt('ui.plan.subtitle', { season: T.tr(`seasons.${s.season}`, ''), from, to }),
+      parts: parts.map((p) => ({ id: p, label: T.tr(`parts.${p}`) })),
+      days: [0, 1, 2, 3, 4, 5, 6].map((d) => T.tr(`ui.days.${d}`)),
+      grid: Object.fromEntries(parts.map((p) => [p, [...(s.plan[p] ?? Array(7).fill(null))]])),
+      notes,
+      projection: [
+        {
+          label: T.tr('ui.plan.cash'),
+          value: money(pv.cashWeek),
+          ...(pv.cashWeek < 0 ? { tone: 'bad' as const } : {}),
+        },
+        { label: T.tr('ui.plan.members'), value: `+${pv.membersWeek}` },
+        {
+          label: T.tr('ui.plan.quality'),
+          value: String(pv.quality),
+          ...(pv.quality < 40 ? { tone: 'bad' as const } : {}),
+        },
+        {
+          label: T.tr(pv.lessons > 5 ? 'ui.plan.lessons_over' : 'ui.plan.lessons'),
+          value: String(pv.lessons),
+          ...(pv.lessons > 5 ? { tone: 'bad' as const } : {}),
+        },
+        { label: T.tr('ui.plan.pressure'), value: `${pv.pressureWeek > 0 ? '+' : ''}${pv.pressureWeek}` },
+        ...(pv.blocked ? [{ label: T.tr('ui.plan.blocked'), value: String(pv.blocked), tone: 'bad' as const }] : []),
+      ],
+      costNote: s.planning ? T.tr('ui.plan.free') : T.fmt('ui.plan.costs', { n: PLAN_CHANGE_ENERGY }),
+      trayLabel: T.tr('ui.plan.tray'),
+      lockLabel: T.tr(s.planning ? 'ui.plan.lock' : 'ui.plan.lock_mid'),
+      required: s.planning,
+    };
+  }
+
   private status(session: Session): string | null {
     const { s } = session;
     const T = this.text;
     const d = s.director;
+    if (d.task?.phase === 'working')
+      return T.fmt('ui.work', { what: T.tr(`actions.${d.task.action}.title`), time: T.duration(d.task.end - s.t) });
     if (d.leg) {
       const dest = d.route.length ? (d.route[d.route.length - 1] as string) : d.leg.to;
       return T.fmt('ui.walking', { place: T.anchor(dest), time: T.duration(this.walkMinutes(s, dest)) });
@@ -227,6 +431,17 @@ export class Projector {
     const statuses = optionStatus(s, w, o.uid);
     const it = session.intent?.uid === o.uid ? session.intent : null;
     const answers: CardAnswer[] = statuses.slice(0, 3).map((st, i) => {
+      const opt = c.options[st.key];
+      const chips: Chip[] = [];
+      if (st.cost) chips.push({ text: T.fmt('ui.chip.cost', { n: st.cost }), tone: 'cost' });
+      if (opt) {
+        chips.push(...effectChips(T, opt.effects));
+        if (st.chance !== null) {
+          chips.push({ text: T.fmt('ui.chip.chance', { p: Math.round(st.chance * 100) }), tone: 'risk' });
+          chips.push(...effectChips(T, opt.onSuccess, st.chance));
+        }
+      }
+      const then = opt ? thenLine(T, [...opt.effects, ...opt.onSuccess]) : undefined;
       const hints: string[] = [];
       if (st.blocked === 'director' && st.requiresDirectorAt)
         hints.push(
@@ -237,13 +452,13 @@ export class Projector {
         );
       if (st.blocked === 'requires') hints.push(T.tr('ui.hint.requires'));
       if (st.blocked === 'cost') hints.push(T.tr('ui.hint.cash'));
-      // 选项文字里已经写了价钱就不再重复
-      else if (st.cost && !T.option(o.card, st.key).includes(`$${st.cost}`))
-        hints.push(T.fmt('ui.hint.cost', { n: st.cost }));
-      if (st.chance !== null) hints.push(T.fmt('ui.hint.chance', { p: Math.round(st.chance * 100) }));
+      // 代价和收益由标签讲，选项文字只留"做什么"（去掉文案里 " · " 后面手写的代价）
+      const text = T.option(o.card, st.key).split(' · ')[0] ?? '';
       return {
         key: KEYS[i] ?? 1,
-        text: T.option(o.card, st.key),
+        text,
+        ...(chips.length ? { chips } : {}),
+        ...(then ? { then } : {}),
         ...(st.blocked === 'requires' || st.blocked === 'cost' ? { disabled: true } : {}),
         ...(st.blocked === 'director' ? { walk: true } : {}),
         ...(it?.option === st.key ? { chosen: true } : {}),
@@ -260,6 +475,8 @@ export class Projector {
       body: T.tr(`events.${o.card}.body`, ''),
       answers,
       ...(s.cards.open.length > 1 ? { more: s.cards.open.length - 1 } : {}),
+      ...(c.who ? { who: this.who(c.who) } : {}),
+      context: this.context(s),
     };
     if (o.expires !== null) {
       const total = Math.max(1, o.expires - o.opened);

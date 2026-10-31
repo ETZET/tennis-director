@@ -8,6 +8,7 @@ once: true
 weight: 4
 countdown: 1d
 location: deck
+who: board
 options:
   A:
     # 开放日：花钱请所有人来，场面撑起来

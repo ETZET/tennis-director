@@ -1,7 +1,7 @@
 import { createStage, hollowCreek, OrbitCamera } from '@td/render';
 import { clamp, PACE } from '@td/shared';
 import { CONTENT, type ContentBundle, type GameState, type SimEvent, worldOf } from '@td/sim';
-import { mountHud } from '@td/ui';
+import { type HudActions, mountHud } from '@td/ui';
 import type * as THREE from 'three';
 import { createDebug } from './debug';
 import { GameLabels } from './labels';
@@ -80,7 +80,7 @@ function freshSession(): Session {
 }
 
 /* ---------- 界面 ---------- */
-const ui = mountHud($('hud'), {
+const hudActions: HudActions = {
   rotate: (dir) => camera.rotate(-dir),
   togglePause: () => {
     session.paused = !session.paused;
@@ -97,7 +97,35 @@ const ui = mountHud($('hud'), {
       begin(freshSession());
     }
   },
-});
+  // 公告板：拖一下就改，"每周会怎样"马上跟着变
+  plan: (part, weekday, note) => {
+    session.send({ type: 'setPlan', part, weekday, activity: note });
+    pump([]);
+  },
+  lockPlan: () => {
+    if (session.s.planning) session.send({ type: 'lockPlan' });
+    session.plannerOpen = false;
+    pump([]);
+  },
+  closePlanner: () => {
+    session.plannerOpen = false;
+    draw();
+  },
+  // 动作圈：走过去、打开公告板，或者去做一件事
+  act: (id) => {
+    session.ring = null;
+    if (id.startsWith('walk:')) session.walkTo(id.slice(5));
+    else if (id === 'plan') session.plannerOpen = true;
+    else session.send({ type: 'act', action: id });
+    session.paused = false;
+    pump([]);
+  },
+  closeRing: () => {
+    session.ring = null;
+    draw();
+  },
+};
+const ui = mountHud($('hud'), hudActions);
 
 function answer(key: 1 | 2 | 3): void {
   const o = Projector.focusCard(session.s, content);
@@ -147,10 +175,11 @@ for (const a of content.acts[0]?.anchors ?? []) {
         return `pl${here ? ' pl-here' : ''}${dest ? ' pl-dest' : ''}${card ? ' pl-card' : ''}`;
       },
     },
-    () => {
-      session.walkTo(a);
-      if (session.paused) session.paused = false;
-      pump([]);
+    (el) => {
+      // 点地点牌：围着它展开这个地方能做的事
+      const r = el.getBoundingClientRect();
+      session.ring = { anchor: a, x: r.left + r.width / 2, y: r.bottom + 40 };
+      draw();
     },
   );
   const center = (hollowCreek.ANCHORS as Record<string, { x: number; z: number }>)[a];
@@ -193,7 +222,11 @@ window.addEventListener('keydown', (e) => {
     session.cycleSpeed();
     draw();
   } else if (e.key === '1' || e.key === '2' || e.key === '3') answer(Number(e.key) as 1 | 2 | 3);
-  else if (e.key === ' ') {
+  else if (e.key === 'Escape') {
+    session.ring = null;
+    session.plannerOpen = false;
+    draw();
+  } else if (e.key === ' ') {
     e.preventDefault();
     session.paused = !session.paused;
     draw();
@@ -226,6 +259,8 @@ function frame(ts: number) {
   camera.occludedBottomPx = card ? container.clientHeight - card.getBoundingClientRect().top : 0;
   const pxPerM = container.clientHeight / (stage.cam.top - stage.cam.bottom);
   labels.compact = pxPerM < 4;
+  // 公告板和动作圈打开时，地点牌收起来，不和它们抢位置
+  $('labels').style.visibility = session.held ? 'hidden' : '';
   labels.place(container.clientWidth, container.clientHeight);
   uiT += dt;
   if (uiT > 0.2) {
@@ -317,6 +352,13 @@ declare global {
       fastForward: (max: number) => { minutes: number; stop: string };
       answer: (key: 1 | 2 | 3) => void;
       walk: (anchor: string) => void;
+      /** 试玩桥：点一个地点会弹出的动作圈（数据） */
+      ring: (anchor: string) => unknown;
+      act: (id: string) => void;
+      plan: (part: string, weekday: number, note: string | null) => void;
+      lockPlan: () => void;
+      openPlanner: () => void;
+      planner: () => unknown;
     };
   }
 }
@@ -330,4 +372,13 @@ window.__td = {
     session.walkTo(a);
     pump([]);
   },
+  ring: (a) => projector.ring(session, a, 0, 0),
+  act: (id) => hudActions.act?.(id),
+  plan: (part, weekday, note) => hudActions.plan?.(part, weekday, note),
+  lockPlan: () => hudActions.lockPlan?.(),
+  openPlanner: () => {
+    session.plannerOpen = true;
+    draw();
+  },
+  planner: () => (session.s.planning || session.plannerOpen ? projector.planner(session) : null),
 };

@@ -6,6 +6,7 @@ tone: crisis
 pause: true
 countdown: 3h
 location: deck
+who: board
 options:
   A:
     # 亲自带她转一圈：看你平时把俱乐部做成什么样

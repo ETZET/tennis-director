@@ -27,13 +27,13 @@ export class GameLabels {
     private readonly cam: THREE.Camera,
   ) {}
 
-  add(m: Omit<Marker, 'el'>, onClick?: () => void): Marker {
+  add(m: Omit<Marker, 'el'>, onClick?: (el: HTMLElement) => void): Marker {
     const el = document.createElement(onClick ? 'button' : 'div');
     if (onClick) {
       (el as HTMLButtonElement).type = 'button';
       el.addEventListener('click', (e) => {
         e.stopPropagation();
-        onClick();
+        onClick(el);
       });
     }
     this.layer.appendChild(el);
@@ -45,6 +45,8 @@ export class GameLabels {
   place(W: number, H: number): void {
     this.layer.classList.toggle('compact', this.compact);
     const occ = this.occluders();
+    /** 已经摆好的牌子（屏幕矩形）：后摆的和它们叠住就往上让 */
+    const placed: { l: number; r: number; t: number; b: number }[] = [];
     for (const m of this.items) {
       const text = m.text();
       if (text === null) {
@@ -65,8 +67,20 @@ export class GameLabels {
       let off = x < -100 || x > W + 100 || y < -40 || y > H + 40;
       if (!off) off = occ.some((r) => x + 60 > r.left && x - 60 < r.right && y > r.top && y - m.lift - 24 < r.bottom);
       m.el.hidden = off;
-      if (!off)
-        m.el.style.transform = `translate(${Math.round(x)}px,${Math.round(y)}px) translate(-50%,-100%) translateY(-${m.lift}px)`;
+      if (off) continue;
+      // 手机上地点挤在一起：和已经摆好的牌子叠住就往上让（最多让三次）
+      const w = m.el.offsetWidth || 80;
+      const h = m.el.offsetHeight || 24;
+      let lift = m.lift;
+      for (let k = 0; k < 3; k++) {
+        const box = { l: x - w / 2, r: x + w / 2, t: y - lift - h, b: y - lift };
+        const hit = placed.find((p) => box.l < p.r && box.r > p.l && box.t < p.b && box.b > p.t);
+        if (!hit) break;
+        lift += box.b - hit.t + 3;
+      }
+      placed.push({ l: x - w / 2, r: x + w / 2, t: y - lift - h, b: y - lift });
+      m.el.style.transform = `translate(${Math.round(x)}px,${Math.round(y)}px) translate(-50%,-100%) translateY(-${Math.round(lift)}px)`;
+      m.el.style.setProperty('--stem', `${Math.round(lift)}px`);
     }
   }
 }

@@ -48,7 +48,7 @@ schedule:
   start:
     am: [null, null, null, null, null, open_play, open_play]
     pm: [junior_lesson, junior_lesson, null, junior_lesson, null, null, null]
-    eve: [null, pickleball_hours, null, pickleball_hours, null, pickleball_hours, null]
+    eve: [null, null, null, null, social_night, null, null]
 start_cards: []
 calendar:
   - { day: 1, hour: 15.5, card: hc_dale_phone }

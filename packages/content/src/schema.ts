@@ -133,6 +133,8 @@ export const card = z.strictObject({
   pause: z.boolean().default(false),
   /** 事件发生在哪个锚点（界面上的地点标签、相机焦点） */
   location: id,
+  /** 谁来找你：人物 id，或者一个群体（文案在 who.<id>.name / who.<id>.role） */
+  who: id.optional(),
   /** 演出：在哪个锚点播哪个动画 */
   stage: z.strictObject({ anchor: id, performance: id }).optional(),
   options: z.partialRecord(z.enum(OPTION_KEYS), option),

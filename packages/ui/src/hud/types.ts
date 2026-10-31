@@ -22,6 +22,12 @@ export interface WireItem {
   hot?: boolean;
 }
 
+/** 小标签：选项和动作的代价、收益、耗时、成功率…… */
+export interface Chip {
+  text: string;
+  tone?: 'cost' | 'gain' | 'loss' | 'time' | 'energy' | 'risk' | 'info';
+}
+
 export interface CardAnswer {
   /** 数字键 1、2、3 */
   key: 1 | 2 | 3;
@@ -34,6 +40,10 @@ export interface CardAnswer {
   walk?: boolean;
   /** 选项下面的一行小字：花费、成功率、要去哪儿 */
   hint?: string;
+  /** 这个选项会动哪些数（从内容数据自动生成） */
+  chips?: Chip[];
+  /** 之后可能发生什么 */
+  then?: string;
 }
 
 /** 转播下三分之一的事件卡：话题标签、地点标签、标题、倒计时、三个编号选项。 */
@@ -56,6 +66,70 @@ export interface EventCardData {
   kind: 'news' | 'decision';
   /** 后面还排着几张卡 */
   more?: number;
+  /** 谁来找你 */
+  who?: { name: string; role: string; initials: string; color: string };
+  /** 此刻和这件事有关的局面 */
+  context?: Chip[];
+}
+
+/** 会所公告板上的一种便条（一种能排进日程的活动） */
+export interface PlannerNote {
+  id: string;
+  label: string;
+  /** 格子里显示的短名 */
+  short: string;
+  color: string;
+  /** 能钉在哪些时段 */
+  parts: string[];
+}
+
+/** 会所公告板：拖便条排一季的周日程 */
+export interface PlannerData {
+  title: string;
+  subtitle: string;
+  parts: { id: string; label: string }[];
+  /** 周一到周日的短名 */
+  days: string[];
+  grid: Record<string, (string | null)[]>;
+  notes: PlannerNote[];
+  /** 这样排每周会怎样（随拖动实时变） */
+  projection: { label: string; value: string; tone?: Tone }[];
+  /** 这时候改日程花不花精力 */
+  costNote: string;
+  trayLabel: string;
+  lockLabel: string;
+  /** 季初必须排（不能关掉），季中是自己打开的（可以关） */
+  required: boolean;
+}
+
+/** 点场景里的地点或人以后，围着它展开的一圈动作 */
+export interface RingAction {
+  id: string;
+  title: string;
+  note: string;
+  chips: Chip[];
+  /** 不能做的原因（灰掉） */
+  disabled?: string;
+  icon: 'wrench' | 'eye' | 'talk' | 'racket' | 'coins' | 'spade' | 'sign' | 'board' | 'walk' | 'spark';
+}
+
+export interface RingData {
+  /** 屏幕坐标（像素） */
+  x: number;
+  y: number;
+  title: string;
+  subtitle?: string;
+  actions: RingAction[];
+  goLabel: string;
+}
+
+/** 季节、天气、总监精力 */
+export interface SeasonInfo {
+  label: string;
+  weather: 'sun' | 'cloud' | 'rain' | 'wind';
+  weatherLabel: string;
+  energy: number;
+  energyLabel: string;
 }
 
 /** 「因为……所以……」：因果日志的一条，讲给玩家听 */
@@ -86,6 +160,9 @@ export interface HudSnapshot {
   status?: string | null;
   /** 俱乐部报告里的"来龙去脉"（最新的在前） */
   story?: readonly StoryItem[];
+  season?: SeasonInfo;
+  planner?: PlannerData | null;
+  ring?: RingData | null;
   controls: { paused: boolean; speed: string };
 }
 
@@ -97,4 +174,11 @@ export interface HudActions {
   answer(key: 1 | 2 | 3): void;
   /** 事件卡上的主按钮 */
   cardAction(id: string): void;
+  /** 公告板：把便条钉到某个格子（null 拿掉） */
+  plan?(part: string, weekday: number, note: string | null): void;
+  lockPlan?(): void;
+  closePlanner?(): void;
+  /** 动作圈：做这件事 / 关掉 */
+  act?(id: string): void;
+  closeRing?(): void;
 }
