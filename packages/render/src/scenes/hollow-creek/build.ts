@@ -6,18 +6,24 @@ import { sign } from '../../voxel/text';
 import { type BuildContext, cbox, jit, sr } from '../../world/build-context';
 import { buildIsland, islandGround } from './island';
 import {
+  CLUBHOUSE,
+  coastDistance,
   creekZ,
   DECK,
   FA,
   FB,
   FC,
   FD,
+  ISLAND,
   LOT,
   MID,
   onIsland,
   POOL,
-  roadY,
+  ROAD,
+  ROAD_Z,
+  SPINE_X,
   STAIRS,
+  terrainY,
   UP,
   XE,
   XW,
@@ -27,14 +33,17 @@ import {
 } from './layout';
 
 /**
- * 构建 Hollow Creek 的静态场景。
+ * 构建 Hollow Creek 的静态场景（布局方案 5「溪流分岛」）。
  *
  * 顺序就是画面：每一步都从同一条种子随机流（种子 1974）取数，
  * 调换任意两步会让后面所有的石块、杂草、裂缝都变样。
  * 要加新东西，加在最后，或者给它单独一条随机流。
  */
 
-const GRASS = ['#7d8448', '#858a4c', '#6f7a40', '#8a8350', '#7a7246', '#6b6a3c', '#91855a', '#6a7a3e'];
+/** 草色：同一族绿，只在明度上有一点起伏（原型是八种颜色拼花，看着乱）。 */
+const GRASS = ['#7d8448', '#7a8446', '#808a4a', '#768043', '#7f8649', '#78823f'];
+/** 草皮里零星的深色块（原型是裸土的棕色）。 */
+const GRASS_DARK = '#6f7a40';
 const TRASH = ['#b23a2c', '#c9c9c2', '#3b6ea8', '#e8e2d0', '#5c8a3a'];
 const WILLOW = ['#8a8a4a', '#7a7d42', '#9a8c4e', '#6f7440'];
 
@@ -58,7 +67,7 @@ export function buildHollowCreek(ctx: BuildContext): HollowCreekStatic {
   trees(ctx);
   daleChair(ctx);
   ctx.flat.clip = ctx.solid.clip = null;
-  buildIsland(ctx);
+  buildIsland(ctx, terrainY);
   ctx.flat.build(ctx.scene, false, true);
   ctx.solid.build(ctx.scene, true, true);
   return { bubblePeaks };
@@ -85,9 +94,33 @@ function groundPlane(ctx: BuildContext): void {
   ctx.scene.add(islandGround(tex));
 }
 
+/** 这一点在岛上（含边线）。 */
+const inside = (x: number, z: number) => coastDistance(x, z) <= 1e-6;
+
+/**
+ * 台地土方：按 1 米宽的条带铺，每条只铺在岛上的那一段，
+ * 台地一直铺到岛边、四角也跟着切角走。颜色固定，不取随机数。
+ */
 function body(ctx: BuildContext, x0: number, x1: number, z0: number, z1: number, h: number, col = '#6f5a42'): void {
-  ctx.solid.box((x0 + x1) / 2, 0, (z0 + z1) / 2, x1 - x0, h, z1 - z0, col);
+  for (let x = Math.floor(x0); x < x1; x += 1) {
+    const xa = Math.max(x, x0);
+    const xb = Math.min(x + 1, x1);
+    if (xb - xa < 0.01) continue;
+    let za: number | null = null;
+    let zb = z0;
+    for (let z = z0; z <= z1 + 1e-6; z += 0.25) {
+      if (!inside(xa, z) || !inside(xb, z)) continue;
+      za ??= z;
+      zb = z;
+    }
+    if (za === null || zb - za < 0.01) continue;
+    ctx.solid.box((xa + xb) / 2, 0, (za + zb) / 2, xb - xa, h, zb - za, col);
+  }
 }
+
+/** 2 米的草皮格子整块都在岛上。 */
+const cellOnIsland = (cx: number, cz: number) =>
+  inside(cx - 1, cz - 1) && inside(cx + 1, cz - 1) && inside(cx - 1, cz + 1) && inside(cx + 1, cz + 1);
 
 function grassTop(
   ctx: BuildContext,
@@ -110,36 +143,36 @@ function grassTop(
         2,
         0.03,
         2,
-        ctx.rand() < 0.12 ? jit(ctx, '#7a6548', 0.04) : jit(ctx, pick(GRASS, ctx.rand), 0.03),
+        ctx.rand() < 0.12 ? jit(ctx, GRASS_DARK, 0.03) : jit(ctx, pick(GRASS, ctx.rand), 0.03),
       );
     }
 }
 
-/** 台地土方、草皮、挡土墙、楼梯、东侧坡道。 */
+/** 台地土方、草皮、挡土墙、楼梯、出岛的公路。 */
 function terrain(ctx: BuildContext): void {
   const { solid, flat } = ctx;
-  // 上层台地，绕开泳池挖出来
+  // 上层台地，绕开泳池挖出来；泳池浅水区和深水区两级池底
+  const shallowX = POOL.x0 + 7;
   body(ctx, XW, POOL.x0, ZB, ZU, UP);
   body(ctx, POOL.x1, XE, ZB, ZU, UP);
   body(ctx, POOL.x0, POOL.x1, ZB, POOL.z0, UP);
   body(ctx, POOL.x0, POOL.x1, POOL.z1, ZU, UP);
-  body(ctx, POOL.x0, 10, POOL.z0, POOL.z1, 1.5, '#6c9fa3');
-  body(ctx, 10, POOL.x1, POOL.z0, POOL.z1, 0.55, '#5f9095');
+  body(ctx, POOL.x0, shallowX, POOL.z0, POOL.z1, 1.5, '#6c9fa3');
+  body(ctx, shallowX, POOL.x1, POOL.z0, POOL.z1, 0.55, '#5f9095');
   body(ctx, XW, XE, ZU, ZL, MID);
 
   const inPool = (x: number, z: number) =>
     x > POOL.x0 - 0.5 && x < POOL.x1 + 0.5 && z > POOL.z0 - 0.5 && z < POOL.z1 + 0.5;
-  grassTop(ctx, -50, XE, -58, ZU, UP, inPool);
-  grassTop(ctx, -50, XE, ZU, ZL, MID, (x, z) => FA.inside(x, z, -0.5) || FB.inside(x, z, -0.5));
+  grassTop(ctx, XW, XE, ZB, ZU, UP, (x, z) => inPool(x, z) || !cellOnIsland(x, z));
+  grassTop(ctx, XW, XE, ZU, ZL, MID, (x, z) => FA.inside(x, z, -0.5) || FB.inside(x, z, -0.5) || !cellOnIsland(x, z));
 
   // 挡土墙：干砌石带苔藓，下面那道塌了一段
+  const collapse = [SPINE_X + 7, SPINE_X + 11.5] as const;
   stoneWall(ctx, 'z', ZU + 0.15, XW, XE, MID, UP);
-  stoneWall(ctx, 'z', ZL + 0.15, XW, XE, 0, MID, [7, 11.5]);
-  stoneWall(ctx, 'x', XE + 0.15, ZB, ZU, 0, UP);
-  stoneWall(ctx, 'x', XE + 0.15, ZU, ZL, 0, MID);
+  stoneWall(ctx, 'z', ZL + 0.15, XW, XE, 0, MID, collapse);
   for (let k = 0; k < 16; k++)
     solid.box(
-      sr(ctx, 6.5, 12),
+      sr(ctx, collapse[0] - 0.5, collapse[1] + 0.5),
       0,
       ZL + sr(ctx, 0.4, 2.4),
       sr(ctx, 0.5, 1.1),
@@ -151,12 +184,13 @@ function terrain(ctx: BuildContext): void {
       sr(ctx, -0.3, 0.3),
     );
 
-  // 楼梯：俱乐部的脊梁
+  // 楼梯：俱乐部的脊梁，会所 → 球场 → 人行桥
   for (const s of STAIRS) {
+    const cx = (s.x0 + s.x1) / 2;
     for (let i = 0; i < 6; i++) {
       const top = lerp(s.y0, s.y1, (i + 1) / 6);
       if (top - s.y1 < 0.01) continue;
-      solid.box(0, s.y1, s.z0 + 0.3 + i * 0.6, s.x1 - s.x0, top - s.y1, 0.6, jit(ctx, '#a39e92', 0.05));
+      solid.box(cx, s.y1, s.z0 + 0.3 + i * 0.6, s.x1 - s.x0, top - s.y1, 0.6, jit(ctx, '#a39e92', 0.05));
     }
     solid.box(s.x0 - 0.1, s.y1, s.z0 + 1.8, 0.12, 0.0001 + Math.abs(s.y0 - s.y1), 3.6, '#8b867b');
     for (let i = 0; i < 4; i++)
@@ -164,15 +198,20 @@ function terrain(ctx: BuildContext): void {
     solid.box(s.x1 + 0.05, s.y1 + 0.95, s.z0 + 1.5, 0.06, 0.06, 2.8, '#5a5550', 0, Math.atan2(s.y0 - s.y1, 3.6) * 0.9);
   }
 
-  // 东侧坡道，下山后过小溪
-  for (let z = -31; z < 70; z += 1) {
-    const y = roadY(z + 0.5);
-    if (y > 0.02) solid.box(45, 0, z + 0.5, 6, y, 1, '#6f6a5f');
-    flat.box(45, y, z + 0.5, 6, 0.04, 1, ctx.rand() < 0.07 ? jit(ctx, '#2f302e', 0.02) : jit(ctx, '#4c4d4b', 0.04));
-    if (Math.round(z) % 4 === 0) flat.box(45, y + 0.041, z + 0.5, 0.12, 0.01, 2, '#b9a03a');
+  // 出岛的公路：从停车场往东，到岛边断开
+  const RW = ROAD.z1 - ROAD.z0;
+  for (let x = LOT.x1; x < ISLAND.x1; x += 1) {
+    flat.box(
+      x + 0.5,
+      UP,
+      ROAD_Z,
+      1,
+      0.04,
+      RW,
+      ctx.rand() < 0.07 ? jit(ctx, '#2f302e', 0.02) : jit(ctx, '#4c4d4b', 0.04),
+    );
+    if (Math.round(x) % 4 === 0) flat.box(x + 0.5, UP + 0.041, ROAD_Z, 2, 0.01, 0.12, '#b9a03a');
   }
-  for (let x = 40; x < 45; x += 1)
-    for (let z = -34; z < -26; z += 1) flat.box(x + 0.5, UP, z + 0.5, 1, 0.04, 1, jit(ctx, '#4c4d4b', 0.04));
 }
 
 /** 1 号场：最后一块网球场。褪色的公园蓝，下垂的网。 */
@@ -359,10 +398,7 @@ function clayCourt(ctx: BuildContext): void {
 /** A 字形会所、露台、干涸的泳池、碎石停车场。 */
 function clubhouse(ctx: BuildContext): void {
   const { solid, flat, scene } = ctx;
-  const x0 = -17;
-  const x1 = -4;
-  const z0 = -35;
-  const z1 = -22.6;
+  const { x0, x1, z0, z1 } = CLUBHOUSE;
   const cx = (x0 + x1) / 2;
   const W = x1 - x0;
   for (let k = 0; k < 12; k++) {
@@ -444,16 +480,17 @@ function clubhouse(ctx: BuildContext): void {
   solid.box(DECK.x1 - 1.2, DECK.y + 0.4, DECK.z1 - 0.05, 2.4, 0.08, 0.1, '#6d5a46', 0, 0, -0.35);
   (
     [
-      [-14, -20],
-      [-12.6, -20.6],
+      [DECK.x0 + 2, DECK.z0 + 2.6],
+      [DECK.x0 + 3.4, DECK.z0 + 2],
     ] as const
   ).forEach(([x, z], i) => {
     solid.box(x, DECK.y, z, 0.5, 0.42, 0.5, '#e8e2d0', 0, 0, i ? 1.4 : 0);
   });
-  solid.box(-10, DECK.y, -21.3, 1.2, 0.75, 0.8, '#7a6650');
+  solid.box(DECK.x0 + 6, DECK.y, DECK.z0 + 1.3, 1.2, 0.75, 0.8, '#7a6650');
 
   // 干涸的泳池
   const P = POOL;
+  const shallowX = P.x0 + 7;
   for (let x = P.x0; x < P.x1; x += 1) {
     solid.box(
       x + 0.5,
@@ -478,7 +515,7 @@ function clubhouse(ctx: BuildContext): void {
   solid.box(P.x1 - 0.05, 0.55, (P.z0 + P.z1) / 2, 0.1, UP - 0.55, P.z1 - P.z0, '#7fb3b8');
   for (let x = P.x0; x < P.x1; x += 1)
     for (let z = P.z0; z < P.z1; z += 1) {
-      const fy = x < 10 ? 1.5 : 0.55;
+      const fy = x < shallowX ? 1.5 : 0.55;
       if (ctx.rand() < 0.3)
         flat.box(
           x + 0.5,
@@ -491,8 +528,8 @@ function clubhouse(ctx: BuildContext): void {
           sr(ctx, 0, 1),
         );
     }
-  flat.box(14, 0.56, (P.z0 + P.z1) / 2, 5, 0.2, 6, '#4f6b3c');
-  flat.box(13, 0.76, -27, 1.6, 0.004, 1.2, '#68844d');
+  flat.box(P.x0 + 11, 0.56, (P.z0 + P.z1) / 2, 5, 0.2, 6, '#4f6b3c');
+  flat.box(P.x0 + 10, 0.76, P.z0 + 4, 1.6, 0.004, 1.2, '#68844d');
   for (let k = 0; k < 30; k++)
     flat.box(
       sr(ctx, P.x0 + 0.5, P.x1 - 0.5),
@@ -504,10 +541,10 @@ function clubhouse(ctx: BuildContext): void {
       pick(LEAF_LITTER, ctx.rand),
       sr(ctx, 0, 3),
     );
-  solid.box(12, 0.77, -29, 0.9, 0.5, 0.6, '#9aa0a3', 0.6, 0, 0.25);
-  solid.box(4, UP - 1.0, P.z1 - 0.4, 0.06, 1.6, 0.06, '#c9cccd');
-  solid.box(4.6, UP - 1.0, P.z1 - 0.4, 0.06, 1.6, 0.06, '#c9cccd');
-  solid.box(15.5, UP + 0.3, P.z0 - 0.4, 0.5, 0.1, 2.6, '#d9d4c3', 0, 0.18, 0);
+  solid.box(P.x0 + 9, 0.77, P.z0 + 2, 0.9, 0.5, 0.6, '#9aa0a3', 0.6, 0, 0.25);
+  solid.box(P.x0 + 1, UP - 1.0, P.z1 - 0.4, 0.06, 1.6, 0.06, '#c9cccd');
+  solid.box(P.x0 + 1.6, UP - 1.0, P.z1 - 0.4, 0.06, 1.6, 0.06, '#c9cccd');
+  solid.box(P.x1 - 1.5, UP + 0.3, P.z0 - 0.4, 0.5, 0.1, 2.6, '#d9d4c3', 0, 0.18, 0);
   for (let x = P.x0 - 2; x < P.x1 + 2; x += 1)
     for (let z = P.z0 - 2; z < P.z1 + 2; z += 1) {
       if (x >= P.x0 && x < P.x1 && z >= P.z0 && z < P.z1) continue;
@@ -515,18 +552,18 @@ function clubhouse(ctx: BuildContext): void {
     }
   (
     [
-      [4, -33],
-      [7, -33.3],
-      [18, -26],
+      [P.x0 + 1, P.z0 - 2],
+      [P.x0 + 4, P.z0 - 2.3],
+      [P.x1 + 1, P.z1],
     ] as const
   ).forEach(([x, z], i) => {
     solid.box(x, UP, z, 0.6, 0.3, 1.7, '#c9cccd', i * 0.4, 0, i === 2 ? 1.2 : 0);
   });
-  solid.box(18.4, UP, -30, 0.08, 2.2, 0.08, '#8a8a86', 0, 0.35, 0);
-  solid.box(18.0, UP + 1.8, -29.4, 2.4, 0.15, 2.4, '#b55a4a', 0.3, 0.35, 0.1);
-  sign(scene, 'POOL CLOSED', 2.4, 0.4, 10, UP + 1.0, P.z1 + 0.95, 0, '#e8e2d0', '#b23a2c', 13);
-  solid.box(8.8, UP, P.z1 + 0.95, 0.06, 1.0, 0.06, '#5a5550');
-  solid.box(11.2, UP, P.z1 + 0.95, 0.06, 1.0, 0.06, '#5a5550');
+  solid.box(P.x1 + 1.4, UP, P.z0 + 4, 0.08, 2.2, 0.08, '#8a8a86', 0, 0.35, 0);
+  solid.box(P.x1 + 1, UP + 1.8, P.z0 + 4.6, 2.4, 0.15, 2.4, '#b55a4a', 0.3, 0.35, 0.1);
+  sign(scene, 'POOL CLOSED', 2.4, 0.4, P.x0 + 7, UP + 1.0, P.z1 + 0.95, 0, '#e8e2d0', '#b23a2c', 13);
+  solid.box(P.x0 + 5.8, UP, P.z1 + 0.95, 0.06, 1.0, 0.06, '#5a5550');
+  solid.box(P.x0 + 8.2, UP, P.z1 + 0.95, 0.06, 1.0, 0.06, '#5a5550');
 
   // 碎石停车场、坑洼、出售牌
   for (let x = LOT.x0; x < LOT.x1; x += 2)
@@ -541,12 +578,20 @@ function clubhouse(ctx: BuildContext): void {
         ctx.rand() < 0.1 ? jit(ctx, '#5d5a52', 0.03) : jit(ctx, '#8f8a7c', 0.05),
       );
   for (let k = 0; k < 4; k++)
-    flat.box(sr(ctx, 22, 38), UP + 0.05, sr(ctx, -40, -22), sr(ctx, 1, 2), 0.004, sr(ctx, 0.7, 1.4), '#5d6f78');
-  for (let x = 22; x < 40; x += 3.2)
+    flat.box(
+      sr(ctx, LOT.x0 + 2, LOT.x1 - 2),
+      UP + 0.05,
+      sr(ctx, LOT.z0 + 2, LOT.z1 - 2),
+      sr(ctx, 1, 2),
+      0.004,
+      sr(ctx, 0.7, 1.4),
+      '#5d6f78',
+    );
+  for (let x = LOT.x0 + 2; x < LOT.x1; x += 3.2)
     solid.box(
       x,
       UP + 0.05,
-      -24.2,
+      LOT.z1 - 4.2,
       1.4,
       0.16,
       0.3,
@@ -555,15 +600,15 @@ function clubhouse(ctx: BuildContext): void {
       0,
       ctx.rand() < 0.3 ? 0.2 : 0,
     );
-  sign(scene, 'SITE FOR SALE · 6.2 ACRES', 4.2, 0.9, 38, UP + 1.8, -19.6, 0, '#d84f2e', '#f7f3e8', 12);
-  solid.box(36.2, UP, -19.7, 0.12, 1.9, 0.12, '#7a6650');
-  solid.box(39.8, UP, -19.7, 0.12, 1.9, 0.12, '#7a6650');
+  sign(scene, 'SITE FOR SALE · 6.2 ACRES', 4.2, 0.9, LOT.x1 - 4, UP + 1.8, LOT.z1 + 0.4, 0, '#d84f2e', '#f7f3e8', 12);
+  solid.box(LOT.x1 - 5.8, UP, LOT.z1 + 0.3, 0.12, 1.9, 0.12, '#7a6650');
+  solid.box(LOT.x1 - 2.2, UP, LOT.z1 + 0.3, 0.12, 1.9, 0.12, '#7a6650');
 }
 
-/** 小溪、人行桥（少一块板）、公路桥、碎石小路。 */
+/** 小溪、人行桥（少一块板）、碎石小路。 */
 function creek(ctx: BuildContext): void {
   const { solid, flat } = ctx;
-  for (let x = -70; x < 80; x += 1) {
+  for (let x = ISLAND.x0 - 2; x < ISLAND.x1 + 2; x += 1) {
     const cz = creekZ(x + 0.5);
     for (let dz = -1.5; dz <= 1.5; dz += 1) flat.box(x + 0.5, 0, cz + dz, 1, 0.02, 1, jit(ctx, '#4c666b', 0.04));
     flat.box(x + 0.5, 0, cz - 2.5, 1, 0.03, 1, jit(ctx, '#5b4b3a', 0.05));
@@ -592,65 +637,76 @@ function creek(ctx: BuildContext): void {
     if (ctx.rand() < 0.12)
       flat.box(x + 0.5, 0.025, cz + sr(ctx, -1, 1), sr(ctx, 0.2, 0.4), 0.01, 0.12, pick(TRASH, ctx.rand));
   }
-  // 脊梁上的人行桥，少一块板
-  const fz = creekZ(0);
+  // 脊梁上的人行桥，少一块板：南岸只能从这里过去
+  const bx = SPINE_X;
+  const fz = creekZ(bx);
   for (let z = fz - 3.4; z < fz + 3.4; z += 0.4) {
     if (Math.abs(z - fz - 0.6) < 0.21) continue;
-    solid.box(0, 0.3, z, 1.8, 0.08, 0.34, jit(ctx, '#7a6650', 0.05));
+    solid.box(bx, 0.3, z, 1.8, 0.08, 0.34, jit(ctx, '#7a6650', 0.05));
   }
   for (const s of [-0.95, 0.95])
     for (let z = fz - 3.2; z <= fz + 3.2; z += 1.6)
-      solid.box(s, 0.3, z, 0.08, 0.9, 0.08, '#5d4c3c', 0, 0, s > 0 && z > fz ? 0.5 : 0);
-  solid.box(-0.95, 1.15, fz, 0.08, 0.08, 6.6, '#5d4c3c');
-  // 公路桥
-  const rz = creekZ(45);
-  for (const s of [42.2, 47.8]) solid.box(s, 0.04, rz, 0.15, 0.8, 7, '#8a8a86');
-  // 碎石小路，断断续续
-  for (let z = 12.6; z < fz - 3.4; z += 1) {
+      solid.box(bx + s, 0.3, z, 0.08, 0.9, 0.08, '#5d4c3c', 0, 0, s > 0 && z > fz ? 0.5 : 0);
+  solid.box(bx - 0.95, 1.15, fz, 0.08, 0.08, 6.6, '#5d4c3c');
+  // 碎石小路，断断续续：楼梯脚 → 桥；桥 → 南岸两块场地之间
+  for (let z = ZL + 3.6; z < fz - 3.4; z += 1) {
     if (ctx.rand() < 0.2) continue;
-    flat.box(0, 0, z + 0.5, 1.8, 0.03, 1, jit(ctx, '#b0a483', 0.05));
+    flat.box(bx, 0, z + 0.5, 1.8, 0.03, 1, jit(ctx, '#b0a483', 0.05));
   }
-  for (let x = -1; x < 22; x += 1) {
+  const southX = (FC.w({ x: FC.hx, z: 0 }).x + FD.w({ x: -FD.hx, z: 0 }).x) / 2;
+  for (let z = fz + 3.4; z < FD.oz + 8; z += 1) {
+    if (ctx.rand() < 0.25) continue;
+    const x = z < fz + 6 ? bx : southX;
+    flat.box(x, 0, z + 0.5, 1.8, 0.03, 1, jit(ctx, '#a8a07f', 0.05));
+  }
+  // 上层台地南边的步道：露台 → 楼梯口 → 停车场
+  for (let x = DECK.x1; x < LOT.x0; x += 1) {
     if (ctx.rand() < 0.15) continue;
-    flat.box(x + 0.5, UP + 0.01, -20.6, 1, 0.03, 1.8, jit(ctx, '#b0a483', 0.05));
+    flat.box(x + 0.5, UP + 0.01, ZU - 3.6, 1, 0.03, 1.8, jit(ctx, '#b0a483', 0.05));
   }
 }
 
 function trees(ctx: BuildContext): void {
+  // 上层台地：会所后面一排、停车场东边、泳池南边
   (
     [
-      [-30, -48, 1.1],
-      [-12, -52, 1],
-      [6, -47, 1.2],
-      [26, -50, 1],
-      [-40, -30, 1],
-      [34, -46, 1.1],
-      [-46, -14, 1],
+      [-50, -45, 1.1],
+      [-20, -46, 1],
+      [-6, -43, 1.2],
+      [10, -46, 1],
+      [-56, -39, 1],
+      [48, -45, 1.1],
+      [51, -38, 1],
+      [-46, -21, 1],
     ] as const
   ).forEach(([x, z, s], i) => {
     if (i % 2) bareTree(ctx, x, UP, z, s);
     else sparseTree(ctx, x, UP, z, s);
   });
+  // 中层台地：两块场地的外侧
   for (const [x, z, s] of [
-    [-48, -2, 1],
-    [-50, 6, 0.9],
+    [-50, -8, 1],
+    [-56, 0, 0.9],
+    [50, -12, 1],
+    [53, -1, 0.9],
   ] as const)
     bareTree(ctx, x, MID, z, s);
+  // 南岸：溪边和岛的南缘是柳树
   for (const [x, z, s] of [
-    [-44, 33, 1.2],
-    [-30, 42, 1.1],
-    [-12, 32, 1],
-    [10, 43, 1.1],
-    [32, 33, 1],
-    [58, 30, 1.1],
-    [-58, 40, 1],
+    [-50, 21, 1.2],
+    [-44, 46, 1.1],
+    [-8, 47, 1],
+    [18, 47, 1.1],
+    [49, 23, 1],
+    [52, 40, 1.1],
+    [-57, 33, 1],
   ] as const)
     sparseTree(ctx, x, 0, z, s, WILLOW, 0.5);
   for (const [x, z, s] of [
-    [60, 0, 1],
-    [56, -14, 1.1],
-    [-50, 22, 1],
-    [24, 50, 1],
+    [-24, 8, 0.9],
+    [53, 15, 1.1],
+    [40, 47, 1],
+    [-34, 47, 1],
   ] as const)
     bareTree(ctx, x, 0, z, s);
 }

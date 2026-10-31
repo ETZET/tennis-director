@@ -1,0 +1,27 @@
+import type { Trend } from './types';
+
+/**
+ * HUD 自己的界面文案。M1 起换成 i18n 键值表（技术文档），这里先集中放在一处。
+ */
+export const STR = {
+  quality: 'Quality',
+  members: 'Members',
+  courtsOpen: 'Courts open',
+  salary: 'Your salary',
+  details: 'Club report',
+  qualityChart: 'Program quality this session',
+  headCoach: 'Head coach',
+  vacant: 'Vacant',
+  wire: 'Club wire',
+  rotateLeft: 'Rotate left (Q)',
+  rotateRight: 'Rotate right (E)',
+  pause: 'Pause (Space)',
+  resume: 'Resume (Space)',
+  speed: 'Change speed',
+  trend: {
+    falling: 'Falling',
+    recovering: 'Recovering',
+    flat: 'Flat',
+    bottomed: 'Bottomed out',
+  } satisfies Record<Trend, string>,
+} as const;

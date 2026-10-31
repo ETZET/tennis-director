@@ -39,16 +39,17 @@ export const HOLLOW_CREEK_RAIN = {
   skyRain: new THREE.Color('#728694'),
 } as const;
 
+/** 默认视角：一打开就看到整座浮空岛（岛底、四周的天空），两岸和中间的小溪都在画面里。 */
 export const HOLLOW_CREEK_CAMERA: Record<'overview', CameraPose> = {
-  overview: { yaw: -0.62, pitch: 0.66, zoom: 0.74, tx: 9, tz: 0.5 },
+  overview: { yaw: -0.62, pitch: 0.66, zoom: 0.37, tx: -3, tz: 5 },
 };
 
-/** 最远能拉到看见整座浮空岛、岛底和四周的云（原型最远 0.5）。 */
+/** 最远能拉到看见整座浮空岛、岛底和四周的云。 */
 export const HOLLOW_CREEK_CAMERA_LIMITS: OrbitLimits = {
   zoom: [0.26, 3.2],
   pitch: [0.4, 1.3],
-  tx: [-55, 60],
-  tz: [-55, 55],
+  tx: [ISLAND.x0 + 4, ISLAND.x1 - 4],
+  tz: [ISLAND.z0 + 4, ISLAND.z1 - 4],
 };
 
 /** 岛四周的天空：云、浮在岛边的小土块。 */

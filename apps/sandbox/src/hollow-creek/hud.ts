@@ -1,8 +1,19 @@
 import { clamp } from '@td/shared';
+import {
+  type CardAnswer,
+  type EventCardData,
+  grade,
+  type HudSnapshot,
+  mmss,
+  type StatRow,
+  trend,
+  type WireItem,
+} from '@td/ui';
 
 /**
- * Hollow Creek 演示的 HUD：顶栏、项目报告、事件日志、提示条。
- * M0 原样保留原型的 DOM；M1 起换成 @td/ui 的 Preact 组件，数据来自模拟快照。
+ * Hollow Creek 演示的 HUD 状态：写死剧情往这里记事、扣分、发事件卡，
+ * 每 0.25 秒拼成一份快照交给 @td/ui 的转播 HUD 去画。
+ * M1 起这些数字来自模拟核心，这个类只剩演出部分。
  */
 
 export interface DemoStats {
@@ -19,15 +30,25 @@ export interface DemoStats {
   pbBest: number;
 }
 
-const $ = (id: string): HTMLElement => {
-  const el = document.getElementById(id);
-  if (!el) throw new Error(`#${id} missing`);
-  return el;
-};
+/** 演出 1 秒 = 游戏内 15 秒 */
+const GAME_PER_SHOW = 15;
 
-export const grade = (q: number): 'A' | 'B' | 'C' | 'D' | 'F' =>
-  q >= 85 ? 'A' : q >= 70 ? 'B' : q >= 55 ? 'C' : q >= 40 ? 'D' : 'F';
-const GCOL = { A: '#93c27a', B: '#b6c76a', C: '#e3b21a', D: '#e08a2a', F: '#d6532e' } as const;
+interface DecisionCard {
+  card: Omit<EventCardData, 'countdown' | 'answers'>;
+  answers: CardAnswer[];
+  /** 剧情会走的那个选项 */
+  pick: 1 | 2 | 3;
+  t0: number;
+  t1: number;
+  chosen: (1 | 2 | 3) | null;
+}
+
+interface ActiveCard {
+  card: EventCardData | DecisionCard;
+  until: number;
+}
+
+const isDecision = (c: EventCardData | DecisionCard): c is DecisionCard => 'pick' in c;
 
 export class Hud {
   readonly S: DemoStats = {
@@ -42,33 +63,28 @@ export class Hud {
     ended: false,
     pbBest: 0,
   };
-  private readonly logEl = $('log');
-  private readonly toastEl = $('toast');
-  private toastTimer: ReturnType<typeof setTimeout> | undefined;
+  private readonly wire: WireItem[] = [];
+  private wireId = 0;
   private readonly lastLog: Record<string, number> = {};
-  private readonly spark = $('spark') as HTMLCanvasElement;
-  private readonly sctx = this.spark.getContext('2d') as CanvasRenderingContext2D;
+  private active: ActiveCard | null = null;
 
   /** now() 返回演出时间（秒）。 */
   constructor(private readonly now: () => number) {}
 
-  /** 游戏内时钟：周六 16:10 开始，演出 1 秒 = 15 秒。 */
-  clockStr(): string {
-    const m = Math.floor(16 * 60 + 10 + this.now() / 4);
+  /** 游戏内时钟：周六 16:10 开始。 */
+  private minutes(): number {
+    return Math.floor(16 * 60 + 10 + (this.now() * GAME_PER_SHOW) / 60);
+  }
+
+  clockStr(withAmPm = true): string {
+    const m = this.minutes();
     const h = Math.floor(m / 60) % 12 || 12;
-    return `${h}:${String(m % 60).padStart(2, '0')} PM`;
+    return `${h}:${String(m % 60).padStart(2, '0')}${withAmPm ? (m >= 720 ? ' PM' : ' AM') : ''}`;
   }
 
   log(text: string, hot?: boolean): void {
-    const li = document.createElement('li');
-    if (hot) li.className = 'hot';
-    const tm = document.createElement('time');
-    tm.textContent = this.clockStr();
-    const sp = document.createElement('span');
-    sp.textContent = text;
-    li.append(tm, sp);
-    this.logEl.prepend(li);
-    while (this.logEl.children.length > 7) this.logEl.lastChild?.remove();
+    this.wire.unshift({ id: this.wireId++, time: this.clockStr(false), text, hot: !!hot });
+    if (this.wire.length > 8) this.wire.length = 8;
   }
 
   /** 同一类事件至少隔 gap 秒才记一次。 */
@@ -83,85 +99,97 @@ export class Hud {
     this.S.q = clamp(this.S.q + d, 6, 100);
   }
 
-  toast(head: string, text: string, dur: number, dark?: boolean): void {
-    const el = this.toastEl;
-    el.innerHTML = '';
-    const b = document.createElement('b');
-    b.textContent = head;
-    el.append(b, document.createTextNode(text));
-    el.className = `toast${dark ? ' dark' : ''}`;
-    el.hidden = false;
-    clearTimeout(this.toastTimer);
-    if (dur)
-      this.toastTimer = setTimeout(() => {
-        el.hidden = true;
-      }, dur * 1000);
-  }
-
+  private vacant = false;
   setVacantCoach(): void {
-    const hc = $('hcChip');
-    hc.textContent = 'Head coach: Vacant';
-    hc.classList.add('vacant');
+    this.vacant = true;
   }
 
-  showReplay(): void {
-    $('replay').hidden = false;
+  /** 新闻快讯卡：dur 秒（演出时间）后自动收起；dur 为 0 表示一直留着。 */
+  news(card: Omit<EventCardData, 'kind' | 'id'>, dur: number): void {
+    const t = this.now();
+    this.active = { card: { ...card, kind: 'news', id: `n${t}` }, until: dur ? t + dur : Number.POSITIVE_INFINITY };
   }
 
-  collapseOnPhone(): void {
-    if (window.innerWidth <= 760) ($('report') as HTMLDetailsElement).open = false;
+  /**
+   * 要你拍板的事件卡：倒计时 dur 秒（演出时间）。演示的剧情是写死的，
+   * 倒计时走完就按 pick 选定，再停留 hold 秒。
+   */
+  decision(
+    card: Omit<EventCardData, 'kind' | 'id' | 'countdown' | 'answers'>,
+    answers: readonly { text: string }[],
+    pick: 1 | 2 | 3,
+    dur: number,
+    hold = 2.5,
+  ): void {
+    const t = this.now();
+    const keys = [1, 2, 3] as const;
+    this.active = {
+      card: {
+        card: { ...card, kind: 'decision', id: `d${t}` },
+        answers: answers.slice(0, 3).map((a, i) => ({ key: keys[i] ?? 1, text: a.text, disabled: keys[i] !== pick })),
+        pick,
+        t0: t,
+        t1: t + dur,
+        chosen: null,
+      },
+      until: t + dur + hold,
+    };
   }
 
-  private drawSpark(): void {
-    const { spark, sctx, S } = this;
-    const W = spark.width;
-    const H = spark.height;
-    sctx.clearRect(0, 0, W, H);
-    sctx.fillStyle = '#262522';
-    sctx.fillRect(0, 0, W, H);
-    const y = (v: number) => Math.round(H - 4 - (v / 100) * (H - 8));
-    sctx.fillStyle = 'rgba(214,83,46,.18)';
-    sctx.fillRect(0, y(40), W, H - y(40));
-    for (const v of [40, 55, 70]) {
-      sctx.fillStyle = 'rgba(232,226,210,.18)';
-      for (let x = 0; x < W; x += 6) sctx.fillRect(x, y(v), 3, 1);
+  /** 数字键或点击选项：演示里只有剧情要走的那一项能选，选了就立刻定下来。 */
+  answer(key: 1 | 2 | 3): void {
+    const c = this.active?.card;
+    if (c && isDecision(c) && key === c.pick && c.chosen === null) c.chosen = key;
+  }
+
+  private cardSnapshot(): EventCardData | null {
+    const a = this.active;
+    const t = this.now();
+    if (!a) return null;
+    if (t > a.until) {
+      this.active = null;
+      return null;
     }
-    sctx.fillStyle = 'rgba(232,226,210,.45)';
-    sctx.font = '9px Silkscreen, monospace';
-    sctx.fillText('F', W - 10, y(40) + 11);
-    sctx.fillText('D', W - 10, y(55) + 11);
-    const h = S.hist;
-    const n = Math.max(60, h.length);
-    const step = (W - 14) / (n - 1);
-    sctx.fillStyle = '#e3b21a';
-    for (let i = 0; i < h.length; i++)
-      sctx.fillRect(Math.round(i * step), y(h[i] as number) - 1, Math.ceil(step) + 1, 3);
-    const lx = Math.round((h.length - 1) * step);
-    const ly = y(h[h.length - 1] as number);
-    sctx.fillStyle = '#f7f3e8';
-    sctx.fillRect(lx - 3, ly - 3, 7, 7);
+    if (!isDecision(a.card)) return a.card;
+    const d = a.card;
+    if (t >= d.t1 && d.chosen === null) d.chosen = d.pick;
+    const left = Math.max(0, d.t1 - t);
+    return {
+      ...d.card,
+      countdown: {
+        ratio: d.chosen ? 0 : left / (d.t1 - d.t0),
+        label: d.chosen ? 'Decided' : `${mmss(left * GAME_PER_SHOW)} left`,
+      },
+      answers: d.answers.map((x) => ({ ...x, chosen: x.key === d.chosen })),
+    };
   }
 
-  /** 刷新报告面板。lessonBalls 是 1 号场上散落的课程用球数。 */
-  draw(lessonBalls: number): void {
+  /** 拼一份给 @td/ui 的快照。lessonBalls 是 1 号场上散落的课程用球数。 */
+  snapshot(lessonBalls: number, controls: HudSnapshot['controls']): HudSnapshot {
     const { S } = this;
-    const q = Math.round(S.q);
-    const g = grade(S.q);
-    const ge = $('grade');
-    ge.textContent = g;
-    ge.style.color = GCOL[g];
-    $('qnum').textContent = String(q);
-    const h = S.hist;
-    const d = h.length > 10 ? (h[h.length - 1] as number) - (h[h.length - 11] as number) : 0;
-    $('trend').textContent = S.ended ? '▼ bottomed out' : d < -0.2 ? '▼ falling' : d > 0.2 ? '▲ recovering' : '■ flat';
-    $('mem').textContent = String(S.members);
-    const sb = $('sBalls');
-    sb.textContent = String(lessonBalls);
-    sb.className = lessonBalls > 12 ? 'bad' : '';
-    $('sPhone').textContent = `${Math.floor(S.phoneMin)} min`;
-    $('sIn').textContent = S.shots ? `${Math.round((S.ins / S.shots) * 100)}%` : '—';
-    $('sComp').textContent = String(S.complaints);
-    $('clock').textContent = `Sat ${this.clockStr()}`;
-    this.drawSpark();
+    const details: StatRow[] = [
+      { label: 'Court 2', value: 'Rented · pickleball', tone: 'pickle' },
+      {
+        label: 'Balls left lying on court 1',
+        value: String(lessonBalls),
+        ...(lessonBalls > 12 ? { tone: 'bad' } : {}),
+      },
+      { label: 'Coach phone time', value: `${Math.floor(S.phoneMin)} min` },
+      { label: 'Lesson shots that went in', value: S.shots ? `${Math.round((S.ins / S.shots) * 100)}%` : '—' },
+      { label: 'Member complaints', value: String(S.complaints), ...(S.complaints > 3 ? { tone: 'bad' } : {}) },
+      { label: 'Longest pickleball rally', value: String(S.pbBest) },
+    ];
+    return {
+      club: { badge: 'HC', name: 'Hollow Creek TC', clock: `Sat ${this.clockStr()}` },
+      quality: { value: S.q, grade: grade(S.q), trend: trend(S.hist, S.ended), history: S.hist },
+      members: S.members,
+      courts: { open: 1, total: 4 },
+      salary: { text: '$29K', change: '▼30%' },
+      headCoach: { name: 'Dale Pruitt', vacant: this.vacant },
+      details,
+      wire: this.wire,
+      card: this.cardSnapshot(),
+      controls,
+    };
   }
 }

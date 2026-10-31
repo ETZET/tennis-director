@@ -1,7 +1,9 @@
 /**
- * 界面层（M1 起用 Preact + signals）：HUD、事件卡、因果日志、调试面板。
- * 只读模拟快照、只向模拟发命令；不直接引用 @td/render。
- *
- * M0 阶段 Hollow Creek 的 HUD 还留在 apps/sandbox 里，原样保留原型的 DOM。
+ * 界面层（Preact）：HUD、事件卡、俱乐部快讯。
+ * 只读状态快照、只发命令；不直接引用 @td/render。
  */
-export const UI_VERSION = 0;
+export { GRADE_COLOR, grade, mmss, sparkPoints, trend } from './hud/format';
+export { Hud, type HudHandle, mountHud } from './hud/Hud';
+export { STR } from './hud/strings';
+export type * from './hud/types';
+export const UI_VERSION = 1;

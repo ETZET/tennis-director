@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@td/shared": "workspace:*",
-    "@td/sim": "workspace:*"
+    "@td/sim": "workspace:*",
+    "preact": "10.29.8"
   }
 }

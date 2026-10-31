@@ -1,5 +1,6 @@
 import { BallPool, createStage, hollowCreek, OrbitCamera, type PeopleWorld, Scheduler } from '@td/render';
 import { clamp } from '@td/shared';
+import { mountHud } from '@td/ui';
 import { Hud } from './hud';
 import { LabelLayer } from './labels';
 import { createHollowCreekDemo } from './story';
@@ -28,7 +29,6 @@ const labels = new LabelLayer($('labels'), stage.cam, now);
 const HOME = hollowCreek.HOLLOW_CREEK_CAMERA.overview;
 
 const demo = createHollowCreekDemo({ stage, sched, world, pool, hud, labels, bubblePeaks, home: HOME });
-hud.collapseOnPhone();
 
 /* ---------- 相机 ---------- */
 const camera = new OrbitCamera(stage, HOME, hollowCreek.HOLLOW_CREEK_CAMERA_LIMITS);
@@ -36,47 +36,48 @@ window.addEventListener('resize', () => camera.resize());
 camera.resize();
 camera.bindPointer(stage.renderer.domElement);
 
-/* ---------- 工具栏 ---------- */
+/* ---------- 转播 HUD（@td/ui）：控制按钮收在快讯带的右端 ---------- */
 let speed = 1;
 let paused = false;
 const SPEEDS = [1, 2, 0.5];
 let si = 0;
-$('rotL').onclick = () => camera.rotate(1);
-$('rotR').onclick = () => camera.rotate(-1);
-$('zoomIn').onclick = () => camera.zoomIn();
-$('zoomOut').onclick = () => camera.zoomOut();
-$('resetView').onclick = () => camera.reset();
-$('follow').onclick = () => {
-  camera.setFollow(!camera.followStory);
-  $('follow').setAttribute('aria-pressed', String(camera.followStory));
-};
-$('lblBtn').onclick = () => {
-  labels.show = !labels.show;
-  $('lblBtn').setAttribute('aria-pressed', String(labels.show));
-};
-$('spd').onclick = () => {
-  si = (si + 1) % SPEEDS.length;
-  speed = SPEEDS[si] as number;
-  $('spd').textContent = `Speed ${speed === 0.5 ? '½' : speed}×`;
-};
-$('pause').onclick = () => {
-  paused = !paused;
-  $('pause').textContent = paused ? 'Resume' : 'Pause';
-  $('pause').setAttribute('aria-pressed', String(paused));
-};
-$('replay').onclick = () => {
-  location.reload();
-};
+const speedLabel = () => `${speed === 0.5 ? '½' : speed}×`;
+const ui = mountHud($('hud'), {
+  rotate: (dir) => camera.rotate(-dir),
+  togglePause: () => {
+    paused = !paused;
+    draw();
+  },
+  cycleSpeed: () => {
+    si = (si + 1) % SPEEDS.length;
+    speed = SPEEDS[si] as number;
+    draw();
+  },
+  answer: (key) => {
+    hud.answer(key);
+    draw();
+  },
+  cardAction: (id) => {
+    if (id === 'replay') location.reload();
+  },
+});
+const draw = () => ui.update(hud.snapshot(demo.lessonBalls(), { paused, speed: speedLabel() }));
+
 window.addEventListener('keydown', (e) => {
   const t = e.target as HTMLElement | null;
-  if (t?.closest?.('button,summary') && (e.key === ' ' || e.key === 'Enter')) return;
+  if (t?.closest?.('button,summary,input') && (e.key === ' ' || e.key === 'Enter')) return;
   if (e.key === 'q' || e.key === 'Q') camera.rotate(1);
   else if (e.key === 'e' || e.key === 'E') camera.rotate(-1);
-  else if (e.key === '+' || e.key === '=') $('zoomIn').click();
-  else if (e.key === '-' || e.key === '_') $('zoomOut').click();
-  else if (e.key === ' ') {
+  else if (e.key === '+' || e.key === '=') camera.zoomIn();
+  else if (e.key === '-' || e.key === '_') camera.zoomOut();
+  else if (e.key === 'r' || e.key === 'R') camera.reset();
+  else if (e.key === '1' || e.key === '2' || e.key === '3') {
+    hud.answer(Number(e.key) as 1 | 2 | 3);
+    draw();
+  } else if (e.key === ' ') {
     e.preventDefault();
-    $('pause').click();
+    paused = !paused;
+    draw();
   }
 });
 
@@ -98,8 +99,8 @@ function frame(ts: number) {
   uiT += dt;
   if (uiT > 0.25) {
     uiT = 0;
-    hud.draw(demo.lessonBalls());
+    draw();
   }
 }
-hud.draw(demo.lessonBalls());
+draw();
 requestAnimationFrame(frame);

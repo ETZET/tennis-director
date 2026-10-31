@@ -12,6 +12,14 @@ interface Label {
   get: () => XYZ;
   kind: 'lbl' | 'say';
   until?: number;
+  /** 每帧刷新内容（场地编号牌的状态） */
+  refresh?: () => void;
+}
+
+export interface CourtStatus {
+  text: string;
+  /** 开着的场地是亮黄编号，关着的是灰色 */
+  open: boolean;
 }
 
 export class LabelLayer {
@@ -25,12 +33,39 @@ export class LabelLayer {
     private readonly now: () => number,
   ) {}
 
-  add(text: string, get: () => XYZ, cls?: string): Label {
+  /** 一块小牌子（例如头顶的"你"）。 */
+  tag(text: string, get: () => XYZ, cls?: string): Label {
     const el = document.createElement('div');
     el.className = `lbl${cls ? ` ${cls}` : ''}`;
     el.textContent = text;
     this.layer.appendChild(el);
     const l: Label = { el, get, kind: 'lbl' };
+    this.labels.push(l);
+    return l;
+  }
+
+  /** 场地编号牌：编号方块 + 一个词的状态。status 每帧取一次，变了才改 DOM。 */
+  court(n: number, status: () => CourtStatus, get: () => XYZ): Label {
+    const el = document.createElement('div');
+    const num = document.createElement('span');
+    num.className = 'mk-n';
+    num.textContent = String(n);
+    const txt = document.createElement('span');
+    txt.className = 'mk-t';
+    el.append(num, txt);
+    this.layer.appendChild(el);
+    let last = '';
+    const refresh = () => {
+      const s = status();
+      const key = `${s.open}|${s.text}`;
+      if (key === last) return;
+      last = key;
+      el.className = `lbl mk${s.open ? '' : ' off'}`;
+      txt.textContent = s.text;
+      el.setAttribute('aria-label', `Court ${n}: ${s.text}`);
+    };
+    refresh();
+    const l: Label = { el, get, kind: 'lbl', refresh };
     this.labels.push(l);
     return l;
   }
@@ -66,6 +101,7 @@ export class LabelLayer {
         l.el.hidden = true;
         continue;
       }
+      l.refresh?.();
       const p = l.get();
       this.pv.set(p.x, p.y, p.z).project(this.cam);
       const x = (this.pv.x * 0.5 + 0.5) * W;

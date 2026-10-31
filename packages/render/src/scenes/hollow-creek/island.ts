@@ -105,8 +105,11 @@ function outward(x: number, z: number): { x: number; z: number } {
   return { x: gx / n, z: gz / n };
 }
 
-/** 岛底剖面、根须、崖边细节（自己建网格）。 */
-export function buildIsland(base: BuildContext): void {
+/**
+ * 岛底剖面、根须、崖边细节（自己建网格）。
+ * heightAt 是岛面高度：台地铺到岛边的地方，崖面顶上是土不是草皮，崖边的杂草长在台地顶上。
+ */
+export function buildIsland(base: BuildContext, heightAt: (x: number, z: number) => number = () => 0): void {
   // 岛底单独一个批次：背着太阳的剖面也要看得出土是棕的、石头是灰的（设计稿的两种面色）
   const ctx: BuildContext = { ...base, solid: new VoxelBatcher(), rand: mulberry32(ISLAND_SEED) };
   const { solid } = ctx;
@@ -119,7 +122,8 @@ export function buildIsland(base: BuildContext): void {
       const cx = x + 0.5;
       const cz = z + 0.5;
       const lip = UNDERSIDE.lip - ctx.rand() * 0.15;
-      solid.box(cx, lip, cz, 1, -lip - 0.01, 1, jit(ctx, ctx.rand() < 0.25 ? '#6b6a3c' : '#6f7a40', 0.05));
+      const turf = ctx.rand() < 0.25 ? '#6b6a3c' : '#6f7a40';
+      solid.box(cx, lip, cz, 1, -lip - 0.01, 1, jit(ctx, heightAt(cx, cz) > 0.1 ? '#6f5a42' : turf, 0.05));
       let top = lip;
       for (const layer of UNDERSIDE.soil) {
         const to = layer.to - ctx.rand() * 0.6;
@@ -198,7 +202,7 @@ export function buildIsland(base: BuildContext): void {
       if (!cellIn(x, z) || cellIn(x, z, 1.2) || inCreekMouth(x, z)) continue;
       const r = ctx.rand();
       if (r < 0.1) {
-        weedTuft(ctx, x, z, 0);
+        weedTuft(ctx, x, z, heightAt(x + 0.5, z + 0.5));
       } else if (r < 0.13) {
         const o = outward(x, z);
         solid.box(

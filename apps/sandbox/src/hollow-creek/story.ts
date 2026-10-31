@@ -44,7 +44,7 @@ import type { LabelLayer } from './labels';
  * 创建顺序与原型一致（场景图顺序和 Math.random 的取数顺序都会影响画面）。
  */
 
-const { FA, FB, FC, FD, UP, ANCHORS } = hollowCreek;
+const { FA, FB, FC, FD, UP, ANCHORS, CLUBHOUSE } = hollowCreek;
 const rr = (a: number, b: number) => range(Math.random, a, b);
 const SK = ['#f1c7a1', '#e8b896', '#d9a47c', '#c48a62', '#a86f4c', '#7a4a32', '#5f3a28', '#f1d0ae'] as const;
 const A = (x: number, z: number) => FA.w({ x, z });
@@ -155,7 +155,7 @@ export function createHollowCreekDemo(env: DemoEnv): Demo {
   const carter = mk({
     name: 'Ms. Carter',
     x: 31,
-    z: -33,
+    z: -35,
     base: 'relaxed',
     shirt: '#3c5a7a',
     sleeve: '#3c5a7a',
@@ -484,41 +484,40 @@ export function createHollowCreekDemo(env: DemoEnv): Demo {
     const p = FD.w({ x, y: 1.0, z });
     crows.push(new Crow(scene, p.x, p.y, p.z, 1));
   }
-  crows.push(new Crow(scene, -10, UP + 5.2, -26, 0.4));
+  crows.push(new Crow(scene, (CLUBHOUSE.x0 + CLUBHOUSE.x1) / 2 + 0.5, UP + 5.2, CLUBHOUSE.z1 - 3.4, 0.4));
   const dog = createDog(scene, hollowCreek.groundY, hollowCreek.DOG_WAYPOINTS);
   const EXIT = hollowCreek.EXIT_ROUTE;
   const daleCar = createCar(
     scene,
     hollowCreek.carY,
     27,
-    -27,
+    -28.5,
     '#6b7480',
     '#7a4a2e',
-    [{ x: 34, z: -27.5 }, ...EXIT],
+    [{ x: 34, z: -29.5 }, ...EXIT],
     true,
   );
   const carterCar = createCar(
     scene,
     hollowCreek.carY,
     30,
-    -36.5,
+    -38.5,
     '#3d4f6a',
     '#3d4f6a',
-    [{ x: 36, z: -34 }, ...EXIT],
+    [{ x: 36, z: -35 }, ...EXIT],
     true,
   );
   const cars = [daleCar, carterCar];
   const rain = createRain(stage, hollowCreek.HOLLOW_CREEK_RAIN);
   const sky = hollowCreek.createHollowCreekSky(stage);
 
-  /* ---------- 地点标签 ---------- */
+  /* ---------- 场地编号牌（转播风格：亮黄是开着的场地，灰色是关着的） ---------- */
   const FL = (fr: typeof FA, x: number, y: number, z: number) => () => fr.w({ x, y, z });
-  labels.add('Court 1 · last tennis court', FL(FA, 0, 2.6, -FA.hz));
-  labels.add('Court 2 · rented to pickleball', FL(FB, 0, 2.6, -FB.hz), 'pickle');
-  labels.add('Bubble court · deflated', FL(FC, 7, 3.2, 2.5), 'dead');
-  labels.add('Clay court · overgrown', FL(FD, 0, 2.4, -FD.hz), 'dead');
-  labels.add('Pool · drained', () => ({ x: 10, y: UP + 1.6, z: -27 }));
-  labels.add('You · Director', () => ({ x: you.pos.x, y: you.root.position.y + 3.2, z: you.pos.z }), 'you');
+  labels.court(1, () => ({ text: lesson.active ? 'Lesson' : 'No coach', open: true }), FL(FA, 0, 3.4, -FA.hz));
+  labels.court(2, () => ({ text: 'Pickleball', open: true }), FL(FB, 0, 3.4, -FB.hz));
+  labels.court(3, () => ({ text: 'Closed', open: false }), FL(FC, 7, 3.2, 2.5));
+  labels.court(4, () => ({ text: 'Closed', open: false }), FL(FD, 0, 3.4, -FD.hz));
+  labels.tag('You', () => ({ x: you.pos.x, y: you.root.position.y + 3.2, z: you.pos.z }), 'you');
 
   /* ---------- 剧情 ---------- */
   let focus: (() => CameraFocus) | null = null;
@@ -541,7 +540,7 @@ export function createHollowCreekDemo(env: DemoEnv): Demo {
   at(20, () => {
     carter.root.visible = true;
     carter.path(
-      [{ x: 24, z: -24 }, LOT_PATH, UPPER_PATH, STAIR_TOP, STAIR_BOT, MID_WALK, GATE_A_OUT, GATE_A_IN, A(1.7, 0.3)],
+      [{ x: 24, z: -26 }, LOT_PATH, UPPER_PATH, STAIR_TOP, STAIR_BOT, MID_WALK, GATE_A_OUT, GATE_A_IN, A(1.7, 0.3)],
       2.6,
     );
     carter.call((tt) => arriveCarter(tt));
@@ -563,12 +562,21 @@ export function createHollowCreekDemo(env: DemoEnv): Demo {
       S.members -= 2;
       hud.hitQ(-8);
       hud.log('The Carter family quit the club.', true);
+      hud.news(
+        {
+          topic: 'Members',
+          location: 'Court 1 · junior lesson',
+          headline: 'The Carter family quit the club',
+          body: 'Ms. Carter pulled Mason out of lessons. Two more memberships gone.',
+        },
+        6,
+      );
     });
     at(t + 8.4, () => {
       carter.watch = null;
       mason.seatY = null;
       mason.base = 'slump';
-      const out = [GATE_A_IN, GATE_A_OUT, MID_WALK, STAIR_BOT, STAIR_TOP, UPPER_PATH, LOT_PATH, { x: 28, z: -33 }];
+      const out = [GATE_A_IN, GATE_A_OUT, MID_WALK, STAIR_BOT, STAIR_TOP, UPPER_PATH, LOT_PATH, { x: 28, z: -35 }];
       mason.path([A(-12, -3), A(10, -1.2), ...out], 1.9).call(() => {
         mason.root.visible = false;
       });
@@ -583,7 +591,17 @@ export function createHollowCreekDemo(env: DemoEnv): Demo {
 
   // 第 2 拍：董事会备忘；你把 Dale 叫上露台
   at(60, () => {
-    hud.toast('Board memo', 'Program quality has collapsed. Members are leaving. Deal with Coach Dale.', 6);
+    hud.decision(
+      {
+        topic: 'Board memo',
+        location: 'Clubhouse',
+        headline: 'Program quality has collapsed. Members are leaving. Deal with Coach Dale.',
+        note: 'This demo story follows answer 1.',
+      },
+      [{ text: 'Call Dale up to the deck' }, { text: 'Give him one more week' }, { text: 'Let it slide · quality −3' }],
+      1,
+      3,
+    );
     hud.log('Board memo: "Fix the lesson program."', true);
   });
   at(63, () => {
@@ -594,7 +612,7 @@ export function createHollowCreekDemo(env: DemoEnv): Demo {
       you.gesture('wave', tt, 2.4);
       at(tt + 2.4, (t2) => summon(t2));
     });
-    focusOn(() => ({ x: -8, z: -13, zoom: 1.5 }));
+    focusOn(() => ({ x: (ANCHORS.deck.x + FA.ox) / 2, z: (ANCHORS.deck.z + FA.oz) / 2, zoom: 1.5 }));
   });
   function summon(t: number) {
     lesson.active = false;
@@ -608,28 +626,23 @@ export function createHollowCreekDemo(env: DemoEnv): Demo {
     tyler.base = 'relaxed';
     tyler.watch = dale;
     dale.path(
-      [
-        A(10, -1.2),
-        GATE_A_IN,
-        GATE_A_OUT,
-        MID_WALK,
-        STAIR_BOT,
-        STAIR_TOP,
-        { x: -2.6, z: -18.6 },
-        { x: -5.4, z: -18.8 },
-      ],
+      [A(10, -1.2), GATE_A_IN, GATE_A_OUT, MID_WALK, STAIR_BOT, STAIR_TOP, ANCHORS.deck_approach, ANCHORS.deck_meet],
       1.7,
     );
     dale.call((tt) => firing(tt));
-    you.go(-6.6, -19.1, 1.2);
-    focusOn(() => ({ x: dale.pos.x * 0.7 - 3, z: dale.pos.z * 0.7 - 6, zoom: 1.6 }));
+    you.go(ANCHORS.director_meet.x, ANCHORS.director_meet.z, 1.2);
+    focusOn(() => ({
+      x: lerp(dale.pos.x, ANCHORS.deck_meet.x, 0.3),
+      z: lerp(dale.pos.z, ANCHORS.deck_meet.z, 0.3),
+      zoom: 1.6,
+    }));
   }
 
   // 第 3 拍：在俯瞰球场的露台上开除他
   function firing(t: number) {
     you.watch = dale;
     dale.watch = you;
-    focusOn(() => ({ x: -6, z: -18.6, zoom: 2.3 }));
+    focusOn(() => ({ x: ANCHORS.deck_meet.x - 0.6, z: ANCHORS.deck_meet.z + 0.2, zoom: 2.3 }));
     labels.say(you, 'Parents are walking out, Dale.', 2.6, t);
     you.gesture('talk', t, 2.4);
     at(t + 2.8, (tt) => labels.say(dale, "It's a rec club. What did you expect?", 2.6, tt));
@@ -645,6 +658,15 @@ export function createHollowCreekDemo(env: DemoEnv): Demo {
       hud.hitQ(-2);
       hud.log('Coach Dale Pruitt was let go.', true);
       hud.setVacantCoach();
+      hud.news(
+        {
+          topic: 'Staff',
+          location: 'Clubhouse deck',
+          headline: 'Coach Dale Pruitt was let go',
+          body: 'The head coach job is now vacant.',
+        },
+        5,
+      );
       rain.start();
     });
     at(t + 8.8, (tt) => {
@@ -657,7 +679,7 @@ export function createHollowCreekDemo(env: DemoEnv): Demo {
       if (dale.boxMesh) dale.boxMesh.visible = true;
       dale.base = 'carry';
       dale.watch = null;
-      dale.path([{ x: -2, z: -19.6 }, UPPER_PATH, LOT_PATH, { x: 26.5, z: -28.4 }], 2.2).call((t3) => driveOff(t3));
+      dale.path([ANCHORS.deck_approach, UPPER_PATH, LOT_PATH, { x: 26.5, z: -30 }], 2.2).call((t3) => driveOff(t3));
       focusOn(() => ({ x: dale.pos.x, z: dale.pos.z, zoom: 1.6 }));
       tyler.watch = null;
       const lw = lesson.balls.filter((b) => b.inUse && b.owner === lesson);
@@ -678,12 +700,12 @@ export function createHollowCreekDemo(env: DemoEnv): Demo {
       c.scare(t + 1 + i * 0.2);
     });
     hud.log('Dale drove off. Nobody waved.');
-    focusOn(() => ({ x: daleCar.g.position.x - 6, z: Math.min(daleCar.g.position.z, 30), zoom: 1.3 }));
+    focusOn(() => ({ x: Math.min(daleCar.g.position.x, 48), z: daleCar.g.position.z + 6, zoom: 1.3 }));
     at(t + 9, (tt) => {
       const bev = pbCast[0] as PBPerson;
       bev.gesture('wave', tt, 2.4);
       labels.say(bev, 'Hey! Is Court 1 free now?', 3, tt, 'pk');
-      focusOn(() => ({ x: 2, z: -8, zoom: 1.3 }));
+      focusOn(() => ({ x: (FA.ox + FB.ox) / 2, z: FA.oz - 2, zoom: 1.3 }));
     });
     at(t + 12.5, (tt) => {
       you.watch = null;
@@ -691,14 +713,17 @@ export function createHollowCreekDemo(env: DemoEnv): Demo {
       labels.say(you, '...Back to square one.', 3, tt);
     });
     at(t + 15, () => {
-      hud.toast(
-        'Stage 2',
-        "Dale is gone, and the pickleball group wants Court 1 too. Your job: rebuild Hollow Creek's tennis program.",
+      hud.news(
+        {
+          topic: 'Stage 2',
+          location: 'Hollow Creek TC',
+          headline: 'Dale is gone, and the pickleball group wants Court 1 too.',
+          body: "Your job: rebuild Hollow Creek's tennis program.",
+          action: { label: 'Replay scene', id: 'replay' },
+        },
         0,
-        true,
       );
       S.ended = true;
-      hud.showReplay();
       focusOn(() => ({ x: env.home.tx, z: env.home.tz, zoom: env.home.zoom }));
     });
     at(t + 19, () => focusOn(null));
