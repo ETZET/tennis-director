@@ -76,6 +76,11 @@ const page = await browser.newPage(
 );
 const errors = [];
 page.on('pageerror', (e) => errors.push(String(e)));
+page.on('crash', () => console.error('page crashed'));
+page.on('close', () => console.error('page closed'));
+page.on('console', (m) => {
+  if (m.type() === 'error') errors.push(m.text());
+});
 
 async function open(seed) {
   await page.goto(`${base}?seed=${seed}&new&lang=${LANG}`);
