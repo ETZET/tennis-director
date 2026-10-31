@@ -14,20 +14,24 @@ interface Label {
   until?: number;
   /** 每帧刷新内容（场地编号牌的状态） */
   refresh?: () => void;
+  /** 牌子画在锚点上方多少像素（中间一根竖线连到场地上） */
+  lift?: number;
 }
 
 export interface CourtStatus {
   text: string;
-  /** 开着的场地是亮黄编号，关着的是灰色 */
-  open: boolean;
+  /** open：亮黄编号；rented：琥珀色（租出去了，不算可用的网球场）；closed：灰色 */
+  state: 'open' | 'rented' | 'closed';
 }
 
 export class LabelLayer {
   private readonly labels: Label[] = [];
   private readonly pv = new THREE.Vector3();
   show = true;
-  /** 远景：场地编号牌只留编号方块，"你"的牌子收起来 */
+  /** 远景：场地编号牌只留编号方块 */
   compact = false;
+  /** 近景：场地看得清楚，编号牌收起来，不挡人 */
+  hideMarkers = false;
   /** 界面面板的屏幕矩形：编号牌落在面板下面就不画，免得透过面板露出来 */
   occluders: () => readonly DOMRect[] = () => [];
 
@@ -61,15 +65,15 @@ export class LabelLayer {
     let last = '';
     const refresh = () => {
       const s = status();
-      const key = `${s.open}|${s.text}`;
+      const key = `${s.state}|${s.text}`;
       if (key === last) return;
       last = key;
-      el.className = `lbl mk${s.open ? '' : ' off'}`;
+      el.className = `lbl mk mk-${s.state}`;
       txt.textContent = s.text;
       el.setAttribute('aria-label', `Court ${n}: ${s.text}`);
     };
     refresh();
-    const l: Label = { el, get, kind: 'lbl', refresh };
+    const l: Label = { el, get, kind: 'lbl', refresh, lift: 26 };
     this.labels.push(l);
     return l;
   }
@@ -107,20 +111,25 @@ export class LabelLayer {
         l.el.hidden = true;
         continue;
       }
+      if (l.refresh && this.hideMarkers) {
+        l.el.hidden = true;
+        continue;
+      }
       l.refresh?.();
       const p = l.get();
       this.pv.set(p.x, p.y, p.z).project(this.cam);
       const x = (this.pv.x * 0.5 + 0.5) * W;
       const y = (-this.pv.y * 0.5 + 0.5) * H;
+      const lift = l.lift ?? 0;
       let off = x < -100 || x > W + 100 || y < -40 || y > H + 40;
-      // 编号牌的锚点在牌子底边中间；牌子大约 140×24
+      // 编号牌的锚点在竖线底端；牌子大约 140×24，画在锚点上方 lift 像素
       if (!off && l.kind === 'lbl')
-        off = occ.some((r) => x + 70 > r.left && x - 70 < r.right && y > r.top && y - 26 < r.bottom);
+        off = occ.some((r) => x + 70 > r.left && x - 70 < r.right && y > r.top && y - lift - 26 < r.bottom);
       l.el.hidden = off;
       if (!off)
         l.el.style.transform =
           `translate(${Math.round(x)}px,${Math.round(y)}px) translate(-50%,-100%)` +
-          (l.kind === 'say' ? ' translateY(-10px)' : '');
+          (l.kind === 'say' ? ' translateY(-10px)' : lift ? ` translateY(-${lift}px)` : '');
     }
   }
 }

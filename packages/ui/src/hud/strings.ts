@@ -12,7 +12,6 @@ export const STR = {
   paused: 'Paused',
   notYet: 'Not yet',
   failZone: 'Grade F below 40',
-  chartEmpty: 'Session just started',
   qualityChart: 'Program quality this session',
   headCoach: 'Head coach',
   vacant: 'Vacant',

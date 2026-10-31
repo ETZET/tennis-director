@@ -24,7 +24,7 @@ export interface RainLighting {
 export function createRain(stage: Stage, lighting: RainLighting, n = 800): Rain {
   const rr = (a: number, b: number) => range(Math.random, a, b);
   const mesh = new THREE.InstancedMesh(
-    boxGeo(0.06, 0.9, 0.06),
+    boxGeo(0.07, 1.6, 0.07),
     new THREE.MeshBasicMaterial({ color: '#e2eaef', transparent: true, opacity: 0 }),
     n,
   );

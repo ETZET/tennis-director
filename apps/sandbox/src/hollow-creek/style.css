@@ -28,8 +28,10 @@ body{background:var(--sky);color:var(--navy);font-family:var(--f-text);overflow:
 .mk{display:flex;align-items:stretch;height:24px;font:700 13px/1 var(--f-cond);letter-spacing:.04em;text-transform:uppercase;box-shadow:0 2px 6px rgba(15,31,58,.3)}
 .mk-n{width:24px;display:flex;align-items:center;justify-content:center;background:var(--optic);color:var(--navy);font-size:15px}
 .mk-t{padding:0 8px;display:flex;align-items:center;background:var(--panel);color:var(--paper)}
-.mk.off .mk-n{background:var(--closed);color:var(--paper)}
-.mk.off .mk-t{background:rgba(15,31,58,.7);color:var(--closed-ink)}
+.mk::after{content:"";position:absolute;left:50%;top:100%;width:2px;height:26px;margin-left:-1px;background:var(--navy);opacity:.75}
+.mk-rented .mk-n{background:#e3b21a}
+.mk-closed .mk-n{background:var(--closed);color:var(--paper)}
+.mk-closed .mk-t{background:rgba(15,31,58,.7);color:var(--closed-ink)}
 .lbl.you{height:22px;padding:0 8px;display:flex;align-items:center;background:var(--green);color:var(--paper);font:800 12px/1 var(--f-cond);letter-spacing:.1em;text-transform:uppercase;box-shadow:0 2px 6px rgba(15,31,58,.3)}
 
 /* 对话气泡 */
@@ -40,4 +42,4 @@ body{background:var(--sky);color:var(--navy);font-family:var(--f-text);overflow:
 .say::after{content:"";position:absolute;left:50%;bottom:-7px;width:12px;height:7px;margin-left:-6px;background:#ffffff;clip-path:polygon(0 0,100% 0,50% 100%)}
 .lbl[hidden],.say[hidden]{display:none!important}
 /* 远景：只留编号方块 */
-#labels.compact .mk-t,#labels.compact .lbl.you{display:none}
+#labels.compact .mk-t{display:none}

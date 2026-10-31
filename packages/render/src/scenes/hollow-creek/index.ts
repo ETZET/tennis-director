@@ -45,7 +45,7 @@ export const HOLLOW_CREEK_CAMERA: Record<'overview', CameraPose> = {
 };
 
 /** 竖屏手机：岛铺满屏幕宽度。 */
-export const HOLLOW_CREEK_CAMERA_PORTRAIT: CameraPose = { yaw: -0.62, pitch: 0.66, zoom: 0.46, tx: -3, tz: 5 };
+export const HOLLOW_CREEK_CAMERA_PORTRAIT: CameraPose = { yaw: -0.62, pitch: 0.66, zoom: 0.56, tx: -7, tz: 8 };
 
 /** 最远能拉到看见整座浮空岛、岛底和四周的云。 */
 export const HOLLOW_CREEK_CAMERA_LIMITS: OrbitLimits = {

@@ -92,11 +92,12 @@ export function createIslandSky(scene: THREE.Object3D, o: IslandSkyOptions): Isl
     scene.add(g);
     chunks.push({ g, y0: y, phase: R(0, Math.PI * 2) });
   };
-  addChunk(x0 - 16, -4, cz - hz * 0.55, 4, true);
-  addChunk(x0 - 26, -14, cz + hz * 0.25, 2.6);
-  addChunk(x1 + 18, -8, cz - hz * 0.3, 3.2);
-  addChunk(cx + hx * 0.25, -20, z1 + 24, 3.6);
-  addChunk(cx - hx * 0.5, -10, z0 - 20, 2.8);
+  // 比岛小得多、离岛远一点，只是点缀
+  addChunk(x0 - 20, -6, cz - hz * 0.4, 2.8, true);
+  addChunk(x0 - 30, -16, cz + hz * 0.3, 1.8);
+  addChunk(x1 + 22, -10, cz - hz * 0.2, 2.2);
+  addChunk(cx + hx * 0.3, -24, z1 + 26, 2.5);
+  addChunk(cx - hx * 0.4, -12, z0 - 24, 2);
 
   const tmp = new THREE.Color();
   return {

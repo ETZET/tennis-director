@@ -17,7 +17,15 @@ function ScoreBug({ club, paused }: { club: HudSnapshot['club']; paused: boolean
         {club.badge}
       </span>
       <h1 class="td-bug-name">{club.name}</h1>
-      <span class={`td-bug-clock${paused ? ' td-paused' : ''}`}>{paused ? STR.paused : club.clock}</span>
+      <span class={`td-bug-clock${paused ? ' td-paused' : ''}`} title={paused ? STR.paused : undefined}>
+        {paused ? (
+          <>
+            <span class="td-pause-mark" aria-hidden="true" />
+            <span class="td-sr">{STR.paused}</span>
+          </>
+        ) : null}
+        {club.clock}
+      </span>
     </header>
   );
 }
@@ -40,6 +48,8 @@ function Spark({ history }: { history: readonly number[] }) {
   const H = 64;
   const y = (v: number) => H - 4 - (v / 100) * (H - 8);
   const pct = (v: number) => `${(y(v) / H) * 100}%`;
+  const pts = sparkPoints(history, W, H);
+  const last = pts.split(' ').pop()?.split(',').map(Number) ?? [0, 0];
   return (
     <div class="td-chart">
       <div class="td-chart-plot">
@@ -54,12 +64,15 @@ function Spark({ history }: { history: readonly number[] }) {
           {[40, 55, 70].map((v) => (
             <line key={v} x1="0" x2={W} y1={y(v)} y2={y(v)} class="td-spark-grid" />
           ))}
-          <polyline points={sparkPoints(history, W, H)} class="td-spark-line" />
+          <polyline points={pts} class="td-spark-line" />
         </svg>
+        <span
+          class="td-chart-dot"
+          style={{ left: `${((last[0] ?? 0) / W) * 100}%`, top: `${((last[1] ?? 0) / H) * 100}%` }}
+        />
         <span class="td-chart-zone" style={{ top: pct(40) }}>
           {STR.failZone}
         </span>
-        {history.length < 3 ? <span class="td-chart-empty">{STR.chartEmpty}</span> : null}
       </div>
       <div class="td-chart-axis" aria-hidden="true">
         {[100, 50, 0].map((v) => (

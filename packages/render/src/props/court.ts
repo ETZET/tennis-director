@@ -253,6 +253,9 @@ export function pen(
         m.rotation.order = 'YXZ';
         m.rotation.y = fr.a + s.ry;
         if (pl) m.rotation.x = 0.9;
+        // 朝外的法线（世界坐标）：相机这一侧的网片可以整片隐藏，场地不再像隔着一层玻璃
+        const ln = s.ax === 'x' ? { x: 0, z: Math.sign(s.k) } : { x: Math.sign(s.k), z: 0 };
+        m.userData.fenceNormal = { x: ln.x * fr.c + ln.z * fr.s, z: -ln.x * fr.s + ln.z * fr.c };
         ctx.scene.add(m);
       }
       for (const [yy, miss] of [

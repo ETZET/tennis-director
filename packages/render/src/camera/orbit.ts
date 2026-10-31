@@ -34,6 +34,12 @@ export class OrbitCamera {
   readonly target: CameraPose;
   readonly smooth: CameraPose;
   followStory = true;
+  /**
+   * 画面底部被界面挡住的高度（像素），例如下三分之一的事件卡。
+   * 相机把画面中心往上让一半，剧情镜头的焦点落在没被挡住的那块里。
+   */
+  occludedBottomPx = 0;
+  private shiftPx = 0;
   private lastUser = -1e9;
 
   constructor(
@@ -63,8 +69,9 @@ export class OrbitCamera {
     const vh = Math.max(46, 74 / asp) / this.smooth.zoom;
     cam.left = (-vh * asp) / 2;
     cam.right = (vh * asp) / 2;
-    cam.top = vh / 2;
-    cam.bottom = -vh / 2;
+    const shift = (this.shiftPx / H) * vh;
+    cam.top = vh / 2 - shift;
+    cam.bottom = -vh / 2 - shift;
     const R = 220;
     const cp = Math.cos(this.smooth.pitch);
     const s = this.smooth;
@@ -198,6 +205,7 @@ export class OrbitCamera {
     }
     const k = 1 - Math.exp(-dt * (this.followStory && focus ? 2.6 : 9));
     for (const key of KEYS) this.smooth[key] = lerp(this.smooth[key], this.target[key], k);
+    this.shiftPx = lerp(this.shiftPx, this.occludedBottomPx / 2, 1 - Math.exp(-dt * 6));
     this.apply();
   }
 }

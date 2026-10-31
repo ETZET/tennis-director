@@ -617,7 +617,8 @@ function creek(ctx: BuildContext): void {
   const { solid, flat } = ctx;
   for (let x = ISLAND.x0 - 2; x < ISLAND.x1 + 2; x += 1) {
     const cz = creekZ(x + 0.5);
-    for (let dz = -1.5; dz <= 1.5; dz += 1) flat.box(x + 0.5, 0, cz + dz, 1, 0.02, 1, jit(ctx, '#4c666b', 0.04));
+    for (let dz = -1.5; dz <= 1.5; dz += 1)
+      flat.box(x + 0.5, 0, cz + dz, 1, 0.02, 1, jit(ctx, Math.abs(dz) > 1 ? '#7fa9bd' : '#4f7f96', 0.04));
     flat.box(x + 0.5, 0, cz - 2.5, 1, 0.03, 1, jit(ctx, '#5b4b3a', 0.05));
     flat.box(x + 0.5, 0, cz + 2.5, 1, 0.03, 1, jit(ctx, '#5b4b3a', 0.05));
     if (ctx.rand() < 0.25)
@@ -649,12 +650,12 @@ function creek(ctx: BuildContext): void {
   const fz = creekZ(bx);
   for (let z = fz - 3.4; z < fz + 3.4; z += 0.4) {
     if (Math.abs(z - fz - 0.6) < 0.21) continue;
-    solid.box(bx, 0.3, z, 1.8, 0.08, 0.34, jit(ctx, '#7a6650', 0.05));
+    solid.box(bx, 0.3, z, 2.2, 0.1, 0.34, jit(ctx, '#b89a6a', 0.05));
   }
   for (const s of [-0.95, 0.95])
     for (let z = fz - 3.2; z <= fz + 3.2; z += 1.6)
-      solid.box(bx + s, 0.3, z, 0.08, 0.9, 0.08, '#5d4c3c', 0, 0, s > 0 && z > fz ? 0.5 : 0);
-  solid.box(bx - 0.95, 1.15, fz, 0.08, 0.08, 6.6, '#5d4c3c');
+      solid.box(bx + s * 1.1, 0.3, z, 0.14, 0.9, 0.14, '#8a6e4c', 0, 0, s > 0 && z > fz ? 0.5 : 0);
+  solid.box(bx - 1.1, 1.15, fz, 0.14, 0.14, 6.6, '#8a6e4c');
   // 碎石小路，断断续续：楼梯脚 → 桥；桥 → 南岸两块场地之间
   for (let z = ZL + 3.6; z < fz - 3.4; z += 1) {
     if (ctx.rand() < 0.2) continue;

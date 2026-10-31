@@ -513,10 +513,11 @@ export function createHollowCreekDemo(env: DemoEnv): Demo {
 
   /* ---------- 场地编号牌（转播风格：亮黄是开着的场地，灰色是关着的） ---------- */
   const FL = (fr: typeof FA, x: number, y: number, z: number) => () => fr.w({ x, y, z });
-  labels.court(1, () => ({ text: lesson.active ? 'Lesson' : 'No coach', open: true }), FL(FA, 0, 3.4, -FA.hz));
-  labels.court(2, () => ({ text: 'Pickleball', open: true }), FL(FB, 0, 3.4, -FB.hz));
-  labels.court(3, () => ({ text: 'Closed', open: false }), FL(FC, 0, 3.4, -FC.hz));
-  labels.court(4, () => ({ text: 'Closed', open: false }), FL(FD, 0, 3.4, -FD.hz));
+  // 锚在场地中心，牌子画在上方，一根竖线连到场地
+  labels.court(1, () => ({ text: lesson.active ? 'Lesson' : 'No coach', state: 'open' }), FL(FA, 0, 0, 0));
+  labels.court(2, () => ({ text: 'Rented · pickleball', state: 'rented' }), FL(FB, 0, 0, 0));
+  labels.court(3, () => ({ text: 'Closed', state: 'closed' }), FL(FC, 0, 0, 0));
+  labels.court(4, () => ({ text: 'Closed', state: 'closed' }), FL(FD, 0, 0, 0));
   labels.tag('You', () => ({ x: you.pos.x, y: you.root.position.y + 3.2, z: you.pos.z }), 'you');
 
   /* ---------- 剧情 ---------- */

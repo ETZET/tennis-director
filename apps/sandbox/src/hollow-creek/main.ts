@@ -1,6 +1,7 @@
 import { BallPool, createStage, hollowCreek, OrbitCamera, type PeopleWorld, Scheduler } from '@td/render';
 import { clamp } from '@td/shared';
 import { mountHud } from '@td/ui';
+import type * as THREE from 'three';
 import { Hud } from './hud';
 import { LabelLayer } from './labels';
 import { createHollowCreekDemo } from './story';
@@ -87,6 +88,18 @@ window.addEventListener('keydown', (e) => {
   }
 });
 
+/* ---------- 围网：朝相机那一侧的网片隐藏，场地不像隔着一层玻璃 ---------- */
+const fenceBays: { m: THREE.Object3D; nx: number; nz: number }[] = [];
+stage.scene.traverse((o) => {
+  const n = o.userData.fenceNormal as { x: number; z: number } | undefined;
+  if (n) fenceBays.push({ m: o, nx: n.x, nz: n.z });
+});
+function cutAwayNearFences() {
+  const dx = Math.sin(camera.smooth.yaw);
+  const dz = Math.cos(camera.smooth.yaw);
+  for (const b of fenceBays) b.m.visible = b.nx * dx + b.nz * dz < 0.3;
+}
+
 /* ---------- 主循环 ---------- */
 let last = performance.now();
 let uiT = 0;
@@ -101,8 +114,14 @@ function frame(ts: number) {
   camera.update(dt, demo.focus());
   demo.updateRain(sdt, camera.smooth.tx, camera.smooth.tz);
   stage.renderer.render(stage.scene, stage.cam);
-  // 一米不到 4 个像素时，编号牌只留编号
-  labels.compact = container.clientHeight / (stage.cam.top - stage.cam.bottom) < 4;
+  // 一米不到 4 个像素时，编号牌只留编号；近到一米 30 个像素以上就收起来
+  const pxPerM = container.clientHeight / (stage.cam.top - stage.cam.bottom);
+  labels.compact = pxPerM < 4;
+  labels.hideMarkers = pxPerM > 30;
+  cutAwayNearFences();
+  // 事件卡挡住画面下部时，相机把焦点抬到卡片上方
+  const card = document.querySelector('.td-card');
+  camera.occludedBottomPx = card ? container.clientHeight - card.getBoundingClientRect().top : 0;
   labels.place(container.clientWidth, container.clientHeight);
   uiT += dt;
   if (uiT > 0.25) {
