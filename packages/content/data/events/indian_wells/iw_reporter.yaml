@@ -1,0 +1,23 @@
+# The Desert Sun 的记者听说有人在修这座废弃的园区，想来写一篇。
+id: iw_reporter
+act: indian_wells
+source: threshold
+tone: relief
+once: true
+countdown: 1d
+when: { expr: "restored >= 3" }
+location: plaza
+who: reporter
+options:
+  A:
+    # 亲自带他转两个小时，再请他吃顿午饭：报道写得很好
+    errand: { at: plaza, for: 2h }
+    cost: 60
+    effects:
+      - { stat: reputation, add: 6 }
+      - { stat: members, add: 3 }
+  B:
+    # 发一段声明：省时间，报道很短
+    effects:
+      - { stat: reputation, add: 2 }
+default: { then: B }

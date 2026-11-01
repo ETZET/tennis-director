@@ -100,6 +100,13 @@ export const MIGRATIONS: Record<number, Migration> = {
     state.version = 4;
     return { ...save, version: 4, state };
   },
+  // 4 → 5（单一地图，2026-11-01）：三幕去掉了，跨幕继承（「谁跟我走」）也去掉
+  4: (save) => {
+    const state = { ...(save.state as Record<string, unknown>) };
+    delete state.legacy;
+    state.version = 5;
+    return { ...save, version: 5, state };
+  },
 };
 
 export class SaveError extends Error {}

@@ -1,0 +1,16 @@
+# Stadium 3 重新铺场地、修看台：挖出来以后的第二步。
+id: st3_court
+act: indian_wells
+at: stadium_3
+skill: upkeep
+work: 8h
+cost: 2400
+crew: 3
+once: true
+when: { facility: stadium_3, is: dug }
+restore: 60
+effects:
+  - { facility: stadium_3, set: open }
+  - { stat: reputation, add: 4 }
+  - { log: log.stadium_3_open }
+performance: contractor

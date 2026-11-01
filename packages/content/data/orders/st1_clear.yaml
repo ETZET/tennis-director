@@ -1,0 +1,14 @@
+# 清理 Stadium 1：搬走塌下来的东南角、扫场地。Stadium 2 开了以后才排得上。
+id: st1_clear
+act: indian_wells
+at: stadium_1
+skill: upkeep
+work: 30h
+cost: 2000
+crew: 6
+once: true
+when: { all: [{ facility: stadium_1, is: ruined }, { facility: stadium_2, is: open }] }
+restore: 30
+effects:
+  - { facility: stadium_1, set: cleared }
+performance: workday

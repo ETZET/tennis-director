@@ -1,0 +1,20 @@
+# 第 13 周：投资方来看进度。只剩三周了——带他们去看修好的地方，还是先把手上的活干完？
+id: iw_investor_check
+act: indian_wells
+source: calendar
+tone: crisis
+pause: true
+countdown: 4h
+location: entrance
+who: investors
+options:
+  A:
+    # 亲自带他们转：花总监半天，看到的越多越放心（声望）
+    errand: { at: entrance, for: 3h }
+    effects:
+      - { stat: reputation, add: "restored * 1.5" }
+  B:
+    # 让他们自己看：省时间
+    effects:
+      - { stat: reputation, add: -2 }
+default: { then: B }

@@ -1,0 +1,14 @@
+# 外场 1 · 下午的课：工作日 15–19 点，放学的孩子和下班的人。收入看教学能力和会员规模。
+id: o1_lesson
+act: indian_wells
+at: outer_1
+skill: teach
+cycle: 1h
+hours: [15, 19]
+days: [0, 1, 2, 3, 4]
+when: { any: [{ facility: outer_1, is: playable }, { facility: outer_1, is: resurfaced }] }
+effects:
+  - { stat: cash, add: "round(8 * (0.6 + worker.skill / 100) * clamp(0.5 + stat.members / 30, 0.5, 2))" }
+  - { stat: reputation, add: 0.02 }
+wear: 1
+performance: lesson

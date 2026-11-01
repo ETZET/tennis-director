@@ -1,0 +1,8 @@
+# 喷泉又堵了
+id: pz_tidy
+act: indian_wells
+at: plaza
+skill: upkeep
+work: 2h
+when: { all: [{ facility: plaza, is: open }, { expr: "condition.plaza < 40" }] }
+restore: 35

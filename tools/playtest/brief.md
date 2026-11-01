@@ -1,28 +1,30 @@
-# Playtest review brief · Tennis Director, Act 1 (Hollow Creek) · staffing loop, phone
+# Playtest review brief · Tennis Director, Indian Wells · staffing loop, phone
 
 You are an independent playtester. You have NOT worked on this game. Judge only what a player sees.
 
 ## The game in one paragraph
-Phone-first management sim (portrait, 390×844). You are the new director of a failing community tennis club. Act 1
-runs six weeks, late summer → early autumn; at the end (day 42) the board votes whether to keep the club.
+Phone-first management sim (portrait, 390×844). You are the new director of the Indian Wells Tennis Garden, which has
+been abandoned for ten years. The investors give you sixteen weeks (day 112): repair the garden place by place and hold
+an exhibition in the rebuilt Stadium 1 to win. Run out of time or money and the gates close again.
 Day-to-day play is about **hiring people and putting them where they're needed**:
 - **Your people**: a strip of faces along the bottom. At the start it's only you (the director) and Coach Dale. You
   are a worker too. Tap a face to pick them up, then tap a marker in the scene; or press and drag the face onto it.
-- **Posts** (round markers): ongoing spots like Court 1's junior lesson, the deck host in the morning, upkeep. A post
+- **Posts** (round markers): ongoing spots like Court 1's court desk, afternoon lessons, upkeep. A post
   earns a little every round while someone is on it, but only during its hours (morning regulars, after-school kids,
   after-work adults). Pulling someone off mid-round loses that round.
-- **Jobs** (⚒ markers): one-off work on a problem — weeds, cracks, the collapsed bubble. Some cost materials. Several
-  people can work together; pulling people off keeps the progress.
-- **Places**: each place on the island has one marker (its name, the posts that need someone, and a ⚒ count). Tap it
+- **Jobs** (⚒ markers): one-off work on a problem — sand on a court, a missing net, a collapsed stand. Some cost
+  materials. Several people can work together; pulling people off keeps the progress. Repairing a place opens its posts
+  and the next repair.
+- **Places**: each place in the garden has one marker (its name, the posts that need someone, and a ⚒ count). Tap it
   for the place's list of posts and jobs; drop a person on it and they take the only job that fits, or you choose
   from the list. Locked jobs show what to fix first.
 - **Routines**: people remember the posts you put them on and walk to their next shift on their own when their
   post closes or a job ends.
-- **Upkeep**: places nobody looks after slowly wear down (weeds, leaves), first on screen, then in the numbers.
+- **Upkeep**: places nobody looks after slowly wear down (sand, cracks), first on screen, then in the numbers.
   Members and reputation settle each Sunday on the week's **service rate** (how much of the demand someone covered).
 - **Hiring days** and other events are occasional cards with a countdown and 1–3 options; some options send the
   director away for a while (he leaves his post). Ignored cards resolve by default.
-- Weather and seasons change; rain closes outdoor courts; autumn brings more leaves.
+- Weather and seasons change; wind blows sand onto the courts; spring is the windy season.
 
 ## Rules for you
 - Do NOT read the game's source code or content files (no `packages/`, `apps/`, YAML). Play through the bridge only.
@@ -82,7 +84,7 @@ sense on a 390-wide screen.
 | Pacing | Dead time vs. overload across a 6-week act |
 | Player agency | Placing people on your own initiative feels like the core; you're not just waiting for cards |
 | Idle & living world | Doing nothing keeps the club stable while the world visibly moves (tenet 6) |
-| Tension arc | Pressure builds toward the board vote; comebacks possible |
+| Tension arc | Pressure builds toward the investors' deadline; comebacks possible |
 | Replay value | Different seeds / hires / styles give different stories and endings |
 | Onboarding | Without instructions, the first 2 real minutes make sense |
 | Phone UX | Layout, touch targets, legibility, the pick-up / drag / tap flows at 390×844 |

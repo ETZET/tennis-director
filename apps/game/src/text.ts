@@ -63,8 +63,6 @@ export function createText(content: ContentBundle, lang: Lang): Text {
         return `${personName(e.person)} ${tr(`ui.attr.${e.attr}`, e.attr)} ${signed(e.delta)}`;
       case 'text':
         return tr(e.key);
-      case 'follow':
-        return zh ? `${personName(e.person)} 跟你走` : `${personName(e.person)} comes with you`;
       case 'end':
         return tr(`endings.${e.ending}.title`);
       case 'activity':
@@ -169,9 +167,8 @@ export function entryTone(e: CausalEntry): 'bad' | 'good' | undefined {
   let bad = 0;
   for (const x of e.effects) {
     if (x.kind === 'stat') {
-      const sign = x.stat === 'pickleball_pressure' ? -1 : 1;
-      if (x.delta * sign > 0) good++;
-      else if (x.delta * sign < 0) bad++;
+      if (x.delta > 0) good++;
+      else if (x.delta < 0) bad++;
     }
     if (x.kind === 'end') return x.result === 'won' ? 'good' : 'bad';
   }

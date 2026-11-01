@@ -1,0 +1,12 @@
+# 广场 · 午餐摊：11–14 点，打完球的人在棚子下面吃饭。
+id: pz_food
+act: indian_wells
+at: plaza
+skill: service
+cycle: 1h
+hours: [11, 14]
+when: { facility: plaza, is: open }
+effects:
+  - { stat: cash, add: "round(7 * (0.6 + worker.skill / 100) * clamp(0.5 + stat.members / 40, 0.5, 2))" }
+  - { stat: reputation, add: 0.01 }
+wear: 0.5

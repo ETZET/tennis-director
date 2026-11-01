@@ -1,0 +1,8 @@
+# 广场 · 维护：清喷泉、擦桌子、扫沙
+id: pz_upkeep
+act: indian_wells
+at: plaza
+skill: upkeep
+cycle: 1h
+when: { facility: plaza, is: open }
+restore: 4

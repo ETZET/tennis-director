@@ -1,0 +1,23 @@
+# 第二个招聘日：两周后又来了两个人，一个教练，一个干活很利索的老师傅。
+id: iw_hiring_day_2
+act: indian_wells
+source: consequence
+tone: relief
+pause: true
+countdown: 1d
+location: clubhouse
+who: applicants
+options:
+  A:
+    effects:
+      - { hire: jess_park }
+      - { schedule: iw_hiring_day_3, in: 14d }
+  B:
+    effects:
+      - { hire: gus_moreno }
+      - { schedule: iw_hiring_day_3, in: 14d }
+  C:
+    effects:
+      - { log: log.no_hire }
+      - { schedule: iw_hiring_day_3, in: 14d }
+default: { then: C }

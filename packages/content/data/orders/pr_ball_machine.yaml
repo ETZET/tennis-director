@@ -1,0 +1,13 @@
+# 修好仓库里那台旧发球机（开局 Dale 说起的那台）：学院的课从此扎实一截。
+id: pr_ball_machine
+act: indian_wells
+at: practice
+skill: upkeep
+work: 3h
+cost: 250
+crew: 1
+once: true
+when: { all: [{ facility: practice, is: open }, { flag: ball_machine_kept }, { not: { flag: ball_machine } }] }
+effects:
+  - { flag: ball_machine, set: true }
+  - { log: log.ball_machine }

@@ -1,9 +1,0 @@
-# 开放日（最后的机会那张卡）：把能请的人都请来，给董事会看人气。
-id: open_house
-duration: 4h
-anchor: court_1
-performance: open_day
-effects:
-  - { stat: members, add: "round(2 + stat.quality / 20 + rand() * 3)" }
-  - { stat: reputation, add: 3 }
-  - { flag: open_house_held, set: true }

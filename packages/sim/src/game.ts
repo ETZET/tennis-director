@@ -64,7 +64,6 @@ export function newGame(content: ContentBundle, o: NewGameOptions): GameState {
     weather: 'sun',
     flags: {},
     log: [],
-    legacy: [],
     outcome: null,
     nextUid: 1,
   };

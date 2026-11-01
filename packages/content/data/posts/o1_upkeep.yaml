@@ -1,0 +1,8 @@
+# 外场 1 · 维护：扫沙、补线、收球。随时可以干，不算需求；没人干，场地按天变旧。
+id: o1_upkeep
+act: indian_wells
+at: outer_1
+skill: upkeep
+cycle: 1h
+when: { any: [{ facility: outer_1, is: playable }, { facility: outer_1, is: resurfaced }] }
+restore: 4

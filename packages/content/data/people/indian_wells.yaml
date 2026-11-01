@@ -1,0 +1,25 @@
+# Indian Wells 的人物。director 是总监本人；candidate 是招聘日能招来的人（hire_as：教练或员工）。
+# skill = 教学，upkeep = 维护，service = 服务（ADR 0012）。总监没有士气（核心玩法决定），能力随干活慢慢涨。
+- { id: director, name: Director, role: director, skill: 30, upkeep: 35, service: 40, morale: 100 }
+# Dale：园区关门以后一直守在这里的老教练。开局不开除（核心玩法决定）。
+- { id: dale, name: Dale Pruitt, role: coach, skill: 45, upkeep: 40, service: 20, morale: 55, wage_week: 150 }
+# 招聘日的候选人
+- { id: rosa_ortiz, name: Rosa Ortiz, role: candidate, hire_as: staff, skill: 5, upkeep: 65, service: 30, morale: 70, wage_week: 180 }
+- { id: ben_kim, name: Ben Kim, role: candidate, hire_as: staff, skill: 25, upkeep: 20, service: 60, morale: 80, wage_week: 140 }
+- { id: jess_park, name: Jess Park, role: candidate, hire_as: coach, skill: 58, service: 40, morale: 85, wage_week: 260, traits: [eager] }
+- { id: gus_moreno, name: Gus Moreno, role: candidate, hire_as: staff, skill: 10, upkeep: 78, service: 15, morale: 55, wage_week: 240, traits: [burnt_out] }
+- { id: lily_chen, name: Lily Chen, role: candidate, hire_as: staff, skill: 30, upkeep: 15, service: 74, morale: 75, wage_week: 220 }
+- {
+    id: walt_hendricks,
+    name: Walt Hendricks,
+    role: candidate,
+    hire_as: coach,
+    skill: 70,
+    upkeep: 30,
+    service: 20,
+    morale: 40,
+    wage_week: 420,
+    traits: [burnt_out],
+  }
+- { id: marco_ruiz, name: Marco Ruiz, role: candidate, hire_as: staff, skill: 20, upkeep: 60, service: 50, morale: 70, wage_week: 230 }
+- { id: nadia_volkov, name: Nadia Volkov, role: candidate, hire_as: coach, skill: 86, service: 55, morale: 70, wage_week: 900, traits: [star] }

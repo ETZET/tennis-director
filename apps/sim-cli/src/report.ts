@@ -3,7 +3,7 @@ import { cautiousBot, greedyBot, idleBot, type RunResult, randomBot, replay, run
 
 /**
  * 机器人跑局报告：平衡工具。
- * 例如"第一幕贪心机器人通关率 92%"说明太简单；"某张卡在 1000 局里从未出现"说明前置条件写错了。
+ * 例如"贪心机器人通关率 92%"说明太简单；"某张卡在 1000 局里从未出现"说明前置条件写错了。
  */
 
 export interface BotSummary {
@@ -58,13 +58,13 @@ export function botReport(
       winRate: 0,
       endings: {},
       avgDays: 0,
-      avg: { quality: 0, members: 0, reputation: 0, cash: 0, board_support: 0 },
+      avg: { quality: 0, members: 0, reputation: 0, cash: 0, restoration: 0 },
       stuck: 0,
       msPerGame: 0,
     };
     for (let i = 0; i < o.games; i++) {
       const seed = (o.seed0 ?? 1) + i;
-      const r = runGame(content, BOTS[name](seed), seed, { act, director, maxDays: 60 });
+      const r = runGame(content, BOTS[name](seed), seed, { act, director, maxDays: 120 });
       total++;
       if (r.outcome?.result === 'won') sum.wins++;
       const ending = r.outcome?.ending ?? '(none)';
@@ -97,12 +97,12 @@ export function reportMarkdown(r: Report): string {
   lines.push(`# 机器人跑局报告 · ${r.act}`, '');
   lines.push(`导演 ${r.director} · 内容版本 ${r.contentVersion} · 共 ${r.games} 局`, '');
   lines.push(
-    '| 机器人 | 局数 | 通关率 | 平均天数 | 卡死 | 平均质量 | 平均会员 | 平均声望 | 平均现金 | 董事会信心 | 每局耗时 |',
+    '| 机器人 | 局数 | 通关率 | 平均天数 | 卡死 | 平均质量 | 平均会员 | 平均声望 | 平均现金 | 平均复原 | 每局耗时 |',
   );
   lines.push('| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |');
   for (const b of r.bots)
     lines.push(
-      `| ${b.bot} | ${b.games} | ${pct(b.winRate)} | ${b.avgDays.toFixed(1)} | ${b.stuck} | ${b.avg.quality?.toFixed(1)} | ${b.avg.members?.toFixed(1)} | ${b.avg.reputation?.toFixed(1)} | $${Math.round(b.avg.cash ?? 0)} | ${b.avg.board_support?.toFixed(0)} | ${b.msPerGame.toFixed(1)} ms |`,
+      `| ${b.bot} | ${b.games} | ${pct(b.winRate)} | ${b.avgDays.toFixed(1)} | ${b.stuck} | ${b.avg.quality?.toFixed(1)} | ${b.avg.members?.toFixed(1)} | ${b.avg.reputation?.toFixed(1)} | $${Math.round(b.avg.cash ?? 0)} | ${b.avg.restoration?.toFixed(1)}/8 | ${b.msPerGame.toFixed(1)} ms |`,
     );
   lines.push('', '## 结局分布', '');
   for (const b of r.bots)

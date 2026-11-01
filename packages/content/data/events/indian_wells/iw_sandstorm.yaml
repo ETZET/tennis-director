@@ -1,0 +1,27 @@
+# 起风了：沙子正往外场里灌。现在带人去把场地盖上，还是等风停了再扫？
+id: iw_sandstorm
+act: indian_wells
+source: random
+tone: crisis
+cooldown: 5d
+max_shown: 4
+countdown: 2h
+when:
+  all:
+    - { weather: wind }
+    - { any: [{ facility: outer_1, is: playable }, { facility: outer_1, is: resurfaced }] }
+location: outer_1
+who: dale
+options:
+  A:
+    # 总监亲自去盖：一个小时，场地保住了
+    errand: { at: outer_1, for: 1h }
+    effects:
+      - { log: log.sand_covered }
+  B:
+    # 不管：外场全进沙
+    effects:
+      - { condition: outer_1, add: -25 }
+      - { condition: outer_23, add: -20, if: { facility: outer_23, is: playable } }
+      - { condition: practice, add: -15, if: { facility: practice, is: open } }
+default: { then: B }

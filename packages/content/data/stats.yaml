@@ -4,6 +4,5 @@
 - { id: reputation, min: 0, max: 100, display: number, act: all }
 - { id: quality, min: 0, max: 100, display: grade, act: all }
 - { id: members, min: 0, max: 500, display: number, act: all }
-- { id: pickleball_pressure, min: 0, max: 100, display: number, act: hollow_creek }
-- { id: board_support, min: 0, max: 100, display: number, act: hollow_creek }
 - { id: service, min: 0, max: 100, display: number, act: all }
+- { id: restoration, min: 0, max: 8, display: number, act: indian_wells }

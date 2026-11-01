@@ -1,0 +1,8 @@
+# Stadium 2 又积沙了
+id: st2_tidy
+act: indian_wells
+at: stadium_2
+skill: upkeep
+work: 3h
+when: { all: [{ facility: stadium_2, is: open }, { expr: "condition.stadium_2 < 40" }] }
+restore: 35

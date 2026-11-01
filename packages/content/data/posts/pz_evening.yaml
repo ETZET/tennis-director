@@ -1,0 +1,13 @@
+# 广场 · 周末晚上：周四到周日 17–20 点，喷泉边的小聚会。
+id: pz_evening
+act: indian_wells
+at: plaza
+skill: service
+cycle: 1h
+hours: [17, 20]
+days: [3, 4, 5, 6]
+when: { facility: plaza, is: open }
+effects:
+  - { stat: cash, add: "round(8 * (0.6 + worker.skill / 100) * clamp(0.5 + stat.members / 40, 0.5, 2))" }
+  - { stat: members, add: 1, chance: 0.04 }
+wear: 0.5

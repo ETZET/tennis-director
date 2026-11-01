@@ -1,0 +1,12 @@
+# 会所 · 前台：接电话、办会员卡、给人指路。有人在前台，来问的人才会留下来。
+id: ch_desk
+act: indian_wells
+at: clubhouse
+skill: service
+cycle: 1h
+hours: [8, 18]
+when: { facility: clubhouse, is: open }
+effects:
+  - { stat: cash, add: "round(2 * (0.6 + worker.skill / 100))" }
+  - { stat: members, add: 1, chance: "0.03 + worker.skill / 2000" }
+  - { stat: reputation, add: 0.01 }

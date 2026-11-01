@@ -337,6 +337,8 @@ function grow(ctx: Ctx, person: string, k: SkillKind): void {
   const v = Math.min(cap, before + w.act.rules.director_growth);
   if (k === 'teach') p.skill = v;
   else p[k] = v;
+  if (Math.floor(v / 10) > Math.floor(before / 10))
+    ctx.events.push({ type: 'directorGrew', skill: k, value: Math.floor(v / 10) * 10 });
 }
 
 function finishCycle(ctx: Ctx, post: Post, person: string): void {

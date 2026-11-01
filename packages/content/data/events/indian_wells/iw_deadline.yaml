@@ -1,0 +1,14 @@
+# 第 16 周最后一天：投资方给的期限到了。还没办成表演赛，修复就停了。
+id: iw_deadline
+act: indian_wells
+source: calendar
+tone: crisis
+pause: true
+countdown: 1h
+location: entrance
+who: investors
+options:
+  A:
+    effects:
+      - { endAct: lost, ending: deadline }
+default: { then: A }

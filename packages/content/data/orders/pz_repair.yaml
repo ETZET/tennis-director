@@ -1,0 +1,15 @@
+# 修广场：通喷泉、把餐饮棚的屋顶架回去。会所开了以后才排得上。
+id: pz_repair
+act: indian_wells
+at: plaza
+skill: upkeep
+work: 12h
+cost: 2000
+crew: 3
+once: true
+when: { all: [{ facility: plaza, is: dry }, { facility: clubhouse, is: open }] }
+restore: 80
+effects:
+  - { facility: plaza, set: open }
+  - { stat: reputation, add: 3 }
+performance: workday

@@ -1,0 +1,13 @@
+# 扫外场 1 的沙：不花钱，两个人一个上午。开局的第一件事。
+id: o1_sweep
+act: indian_wells
+at: outer_1
+skill: upkeep
+work: 3h
+crew: 2
+once: true
+when: { facility: outer_1, is: sanded }
+restore: 30
+effects:
+  - { facility: outer_1, set: swept }
+performance: workday

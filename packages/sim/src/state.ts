@@ -6,7 +6,7 @@ import type { OptionKey } from '@td/content';
  */
 
 /** 存档格式版本；改了格式就加一个迁移函数（见 save.ts） */
-export const SAVE_VERSION = 4;
+export const SAVE_VERSION = 5;
 
 export interface PersonState {
   id: string;
@@ -86,7 +86,6 @@ export type EffectRecord =
   | { kind: 'fire'; person: string }
   | { kind: 'person'; person: string; attr: 'skill' | 'upkeep' | 'service' | 'morale' | 'fatigue'; delta: number }
   | { kind: 'text'; key: string }
-  | { kind: 'follow'; person: string }
   | { kind: 'errand'; person: string; at: string; minutes: number }
   | { kind: 'condition'; facility: string; delta: number }
   | { kind: 'end'; result: 'won' | 'lost'; ending: string };
@@ -168,8 +167,6 @@ export interface GameState {
   weather: 'sun' | 'cloud' | 'rain' | 'wind';
   flags: Record<string, boolean | number | string>;
   log: CausalEntry[];
-  /** 「谁跟我走」选中的人 */
-  legacy: string[];
   outcome: { result: 'won' | 'lost'; ending: string; t: number } | null;
   nextUid: number;
 }

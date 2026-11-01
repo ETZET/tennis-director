@@ -1,0 +1,22 @@
+# 本地一家银行看到 Stadium 3 开了，想在看台上挂一块大横幅。
+id: iw_sponsor
+act: indian_wells
+source: threshold
+tone: neutral
+once: true
+countdown: 1d
+when: { facility: stadium_3, is: open }
+location: stadium_3
+who: sponsor
+options:
+  A:
+    # 收下：一大笔钱，老会员觉得有点俗
+    effects:
+      - { stat: cash, add: 2500 }
+      - { stat: reputation, add: -2 }
+      - { flag: sponsor_banner, set: true }
+  B:
+    # 婉拒：这里不是广告牌
+    effects:
+      - { stat: reputation, add: 2 }
+default: { then: B }

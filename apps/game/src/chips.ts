@@ -7,7 +7,7 @@ import type { Text } from './text';
  * 只讲玩家看得见的东西；标记、日志这类幕后的账不出标签。
  */
 
-const LOWER_IS_BETTER = new Set(['pickleball_pressure']);
+const LOWER_IS_BETTER = new Set<string>();
 const fmtNum = (n: number) => `${n > 0 ? '+' : '−'}${Math.abs(Math.round(n * 10) / 10)}`;
 
 /** 招聘：这个人最强的两项能力和周薪（第二轮试玩 S1：招人不能是盲选） */
@@ -54,7 +54,12 @@ export function effectChips(T: Text, effs: readonly Effect[], prob = 1, people?:
           ? who
           : [{ text: T.fmt('ui.chip.hire', { name: T.personName(e.hire) }), tone: 'info' as const }]),
       );
-    } else if ('fire' in e) out.push({ text: T.fmt('ui.chip.fire', { name: T.personName(e.fire) }), tone: 'loss' });
+    } else if ('condition' in e && typeof e.add === 'number')
+      out.push({
+        text: `${T.tr(`ui.fac.${e.condition}`, e.condition)} ${T.tr('ui.condition')} ${fmtNum(e.add)}`,
+        tone: e.add > 0 ? 'gain' : 'loss',
+      });
+    else if ('fire' in e) out.push({ text: T.fmt('ui.chip.fire', { name: T.personName(e.fire) }), tone: 'loss' });
     else if ('person' in e)
       for (const [attr, v] of Object.entries(e.add)) {
         if (v === undefined) continue;

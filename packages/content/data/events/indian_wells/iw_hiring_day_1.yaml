@@ -1,0 +1,26 @@
+# 第一个招聘日：会所前台开张了，门口贴了告示，来了两个人。工资每周扣。
+id: iw_hiring_day_1
+act: indian_wells
+source: threshold
+tone: relief
+once: true
+pause: true
+countdown: 1d
+when: { facility: clubhouse, is: open }
+location: clubhouse
+who: applicants
+options:
+  A:
+    effects:
+      - { hire: rosa_ortiz }
+      - { schedule: iw_hiring_day_2, in: 14d }
+  B:
+    effects:
+      - { hire: ben_kim }
+      - { schedule: iw_hiring_day_2, in: 14d }
+  C:
+    # 不招：省下工资，活还是你和 Dale 两个人干
+    effects:
+      - { log: log.no_hire }
+      - { schedule: iw_hiring_day_2, in: 14d }
+default: { then: C }

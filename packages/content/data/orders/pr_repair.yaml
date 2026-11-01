@@ -1,0 +1,15 @@
+# 修练习场：两块并排的场地，围网倒了一半。外场 2–3 修好以后才排得上。
+id: pr_repair
+act: indian_wells
+at: practice
+skill: upkeep
+work: 10h
+cost: 800
+crew: 3
+once: true
+when: { all: [{ facility: practice, is: ruined }, { facility: outer_23, is: playable }] }
+restore: 80
+effects:
+  - { facility: practice, set: open }
+  - { stat: reputation, add: 2 }
+performance: workday

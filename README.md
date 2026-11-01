@@ -2,7 +2,7 @@
 
 浏览器上的 3D 体素网球中心经营模拟。你是一家网球中心的总监：事件推着时间走，你决定先处理哪件事、走到哪里去。
 
-## 当前进度：M3 完成，第一幕可以完整玩一遍
+## 当前进度：主游戏迁到 Indian Wells（整局一张地图，开局废弃），P0 和 P1 完成
 
 | 里程碑 | 内容 | 状态 |
 | --- | --- | --- |
@@ -10,6 +10,7 @@
 | M1 | 模拟核心：时钟、状态、命令、事件引擎和导演、存档迁移、sim-cli（ADR 0007） | 完成 · 1000 局确定性闸口通过 |
 | M2 | 第一幕纵切片：`apps/game` 把模拟、画面、界面接起来；总监走位、因果日志、活动演出、自动存档（ADR 0008） | 完成 · 等试玩 |
 | M3 | 内容热重载、调试面板、内容校验、机器人跑局报告和平衡（ADR 0009） | 完成 · 不写代码加卡的示范见 `docs/content-guide.md` |
+| IW | 整局只在废弃的 Indian Wells Tennis Garden：修一处开一处、招聘日、16 周期限、表演赛通关；画面先用灰盒（ADR 0015、0016） | P0、P1 完成 · 精细场景待做（`docs/design/indian-wells-migration.md`） |
 
 ## 目录
 
@@ -21,7 +22,7 @@ packages/
   render/    three.js：体素批处理、场地坐标系、人物、球、演出原子动作、相机、场景
   ui/        Preact 界面：场边转播 HUD（记分牌、状态条、事件卡、俱乐部快讯）、调试面板
 apps/
-  game/      正式游戏：第一幕
+  game/      正式游戏：Indian Wells
   sandbox/   场景查看器和活动动画库（写死的演示剧情）
   sim-cli/   命令行无头跑局：确定性闸口、机器人平衡报告
 tools/
@@ -40,7 +41,7 @@ docs/balance/  机器人跑局报告
 ```
 pnpm install
 pnpm game                # 打开游戏（开发版：` 键调试面板，改 YAML 热重载）
-pnpm dev                 # 打开 sandbox，进入 Hollow Creek 演示
+pnpm dev                 # 打开 sandbox（活动动画库）
 pnpm check               # 类型检查 + 规范 + 分层 + 测试 + 构建
 pnpm content             # 内容 YAML → JSON
 pnpm sim bots --games 1000   # 机器人跑局报告

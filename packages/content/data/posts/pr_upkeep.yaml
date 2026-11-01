@@ -1,0 +1,8 @@
+# 练习场 · 维护
+id: pr_upkeep
+act: indian_wells
+at: practice
+skill: upkeep
+cycle: 1h
+when: { facility: practice, is: open }
+restore: 4

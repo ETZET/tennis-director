@@ -9,7 +9,7 @@ import type { World } from './world';
 
 /**
  * 效果是白名单操作：改状态量、设标记、改设施、安排后续事件、开始活动、招人开人、
- * 改人的属性、写一行日志、结束本幕、「谁跟我走」。
+ * 改人的属性、改设施状况、写一行日志、结束这一局、派人办事。
  * 每次执行都写进因果日志，带着原因和引出它的上一条。
  */
 
@@ -84,7 +84,7 @@ export function applyEffects(ctx: Ctx, effects: readonly Effect[], entryId: numb
       const def = w.people.get(e.hire);
       // 招来的教练接任主教练；原来的主教练留下当员工（核心玩法决定：Dale 开局不开除）
       if (def && (def.role === 'coach' || def.hire_as === 'coach')) s.headCoach = e.hire;
-      // 新人到会所报到，等你把他拖到岗位上
+      // 新人从总监开局的地方（Indian Wells 是大门）进来，等你把他拖到岗位上
       p.at = w.act.people.find((x) => w.people.get(x.id)?.role === 'director')?.at ?? p.at;
       p.job = null;
       p.walk = null;
@@ -98,7 +98,14 @@ export function applyEffects(ctx: Ctx, effects: readonly Effect[], entryId: numb
       p.job = null;
       p.walk = null;
       p.errand = null;
-      if (s.headCoach === e.fire) s.headCoach = null;
+      // 走的是主教练：还在的教练里接一个（Dale 开局不开除，一直都在）
+      if (s.headCoach === e.fire) {
+        const next = Object.values(s.people).find((q) => {
+          const d = w.people.get(q.id);
+          return q.hired && (d?.role === 'coach' || d?.hire_as === 'coach');
+        });
+        s.headCoach = next?.id ?? null;
+      }
       out.push({ kind: 'fire', person: e.fire });
     } else if ('person' in e) {
       const p = s.people[e.person];
@@ -111,6 +118,11 @@ export function applyEffects(ctx: Ctx, effects: readonly Effect[], entryId: numb
         const delta = p[attr] - before;
         if (delta !== 0) out.push({ kind: 'person', person: e.person, attr, delta });
       }
+    } else if ('condition' in e) {
+      const before = s.condition[e.condition] ?? 100;
+      const v = clamp(before + num(s, w, e.add, ctx.vars), 0, 100);
+      s.condition[e.condition] = v;
+      if (v !== before) out.push({ kind: 'condition', facility: e.condition, delta: v - before });
     } else if ('log' in e) {
       out.push({ kind: 'text', key: e.log });
     } else if ('endAct' in e) {
@@ -118,9 +130,6 @@ export function applyEffects(ctx: Ctx, effects: readonly Effect[], entryId: numb
       s.outcome = { result: e.endAct, ending: e.ending, t: s.t };
       out.push({ kind: 'end', result: e.endAct, ending: e.ending });
       ctx.events.push({ type: 'actEnded', result: e.endAct, ending: e.ending });
-    } else if ('follow' in e) {
-      if (!s.legacy.includes(e.follow)) s.legacy.push(e.follow);
-      out.push({ kind: 'follow', person: e.follow });
     } else if ('errand' in e) {
       const m = minutes(e.for);
       if (sendErrand(ctx, e.errand, e.at, m)) out.push({ kind: 'errand', person: e.errand, at: e.at, minutes: m });

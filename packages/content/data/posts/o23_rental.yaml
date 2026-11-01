@@ -1,0 +1,13 @@
+# 外场 2–3 · 看场：两块场地，人多一点。
+id: o23_rental
+act: indian_wells
+at: outer_23
+skill: service
+cycle: 1h
+hours: [8, 17]
+when: { facility: outer_23, is: playable }
+effects:
+  - { stat: cash, add: "round(5 * (0.6 + worker.skill / 100) * (1 + stat.reputation / 120))" }
+  - { stat: members, add: 1, chance: 0.04 }
+wear: 0.8
+performance: open_play

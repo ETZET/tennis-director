@@ -1,0 +1,9 @@
+# 会所又漏了：屋顶、空调、水管，总有一样
+id: ch_fix
+act: indian_wells
+at: clubhouse
+skill: upkeep
+work: 3h
+cost: 80
+when: { all: [{ facility: clubhouse, is: open }, { expr: "condition.clubhouse < 40" }] }
+restore: 40

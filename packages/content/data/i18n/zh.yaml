@@ -4,360 +4,189 @@ stats:
   reputation: 声望
   quality: 项目质量
   members: 会员
-  pickleball_pressure: 匹克球压力
-  board_support: 董事会信心
   service: 服务率
+  restoration: 复原
 
 anchors:
-  deck: 会所露台
-  court_1: 1 号场
-  court_2: 2 号场
-  bubble_court: 气膜场
-  clay_court: 红土场
-  lot: 停车场
-  pool: 泳池
-  creek_bridge: 人行桥
+  entrance: 大门
+  parking: 停车场
+  plaza: 广场
+  clubhouse: 会所
+  stadium_1: Stadium 1
+  stadium_2: Stadium 2
+  stadium_3: Stadium 3
+  practice: 练习场
+  outer_1: 外场 1
+  outer_23: 外场 2–3
 
 facilities:
-  court_1: { worn: 1 号场 · 开裂, repaired: 1 号场 · 修好了 }
-  court_2: { rented_pickleball: 2 号场 · 租给匹克球, shared: 2 号场 · 分时段, tennis: 2 号场 · 收回打网球 }
-  bubble: { collapsed: 气膜 · 塌了, inflated: 气膜 · 充起来了 }
-  clay: { overgrown: 红土场 · 长满杂草, restored: 红土场 · 救回来了 }
-  pool: { open: 泳池 · 开放, drained: 泳池 · 已放水 }
-
-activities:
-  contractor: { title: 外包施工队在红土场 }
-  tug_of_war: { title: 和匹克球队拔河 }
-  match_strong: { title: 社区对抗赛 vs 松冠俱乐部 }
-  match_juniors: { title: 社区对抗赛 vs 松冠俱乐部（青少年上场） }
-  open_house: { title: 开放日 }
+  outer_1: { sanded: 外场 1 · 被沙埋了, swept: 外场 1 · 扫出来了, playable: 外场 1 · 能打了, resurfaced: 外场 1 · 新铺的 }
+  outer_23: { ruined: 外场 2–3 · 围网倒了, playable: 外场 2–3 · 修好了 }
+  practice: { ruined: 练习场 · 废弃, open: 练习场 · 开放 }
+  clubhouse: { ruined: 会所 · 屋顶漏了, open: 会所 · 前台开张 }
+  plaza: { dry: 广场 · 喷泉干了, open: 广场 · 喷泉又有水了 }
+  stadium_3: { buried: Stadium 3 · 被沙填满, dug: Stadium 3 · 挖出来了, open: Stadium 3 · 开放 }
+  stadium_2: { ruined: Stadium 2 · 破败, open: Stadium 2 · 开放 }
+  stadium_1: { ruined: Stadium 1 · 东南角塌了, cleared: Stadium 1 · 清理干净, restored: Stadium 1 · 重建完成 }
 
 endings:
-  saved_with_coach:
-    title: 霍洛溪保住了
-    body: 董事会投票保留俱乐部。枫岭高中发来聘书，你的教练跟你一起走。
-  saved_with_kid:
-    title: 霍洛溪保住了
-    body: 董事会投票保留俱乐部。枫岭高中请你去带网球队，Mason 也考进了枫岭。
-  saved_alone:
-    title: 霍洛溪保住了
-    body: 董事会投票保留俱乐部。你一个人去了枫岭高中。
-  club_sold:
-    title: 俱乐部被卖了
-    body: 董事会投票出售。停车场的出售牌没摘下来，霍洛溪月底关门。
-  sold_to_developer:
-    title: 卖给了开发商
-    body: 你收了钱。到明年春天，这些球场会变成联排别墅。
+  exhibition:
+    title: 表演赛办成了
+    body: 十年来第一次，Stadium 1 的看台上坐满了人。Indian Wells 又活过来了。
+  deadline:
+    title: 期限到了
+    body: 投资方给的十六周到了，表演赛还没办成。修复停了，大门又锁上了。
   bankrupt:
     title: 钱花光了
-    body: 俱乐部发不出工资，银行接管，本幕结束。
+    body: 园区发不出工资，投资方叫停了修复。大门又锁上了。
 
 events:
-  hc_dale_phone:
-    topic: 教学
-    title: Dale 在青少年课上玩手机
-    body: Tyler 把球一个个打进围网，Mason 坐在场地上发呆。Dale 已经十分钟没抬头了。
+  iw_investor_check:
+    title: 投资方来看进度
+    body: 投资方的人站在大门口。离他们给的期限只剩三周了。
     options:
-      A: 去 1 号场当面跟他说
-      B: 在露台上给他发短信 · 质量 +1，声望 −1
-      C: 算了 · 质量 −3，Dale 记你的好
-  hc_parent_complaint:
-    topic: 会员
-    title: Carter 女士要找你谈课程的事
-    body: “我儿子交的是课时费，不是托管费。”她就站在 1 号场门口。
+      A: 我亲自带你们转
+      B: 你们自己随便看
+  iw_deadline:
+    title: 期限到了
+    body: 十六周到了。投资方的人把一份文件放在会所的桌子上。
     options:
-      A: 退这周的课时费 · −$60
-      B: 保证会改 · 董事会会更早来问
-      C: 站在教练一边 · 会员 −2，声望 −3，Dale 会更上心
-  hc_board_memo:
-    topic: 董事会备忘
-    title: 董事会要你给课程一个说法
-    body: 项目质量崩了，会员在流失。Dale 还在上课，董事会要你今天拿出办法。
+      A: 交出钥匙
+  iw_arrival:
+    title: 仓库里的发球机
+    body: Dale 带你转了一圈。"十年了，没人在这儿打过一个球。"仓库角落里还有一台旧发球机。
     options:
-      A: 再招一位教练 · 多一份工资，Dale 不高兴
-      B: 再给 Dale 一次机会，你去 1 号场盯着他
-  hc_dale_relapse:
-    topic: 教学
-    title: Dale 又在看手机了
-    body: 再给一次机会只撑了一天。孩子们在拿球互相打。
+      A: 留着，以后修好给学院用
+      B: 卖掉，先换点钱
+  iw_first_players:
+    title: 第一批客人
+    body: 两位从 Palm Desert 来的退休老人站在外场 1 门口，问能不能打一场。
     options:
-      A: 再招一位教练接课 · Dale 知道自己被替了
-      B: 扣他工资 · +$175，Dale 闹情绪
-      C: 你自己下场把课上完
-  hc_hire_coach:
-    topic: 人事
-    title: 再招一位教练
-    body: 三个人回了招聘启事。新教练接主教练，Dale 留下来。你选的人，以后可能跟你去下一站。
+      A: 头一周免费
+      B: 照价收
+  iw_sandstorm:
+    title: 起风了
+    body: 风卷着沙往外场里灌，Dale 在对讲机里喊：要不要现在去把场地盖上？
     options:
-      A: Jess Park · 热血新人，每周 $250
-      B: Walt Hendricks · 疲惫的老手，每周 $420
-      C: Nadia Volkov · 前职业球员，每周 $900，签约费 $600
-  hc_discover_kid:
-    topic: 天赋
-    title: Mason 的挥拍是天生的
-    body: 在 Dale 课上坐在地上发呆的那个孩子，刚刚连着打了三个干净的反手。
+      A: 我亲自去盖
+      B: 等风停了再说
+  iw_reporter:
+    title: The Desert Sun 来了
+    body: 一位记者听说有人在修这座废弃的园区，想来写一篇报道。
     options:
-      A: 出钱给他上私教课 · −$200
-      B: 告诉他父母他有天赋 · 他们会等着你安排
-      C: 先不声张
-  hc_pickleball_lease:
-    topic: 匹克球
-    title: 匹克球那帮人想签一整年的租约
-    body: 他们先付 $800，把 2 号场包一整年。网球会员不太高兴。
+      A: 亲自带他转两个小时，请他吃午饭
+      B: 发一段声明
+  iw_sponsor:
+    title: 银行的横幅
+    body: 本地一家银行看到 Stadium 3 开了，想在看台上挂一块大横幅，出价不低。
     options:
-      A: 签约 · +$800，会员抱怨
-      B: 把 2 号场收回来打网球
-      C: 提议分时段（走到 2 号场去谈，成败看声望）
-  hc_pickleball_rant:
-    topic: 匹克球
-    title: 匹克球那帮人在社区群里吐槽你
-    body: “霍洛溪不欢迎新人。”帖子底下已经四十条回复。
+      A: 收下
+      B: 婉拒
+  iw_dale_story:
+    title: 最后一届比赛
+    body: Stadium 2 修好的那天晚上，Dale 说起园区关门前的最后一届比赛，他那年坐在裁判椅上。
     options:
-      A: 心平气和地回一帖（成败看声望）
-      B: 请他们来打一场友谊赛
-      C: 把他们踢出群 · 老会员叫好
-  hc_tug_of_war:
-    topic: 社区
-    title: 匹克球队向你们发起拔河挑战
-    body: 输的一方请喝柠檬水。网球这边从来没赢过。
+      A: 表演赛那天请你坐裁判椅
+      B: 你先歇几天
+  iw_hiring_day_1:
+    title: 第一个招聘日
+    body: 会所门口贴了告示，来了两个人。招了就每周付工资。
     options:
-      A: 派青少年上 · 他们少上一节课
-      B: 你亲自上（走到 2 号场）
-      C: 婉拒 · 课照常上
-  hc_developer_visit:
-    topic: 报价
-    title: 开发商想买下这块地
-    body: 整块地 210 万美元。他说要盖联排别墅。董事会会同意的。
+      A: 招 Rosa（维护好手）
+      B: 招 Ben（会招呼人）
+      C: 这次不招
+  iw_hiring_day_2:
+    title: 第二个招聘日
+    body: 两周后又来了两个人：一位教练，一位干活很利索的老师傅。
     options:
-      A: 接受 · 本幕结束
-      B: 拒绝
-      C: 说要考虑一下
-  hc_developer_return:
-    topic: 报价
-    title: 开发商带着最后报价回来了
-    body: 一样的价钱，有明确的期限。这是他最后一次开口。
+      A: 招 Jess（教练）
+      B: 招 Gus（维护老手）
+      C: 这次不招
+  iw_hiring_day_3:
+    title: 第三个招聘日
+    body: 园区有点名气了，来的人水平也高了。
     options:
-      A: 接受 · 本幕结束
-      B: 彻底拒绝
-  hc_crow_ball:
-    topic: 1 号场
-    title: 一只乌鸦从球筐里叼走了一个球
-    body: 它站在围网柱子上，一脸得意。孩子们乐坏了。
+      A: 招 Lily（服务一流）
+      B: 招 Walt（老教练）
+      C: 这次不招
+  iw_hiring_day_4:
+    title: 第四个招聘日
+    body: 一位前职业球员听说了这里，想来当主教练；还有一个什么都会一点的年轻人。
     options:
-      A: 和孩子们一起笑 · 声望 +1，课停了一会儿
-      B: 给球筐加个盖 · −$40
-      C: 不管
-  hc_rival_flyer:
-    topic: 对手
-    title: 松冠把招生传单贴到了我们的围网上
-    body: "「真正的教练，真正的场地，首月八折。」已经有三位家长拍了照。"
-    options:
-      A: 换成我们自己的传单
-      B: 打电话去松冠抗议
-      C: 随它去
-  hc_board_chair:
-    topic: 董事会
-    title: 董事会主席要来俱乐部看看
-    body: 她中午到露台。离表决还有一半时间，她想知道你这套办法管不管用。
-    options:
-      A: 亲自带她转一圈（在露台；成败看董事会信心）
-      B: 把数字发邮件给她 · 声望 −1
-      C: 开口要钱要时间 · +$600，董事会会不耐烦
-  hc_last_chance:
-    topic: 董事会
-    title: 一位董事想拉你一把
-    body: “表决形势不妙。要么让他们看到点什么，要么给他们一个承诺。”
-    options:
-      A: 这周末办开放日 · −$300
-      B: 立军令状：三天内质量回到 50 以上
-      C: 谢过他，照原样做
-  hc_turnaround_check:
-    topic: 董事会
-    title: 三天到了
-    body: 董事会来看你有没有兑现承诺：质量要回到 50 以上。
-    options:
-      A: 去见董事会
-  hc_storm_tree:
-    topic: 天气
-    title: 暴风雨把一棵树刮倒在 1 号场的围网上
-    body: 树枝横在底线上，围网塌了进去。这样没法上课。
-    options:
-      A: 马上请人清走 · −$450
-      B: 叫会员一起来清（走到 1 号场，成败看声望）
-      C: 先把 1 号场关了 · 场地又坏了
-  hc_crow_lid:
-    topic: 1 号场
-    title: 乌鸦学会了开盖子
-    body: 它用嘴把盖子掀开，叼走一个球就飞。孩子们在给乌鸦加油。
-    options:
-      A: 让孩子们给它起个名字 · 声望 +2
-      B: 买把挂锁 · −$25
-      C: 不管
-  hc_rival_van:
-    topic: 对手
-    title: 松冠把试训车开进了我们的停车场
-    body: 免费试拍，打八折。我们的会员去球场得从车旁边走过。
-    options:
-      A: 当面请他们离开（走到停车场）
-      B: 在旁边摆我们自己的桌子 · −$120
-      C: 随它去
-  hc_mason_parents:
-    topic: 天赋
-    title: Mason 的父母问什么时候开始正经练
-    body: “你说他有天赋。那接下来呢？”
-    options:
-      A: 请专业教练上私教课 · −$200
-      B: 让主教练多带带他 · 课会受点影响
-      C: 还不是时候 · 声望 −3
-  hc_member_saturday:
-    topic: 会员
-    title: 一位老会员拦住你，说起周六上午的场地
-    body: “周六 9 点到 11 点一直是打网球的，现在成了匹克球。”
-    options:
-      A: 把周六上午还给网球 · 匹克球那边会更不满
-      B: 请他喝杯咖啡慢慢聊（在露台）· −$10
-      C: 敷衍过去
-  hc_volunteer_coach:
-    topic: 会员
-    title: 一位退休会员想周末来帮忙带课
-    body: 他四十年前打过大学校队，正手还在。
-    options:
-      A: 欢迎他上场
-      B: 请他帮忙招生
-      C: 客气地谢绝
-  hc_double_booked:
-    topic: 预约
-    title: 1 号场上午约重了
-    body: 两位网球老会员和四个打匹克球的人拿着同一个时段站在门口。
-    options:
-      A: 给网球老会员 · 匹克球那边更不满
-      B: 给打匹克球的人
-      C: 过去当面协调（走到 1 号场）
-  hc_pool_closes:
-    topic: 换季
-    title: 泳池该关了
-    body: 夜里开始凉了。多开一周要花点钱，但家长们很喜欢。
-    options:
-      A: 按时关
-      B: 再开一周 · −$60
-  hc_pool_closes_late:
-    topic: 换季
-    title: 多开的那一周过去了
-    body: 最后几个游泳的人在收毛巾。
-    options:
-      A: 关掉泳池
-  hc_storm_leak:
-    topic: 天气
-    title: 会所屋顶漏雨
-    body: 雨水从奖杯柜上方漏下来，会员们在搬椅子。
-    options:
-      A: 把屋顶彻底补好 · −$250
-      B: 摆几个桶接着 · 质量 −2，声望 −1
-      C: 今天会所关门 · 会员 −1
-  hc_community_match:
-    topic: 比赛日
-    title: 社区对抗赛 vs 松冠俱乐部
-    body: 松冠是山谷对面那家俱乐部。董事会一半的人会来看。
-    options:
-      A: 派出最强阵容，教练带队
-      B: 让青少年上场
-      C: 弃权 · 声望 −5，孩子们休息
-  hc_board_vote:
-    topic: 董事会表决
-    title: 董事会就出售俱乐部投票
-    body: 亲自陈述，成败看董事会信心；让数字说话，成败看项目质量和会员。
-    options:
-      A: 亲自到露台上陈述
-      B: 让数字自己说话
-  hc_who_follows:
-    topic: 下一站
-    title: 枫岭高中请你去带他们的网球队
-    body: 你可以带一个人一起走。
-    options:
-      A: 带上你的主教练
-      B: 带上 Mason
-      C: 一个人去
-  hc_hiring_day:
-    topic: 招聘日
-    title: 两个人来应聘
-    body: 告示贴出去一周，来了两个人。人手一直不够，活总是比人多。
-    options:
-      A: Rosa Ortiz · 维护好手，每周 $180
-      B: Ben Kim · 球童，会招呼人，每周 $110
-      C: 这次不招 · 省下工资
-  hc_hiring_day_2:
-    topic: 招聘日
-    title: 入秋前的招聘日
-    body: 修好的地方越多，要守的地方越多。又有两个人来应聘。
-    options:
-      A: Gus Moreno · 老场地工，维护最强，有点累了，每周 $260
-      B: Lily Chen · 前台出身，服务最好，每周 $220
-      C: 这次不招 · 省下工资
+      A: 招 Nadia（前职业球员）
+      B: 招 Marco（多面手）
+      C: 这次不招
 
 log:
-  ball_machine: 发球机到了，课更扎实了
-  started: 你接手了霍洛溪网球俱乐部。
-  workday_thin: 只来了几个邻居，红土场还是一团糟
-  roof_fixed: 屋顶彻底补好了
-  vote_passed: 董事会投票保留俱乐部
-  vote_failed: 董事会投票出售俱乐部
-  trial_onsite: 你在 1 号场门口迎接，多来了几个人
-  match_won: 霍洛溪赢了松冠
-  match_lost: 松冠赢了比赛
-  promise_broken: 你没兑现对董事会的承诺
-  promise_kept: 你兑现了对董事会的承诺
-  tree_cleared: 树清走了，课照常上
+  started: 你来到了废弃的 Indian Wells Tennis Garden。
+  first_court: 外场 1 换上了新网：十年来第一块能打的场地
+  ball_machine: 发球机修好了，学院的课更扎实了
+  clubhouse_open: 会所前台开张了，可以开招聘日了
+  stadium_3_open: Stadium 3 又能用了
+  stadium_2_open: Stadium 2 开放了
+  stadium_1_open: Stadium 1 重建完成，可以办表演赛了
+  sand_covered: 场地盖住了，沙没灌进来
+  exhibition_flop: 表演赛冷场了：看台上稀稀拉拉，一周后再试一次
   no_hire: 这次没招人，活还是那几个人干
 
-# 界面文案（游戏 app 用）。{x} 是占位符。
 posts:
-  c1_lesson: { title: "1 号场 · 青少年课", note: "工作日 15–18 点，放学的孩子" }
-  c1_clinic: { title: "1 号场 · 成人班", note: "周一到周四 18–20 点，下班的人" }
-  c1_hitting: { title: "1 号场 · 周末陪打", note: "周末上午，老会员想找人对拉" }
-  c1_upkeep: { title: "1 号场 · 维护", note: "随时可以干；没人管就变旧" }
-  deck_host: { title: "露台 · 接待", note: "每天 8–11 点，喝咖啡的老会员" }
-  deck_social: { title: "露台 · 社交夜", note: "周四到周六 18–20 点" }
-  c2_pickleball: { title: "2 号场 · 匹克球时段", note: "收回以后，有人看场就收钱" }
-  bubble_session: { title: "气膜场 · 看场", note: "9–20 点，下雨天照常" }
-  bubble_upkeep: { title: "气膜场 · 维护", note: "查风机、擦膜、扫场" }
-  clay_lesson: { title: "红土场 · 第二个课", note: "会员到 60 以后，下午的孩子分两组" }
-  clay_session: { title: "红土场 · 周末开放", note: "会员最爱红土" }
-  clay_upkeep: { title: "红土场 · 维护", note: "拖场、洒水；红土最娇气" }
-  pool_guard: { title: "泳池 · 看护", note: "11–17 点，有人看着才能下水" }
+  o1_rental: { title: "外场 1 · 看场", note: "每天 8–15 点，附近的人来打球" }
+  o1_lesson: { title: "外场 1 · 下午的课", note: "工作日 15–19 点" }
+  o1_upkeep: { title: "外场 1 · 维护", note: "随时可以干；没人管就变旧" }
+  o23_rental: { title: "外场 2–3 · 看场", note: "每天 8–17 点，两块场地" }
+  o23_clinic: { title: "外场 2–3 · 成人班", note: "周一到周四 17–20 点" }
+  o23_upkeep: { title: "外场 2–3 · 维护", note: "随时可以干；没人管就变旧" }
+  pr_academy: { title: "练习场 · 青少年学院", note: "工作日 14–18 点" }
+  pr_weekend: { title: "练习场 · 周末开放", note: "周末 8–13 点" }
+  pr_upkeep: { title: "练习场 · 维护", note: "随时可以干；没人管就变旧" }
+  ch_desk: { title: "会所 · 前台", note: "每天 8–18 点，办卡、指路、接电话" }
+  pz_food: { title: "广场 · 午餐摊", note: "每天 11–14 点" }
+  pz_evening: { title: "广场 · 周末晚上", note: "周四到周日 17–20 点" }
+  pz_upkeep: { title: "广场 · 维护", note: "清喷泉、扫沙" }
+  st3_league: { title: "Stadium 3 · 周末联赛", note: "周末 9–17 点" }
+  st3_upkeep: { title: "Stadium 3 · 维护", note: "下沉的场地最容易积沙" }
+  st2_events: { title: "Stadium 2 · 赛事日", note: "周五到周日 10–18 点" }
+  st2_pro: { title: "Stadium 2 · 高水平训练", note: "工作日 8–12 点" }
+  st2_upkeep: { title: "Stadium 2 · 维护", note: "随时可以干；没人管就变旧" }
+  st1_upkeep: { title: "Stadium 1 · 维护", note: "表演赛之前不能再坏" }
 orders:
-  patch_court1: { title: "补裂缝", note: "材料 $300，一个下午" }
-  new_net: { title: "换球网", note: "便宜，一个人一小时" }
-  court1_sweep: { title: "清理 1 号场", note: "落叶、积水、松掉的线" }
-  clay_clear: { title: "红土场除草清树", note: "不花钱，要很多人手" }
-  clay_contractor: { title: "请施工队整红土", note: "$900，谈一小时合同" }
-  clay_weeds: { title: "红土场又长草了", note: "拔掉再压平" }
-  inflate_bubble: { title: "给气膜重新充气", note: "新风机 $2000，再要一整天人手" }
-  patch_roof: { title: "补会所屋顶", note: "不用再摆桶" }
-  fill_pothole: { title: "补停车场的坑", note: "免得再刮到车" }
-  recruit_sign: { title: "挂招生牌", note: "路口，一周一次" }
-  ball_machine: { title: "装发球机", note: "课从此好一截", locked: "先换上新球网" }
-  host_fundraiser: { title: "办募捐晚会", note: "要人张罗整个下午", locked: "先把露台屋顶补好" }
-  talk_pickleball: { title: "和匹克球那帮人聊聊", note: "成不成看声望" }
-  hit_with_tyler: { title: "陪 Tyler 打一会儿", note: "他问了一整周了" }
-  mentor_mason: { title: "单独带 Mason", note: "一对一练反手" }
-  open_day: { title: "办免费开放日", note: "几个人一起张罗两小时", locked: "先把 1 号场的裂缝补好" }
+  o1_sweep: { title: "扫外场 1 的沙", note: "不花钱，两个人一个上午" }
+  o1_net: { title: "给外场 1 换网", note: "$120，一个人一小时", locked: "先把沙扫掉" }
+  o1_resurface: { title: "外场 1 重新铺面", note: "$1100，三个人一整天", locked: "外场 1 能打以后" }
+  o1_tidy: { title: "外场 1 又积沙了", note: "扫一扫、补补线" }
+  o23_repair: { title: "修外场 2–3", note: "扶起围网、换两张网", locked: "先把外场 1 救回来" }
+  o23_tidy: { title: "外场 2–3 又积沙了", note: "扫一扫" }
+  pr_repair: { title: "修练习场", note: "两块场地，围网倒了一半", locked: "先修好外场 2–3" }
+  pr_ball_machine: { title: "修发球机", note: "学院的课从此扎实一截", locked: "练习场开放、开局留下了发球机" }
+  pr_tidy: { title: "练习场又积沙了", note: "扫一扫" }
+  ch_repair: { title: "修会所", note: "补屋顶、换窗、通水电", locked: "先把外场 1 救回来" }
+  ch_fix: { title: "会所又漏了", note: "屋顶、空调、水管" }
+  flyers: { title: "去镇上发传单", note: "一周一次" }
+  pz_repair: { title: "修广场", note: "通喷泉、架回餐饮棚", locked: "先修好会所" }
+  pz_tidy: { title: "喷泉又堵了", note: "清一清" }
+  st3_dig: { title: "把 Stadium 3 挖出来", note: "五个人干好几天", locked: "先修好练习场和会所" }
+  st3_court: { title: "Stadium 3 铺场地", note: "挖出来以后的第二步", locked: "先把沙挖出来" }
+  st3_tidy: { title: "Stadium 3 又积沙了", note: "扫一扫" }
+  st2_repair: { title: "修 Stadium 2", note: "换座位、补遮阳布、铺场地", locked: "先让 Stadium 3 开放" }
+  st2_tidy: { title: "Stadium 2 又积沙了", note: "扫一扫" }
+  st1_clear: { title: "清理 Stadium 1", note: "搬走塌下来的东南角", locked: "先让 Stadium 2 开放" }
+  st1_rebuild: { title: "重建 Stadium 1", note: "整局最大的一笔", locked: "先清理 Stadium 1" }
+  st1_exhibition: { title: "办表演赛", note: "声望 50 以上，一群人张罗一整天", locked: "Stadium 1 重建完成、声望 50 以上" }
 seasons:
-  late_summer: 夏末
-  early_autumn: 初秋
+  autumn: 秋天
+  winter: 冬天
+  spring: 春天 · 风季
 
 people:
   director: 总监
-  dale: Dale 教练
+  dale: Dale
 
 who:
-  board: { name: 董事会, role: 五位能决定卖掉俱乐部的志愿者 }
-  parents: { name: Mason 的父母, role: 话不多，心里有期待 }
-  pickleball: { name: 匹克球那帮人, role: 十二个常客，嗓门大 }
-  rival: { name: 松冠俱乐部, role: 山谷对面那家 }
-  developer: { name: Rick Dorsey, role: 地产开发商 }
-  member: { name: 一位老会员, role: 1994 年就在这儿 }
-  maple: { name: 枫岭高中, role: 体育主任 }
+  investors: { name: 投资方, role: 出钱修复园区的人 }
   applicants: { name: 应聘者, role: 看到告示来的人 }
+  retirees: { name: 两位退休老人, role: 从 Palm Desert 来 }
+  reporter: { name: The Desert Sun, role: 本地报纸的记者 }
+  sponsor: { name: 沙漠储蓄银行, role: 本地的银行 }
 roles:
   director: 总监
   coach: 主教练
@@ -373,14 +202,14 @@ ui:
     members: 会员
     courtsOpen: 开放场地
     salary: 你的薪水
-    details: 会所报告
+    details: 园区报告
     paused: 已暂停
     notYet: 还没有
     failZone: 低于 40 是 F 级
     qualityChart: 本局项目质量
     headCoach: 主教练
     vacant: 空缺
-    wire: 会所快讯
+    wire: 园区快讯
     rotateLeft: 向左转（Q）
     rotateRight: 向右转（E）
     pause: 暂停（空格）
@@ -415,18 +244,17 @@ ui:
   attr: { skill: 球技, upkeep: 维护, service: 服务, morale: 士气, fatigue: 疲劳 }
   then: "之后：{what}"
   ctx:
-    board: "董事会 {n} · {days} 天后表决"
+    restore: "复原 {n}/{total} · 还剩 {days} 天"
     cash: "现金 ${n}"
     members: "会员 {n}"
     service: "本周服务率 {n}%"
-  board: 董事会信心
-  board_short: 董事会
-  board_in: "董事会·胜算 {odds}·{days}天"
-  board_today: "董事会·胜算 {odds}·今天"
-  club: { name: 霍洛溪网球俱乐部, badge: HC }
+  restore: "复原（共 {total} 处）"
+  restore_in: "复原/{total}·还剩 {days} 天"
+  restore_today: "复原/{total}·今天到期"
+  club: { name: Indian Wells 网球园区, badge: IW }
   cash: 现金
   you: 你
-  closed: 俱乐部已关门过夜
+  closed: 园区已关门过夜
   left: "还剩 {time}"
   decided: 已决定
   hint:
@@ -444,11 +272,11 @@ ui:
   activity: "{title} · 还剩 {time}"
   end:
     again: 再来一局
-    won: 第一幕完成
-    lost: 第一幕结束
-    legacy: "跟你走的人：{names}"
+    won: 园区复活了
+    lost: 游戏结束
   skill: { teach: 教学, upkeep: 维护, service: 服务 }
-  fac: { court_1: 1 号场, court_2: 2 号场, bubble: 气膜场, clay: 红土场, pool: 泳池 }
+  fac:
+    { outer_1: 外场 1, outer_23: 外场 2–3, practice: 练习场, clubhouse: 会所, plaza: 广场, stadium_3: Stadium 3, stadium_2: Stadium 2, stadium_1: Stadium 1 }
   condition: 状况
   nobody: 没人
   errand_log: "{name}去{place}待了 {time}"
@@ -458,11 +286,10 @@ ui:
     worked: （成了）
     failed: （没成）
   wire:
+    grew: "总监的{skill}能力到 {n} 了"
     interrupted: "{name}被叫离“{post}”，这一圈白干了"
     week: "本周结算 · 服务率 {n}%"
-    board: "董事会 {n}（本周 {d}）：{why}"
     worn: "{place}状况跌到 {n}：没人维护就会掉档"
-    board_flat: 没什么变化
   status:
     empty: "{n} 个岗位有客人在等，没人管"
     covered: 此刻有客人的地方都有人
@@ -474,13 +301,6 @@ ui:
     waiting: "{what} · 等客人"
     walking: "去{what} · {time}"
     errand: "在{place}办事 · {time}"
-  terms:
-    base: 起点
-    quality: 项目质量
-    members: 会员
-    reputation: 声望
-    expectations: 期望越来越高
-    events: 事情办得怎样
   place:
     rain: 下雨，户外的这一项今天关门
     condition_low: "状况 {n} · 已经掉档，派人维护才能救回来"

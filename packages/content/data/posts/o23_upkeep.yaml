@@ -1,0 +1,8 @@
+# 外场 2–3 · 维护
+id: o23_upkeep
+act: indian_wells
+at: outer_23
+skill: upkeep
+cycle: 1h
+when: { facility: outer_23, is: playable }
+restore: 4
