@@ -68,6 +68,19 @@ function qualitySystem(ctx: Ctx): void {
 export function recomputeDerived(ctx: Ctx): void {
   const { s, w } = ctx;
   for (const [stat, src] of Object.entries(w.act.rules.derived)) setStat(ctx, stat, num(s, w, src));
+  // 拆成几项的派生量：值 = 各项之和；每项记下来给界面讲"为什么"
+  for (const [stat, terms] of Object.entries(w.act.rules.derived_terms)) {
+    const parts: Record<string, number> = {};
+    let total = 0;
+    for (const [k, src] of Object.entries(terms)) {
+      const v = num(s, w, src);
+      parts[k] = Math.round(v * 10) / 10 || 0; // -0 读档后会变成 0，统一成 0
+      total += v;
+    }
+    s.terms ??= {};
+    s.terms[stat] = parts;
+    setStat(ctx, stat, total);
+  }
 }
 
 function closeDay(ctx: Ctx): void {
@@ -100,12 +113,22 @@ function closeDay(ctx: Ctx): void {
   ];
   run(ctx, { kind: 'day', day }, null, effects);
   // 周日收盘：会员和声望按这一周的平均服务率结算过了（member_drift 里），本周清零
-  if (weekdayOf(s.t) === 6) {
-    const rate = serviceRate(s);
-    s.week = { demand: 0, served: 0, last: rate };
-    ctx.events.push({ type: 'weekSettled', serviceRate: rate });
-  }
+  const sunday = weekdayOf(s.t) === 6;
+  const rate = serviceRate(s);
+  if (sunday) s.week = { demand: 0, served: 0, last: rate };
   recomputeDerived(ctx);
+  if (sunday) {
+    // 拆成几项的派生量：这一周每项变了多少（界面说明董事会信心为什么变）
+    const terms: Record<string, { total: number; delta: Record<string, number> }> = {};
+    for (const [stat, now] of Object.entries(s.terms ?? {})) {
+      const before = s.termsWeek?.[stat] ?? {};
+      const delta: Record<string, number> = {};
+      for (const [k, v] of Object.entries(now)) delta[k] = Math.round((v - (before[k] ?? v)) * 10) / 10 || 0;
+      terms[stat] = { total: s.stats[stat] ?? 0, delta };
+    }
+    s.termsWeek = structuredClone(s.terms ?? {});
+    ctx.events.push({ type: 'weekSettled', serviceRate: rate, terms });
+  }
   ctx.events.push({ type: 'dayEnded', day });
   const lose = w.act.rules.lose_if;
   if (lose && !s.outcome && test(s, w, lose.when))

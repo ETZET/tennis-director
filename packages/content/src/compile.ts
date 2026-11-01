@@ -464,6 +464,15 @@ export function compileContent(files: Record<string, string>): CompileResult {
       if (!stats.has(k)) err(file, `rules.derived: unknown stat '${k}'`);
       checkExpr(file, v, `rules.derived.${k}`);
     }
+    for (const [k, terms] of Object.entries(a.rules.derived_terms)) {
+      if (!stats.has(k)) err(file, `rules.derived_terms: unknown stat '${k}'`);
+      if (k in a.rules.derived) err(file, `rules.derived_terms: '${k}' is also in rules.derived`);
+      for (const [t, v] of Object.entries(terms)) {
+        checkExpr(file, v, `rules.derived_terms.${k}.${t}`);
+        needText(file, `ui.terms.${t}`);
+      }
+    }
+    checkExpr(file, a.rules.vote_odds, 'rules.vote_odds');
     if (a.rules.lose_if) {
       checkCond(file, a.rules.lose_if.when, 'rules.lose_if');
       needText(file, `endings.${a.rules.lose_if.ending}.title`);

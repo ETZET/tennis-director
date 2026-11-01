@@ -6,7 +6,7 @@ import { advance, newGame, replay, stateHash, step } from './game';
 import { fromSave, SaveError, toSave } from './save';
 import { canAssign, orderStatus, postStatus } from './staff';
 import { at, dayOf, type GameState, minuteOfDay } from './state';
-import { coachAttention, facilityTotals, serviceRate, test } from './vars';
+import { coachAttention, facilityTotals, num, serviceRate, test } from './vars';
 import { shortestRoute } from './walk';
 import { worldFor } from './world';
 
@@ -205,6 +205,30 @@ describe('习惯：工单和班次（第二轮试玩 S4、S7）', () => {
     const r = advance(s, CONTENT, [], 4 * 60);
     expect(s.people.director?.job).toBe('pool_guard');
     expect(r.events.filter((e) => e.type === 'postInterrupted')).toEqual([]);
+  });
+});
+
+describe('董事会信心拆成几项（第二轮试玩 S2）', () => {
+  // 拆开以前的一条公式：拆开后数必须完全一样（平衡不变）
+  const OLD =
+    'clamp(40 + (stat.quality - 55) * 0.8 + (stat.members - 50) * 0.5 + (stat.reputation - 40) * 0.4' +
+    ' - max(0, day - 7) * 0.6 + (flag.match_won ? 8 : 0) + (flag.match_played ? 2 : 0) - (flag.pickleball_lease ? 3 : 0)' +
+    ' + (flag.chair_impressed ? 6 : 0) - (flag.chair_worried ? 6 : 0) - (flag.board_impatient ? 8 : 0)' +
+    ' + (flag.open_house_held ? 6 : 0) + (flag.turnaround_promised ? 10 : 0) - (flag.broken_promise ? 18 : 0), 0, 100)';
+  it('各项之和等于原来的公式；周日收盘报每项这一周的变化', () => {
+    const s = fresh(7);
+    const w = W();
+    const weeks: unknown[] = [];
+    for (let d = 0; d < 20 && !s.outcome; d++) {
+      const r = advance(s, CONTENT, [], 24 * 60);
+      // 收盘时算的（现在已经是第二天早上）
+      expect(s.stats.board_support).toBeCloseTo(num(s, w, OLD, { day: dayOf(s.t) - 1 }), 6);
+      const sum = Object.values(s.terms?.board_support ?? {}).reduce((a, b) => a + b, 0);
+      expect(Math.abs(sum - (s.stats.board_support ?? 0))).toBeLessThan(0.5 + (sum < 0 || sum > 100 ? 999 : 0));
+      for (const e of r.events) if (e.type === 'weekSettled') weeks.push(e.terms.board_support);
+    }
+    expect(weeks.length).toBeGreaterThanOrEqual(2);
+    expect(weeks[1]).toMatchObject({ delta: { expectations: -4.2 } });
   });
 });
 

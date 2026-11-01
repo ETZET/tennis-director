@@ -425,8 +425,8 @@ ui:
     members: "Members {n}"
     service: "Service this week {n}%"
   board: Board confidence
-  board_in: "Board · {days}d left"
-  board_today: "Board · vote today"
+  board_in: "Board · {odds} odds · {days}d"
+  board_today: "Board · {odds} odds · today"
   club: { name: Hollow Creek TC, badge: HC }
   cash: Cash
   you: You
@@ -464,6 +464,8 @@ ui:
   wire:
     interrupted: "{name} was pulled off “{post}”; that round was lost"
     week: "Week settled · service {n}%"
+    board: "Board {n} ({d} this week): {why}"
+    board_flat: little change
   status:
     empty: "{n} posts have customers waiting and nobody there"
     covered: Every busy spot has someone right now
@@ -475,6 +477,13 @@ ui:
     waiting: "{what} · waiting for customers"
     walking: "To {what} · {time}"
     errand: "Away at {place} · {time}"
+  terms:
+    base: Starting point
+    quality: Program quality
+    members: Members
+    reputation: Reputation
+    expectations: Rising expectations
+    events: How things went
   place:
     owner: "{name}'s shift · comes at {hours}"
     income: Earns money

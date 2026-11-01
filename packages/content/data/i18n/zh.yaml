@@ -420,8 +420,8 @@ ui:
     members: "会员 {n}"
     service: "本周服务率 {n}%"
   board: 董事会信心
-  board_in: "董事会 · 剩 {days} 天"
-  board_today: "董事会 · 今天表决"
+  board_in: "董事会·胜算 {odds}·{days}天"
+  board_today: "董事会·胜算 {odds}·今天"
   club: { name: 霍洛溪网球俱乐部, badge: HC }
   cash: 现金
   you: 你
@@ -459,6 +459,8 @@ ui:
   wire:
     interrupted: "{name}被叫离“{post}”，这一圈白干了"
     week: "本周结算 · 服务率 {n}%"
+    board: "董事会 {n}（本周 {d}）：{why}"
+    board_flat: 没什么变化
   status:
     empty: "{n} 个岗位有客人在等，没人管"
     covered: 此刻有客人的地方都有人
@@ -470,6 +472,13 @@ ui:
     waiting: "{what} · 等客人"
     walking: "去{what} · {time}"
     errand: "在{place}办事 · {time}"
+  terms:
+    base: 起点
+    quality: 项目质量
+    members: 会员
+    reputation: 声望
+    expectations: 期望越来越高
+    events: 事情办得怎样
   place:
     owner: "{name}的班 · {hours} 点自己来"
     income: 有收入

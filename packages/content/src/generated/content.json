@@ -1,5 +1,5 @@
 {
- "version": "db559fbf",
+ "version": "16f6f9a4",
  "stats": [
   {
    "id": "cash",
@@ -1621,9 +1621,19 @@
     "reputation_drift": "weekday == 6 ? (service_rate - 0.5) * 3 + (stat.quality - 50) / 30 : 0",
     "dues_week": 8,
     "derived": {
-     "service": "round(service_rate * 100)",
-     "board_support": "clamp(40 + (stat.quality - 55) * 0.8 + (stat.members - 50) * 0.5 + (stat.reputation - 40) * 0.4 - max(0, day - 7) * 0.6 + (flag.match_won ? 8 : 0) + (flag.match_played ? 2 : 0) - (flag.pickleball_lease ? 3 : 0) + (flag.chair_impressed ? 6 : 0) - (flag.chair_worried ? 6 : 0) - (flag.board_impatient ? 8 : 0) + (flag.open_house_held ? 6 : 0) + (flag.turnaround_promised ? 10 : 0) - (flag.broken_promise ? 18 : 0), 0, 100)"
+     "service": "round(service_rate * 100)"
     },
+    "derived_terms": {
+     "board_support": {
+      "base": "40",
+      "quality": "(stat.quality - 55) * 0.8",
+      "members": "(stat.members - 50) * 0.5",
+      "reputation": "(stat.reputation - 40) * 0.4",
+      "expectations": "-max(0, day - 7) * 0.6",
+      "events": "(flag.match_won ? 8 : 0) + (flag.match_played ? 2 : 0) - (flag.pickleball_lease ? 3 : 0) + (flag.chair_impressed ? 6 : 0) - (flag.chair_worried ? 6 : 0) - (flag.board_impatient ? 8 : 0) + (flag.open_house_held ? 6 : 0) + (flag.turnaround_promised ? 10 : 0) - (flag.broken_promise ? 18 : 0)"
+     }
+    },
+    "vote_odds": "clamp((stat.board_support - 40) / 50, 0.08, 0.85)",
     "lose_if": {
      "when": {
       "stat": "cash",
@@ -4165,8 +4175,8 @@
    "ui.ctx.members": "Members {n}",
    "ui.ctx.service": "Service this week {n}%",
    "ui.board": "Board confidence",
-   "ui.board_in": "Board · {days}d left",
-   "ui.board_today": "Board · vote today",
+   "ui.board_in": "Board · {odds} odds · {days}d",
+   "ui.board_today": "Board · {odds} odds · today",
    "ui.club.name": "Hollow Creek TC",
    "ui.club.badge": "HC",
    "ui.cash": "Cash",
@@ -4206,6 +4216,8 @@
    "ui.because.failed": " (it didn't work)",
    "ui.wire.interrupted": "{name} was pulled off “{post}”; that round was lost",
    "ui.wire.week": "Week settled · service {n}%",
+   "ui.wire.board": "Board {n} ({d} this week): {why}",
+   "ui.wire.board_flat": "little change",
    "ui.status.empty": "{n} posts have customers waiting and nobody there",
    "ui.status.covered": "Every busy spot has someone right now",
    "ui.status.quiet": "No customers waiting right now",
@@ -4215,6 +4227,12 @@
    "ui.staff.waiting": "{what} · waiting for customers",
    "ui.staff.walking": "To {what} · {time}",
    "ui.staff.errand": "Away at {place} · {time}",
+   "ui.terms.base": "Starting point",
+   "ui.terms.quality": "Program quality",
+   "ui.terms.members": "Members",
+   "ui.terms.reputation": "Reputation",
+   "ui.terms.expectations": "Rising expectations",
+   "ui.terms.events": "How things went",
    "ui.place.owner": "{name}'s shift · comes at {hours}",
    "ui.place.income": "Earns money",
    "ui.place.pick": "Send {name} to which job at {place}?",
@@ -4642,8 +4660,8 @@
    "ui.ctx.members": "会员 {n}",
    "ui.ctx.service": "本周服务率 {n}%",
    "ui.board": "董事会信心",
-   "ui.board_in": "董事会 · 剩 {days} 天",
-   "ui.board_today": "董事会 · 今天表决",
+   "ui.board_in": "董事会·胜算 {odds}·{days}天",
+   "ui.board_today": "董事会·胜算 {odds}·今天",
    "ui.club.name": "霍洛溪网球俱乐部",
    "ui.club.badge": "HC",
    "ui.cash": "现金",
@@ -4683,6 +4701,8 @@
    "ui.because.failed": "（没成）",
    "ui.wire.interrupted": "{name}被叫离“{post}”，这一圈白干了",
    "ui.wire.week": "本周结算 · 服务率 {n}%",
+   "ui.wire.board": "董事会 {n}（本周 {d}）：{why}",
+   "ui.wire.board_flat": "没什么变化",
    "ui.status.empty": "{n} 个岗位有客人在等，没人管",
    "ui.status.covered": "此刻有客人的地方都有人",
    "ui.status.quiet": "此刻没有岗位有客人",
@@ -4692,6 +4712,12 @@
    "ui.staff.waiting": "{what} · 等客人",
    "ui.staff.walking": "去{what} · {time}",
    "ui.staff.errand": "在{place}办事 · {time}",
+   "ui.terms.base": "起点",
+   "ui.terms.quality": "项目质量",
+   "ui.terms.members": "会员",
+   "ui.terms.reputation": "声望",
+   "ui.terms.expectations": "期望越来越高",
+   "ui.terms.events": "事情办得怎样",
    "ui.place.owner": "{name}的班 · {hours} 点自己来",
    "ui.place.income": "有收入",
    "ui.place.pick": "把{name}派到{place}哪一项？",

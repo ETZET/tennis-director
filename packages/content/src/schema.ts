@@ -331,6 +331,13 @@ export const act = z.strictObject({
     dues_week: z.number(),
     /** 每天收盘和开局时重算的派生状态量，例如董事会信心 */
     derived: z.record(id, z.string()).default({}),
+    /**
+     * 拆成几项的派生量（第二轮试玩 S2：董事会信心不能是黑箱）：值 = 各项之和（按状态量的范围截断）。
+     * 每项有名字（文案在 ui.terms.<名字>），界面据此说明它为什么变；周日收盘时记下每项这一周变了多少。
+     */
+    derived_terms: z.record(id, z.record(id, z.string())).default({}),
+    /** 表决把握（0..1 的表达式），HUD 上显示；应和表决卡主选项的成功率一致 */
+    vote_odds: z.string().optional(),
     /** 输掉本幕的条件（每天收盘时检查）和对应的结局 */
     lose_if: z.strictObject({ when: cond, ending: id }).optional(),
     /** 总监每干完一圈岗位或一张工单，那项能力涨多少（上限 director_skill_cap） */

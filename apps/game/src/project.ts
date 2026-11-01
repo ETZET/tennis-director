@@ -9,6 +9,7 @@ import {
   type GameState,
   minuteOfDay,
   minutes,
+  num,
   type OpenCard,
   type Order,
   optionStatus,
@@ -93,6 +94,23 @@ export class Projector {
         );
       } else if (e.type === 'weekSettled') {
         this.push(s.t, T.fmt('ui.wire.week', { n: Math.round(e.serviceRate * 100) }), e.serviceRate < 0.5);
+        // 董事会信心这一周为什么变：变得最多的几项（第二轮试玩 S2）
+        const b = e.terms.board_support;
+        if (b) {
+          const sign = (v: number) => `${v > 0 ? '+' : '−'}${Math.abs(Math.round(v))}`;
+          const why = Object.entries(b.delta)
+            .filter(([, v]) => Math.round(v) !== 0)
+            .sort((x, y) => Math.abs(y[1]) - Math.abs(x[1]))
+            .slice(0, 3)
+            .map(([k, v]) => `${T.tr(`ui.terms.${k}`)} ${sign(v)}`)
+            .join(' · ');
+          const total = Object.values(b.delta).reduce((a, v) => a + v, 0);
+          this.push(
+            s.t,
+            T.fmt('ui.wire.board', { n: Math.round(b.total), d: sign(total), why: why || T.tr('ui.wire.board_flat') }),
+            total < -2,
+          );
+        }
       }
     }
   }
@@ -178,6 +196,12 @@ export class Projector {
             ...(c < 30 ? { tone: 'bad' as const } : {}),
           };
         }),
+      // 董事会信心由哪几项组成（第二轮试玩 S2：不能是黑箱）
+      ...Object.entries(s.terms?.board_support ?? {}).map(([k, v]) => ({
+        label: `${T.tr('ui.board')} · ${T.tr(`ui.terms.${k}`)}`,
+        value: `${v > 0 && k !== 'base' ? '+' : v < 0 ? '−' : ''}${Math.abs(Math.round(v))}`,
+        ...(v < 0 ? { tone: 'bad' as const } : {}),
+      })),
     ];
 
     const story: StoryItem[] = [];
@@ -232,11 +256,15 @@ export class Projector {
       label:
         days === null || s.outcome
           ? this.text.tr('ui.board')
-          : days === 0
-            ? this.text.tr('ui.board_today')
-            : this.text.fmt('ui.board_in', { days }),
+          : this.text.fmt(days === 0 ? 'ui.board_today' : 'ui.board_in', { days, odds: this.voteOdds(s) }),
       ...(v < 40 ? { tone: 'bad' as const } : {}),
     };
+  }
+
+  /** 现在表决的话，把握有多大（百分比；幕里没写 vote_odds 时为空） */
+  private voteOdds(s: GameState): string {
+    const src = this.content.acts.find((a) => a.id === s.act)?.rules.vote_odds;
+    return src ? `${Math.round(num(s, worldOf(s, this.content), src) * 100)}%` : '';
   }
 
   /** 谁来找你：人物用名字和身份，群体用文案表里的名字 */
