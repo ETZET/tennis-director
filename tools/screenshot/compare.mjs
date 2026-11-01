@@ -16,7 +16,9 @@
  *   - 字体固定成仓库里的 DejaVu Sans（tools/screenshot/fonts）：不拦的话 HUD 文字会落到各台机器自己的
  *     后备字体（本地是 Inter，GitHub 的 Ubuntu 是 DejaVu），同一份代码在不同机器上差 1.3%。
  *     浏览器用一份自带的 fontconfig（只认这个目录、抗锯齿和微调写死），不读系统的 /etc/fonts：
- *     同一个字体文件在不同的系统设置下栅格化出来也不一样（又差 0.7%），canvas 里画的字也走这里
+ *     同一个字体文件在不同的系统设置下栅格化出来也不一样，canvas 里画的字也走这里
+ *   - --font-render-hinting=none：这个开关的默认值随机器变。GitHub 的 Ubuntu 上字宽被对齐到整数像素
+ *     （"135.00" 对本地的 "134.22"），HUD 文字整体错开，又差 0.66%
  *
  * 环境变量：CHROMIUM_PATH 指定浏览器；SCREENSHOT_MAX_DIFF 允许的差异像素比例（默认 0.001）。
  */
@@ -137,24 +139,6 @@ async function shoot(browser, url, tag) {
       await page.keyboard.press('q');
     }
     await page.clock.runFor(SETTLE_MS);
-    // DEBUG（临时）：CI 和本地的 HUD 文字是否一样
-    if (i === 0)
-      console.log(
-        'DBG-TEXT',
-        JSON.stringify(
-          await page.evaluate(() => ({
-            lang: navigator.language,
-            tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
-            dpr: devicePixelRatio,
-            text: [...document.querySelectorAll('.td-strip,.td-bug,.td-wire')].map((e) => e.innerText),
-            widths: [...document.querySelectorAll('.td-strip *,.td-wire li')]
-              .slice(0, 30)
-              .map((e) => e.getBoundingClientRect().width.toFixed(2)),
-            font: getComputedStyle(document.querySelector('.td-strip') ?? document.body).fontFamily,
-            ok: document.fonts.check('16px "TD Shot Sans"'),
-          })),
-        ),
-      );
     const buf = await page.screenshot({ type: 'png' });
     writeFileSync(join(OUT, `${tag}-${i}.png`), buf);
     shots.push(PNG.sync.read(buf));
@@ -207,7 +191,12 @@ async function main() {
   const port = server.address().port;
   const browser = await chromium.launch({
     executablePath: process.env.CHROMIUM_PATH || undefined,
-    args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--disable-gpu-rasterization'],
+    args: [
+      '--use-angle=swiftshader',
+      '--enable-unsafe-swiftshader',
+      '--disable-gpu-rasterization',
+      '--font-render-hinting=none',
+    ],
     env: { ...process.env, FONTCONFIG_FILE: fontconfig() },
   });
   try {
@@ -238,16 +227,6 @@ async function main() {
     let failed = false;
     for (let i = 0; i < ANGLES; i++) {
       const r = diff(mine[i], ref[i], `angle-${i}`);
-      // DEBUG（临时）：把差异最集中那块的两张小图打进日志
-      if (i === 0 && r > MAX_DIFF)
-        for (const [tag, img] of [
-          ['MINE', mine[0]],
-          ['REF', ref[0]],
-        ]) {
-          const crop = new PNG({ width: 200, height: 60 });
-          PNG.bitblt(img, crop, 840, 20, 200, 60, 0, 0);
-          console.log(`DBG-${tag} ${PNG.sync.write(crop).toString('base64')}`);
-        }
       const ok = r <= MAX_DIFF;
       failed ||= !ok;
       console.log(`角度 ${i}（${i * 90}°）：差异像素 ${(r * 100).toFixed(4)}%  ${ok ? '通过' : '不通过'}`);
