@@ -2,6 +2,7 @@ import { render } from 'preact';
 import { useState } from 'preact/hooks';
 import { Chips } from '../staff/Chips';
 import { StaffBar } from '../staff/StaffBar';
+import { PlaceSheet } from '../staff/PlaceSheet';
 import { TargetSheet } from '../staff/TargetSheet';
 import { GRADE_COLOR, sparkPoints } from './format';
 import { STR } from './strings';
@@ -426,7 +427,9 @@ export function Hud({ s, actions }: { s: HudSnapshot; actions: HudActions }) {
       {/* 卡开着的时候先拍板，员工条让开 */}
       {s.staff && !s.card ? <StaffBar staff={s.staff} hint={s.hint} actions={actions} /> : null}
       <ClubWire s={s} actions={actions} />
-      {s.sheet && !s.card ? <TargetSheet t={s.sheet} actions={actions} /> : null}
+      {/* 地点清单（ADR 0013）在员工条上面，员工条仍然能拖；点开一项说明时清单先收起 */}
+      {s.place && !s.sheet && !s.card ? <PlaceSheet p={s.place} actions={actions} /> : null}
+      {s.sheet && !s.card ? <TargetSheet t={s.sheet} actions={actions} back={!!s.place} /> : null}
     </div>
   );
 }

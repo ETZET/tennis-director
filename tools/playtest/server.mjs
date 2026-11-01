@@ -12,7 +12,8 @@
  *   GET /report           点开状态条后的明细和"来龙去脉"
  *   GET /answer/1|2|3     按一个选项
  *   GET /pick/<person|none>   在员工条上点一个人（拿起来）；none 放下
- *   GET /tap/<target>     点场景里一个岗位或工单的标记：手上拿着人就派过去，没拿就打开说明（state.sheet）
+ *   GET /tap/<target>     点一块地点牌（target 是锚点 id，ADR 0013）：拿着人时只有一项能接就派过去，否则打开地点清单；
+ *                         target 是岗位或工单 id 时等于点清单里那一行：拿着人就派过去，没拿就打开说明（state.sheet）
  *   GET /assign/<person>/<target|none>
  *                         直接把人派到岗位或工单上（等于拖过去）；none 叫他停下来
  *   GET /sheet/<target>   某个岗位或工单的说明（派谁去会怎样），不改任何东西

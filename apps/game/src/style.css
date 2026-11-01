@@ -56,3 +56,28 @@ body{background:var(--sky);color:var(--navy);font-family:var(--f-text);overflow:
 #labels.compact .tg{height:26px;min-width:26px;justify-content:center;padding:0 6px;font-size:12px}
 #labels.compact .tg::before{inset:-10px}
 @media (prefers-reduced-motion:reduce){.tg-need{animation:none}}
+
+/* 地点牌（ADR 0013）：一个地点一块，岗位格 + 工单格；拿着人时描黄或变暗（tg-fit / tg-nofit） */
+.hub{position:absolute;left:0;top:0;white-space:nowrap;pointer-events:auto;cursor:pointer;min-height:36px;padding:3px;border:2px solid var(--paper);display:flex;align-items:center;gap:4px;background:var(--panel);color:var(--paper);font:700 12px/1 var(--f-cond);box-shadow:0 2px 6px rgba(15,31,58,.35);touch-action:manipulation}
+.hub::before{content:"";position:absolute;inset:-6px}
+.hub::after{content:"";position:absolute;left:50%;top:100%;width:2px;height:var(--stem,6px);margin-left:-1px;background:var(--paper);opacity:.7;pointer-events:none}
+.hub b{padding:0 4px 0 3px;font:800 12px/1 var(--f-cond);letter-spacing:.04em}
+.hub-need{border-color:#ff8a6b;animation:tg-pulse 1.4s ease-in-out infinite}
+.hub-open{outline:3px solid var(--optic)}
+.hb-p{position:relative;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:conic-gradient(var(--optic) var(--p,0%),rgba(255,255,255,.25) 0);font:800 11px/1 var(--f-cond)}
+.hb-p::before{content:"";position:absolute;inset:3px;border-radius:50%;background:var(--c,var(--navy))}
+.hb-p{color:var(--navy)}
+.hb-p:not([style*="--c"]){color:var(--paper)}
+.hb-p{isolation:isolate}
+.hb-p::before{z-index:-1}
+.hb-need{background:#ff8a6b;color:var(--paper);font-size:16px}
+.hb-o{height:28px;display:flex;align-items:center;gap:2px;padding:0 6px 0 4px;background:rgba(255,192,74,.22);border:1px solid #ffc04a;color:#ffd78a;font:800 13px/1 var(--f-cond)}
+.hb-o.hb-on{border-color:var(--optic);color:var(--optic)}
+.hb-o i{width:4px;height:16px;margin-right:1px}
+.hb-teach{background:#d7ff3c}
+.hb-upkeep{background:#9be07f}
+.hb-service{background:#c9e8ff}
+#labels.compact .hub{min-height:34px}
+.hub.tg-fit{border-color:var(--optic);box-shadow:0 0 0 3px rgba(215,255,60,.5),0 2px 6px rgba(15,31,58,.35)}
+.hub.tg-nofit{opacity:.35}
+@media (prefers-reduced-motion:reduce){.hub-need{animation:none}}

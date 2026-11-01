@@ -35,6 +35,8 @@ export class Session {
   picked: string | null = null;
   /** 点开说明的岗位或工单（手上没拿人时点了它） */
   sheet: string | null = null;
+  /** 打开的地点清单（点了地点牌，ADR 0013） */
+  place: string | null = null;
   private queue: Command[] = [];
 
   constructor(
@@ -87,6 +89,7 @@ export class Session {
   assign(person: string, target: string | null): void {
     this.picked = null;
     this.sheet = null;
+    this.place = null;
     this.send({ type: 'assign', person, target });
   }
 

@@ -114,6 +114,33 @@ export interface TargetSheetData {
   }[];
 }
 
+/** 地点清单的一行：这个地点的一项工作（ADR 0013） */
+export interface PlaceRow {
+  id: string;
+  kind: 'post' | 'order';
+  skill: 'teach' | 'upkeep' | 'service';
+  title: string;
+  /** 一行小字："Dale 在干 · 40%"、"没人 · 有客人在等"、"$300 · 4 小时" */
+  line: string;
+  /** 此刻缺人（有客人在等） */
+  need?: boolean;
+  progress?: number;
+  /** 谁在这儿干 */
+  faces: { initials: string; color: string }[];
+  /** 手上拿着人时：这个人去了怎样；blocked 是派不过去的原因 */
+  fit?: { text: string; blocked?: boolean; here?: boolean };
+}
+
+/** 点了场景里的地点牌：这个地点的所有工作（ADR 0013） */
+export interface PlaceSheetData {
+  id: string;
+  title: string;
+  /** 拿着人时顶上的一句（"把 Dale 派到哪儿？"） */
+  prompt?: string;
+  rows: PlaceRow[];
+  empty?: string;
+}
+
 /** 季节、天气、本周服务率 */
 export interface SeasonInfo {
   label: string;
@@ -158,6 +185,7 @@ export interface HudSnapshot {
   /** 拿着人时顶上的一行提示（"点一个岗位，把 Dale 放上去"） */
   hint?: string | null;
   sheet?: TargetSheetData | null;
+  place?: PlaceSheetData | null;
   controls: { paused: boolean; speed: string };
 }
 
@@ -175,5 +203,8 @@ export interface HudActions {
   drop?(person: string, x: number, y: number): void;
   /** 底部说明里点了某个人：派到这个岗位或工单上；target 为 null 是叫他停下来 */
   assign?(person: string, target: string | null): void;
-  closeSheet?(): void;
+  /** 关掉说明；all 为 false 时只关单项说明、回到地点清单 */
+  closeSheet?(all?: boolean): void;
+  /** 地点清单里点了一行：拿着人就派过去，没拿就打开这一项的说明 */
+  target?(id: string): void;
 }

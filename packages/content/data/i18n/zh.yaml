@@ -394,6 +394,7 @@ ui:
     staff: 你的人
     cancel: 放下
     close: 关上
+    back: 返回
     send: 派去
     stop: 叫停
     skill_teach: 教学
@@ -460,11 +461,22 @@ ui:
     empty: "{n} 个岗位有客人在等，没人管"
     covered: 有客人的地方都有人
   staff:
-    hint: "点一个岗位或工单，把{name}派过去"
+    hint: "点一个地点牌，把{name}派过去"
     idle: "在{place}闲着"
     waiting: "{what} · 等客人"
     walking: "去{what} · {time}"
     errand: "在{place}办事 · {time}"
+  place:
+    pick: "把{name}派到{place}哪一项？"
+    empty: 这儿现在没活
+    need: 没人 · 有客人在等
+    hours: "{hours} 点有客人"
+    anytime: 随时可以干 · 空着
+    on: "{name}在干 · 这一圈 {p}%"
+    wait: "{name}在这儿等客人"
+    order_new: "{cost}{time} · 还没开工"
+    order_on: "{names}在干 · {p}%"
+    order_paused: "停工 · {p}%"
   why:
     person: 不能指派
     busy: 正在办事，叫不回来

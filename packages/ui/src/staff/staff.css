@@ -27,7 +27,7 @@
 .td-sheet{pointer-events:auto;position:absolute;left:max(10px,env(safe-area-inset-left,0px));right:max(10px,env(safe-area-inset-right,0px));bottom:calc(46px + env(safe-area-inset-bottom,0px));max-width:520px;max-height:calc(100% - 160px);overflow:auto;margin:0 auto;background:var(--td-panel-2,rgba(15,31,58,.96));border-top:3px solid var(--td-optic,#d7ff3c);padding:10px 12px 12px;display:flex;flex-direction:column;gap:7px;color:#fff;box-shadow:0 8px 20px rgba(0,0,0,.45);animation:td-sheet-up .2s ease-out}
 .td-sheet-order{border-top-color:#ffc04a}
 .td-sheet header{display:flex;align-items:center;justify-content:space-between;gap:8px}
-.td-sheet header b{font:800 17px/1.1 var(--td-cond,sans-serif);letter-spacing:.04em}
+.td-sheet header b{font:800 17px/1.1 var(--td-cond,sans-serif);letter-spacing:.04em;flex:1}
 .td-sheet-x{min-width:44px;min-height:44px;border:0;background:none;color:#fff;font:700 24px/1 var(--td-cond,sans-serif);cursor:pointer}
 .td-sheet-note{margin:0;font:500 13px/1.35 var(--td-text,sans-serif);color:#dfe6ef}
 .td-sheet-status{margin:0;font:700 13px/1.3 var(--td-text,sans-serif);color:var(--td-optic,#d7ff3c)}
@@ -52,3 +52,30 @@
 .td-chip-time{background:#dde7f2}
 .td-chip-risk{background:#fff1c2}
 @media (prefers-reduced-motion:reduce){.td-sheet{animation:none}}
+
+/* 地点清单（ADR 0013）：一行一处工作，左边的色条是能力（和员工条的能力条同色） */
+.td-place{gap:6px}
+.td-place-rows{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:5px}
+.td-row{width:100%;min-height:48px;display:flex;align-items:center;gap:9px;padding:5px 6px 5px 0;border:0;border-left:5px solid #c9e8ff;background:rgba(255,255,255,.08);color:#fff;text-align:left;cursor:pointer;touch-action:manipulation}
+.td-row-teach{border-left-color:#d7ff3c}
+.td-row-upkeep{border-left-color:#9be07f}
+.td-row-service{border-left-color:#c9e8ff}
+.td-row-need{background:rgba(255,138,107,.2)}
+.td-row-fit{box-shadow:inset 0 0 0 2px var(--td-optic,#d7ff3c)}
+.td-row-blocked{opacity:.5}
+.td-row-icon{flex:0 0 auto;width:36px;height:36px;margin-left:5px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.1);font:800 18px/1 var(--td-cond,sans-serif);color:#ffc04a}
+.td-row-post .td-row-icon{border-radius:50%;color:#fff;border:2px solid rgba(255,255,255,.5)}
+.td-row-need .td-row-icon{border-color:#ff8a6b;color:#ff8a6b}
+.td-row-icon .td-row-face{width:100%;height:100%;border-radius:50%}
+.td-row-face{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;color:var(--td-navy,#0f1f3a);font:800 12px/1 var(--td-cond,sans-serif)}
+.td-row-text{flex:1;display:flex;flex-direction:column;gap:3px;min-width:0}
+.td-row-text b{font:800 14px/1.1 var(--td-cond,sans-serif);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.td-row-text>span{font:500 12px/1.25 var(--td-text,sans-serif);color:#dfe6ef}
+.td-row-need .td-row-text>span{color:#ffc8b5}
+.td-row-bar{display:block;height:4px;background:rgba(255,255,255,.15)}
+.td-row-bar i{display:block;height:100%;background:var(--td-optic,#d7ff3c)}
+.td-row-crew{display:flex;gap:2px}
+.td-row-go{flex:0 0 auto;min-width:40px;min-height:34px;display:flex;align-items:center;justify-content:center;font:800 18px/1 var(--td-cond,sans-serif);color:#dfe6ef}
+.td-row-fit .td-row-go{min-width:60px;background:var(--td-optic,#d7ff3c);color:var(--td-navy,#0f1f3a);font-size:13px;letter-spacing:.06em}
+.td-place-wrap .td-sheet-scrim{bottom:calc(104px + env(safe-area-inset-bottom,0px))}
+.td-place-wrap .td-place{bottom:calc(108px + env(safe-area-inset-bottom,0px));max-height:min(52%,calc(100% - 300px))}
