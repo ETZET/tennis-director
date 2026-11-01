@@ -86,7 +86,7 @@ Two review rounds on the phone build (390×844), each with a newcomer and a vete
 | P15 | Routines: people remember the shifts you put them on and walk there when their post closes or a job ends; staff strip shows the next shift | Every shift change needed a drag; day-1 service 44% → 86% on the same opening. ADR 0014, save v4 | Done |
 | P16 | Growth jobs unlock from repairs (open day ← Court 1 patched, fundraiser ← roof, ball machine ← net); locked jobs previewed in the place list | 13 jobs open on day 1 → 10, mostly repairs. ADR 0015 | Done |
 | P17 | Hubs stack upward around Court 1 / Court 2 / lot in the default phone view and can sit far from their place | Stems connect them; a layout pass (fan out sideways, or anchor per place offset) still to do | To do |
-| P3 | Round 2 reviews and fixes | Republish the playable build afterwards and merge to main | To do |
+| P3 | Round 2 reviews and fixes | Reviews done Nov 1 (5.0 / 5.0, below); fixes S1–S12 in progress | In progress |
 | P4 | Tune the idle quality drop | Quality target now has a floor of 41 (over-scheduling penalty still applies below it). Idle runs: 44 → ~40.6 on day 1, then hold at 40–41 (was 33 on day 1, settling at 20). Bots unchanged: greedy 83.6%, random 19.9% | Done |
 | P5 | Place labels crowd the island centre on phone | At the zoomed-out view only the director's place, destination and places with a card keep names; the rest are tappable dots (44 px target) | Done |
 | P6 | Delete the merged animlib-port branch | Already in main. Cloud session can't push deletes; delete it on GitHub by hand | Blocked |
@@ -105,6 +105,42 @@ Two review rounds on the phone build (390×844), each with a newcomer and a vete
 | Onboarding | 5 | 5 |
 | Phone UX | 6 | 6 |
 | **Average** | **5.0** | **4.4** |
+
+### Round 2 scores (Nov 1, staffing loop with place hubs and routines)
+
+Newcomer: seed 31, full act, won (board 54, vote at 27%). Veteran: seed 47, full act, won (board 86); idle control on seed 53.
+
+| Item | Newcomer | Veteran |
+| --- | --- | --- |
+| Meaningful choices | 5 | 5 |
+| Readable consequences | 4 | 5 |
+| Pacing | 5 | 4 |
+| Player agency | 6 | 6 |
+| Idle & living world | 6 | 5 |
+| Tension arc | 3 | 3 |
+| Replay value | 6 | 5 |
+| Onboarding | 4 | 7 |
+| Phone UX | 6 | 5 |
+| **Average** | **5.0** | **5.0** |
+
+Kept by both: place hub → list → send flow with fit, walk time and what is dropped; routines; the card layout and the cause→effect story; the Mason line and "who follows you".
+
+### Round 2 findings for P3 (both reviewers unless noted)
+
+| # | Finding | Fix |
+| --- | --- | --- |
+| S1 | Hiring is blind: candidates show only a name; skills, wage and trait appear after choosing (Nadia added $900/week) | Hire chips show best skills, weekly wage (as a cost) and a one-line trait |
+| S2 | Board confidence is a black box: no pass line, moves never explained, vote odds surprise (27% at B / 72 members); with good play it climbs to 86 and the last 20 days have no pressure | Pass line on the board cell; weekly board settlement explained in wire and story; board costs shown on options; late pressure (P12) |
+| S3 | Facility condition falls to 0 silently (Court 1, bubble, clay) | Hub warning below 30, wire alert below 10, condition bar in the place list |
+| S4 | After a job ends people sometimes stand idle instead of returning to their shift (Rosa at clay, director at the lot) | Fix routine fallback |
+| S5 | Repeated cards (Saturday morning 4×, double booking 3–4×, even after the issue was settled), three cards in an hour on day 3 | Cap repeats per act, minimum gap between cards |
+| S6 | Free options: "ask for money" +$600, "refuse developer" rep +2, "promise to change" rep +1; side costs only shown after choosing; failure costs of chance options hidden | Show side effects and failure chips on options |
+| S7 | Wire says "X was pulled off the deck, round wasted" on every normal shift change | Only log a real interruption |
+| S8 | Onboarding: no hint that the pool needs someone at 11; posts outside their hours look absent | Show upcoming shifts on hubs |
+| S9 | Text: "他" for Rosa in the pick hint; Pine Crown / 松冠 and Hollow Creek / 霍洛溪 mixed | Neutral pronoun; zh names table |
+| S10 | Phone: staff strip shows ~2.5 people with 4+ staff; hubs pushed off the right edge; ⟲ ⟳ unclear (newcomer) | Compact tokens; hub layout (P17) |
+| S11 | Rain: assigning to outdoor posts silently does nothing (veteran) | Say why on the place list |
+| S12 | Idle control: board drops every day (28 → 0 by day 12) instead of settling weekly; status line says "covered" at 17% service (veteran) | Settle board weekly; status line reflects the week's rate |
 
 ### Round 1 findings for P2 (both reviewers unless noted)
 
