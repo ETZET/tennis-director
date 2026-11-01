@@ -9,9 +9,10 @@ location: court_1
 who: dale
 options:
   A:
+    # 再招一位教练接课：Dale 留下，但知道自己被替了
     effects:
-      - { fire: dale }
-      - { flag: dale_fired_publicly, set: true }
+      - { person: dale, add: { morale: -10 } }
+      - { flag: dale_replaced, set: true }
       - { schedule: hc_hire_coach, in: 1h }
   B:
     # 扣一周的钱：省下工资，Dale 更没心思上课
@@ -22,7 +23,7 @@ options:
       - { flag: dale_docked, set: true }
   C:
     # 自己下场把课上完：课救回来了，Dale 觉得被当众拆台
-    requiresDirectorAt: court_1
+    errand: { at: court_1, for: 2h }
     effects:
       - { stat: quality, add: 3 }
       - { person: dale, add: { morale: -10 } }

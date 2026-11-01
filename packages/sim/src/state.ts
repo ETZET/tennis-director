@@ -6,15 +6,46 @@ import type { OptionKey } from '@td/content';
  */
 
 /** 存档格式版本；改了格式就加一个迁移函数（见 save.ts） */
-export const SAVE_VERSION = 2;
+export const SAVE_VERSION = 3;
 
 export interface PersonState {
   id: string;
   hired: boolean;
+  /** 站在哪个锚点；走在路上时是走之前的锚点（walk 不为 null） */
   at: string;
+  /** 教学能力 */
   skill: number;
+  /** 维护能力 */
+  upkeep: number;
+  /** 服务能力 */
+  service: number;
   morale: number;
   fatigue: number;
+  /** 指派到哪个岗位或工单（id）；null = 闲着 */
+  job: string | null;
+  /** 走在路上：经过的锚点（含终点）、出发和到达时间 */
+  walk: Walk | null;
+  /** 被事件叫去办事：到了以后待 minutes 分钟（until 在到达时才定下来） */
+  errand: { at: string; minutes: number; until: number | null } | null;
+}
+
+export interface Walk {
+  from: string;
+  to: string;
+  route: string[];
+  start: number;
+  end: number;
+}
+
+/** 持续岗位这一圈转了多少分钟 */
+export interface PostState {
+  progress: number;
+}
+
+/** 一次性工单：做了多少工作量（能力 50 的人一分钟做 1）、开工没有（开工时扣材料费） */
+export interface OrderState {
+  progress: number;
+  started: boolean;
 }
 
 /** 因果日志里的一条：什么原因、产生了哪些效果、由哪一条引出 */
@@ -33,8 +64,8 @@ export type Cause =
   | { kind: 'default'; card: string; option: OptionKey | null; success?: boolean }
   | { kind: 'activity'; activity: string }
   | { kind: 'day'; day: number }
-  | { kind: 'action'; action: string; success?: boolean }
-  | { kind: 'plan'; season: string }
+  | { kind: 'post'; post: string; person: string; cycles: number }
+  | { kind: 'order'; order: string; people: string[]; success?: boolean }
   | { kind: 'debug'; what: string };
 
 export type EffectRecord =
@@ -46,10 +77,11 @@ export type EffectRecord =
   | { kind: 'activity'; activity: string; at: number }
   | { kind: 'hire'; person: string }
   | { kind: 'fire'; person: string }
-  | { kind: 'person'; person: string; attr: 'skill' | 'morale' | 'fatigue'; delta: number }
+  | { kind: 'person'; person: string; attr: 'skill' | 'upkeep' | 'service' | 'morale' | 'fatigue'; delta: number }
   | { kind: 'text'; key: string }
   | { kind: 'follow'; person: string }
-  | { kind: 'energy'; delta: number }
+  | { kind: 'errand'; person: string; at: string; minutes: number }
+  | { kind: 'condition'; facility: string; delta: number }
   | { kind: 'end'; result: 'won' | 'lost'; ending: string };
 
 export interface OpenCard {
@@ -79,28 +111,6 @@ export interface RunningActivity {
   cause: number | null;
 }
 
-export interface DirectorState {
-  /** 站在哪个锚点；走在路上时是 null */
-  at: string | null;
-  /** 正在走的这一段：从哪到哪、什么时候出发、什么时候到 */
-  leg: { from: string; to: string; start: number; end: number } | null;
-  /** 这一段之后还要经过的锚点 */
-  route: string[];
-  /** 精力 0..100：季初满格，做事花掉，夜里恢复一点 */
-  energy: number;
-  /** 手上的事：先走过去（going），再在那儿忙（working，到 end 为止） */
-  task: DirectorTask | null;
-}
-
-export interface DirectorTask {
-  action: string;
-  at: string;
-  phase: 'going' | 'working';
-  start: number;
-  end: number;
-  cause: number | null;
-}
-
 export interface GameState {
   version: number;
   contentVersion: string;
@@ -116,7 +126,18 @@ export interface GameState {
   facilities: Record<string, string>;
   people: Record<string, PersonState>;
   headCoach: string | null;
-  director: DirectorState;
+  /** 持续岗位的进度（只记有进度的） */
+  posts: Record<string, PostState>;
+  /** 开了工的工单 */
+  orders: Record<string, OrderState>;
+  /** 工单：冷却到什么时候、做完过几次 */
+  orderLog: { cooldowns: Record<string, number>; done: Record<string, number> };
+  /** 设施状况 0..100 */
+  condition: Record<string, number>;
+  /** 本周的需求分钟和有人服务的分钟；last 是上周的服务率 */
+  week: { demand: number; served: number; last: number };
+  /** 今天每个岗位转了几圈、带来了什么（收盘时合成一条因果日志） */
+  ledger: Record<string, { person: string; cycles: number; effects: EffectRecord[] }>;
   cards: {
     open: OpenCard[];
     scheduled: ScheduledCard[];
@@ -129,12 +150,6 @@ export interface GameState {
     nextDraw: number;
   };
   activities: RunningActivity[];
-  /** 主动经营的动作：冷却到什么时候、做过几次 */
-  actions: { cooldowns: Record<string, number>; done: Record<string, number> };
-  /** 季度日程（会所公告板）：时段 → 周一到周日每天钉的活动（null 表示空着） */
-  plan: Record<string, (string | null)[]>;
-  /** 正在排日程（换季时打开，玩家确认后关上；排日程时游戏暂停） */
-  planning: boolean;
   /** 当前季节 id 和今天的天气 */
   season: string;
   weather: 'sun' | 'cloud' | 'rain' | 'wind';
@@ -151,5 +166,8 @@ export const dayOf = (t: number): number => Math.floor(t / 1440) + 1;
 /** 绝对分钟 → 当天的分钟 */
 export const minuteOfDay = (t: number): number => t % 1440;
 export const at = (day: number, hour: number): number => (day - 1) * 1440 + Math.round(hour * 60);
+/** 总监在人员表里的 id */
+export const DIRECTOR = 'director';
+
 /** 第 1 天是周一：0 = 周一 … 6 = 周日 */
 export const weekdayOf = (t: number): number => (dayOf(t) - 1) % 7;

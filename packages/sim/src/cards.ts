@@ -2,8 +2,9 @@ import { type Card, minutes, OPTION_KEYS, type OptionKey } from '@td/content';
 import { clamp } from '@td/shared';
 import { applyEffects, type Ctx, logEntry } from './effects';
 import { rand, weightedPick } from './rng';
-import type { EffectRecord, GameState, OpenCard } from './state';
+import { DIRECTOR, type EffectRecord, type GameState, type OpenCard } from './state';
 import { makeEnv, num, test } from './vars';
+import { sendErrand } from './walk';
 import type { World } from './world';
 
 /**
@@ -36,15 +37,16 @@ export function openCard(ctx: Ctx, cardId: string, cause: number | null): OpenCa
   return o;
 }
 
-export type OptionBlock = 'director' | 'cost' | 'requires' | null;
+export type OptionBlock = 'busy' | 'cost' | 'requires' | null;
 
 export interface OptionStatus {
   key: OptionKey;
   available: boolean;
-  /** 为什么不能选：总监不在场、钱不够、前置条件不满足 */
+  /** 为什么不能选：总监正被别的事叫走、钱不够、前置条件不满足 */
   blocked: OptionBlock;
   cost: number;
-  requiresDirectorAt: string | null;
+  /** 选了以后总监要离开手上的岗位，去 at 待 minutes 分钟 */
+  errand: { at: string; minutes: number } | null;
   /** 有判定的选项：成功率 0..1 */
   chance: number | null;
 }
@@ -61,8 +63,8 @@ export function optionStatus(s: GameState, w: World, uid: number): OptionStatus[
     const blocked: OptionBlock =
       opt.requires && !test(s, w, opt.requires)
         ? 'requires'
-        : opt.requiresDirectorAt && s.director.at !== opt.requiresDirectorAt
-          ? 'director'
+        : opt.errand && s.people[DIRECTOR]?.errand
+          ? 'busy'
           : cost > (s.stats.cash ?? 0)
             ? 'cost'
             : null;
@@ -72,7 +74,7 @@ export function optionStatus(s: GameState, w: World, uid: number): OptionStatus[
         available: blocked === null,
         blocked,
         cost,
-        requiresDirectorAt: opt.requiresDirectorAt ?? null,
+        errand: opt.errand ? { at: opt.errand.at, minutes: minutes(opt.errand.for) } : null,
         chance: opt.check ? checkChance(s, w, opt.check, false) : null,
       },
     ];
@@ -123,6 +125,12 @@ export function resolveCard(ctx: Ctx, uid: number, key: OptionKey | null, by: 'p
     if (opt.cost) {
       s.stats.cash = (s.stats.cash ?? 0) - opt.cost;
       out.push({ kind: 'cost', amount: opt.cost });
+    }
+    // 要总监亲自去办：他放下手上的岗位走过去（代价是总监的工时）
+    if (opt.errand && !s.people[DIRECTOR]?.errand) {
+      const m = minutes(opt.errand.for);
+      if (sendErrand(ctx, DIRECTOR, opt.errand.at, m))
+        out.push({ kind: 'errand', person: DIRECTOR, at: opt.errand.at, minutes: m });
     }
     applyEffects(ctx, opt.effects, entry.id, out);
     if (opt.check) {

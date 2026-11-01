@@ -1,9 +1,10 @@
 import { type Effect, minutes } from '@td/content';
-import { clamp } from '@td/shared';
+import { clamp, type Value } from '@td/shared';
 import type { SimEvent } from './events';
 import { rand } from './rng';
 import type { CausalEntry, Cause, EffectRecord, GameState } from './state';
 import { num, test } from './vars';
+import { sendErrand } from './walk';
 import type { World } from './world';
 
 /**
@@ -16,6 +17,8 @@ export interface Ctx {
   readonly s: GameState;
   readonly w: World;
   readonly events: SimEvent[];
+  /** 表达式里额外能读的变量（岗位效果里的 worker.skill） */
+  readonly vars?: Record<string, Value>;
 }
 
 /** 写一条因果日志；没有任何效果的条目也记（"你选了 C，什么都没发生"也是故事的一部分）。 */
@@ -36,17 +39,17 @@ export function setStat(ctx: Ctx, stat: string, value: number): number {
   return v - before;
 }
 
-const PERSON_ATTRS = ['skill', 'morale', 'fatigue'] as const;
+const PERSON_ATTRS = ['skill', 'upkeep', 'service', 'morale', 'fatigue'] as const;
 
 /** 执行一串效果，把结果追加到 out。entryId 是这次执行对应的日志条目（后续事件带着它当原因）。 */
 export function applyEffects(ctx: Ctx, effects: readonly Effect[], entryId: number, out: EffectRecord[]): void {
   const { s, w } = ctx;
   for (const e of effects) {
     if (e.if && !test(s, w, e.if)) continue;
-    if (e.chance !== undefined && !(rand(s) < num(s, w, e.chance))) continue;
+    if (e.chance !== undefined && !(rand(s) < num(s, w, e.chance, ctx.vars))) continue;
     if ('stat' in e) {
       const before = s.stats[e.stat] ?? 0;
-      const target = 'add' in e ? before + num(s, w, e.add) : num(s, w, e.set);
+      const target = 'add' in e ? before + num(s, w, e.add, ctx.vars) : num(s, w, e.set, ctx.vars);
       const delta = setStat(ctx, e.stat, target);
       if (delta !== 0) out.push({ kind: 'stat', stat: e.stat, delta });
     } else if ('flag' in e) {
@@ -79,22 +82,22 @@ export function applyEffects(ctx: Ctx, effects: readonly Effect[], entryId: numb
       const p = s.people[e.hire];
       if (!p || p.hired) continue;
       const def = w.people.get(e.hire);
-      // 招来的教练接替现任主教练；现任还在的话先让他走
-      if (def && (def.role === 'coach' || def.role === 'candidate')) {
-        if (s.headCoach && s.headCoach !== e.hire) {
-          const prev = s.people[s.headCoach];
-          if (prev) prev.hired = false;
-          out.push({ kind: 'fire', person: s.headCoach });
-        }
-        s.headCoach = e.hire;
-        p.at = w.act.people.find((x) => x.head_coach)?.at ?? p.at;
-      }
+      // 招来的教练接任主教练；原来的主教练留下当员工（核心玩法决定：Dale 开局不开除）
+      if (def && (def.role === 'coach' || def.hire_as === 'coach')) s.headCoach = e.hire;
+      // 新人到会所报到，等你把他拖到岗位上
+      p.at = w.act.people.find((x) => w.people.get(x.id)?.role === 'director')?.at ?? p.at;
+      p.job = null;
+      p.walk = null;
+      p.errand = null;
       p.hired = true;
       out.push({ kind: 'hire', person: e.hire });
     } else if ('fire' in e) {
       const p = s.people[e.fire];
       if (!p?.hired) continue;
       p.hired = false;
+      p.job = null;
+      p.walk = null;
+      p.errand = null;
       if (s.headCoach === e.fire) s.headCoach = null;
       out.push({ kind: 'fire', person: e.fire });
     } else if ('person' in e) {
@@ -104,7 +107,7 @@ export function applyEffects(ctx: Ctx, effects: readonly Effect[], entryId: numb
         const v = e.add[attr];
         if (v === undefined) continue;
         const before = p[attr];
-        p[attr] = clamp(before + num(s, w, v), 0, 100);
+        p[attr] = clamp(before + num(s, w, v, ctx.vars), 0, 100);
         const delta = p[attr] - before;
         if (delta !== 0) out.push({ kind: 'person', person: e.person, attr, delta });
       }
@@ -118,11 +121,9 @@ export function applyEffects(ctx: Ctx, effects: readonly Effect[], entryId: numb
     } else if ('follow' in e) {
       if (!s.legacy.includes(e.follow)) s.legacy.push(e.follow);
       out.push({ kind: 'follow', person: e.follow });
-    } else if ('energy' in e) {
-      const before = s.director.energy;
-      s.director.energy = clamp(before + num(s, w, e.energy), 0, 100);
-      const delta = s.director.energy - before;
-      if (delta !== 0) out.push({ kind: 'energy', delta });
+    } else if ('errand' in e) {
+      const m = minutes(e.for);
+      if (sendErrand(ctx, e.errand, e.at, m)) out.push({ kind: 'errand', person: e.errand, at: e.at, minutes: m });
     }
   }
 }

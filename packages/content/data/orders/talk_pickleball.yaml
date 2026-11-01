@@ -1,13 +1,12 @@
-# 2 号场：过去和匹克球那帮人聊聊。成不成看你的声望。
+# 和匹克球那帮人聊聊：成不成看声望。
 id: talk_pickleball
 act: hollow_creek
 at: court_2
-when: { stat: pickleball_pressure, gt: 10 }
-onsite: true
-energy: 10
-duration: 1h
+skill: service
+work: 1h
+crew: 1
 cooldown: 3d
-performance: talk
+when: { stat: pickleball_pressure, gt: 10 }
 check: { stat: reputation, vs: 40 }
 onSuccess:
   - { stat: pickleball_pressure, add: -10 }
@@ -15,3 +14,4 @@ onSuccess:
 onFail:
   - { stat: reputation, add: -1 }
   - { stat: pickleball_pressure, add: 3 }
+performance: talk

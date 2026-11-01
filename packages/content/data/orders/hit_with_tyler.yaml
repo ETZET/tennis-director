@@ -1,13 +1,12 @@
-# 1 号场：下课后陪 Tyler 打一会儿。
+# 陪 Tyler 打一会儿：他问了一整周了。
 id: hit_with_tyler
 act: hollow_creek
 at: court_1
-when: { hour: { gte: 10 } }
-onsite: true
-energy: 10
-duration: 1h
+skill: teach
+work: 1h
+crew: 1
 cooldown: 2d
-performance: rally
 effects:
   - { person: tyler, add: { skill: 2, morale: 10 } }
   - { stat: quality, add: 1 }
+performance: rally

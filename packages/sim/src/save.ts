@@ -55,6 +55,41 @@ export const MIGRATIONS: Record<number, Migration> = {
     state.version = 2;
     return { ...save, version: 2, state };
   },
+  // 2 → 3（招人和排人，ADR 0012）：去掉总监走位和精力、公告板、动作；
+  // 总监进人员表（站在原来的地方），每个人加上维护、服务、指派、走路、办事；设施状况、本周服务率、岗位和工单。
+  2: (save) => {
+    const state = { ...(save.state as Record<string, unknown>) };
+    const d = (state.director as { at?: string | null; leg?: { to: string } | null } | undefined) ?? {};
+    const people: Record<string, Record<string, unknown>> = {};
+    for (const [id, p] of Object.entries((state.people as Record<string, Record<string, unknown>>) ?? {}))
+      people[id] = { upkeep: 0, service: 0, job: null, walk: null, errand: null, ...p };
+    people.director ??= {
+      id: 'director',
+      hired: true,
+      at: d.at ?? d.leg?.to ?? 'deck',
+      skill: 35,
+      upkeep: 35,
+      service: 45,
+      morale: 100,
+      fatigue: 0,
+      job: null,
+      walk: null,
+      errand: null,
+    };
+    state.people = people;
+    delete state.director;
+    delete state.plan;
+    delete state.planning;
+    delete state.actions;
+    state.posts ??= {};
+    state.orders ??= {};
+    state.orderLog ??= { cooldowns: {}, done: {} };
+    state.condition ??= {};
+    state.week ??= { demand: 0, served: 0, last: 0.5 };
+    state.ledger ??= {};
+    state.version = 3;
+    return { ...save, version: 3, state };
+  },
 };
 
 export class SaveError extends Error {}

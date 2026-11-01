@@ -23,7 +23,7 @@ options:
       - { stat: pickleball_pressure, add: 20 }
       - { schedule: hc_pickleball_rant, in: 1d }
   C:
-    requiresDirectorAt: court_2
+    errand: { at: court_2, for: 1h }
     check: { stat: reputation, vs: 40 }
     onSuccess:
       - { facility: court_2, set: shared }

@@ -1,0 +1,15 @@
+# 泳池看护：夏末中午到下午，有人看着孩子才能下水；泳池边的孩子偶尔被拉去打几拍。
+id: pool_guard
+act: hollow_creek
+at: pool
+skill: service
+cycle: 1h
+hours: [11, 17]
+when:
+  all:
+    - { facility: pool, is: open }
+    - { not: { weather: rain } }
+effects:
+  - { stat: cash, add: 5 }
+  - { stat: members, add: 1, chance: 0.02 }
+performance: watch

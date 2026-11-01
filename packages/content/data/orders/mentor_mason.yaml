@@ -1,13 +1,13 @@
-# 1 号场：单独带 Mason 练反手（发现他的天赋以后）。
+# 单独带 Mason：发现他有天赋以后。
 id: mentor_mason
 act: hollow_creek
 at: court_1
-when: { flag: kid_noticed }
-onsite: true
-energy: 12
-duration: 1h
+skill: teach
+work: 1h
+crew: 1
 cooldown: 3d
-performance: feed
+when: { flag: kid_noticed }
 effects:
   - { person: mason, add: { skill: 4, morale: 5 } }
   - { flag: kid_mentored, set: true }
+performance: feed

@@ -1,0 +1,13 @@
+# 气膜场时段：充起来以后，有人看场就能开；下雨天照常。
+id: bubble_session
+act: hollow_creek
+at: bubble_court
+skill: service
+cycle: 1h
+hours: [9, 20]
+when: { facility: bubble, is: inflated }
+effects:
+  - { stat: cash, add: "round(10 * clamp(stat.members / 50, 0.6, 1.6))" }
+  - { stat: members, add: 1, chance: 0.01 }
+wear: 1
+performance: open_play

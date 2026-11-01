@@ -20,7 +20,7 @@ export type Cond =
   | { stat: string; lt?: number; lte?: number; gt?: number; gte?: number; eq?: number }
   | { flag: string; is?: boolean | number | string }
   | { facility: string; is: string }
-  | { directorAt: string }
+  | { assigned: string; at?: string }
   | { day: { gte?: number; lte?: number } }
   | { hour: { gte?: number; lte?: number } }
   | { seen: string }
@@ -46,7 +46,8 @@ export const cond: z.ZodType<Cond> = z.lazy(() =>
     }),
     z.strictObject({ flag: id, is: z.union([z.boolean(), z.number(), z.string()]).optional() }),
     z.strictObject({ facility: id, is: id }),
-    z.strictObject({ directorAt: id }),
+    /** 这个人正在干活（站在岗位或工单上）；带 at 时还要求在那个地点 */
+    z.strictObject({ assigned: id, at: id.optional() }),
     z.strictObject({ day: z.strictObject({ gte: z.number().optional(), lte: z.number().optional() }) }),
     z.strictObject({ hour: z.strictObject({ gte: z.number().optional(), lte: z.number().optional() }) }),
     z.strictObject({ seen: id }),
@@ -81,7 +82,13 @@ export const effect = z.union([
   z.strictObject({
     ...gate,
     person: id,
-    add: z.strictObject({ skill: amount.optional(), morale: amount.optional(), fatigue: amount.optional() }),
+    add: z.strictObject({
+      skill: amount.optional(),
+      upkeep: amount.optional(),
+      service: amount.optional(),
+      morale: amount.optional(),
+      fatigue: amount.optional(),
+    }),
   }),
   /** 在因果日志里写一行文案 */
   z.strictObject({ ...gate, log: z.string() }),
@@ -89,8 +96,8 @@ export const effect = z.union([
   z.strictObject({ ...gate, endAct: z.enum(['won', 'lost']), ending: id }),
   /** 「谁跟我走」：这个人进入跨幕继承 */
   z.strictObject({ ...gate, follow: id }),
-  /** 总监精力加减（0..100） */
-  z.strictObject({ ...gate, energy: amount }),
+  /** 把某人从手上的岗位叫走，到 at 去办一件事，办 for 这么久（拉走持续岗位照样丢掉这一圈） */
+  z.strictObject({ ...gate, errand: id, at: id, for: duration }),
 ]);
 export type Effect = z.infer<typeof effect>;
 
@@ -99,8 +106,8 @@ export type Effect = z.infer<typeof effect>;
 export const option = z.strictObject({
   /** 不满足时选项显示但不能选 */
   requires: cond.optional(),
-  /** 总监要先走到这里 */
-  requiresDirectorAt: id.optional(),
+  /** 总监要亲自去办：选了以后总监离开手上的岗位，去 at 待 for 这么久（ADR 0012：代价是总监的工时） */
+  errand: z.strictObject({ at: id, for: duration }).optional(),
   /** 立即扣的钱（现金不够时不能选） */
   cost: z.number().min(0).optional(),
   effects: z.array(effect).default([]),
@@ -156,17 +163,6 @@ export const activity = z.strictObject({
   performance: id,
   /** 活动结束时结算的效果 */
   effects: z.array(effect).default([]),
-  /**
-   * 能钉到会所公告板（季度日程）上的活动：课程、开放打球、匹克球时段、社交夜……
-   * parts：能排在一天的哪些时段（幕里 schedule.parts 的 id）；requires：到了那天能不能开（场地状态、天气）。
-   * 在哪儿办就是活动的 anchor。
-   */
-  program: z
-    .strictObject({
-      parts: z.array(id).min(1),
-      requires: cond.optional(),
-    })
-    .optional(),
 });
 export type Activity = z.infer<typeof activity>;
 
@@ -190,6 +186,8 @@ export const facilityState = z.strictObject({
   /** 每周收入 / 支出（美元） */
   income_week: z.number().default(0),
   upkeep_week: z.number().default(0),
+  /** 没人维护时每天掉多少状况（0..100）；岗位每圈的 wear 另算 */
+  decay_day: z.number().min(0).default(0),
 });
 export const facility = z.strictObject({ id, anchor: id, states: z.record(id, facilityState) });
 export type Facility = z.infer<typeof facility>;
@@ -197,12 +195,20 @@ export type Facility = z.infer<typeof facility>;
 export const person = z.strictObject({
   id,
   name: z.string(),
-  role: z.enum(['coach', 'junior', 'staff', 'parent', 'candidate', 'rival']),
+  /** director：总监本人（可指派、没有士气）；coach / staff：员工；candidate：招聘日的候选人 */
+  role: z.enum(['director', 'coach', 'junior', 'staff', 'parent', 'candidate', 'rival']),
+  /** 教学能力（沿用 skill 这个名字） */
   skill: z.number().min(0).max(100),
+  /** 维护能力：修场、除草、清扫 */
+  upkeep: z.number().min(0).max(100).default(0),
+  /** 服务能力：接待、陪打、办活动 */
+  service: z.number().min(0).max(100).default(0),
   morale: z.number().min(0).max(100).default(60),
   fatigue: z.number().min(0).max(100).default(0),
   wage_week: z.number().min(0).default(0),
   talent: z.number().min(0).max(100).optional(),
+  /** 应聘者招进来以后当什么：coach 会接任主教练（原来的主教练留下当员工），staff 是普通员工 */
+  hire_as: z.enum(['coach', 'staff']).optional(),
   traits: z.array(id).default([]),
 });
 export type Person = z.infer<typeof person>;
@@ -231,33 +237,69 @@ export const director = z.strictObject({
 });
 export type DirectorConfig = z.infer<typeof director>;
 
-/* ---------------- 主动经营：点场景里的地点或人，总监去做的事 ---------------- */
+/* ---------------- 岗位和工单（ADR 0012）：玩家把人拖上去 ---------------- */
 
-export const action = z.strictObject({
+/** 员工的三项能力 */
+export const SKILLS = ['teach', 'upkeep', 'service'] as const;
+export type SkillKind = (typeof SKILLS)[number];
+
+/**
+ * 持续岗位：地点上的一个"位子"。有人坐着、在它的时段里、条件满足时，一圈一圈地转，每转完一圈结算一次 effects。
+ * 有 hours 的岗位是"需求"：时段里每分钟都计入本周服务率（有人在岗才算服务到）。
+ * effects 里的表达式可以用 worker.skill（这个岗位要的那项能力）。
+ */
+export const post = z.strictObject({
   id,
   act: id,
-  /** 在哪个锚点点出来（也是要亲自到场时总监要去的地方） */
   at: id,
-  /** 什么时候出现在这个地点的动作列表里 */
+  skill: z.enum(SKILLS),
+  /** 一圈多久 */
+  cycle: duration,
+  /** 有客人的时段 [开始, 结束)（小时）；不写表示随时可以干，不算需求 */
+  hours: z.tuple([z.number().min(0).max(24), z.number().min(0).max(24)]).optional(),
+  /** 星期几有客人（0 = 周一）；不写表示每天 */
+  days: z.array(z.number().int().min(0).max(6)).optional(),
+  /** 岗位什么时候存在（设施状态、天气、会员数……） */
   when: cond.optional(),
-  /** 花多少钱（开始做的时候扣；钱不够不能做） */
+  /** 每圈结算 */
+  effects: z.array(effect).default([]),
+  /** 每圈磨损这个地点的设施状况；负数是修复（维护岗位） */
+  wear: z.number().default(0),
+  /** 维护岗位修复多少要乘能力：restore × (0.5 + worker.skill / 100) */
+  restore: z.number().min(0).default(0),
+  performance: id.optional(),
+});
+export type Post = z.infer<typeof post>;
+
+/**
+ * 一次性工单：长在问题上的标记（杂草、裂缝、塌掉的气膜）。拖人上去开始干，可以多人一起，
+ * 拉走进度保留。第一个人开工时扣材料费；做满 work（人·分钟，按能力加速）就结算 effects。
+ */
+export const order = z.strictObject({
+  id,
+  act: id,
+  at: id,
+  skill: z.enum(SKILLS),
+  /** 工作量：一个能力 50 的人要干多久 */
+  work: duration,
+  /** 材料费（开工时扣；钱不够开不了工） */
   cost: z.number().min(0).default(0),
-  /** 花多少精力（亲自做的事才花） */
-  energy: z.number().min(0).default(0),
-  /** 要总监亲自到场：先走过去，在那儿待 duration（精力低时更久） */
-  onsite: z.boolean().default(false),
-  duration: duration.default('0m'),
-  /** 做完多久以后才能再做 */
+  /** 标记什么时候冒出来 */
+  when: cond.optional(),
+  /** 最多几个人一起干 */
+  crew: z.number().int().min(1).default(3),
+  /** 做完多久以后才会再冒出来；不写就只做一次（除非 when 又满足——例如状况又掉下来） */
   cooldown: duration.optional(),
   once: z.boolean().default(false),
-  /** 总监在现场演哪个动作（渲染层的演出名） */
-  performance: id.optional(),
+  /** 完成时给这个地点的设施加多少状况 */
+  restore: z.number().min(0).default(0),
   check: z.union([z.strictObject({ stat: id, vs: z.number() }), z.strictObject({ chance: z.string() })]).optional(),
   effects: z.array(effect).default([]),
   onSuccess: z.array(effect).default([]),
   onFail: z.array(effect).default([]),
+  performance: id.optional(),
 });
-export type Action = z.infer<typeof action>;
+export type Order = z.infer<typeof order>;
 
 /* ---------------- 幕 ---------------- */
 
@@ -267,9 +309,10 @@ export const act = z.strictObject({
   hours: z.strictObject({ open: z.number(), close: z.number() }),
   stats: z.record(id, z.number()),
   facilities: z.record(id, id),
-  /** 开局在场的人；hired 表示在职（主教练用 head_coach） */
-  people: z.array(z.strictObject({ id, at: id, head_coach: z.boolean().default(false) })),
-  director: z.strictObject({ at: id }),
+  /** 开局在场的人（总监也在这里，role 是 director）；主教练用 head_coach */
+  people: z.array(z.strictObject({ id, at: id, head_coach: z.boolean().default(false), job: id.optional() })),
+  /** 开局时各设施的状况 0..100（不写的是 100） */
+  condition: z.record(id, z.number().min(0).max(100)).default({}),
   anchors: z.array(id).min(1),
   /** 导航图：两个锚点、步行分钟数 */
   nav: z.array(z.tuple([id, id, z.number().positive()])),
@@ -290,33 +333,20 @@ export const act = z.strictObject({
     derived: z.record(id, z.string()).default({}),
     /** 输掉本幕的条件（每天收盘时检查）和对应的结局 */
     lose_if: z.strictObject({ when: cond, ending: id }).optional(),
+    /** 总监每干完一圈岗位或一张工单，那项能力涨多少（上限 director_skill_cap） */
+    director_growth: z.number().min(0).default(0.3),
+    director_skill_cap: z.number().min(0).max(100).default(80),
   }),
   /** 每天固定开的活动（例如下午的青少年课） */
   daily: z.array(z.strictObject({ hour: z.number(), activity: id, if: cond.optional() })).default([]),
-  /** 季节：从第几天开始（第一个从第 1 天开始）。换季时总监精力回满、重新排日程 */
-  seasons: z.array(z.strictObject({ id, from_day: z.number().int().min(1) })).default([]),
+  /** 季节：从第几天开始（第一个从第 1 天开始）；decay 是这一季设施衰减的倍数（初秋落叶多） */
+  seasons: z
+    .array(z.strictObject({ id, from_day: z.number().int().min(1), decay: z.number().min(0).default(1) }))
+    .default([]),
   /** 每个季节的天气权重 */
   weather: z
     .record(id, z.strictObject({ sun: z.number(), cloud: z.number(), rain: z.number(), wind: z.number() }))
     .default({}),
-  /** 总监精力：每晚恢复多少；走路和做事的速度从 slow（精力 0）到 fast（精力满）线性变化 */
-  energy: z
-    .strictObject({
-      overnight: z.number().default(10),
-      slow: z.number().positive().default(0.6),
-      fast: z.number().positive().default(1.5),
-    })
-    .default({ overnight: 10, slow: 0.6, fast: 1.5 }),
-  /**
-   * 季度日程（会所公告板）：一天分几个时段、各几点开始（行），开局的默认日程
-   * 时段 → [周一..周日] 的活动 id 或 null。一个格子钉一张便条。
-   */
-  schedule: z
-    .strictObject({
-      parts: z.record(id, z.number().min(0).max(24)).default({}),
-      start: z.record(id, z.array(id.nullable()).length(7)).default({}),
-    })
-    .default({ parts: {}, start: {} }),
 });
 export type Act = z.infer<typeof act>;
 
@@ -331,7 +361,8 @@ export interface ContentBundle {
   traits: Trait[];
   directors: DirectorConfig[];
   activities: Activity[];
-  actions: Action[];
+  posts: Post[];
+  orders: Order[];
   acts: Act[];
   cards: Card[];
   /** 语言 → 扁平的文案键值表 */
@@ -340,8 +371,13 @@ export interface ContentBundle {
 
 export const DURATION_UNITS = { m: 1, h: 60, d: 1440 } as const;
 /** "2h" → 120（游戏分钟） */
+const parsed = new Map<string, number>();
 export function minutes(d: string): number {
+  const hit = parsed.get(d);
+  if (hit !== undefined) return hit;
   const m = /^(\d+(?:\.\d+)?)([mhd])$/.exec(d);
   if (!m) throw new Error(`bad duration ${d}`);
-  return Math.round(Number(m[1]) * DURATION_UNITS[m[2] as keyof typeof DURATION_UNITS]);
+  const v = Math.round(Number(m[1]) * DURATION_UNITS[m[2] as keyof typeof DURATION_UNITS]);
+  parsed.set(d, v);
+  return v;
 }

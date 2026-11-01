@@ -1,12 +1,13 @@
 import type {
   Act,
-  Action,
   Activity,
   Card,
   ContentBundle,
   DirectorConfig,
   Facility,
+  Order,
   Person,
+  Post,
   Stat,
   Trait,
 } from '@td/content';
@@ -22,8 +23,11 @@ export interface World {
   readonly director: DirectorConfig;
   readonly cards: ReadonlyMap<string, Card>;
   readonly activities: ReadonlyMap<string, Activity>;
-  /** 本幕的主动经营动作 */
-  readonly actions: ReadonlyMap<string, Action>;
+  /** 本幕的持续岗位和一次性工单 */
+  readonly posts: ReadonlyMap<string, Post>;
+  readonly orders: ReadonlyMap<string, Order>;
+  /** 锚点 → 那儿的设施 id */
+  readonly facilityAt: ReadonlyMap<string, string>;
   readonly people: ReadonlyMap<string, Person>;
   readonly traits: ReadonlyMap<string, Trait>;
   readonly stats: ReadonlyMap<string, Stat>;
@@ -59,7 +63,9 @@ export function worldFor(content: ContentBundle, actId: string, directorId?: str
     director,
     cards: byId(content.cards),
     activities: byId(content.activities),
-    actions: byId((content.actions ?? []).filter((x) => x.act === act.id)),
+    posts: byId((content.posts ?? []).filter((x) => x.act === act.id)),
+    orders: byId((content.orders ?? []).filter((x) => x.act === act.id)),
+    facilityAt: new Map(content.facilities.map((f) => [f.anchor, f.id])),
     people: byId(content.people),
     traits: byId(content.traits),
     stats: byId(content.stats),

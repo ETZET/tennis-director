@@ -1,0 +1,12 @@
+# 请施工队整红土：贵，但只要总监花一小时谈合同；施工队自己干一天。
+id: clay_contractor
+act: hollow_creek
+at: clay_court
+skill: service
+work: 1h
+cost: 900
+crew: 1
+when: { all: [{ facility: clay, is: overgrown }, { not: { activity: contractor, running: true } }] }
+effects:
+  - { activity: contractor }
+performance: talk

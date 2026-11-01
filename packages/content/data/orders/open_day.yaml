@@ -1,0 +1,14 @@
+# 免费开放日：要几个人一起张罗（三个人两小时）（发传单、带人试打）。来的人多少看声望；好教练在场可能发现那个孩子。
+id: open_day
+act: hollow_creek
+at: court_1
+skill: service
+work: 6h
+cost: 60
+crew: 3
+cooldown: 7d
+when: { not: { weather: rain } }
+effects:
+  - { stat: members, add: "round(1 + stat.reputation / 30 + rand() * 2)" }
+  - { schedule: hc_discover_kid, in: 30m, chance: "clamp(0.25 + coach.skill / 200, 0, 0.9)" }
+performance: open_day

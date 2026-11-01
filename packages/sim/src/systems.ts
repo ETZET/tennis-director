@@ -1,100 +1,18 @@
 import { minutes } from '@td/content';
 import { directorDraw, expireCards, openScheduled } from './cards';
-import { speedFactor, taskSystem } from './director';
 import { type Ctx, run, setStat } from './effects';
 import { weightedPick } from './rng';
+import { closeLedger, decayDay, overnight, staffSystem } from './staff';
 import { at, dayOf, minuteOfDay, weekdayOf } from './state';
-import { coachAttention, facilityTotals, makeEnv, num, test, wagesWeek } from './vars';
+import { facilityTotals, makeEnv, num, serviceRate, test, wagesWeek } from './vars';
+import { walkSystem } from './walk';
 import type { World } from './world';
 
 /**
- * 每个 tick 按固定顺序执行的系统，每个只负责一件事（技术文档「每个 tick 的系统顺序」）：
- * 日历 → 总监走位 → 活动 → 人员 → 经济 → 事件 → 导演。
- * 人员和经济按天结算，放在收盘时（closeDay）。
+ * 每个 tick 按固定顺序执行的系统，每个只负责一件事（ADR 0012）：
+ * 日历 → 员工走路 → 岗位和工单 → 活动 → 质量 → 事件 → 导演。
+ * 收盘时：今天的岗位账 → 衰减 → 经济 → 周结算。
  */
-
-/* ---------------- 总监走位 ---------------- */
-
-/** 导航图上的最短路（分钟）。返回经过的锚点（不含起点）。 */
-export function shortestRoute(w: World, from: string, to: string): { route: string[]; minutes: number } | null {
-  if (from === to) return { route: [], minutes: 0 };
-  const dist = new Map<string, number>([[from, 0]]);
-  const prev = new Map<string, string>();
-  const todo = new Set<string>([from]);
-  while (todo.size) {
-    let cur = '';
-    let best = Number.POSITIVE_INFINITY;
-    // 按名字排序再比较，距离相同时结果也确定
-    for (const n of [...todo].sort()) {
-      const d = dist.get(n) ?? Number.POSITIVE_INFINITY;
-      if (d < best) {
-        best = d;
-        cur = n;
-      }
-    }
-    todo.delete(cur);
-    if (cur === to) break;
-    for (const [nb, m] of w.nav.get(cur) ?? []) {
-      const nd = best + m;
-      if (nd < (dist.get(nb) ?? Number.POSITIVE_INFINITY)) {
-        dist.set(nb, nd);
-        prev.set(nb, cur);
-        todo.add(nb);
-      }
-    }
-  }
-  if (!dist.has(to)) return null;
-  const route: string[] = [];
-  for (let n: string | undefined = to; n && n !== from; n = prev.get(n)) route.unshift(n);
-  return { route, minutes: dist.get(to) ?? 0 };
-}
-
-const baseEdge = (w: World, a: string, b: string): number => w.nav.get(a)?.find(([n]) => n === b)?.[1] ?? 1;
-/** 这一段要走几分钟：精力满时跑着去，累了慢慢走 */
-const edgeMinutes = (ctx: Ctx, a: string, b: string): number =>
-  Math.max(1, Math.round(baseEdge(ctx.w, a, b) / speedFactor(ctx.s, ctx.w)));
-
-/** 命令：让总监走到某个锚点。走在路上时从下一个锚点改道。 */
-export function moveDirector(ctx: Ctx, to: string): boolean {
-  const { s, w } = ctx;
-  if (!w.act.anchors.includes(to)) return false;
-  const d = s.director;
-  // 正在现场忙的时候走不开
-  if (d.task?.phase === 'working') return false;
-  const origin = d.at ?? d.leg?.to;
-  if (!origin) return false;
-  const r = shortestRoute(w, origin, to);
-  if (!r) return false;
-  if (d.leg) {
-    // 先走完脚下这一段，再按新路线走
-    d.route = r.route;
-    return true;
-  }
-  if (!r.route.length) return true;
-  const [next, ...rest] = r.route as [string, ...string[]];
-  d.leg = { from: origin, to: next, start: s.t, end: s.t + edgeMinutes(ctx, origin, next) };
-  d.route = rest;
-  d.at = null;
-  ctx.events.push({ type: 'directorDeparted', from: origin, to, route: r.route, arrive: s.t + r.minutes });
-  return true;
-}
-
-function directorSystem(ctx: Ctx): void {
-  const { s } = ctx;
-  const d = s.director;
-  while (d.leg && d.leg.end <= s.t) {
-    const here = d.leg.to;
-    const [next, ...rest] = d.route;
-    if (next) {
-      d.leg = { from: here, to: next, start: d.leg.end, end: d.leg.end + edgeMinutes(ctx, here, next) };
-      d.route = rest;
-    } else {
-      d.leg = null;
-      d.at = here;
-      ctx.events.push({ type: 'directorArrived', at: here });
-    }
-  }
-}
 
 /* ---------------- 活动 ---------------- */
 
@@ -155,6 +73,8 @@ export function recomputeDerived(ctx: Ctx): void {
 function closeDay(ctx: Ctx): void {
   const { s, w } = ctx;
   const day = dayOf(s.t);
+  closeLedger(ctx);
+  decayDay(ctx, w.act.seasons.find((x) => x.id === s.season)?.decay ?? 1);
   const env = makeEnv(s, w);
   const fac = facilityTotals(s, w);
   const income = Math.round(
@@ -179,8 +99,12 @@ function closeDay(ctx: Ctx): void {
     { stat: 'reputation', add: Math.round(rep * 10) / 10 },
   ];
   run(ctx, { kind: 'day', day }, null, effects);
-  // 一夜过去，总监恢复一点精力（不会回满：一季里能亲自做的事是有限的）
-  s.director.energy = Math.min(100, s.director.energy + w.act.energy.overnight);
+  // 周日收盘：会员和声望按这一周的平均服务率结算过了（member_drift 里），本周清零
+  if (weekdayOf(s.t) === 6) {
+    const rate = serviceRate(s);
+    s.week = { demand: 0, served: 0, last: rate };
+    ctx.events.push({ type: 'weekSettled', serviceRate: rate });
+  }
   recomputeDerived(ctx);
   ctx.events.push({ type: 'dayEnded', day });
   const lose = w.act.rules.lose_if;
@@ -195,60 +119,13 @@ export function seasonOn(w: World, day: number): string {
   return id;
 }
 
-function pushActivity(ctx: Ctx, id: string, start: number, cause: number | null): void {
-  const { s, w } = ctx;
-  const a = w.activities.get(id);
-  if (!a) return;
-  s.activities.push({
-    uid: s.nextUid++,
-    id: a.id,
-    anchor: a.anchor,
-    start,
-    end: start + minutes(a.duration),
-    started: false,
-    cause,
-  });
-}
-
-/** 按公告板排上这一天还没过去的活动 */
-export function schedulePlan(ctx: Ctx, day: number, fromMinute = 0): void {
-  const { s, w } = ctx;
-  const wd = weekdayOf(at(day, 12));
-  for (const [part, hour] of Object.entries(w.act.schedule.parts)) {
-    const id = s.plan[part]?.[wd];
-    if (!id) continue;
-    const start = at(day, hour);
-    if (start < s.t || minuteOfDay(start) < fromMinute) continue;
-    const a = w.activities.get(id);
-    if (!a?.program || (a.program.requires && !test(s, w, a.program.requires))) continue;
-    pushActivity(ctx, id, start, null);
-  }
-}
-
-/** 公告板改了：今天还没开始的日程活动按新的重排 */
-export function reschedulePlanToday(ctx: Ctx): void {
-  const { s, w } = ctx;
-  const day = dayOf(s.t);
-  s.activities = s.activities.filter(
-    (a) => a.started || a.cause !== null || !w.activities.get(a.id)?.program || dayOf(a.start) !== day,
-  );
-  schedulePlan(ctx, day);
-}
-
-/**
- * 新的一天开门：换季（精力回满、打开公告板排日程）、今天的天气、
- * 按公告板排上今天的活动，再加上每天固定的活动。
- */
+/** 新的一天开门：换季、今天的天气、每天固定的活动。 */
 export function openDay(ctx: Ctx, day: number, fromMinute = 0): void {
   const { s, w } = ctx;
   const season = seasonOn(w, day);
   if (season !== s.season) {
     s.season = season;
-    s.director.energy = 100;
-    s.planning = true;
     ctx.events.push({ type: 'seasonStarted', season });
-    ctx.events.push({ type: 'planOpened', season });
-    ctx.events.push({ type: 'requestPause', reason: 'plan' });
   }
   const weights = w.act.weather[season];
   if (weights) {
@@ -259,7 +136,6 @@ export function openDay(ctx: Ctx, day: number, fromMinute = 0): void {
     if (pick) s.weather = pick;
     ctx.events.push({ type: 'weather', weather: s.weather });
   }
-  schedulePlan(ctx, day, fromMinute);
   for (const d of w.act.daily) {
     const start = at(day, d.hour);
     if (start < s.t || minuteOfDay(start) < fromMinute) continue;
@@ -285,29 +161,21 @@ export function tick(ctx: Ctx): void {
   const { s, w } = ctx;
   if (s.outcome) return;
   openScheduled(ctx); // 日历和后续事件
+  staffSystem(ctx); // 岗位转圈、工单推进、办事
   activitySystem(ctx); // 活动开始、结算
-  qualitySystem(ctx); // 人员和项目质量
+  qualitySystem(ctx); // 项目质量
   expireCards(ctx); // 事件：倒计时到了执行默认后果
   directorDraw(ctx); // 导演：要不要发新卡
   s.t += 1;
-  directorSystem(ctx); // 总监走位：这一分钟走完，到没到
-  taskSystem(ctx); // 总监手上的事：到了就开始忙，忙完结算
+  walkSystem(ctx); // 走路：这一分钟走到没有
 
   if (minuteOfDay(s.t) >= w.act.hours.close * 60 && !s.outcome) {
     closeDay(ctx);
     const next = dayOf(s.t) + 1;
     const open = at(next, w.act.hours.open);
-    // 夜里跳过：总监留在原地，走到一半的直接到
-    const d = s.director;
-    if (d.leg) {
-      d.at = d.route[d.route.length - 1] ?? d.leg.to;
-      d.leg = null;
-      d.route = [];
-      ctx.events.push({ type: 'directorArrived', at: d.at });
-    }
+    // 夜里跳过：人留在原地，走到一半的直接到，明早接着干
+    overnight(ctx);
     s.t = open;
     openDay(ctx, next);
   }
 }
-
-export { coachAttention };

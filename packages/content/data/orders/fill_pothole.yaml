@@ -1,8 +1,11 @@
-# 停车场：把那个坑补上。
+# 停车场的坑：会员抱怨刮车。
 id: fill_pothole
 act: hollow_creek
 at: lot
+skill: upkeep
+work: 1h
 cost: 120
 once: true
 effects:
   - { stat: reputation, add: 2 }
+performance: workday

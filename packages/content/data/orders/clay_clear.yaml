@@ -1,0 +1,13 @@
+# 红土场除草清树：不花钱，但要很多人·小时。几个人一起干快得多。
+id: clay_clear
+act: hollow_creek
+at: clay_court
+skill: upkeep
+work: 12h
+crew: 4
+when: { facility: clay, is: overgrown }
+restore: 70
+effects:
+  - { facility: clay, set: restored }
+  - { stat: reputation, add: 2 }
+performance: workday

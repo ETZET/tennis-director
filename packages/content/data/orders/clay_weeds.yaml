@@ -1,0 +1,9 @@
+# 红土状况掉下来以后杂草又冒头。
+id: clay_weeds
+act: hollow_creek
+at: clay_court
+skill: upkeep
+work: 3h
+when: { all: [{ facility: clay, is: restored }, { expr: "condition.clay < 40" }] }
+restore: 40
+performance: sweep

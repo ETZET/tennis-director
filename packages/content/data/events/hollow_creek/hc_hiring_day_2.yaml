@@ -1,0 +1,20 @@
+# 第二个招聘日（入秋前）：修好的设施越多，要守的地方越多。
+id: hc_hiring_day_2
+act: hollow_creek
+source: calendar
+tone: relief
+pause: true
+countdown: 1d
+location: deck
+who: applicants
+options:
+  A:
+    effects:
+      - { hire: gus_moreno }
+  B:
+    effects:
+      - { hire: lily_chen }
+  C:
+    effects:
+      - { log: log.no_hire }
+default: { then: C }

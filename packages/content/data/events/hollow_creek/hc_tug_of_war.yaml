@@ -15,7 +15,7 @@ options:
       - { person: mason, add: { morale: 10 } }
       - { stat: quality, add: -1 }
   B:
-    requiresDirectorAt: court_2
+    errand: { at: court_2, for: 1h }
     effects:
       - { activity: tug_of_war, in: 30m }
       - { stat: reputation, add: 2 }

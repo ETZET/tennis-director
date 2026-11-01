@@ -1,0 +1,9 @@
+# 1 号场状况掉下来以后冒出的工单：落叶、积水、松掉的线。
+id: court1_sweep
+act: hollow_creek
+at: court_1
+skill: upkeep
+work: 2h
+when: { expr: "condition.court_1 < 40" }
+restore: 35
+performance: sweep
