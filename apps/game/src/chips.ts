@@ -7,7 +7,7 @@ import type { Text } from './text';
  * 只讲玩家看得见的东西；标记、日志这类幕后的账不出标签。
  */
 
-const LOWER_IS_BETTER = new Set(['pickleball_pressure']);
+const LOWER_IS_BETTER = new Set<string>();
 const fmtNum = (n: number) => `${n > 0 ? '+' : '−'}${Math.abs(Math.round(n * 10) / 10)}`;
 
 /** 招聘：这个人最强的两项能力和周薪（第二轮试玩 S1：招人不能是盲选） */

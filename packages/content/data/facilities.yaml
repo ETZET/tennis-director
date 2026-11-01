@@ -1,0 +1,52 @@
+# Indian Wells 的设施。每个设施的第一个状态是开局废弃的样子，后面是一级级修好的样子（ADR 0015）。
+# courts：能打网球的场地数；quality：对质量目标的贡献（状况低于 30 减半，到 0 归零）；
+# decay_day：没人维护时每天掉多少状况（准则 6：没人管的地方慢慢变旧）。
+- id: outer_1
+  anchor: outer_1
+  states:
+    # 沙子盖住了大半个场地，网倒在地上
+    sanded: {}
+    # 沙扫掉了，网还没换
+    swept: {}
+    playable: { courts: 1, quality: 5, upkeep_week: 15, decay_day: 5 }
+    resurfaced: { courts: 1, quality: 10, upkeep_week: 20, decay_day: 3 }
+- id: outer_23
+  anchor: outer_23
+  states:
+    ruined: {}
+    playable: { courts: 2, quality: 9, upkeep_week: 30, decay_day: 5 }
+- id: practice
+  anchor: practice
+  states:
+    ruined: {}
+    open: { courts: 2, quality: 7, upkeep_week: 30, decay_day: 4 }
+- id: clubhouse
+  anchor: clubhouse
+  states:
+    ruined: { quality: -2 }
+    # 前台开张：有了服务岗位，也能开招聘日了
+    open: { quality: 8, upkeep_week: 60, decay_day: 1.5 }
+- id: plaza
+  anchor: plaza
+  states:
+    dry: { quality: -2 }
+    open: { quality: 6, upkeep_week: 50, decay_day: 2.5 }
+- id: stadium_3
+  anchor: stadium_3
+  states:
+    # 下沉的场地大半被沙填满
+    buried: {}
+    dug: {}
+    open: { courts: 1, quality: 8, upkeep_week: 80, decay_day: 4 }
+- id: stadium_2
+  anchor: stadium_2
+  states:
+    ruined: { quality: -1 }
+    open: { courts: 1, quality: 12, upkeep_week: 140, decay_day: 3 }
+- id: stadium_1
+  anchor: stadium_1
+  states:
+    # 东南角上层看台塌了，场地上全是碎石和沙
+    ruined: { quality: -4 }
+    cleared: { quality: -1 }
+    restored: { courts: 1, quality: 20, upkeep_week: 300, decay_day: 2 }

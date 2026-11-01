@@ -1,0 +1,14 @@
+# Stadium 3 · 周末联赛：周六周日 9–17 点，本地球队来下沉场地打比赛，看台上有人看。
+id: st3_league
+act: indian_wells
+at: stadium_3
+skill: service
+cycle: 1h
+hours: [9, 17]
+days: [5, 6]
+when: { facility: stadium_3, is: open }
+effects:
+  - { stat: cash, add: "round(14 * (0.6 + worker.skill / 100) * (1 + stat.reputation / 120))" }
+  - { stat: reputation, add: 0.04 }
+wear: 1
+performance: match

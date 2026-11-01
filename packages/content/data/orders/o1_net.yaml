@@ -1,0 +1,13 @@
+# 给外场 1 换一张网：买张网，一个人一小时。换好了外场 1 就能打球了。
+id: o1_net
+act: indian_wells
+at: outer_1
+skill: upkeep
+work: 1h
+cost: 120
+crew: 1
+when: { facility: outer_1, is: swept }
+restore: 20
+effects:
+  - { facility: outer_1, set: playable }
+  - { log: log.first_court }

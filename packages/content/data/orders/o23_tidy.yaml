@@ -1,0 +1,8 @@
+# 外场 2–3 又积沙了
+id: o23_tidy
+act: indian_wells
+at: outer_23
+skill: upkeep
+work: 3h
+when: { all: [{ facility: outer_23, is: playable }, { expr: "condition.outer_23 < 40" }] }
+restore: 35

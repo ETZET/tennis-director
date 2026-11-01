@@ -1,0 +1,21 @@
+# Stadium 2 修好的那天晚上，Dale 说起园区关门前的最后一届比赛。
+id: iw_dale_story
+act: indian_wells
+source: threshold
+tone: relief
+once: true
+countdown: 1d
+when: { facility: stadium_2, is: open }
+location: stadium_2
+who: dale
+options:
+  A:
+    # 答应他：表演赛那天他坐裁判椅
+    effects:
+      - { person: dale, add: { morale: 25 } }
+      - { flag: dale_umpire, set: true }
+  B:
+    # 让他歇几天：他这几个月太累了
+    effects:
+      - { person: dale, add: { morale: 10, fatigue: -40 } }
+default: { then: B }

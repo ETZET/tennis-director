@@ -1,4 +1,4 @@
-import { createStage, hollowCreek, OrbitCamera } from '@td/render';
+import { createStage, indianWells, OrbitCamera, type Site } from '@td/render';
 import { clamp } from '@td/shared';
 import { CONTENT, type ContentBundle, canAssign, DIRECTOR, type SimEvent, worldOf } from '@td/sim';
 import { type HudActions, mountHud, setHudStrings } from '@td/ui';
@@ -35,16 +35,15 @@ let text = createText(content, lang);
 const applyHudStrings = () => setHudStrings((k) => text.tr(`ui.hud.${k}`, '') || undefined);
 applyHudStrings();
 
-/* ---------- 舞台 ---------- */
+/* ---------- 舞台：整局只有一张地图（Indian Wells，2026-11-01） ---------- */
+const site: Site = indianWells.INDIAN_WELLS;
 const container = $('stage');
-const stage = createStage(container, hollowCreek.HOLLOW_CREEK_LIGHTING);
-hollowCreek.buildHollowCreekStage(stage);
-const scene = createGameScene(stage, content);
+const stage = createStage(container, site.lighting);
+site.build(stage);
+const scene = createGameScene(stage, content, site);
 const HOME =
-  container.clientWidth / Math.max(1, container.clientHeight) < 0.8
-    ? hollowCreek.HOLLOW_CREEK_CAMERA_PORTRAIT
-    : hollowCreek.HOLLOW_CREEK_CAMERA.overview;
-const camera = new OrbitCamera(stage, HOME, hollowCreek.HOLLOW_CREEK_CAMERA_LIMITS);
+  container.clientWidth / Math.max(1, container.clientHeight) < 0.8 ? site.camera.portrait : site.camera.overview;
+const camera = new OrbitCamera(stage, HOME, site.camera.limits);
 window.addEventListener('resize', () => camera.resize());
 camera.resize();
 camera.bindPointer(stage.renderer.domElement);
@@ -171,11 +170,9 @@ labels.occluders = () =>
   [...document.querySelectorAll('.td-bug,.td-strip-wrap,.td-card,.td-wire,.td-bug-status,.td-staff,.td-sheet')].map(
     (el) => el.getBoundingClientRect(),
   );
-// 红土场的站位就在桥头，牌子挪到场地北边线上，不和"人行桥"叠在一起
-const LABEL_AT: Record<string, { x: number; z: number }> = { clay_court: hollowCreek.FD.w({ x: 0, z: -10.4 }) };
 const ground = (a: string, dy: number) => () => {
-  const p = LABEL_AT[a] ?? hollowCreek.STANDS[a] ?? { x: 0, z: 0 };
-  return { x: p.x, y: hollowCreek.groundY(p.x, p.z) + dy, z: p.z };
+  const p = site.stands[a] ?? { x: 0, z: 0 };
+  return { x: p.x, y: site.groundY(p.x, p.z) + dy, z: p.z };
 };
 const director = () => session.s.people[DIRECTOR];
 /** 拉远看整座岛时（手机默认视角），只给总监所在、正要去、有事的地方挂名字；其余缩成小圆点 */
@@ -203,12 +200,10 @@ for (const a of content.acts[0]?.anchors ?? []) {
     },
   });
   placeLabel.el.dataset.anchor = a;
-  const center = (hollowCreek.ANCHORS as Record<string, { x: number; z: number }>)[a];
+  const center = site.anchors[a];
   labels.add({
     // 活动牌挂在场地中央（地点牌在门口），两块牌子不叠在一起
-    get: center
-      ? () => ({ x: center.x, y: hollowCreek.groundY(center.x, center.z) + 0.2, z: center.z })
-      : ground(a, 0.2),
+    get: center ? () => ({ x: center.x, y: site.groundY(center.x, center.z) + 0.2, z: center.z }) : ground(a, 0.2),
     lift: 20,
     cls: () => 'act',
     text: () => {

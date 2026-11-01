@@ -126,6 +126,11 @@ export function makeEnv(s: GameState, w: World, extra: Record<string, Value> = {
           return facs().income;
         case 'facility_upkeep_week':
           return facs().upkeep;
+        case 'restored': {
+          let n = 0;
+          for (const [id, st] of Object.entries(s.facilities)) if (st !== w.act.facilities[id]) n++;
+          return n;
+        }
         case 'wages_week':
           return wagesWeek(s, w);
         case 'open_cards':

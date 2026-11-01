@@ -1,4 +1,4 @@
-import { activities, hollowCreek, type PeopleWorld, Person, Scheduler } from '@td/render';
+import { activities, indianWells, type PeopleWorld, Person, Scheduler } from '@td/render';
 import { CONTENT } from '@td/sim';
 import * as THREE from 'three';
 import { beforeAll, describe, expect, it } from 'vitest';
@@ -20,9 +20,12 @@ beforeAll(() => {
  * 内容是活的：新加一个 performance 而忘了在 perform.ts 里配演出，这里会报出来。
  */
 
+const site = indianWells.INDIAN_WELLS;
 const used = () => {
   const out = new Map<string, string>();
   for (const a of CONTENT.activities) out.set(a.performance, `activities/${a.id}.yaml`);
+  for (const p of CONTENT.posts) if (p.performance) out.set(p.performance, `posts/${p.id}.yaml`);
+  for (const o of CONTENT.orders) if (o.performance) out.set(o.performance, `orders/${o.id}.yaml`);
   for (const c of CONTENT.cards) if (c.stage?.performance) out.set(c.stage.performance, `events/${c.act}/${c.id}.yaml`);
   return out;
 };
@@ -31,7 +34,11 @@ describe('performance → 活动动画库', () => {
   it('内容里用到的每个 performance 都有演出', () => {
     const names = used();
     expect(names.size).toBeGreaterThan(0);
-    for (const [name, where] of names) expect(planPerformance(name), `${name}（${where}）`).not.toBeNull();
+    for (const [name, where] of names) expect(PERFORMANCE_PLANS[name], `${name}（${where}）`).toBeDefined();
+    // 有球场的地点上的岗位和工单都能演（会所、广场上的活由人站着比划，不演）
+    for (const x of [...CONTENT.posts, ...CONTENT.orders])
+      if (x.performance && PERFORMANCE_PLANS[x.performance]?.area === 'court' && site.courts[x.at])
+        expect(planPerformance(x.performance, x.at, site), `${x.id} @ ${x.at}`).not.toBeNull();
   });
 
   it('映射到的活动都在注册表里，变量合法', () => {
@@ -51,7 +58,9 @@ describe('performance → 活动动画库', () => {
     for (const [name, plan] of Object.entries(PERFORMANCE_PLANS)) {
       const meta = activities.activityMeta(plan.activity);
       if (!meta) continue;
-      const fr = areaFrame(plan.area);
+      const anchor = Object.keys(plan.area === 'court' ? site.courts : site.grounds)[0] ?? '';
+      const fr = areaFrame(site, plan.area, anchor);
+      if (!fr) throw new Error(`${name}: no area`);
       // 球场类以球网为原点、两边各算到原生场地的边；其他活动以区域中心为原点
       const nx = meta.netX ?? 0;
       const half = meta.ground === 'court' ? Math.max(meta.size.W / 2 + nx, meta.size.W / 2 - nx) : meta.size.W / 2;
@@ -66,33 +75,37 @@ describe('performance → 活动动画库', () => {
   });
 
   it('游戏输入 → 全局条件', () => {
-    expect(conditionsFrom({ weather: 'rain', fatigue: 140, coachSkill: 40 })).toEqual({
+    expect(conditionsFrom({ weather: 'rain', fatigue: 140, coachSkill: 40 }, 'hollow')).toEqual({
       fatigue: 1,
       weather: 'rain',
       coach: 2,
       venue: 'hollow',
     });
-    expect(conditionsFrom({ weather: 'cloud', fatigue: 20, coachSkill: 86 }).coach).toBe(5);
-    expect(conditionsFrom({ weather: 'cloud', fatigue: 20, coachSkill: 0 }).coach).toBe(1);
+    expect(conditionsFrom({ weather: 'cloud', fatigue: 20, coachSkill: 86 }, 'generic').coach).toBe(5);
+    expect(conditionsFrom({ weather: 'cloud', fatigue: 20, coachSkill: 0 }, 'generic').coach).toBe(1);
   });
 
-  it('每个演出在 Hollow Creek 上演 20 秒，借来的教练和孩子原样还回去', () => {
+  it('每个演出在 Indian Wells 上演 20 秒，借来的教练和球员原样还回去', () => {
     const scene = new THREE.Scene();
     const sched = new Scheduler();
-    const world: PeopleWorld = { scene, groundY: hollowCreek.groundY, people: [] };
+    const world: PeopleWorld = { scene, groundY: site.groundY, people: [] };
     const look = { shirt: '#333', shorts: '#222', skin: '#e8b896', hair: '#222', shoes: '#fff' };
-    const at = hollowCreek.FA.w({ x: 3.6, z: -1.6 });
+    const at = indianWells.F_O1.w({ x: 3.6, z: -1.6 });
     const coach = new Person({ name: 'Dale', x: at.x, z: at.z, ...look, phone: true }, world);
     const kids = [
       new Person({ name: 'Tyler', x: at.x - 10, z: at.z, ...look }, world),
       new Person({ name: 'Mason', x: at.x - 12, z: at.z, ...look }, world),
     ];
     for (const name of Object.keys(PERFORMANCE_PLANS)) {
+      const plan = PERFORMANCE_PLANS[name];
+      const anchor = plan?.area === 'ground' ? 'plaza' : 'outer_1';
       const p = perform(
-        { scene, sched, world, lang: 'en' },
+        { scene, sched, world, lang: 'en', site },
         name,
         { weather: 'cloud', fatigue: 60, coachSkill: 40 },
         { coach, juniors: kids },
+        1,
+        anchor,
       );
       for (let t = 0; t < 20; t += 0.05) {
         sched.advance(0.05);

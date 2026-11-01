@@ -1,0 +1,22 @@
+# 外场 1 能打了，第二天就来了两位从 Palm Desert 来的退休老人，问能不能打一场。
+id: iw_first_players
+act: indian_wells
+source: threshold
+tone: relief
+once: true
+countdown: 6h
+when: { any: [{ facility: outer_1, is: playable }, { facility: outer_1, is: resurfaced }] }
+location: outer_1
+who: retirees
+options:
+  A:
+    # 头一周免费：口碑传得快
+    effects:
+      - { stat: reputation, add: 3 }
+      - { stat: members, add: 2 }
+  B:
+    # 照价收：钱是钱
+    effects:
+      - { stat: cash, add: 60 }
+      - { stat: members, add: 1 }
+default: { then: B }

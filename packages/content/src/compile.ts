@@ -63,6 +63,8 @@ export const COMPUTED_VARS = [
   'worker.skill',
   /** 在职、能指派的人数（含总监） */
   'staff',
+  /** 状态和开局不一样的设施有几处（修好了几处，ADR 0015） */
+  'restored',
   /** 本周到现在的服务率 0..1（有需求的岗位分钟里，有人在岗的比例） */
   'service_rate',
 ] as const;
@@ -283,9 +285,13 @@ export function compileContent(files: Record<string, string>): CompileResult {
         if (!f) err(file, `${w}: unknown facility '${e.facility}'`);
         else if (!(e.set in f.states)) err(file, `${w}: facility '${e.facility}' has no state '${e.set}'`);
       }
+      if ('condition' in e) {
+        if (!facilities.has(e.condition)) err(file, `${w}: unknown facility '${e.condition}'`);
+        checkExpr(file, e.add, w);
+      }
       if ('schedule' in e && !cards.has(e.schedule)) err(file, `${w}: unknown card '${e.schedule}'`);
       if ('activity' in e && !activities.has(e.activity)) err(file, `${w}: unknown activity '${e.activity}'`);
-      for (const k of ['hire', 'fire', 'person', 'follow', 'errand'] as const)
+      for (const k of ['hire', 'fire', 'person', 'errand'] as const)
         if (k in e && !people.has((e as unknown as Record<string, string>)[k] as string))
           err(file, `${w}: unknown person '${(e as unknown as Record<string, string>)[k]}'`);
       if ('person' in e) for (const v of Object.values(e.add)) checkExpr(file, v, w);

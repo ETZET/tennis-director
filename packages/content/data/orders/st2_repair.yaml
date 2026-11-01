@@ -1,0 +1,15 @@
+# 修 Stadium 2：换座位、补遮阳布、铺场地。Stadium 3 开了以后才排得上。
+id: st2_repair
+act: indian_wells
+at: stadium_2
+skill: upkeep
+work: 24h
+cost: 4500
+crew: 5
+when: { all: [{ facility: stadium_2, is: ruined }, { facility: stadium_3, is: open }] }
+restore: 80
+effects:
+  - { facility: stadium_2, set: open }
+  - { stat: reputation, add: 4 }
+  - { log: log.stadium_2_open }
+performance: contractor

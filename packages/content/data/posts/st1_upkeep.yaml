@@ -1,0 +1,8 @@
+# Stadium 1 · 维护：修好以后要一直有人照看，表演赛之前不能再坏
+id: st1_upkeep
+act: indian_wells
+at: stadium_1
+skill: upkeep
+cycle: 1h
+when: { facility: stadium_1, is: restored }
+restore: 4

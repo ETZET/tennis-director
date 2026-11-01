@@ -1,0 +1,13 @@
+# 把 Stadium 3 的沙挖出来：不花什么钱，但要五个人干好几天。练习场和会所都开了以后才排得上。
+id: st3_dig
+act: indian_wells
+at: stadium_3
+skill: upkeep
+work: 24h
+cost: 300
+crew: 5
+when: { all: [{ facility: stadium_3, is: buried }, { facility: practice, is: open }, { facility: clubhouse, is: open }] }
+restore: 40
+effects:
+  - { facility: stadium_3, set: dug }
+performance: workday

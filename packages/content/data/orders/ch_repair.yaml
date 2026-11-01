@@ -1,0 +1,18 @@
+# 修会所：补屋顶、换窗、通水电。前台开了才有服务岗位，也才能开招聘日。
+id: ch_repair
+act: indian_wells
+at: clubhouse
+skill: upkeep
+work: 14h
+cost: 1800
+crew: 3
+when:
+  all:
+    - { facility: clubhouse, is: ruined }
+    - { any: [{ facility: outer_1, is: playable }, { facility: outer_1, is: resurfaced }] }
+restore: 80
+effects:
+  - { facility: clubhouse, set: open }
+  - { stat: reputation, add: 3 }
+  - { log: log.clubhouse_open }
+performance: workday

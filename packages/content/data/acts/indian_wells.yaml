@@ -1,0 +1,116 @@
+# Indian Wells Tennis Garden：整局唯一的地图（2026-11-01）。开局是废弃的，总监和 Dale 是这里仅有的两个人。
+# 修好一处设施就开出新的岗位（ADR 0015）；修好 Stadium 1、办成一场表演赛就通关。
+id: indian_wells
+start: { day: 1, hour: 8 }
+hours: { open: 8, close: 20 }
+stats:
+  cash: 3000
+  reputation: 5
+  quality: 10
+  members: 0
+  service: 50
+# 设施开局的状态（facilities.yaml 里每个设施的第一个状态都是废弃的样子）
+facilities:
+  outer_1: sanded
+  outer_23: ruined
+  practice: ruined
+  clubhouse: ruined
+  plaza: dry
+  stadium_3: buried
+  stadium_2: ruined
+  stadium_1: ruined
+people:
+  # 总监从大门进来；Dale 在会所后面那间办公室里住了十年
+  - { id: director, at: entrance }
+  - { id: dale, at: clubhouse, head_coach: true }
+# 开局的状况（0..100）：废了十年，到处都很差
+condition: { outer_1: 10, outer_23: 10, practice: 10, clubhouse: 20, plaza: 15, stadium_3: 5, stadium_2: 10, stadium_1: 5 }
+anchors: [entrance, parking, plaza, clubhouse, stadium_1, stadium_2, stadium_3, practice, outer_1, outer_23]
+# 步行分钟数：两两之间都有一条边，分钟数按画面里步道的长度换算
+# （3 米 / 游戏分钟，见 render 的 indianWells.WALK_METERS_PER_MINUTE；layout.test 检查两边一致）。
+nav:
+  - [entrance, parking, 21]
+  - [entrance, plaza, 13]
+  - [entrance, clubhouse, 46]
+  - [entrance, stadium_1, 26]
+  - [entrance, stadium_2, 58]
+  - [entrance, stadium_3, 58]
+  - [entrance, practice, 69]
+  - [entrance, outer_1, 49]
+  - [entrance, outer_23, 53]
+  - [parking, plaza, 34]
+  - [parking, clubhouse, 26]
+  - [parking, stadium_1, 27]
+  - [parking, stadium_2, 60]
+  - [parking, stadium_3, 39]
+  - [parking, practice, 50]
+  - [parking, outer_1, 51]
+  - [parking, outer_23, 54]
+  - [plaza, clubhouse, 44]
+  - [plaza, stadium_1, 25]
+  - [plaza, stadium_2, 57]
+  - [plaza, stadium_3, 57]
+  - [plaza, practice, 68]
+  - [plaza, outer_1, 48]
+  - [plaza, outer_23, 52]
+  - [clubhouse, stadium_1, 38]
+  - [clubhouse, stadium_2, 45]
+  - [clubhouse, stadium_3, 24]
+  - [clubhouse, practice, 35]
+  - [clubhouse, outer_1, 62]
+  - [clubhouse, outer_23, 65]
+  - [stadium_1, stadium_2, 28]
+  - [stadium_1, stadium_3, 49]
+  - [stadium_1, practice, 39]
+  - [stadium_1, outer_1, 19]
+  - [stadium_1, outer_23, 23]
+  - [stadium_2, stadium_3, 33]
+  - [stadium_2, practice, 22]
+  - [stadium_2, outer_1, 27]
+  - [stadium_2, outer_23, 31]
+  - [stadium_3, practice, 23]
+  - [stadium_3, outer_1, 49]
+  - [stadium_3, outer_23, 53]
+  - [practice, outer_1, 39]
+  - [practice, outer_23, 42]
+  - [outer_1, outer_23, 21]
+seasons:
+  - { id: autumn, from_day: 1, decay: 1 }
+  # 冬天游客最多，风小，设施掉得慢一点
+  - { id: winter, from_day: 36, decay: 0.8 }
+  # 春天是风季：大风扬沙，没人管的场地坏得更快
+  - { id: spring, from_day: 71, decay: 1.3 }
+weather:
+  autumn: { sun: 6, cloud: 2, rain: 0.3, wind: 1.5 }
+  winter: { sun: 5, cloud: 3, rain: 1, wind: 1 }
+  spring: { sun: 5, cloud: 1, rain: 0.2, wind: 3 }
+start_cards: [iw_arrival]
+# 投资方给了 16 周：第 13 周来看一次进度，第 112 天收盘前还没办成表演赛就停工
+calendar:
+  - { day: 85, hour: 10, card: iw_investor_check }
+  - { day: 112, hour: 18, card: iw_deadline }
+director_config: steady
+rules:
+  # 质量每 10 分钟向目标靠近：修好的设施、开着的场地、本周服务率、主教练（总监在同一个地点时他才专心）、器材
+  quality_target: >-
+    10 + facility_quality + courts_open * 2 + stat.service * 0.2 + coach.skill * 0.15 * coach.attention
+    + (flag.ball_machine ? 4 : 0)
+  quality_rate: 0.15
+  # 会员和声望每周日收盘结算一次（准则 6）：开着的场地有人看、质量、名气。
+  # 会员有上限：每块能打的场地撑得起 12 个会员，会所开了再多 15 个；超出的人周末就不续了。
+  member_drift: >-
+    weekday == 6 ? min(max(0, round(courts_open * service_rate + (stat.quality - 30) / 12 + stat.reputation / 30)),
+    courts_open * 12 + (facility.clubhouse == "open" ? 15 : 0) - stat.members) : 0
+  reputation_drift: >-
+    weekday == 6 ? (service_rate - 0.5) * 2 + (stat.quality - 50) / 25 + restored * 0.15 : 0
+  dues_week: 12
+  derived:
+    service: round(service_rate * 100)
+    # 复原进度：八处设施修好了几处（HUD 上的"复原"）
+    restoration: restored
+  lose_if:
+    when: { stat: cash, lt: -2000 }
+    ending: bankrupt
+  director_growth: 0.3
+  director_skill_cap: 80
+daily: []

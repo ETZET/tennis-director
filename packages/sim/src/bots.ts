@@ -76,8 +76,6 @@ const WEIGHT: Record<string, number> = {
   members: 4,
   reputation: 2,
   cash: 0.01,
-  board_support: 1,
-  pickleball_pressure: -0.2,
 };
 
 /** 给一个选项按看得见的效果打分（成功率按期望算）；总监被叫走的时间按每小时 2 分扣 */
@@ -133,9 +131,11 @@ function effectScore(effs: readonly Effect[], k = 1): number {
     const m = k * (typeof e.chance === 'number' ? e.chance : 1);
     if ('stat' in e && 'add' in e && typeof e.add === 'number') score += m * e.add * (WEIGHT[e.stat] ?? 0);
     else if ('stat' in e && 'add' in e) score += m * 6 * (WEIGHT[e.stat] ?? 0);
-    if ('facility' in e) score += m * 30;
+    // 修好一处设施会开出新的岗位（ADR 0015）：比眼前的数字值钱
+    if ('facility' in e) score += m * 100;
     if ('activity' in e) score += m * 20;
     if ('flag' in e) score += m * 2;
+    if ('endAct' in e) score += m * (e.endAct === 'won' ? 1000 : -1000);
     if ('person' in e) score += m * 2;
   }
   return score;
@@ -188,8 +188,8 @@ function staffCommands(s: GameState, w: World, st: StaffStyle): Command[] {
     const p = os.chance ?? 1;
     let value = effectScore(o.effects) + effectScore(o.onSuccess, p) + effectScore(o.onFail, 1 - p) + o.restore / 4;
     value -= o.cost * (WEIGHT.cash ?? 0);
-    // 按每小时折算：大工程也值得一点一点干
-    value = value / Math.max(1, minutes(o.work) / 60) + (os.started ? 4 : 0);
+    // 按工时折算（开平方）：大工程也值得一点一点干
+    value = value / Math.max(1, Math.sqrt(minutes(o.work) / 60)) + (os.started ? 4 : 0);
     if (value < 1.5) continue;
     options.push({ target: o.id, at: o.at, skill: o.skill, value, crew: o.crew });
   }
@@ -299,7 +299,7 @@ export function runGame(
     ...(o.act ? { act: o.act } : {}),
     ...(o.director ? { director: o.director } : {}),
   });
-  const limit = (o.maxDays ?? 60) * 1440;
+  const limit = (o.maxDays ?? 120) * 1440;
   const stepMin = o.step ?? 5;
   const commands: LoggedCommand[] = [];
   while (!s.outcome && s.t < limit) {

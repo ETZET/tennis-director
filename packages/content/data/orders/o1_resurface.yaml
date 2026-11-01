@@ -1,0 +1,14 @@
+# 外场 1 重新铺面：贵，要三个人一整天，铺完的场地又好又耐用。
+id: o1_resurface
+act: indian_wells
+at: outer_1
+skill: upkeep
+work: 10h
+cost: 1100
+crew: 3
+when: { facility: outer_1, is: playable }
+restore: 100
+effects:
+  - { facility: outer_1, set: resurfaced }
+  - { stat: reputation, add: 2 }
+performance: workday

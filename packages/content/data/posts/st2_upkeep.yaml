@@ -1,0 +1,8 @@
+# Stadium 2 · 维护
+id: st2_upkeep
+act: indian_wells
+at: stadium_2
+skill: upkeep
+cycle: 1h
+when: { facility: stadium_2, is: open }
+restore: 4

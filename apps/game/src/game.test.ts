@@ -1,4 +1,4 @@
-import { hollowCreek } from '@td/render';
+import { indianWells } from '@td/render';
 import { CONTENT, randomBot } from '@td/sim';
 import { describe, expect, it } from 'vitest';
 import { Projector } from './project';
@@ -9,17 +9,30 @@ import { createText } from './text';
  * 游戏 app 的组装测试：模拟、画面、界面三边对得上。
  */
 
-describe('Hollow Creek map ↔ act nav', () => {
-  const act = CONTENT.acts.find((a) => a.id === 'hollow_creek');
-  it('every anchor has a stand in the scene', () => {
-    for (const a of act?.anchors ?? []) expect(hollowCreek.STANDS[a], a).toBeDefined();
+describe('Indian Wells map ↔ content nav', () => {
+  const act = CONTENT.acts.find((a) => a.id === 'indian_wells');
+  const site = indianWells.INDIAN_WELLS;
+  it('every anchor has a stand and a center in the scene; every facility anchor is an anchor', () => {
+    for (const a of act?.anchors ?? []) {
+      expect(site.stands[a], a).toBeDefined();
+      expect(site.anchors[a], a).toBeDefined();
+    }
+    for (const f of CONTENT.facilities) expect(act?.anchors, f.id).toContain(f.anchor);
   });
-  it('nav minutes match the drawn route length at walking speed (±2 min)', () => {
+  it('nav connects every pair, and minutes match the drawn route length at walking speed (±1 min)', () => {
+    const n = act?.anchors.length ?? 0;
+    expect(act?.nav).toHaveLength((n * (n - 1)) / 2);
     for (const [a, b, mins] of act?.nav ?? []) {
-      const line = hollowCreek.routeLine(a, b);
+      const line = site.routeLine(a, b);
       expect(line, `${a}–${b}`).not.toBeNull();
-      const want = hollowCreek.polylineLength(line ?? []) / hollowCreek.WALK_METERS_PER_MINUTE;
-      expect(Math.abs(mins - want), `${a}–${b}: ${mins} vs ${want.toFixed(1)}`).toBeLessThanOrEqual(2);
+      const want = indianWells.polylineLength(line ?? []) / indianWells.WALK_METERS_PER_MINUTE;
+      expect(Math.abs(mins - want), `${a}–${b}: ${mins} vs ${want.toFixed(1)}`).toBeLessThanOrEqual(1);
+    }
+  });
+  it('every facility with courts has as many court frames in the scene as its best state', () => {
+    for (const f of CONTENT.facilities) {
+      const most = Math.max(...Object.values(f.states).map((x) => x.courts));
+      expect(site.courts[f.anchor]?.length ?? 0, f.id).toBeGreaterThanOrEqual(most);
     }
   });
 });
@@ -51,6 +64,8 @@ describe('Session', () => {
     const proj = new Projector(CONTENT, text);
     const bot = randomBot(3);
     session.speedIndex = 2;
+    // 一局最长 16 周：先快进到最后一周，再用实时循环跑到结局
+    session.send({ type: 'debugSkip', minutes: 105 * 720 });
     for (let f = 0; f < 60 * 60 * 60 && !session.s.outcome; f++) {
       for (const c of bot.decide(session.s, CONTENT)) session.send(c);
       session.paused = false;
@@ -69,21 +84,22 @@ describe('Session', () => {
 
   it('an errand option is chosen at once and sends the director over', () => {
     const session = Session.fresh(CONTENT, 7);
-    session.paused = false;
-    // 周一 15:30 Dale 玩手机的卡打开（会请求暂停）
-    for (let i = 0; i < 20000 && !session.s.cards.open.some((o) => o.card === 'hc_dale_phone'); i++) {
+    session.s.cards.scheduled.push({ card: 'iw_reporter', at: session.s.t, cause: null });
+    for (let i = 0; i < 600 && !session.s.cards.open.some((o) => o.card === 'iw_reporter'); i++) {
       session.paused = false;
       session.frame(1 / 60);
     }
-    const card = session.s.cards.open.find((o) => o.card === 'hc_dale_phone');
+    const card = session.s.cards.open.find((o) => o.card === 'iw_reporter');
     expect(card).toBeDefined();
     expect(session.choose(card?.uid ?? 0, 'A')).toBe(true);
     session.frame(0);
     expect(session.s.cards.open.some((o) => o.uid === card?.uid)).toBe(false);
-    expect(session.s.people.director?.errand?.at).toBe('court_1');
-    session.paused = false;
-    for (let i = 0; i < 60 * 60 && session.s.people.director?.errand; i++) session.frame(1 / 60);
-    expect(session.s.people.director?.at).toBe('court_1');
+    expect(session.s.people.director?.errand?.at).toBe('plaza');
+    for (let i = 0; i < 60 * 60 * 4 && session.s.people.director?.errand; i++) {
+      session.paused = false;
+      session.frame(1 / 60);
+    }
+    expect(session.s.people.director?.at).toBe('plaza');
   });
 
   it('assigning from the staff bar walks the person over and the snapshot shows it', () => {
@@ -91,15 +107,15 @@ describe('Session', () => {
     const proj = new Projector(CONTENT, createText(CONTENT, 'zh'));
     session.picked = 'director';
     expect(proj.snapshot(session).hint).toMatch(/总监/);
-    session.assign('director', 'patch_court1');
+    session.assign('director', 'o1_sweep');
     session.paused = false;
     session.frame(0.2);
     const snap = proj.snapshot(session);
     expect(snap.hint).toBeNull();
     const me = snap.staff?.find((t) => t.id === 'director');
     expect(me?.state).toBe('walking');
-    expect(me?.doing).toMatch(/补裂缝/);
-    const sheet = proj.sheet(session, 'patch_court1');
+    expect(me?.doing).toMatch(/扫外场 1 的沙/);
+    const sheet = proj.sheet(session, 'o1_sweep');
     expect(sheet?.people.find((p) => p.id === 'director')?.here).toBe(true);
     expect(JSON.stringify(sheet)).not.toMatch(/\b(ui|posts|orders)\./);
   });

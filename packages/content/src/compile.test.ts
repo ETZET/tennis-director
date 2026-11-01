@@ -29,74 +29,71 @@ describe('内容编译', () => {
     expect(r.bundle?.version).toBe(CONTENT.version);
   });
 
-  it('第一幕至少有切片要求的 15 张卡（M3 起策划可以继续加）', () => {
-    const n = CONTENT.cards.filter((c) => c.act === 'hollow_creek').length;
-    expect(n).toBeGreaterThanOrEqual(15);
+  it('Indian Wells 有开局、招聘日、期限这几张必须的卡；每个设施都有修复工单', () => {
+    const ids = CONTENT.cards.filter((c) => c.act === 'indian_wells').map((c) => c.id);
+    for (const c of ['iw_arrival', 'iw_hiring_day_1', 'iw_deadline']) expect(ids).toContain(c);
+    for (const f of CONTENT.facilities)
+      expect(
+        CONTENT.orders.some((o) => o.effects.some((e) => 'facility' in e && e.facility === f.id)),
+        f.id,
+      ).toBe(true);
   });
 
-  it('引用不存在的卡、锚点、状态量都会报错', () => {
+  it('引用不存在的卡、锚点、状态量、设施都会报错', () => {
     const f = files();
-    f['events/hollow_creek/hc_dale_phone.yaml'] = (f['events/hollow_creek/hc_dale_phone.yaml'] as string)
-      .replace('location: court_1', 'location: court_9')
-      .replace('{ stat: quality, add: 2 }', '{ stat: qualty, add: 2 }');
-    f['events/hollow_creek/hc_crow_lid.yaml'] = (f['events/hollow_creek/hc_crow_lid.yaml'] as string).replace(
-      'effects: []',
-      'effects: [{ schedule: hc_nope, in: 1h }]',
+    f['events/indian_wells/iw_first_players.yaml'] = (f['events/indian_wells/iw_first_players.yaml'] as string)
+      .replace('location: outer_1', 'location: outer_9')
+      .replace('{ stat: reputation, add: 3 }', '{ stat: reputashun, add: 3 }');
+    f['events/indian_wells/iw_sponsor.yaml'] = (f['events/indian_wells/iw_sponsor.yaml'] as string).replace(
+      '      - { stat: reputation, add: 2 }\n',
+      '      - { schedule: iw_nope, in: 1h }\n      - { condition: stadium_9, add: -5 }\n',
     );
     const r = compileContent(f);
     expect(r.bundle).toBeNull();
     const m = msgs(r);
-    expect(m).toMatch(/unknown anchor 'court_9'/);
-    expect(m).toMatch(/unknown stat 'qualty'/);
-    expect(m).toMatch(/unknown card 'hc_nope'/);
+    expect(m).toMatch(/unknown anchor 'outer_9'/);
+    expect(m).toMatch(/unknown stat 'reputashun'/);
+    expect(m).toMatch(/unknown card 'iw_nope'/);
+    expect(m).toMatch(/unknown facility 'stadium_9'/);
   });
 
   it('倒计时卡必须有默认后果；文案缺键报错；表达式写错报错', () => {
     const f = files();
-    f['events/hollow_creek/hc_crow_ball.yaml'] = (f['events/hollow_creek/hc_crow_ball.yaml'] as string).replace(
-      'default: { then: C }',
+    f['events/indian_wells/iw_sponsor.yaml'] = (f['events/indian_wells/iw_sponsor.yaml'] as string).replace(
+      'default: { then: B }',
       '',
     );
-    f['orders/host_fundraiser.yaml'] = (f['orders/host_fundraiser.yaml'] as string).replace(
-      'stat.reputation * 12',
-      'stat.reputashun * 12',
-    );
-    f['i18n/zh.yaml'] = (f['i18n/zh.yaml'] as string).replace('      B: 给球筐加个盖 · −$40\n', '');
+    f['posts/o1_rental.yaml'] = (f['posts/o1_rental.yaml'] as string).replace('stat.reputation / 120', 'stat.reputashun / 120');
+    f['i18n/zh.yaml'] = (f['i18n/zh.yaml'] as string).replace('      B: 婉拒\n', '');
     const m = msgs(compileContent(f));
     expect(m).toMatch(/countdown needs a default/);
     expect(m).toMatch(/unknown variable 'stat.reputashun'/);
-    expect(m).toMatch(/missing text 'events.hc_crow_ball.options.B' in i18n\/zh.yaml/);
+    expect(m).toMatch(/missing text 'events.iw_sponsor.options.B' in i18n\/zh.yaml/);
   });
 
   it('只被读、从未被写的标记给出警告；两个选项效果相同给出警告', () => {
-    const f = files();
-    f['events/hollow_creek/hc_member_saturday.yaml'] = (f['events/hollow_creek/hc_member_saturday.yaml'] as string)
-      .replace(
-        'when: { all: [{ day: { gte: 2 } }, { not: { flag: saturday_returned } }] }',
-        'when: { flag: crow_friend }',
-      )
-      .replace(
-        '      - { stat: members, add: -1, chance: 0.4 }',
-        '      - { stat: members, add: 1 }\n      - { stat: pickleball_pressure, add: 6 }\n      - { flag: saturday_returned, set: true }',
-      );
-    const r = compileContent(f);
-    expect(msgs(r, 'warnings')).toMatch(/flag 'crow_friend' is read but never written/);
-    expect(msgs(r, 'warnings')).toMatch(/options A and C have identical effects/);
+    const g = files();
+    g['events/indian_wells/iw_first_players.yaml'] = (g['events/indian_wells/iw_first_players.yaml'] as string)
+      .replace('when: { any: [', 'when: { any: [{ flag: crow_friend }, ')
+      .replace(/ {2}B:\n {4}# 照价收：钱是钱\n {4}effects:\n[^]*?default/, '  B:\n    effects:\n      - { stat: reputation, add: 3 }\n      - { stat: members, add: 2 }\ndefault');
+    const rg = compileContent(g);
+    expect(msgs(rg, 'warnings')).toMatch(/flag 'crow_friend' is read but never written/);
+    expect(msgs(rg, 'warnings')).toMatch(/options A and B have identical effects/);
   });
 
   it('只改暗处标记的选项给出警告（玩法准则 2）', () => {
     const f = files();
-    f['events/hollow_creek/hc_dale_phone.yaml'] = (f['events/hollow_creek/hc_dale_phone.yaml'] as string).replace(
-      '      - { stat: quality, add: 1 }\n      - { stat: reputation, add: -1 }\n',
+    f['events/indian_wells/iw_arrival.yaml'] = (f['events/indian_wells/iw_arrival.yaml'] as string).replace(
+      '      - { person: dale, add: { morale: 5 } }\n',
       '',
     );
-    expect(msgs(compileContent(f), 'warnings')).toMatch(/options\.B: only sets hidden flags/);
+    expect(msgs(compileContent(f), 'warnings')).toMatch(/options\.A: only sets hidden flags/);
   });
 
   it('文件名必须和 id 一致', () => {
     const f = files();
-    f['events/hollow_creek/hc_crow.yaml'] = f['events/hollow_creek/hc_crow_ball.yaml'] as string;
-    delete f['events/hollow_creek/hc_crow_ball.yaml'];
+    f['events/indian_wells/iw_spons.yaml'] = f['events/indian_wells/iw_sponsor.yaml'] as string;
+    delete f['events/indian_wells/iw_sponsor.yaml'];
     expect(msgs(compileContent(f))).toMatch(/must match the file name/);
   });
 

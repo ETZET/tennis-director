@@ -1,0 +1,15 @@
+# 练习场 · 青少年学院：工作日 14–18 点。会员多了，送孩子来的家长也多。
+id: pr_academy
+act: indian_wells
+at: practice
+skill: teach
+cycle: 1h
+hours: [14, 18]
+days: [0, 1, 2, 3, 4]
+when: { facility: practice, is: open }
+effects:
+  - { stat: cash, add: "round(12 * (0.6 + worker.skill / 100) * clamp(0.5 + stat.members / 40, 0.5, 2)) + (flag.ball_machine ? 4 : 0)" }
+  - { stat: members, add: 1, chance: 0.05 }
+  - { stat: reputation, add: 0.03 }
+wear: 1
+performance: lesson

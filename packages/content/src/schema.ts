@@ -90,12 +90,12 @@ export const effect = z.union([
       fatigue: amount.optional(),
     }),
   }),
+  /** 改设施状况 0..100（例如大风把沙吹进场地） */
+  z.strictObject({ ...gate, condition: id, add: amount }),
   /** 在因果日志里写一行文案 */
   z.strictObject({ ...gate, log: z.string() }),
   /** 结束本幕 */
   z.strictObject({ ...gate, endAct: z.enum(['won', 'lost']), ending: id }),
-  /** 「谁跟我走」：这个人进入跨幕继承 */
-  z.strictObject({ ...gate, follow: id }),
   /** 把某人从手上的岗位叫走，到 at 去办一件事，办 for 这么久（拉走持续岗位照样丢掉这一圈） */
   z.strictObject({ ...gate, errand: id, at: id, for: duration }),
 ]);

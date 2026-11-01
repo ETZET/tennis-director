@@ -1,0 +1,14 @@
+# Stadium 2 · 高水平训练：工作日上午 8–12 点，路过的职业球员要一块好场地和一个懂行的人。
+id: st2_pro
+act: indian_wells
+at: stadium_2
+skill: teach
+cycle: 1h
+hours: [8, 12]
+days: [0, 1, 2, 3, 4]
+when: { facility: stadium_2, is: open }
+effects:
+  - { stat: cash, add: "round(12 * (0.6 + worker.skill / 100))" }
+  - { stat: reputation, add: 0.04 }
+wear: 0.5
+performance: lesson

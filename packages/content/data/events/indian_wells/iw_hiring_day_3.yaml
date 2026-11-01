@@ -1,0 +1,23 @@
+# 第三个招聘日：园区有点名气了，来的人水平也高了。
+id: iw_hiring_day_3
+act: indian_wells
+source: consequence
+tone: relief
+pause: true
+countdown: 1d
+location: clubhouse
+who: applicants
+options:
+  A:
+    effects:
+      - { hire: lily_chen }
+      - { schedule: iw_hiring_day_4, in: 14d }
+  B:
+    effects:
+      - { hire: walt_hendricks }
+      - { schedule: iw_hiring_day_4, in: 14d }
+  C:
+    effects:
+      - { log: log.no_hire }
+      - { schedule: iw_hiring_day_4, in: 14d }
+default: { then: C }

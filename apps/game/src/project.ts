@@ -84,7 +84,7 @@ export class Projector {
       if (e.type === 'dayEnded') {
         // 设施状况跌破 30 提醒一次（第二轮试玩 S3：状况悄悄掉到 0 没人发现）
         for (const [f, c] of Object.entries(s.condition)) {
-          if (f === 'pool' || !(f in s.facilities)) continue;
+          if (!(f in s.facilities)) continue;
           if (c >= 40) this.worn.delete(f);
           else if (c < 30 && !this.worn.has(f)) {
             this.worn.add(f);
@@ -108,23 +108,6 @@ export class Projector {
         );
       } else if (e.type === 'weekSettled') {
         this.push(s.t, T.fmt('ui.wire.week', { n: Math.round(e.serviceRate * 100) }), e.serviceRate < 0.5);
-        // 董事会信心这一周为什么变：变得最多的几项（第二轮试玩 S2）
-        const b = e.terms.board_support;
-        if (b) {
-          const sign = (v: number) => `${v > 0 ? '+' : '−'}${Math.abs(Math.round(v))}`;
-          const why = Object.entries(b.delta)
-            .filter(([, v]) => Math.round(v) !== 0)
-            .sort((x, y) => Math.abs(y[1]) - Math.abs(x[1]))
-            .slice(0, 3)
-            .map(([k, v]) => `${T.tr(`ui.terms.${k}`)} ${sign(v)}`)
-            .join(' · ');
-          const total = Object.values(b.delta).reduce((a, v) => a + v, 0);
-          this.push(
-            s.t,
-            T.fmt('ui.wire.board', { n: Math.round(b.total), d: sign(total), why: why || T.tr('ui.wire.board_flat') }),
-            total < -2,
-          );
-        }
       }
     }
   }
@@ -147,7 +130,7 @@ export class Projector {
     return open[0] ?? null;
   }
 
-  /** 本幕的最后一个日程（第一幕是董事会表决）：状态条上倒数 */
+  /** 日程上的最后一项（投资方给的期限）：状态条上倒数 */
   private deadline(s: GameState): number | null {
     const act = worldOf(s, this.content).act;
     const last = act.calendar[act.calendar.length - 1];
@@ -187,35 +170,18 @@ export class Projector {
         value: `${Math.round(serviceRate(s) * 100)}%`,
         ...(serviceRate(s) < 0.5 ? { tone: 'bad' as const } : {}),
       },
-      {
-        label: T.tr('stats.board_support'),
-        value: `${Math.round(s.stats.board_support ?? 0)}`,
-        ...((s.stats.board_support ?? 0) < 40 ? { tone: 'bad' as const } : {}),
-      },
-      {
-        label: T.tr('stats.pickleball_pressure'),
-        value: String(Math.round(s.stats.pickleball_pressure ?? 0)),
-        ...((s.stats.pickleball_pressure ?? 0) > 50 ? { tone: 'pickle' as const } : {}),
-      },
+      { label: T.tr('stats.restoration'), value: `${Math.round(s.stats.restoration ?? 0)}/${w.facilities.size}` },
       { label: T.tr('ui.details.courts'), value: `${fac.courts}/${totalCourts}` },
       { label: T.tr('ui.details.wages'), value: `$${wagesWeek(s, w)}` },
-      ...Object.entries(s.facilities)
-        .filter(([id]) => id !== 'pool')
-        .map(([id, st]) => {
+      ...Object.entries(s.facilities).map(([id, st]) => {
           const [name, state] = T.tr(`facilities.${id}.${st}`).split(' · ');
           const c = Math.round(s.condition[id] ?? 100);
-          return {
-            label: name ?? id,
-            value: `${state ?? st} · ${c}`,
-            ...(c < 30 ? { tone: 'bad' as const } : {}),
-          };
-        }),
-      // 董事会信心由哪几项组成（第二轮试玩 S2：不能是黑箱）
-      ...Object.entries(s.terms?.board_support ?? {}).map(([k, v]) => ({
-        label: `${T.tr('ui.board')} · ${T.tr(`ui.terms.${k}`)}`,
-        value: `${v > 0 && k !== 'base' ? '+' : v < 0 ? '−' : ''}${Math.abs(Math.round(v))}`,
-        ...(v < 0 ? { tone: 'bad' as const } : {}),
-      })),
+        return {
+          label: name ?? id,
+          value: `${state ?? st} · ${c}`,
+          ...(c < 30 ? { tone: 'bad' as const } : {}),
+        };
+      }),
     ];
 
     const story: StoryItem[] = [];
@@ -260,18 +226,21 @@ export class Projector {
     };
   }
 
-  /** 状态条上的董事会信心：决定表决的那个数，加上还有几天表决 */
+  /** 状态条上的复原进度：八处设施修好了几处，加上离投资方的期限还有几天 */
   private board(s: GameState): NonNullable<HudSnapshot['board']> {
-    const v = Math.round(s.stats.board_support ?? 0);
+    const v = Math.round(s.stats.restoration ?? 0);
+    const total = worldOf(s, this.content).facilities.size;
     const end = this.deadline(s);
     const days = end === null ? null : Math.max(0, Math.ceil((end - s.t) / 1440));
+    // 落后于进度：剩下的天数里平均每处设施不到 10 天
+    const behind = days !== null && total - v > 0 && days / (total - v) < 10;
     return {
       value: v,
       label:
         days === null || s.outcome
-          ? this.text.tr('ui.board')
-          : this.text.fmt(days === 0 ? 'ui.board_today' : 'ui.board_in', { days, odds: this.voteOdds(s) }),
-      ...(v < 40 ? { tone: 'bad' as const } : {}),
+          ? this.text.fmt('ui.restore', { total })
+          : this.text.fmt(days === 0 ? 'ui.restore_today' : 'ui.restore_in', { total, days }),
+      ...(behind ? { tone: 'bad' as const } : {}),
     };
   }
 
@@ -293,17 +262,11 @@ export class Projector {
       if (Math.abs(d) < 1) continue;
       const maybe = prob < 1 ? ` (${Math.round(prob * 100)}%)` : '';
       out.push({
-        text: `${this.text.tr(stat === 'board_support' ? 'ui.board_short' : `stats.${stat}`)} ${d > 0 ? '+' : '−'}${Math.abs(Math.round(d))}${maybe}`,
+        text: `${this.text.tr(`stats.${stat}`)} ${d > 0 ? '+' : '−'}${Math.abs(Math.round(d))}${maybe}`,
         tone: d > 0 ? 'gain' : 'loss',
       });
     }
     return out;
-  }
-
-  /** 现在表决的话，把握有多大（百分比；幕里没写 vote_odds 时为空） */
-  private voteOdds(s: GameState): string {
-    const src = this.content.acts.find((a) => a.id === s.act)?.rules.vote_odds;
-    return src ? `${Math.round(num(s, worldOf(s, this.content), src) * 100)}%` : '';
   }
 
   /** 谁来找你：人物用名字和身份，群体用文案表里的名字 */
@@ -325,14 +288,14 @@ export class Projector {
     return { name, role, initials, color: COLORS[h % COLORS.length] as string };
   }
 
-  /** 卡片上的"此刻的局面"：董事会、现金、会员、精力 */
+  /** 卡片上的"此刻的局面"：复原进度、现金、会员、服务率 */
   private context(s: GameState): Chip[] {
     const T = this.text;
-    const b = Math.round(s.stats.board_support ?? 0);
+    const b = Math.round(s.stats.restoration ?? 0);
     const end = this.deadline(s);
     const days = end === null ? 0 : Math.max(0, Math.ceil((end - s.t) / 1440));
     return [
-      { text: T.fmt('ui.ctx.board', { n: b, days }), tone: b < 40 ? 'loss' : 'info' },
+      { text: T.fmt('ui.ctx.restore', { n: b, total: worldOf(s, this.content).facilities.size, days }), tone: 'info' },
       {
         text: T.fmt('ui.ctx.cash', { n: Math.round(s.stats.cash ?? 0) }),
         tone: (s.stats.cash ?? 0) < 0 ? 'loss' : 'info',
@@ -669,10 +632,13 @@ export class Projector {
     };
   }
 
-  /** 这个地点的设施状况（没有设施时为 null） */
+  /** 这个地点的设施状况（没有设施、或者设施还废着不会再变旧时为 null：废墟上不挂"快撑不住了"） */
   conditionAt(s: GameState, anchor: string): number | null {
-    const f = worldOf(s, this.content).facilityAt.get(anchor);
-    return f && f !== 'pool' && f in s.facilities ? Math.round(s.condition[f] ?? 100) : null;
+    const w = worldOf(s, this.content);
+    const f = w.facilityAt.get(anchor);
+    if (!f || !(f in s.facilities)) return null;
+    if (!w.facilities.get(f)?.states[s.facilities[f] ?? '']?.decay_day) return null;
+    return Math.round(s.condition[f] ?? 100);
   }
   private wornAt(s: GameState, anchor: string): number | null {
     const c = this.conditionAt(s, anchor);
@@ -863,7 +829,6 @@ export class Projector {
     const T = this.text;
     if (s.outcome) {
       const o = s.outcome;
-      const legacy = s.legacy.map((p) => T.personName(p)).join(', ');
       return {
         id: `end-${o.ending}`,
         kind: 'news',
@@ -871,7 +836,6 @@ export class Projector {
         location: T.tr('ui.club.name'),
         headline: T.tr(`endings.${o.ending}.title`),
         body: T.tr(`endings.${o.ending}.body`),
-        ...(legacy ? { note: T.fmt('ui.end.legacy', { names: legacy }) } : {}),
         action: { id: 'replay', label: T.tr('ui.end.again') },
       };
     }

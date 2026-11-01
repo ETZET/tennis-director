@@ -1,368 +1,192 @@
-# English text. Every key a card, activity, stat or ending uses must exist here and in zh.yaml.
+# English text. Keys match zh.yaml one to one.
 stats:
   cash: Cash
   reputation: Reputation
   quality: Program quality
   members: Members
-  pickleball_pressure: Pickleball pressure
-  board_support: Board confidence
-  service: Service
+  service: Service rate
+  restoration: Restored
 
 anchors:
-  deck: Clubhouse deck
-  court_1: Court 1
-  court_2: Court 2
-  bubble_court: Bubble court
-  clay_court: Clay court
-  lot: Parking lot
-  pool: Pool
-  creek_bridge: Footbridge
+  entrance: Main gate
+  parking: Parking
+  plaza: Plaza
+  clubhouse: Clubhouse
+  stadium_1: Stadium 1
+  stadium_2: Stadium 2
+  stadium_3: Stadium 3
+  practice: Practice courts
+  outer_1: Outer court 1
+  outer_23: Outer courts 2–3
 
 facilities:
-  court_1: { worn: Court 1 · cracked, repaired: Court 1 · repaired }
-  court_2:
-    {
-      rented_pickleball: Court 2 · rented to pickleball,
-      shared: Court 2 · shared hours,
-      tennis: Court 2 · tennis again,
-    }
-  bubble: { collapsed: Bubble · collapsed, inflated: Bubble · inflated }
-  clay: { overgrown: Clay court · overgrown, restored: Clay court · restored }
-  pool: { open: Pool · open, drained: Pool · drained }
-
-activities:
-  contractor: { title: Contractors on the clay court }
-  tug_of_war: { title: Tug-of-war vs pickleball }
-  match_strong: { title: Community match vs Pine Crown }
-  match_juniors: { title: Community match vs Pine Crown (juniors) }
-  open_house: { title: Open house }
+  outer_1: { sanded: Court 1 · buried in sand, swept: Court 1 · swept, playable: Court 1 · playable, resurfaced: Court 1 · resurfaced }
+  outer_23: { ruined: Courts 2–3 · fences down, playable: Courts 2–3 · repaired }
+  practice: { ruined: Practice courts · abandoned, open: Practice courts · open }
+  clubhouse: { ruined: Clubhouse · leaking roof, open: Clubhouse · front desk open }
+  plaza: { dry: Plaza · fountain dry, open: Plaza · fountain running }
+  stadium_3: { buried: Stadium 3 · filled with sand, dug: Stadium 3 · dug out, open: Stadium 3 · open }
+  stadium_2: { ruined: Stadium 2 · run down, open: Stadium 2 · open }
+  stadium_1: { ruined: Stadium 1 · southeast corner collapsed, cleared: Stadium 1 · cleared, restored: Stadium 1 · rebuilt }
 
 endings:
-  saved_with_coach:
-    title: Hollow Creek is saved
-    body: The board votes to keep the club. Maple Ridge High calls with a job offer, and your coach comes with you.
-  saved_with_kid:
-    title: Hollow Creek is saved
-    body: The board votes to keep the club. Maple Ridge High offers you the program, and Mason enrolls there too.
-  saved_alone:
-    title: Hollow Creek is saved
-    body: The board votes to keep the club. You head to Maple Ridge High on your own.
-  club_sold:
-    title: The club is sold
-    body: The board votes to sell. The FOR SALE sign stays up, and Hollow Creek closes at the end of the month.
-  sold_to_developer:
-    title: Sold to the developer
-    body: You take the money. The courts will be townhouses by spring.
+  exhibition:
+    title: The exhibition happened
+    body: For the first time in ten years, the stands of Stadium 1 were full. Indian Wells is alive again.
+  deadline:
+    title: Time's up
+    body: The investors' sixteen weeks are over and the exhibition never happened. The restoration stops and the gates are locked again.
   bankrupt:
     title: Out of money
-    body: The club cannot make payroll. The bank takes over and the act ends.
+    body: The garden can't make payroll and the investors stop the restoration. The gates are locked again.
 
 events:
-  hc_dale_phone:
-    topic: Coaching
-    title: Coach Dale is on his phone during the junior lesson
-    body: Tyler is hitting balls into the fence and Mason is sitting on the court. Dale has not looked up in ten minutes.
+  iw_investor_check:
+    title: The investors visit
+    body: The investors are at the main gate. Three weeks are left before their deadline.
     options:
-      A: Go to Court 1 and talk to him
-      B: Text him from the deck · quality +1, reputation −1
-      C: Let it slide · quality −3, Dale likes you
-  hc_parent_complaint:
-    topic: Members
-    title: Ms. Carter wants a word about the lessons
-    body: '"My son paid for lessons, not babysitting." She is standing at the gate of Court 1.'
+      A: I'll show you around myself
+      B: Have a look on your own
+  iw_deadline:
+    title: Time's up
+    body: Sixteen weeks are over. The investors leave a folder on the clubhouse desk.
     options:
-      A: Refund this week's lesson · −$60
-      B: Promise things will change · the board hears sooner
-      C: Back the coach · −2 members, reputation −3, Dale tries harder
-  hc_board_memo:
-    topic: Board memo
-    title: The board wants an answer about the lessons
-    body: Program quality has collapsed and members are leaving. Dale is still teaching, and the board expects a plan today.
+      A: Hand over the keys
+  iw_arrival:
+    title: The ball machine in the shed
+    body: Dale shows you around. "Ten years, and nobody's hit a ball here." There's an old ball machine in the shed.
     options:
-      A: Hire a second coach · another wage, Dale is hurt
-      B: Give Dale one more chance and watch him on Court 1
-  hc_dale_relapse:
-    topic: Coaching
-    title: Dale is back on his phone
-    body: One more chance lasted a day. The juniors are hitting balls at each other.
+      A: Keep it and fix it for the academy later
+      B: Sell it for some cash now
+  iw_first_players:
+    title: The first visitors
+    body: Two retirees from Palm Desert stand at the gate of Court 1 and ask if they can play.
     options:
-      A: Hire a coach to take over · Dale knows he was replaced
-      B: Dock his pay · +$175, Dale sulks
-      C: Finish the lesson yourself
-  hc_hire_coach:
-    topic: Staff
-    title: Hire another coach
-    body: Three people answered the ad. The new coach becomes head coach and Dale stays on. Whoever you pick could follow you after Hollow Creek.
+      A: Free for the first week
+      B: Charge the normal rate
+  iw_sandstorm:
+    title: The wind is up
+    body: Sand is pouring onto the outer courts. Dale asks over the radio whether to cover them now.
     options:
-      A: Jess Park · eager rookie, $250/wk
-      B: Walt Hendricks · tired veteran, $420/wk
-      C: Nadia Volkov · former pro, $900/wk + $600 signing
-  hc_discover_kid:
-    topic: Talent
-    title: Mason has a natural swing
-    body: The kid who sat on the court during Dale's lessons just hit three clean backhands in a row.
+      A: I'll cover them myself
+      B: Wait for the wind to stop
+  iw_reporter:
+    title: The Desert Sun is here
+    body: A reporter heard someone is restoring the abandoned garden and wants to write a story.
     options:
-      A: Pay for private lessons · −$200
-      B: Tell his parents he has talent · they will expect lessons
-      C: Keep it quiet for now
-  hc_pickleball_lease:
-    topic: Pickleball
-    title: The pickleball group wants a full-year lease
-    body: They offer $800 up front to lock in Court 2 for the year. Your tennis members are not thrilled.
+      A: Give him a two-hour tour and lunch
+      B: Send a statement
+  iw_sponsor:
+    title: The bank's banner
+    body: A local bank saw Stadium 3 reopen and wants to hang a big banner over the stands. The offer is good.
     options:
-      A: Sign the lease · +$800, members grumble
-      B: Take Court 2 back for tennis
-      C: Offer shared hours (go to Court 2; depends on reputation)
-  hc_pickleball_rant:
-    topic: Pickleball
-    title: The pickleball group is venting in the community chat
-    body: '"Hollow Creek doesn''t want new people." The thread has forty replies.'
-    options:
-      A: Post a calm reply (depends on reputation)
-      B: Invite them to a friendly
-      C: Kick them out of the chat · old members cheer
-  hc_tug_of_war:
-    topic: Community
-    title: The pickleball team challenges you to tug-of-war
-    body: Loser buys the lemonade. Tennis has never won one of these.
-    options:
-      A: Send the juniors · they miss a lesson
-      B: Join in yourself (go to Court 2)
-      C: Decline · keep the lesson going
-  hc_developer_visit:
-    topic: Offer
-    title: A developer wants to buy the land
-    body: $2.1 million for the whole site. Townhouses, he says. The board would take it.
-    options:
-      A: Accept · ends the act
+      A: Take it
       B: Decline
-      C: Ask for time to think
-  hc_developer_return:
-    topic: Offer
-    title: The developer is back with a final offer
-    body: Same money, a firm deadline. This is the last time he asks.
+  iw_dale_story:
+    title: The last tournament
+    body: The night Stadium 2 reopens, Dale talks about the last tournament before the garden closed. He was in the umpire's chair that year.
     options:
-      A: Accept · ends the act
-      B: Decline for good
-  hc_crow_ball:
-    topic: Court 1
-    title: A crow just stole a ball from the basket
-    body: It is sitting on the fence post, looking pleased with itself. The juniors are delighted.
+      A: You'll umpire the exhibition
+      B: Take a few days off first
+  iw_hiring_day_1:
+    title: The first hiring day
+    body: You put a notice on the clubhouse door and two people came. Anyone you hire is paid weekly.
     options:
-      A: Laugh it off with the juniors · reputation +1, lesson stalls
-      B: Put a lid on the basket · −$40
-      C: Ignore it
-  hc_rival_flyer:
-    topic: Rivals
-    title: Pine Crown taped a recruiting flyer to our fence
-    body: '"Real coaching. Real courts. 20% off your first month." Three parents have already taken a photo of it.'
+      A: Hire Rosa (upkeep)
+      B: Hire Ben (service)
+      C: Not this time
+  iw_hiring_day_2:
+    title: The second hiring day
+    body: "Two weeks later two more came: a coach and a quick, experienced handyman."
     options:
-      A: Swap it for our own flyer
-      B: Call Pine Crown and complain
-      C: Leave it
-  hc_board_chair:
-    topic: Board
-    title: The board chair is coming to see the club
-    body: She will be on the deck at noon. Halfway to the vote, she wants to know whether this is working.
+      A: Hire Jess (coach)
+      B: Hire Gus (upkeep veteran)
+      C: Not this time
+  iw_hiring_day_3:
+    title: The third hiring day
+    body: The garden has a bit of a name now, and the applicants are better.
     options:
-      A: Show her around yourself (on the deck; depends on board confidence)
-      B: Email her the numbers · reputation −1
-      C: Ask for more money and time · +$600, the board gets impatient
-  hc_last_chance:
-    topic: Board
-    title: A board member offers you a lifeline
-    body: '"The vote is going badly. Give them something to see, or give them a promise."'
+      A: Hire Lily (great service)
+      B: Hire Walt (veteran coach)
+      C: Not this time
+  iw_hiring_day_4:
+    title: The fourth hiring day
+    body: A former pro heard about the place and wants to be head coach; a young all-rounder came too.
     options:
-      A: Throw an open house this weekend · −$300
-      B: Promise quality back over 50 in three days
-      C: Thank him and carry on
-  hc_turnaround_check:
-    topic: Board
-    title: Three days are up
-    body: The board wants to see whether you kept your promise. Quality had to be back over 50.
-    options:
-      A: Face the board
-  hc_storm_tree:
-    topic: Weather
-    title: A storm dropped a tree on Court 1's fence
-    body: Branches across the baseline, the fence folded in. Lessons cannot run like this.
-    options:
-      A: Pay a crew to clear it now · −$450
-      B: Get members to help (go to Court 1; depends on reputation)
-      C: Close Court 1 for now · the court breaks again
-  hc_crow_lid:
-    topic: Court 1
-    title: The crow has learned to open the lid
-    body: It flips the lid with its beak, takes one ball, and leaves. The juniors are cheering for the crow.
-    options:
-      A: Let the juniors name it · reputation +2
-      B: Buy a padlock · −$25
-      C: Ignore it
-  hc_rival_van:
-    topic: Rivals
-    title: Pine Crown parked a demo van in our lot
-    body: Free racket demos and 20% off. Our members have to walk past it to get to the courts.
-    options:
-      A: Ask them to leave (go to the parking lot)
-      B: Set up our own table next to it · −$120
-      C: Let it be
-  hc_mason_parents:
-    topic: Talent
-    title: Mason's parents want to know when proper lessons start
-    body: '"You said he has talent. So what happens now?"'
-    options:
-      A: Private lessons with a pro · −$200
-      B: Ask your head coach to work with him · lessons suffer a bit
-      C: Not yet · reputation −3
-  hc_member_saturday:
-    topic: Members
-    title: An old member stops you about Saturday mornings
-    body: '"Saturday 9 to 11 was always tennis. Now it is pickleball."'
-    options:
-      A: Give tennis Saturdays back · pickleball pressure rises
-      B: Buy him a coffee and listen (on the deck) · −$10
-      C: Brush it off
-  hc_volunteer_coach:
-    topic: Members
-    title: A retired member offers to help coach on weekends
-    body: He played college tennis forty years ago and still has the forehand.
-    options:
-      A: Welcome him on court · quality +3
-      B: Ask him to help recruit instead
-      C: Thank him warmly, no · reputation +2
-  hc_double_booked:
-    topic: Bookings
-    title: Court 1 is double-booked this morning
-    body: Two tennis regulars and four pickleball players are standing at the gate with the same time slot.
-    options:
-      A: Give it to the tennis regulars · pickleball pressure rises
-      B: Give it to the pickleball group
-      C: Sort it out in person (go to Court 1)
-  hc_pool_closes:
-    topic: Season
-    title: Time to close the pool for the season
-    body: The nights are getting cold. Keeping it open another week costs a little, and the families love it.
-    options:
-      A: Close it on schedule
-      B: Keep it open one more week · −$60
-  hc_pool_closes_late:
-    topic: Season
-    title: The extra pool week is over
-    body: The last swimmers are packing up their towels.
-    options:
-      A: Close the pool
-  hc_storm_leak:
-    topic: Weather
-    title: The clubhouse roof is leaking
-    body: Rain is coming through over the trophy case. Members are moving chairs.
-    options:
-      A: Patch the roof for good · −$250
-      B: Put out buckets · quality −2, reputation −1
-      C: Close the clubhouse today · −1 member
-  hc_community_match:
-    topic: Match day
-    title: Community match against Pine Crown
-    body: Pine Crown is the club across the valley. Half the board will be watching.
-    options:
-      A: Field the strongest lineup with your coach
-      B: Give the juniors a chance
-      C: Forfeit · reputation −5, juniors rest
-  hc_board_vote:
-    topic: Board vote
-    title: The board votes on selling the club
-    body: Present in person and board confidence decides it; let the numbers speak and program quality and members decide it.
-    options:
-      A: Present in person on the deck
-      B: Let the numbers speak for themselves
-  hc_who_follows:
-    topic: Next chapter
-    title: Maple Ridge High wants you to run their program
-    body: You can bring one person with you.
-    options:
-      A: Bring your head coach
-      B: Bring Mason
-      C: Go alone
-  hc_hiring_day:
-    topic: Hiring day
-    title: Two people came about the job
-    body: The notice has been up for a week and two people turned up. There is always more work than hands.
-    options:
-      A: Rosa Ortiz · great at upkeep, $180/wk
-      B: Ben Kim · ball kid, good with people, $110/wk
-      C: Hire no one · keep the wages
-  hc_hiring_day_2:
-    topic: Hiring day
-    title: Hiring day before autumn
-    body: The more you fix, the more there is to look after. Two more people came about the job.
-    options:
-      A: Gus Moreno · veteran groundskeeper, best at upkeep, a bit tired, $260/wk
-      B: Lily Chen · front-desk pro, best with people, $220/wk
-      C: Hire no one · keep the wages
+      A: Hire Nadia (former pro)
+      B: Hire Marco (all-rounder)
+      C: Not this time
 
 log:
-  ball_machine: The ball machine arrived; lessons are sharper now
-  started: You took over Hollow Creek Tennis Club.
-  workday_thin: Only a handful of neighbors showed up; the clay is still a mess
-  roof_fixed: The roof is fixed for good
-  vote_passed: The board voted to keep the club
-  vote_failed: The board voted to sell
-  trial_onsite: you were on Court 1 to welcome them, so a few more signed up
-  match_won: Hollow Creek beat Pine Crown
-  match_lost: Pine Crown won the match
-  promise_broken: You broke your promise to the board
-  promise_kept: You kept your promise to the board
-  tree_cleared: The tree is cleared and lessons go on
-  no_hire: No one was hired; the same few people carry the work
+  started: You arrive at the abandoned Indian Wells Tennis Garden.
+  first_court: "Court 1 has a new net: the first playable court in ten years"
+  ball_machine: The ball machine works again; academy lessons are better
+  clubhouse_open: The clubhouse front desk is open; hiring days can start
+  stadium_3_open: Stadium 3 is usable again
+  stadium_2_open: Stadium 2 is open
+  stadium_1_open: Stadium 1 is rebuilt; the exhibition can be held
+  sand_covered: The courts were covered in time
+  exhibition_flop: "The exhibition fell flat: the stands were half empty. Try again in a week"
+  no_hire: No hire this time; the same people do the work
 
-# 界面文案（游戏 app 用）。{x} 是占位符。
 posts:
-  c1_lesson: { title: "Court 1 · Junior lesson", note: "Weekdays 3–6 pm, kids after school" }
-  c1_clinic: { title: "Court 1 · Adult clinic", note: "Mon–Thu 6–8 pm, after work" }
-  c1_hitting: { title: "Court 1 · Weekend hitting", note: "Weekend mornings, regulars want a partner" }
-  c1_upkeep: { title: "Court 1 · Upkeep", note: "Any time; left alone it wears out" }
-  deck_host: { title: "Deck · Host", note: "Daily 8–11 am, coffee with the regulars" }
-  deck_social: { title: "Deck · Social night", note: "Thu–Sat 6–8 pm" }
-  c2_pickleball: { title: "Court 2 · Pickleball hours", note: "Once it is back, staff it and charge by the hour" }
-  bubble_session: { title: "Bubble · Court host", note: "9 am–8 pm, rain or shine" }
-  bubble_upkeep: { title: "Bubble · Upkeep", note: "Fans, membrane, sweeping" }
-  clay_lesson: { title: "Clay · Second lesson", note: "At 60 members the afternoon kids split in two" }
-  clay_session: { title: "Clay · Weekend play", note: "Members love the clay" }
-  clay_upkeep: { title: "Clay · Upkeep", note: "Drag, water, lines; clay is fussy" }
-  pool_guard: { title: "Pool · Lifeguard", note: "11 am–5 pm, no swimming without one" }
+  o1_rental: { title: "Court 1 · Court desk", note: "Daily 8–15, locals come to play" }
+  o1_lesson: { title: "Court 1 · Afternoon lessons", note: "Weekdays 15–19" }
+  o1_upkeep: { title: "Court 1 · Upkeep", note: "Any time; it wears down if nobody looks after it" }
+  o23_rental: { title: "Courts 2–3 · Court desk", note: "Daily 8–17, two courts" }
+  o23_clinic: { title: "Courts 2–3 · Adult clinic", note: "Mon–Thu 17–20" }
+  o23_upkeep: { title: "Courts 2–3 · Upkeep", note: "Any time; it wears down if nobody looks after it" }
+  pr_academy: { title: "Practice · Junior academy", note: "Weekdays 14–18" }
+  pr_weekend: { title: "Practice · Weekend open", note: "Weekends 8–13" }
+  pr_upkeep: { title: "Practice · Upkeep", note: "Any time; it wears down if nobody looks after it" }
+  ch_desk: { title: "Clubhouse · Front desk", note: "Daily 8–18: sign-ups, directions, the phone" }
+  pz_food: { title: "Plaza · Lunch stand", note: "Daily 11–14" }
+  pz_evening: { title: "Plaza · Weekend evenings", note: "Thu–Sun 17–20" }
+  pz_upkeep: { title: "Plaza · Upkeep", note: "Clean the fountain, sweep the sand" }
+  st3_league: { title: "Stadium 3 · Weekend league", note: "Weekends 9–17" }
+  st3_upkeep: { title: "Stadium 3 · Upkeep", note: "The sunken court collects sand fastest" }
+  st2_events: { title: "Stadium 2 · Event days", note: "Fri–Sun 10–18" }
+  st2_pro: { title: "Stadium 2 · Pro practice", note: "Weekdays 8–12" }
+  st2_upkeep: { title: "Stadium 2 · Upkeep", note: "Any time; it wears down if nobody looks after it" }
+  st1_upkeep: { title: "Stadium 1 · Upkeep", note: "It can't break again before the exhibition" }
 orders:
-  patch_court1: { title: "Patch the cracks", note: "$300 in materials, one afternoon" }
-  new_net: { title: "Replace the net", note: "Cheap, one person, one hour" }
-  court1_sweep: { title: "Clean up Court 1", note: "Leaves, puddles, loose lines" }
-  clay_clear: { title: "Clear the clay court", note: "Free, but needs many hands" }
-  clay_contractor: { title: "Hire contractors for the clay", note: "$900 and an hour on the contract" }
-  clay_weeds: { title: "Weeds on the clay again", note: "Pull them and roll it flat" }
-  inflate_bubble: { title: "Re-inflate the bubble", note: "New fans $2,000, plus a full day of work" }
-  patch_roof: { title: "Fix the clubhouse roof", note: "No more buckets" }
-  fill_pothole: { title: "Fill the pothole", note: "Before someone else scrapes a car" }
-  recruit_sign: { title: "Put up a recruiting sign", note: "At the turn-off, once a week" }
-  ball_machine: { title: "Set up a ball machine", note: "Lessons get better for good", locked: "Needs the new net first" }
-  host_fundraiser: { title: "Host a fundraiser", note: "Takes people all afternoon", locked: "Fix the deck roof first" }
-  talk_pickleball: { title: "Talk to the pickleball group", note: "Depends on your reputation" }
-  hit_with_tyler: { title: "Hit with Tyler", note: "He has been asking all week" }
-  mentor_mason: { title: "Coach Mason one-on-one", note: "Backhand drills" }
-  open_day: { title: "Run a free open day", note: "Takes a few people a couple of hours", locked: "Patch Court 1's cracks first" }
+  o1_sweep: { title: "Sweep the sand off Court 1", note: "Free; two people, one morning" }
+  o1_net: { title: "New net for Court 1", note: "$120, one person, one hour" }
+  o1_resurface: { title: "Resurface Court 1", note: "$1100, three people, a full day" }
+  o1_tidy: { title: "Sand on Court 1 again", note: "Sweep and fix the lines" }
+  o23_repair: { title: "Repair Courts 2–3", note: "Raise the fences, two new nets" }
+  o23_tidy: { title: "Sand on Courts 2–3 again", note: "Sweep" }
+  pr_repair: { title: "Repair the practice courts", note: "Two courts, half the fence down" }
+  pr_ball_machine: { title: "Fix the ball machine", note: "Academy lessons get better" }
+  pr_tidy: { title: "Sand on the practice courts", note: "Sweep" }
+  ch_repair: { title: "Repair the clubhouse", note: "Roof, windows, water and power" }
+  ch_fix: { title: "The clubhouse is leaking again", note: "Roof, A/C or pipes" }
+  flyers: { title: "Hand out flyers in town", note: "Once a week" }
+  pz_repair: { title: "Repair the plaza", note: "Unblock the fountain, put the food tent back up" }
+  pz_tidy: { title: "The fountain is blocked", note: "Clear it" }
+  st3_dig: { title: "Dig out Stadium 3", note: "Five people, several days" }
+  st3_court: { title: "Resurface Stadium 3", note: "The second step after digging" }
+  st3_tidy: { title: "Sand in Stadium 3 again", note: "Sweep" }
+  st2_repair: { title: "Repair Stadium 2", note: "Seats, shade sails, court" }
+  st2_tidy: { title: "Sand in Stadium 2 again", note: "Sweep" }
+  st1_clear: { title: "Clear Stadium 1", note: "Haul away the collapsed southeast corner" }
+  st1_rebuild: { title: "Rebuild Stadium 1", note: "The biggest job of the game" }
+  st1_exhibition: { title: "Hold the exhibition", note: "Reputation 50+, a crew for a whole day" }
 seasons:
-  late_summer: Late summer
-  early_autumn: Early autumn
+  autumn: Autumn
+  winter: Winter
+  spring: Spring · windy season
 
 people:
   director: Director
-  dale: Coach Dale
+  dale: Dale
 
 who:
-  board: { name: The Board, role: Five volunteers who can sell the club }
-  parents: { name: Mason's parents, role: Quiet, hopeful }
-  pickleball: { name: The pickleball group, role: Twelve regulars, loud }
-  rival: { name: Pine Crown TC, role: The club across the valley }
-  developer: { name: Rick Dorsey, role: Property developer }
-  member: { name: A longtime member, role: Here since 1994 }
-  maple: { name: Maple Ridge High, role: Athletic director }
-  applicants: { name: Applicants, role: Saw the notice }
+  investors: { name: The investors, role: The people paying for the restoration }
+  applicants: { name: Applicants, role: People who saw the notice }
+  retirees: { name: Two retirees, role: From Palm Desert }
+  reporter: { name: The Desert Sun, role: Local newspaper reporter }
+  sponsor: { name: Desert Savings Bank, role: A local bank }
 roles:
   director: Director
   coach: Head coach
@@ -378,14 +202,14 @@ ui:
     members: Members
     courtsOpen: Courts open
     salary: Your salary
-    details: Club report
+    details: Garden report
     paused: Paused
     notYet: Not yet
     failZone: Grade F below 40
     qualityChart: Program quality this session
     headCoach: Head coach
     vacant: Vacant
-    wire: Club wire
+    wire: Garden wire
     rotateLeft: Rotate left (Q)
     rotateRight: Rotate right (E)
     pause: Pause (Space)
@@ -420,18 +244,17 @@ ui:
   attr: { skill: skill, upkeep: upkeep, service: service, morale: morale, fatigue: fatigue }
   then: "Then: {what}"
   ctx:
-    board: "Board {n} · vote in {days}d"
+    restore: "Restored {n}/{total} · {days}d left"
     cash: "Cash ${n}"
     members: "Members {n}"
     service: "Service this week {n}%"
-  board: Board confidence
-  board_short: Board
-  board_in: "Board · {odds} odds · {days}d"
-  board_today: "Board · {odds} odds · today"
-  club: { name: Hollow Creek TC, badge: HC }
+  restore: "Restored (of {total})"
+  restore_in: "Restored/{total} · {days}d left"
+  restore_today: "Restored/{total} · due today"
+  club: { name: Indian Wells Tennis Garden, badge: IW }
   cash: Cash
   you: You
-  closed: Club closed for the night
+  closed: Garden closed for the night
   left: "{time} left"
   decided: Decided
   hint:
@@ -449,11 +272,20 @@ ui:
   activity: "{title} · {time} left"
   end:
     again: Play again
-    won: Act 1 complete
-    lost: Act 1 over
-    legacy: "Coming with you: {names}"
+    won: The garden lives again
+    lost: Game over
   skill: { teach: Coaching, upkeep: Upkeep, service: Service }
-  fac: { court_1: Court 1, court_2: Court 2, bubble: Bubble, clay: Clay court, pool: Pool }
+  fac:
+    {
+      outer_1: Court 1,
+      outer_23: Courts 2–3,
+      practice: Practice courts,
+      clubhouse: Clubhouse,
+      plaza: Plaza,
+      stadium_3: Stadium 3,
+      stadium_2: Stadium 2,
+      stadium_1: Stadium 1,
+    }
   condition: condition
   nobody: nobody
   errand_log: "{name} spent {time} at {place}"
@@ -465,9 +297,7 @@ ui:
   wire:
     interrupted: "{name} was pulled off “{post}”; that round was lost"
     week: "Week settled · service {n}%"
-    board: "Board {n} ({d} this week): {why}"
     worn: "{place} condition down to {n}: it will lose its grade without upkeep"
-    board_flat: little change
   status:
     empty: "{n} posts have customers waiting and nobody there"
     covered: Every busy spot has someone right now
@@ -479,13 +309,6 @@ ui:
     waiting: "{what} · waiting for customers"
     walking: "To {what} · {time}"
     errand: "Away at {place} · {time}"
-  terms:
-    base: Starting point
-    quality: Program quality
-    members: Members
-    reputation: Reputation
-    expectations: Rising expectations
-    events: How things went
   place:
     rain: Closed today — it is raining
     condition_low: "Condition {n} · already lost a grade; upkeep brings it back"
