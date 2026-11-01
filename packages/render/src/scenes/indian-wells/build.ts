@@ -301,7 +301,10 @@ export function buildIndianWells(ctx: BuildContext): IndianWellsStatic {
       const l = routeLine(a, b);
       if (!l) continue;
       for (let i = 1; i < l.length; i++) {
-        const key = [l[i - 1], l[i]].map((p) => `${p?.x},${p?.z}`).sort().join('|');
+        const key = [l[i - 1], l[i]]
+          .map((p) => `${p?.x},${p?.z}`)
+          .sort()
+          .join('|');
         if (drawn.has(key)) continue;
         drawn.add(key);
         pathStrip(ctx, [l[i - 1] as XZ, l[i] as XZ], 3);
@@ -342,7 +345,7 @@ export function buildIndianWells(ctx: BuildContext): IndianWellsStatic {
     GATE.x - 0.7,
     6.4,
     0,
-    Math.PI / 2 * -1,
+    -Math.PI / 2,
     '#5d5446',
     '#d8cdb4',
     22,
