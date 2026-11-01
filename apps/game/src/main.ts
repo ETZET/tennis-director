@@ -311,6 +311,27 @@ labels.add({
   text: () => (director()?.walk ? text.tr('ui.you') : null),
 });
 
+/* ---------- 拖人时手指下面的落点亮起来 ---------- */
+let hoverEl: HTMLElement | null = null;
+const setHover = (el: HTMLElement | null) => {
+  if (el === hoverEl) return;
+  hoverEl?.classList.remove('drop-hover');
+  hoverEl = el;
+  hoverEl?.classList.add('drop-hover');
+};
+document.addEventListener('pointermove', (e) => {
+  // 只在按住拖人时（员工条拿起了人、手指没松开）
+  if (!session.picked || !e.buttons) return setHover(null);
+  let el: HTMLElement | null = null;
+  for (const x of document.elementsFromPoint(e.clientX, e.clientY)) {
+    el = (x as HTMLElement).closest?.<HTMLElement>('[data-target],[data-place]') ?? null;
+    if (el) break;
+  }
+  setHover(el);
+});
+document.addEventListener('pointerup', () => setHover(null));
+document.addEventListener('pointercancel', () => setHover(null));
+
 /* ---------- 键盘 ---------- */
 window.addEventListener('keydown', (e) => {
   const t = e.target as HTMLElement | null;
