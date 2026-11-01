@@ -25,8 +25,7 @@ apps/
   sandbox/   场景查看器和活动动画库（写死的演示剧情）
   sim-cli/   命令行无头跑局：确定性闸口、机器人平衡报告
 tools/
-  screenshot/  画面回归
-prototypes/    最初的单文件原型（参考和截图基准，不修改）
+  playtest/    试玩服务器
 docs/adr/      架构决策记录
 docs/content-guide.md   不写代码加卡
 docs/balance/  机器人跑局报告
@@ -43,9 +42,7 @@ pnpm install
 pnpm game                # 打开游戏（开发版：` 键调试面板，改 YAML 热重载）
 pnpm dev                 # 打开 sandbox，进入 Hollow Creek 演示
 pnpm check               # 类型检查 + 规范 + 分层 + 测试 + 构建
-pnpm screenshot          # 画面回归（先 pnpm build）
 pnpm content             # 内容 YAML → JSON
 pnpm sim bots --games 1000   # 机器人跑局报告
 ```
 
-画面回归需要 Chromium：本地有 Playwright 浏览器即可，或用 `CHROMIUM_PATH` 指定。

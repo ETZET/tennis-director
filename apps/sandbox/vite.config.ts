@@ -13,7 +13,6 @@ export default defineConfig({
     rollupOptions: {
       input: {
         index: resolve(import.meta.dirname, 'index.html'),
-        'hollow-creek': resolve(import.meta.dirname, 'hollow-creek.html'),
         activities: resolve(import.meta.dirname, 'activities.html'),
       },
     },

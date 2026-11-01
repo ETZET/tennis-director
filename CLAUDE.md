@@ -41,7 +41,6 @@ packages/content 只由 sim 读取
 - `packages/render/src/fx/`：粒子特效（`Particles`）、漫画字和像素表情（`SpriteLayer`），唯一用到 DOM 的是画布贴图。
 - 每个场景是一座浮空岛（ADR 0005）：放在岛上的东西用 `onIsland` 检查，岛边外不放任何东西；岛四周的云和小土块在 `ambient/sky.ts`。
 - `apps/sandbox`：场景查看器和活动动画库，写死的演示剧情放这里，不放进 render。`activities.html` + `src/activities/` 是动画库页面（手机竖屏优先），给策划看的效果读数（中文）在 `src/activities/effects.ts`。
-- `prototypes/`：最初的单文件原型，只作参考和截图对比基准，不要修改。
 - `docs/adr/`：重要决策一个文件。违反架构原则的改动先写 ADR。
 - `packages/content/data/`：所有游戏内容（YAML）。卡在 `events/<幕>/<id>.yaml`，文件名就是 id；文案在 `i18n/en.yaml`、`i18n/zh.yaml`。改完运行 `pnpm content`，生成的 `src/generated/content.json` 一起提交。
 - `apps/game/src/`：`session.ts`（实时 → 游戏分钟、命令队列、手上拿着的人）、`project.ts`（状态 → HUD 快照、员工条、岗位说明）、`main.ts`（岗位和工单的场景标记、拖放落点）、`scene.ts`（只读模拟的演出）、`perform.ts`（模拟的 performance 名 → 活动动画库；内容里新加 performance 要在这里配演出）、`debug.ts`（调试面板）、`text.ts`（i18n 拼句）。
@@ -72,7 +71,6 @@ pnpm lint           # Biome
 pnpm check:deps     # 分层规则
 pnpm test           # Vitest
 pnpm build          # 构建 apps
-pnpm screenshot     # 画面回归（先 build）
 pnpm content        # 编译内容 YAML → JSON（check:content 只校验）
 pnpm sim determinism --games 1000   # 确定性闸口
 pnpm sim bots --games 1000          # 机器人跑局报告（平衡）

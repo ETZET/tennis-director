@@ -1,9 +1,0 @@
-# 红土维护：拖场、洒水、压线。红土最娇气，不管就长草。
-id: clay_upkeep
-act: hollow_creek
-at: clay_court
-skill: upkeep
-cycle: 1h
-when: { facility: clay, is: restored }
-restore: 5
-performance: sweep

@@ -1,8 +1,0 @@
-# 1 号场维护：扫线、补小坑、收拾球。随时可以干，不算需求；没人干，场地按天变旧。
-id: c1_upkeep
-act: hollow_creek
-at: court_1
-skill: upkeep
-cycle: 1h
-restore: 4
-performance: sweep
