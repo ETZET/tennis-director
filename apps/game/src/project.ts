@@ -16,6 +16,7 @@ import {
   optionStatus,
   orderStatus,
   type Post,
+  postExists,
   postStatus,
   type SimEvent,
   type SkillKind,
@@ -602,7 +603,9 @@ export class Projector {
       const st = postStatus(s, w, p);
       if (!st.exists) return false;
       const low = !!p.restore && (s.condition[w.facilityAt.get(p.at) ?? ''] ?? 100) < 70;
-      return !!st.person || (st.demand && st.inHours) || low || !!session.picked || session.place === anchor;
+      const h = minuteOfDay(s.t) / 60;
+      const soon = !!p.hours && !st.inHours && p.hours[0] > h && p.hours[0] - h <= 2;
+      return !!st.person || (st.demand && st.inHours) || soon || low || !!session.picked || session.place === anchor;
     });
     const orders = [...w.orders.values()].filter((o) => o.at === anchor && orderStatus(s, w, o).visible);
     return { posts, orders };
@@ -613,7 +616,7 @@ export class Projector {
     session: Session,
     anchor: string,
   ): {
-    posts: { initials: string; color: string; progress: number; need: boolean; on: boolean }[];
+    posts: { initials: string; color: string; progress: number; need: boolean; on: boolean; soon: boolean }[];
     orders: { n: number; skills: SkillKind[]; progress: number | null; crew: number };
     fit: 'none' | 'fit' | 'nofit';
     /** 这儿的设施状况低于 30 时的值（地点牌上挂红色 !） */
@@ -627,13 +630,19 @@ export class Projector {
       .map((p) => {
         const st = postStatus(s, w, p);
         const face = st.person ? this.face(st.person) : null;
+        // 两小时内就要开门、还没人管的班：地点牌上提前露出来（第二轮试玩 S8：没人告诉你泳池 11 点要人）
+        const h = minuteOfDay(s.t) / 60;
+        const owned = Object.values(s.people).some((x) => x.hired && x.routine?.includes(p.id));
+        const soon =
+          !st.person && !owned && p.hours && !st.inHours && p.hours[0] > h && p.hours[0] - h <= 2 ? p.hours[0] : null;
         return {
-          initials: face?.initials ?? '+',
+          initials: face?.initials ?? (soon !== null ? `${soon}` : '+'),
           color: face?.color ?? '',
           progress: st.progress,
           need: st.demand && st.inHours && !st.person,
           on: st.active,
-          show: !!st.person || (st.demand && st.inHours),
+          soon: soon !== null,
+          show: !!st.person || (st.demand && st.inHours) || soon !== null,
         };
       })
       // 地点牌只放此刻要紧的岗位格；拿着人时空岗位也露出来（是个落点）
@@ -792,6 +801,21 @@ export class Projector {
         rank: 9,
       });
     }
+    // 下雨关掉的户外岗位：留一行说明，免得拖过去没反应还不知道为什么（第二轮试玩 S11）
+    if (s.weather === 'rain')
+      for (const p of w.posts.values()) {
+        if (p.at !== anchor || postExists(s, w, p) || !postExists({ ...s, weather: 'sun' }, w, p)) continue;
+        rows.push({
+          id: p.id,
+          kind: 'post',
+          skill: p.skill,
+          title: this.short(p.id),
+          line: T.tr('ui.place.rain'),
+          faces: [],
+          locked: true,
+          rank: 8,
+        });
+      }
     rows.sort((a, b) => a.rank - b.rank || (a.fit?.blocked ? 1 : 0) - (b.fit?.blocked ? 1 : 0));
     return {
       id: anchor,

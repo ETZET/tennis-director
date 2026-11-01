@@ -482,6 +482,7 @@ ui:
     expectations: 期望越来越高
     events: 事情办得怎样
   place:
+    rain: 下雨，户外的这一项今天关门
     condition_low: "状况 {n} · 已经掉档，派人维护才能救回来"
     condition: "状况 {n} · 低于 30 会掉档"
     owner: "{name}的班 · {hours} 点自己来"

@@ -18,6 +18,8 @@ export interface Marker {
   lift: number | (() => number);
   /** 每帧更新的 CSS 变量（例如进度 --p） */
   vars?: () => Record<string, string>;
+  /** 整块牌子留在屏幕里（地点牌：拇指要点得到；第二轮试玩 S10） */
+  keepOnScreen?: boolean;
   last?: string;
 }
 
@@ -71,7 +73,7 @@ export class GameLabels {
       if (m.vars) for (const [k, v] of Object.entries(m.vars())) m.el.style.setProperty(k, v);
       const p = m.get();
       this.pv.set(p.x, p.y, p.z).project(this.cam);
-      const x = (this.pv.x * 0.5 + 0.5) * W;
+      let x = (this.pv.x * 0.5 + 0.5) * W;
       const y = (-this.pv.y * 0.5 + 0.5) * H;
       let off = x < -100 || x > W + 100 || y < -40 || y > H + 40;
       const base = typeof m.lift === 'function' ? m.lift() : m.lift;
@@ -81,6 +83,7 @@ export class GameLabels {
       // 手机上地点挤在一起：和已经摆好的牌子叠住就往上让（最多让三次）
       const w = m.el.offsetWidth || 80;
       const h = m.el.offsetHeight || 24;
+      if (m.keepOnScreen) x = Math.min(Math.max(x, w / 2 + 6), W - w / 2 - 6);
       let lift = base;
       for (let k = 0; k < 3; k++) {
         const box = { l: x - w / 2, r: x + w / 2, t: y - lift - h, b: y - lift };

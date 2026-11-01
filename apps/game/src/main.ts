@@ -238,6 +238,7 @@ function addHubs(c: ContentBundle): void {
       {
         get: ground(a, 1.2),
         lift: 6,
+        keepOnScreen: true,
         text: () => (hubOf(a) ? text.anchor(a) : null),
         html: () => {
           const h = hubOf(a);
@@ -245,7 +246,7 @@ function addHubs(c: ContentBundle): void {
           const posts = h.posts
             .map(
               (p) =>
-                `<span class="hb-p${p.need ? ' hb-need' : ''}${p.on ? ' hb-on' : ''}" style="--p:${Math.round(p.progress * 100)}%${p.color ? `;--c:${p.color}` : ''}">${esc(p.initials)}</span>`,
+                `<span class="hb-p${p.need ? ' hb-need' : ''}${p.on ? ' hb-on' : ''}${p.soon ? ' hb-soon' : ''}" style="--p:${Math.round(p.progress * 100)}%${p.color ? `;--c:${p.color}` : ''}">${esc(p.initials)}</span>`,
             )
             .join('');
           const o = h.orders;

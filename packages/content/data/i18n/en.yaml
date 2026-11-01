@@ -487,6 +487,7 @@ ui:
     expectations: Rising expectations
     events: How things went
   place:
+    rain: Closed today — it is raining
     condition_low: "Condition {n} · already lost a grade; upkeep brings it back"
     condition: "Condition {n} · drops a grade below 30"
     owner: "{name}'s shift · comes at {hours}"

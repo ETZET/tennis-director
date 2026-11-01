@@ -29,6 +29,7 @@ export {
   orderStatus,
   type PostStatus,
   postDemand,
+  postExists,
   postStatus,
   ROUTINE_MAX,
   routineTarget,

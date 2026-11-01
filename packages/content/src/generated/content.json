@@ -1,5 +1,5 @@
 {
- "version": "c084a46e",
+ "version": "3b7fb45c",
  "stats": [
   {
    "id": "cash",
@@ -4261,6 +4261,7 @@
    "ui.terms.reputation": "Reputation",
    "ui.terms.expectations": "Rising expectations",
    "ui.terms.events": "How things went",
+   "ui.place.rain": "Closed today — it is raining",
    "ui.place.condition_low": "Condition {n} · already lost a grade; upkeep brings it back",
    "ui.place.condition": "Condition {n} · drops a grade below 30",
    "ui.place.owner": "{name}'s shift · comes at {hours}",
@@ -4750,6 +4751,7 @@
    "ui.terms.reputation": "声望",
    "ui.terms.expectations": "期望越来越高",
    "ui.terms.events": "事情办得怎样",
+   "ui.place.rain": "下雨，户外的这一项今天关门",
    "ui.place.condition_low": "状况 {n} · 已经掉档，派人维护才能救回来",
    "ui.place.condition": "状况 {n} · 低于 30 会掉档",
    "ui.place.owner": "{name}的班 · {hours} 点自己来",

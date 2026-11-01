@@ -89,3 +89,8 @@
 .td-place-cond .td-sheet-bar i{background:#9be07f}
 .td-place-cond-low{color:#ffc8b5}
 .td-place-cond-low .td-sheet-bar i{background:#ff8a6b}
+.td-staff-many .td-tok>button{max-width:104px;gap:5px;padding:3px 6px 3px 3px;min-height:48px}
+.td-staff-many .td-tok-face{width:34px;height:34px;font-size:13px}
+.td-staff-many .td-tok-text b{font-size:12px}
+.td-staff-many .td-tok-doing{font-size:10px;max-width:60px}
+.td-staff-many .td-sk{width:17px}
