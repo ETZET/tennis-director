@@ -57,7 +57,7 @@ describe('内容编译', () => {
       'default: { then: C }',
       '',
     );
-    f['actions/host_fundraiser.yaml'] = (f['actions/host_fundraiser.yaml'] as string).replace(
+    f['orders/host_fundraiser.yaml'] = (f['orders/host_fundraiser.yaml'] as string).replace(
       'stat.reputation * 12',
       'stat.reputashun * 12',
     );

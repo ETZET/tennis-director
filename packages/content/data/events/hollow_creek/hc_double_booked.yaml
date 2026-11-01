@@ -22,7 +22,7 @@ options:
       - { stat: members, add: -1, chance: 0.4 }
   C:
     # 过去当面协调，一拨一个小时
-    requiresDirectorAt: court_1
+    errand: { at: court_1, for: 1h }
     effects:
       - { stat: reputation, add: 1 }
 default: { then: B }

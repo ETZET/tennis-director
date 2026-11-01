@@ -1,0 +1,13 @@
+# 会所屋顶：补好就不用再摆桶。
+id: patch_roof
+act: hollow_creek
+at: deck
+skill: upkeep
+work: 2h
+cost: 250
+when: { not: { flag: roof_patched } }
+effects:
+  - { flag: roof_patched, set: true }
+  - { stat: reputation, add: 1 }
+  - { log: log.roof_fixed }
+performance: workday

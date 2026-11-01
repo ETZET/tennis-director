@@ -6,3 +6,4 @@
 - { id: members, min: 0, max: 500, display: number, act: all }
 - { id: pickleball_pressure, min: 0, max: 100, display: number, act: hollow_creek }
 - { id: board_support, min: 0, max: 100, display: number, act: hollow_creek }
+- { id: service, min: 0, max: 100, display: number, act: all }

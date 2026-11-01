@@ -10,7 +10,7 @@ who: dale
 stage: { anchor: court_1, performance: lesson }
 options:
   A:
-    requiresDirectorAt: court_1
+    errand: { at: court_1, for: 30m }
     effects:
       - { flag: dale_warned, set: true }
       - { stat: quality, add: 2 }

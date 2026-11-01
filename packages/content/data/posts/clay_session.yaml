@@ -1,0 +1,17 @@
+# 红土场周末开放：会员最爱红土，有人看场就开。
+id: clay_session
+act: hollow_creek
+at: clay_court
+skill: service
+cycle: 1h
+hours: [9, 17]
+days: [5, 6]
+when:
+  all:
+    - { facility: clay, is: restored }
+    - { not: { weather: rain } }
+effects:
+  - { stat: cash, add: 6 }
+  - { stat: reputation, add: 0.05 }
+wear: 2
+performance: open_play

@@ -13,7 +13,7 @@ who: rival
 options:
   A:
     # 亲自去停车场，把传单换成我们自己的
-    requiresDirectorAt: lot
+    errand: { at: lot, for: 1h }
     effects:
       - { stat: reputation, add: 2 }
       - { stat: members, add: 1, chance: 0.5 }

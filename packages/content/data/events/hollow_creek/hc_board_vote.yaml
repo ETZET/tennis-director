@@ -9,7 +9,7 @@ location: deck
 who: board
 options:
   A:
-    requiresDirectorAt: deck
+    errand: { at: deck, for: 1h }
     # 表决永远有风险：信心满格也只有八成五；再差也有一点机会
     check: { chance: "clamp((stat.board_support - 40) / 50, 0.08, 0.85)" }
     onSuccess:

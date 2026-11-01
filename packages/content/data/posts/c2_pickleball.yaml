@@ -1,0 +1,16 @@
+# 2 号场匹克球时段：收回或分时段以后，有人看场就按小时收钱，匹克球那帮人也消停一点。
+id: c2_pickleball
+act: hollow_creek
+at: court_2
+skill: service
+cycle: 1h
+hours: [9, 20]
+when:
+  all:
+    - { not: { facility: court_2, is: rented_pickleball } }
+    - { not: { weather: rain } }
+effects:
+  - { stat: cash, add: 8 }
+  - { stat: pickleball_pressure, add: -0.4 }
+wear: 1
+performance: pickleball

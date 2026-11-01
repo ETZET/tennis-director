@@ -33,10 +33,17 @@ export function createText(content: ContentBundle, lang: Lang): Text {
   const people = new Map(content.people.map((p) => [p.id, p.name]));
   const zh = lang === 'zh';
   const tr = (key: string, fallback?: string) => table[key] ?? content.i18n.en?.[key] ?? fallback ?? key;
-  const personName = (id: string) => people.get(id) ?? id;
+  // 人名：文案表里有译名就用（总监、中文版的教练称呼），没有就用内容里的名字
+  const personName = (id: string) => table[`people.${id}`] ?? people.get(id) ?? id;
   const cardTitle = (card: string) => tr(`events.${card}.title`, card);
   const option = (card: string, key: string) => tr(`events.${card}.options.${key}`, key);
 
+  const duration = (min: number) => {
+    const m = Math.max(0, Math.round(min));
+    const h = Math.floor(m / 60);
+    if (zh) return h ? (m % 60 ? `${h} 小时 ${m % 60} 分` : `${h} 小时`) : `${m} 分钟`;
+    return h ? (m % 60 ? `${h}h ${String(m % 60).padStart(2, '0')}m` : `${h}h`) : `${m} min`;
+  };
   const effect = (e: EffectRecord): string | null => {
     switch (e.kind) {
       case 'stat': {
@@ -53,7 +60,7 @@ export function createText(content: ContentBundle, lang: Lang): Text {
         return zh ? `${personName(e.person)} 离开` : `${personName(e.person)} let go`;
       case 'person':
         if (Math.abs(e.delta) < 0.5) return null;
-        return `${personName(e.person)} ${zh ? { skill: '球技', morale: '士气', fatigue: '疲劳' }[e.attr] : e.attr} ${signed(e.delta)}`;
+        return `${personName(e.person)} ${tr(`ui.attr.${e.attr}`, e.attr)} ${signed(e.delta)}`;
       case 'text':
         return tr(e.key);
       case 'follow':
@@ -62,6 +69,15 @@ export function createText(content: ContentBundle, lang: Lang): Text {
         return tr(`endings.${e.ending}.title`);
       case 'activity':
         return zh ? `安排了${tr(`activities.${e.activity}.title`)}` : `${tr(`activities.${e.activity}.title`)} booked`;
+      case 'errand':
+        return tr('ui.errand_log')
+          .replace('{name}', personName(e.person))
+          .replace('{place}', tr(`anchors.${e.at}`, e.at))
+          .replace('{time}', duration(e.minutes));
+      case 'condition': {
+        if (Math.abs(e.delta) < 1) return null;
+        return `${tr(`ui.fac.${e.facility}`, e.facility)} ${tr('ui.condition')} ${signed(e.delta)}`;
+      }
       default:
         // flag、schedule 是幕后的账，不讲给玩家
         return null;
@@ -93,6 +109,19 @@ export function createText(content: ContentBundle, lang: Lang): Text {
           : `the ${tr(`activities.${c.activity}.title`).toLowerCase()} wrapped up`;
       case 'day':
         return zh ? `第 ${c.day} 天收工` : `day ${c.day} closed`;
+      case 'post':
+        return tr('ui.because.post')
+          .replace('{name}', personName(c.person))
+          .replace('{post}', tr(`posts.${c.post}.title`, c.post))
+          .replace('{n}', String(c.cycles));
+      case 'order': {
+        const r = c.success === undefined ? '' : tr(c.success ? 'ui.because.worked' : 'ui.because.failed');
+        return (
+          tr('ui.because.order')
+            .replace('{names}', c.people.map(personName).join(zh ? '、' : ' & ') || tr('ui.nobody'))
+            .replace('{order}', tr(`orders.${c.order}.title`, c.order)) + r
+        );
+      }
       case 'debug':
         return zh ? `调试：${c.what}` : `debug: ${c.what}`;
       default:
@@ -113,12 +142,6 @@ export function createText(content: ContentBundle, lang: Lang): Text {
     return `${h % 12 || 12}:${mm} ${h >= 12 ? 'PM' : 'AM'}`;
   };
   const day = (t: number) => (zh ? `第 ${Math.floor(t / 1440) + 1} 天` : `Day ${Math.floor(t / 1440) + 1}`);
-  const duration = (min: number) => {
-    const m = Math.max(0, Math.round(min));
-    const h = Math.floor(m / 60);
-    if (zh) return h ? `${h} 小时 ${m % 60} 分` : `${m} 分钟`;
-    return h ? `${h}h ${String(m % 60).padStart(2, '0')}m` : `${m} min`;
-  };
 
   const fmt = (key: string, vars: Record<string, string | number>) =>
     tr(key).replace(/\{(\w+)\}/g, (_, k: string) => String(vars[k] ?? `{${k}}`));

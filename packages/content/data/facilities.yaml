@@ -1,9 +1,10 @@
-# 设施和它们的状态。courts：这个状态下能打网球的场地数；quality：对项目质量目标的贡献。
+# 设施和它们的状态。courts：这个状态下能打网球的场地数；quality：对项目质量目标的贡献（状况低于 30 减半，到 0 归零）；
+# decay_day：没人维护时每天掉多少状况（ADR 0012，准则 6：没人管的地方慢慢变旧）。
 - id: court_1
   anchor: court_1
   states:
-    worn: { courts: 1, quality: 0, upkeep_week: 20 }
-    repaired: { courts: 1, quality: 8, upkeep_week: 20 }
+    worn: { courts: 1, quality: 0, upkeep_week: 20, decay_day: 6 }
+    repaired: { courts: 1, quality: 8, upkeep_week: 20, decay_day: 4 }
 - id: court_2
   anchor: court_2
   states:
@@ -15,12 +16,12 @@
   states:
     collapsed: { courts: 0, quality: -2 }
     # 气膜：下雨天也能打
-    inflated: { courts: 1, quality: 8, upkeep_week: 120, income_week: 150, rain_ok: true }
+    inflated: { courts: 1, quality: 8, upkeep_week: 120, rain_ok: true, decay_day: 3 }
 - id: clay
   anchor: clay_court
   states:
     overgrown: { courts: 0, quality: -3 }
-    restored: { courts: 1, quality: 6, upkeep_week: 30, income_week: 60 }
+    restored: { courts: 1, quality: 6, upkeep_week: 30, decay_day: 6 }
 - id: pool
   anchor: pool
   states:

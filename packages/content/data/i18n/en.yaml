@@ -6,6 +6,7 @@ stats:
   members: Members
   pickleball_pressure: Pickleball pressure
   board_support: Board confidence
+  service: Service
 
 anchors:
   deck: Clubhouse deck
@@ -30,14 +31,6 @@ facilities:
   pool: { open: Pool · open, drained: Pool · drained }
 
 activities:
-  junior_lesson: { title: Junior lesson, short: Junior lesson }
-  adult_clinic: { title: Adult clinic, short: Adult clinic }
-  open_play: { title: Open play, short: Open play }
-  pickleball_hours: { title: Pickleball rental, short: Pickle rental }
-  open_day: { title: Open day, short: Open day }
-  social_night: { title: Social night, short: Social night }
-  clay_session: { title: Clay court session, short: Clay court }
-  bubble_session: { title: Bubble court session, short: Bubble court }
   contractor: { title: Contractors on the clay court }
   tug_of_war: { title: Tug-of-war vs pickleball }
   match_strong: { title: Community match vs Pine Crown }
@@ -70,7 +63,7 @@ events:
     title: Coach Dale is on his phone during the junior lesson
     body: Tyler is hitting balls into the fence and Mason is sitting on the court. Dale has not looked up in ten minutes.
     options:
-      A: Walk down to Court 1 and talk to him
+      A: Go to Court 1 and talk to him
       B: Text him from the deck · quality +1, reputation −1
       C: Let it slide · quality −3, Dale likes you
   hc_parent_complaint:
@@ -83,24 +76,23 @@ events:
       C: Back the coach · −2 members, reputation −3, Dale tries harder
   hc_board_memo:
     topic: Board memo
-    title: The board wants you to deal with Coach Dale
-    body: Program quality has collapsed and members are leaving. The board expects action today.
+    title: The board wants an answer about the lessons
+    body: Program quality has collapsed and members are leaving. Dale is still teaching, and the board expects a plan today.
     options:
-      A: Fire him in front of the class
-      B: Let him go privately on the deck
-      C: Give him one more chance
+      A: Hire a second coach · another wage, Dale is hurt
+      B: Give Dale one more chance and watch him on Court 1
   hc_dale_relapse:
     topic: Coaching
     title: Dale is back on his phone
     body: One more chance lasted a day. The juniors are hitting balls at each other.
     options:
-      A: Fire him now
+      A: Hire a coach to take over · Dale knows he was replaced
       B: Dock his pay · +$175, Dale sulks
       C: Finish the lesson yourself
   hc_hire_coach:
     topic: Staff
-    title: Hire a new head coach
-    body: Three people answered the ad. Whoever you pick could follow you after Hollow Creek.
+    title: Hire another coach
+    body: Three people answered the ad. The new coach becomes head coach and Dale stays on. Whoever you pick could follow you after Hollow Creek.
     options:
       A: Jess Park · eager rookie, $250/wk
       B: Walt Hendricks · tired veteran, $420/wk
@@ -290,6 +282,22 @@ events:
       A: Bring your head coach
       B: Bring Mason
       C: Go alone
+  hc_hiring_day:
+    topic: Hiring day
+    title: Two people came about the job
+    body: The notice has been up for a week and two people turned up. Right now the only people working the club are you and Dale.
+    options:
+      A: Rosa Ortiz · great at upkeep, $180/wk
+      B: Ben Kim · ball kid, good with people, $110/wk
+      C: Hire no one · keep the wages
+  hc_hiring_day_2:
+    topic: Hiring day
+    title: Hiring day before autumn
+    body: The more you fix, the more there is to look after. Two more people came about the job.
+    options:
+      A: Gus Moreno · veteran groundskeeper, best at upkeep, a bit tired, $260/wk
+      B: Lily Chen · front-desk pro, best with people, $220/wk
+      C: Hire no one · keep the wages
 
 log:
   ball_machine: The ball machine arrived; lessons are sharper now
@@ -304,32 +312,47 @@ log:
   promise_broken: You broke your promise to the board
   promise_kept: You kept your promise to the board
   tree_cleared: The tree is cleared and lessons go on
+  no_hire: No one was hired; the same few people carry the work
 
 # 界面文案（游戏 app 用）。{x} 是占位符。
-actions:
-  patch_court1: { title: "Patch the cracks", note: "A crew fixes Court 1 by tomorrow" }
-  new_net: { title: "Replace the net", note: "Cheap; the court stays cracked" }
-  watch_lesson: { title: "Watch the lesson", note: "Stand courtside; the coach stays focused" }
-  hit_with_tyler: { title: "Hit with Tyler", note: "He has been asking all week" }
-  mentor_mason: { title: "Work on Mason's backhand", note: "One-on-one, after class" }
-  ball_machine: { title: "Buy a ball machine", note: "Lessons get better for good" }
-  talk_pickleball: { title: "Talk to the pickleball group", note: "Depends on your reputation" }
-  clay_workday: { title: "Run a community workday", note: "Free if enough neighbors come" }
-  clay_contractor: { title: "Hire contractors", note: "A pro surface, no help needed" }
-  inflate_bubble: { title: "Re-inflate the bubble", note: "A court for rainy days" }
-  host_fundraiser: { title: "Host a fundraiser", note: "You run the evening yourself" }
-  members_coffee: { title: "Coffee with the regulars", note: "Hear what they want" }
+posts:
+  c1_lesson: { title: "Court 1 · Junior lesson", note: "Weekdays 3–6 pm, kids after school" }
+  c1_clinic: { title: "Court 1 · Adult clinic", note: "Mon–Thu 6–8 pm, after work" }
+  c1_hitting: { title: "Court 1 · Weekend hitting", note: "Weekend mornings, regulars want a partner" }
+  c1_upkeep: { title: "Court 1 · Upkeep", note: "Any time; left alone it wears out" }
+  deck_host: { title: "Deck · Host", note: "Daily 8–11 am, coffee with the regulars" }
+  deck_social: { title: "Deck · Social night", note: "Thu–Sat 6–8 pm" }
+  c2_pickleball: { title: "Court 2 · Pickleball hours", note: "Once it is back, staff it and charge by the hour" }
+  bubble_session: { title: "Bubble · Court host", note: "9 am–8 pm, rain or shine" }
+  bubble_upkeep: { title: "Bubble · Upkeep", note: "Fans, membrane, sweeping" }
+  clay_lesson: { title: "Clay · Second lesson", note: "At 60 members the afternoon kids split in two" }
+  clay_session: { title: "Clay · Weekend play", note: "Members love the clay" }
+  clay_upkeep: { title: "Clay · Upkeep", note: "Drag, water, lines; clay is fussy" }
+  pool_guard: { title: "Pool · Lifeguard", note: "11 am–5 pm, no swimming without one" }
+orders:
+  patch_court1: { title: "Patch the cracks", note: "$300 in materials, one afternoon" }
+  new_net: { title: "Replace the net", note: "Cheap, one person, one hour" }
+  court1_sweep: { title: "Clean up Court 1", note: "Leaves, puddles, loose lines" }
+  clay_clear: { title: "Clear the clay court", note: "Free, but needs many hands" }
+  clay_contractor: { title: "Hire contractors for the clay", note: "$900 and an hour on the contract" }
+  clay_weeds: { title: "Weeds on the clay again", note: "Pull them and roll it flat" }
+  inflate_bubble: { title: "Re-inflate the bubble", note: "New fans $2,000, plus a full day of work" }
   patch_roof: { title: "Fix the clubhouse roof", note: "No more buckets" }
-  recruit_sign: { title: "Put up a recruiting sign", note: "At the road turn-off" }
   fill_pothole: { title: "Fill the pothole", note: "Before someone else scrapes a car" }
-  pool_kids: { title: "Invite the pool kids for a hit", note: "Some might sign up" }
+  recruit_sign: { title: "Put up a recruiting sign", note: "At the turn-off, once a week" }
+  ball_machine: { title: "Set up a ball machine", note: "Lessons get better for good" }
+  host_fundraiser: { title: "Host a fundraiser", note: "Takes people all afternoon" }
+  talk_pickleball: { title: "Talk to the pickleball group", note: "Depends on your reputation" }
+  hit_with_tyler: { title: "Hit with Tyler", note: "He has been asking all week" }
+  mentor_mason: { title: "Coach Mason one-on-one", note: "Backhand drills" }
+  open_day: { title: "Run a free open day", note: "Takes a few people a couple of hours" }
 seasons:
   late_summer: Late summer
   early_autumn: Early autumn
-parts:
-  am: Morning
-  pm: Afternoon
-  eve: Evening
+
+people:
+  director: Director
+  dale: Coach Dale
 
 who:
   board: { name: The Board, role: Five volunteers who can sell the club }
@@ -339,11 +362,13 @@ who:
   developer: { name: Rick Dorsey, role: Property developer }
   member: { name: A longtime member, role: Here since 1994 }
   maple: { name: Maple Ridge High, role: Athletic director }
+  applicants: { name: Applicants, role: Saw the notice }
 roles:
+  director: Director
   coach: Head coach
   junior: Junior player
   parent: Parent
-  candidate: Coach applicant
+  candidate: Applicant
   staff: Staff
   rival: Rival
 
@@ -371,67 +396,43 @@ ui:
     so: so
     more: "+{n} more"
     walkThere: Walks there first
+    staff: Your people
+    cancel: Put down
+    close: Close
+    send: Send
+    stop: Stop
+    skill_teach: Coaching
+    skill_upkeep: Upkeep
+    skill_service: Service
     trend: { falling: Falling, recovering: Recovering, flat: Flat, bottomed: Bottomed out }
   week: "Wk {n}"
   weather: { sun: Sunny, cloud: Cloudy, rain: Rain · outdoor courts closed, wind: Windy }
   days: { "0": Mon, "1": Tue, "2": Wed, "3": Thu, "4": Fri, "5": Sat, "6": Sun }
   chip:
+    errand: "{name} away {time}"
     hire: "{name} joins"
     fire: "{name} leaves"
-    energy: "Energy {n}"
-    walk: "{time} walk"
-    work: "{time} on site"
     chance: "{p}% chance"
     cost: "−${n}"
-    cooldown: "Again in {time}"
-  attr: { skill: skill, morale: morale, fatigue: fatigue }
+  attr: { skill: skill, upkeep: upkeep, service: service, morale: morale, fatigue: fatigue }
   then: "Then: {what}"
-  ring:
-    go: Go do it
-    walk: Walk here
-    walk_note: The director goes and stands here
-    board: Open the noticeboard
-    board_note: Change this season's plan
-    empty: Nothing to do here right now
-    why:
-      cooldown: Done recently
-      cost: Not enough cash
-      energy: Too tired
-      busy: Busy elsewhere
-  plan:
-    title: Clubhouse noticeboard
-    subtitle: "{season} · weeks {from}–{to} · drag notes onto the week"
-    tray: Notes (drag onto the board)
-    lock: Pin it up
-    lock_mid: Done
-    free: Changes are free while you plan the season.
-    costs: "Mid-season, every change costs {n} energy."
-    cash: Cash per week
-    members: New members per week
-    quality: Quality settles at
-    pressure: Pickleball pressure per week
-    lessons: Lessons per week
-    lessons_over: "Lessons per week · coach overworked"
-    blocked: Slots that can't run yet
   ctx:
     board: "Board {n} · vote in {days}d"
     cash: "Cash ${n}"
     members: "Members {n}"
-    energy: "Your energy {n}"
-  work: "{what} · {time} left"
+    service: "Service this week {n}%"
   board: Board confidence
   board_in: "Board · {days}d left"
   board_today: "Board · vote today"
   club: { name: Hollow Creek TC, badge: HC }
   cash: Cash
   you: You
-  walking: "Walking to {place} · {time}"
-  standing: "At {place}"
   closed: Club closed for the night
   left: "{time} left"
   decided: Decided
   hint:
-    walk: "Walk to {place} first · {time}"
+    leaves: "The director leaves “{what}”"
+    busy: The director is away on something else
     cost: "Costs ${n}"
     chance: "{p}% chance"
     requires: Not possible right now
@@ -447,3 +448,53 @@ ui:
     won: Act 1 complete
     lost: Act 1 over
     legacy: "Coming with you: {names}"
+  skill: { teach: Coaching, upkeep: Upkeep, service: Service }
+  fac: { court_1: Court 1, court_2: Court 2, bubble: Bubble, clay: Clay court, pool: Pool }
+  condition: condition
+  nobody: nobody
+  errand_log: "{name} spent {time} at {place}"
+  because:
+    post: "{name} worked {n} rounds on “{post}”"
+    order: "{names} finished “{order}”"
+    worked: " (it worked)"
+    failed: " (it didn't work)"
+  wire:
+    interrupted: "{name} was pulled off “{post}”; that round was lost"
+    week: "Week settled · service {n}%"
+  status:
+    empty: "{n} posts have customers waiting and nobody there"
+    covered: Every busy spot has someone
+  staff:
+    hint: "Tap a post or job to send {name} there"
+    idle: "Idle at {place}"
+    waiting: "{what} · waiting for customers"
+    walking: "To {what} · {time}"
+    errand: "Away at {place} · {time}"
+  why:
+    person: Can't be assigned
+    busy: Away on an errand
+    target: No such post
+    gone: Not open right now
+    cost: Not enough cash for materials
+    crew: Already full
+  sheet:
+    daily: Daily
+    anytime: Any time
+    cycle: "{time} per round"
+    income: Earns money (skill and members)
+    restore: "Condition +{n}/round"
+    restore_done: "Condition +{n} when done"
+    wear: "Wear {n}/round"
+    work: "{time} left (one person, skill 50)"
+    crew: "Up to {n} people"
+    post_on: "{name} is on it · {time} left this round"
+    post_wait: "{name} is here, waiting for customers"
+    post_empty_now: Nobody · customers waiting
+    post_empty: Nobody
+    order_on: "{names} working · {p}%"
+    order_paused: "Paused · {p}% (progress kept)"
+    order_new: Not started
+    walk: "{time} walk"
+    here: Right here
+    leaves: "leaves “{what}”"
+    speed: "Working at {n}%"

@@ -1,0 +1,12 @@
+# 1 号场补裂缝：买料 + 一个下午的活。补完质量贡献上去，状况回满。
+id: patch_court1
+act: hollow_creek
+at: court_1
+skill: upkeep
+work: 4h
+cost: 300
+when: { facility: court_1, is: worn }
+restore: 100
+effects:
+  - { facility: court_1, set: repaired }
+performance: workday

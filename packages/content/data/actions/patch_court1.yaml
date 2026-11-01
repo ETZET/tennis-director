@@ -1,8 +1,0 @@
-# 1 号场：请施工队把裂缝补上（不用你到场，一天后完工）。
-id: patch_court1
-act: hollow_creek
-at: court_1
-when: { facility: court_1, is: worn }
-cost: 350
-effects:
-  - { facility: court_1, set: repaired }

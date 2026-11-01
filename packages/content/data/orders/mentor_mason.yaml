@@ -1,0 +1,13 @@
+# 单独带 Mason：发现他有天赋以后。
+id: mentor_mason
+act: hollow_creek
+at: court_1
+skill: teach
+work: 1h
+crew: 1
+cooldown: 3d
+when: { flag: kid_noticed }
+effects:
+  - { person: mason, add: { skill: 4, morale: 5 } }
+  - { flag: kid_mentored, set: true }
+performance: feed

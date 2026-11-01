@@ -2,7 +2,7 @@ import type { XYZ } from '@td/shared';
 import * as THREE from 'three';
 
 /**
- * 场景上的 DOM 叠层：地点牌（点一下总监就走过去）、总监头顶的"你"、正在进行的活动、卡片发生的地方。
+ * 场景上的 DOM 叠层：地点牌、岗位和工单的标记（拖人上去、点开说明）、总监头顶的"你"、正在进行的活动。
  * 每帧把世界坐标投影到屏幕上；文字变了才改 DOM。
  */
 
@@ -14,6 +14,8 @@ export interface Marker {
   cls: () => string;
   /** 牌子离地面的高度（像素），可以随状态变（例如拉远时缩成小圆点） */
   lift: number | (() => number);
+  /** 每帧更新的 CSS 变量（例如进度 --p） */
+  vars?: () => Record<string, string>;
   last?: string;
 }
 
@@ -62,6 +64,7 @@ export class GameLabels {
         m.el.textContent = text;
         m.el.setAttribute('aria-label', text);
       }
+      if (m.vars) for (const [k, v] of Object.entries(m.vars())) m.el.style.setProperty(k, v);
       const p = m.get();
       this.pv.set(p.x, p.y, p.z).project(this.cam);
       const x = (this.pv.x * 0.5 + 0.5) * W;

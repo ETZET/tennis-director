@@ -3,7 +3,7 @@ id: hc_crow_ball
 act: hollow_creek
 source: random
 tone: comedy
-when: { all: [{ activity: junior_lesson, running: true }, { not: { flag: crow_lid } }] }
+when: { all: [{ hour: { gte: 15, lte: 18 } }, { not: { weather: rain } }, { not: { flag: crow_lid } }] }
 once: false
 cooldown: 10d
 weight: 0.5

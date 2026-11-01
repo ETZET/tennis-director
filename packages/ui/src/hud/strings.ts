@@ -26,6 +26,14 @@ const EN = {
   so: 'so',
   more: '+{n} more',
   walkThere: 'Walks there first',
+  staff: 'Your people',
+  cancel: 'Put down',
+  close: 'Close',
+  send: 'Send',
+  stop: 'Stop',
+  skill_teach: 'Coaching',
+  skill_upkeep: 'Upkeep',
+  skill_service: 'Service',
 };
 
 type Key = keyof typeof EN;

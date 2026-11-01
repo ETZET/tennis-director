@@ -1,8 +1,9 @@
-import type { Card, ContentBundle, Effect, OptionKey } from '@td/content';
+import { type Card, type ContentBundle, type Effect, minutes, type OptionKey } from '@td/content';
 import { type OptionStatus, optionStatus } from './cards';
-import { actionStatus } from './director';
 import { advance, type Command, type LoggedCommand, newGame } from './game';
-import type { GameState } from './state';
+import { canAssign, occupant, orderStatus, postDemand, postExists, skillOf, staffIds, working } from './staff';
+import { DIRECTOR, type GameState, minuteOfDay, weekdayOf } from './state';
+import { shortestRoute } from './walk';
 import { type World, worldFor } from './world';
 
 /**
@@ -28,7 +29,7 @@ function botRand(seed: number) {
 
 /**
  * 随机型：每张卡随机挑一个选项，过一会儿才处理（有时干脆放着让它过期）；
- * 选中的选项要总监到场，就先走过去。
+ * 偶尔随手把一个人拖到随便一个岗位或工单上。
  */
 export function randomBot(seed: number): Bot {
   const r = botRand(seed);
@@ -37,13 +38,13 @@ export function randomBot(seed: number): Bot {
     name: 'random',
     decide(s, content) {
       const w = worldFor(content, s.act, s.directorConfig);
-      if (s.planning) return [{ type: 'lockPlan' }];
       const cmds: Command[] = [];
-      // 偶尔随手做件事
-      if (!s.cards.open.length && !s.director.task && !s.director.leg && r() < 0.005) {
-        const ok = [...w.actions.values()].filter((a) => actionStatus(s, w, a).available);
-        const a = ok[Math.floor(r() * ok.length)];
-        if (a) cmds.push({ type: 'act', action: a.id });
+      if (r() < 0.06) {
+        const people = staffIds(s, w);
+        const targets = [...w.posts.keys(), ...w.orders.keys()];
+        const person = people[Math.floor(r() * people.length)];
+        const target = targets[Math.floor(r() * targets.length)];
+        if (person && target && canAssign(s, w, person, target) === null) cmds.push({ type: 'assign', person, target });
       }
       for (const o of s.cards.open) {
         let p = plan.get(o.uid);
@@ -57,16 +58,19 @@ export function randomBot(seed: number): Bot {
         const st = optionStatus(s, w, o.uid).find((x) => x.key === p.option);
         if (!st) continue;
         if (st.available) cmds.push({ type: 'chooseOption', uid: o.uid, option: p.option });
-        else if (st.blocked === 'director' && st.requiresDirectorAt && !s.director.leg)
-          cmds.push({ type: 'moveDirector', to: st.requiresDirectorAt });
-        else if (st.blocked) p.option = null;
+        else p.option = null;
       }
       return cmds;
     },
   };
 }
 
-/** "立刻能看到的好处"的权重：贪心型和走动型共用 */
+/** 放置型（对照组）：什么都不做，卡全部过期走默认。检验准则 6：放着不管会慢慢变差，但不会一下崩掉。 */
+export function idleBot(): Bot {
+  return { name: 'idle', decide: () => [] };
+}
+
+/** "立刻能看到的好处"的权重 */
 const WEIGHT: Record<string, number> = {
   quality: 3,
   members: 4,
@@ -76,21 +80,25 @@ const WEIGHT: Record<string, number> = {
   pickleball_pressure: -0.2,
 };
 
-/** 给一个选项按看得见的效果打分（成功率按期望算） */
+/** 给一个选项按看得见的效果打分（成功率按期望算）；总监被叫走的时间按每小时 2 分扣 */
 function scoreOption(w: World, c: Card, st: OptionStatus, expected: boolean): number {
   const opt = c.options[st.key];
   if (!opt) return Number.NEGATIVE_INFINITY;
-  let score = -st.cost * (WEIGHT.cash ?? 0);
+  let score = -st.cost * (WEIGHT.cash ?? 0) - (st.errand ? (st.errand.minutes / 60) * 2 : 0);
   const p = st.chance ?? 1;
   const add = (effs: readonly Effect[], k: number) => {
     for (const e of effs) {
       const m = expected ? k * (typeof e.chance === 'number' ? e.chance : 1) : 1;
       if ('stat' in e && 'add' in e && typeof e.add === 'number') score += m * e.add * (WEIGHT[e.stat] ?? 0);
       if ('facility' in e) score += m * 12;
-      if ('hire' in e) score += m * ((w.people.get(e.hire)?.skill ?? 0) / 4);
+      if ('hire' in e) {
+        const d = w.people.get(e.hire);
+        // 多一个人手的价值，减去工资
+        score += m * (8 + Math.max(d?.skill ?? 0, d?.upkeep ?? 0, d?.service ?? 0) / 8 - (d?.wage_week ?? 0) / 100);
+      }
       if ('activity' in e) score += m * 6;
       if ('endAct' in e) score += m * (e.endAct === 'won' ? 100 : -100);
-      if ('fire' in e) score += m * 8;
+      if ('fire' in e) score -= m * 4;
     }
   };
   add(opt.effects, 1);
@@ -107,42 +115,15 @@ function scoreOption(w: World, c: Card, st: OptionStatus, expected: boolean): nu
 function worstCase(c: Card, st: OptionStatus): number {
   const opt = c.options[st.key];
   if (!opt) return Number.NEGATIVE_INFINITY;
-  let worst = -st.cost * (WEIGHT.cash ?? 0);
+  let worst = -st.cost * (WEIGHT.cash ?? 0) - (st.errand ? 1 : 0);
   const effs = [...opt.effects, ...(st.chance === null ? [] : opt.onFail)];
   for (const e of effs) {
     if ('stat' in e && 'add' in e && typeof e.add === 'number') worst += Math.min(0, e.add * (WEIGHT[e.stat] ?? 0));
     if ('endAct' in e && e.endAct === 'lost') worst -= 100;
+    if ('hire' in e) worst -= 1;
   }
   if (st.chance !== null) worst -= (1 - st.chance) * 4;
   return worst;
-}
-
-/**
- * 贪心型：给每个选项按"立刻能看到的好处"打分，选最高的；
- * 需要总监到场就走过去；没事做时站在主教练身边盯课。
- */
-export function greedyBot(): Bot {
-  return pickerBot('greedy', (w, c, st) => scoreOption(w, c, st, false), {
-    firstNeed: true,
-    act: { min: 3, energyCost: 0.15 },
-  });
-}
-
-/** 谨慎型：选最坏情况最不坏的选项（不赌判定、不乱花钱），而且不爱走动。 */
-export function cautiousBot(): Bot {
-  return pickerBot('cautious', (_w, c, st) => worstCase(c, st) - (st.requiresDirectorAt ? 2 : 0), {
-    standByCoach: false,
-    act: { min: 6, energyCost: 0.3, avoidChecks: true },
-    plan: 'calm',
-  });
-}
-
-/** 走动型：卡一来就先走到出事的地方，偏爱要亲自到场的选项。 */
-export function walkerBot(): Bot {
-  return pickerBot('walker', (w, c, st) => scoreOption(w, c, st, true) + (st.requiresDirectorAt ? 6 : 0), {
-    goToTrouble: true,
-    act: { min: 1, energyCost: 0.05 },
-  });
 }
 
 /** 一串效果"立刻能看到的好处"的期望分 */
@@ -152,100 +133,149 @@ function effectScore(effs: readonly Effect[], k = 1): number {
     const m = k * (typeof e.chance === 'number' ? e.chance : 1);
     if ('stat' in e && 'add' in e && typeof e.add === 'number') score += m * e.add * (WEIGHT[e.stat] ?? 0);
     else if ('stat' in e && 'add' in e) score += m * 6 * (WEIGHT[e.stat] ?? 0);
-    if ('facility' in e) score += m * 12;
-    if ('activity' in e) score += m * 8;
+    if ('facility' in e) score += m * 30;
+    if ('activity' in e) score += m * 20;
     if ('flag' in e) score += m * 2;
     if ('person' in e) score += m * 2;
   }
   return score;
 }
 
-/** 机器人怎么排公告板：贪心型排满课（不超过教练负荷）、每周一次开放日、周末自由打球、周五社交夜 */
-function planCommands(s: GameState, w: World, style: 'busy' | 'calm'): Command[] {
-  const want: Record<string, (string | null)[]> =
-    style === 'busy'
-      ? {
-          am: [null, 'adult_clinic', null, null, null, 'open_play', 'open_play'],
-          pm: ['junior_lesson', 'junior_lesson', 'junior_lesson', 'junior_lesson', 'open_day', null, null],
-          eve: [null, 'pickleball_hours', null, 'pickleball_hours', 'social_night', null, null],
-        }
-      : {
-          am: [null, null, null, null, null, 'open_play', 'open_play'],
-          pm: ['junior_lesson', null, 'junior_lesson', null, 'junior_lesson', null, null],
-          eve: [null, null, null, null, 'social_night', null, null],
-        };
-  const cmds: Command[] = [];
-  for (const [part, week] of Object.entries(want)) {
-    if (!(part in w.act.schedule.parts)) continue;
-    week.forEach((activity, weekday) => {
-      if (activity && !w.activities.get(activity)?.program) return;
-      if ((s.plan[part]?.[weekday] ?? null) !== activity) cmds.push({ type: 'setPlan', part, weekday, activity });
-    });
+interface StaffStyle {
+  /** 工单：留多少现金不动 */
+  reserve: number;
+  /** 不碰成功率低于这个的工单 */
+  minChance: number;
+  /** 有需求的岗位值多少分（每小时） */
+  demandValue: number;
+}
+
+/**
+ * 机器人怎么排人：每个人挑一个"值得去"的地方——
+ * 有客人的岗位（马上开始的也算）、划算的工单、状况掉下来的维护岗位；总监爱站在上课的主教练旁边。
+ * 正在转圈的岗位和开了工的工单不轻易拉走（拉走要丢一圈）。
+ */
+function staffCommands(s: GameState, w: World, st: StaffStyle): Command[] {
+  const people = staffIds(s, w).filter((id) => !s.people[id]?.errand);
+  const coach = s.headCoach ? s.people[s.headCoach] : undefined;
+  const coachTeaching =
+    !!coach && !!s.headCoach && working(s, w, s.headCoach) && !!coach.job && !!w.posts.get(coach.job)?.hours;
+  const h = minuteOfDay(s.t) / 60;
+  type Option = { target: string; at: string; skill: 'teach' | 'upkeep' | 'service'; value: number; crew: number };
+  const options: Option[] = [];
+  for (const p of w.posts.values()) {
+    if (!postExists(s, w, p)) continue;
+    let value = 0;
+    if (p.hours) {
+      // 今天有客人、而且现在是它的时段，或者 45 分钟内开始（先走过去）
+      const today = !p.days || p.days.includes(weekdayOf(s.t));
+      const soon = h >= p.hours[0] - 0.75 && h < p.hours[1] - 0.25;
+      if (!today || !soon) continue;
+      value = st.demandValue * (p.skill === 'teach' ? 1.4 : 1);
+    } else if (p.restore) {
+      const f = w.facilityAt.get(p.at);
+      const c = f ? (s.condition[f] ?? 100) : 100;
+      if (c > 85) continue;
+      value = (100 - c) / 6;
+    }
+    options.push({ target: p.id, at: p.at, skill: p.skill, value, crew: 1 });
   }
-  cmds.push({ type: 'lockPlan' });
+  for (const o of w.orders.values()) {
+    const os = orderStatus(s, w, o);
+    if (!os.visible || os.blocked === 'cost') continue;
+    if (!os.started && o.cost > 0 && (s.stats.cash ?? 0) - o.cost < st.reserve) continue;
+    if (os.chance !== null && os.chance < st.minChance) continue;
+    const p = os.chance ?? 1;
+    let value = effectScore(o.effects) + effectScore(o.onSuccess, p) + effectScore(o.onFail, 1 - p) + o.restore / 4;
+    value -= o.cost * (WEIGHT.cash ?? 0);
+    // 按每小时折算：大工程也值得一点一点干
+    value = value / Math.max(1, minutes(o.work) / 60) + (os.started ? 4 : 0);
+    if (value < 1.5) continue;
+    options.push({ target: o.id, at: o.at, skill: o.skill, value, crew: o.crew });
+  }
+  // 每个人对每个选项的分：价值 × 能力合适度 − 走路
+  const pairs: { person: string; o: Option; score: number }[] = [];
+  for (const id of people) {
+    const pp = s.people[id];
+    if (!pp) continue;
+    const cur = pp.job;
+    // 正在转圈的有需求岗位、开了工的工单：先别动
+    if (cur && working(s, w, id)) {
+      const post = w.posts.get(cur);
+      if ((post && postDemand(s, w, post)) || s.orders[cur]) continue;
+    }
+    for (const o of options) {
+      const fit = 0.4 + skillOf(pp, o.skill) / 80;
+      const walk = shortestRoute(w, pp.walk?.to ?? pp.at, o.at)?.minutes ?? 60;
+      let score = o.value * fit - walk / 30;
+      if (id === DIRECTOR && coachTeaching && coach && o.at === coach.at) score += 6;
+      if (o.target === cur) score += 2;
+      pairs.push({ person: id, o, score });
+    }
+  }
+  pairs.sort((a, b) => b.score - a.score || a.person.localeCompare(b.person) || a.o.target.localeCompare(b.o.target));
+  const used = new Map<string, number>();
+  const busy = new Set<string>();
+  // 已经在干、不打算动的人占着自己的位子
+  for (const id of staffIds(s, w)) {
+    const job = s.people[id]?.job;
+    if (job && !pairs.some((x) => x.person === id)) used.set(job, (used.get(job) ?? 0) + 1);
+  }
+  const cmds: Command[] = [];
+  for (const x of pairs) {
+    if (busy.has(x.person) || x.score <= 0) continue;
+    const n = used.get(x.o.target) ?? 0;
+    const taken = w.posts.has(x.o.target) ? occupant(s, x.o.target) : null;
+    if (n >= x.o.crew) continue;
+    if (taken && taken !== x.person && !pairs.some((p) => p.person === taken)) continue;
+    busy.add(x.person);
+    used.set(x.o.target, n + 1);
+    if (s.people[x.person]?.job !== x.o.target && canAssign(s, w, x.person, x.o.target) === null)
+      cmds.push({ type: 'assign', person: x.person, target: x.o.target });
+  }
   return cmds;
 }
 
-function pickerBot(
-  name: string,
-  score: (w: World, c: Card, st: OptionStatus) => number,
-  o: {
-    standByCoach?: boolean;
-    goToTrouble?: boolean;
-    firstNeed?: boolean;
-    /** 主动做事：分数至少多少才做；精力每点折多少分；null = 不主动做事 */
-    act?: { min: number; energyCost: number; avoidChecks?: boolean } | null;
-    plan?: 'busy' | 'calm';
-  } = {},
-): Bot {
-  const { standByCoach = true, goToTrouble = false, firstNeed = false, act = null, plan = 'busy' } = o;
+function pickerBot(name: string, score: (w: World, c: Card, st: OptionStatus) => number, style: StaffStyle): Bot {
   return {
     name,
     decide(s, content) {
       const w = worldFor(content, s.act, s.directorConfig);
-      if (s.planning) return planCommands(s, w, plan);
       const cmds: Command[] = [];
-      // 手上没事、没卡要处理时，挑一件最划算的事去做
-      if (act && !s.cards.open.length && !s.director.task) {
-        let best: { id: string; score: number } | null = null;
-        for (const a of w.actions.values()) {
-          const st = actionStatus(s, w, a);
-          if (!st.available) continue;
-          if (act.avoidChecks && st.chance !== null && st.chance < 0.7) continue;
-          const p = st.chance ?? 1;
-          const sc =
-            effectScore(a.effects) +
-            effectScore(a.onSuccess, p) +
-            effectScore(a.onFail, 1 - p) -
-            a.cost * (WEIGHT.cash ?? 0) -
-            st.energy * act.energyCost;
-          if (sc >= act.min && (!best || sc > best.score)) best = { id: a.id, score: sc };
-        }
-        if (best) return [{ type: 'act', action: best.id }];
-      }
-      if (s.director.task) return cmds;
-      let wantAt: string | null = null;
       for (const o of s.cards.open) {
         const c = w.cards.get(o.card);
         if (!c) continue;
-        let best: { key: OptionKey; score: number; need: string | null } | null = null;
+        let best: { key: OptionKey; score: number } | null = null;
         for (const st of optionStatus(s, w, o.uid)) {
-          if (st.blocked === 'cost' || st.blocked === 'requires') continue;
+          if (!st.available) continue;
           const sc = score(w, c, st);
-          if (!best || sc > best.score)
-            best = { key: st.key, score: sc, need: st.available ? null : st.requiresDirectorAt };
+          if (!best || sc > best.score) best = { key: st.key, score: sc };
         }
-        if (goToTrouble && c.location) wantAt ??= c.location;
-        if (!best) continue;
-        if (best.need) wantAt = firstNeed ? (wantAt ?? best.need) : best.need;
-        else cmds.push({ type: 'chooseOption', uid: o.uid, option: best.key });
+        if (best) cmds.push({ type: 'chooseOption', uid: o.uid, option: best.key });
       }
-      const coachAt = standByCoach && s.headCoach ? (s.people[s.headCoach]?.at ?? null) : null;
-      const target = wantAt ?? coachAt;
-      if (target && s.director.at !== target && !s.director.leg) cmds.push({ type: 'moveDirector', to: target });
-      return cmds;
+      // 先处理卡（可能把总监叫走），下一眼再排人；排人每 15 分钟想一次
+      if (cmds.length || minuteOfDay(s.t) % 15 !== 0) return cmds;
+      return staffCommands(s, w, style);
     },
   };
+}
+
+/** 贪心型：卡按"立刻能看到的好处"选；排人时什么都愿意干，钱留得少。 */
+export function greedyBot(): Bot {
+  return pickerBot('greedy', (w, c, st) => scoreOption(w, c, st, false), {
+    reserve: 300,
+    minChance: 0.3,
+    demandValue: 6,
+  });
+}
+
+/** 谨慎型：卡选最坏情况最不坏的；不赌判定，钱留得多，不爱招人。 */
+export function cautiousBot(): Bot {
+  return pickerBot('cautious', (_w, c, st) => worstCase(c, st), {
+    reserve: 1200,
+    minChance: 0.7,
+    demandValue: 6,
+  });
 }
 
 export interface RunResult {

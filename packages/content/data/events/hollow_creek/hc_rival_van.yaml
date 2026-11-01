@@ -9,7 +9,7 @@ who: rival
 options:
   A:
     # 当面请他们离开
-    requiresDirectorAt: lot
+    errand: { at: lot, for: 1h }
     effects:
       - { stat: reputation, add: 2 }
       - { stat: members, add: -1, chance: 0.3 }

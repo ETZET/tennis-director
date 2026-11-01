@@ -1,9 +1,0 @@
-# 1 号场：买一台发球机。课的质量从此高一截。
-id: ball_machine
-act: hollow_creek
-at: court_1
-cost: 400
-once: true
-effects:
-  - { flag: ball_machine, set: true }
-  - { log: log.ball_machine }

@@ -7,20 +7,18 @@
  *
  * 默认是手机竖屏（390×844，触屏）；--desktop 换成 1280×800。
  *
- *   GET /state            玩家眼前的一切：时钟、季节/天气/精力、状态条、卡片（选项、提示、倒计时）、快讯、
- *                         地点牌、公告板（开着时）、动作圈（开着时）、结局
+ *   GET /state            玩家眼前的一切：时钟、季节/天气/本周服务率、状态条、卡片（选项、提示、倒计时）、快讯、
+ *                         员工条（谁在干什么）、场景里的岗位和工单标记、说明面板（开着时）、结局
  *   GET /report           点开状态条后的明细和"来龙去脉"
  *   GET /answer/1|2|3     按一个选项
- *   GET /tap/<place>      点一块地点牌：弹出这个地点的动作圈（state.ring 里有每个动作的代价和能不能做）
- *   GET /act/<id>         在动作圈里选一个动作并按"去做"（walk:<place> 是走过去，plan 是打开公告板）
- *   GET /close            关掉动作圈或公告板
- *   GET /board            打开公告板（季中改日程要花精力）
- *   GET /plan/<part>/<day>/<activity|none>
- *                         在公告板上拖一张便条到某一格（part = am|pm|eve，day = 0 周一 … 6 周日；none 是拖走）
- *   GET /lock             公告板上按"就这么排"
- *   GET /walk/<anchor>    总监直接走过去（等于点地点牌再选"走过去"）
- *   GET /wait/<minutes>   让时间走，直到有新卡、要求暂停、一件事做完、公告板弹出、本幕结束，
- *                         或走满这么多游戏分钟（最多 1440）
+ *   GET /pick/<person|none>   在员工条上点一个人（拿起来）；none 放下
+ *   GET /tap/<target>     点场景里一个岗位或工单的标记：手上拿着人就派过去，没拿就打开说明（state.sheet）
+ *   GET /assign/<person>/<target|none>
+ *                         直接把人派到岗位或工单上（等于拖过去）；none 叫他停下来
+ *   GET /sheet/<target>   某个岗位或工单的说明（派谁去会怎样），不改任何东西
+ *   GET /close            放下手上的人、关掉说明
+ *   GET /wait/<minutes>   让时间走，直到有新卡、要求暂停、一张工单做完、本幕结束，
+ *                         或走满这么多营业分钟（夜里不算，最多 1440）
  *   GET /shot/<name>      截一张图，返回路径
  *   GET /new/<seed>       用这个种子重开一局
  *   GET /quit             关掉
@@ -109,7 +107,6 @@ const STATE = () => {
     weather: document.querySelector('.td-season')?.getAttribute('title') ?? null,
     status: parts(document.querySelector('.td-bug-status')),
     paused: s.paused,
-    held: s.held,
     strip: [...document.querySelectorAll('.td-strip .td-cell')].map((c) => c.textContent.trim().replace(/\s+/g, ' ')),
     card: card
       ? {
@@ -138,54 +135,32 @@ const STATE = () => {
       .filter((x) => !x.hidden)
       .map((x) => ({
         name: x.textContent.trim(),
-        here: x.classList.contains('pl-here'),
+        director: x.classList.contains('pl-here'),
         heading: x.classList.contains('pl-dest'),
         alert: x.classList.contains('pl-card'),
-        // 拉远时只显示成小圆点（看不到名字，点开动作圈才有）
-        dot: x.classList.contains('pl-dot'),
       })),
     activities: [...document.querySelectorAll('#labels .act')]
       .filter((x) => !x.hidden)
       .map((x) => x.textContent.trim()),
-    planner: (() => {
-      const p = document.querySelector('.tdp');
-      if (!p) return null;
-      const days = [...p.querySelectorAll('.tdp-day')].map((d) => d.textContent.trim());
-      const grid = {};
-      for (const c of p.querySelectorAll('[data-cell]')) {
-        const [part, day] = c.getAttribute('data-cell').split(':');
-        const note = c.querySelector('.tdp-note');
-        if (note) (grid[part] ??= {})[days[Number(day)] ?? day] = note.textContent.trim();
-      }
-      const dts = [...p.querySelectorAll('.tdp-proj dt')];
+    staff: [...document.querySelectorAll('.td-tok')].map((x) => ({
+      text: x.querySelector('button')?.getAttribute('aria-label') ?? '',
+      picked: x.classList.contains('td-tok-picked'),
+      locked: x.classList.contains('td-tok-locked'),
+    })),
+    staffIds: window.__td.staff().map((x) => x.id),
+    hint: t('.td-staff-hint span'),
+    targets: window.__td.targets(),
+    sheet: (() => {
+      const el = document.querySelector('.td-sheet');
+      if (!el) return null;
       return {
-        title: t('.tdp-head h2', p),
-        subtitle: t('.tdp-head span', p),
-        grid,
-        tray: [...p.querySelectorAll('.tdp-tray-notes .tdp-note')].map((n) => ({
-          id: n.getAttribute('data-note'),
-          label: n.textContent.trim(),
-          title: n.getAttribute('title'),
-        })),
-        projection: Object.fromEntries(
-          dts.map((dt) => [dt.textContent.trim(), dt.nextElementSibling?.textContent.trim()]),
-        ),
-        costNote: t('.tdp-cost', p),
-        lockButton: t('.tdp-lock', p),
-      };
-    })(),
-    ring: (() => {
-      const r = document.querySelector('.tdr');
-      if (!r) return null;
-      const data = window.__td.ringData?.();
-      return {
-        place: t('.tdr-hub b', r),
-        actions: data?.actions?.map((a) => ({
-          id: a.id,
-          title: a.title,
-          note: a.note,
-          costs: a.chips.map((c) => c.text),
-          disabled: a.disabled ?? null,
+        title: t('header b', el),
+        note: t('.td-sheet-note', el),
+        status: t('.td-sheet-status', el),
+        chips: [...el.querySelectorAll('.td-chip')].map((x) => x.textContent.trim()),
+        people: [...el.querySelectorAll('.td-sheet-people button')].map((b) => ({
+          text: b.textContent.trim().replace(/\s+/g, ' '),
+          disabled: b.disabled,
         })),
       };
     })(),
@@ -215,17 +190,6 @@ async function report() {
   return r;
 }
 
-const ANCHORS = {
-  deck: 'Clubhouse deck',
-  court_1: 'Court 1',
-  court_2: 'Court 2',
-  bubble_court: 'Bubble court',
-  clay_court: 'Clay court',
-  lot: 'Parking lot',
-  pool: 'Pool',
-  creek_bridge: 'Footbridge',
-};
-
 await open(Number(arg('seed', '7')));
 
 const api = createServer(async (q, r) => {
@@ -244,53 +208,33 @@ const api = createServer(async (q, r) => {
       await page.waitForTimeout(500);
       return send(200, await page.evaluate(STATE));
     }
+    const parts2 = (q.url ?? '/')
+      .split('?')[0]
+      .split('/')
+      .map((x) => decodeURIComponent(x));
+    if (cmd === 'pick') {
+      await page.evaluate((x) => window.__td.pick(x === 'none' ? null : x), parts2[2] ?? 'none');
+      await page.waitForTimeout(300);
+      return send(200, await page.evaluate(STATE));
+    }
     if (cmd === 'tap') {
-      const id = Object.keys(ANCHORS).find(
-        (k) => k === a || ANCHORS[k].toLowerCase() === decodeURIComponent(a ?? '').toLowerCase(),
-      );
-      if (!id) return send(400, { error: `unknown place; one of ${Object.keys(ANCHORS).join(', ')}` });
-      await page.evaluate((x) => window.__td.tap(x), id);
-      await page.waitForTimeout(500);
+      await page.evaluate((x) => window.__td.tap(x), parts2[2] ?? '');
+      await page.waitForTimeout(400);
       return send(200, await page.evaluate(STATE));
     }
-    if (cmd === 'act') {
-      await page.evaluate((x) => window.__td.act(x), decodeURIComponent(a ?? ''));
-      await page.waitForTimeout(500);
-      return send(200, await page.evaluate(STATE));
-    }
-    if (cmd === 'close') {
-      await page.evaluate(() => window.__td.close());
-      await page.waitForTimeout(500);
-      return send(200, await page.evaluate(STATE));
-    }
-    if (cmd === 'board') {
-      await page.evaluate(() => window.__td.openPlanner());
-      await page.waitForTimeout(500);
-      return send(200, await page.evaluate(STATE));
-    }
-    if (cmd === 'plan') {
-      const [, , part, day, note] = (q.url ?? '/').split('?')[0].split('/');
-      const wd = Number(day);
-      if (!['am', 'pm', 'eve'].includes(part) || !(wd >= 0 && wd <= 6))
-        return send(400, { error: 'plan/<am|pm|eve>/<0-6>/<activity id|none>' });
+    if (cmd === 'assign') {
+      const [, , person, target] = parts2;
       const err = await page.evaluate(
-        ([p, d, n]) => window.__td.plan(p, d, n === 'none' ? null : n),
-        [part, wd, decodeURIComponent(note ?? 'none')],
+        ([p, t]) => window.__td.assign(p, t === 'none' ? null : t),
+        [person, target ?? 'none'],
       );
-      await page.waitForTimeout(500);
+      await page.waitForTimeout(300);
       return send(200, { ...(err ? { error: err } : {}), ...(await page.evaluate(STATE)) });
     }
-    if (cmd === 'lock') {
-      await page.evaluate(() => window.__td.lockPlan());
-      await page.waitForTimeout(500);
-      return send(200, await page.evaluate(STATE));
-    }
-    if (cmd === 'walk') {
-      const id = Object.keys(ANCHORS).find(
-        (k) => k === a || ANCHORS[k].toLowerCase() === decodeURIComponent(a ?? '').toLowerCase(),
-      );
-      if (!id) return send(400, { error: `unknown place; one of ${Object.keys(ANCHORS).join(', ')}` });
-      await page.evaluate((x) => window.__td.walk(x), id);
+    if (cmd === 'sheet') return send(200, await page.evaluate((x) => window.__td.sheet(x), parts2[2] ?? ''));
+    if (cmd === 'close') {
+      await page.evaluate(() => window.__td.close());
+      await page.waitForTimeout(300);
       return send(200, await page.evaluate(STATE));
     }
     if (cmd === 'wait') {

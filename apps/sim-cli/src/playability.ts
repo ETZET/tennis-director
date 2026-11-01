@@ -6,10 +6,10 @@ import {
   type ContentBundle,
   cautiousBot,
   greedyBot,
+  idleBot,
   newGame,
   type OptionKey,
   randomBot,
-  walkerBot,
   worldFor,
 } from '@td/sim';
 
@@ -27,7 +27,7 @@ const BOTS: Record<string, (seed: number) => Bot> = {
   greedy: () => greedyBot(),
   random: (seed) => randomBot(seed * 7919),
   cautious: () => cautiousBot(),
-  walker: () => walkerBot(),
+  idle: () => idleBot(),
 };
 
 export interface GameTrace {
@@ -90,7 +90,7 @@ export function traceGame(content: ContentBundle, botName: string, seed: number)
       flushIdle(); // 夜里跳过：空档不跨天
     else {
       tr.openMinutes++;
-      const quiet = s.cards.open.length === 0 && !s.director.leg;
+      const quiet = s.cards.open.length === 0 && !Object.values(s.people).some((p) => p.walk || p.errand);
       tr.realSeconds += quiet ? IDLE_SECONDS_PER_MINUTE : SECONDS_PER_MINUTE;
       if (s.cards.open.length === 0) idle += quiet ? IDLE_SECONDS_PER_MINUTE : SECONDS_PER_MINUTE;
       else flushIdle();
@@ -116,7 +116,7 @@ export function dominatedOptions(content: ContentBundle): { card: string; option
           v[e.stat] = (v[e.stat] ?? 0) + e.add * better(e.stat) * (typeof e.chance === 'number' ? e.chance : 1);
         else if (!('log' in e)) story = true;
       }
-      return { v, walk: !!o.requiresDirectorAt, story };
+      return { v, walk: !!o.errand, story };
     };
     const keys = (['A', 'B', 'C'] as const).filter((k) => c.options[k]);
     for (const a of keys)

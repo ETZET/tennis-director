@@ -5,8 +5,8 @@
  * 同一套模拟能在浏览器里跑，也能在 apps/sim-cli 里无头跑一千局。
  */
 
-export type { Action, Activity, Card, ContentBundle, Effect, OptionKey } from '@td/content';
-export { CONTENT } from '@td/content';
+export type { Activity, Card, ContentBundle, Effect, OptionKey, Order, Post, SkillKind } from '@td/content';
+export { CONTENT, minutes } from '@td/content';
 export * from './bots';
 export {
   directorPressure,
@@ -16,14 +16,29 @@ export {
   type OptionStatus,
   optionStatus,
 } from './cards';
-export { type ActionBlock, type ActionStatus, actionStatus, actionsAt, speedFactor } from './director';
 export type { SimEvent } from './events';
 export * from './game';
-export { type PlanPreview, planPreview } from './plan';
 export * from './save';
+export {
+  type AssignBlock,
+  canAssign,
+  crewOf,
+  type OrderBlock,
+  type OrderStatus,
+  occupant,
+  orderStatus,
+  type PostStatus,
+  postDemand,
+  postStatus,
+  skillOf,
+  speedOf,
+  staffIds,
+  working,
+} from './staff';
 export * from './state';
-export { seasonOn, shortestRoute } from './systems';
-export { coachAttention, facilityTotals, wagesWeek } from './vars';
+export { seasonOn } from './systems';
+export { coachAttention, coachPresent, conditionFactor, facilityTotals, isStaff, serviceRate, wagesWeek } from './vars';
+export { shortestRoute } from './walk';
 export { type World, worldFor } from './world';
 
-export const SIM_VERSION = 1;
+export const SIM_VERSION = 2;

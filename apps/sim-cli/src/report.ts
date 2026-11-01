@@ -1,5 +1,5 @@
 import type { ContentBundle } from '@td/sim';
-import { cautiousBot, greedyBot, type RunResult, randomBot, replay, runGame, stateHash, walkerBot } from '@td/sim';
+import { cautiousBot, greedyBot, idleBot, type RunResult, randomBot, replay, runGame, stateHash } from '@td/sim';
 
 /**
  * 机器人跑局报告：平衡工具。
@@ -34,7 +34,7 @@ const BOTS = {
   greedy: (_seed: number) => greedyBot(),
   random: (seed: number) => randomBot(seed * 7919),
   cautious: (_seed: number) => cautiousBot(),
-  walker: (_seed: number) => walkerBot(),
+  idle: (_seed: number) => idleBot(),
 } as const;
 export type BotName = keyof typeof BOTS;
 export const BOT_NAMES = Object.keys(BOTS) as BotName[];

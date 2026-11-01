@@ -6,6 +6,7 @@ stats:
   members: 会员
   pickleball_pressure: 匹克球压力
   board_support: 董事会信心
+  service: 服务率
 
 anchors:
   deck: 会所露台
@@ -25,14 +26,6 @@ facilities:
   pool: { open: 泳池 · 开放, drained: 泳池 · 已放水 }
 
 activities:
-  junior_lesson: { title: 青少年课, short: 青少年课 }
-  adult_clinic: { title: 成人训练班, short: 成人班 }
-  open_play: { title: 会员自由打球, short: 自由打球 }
-  pickleball_hours: { title: 租给匹克球, short: 租匹克球 }
-  open_day: { title: 免费开放日, short: 开放日 }
-  social_night: { title: 露台社交夜, short: 社交夜 }
-  clay_session: { title: 红土场时段, short: 红土场 }
-  bubble_session: { title: 气膜场时段, short: 气膜场 }
   contractor: { title: 外包施工队在红土场 }
   tug_of_war: { title: 和匹克球队拔河 }
   match_strong: { title: 社区对抗赛 vs 松冠俱乐部 }
@@ -65,7 +58,7 @@ events:
     title: Dale 在青少年课上玩手机
     body: Tyler 把球一个个打进围网，Mason 坐在场地上发呆。Dale 已经十分钟没抬头了。
     options:
-      A: 走到 1 号场，当面跟他说
+      A: 去 1 号场当面跟他说
       B: 在露台上给他发短信 · 质量 +1，声望 −1
       C: 算了 · 质量 −3，Dale 记你的好
   hc_parent_complaint:
@@ -78,24 +71,23 @@ events:
       C: 站在教练一边 · 会员 −2，声望 −3，Dale 会更上心
   hc_board_memo:
     topic: 董事会备忘
-    title: 董事会要你处理 Dale
-    body: 项目质量崩了，会员在流失。董事会要你今天就拿出办法。
+    title: 董事会要你给课程一个说法
+    body: 项目质量崩了，会员在流失。Dale 还在上课，董事会要你今天拿出办法。
     options:
-      A: 当着学生的面开除他
-      B: 在露台上私下谈，请他走人
-      C: 再给他一次机会
+      A: 再招一位教练 · 多一份工资，Dale 不高兴
+      B: 再给 Dale 一次机会，你去 1 号场盯着他
   hc_dale_relapse:
     topic: 教学
     title: Dale 又在看手机了
     body: 再给一次机会只撑了一天。孩子们在拿球互相打。
     options:
-      A: 现在就开除他
+      A: 再招一位教练接课 · Dale 知道自己被替了
       B: 扣他工资 · +$175，Dale 闹情绪
       C: 你自己下场把课上完
   hc_hire_coach:
     topic: 人事
-    title: 招一个新的主教练
-    body: 三个人回了招聘启事。你选的人，以后可能跟你去下一站。
+    title: 再招一位教练
+    body: 三个人回了招聘启事。新教练接主教练，Dale 留下来。你选的人，以后可能跟你去下一站。
     options:
       A: Jess Park · 热血新人，每周 $250
       B: Walt Hendricks · 疲惫的老手，每周 $420
@@ -285,6 +277,22 @@ events:
       A: 带上你的主教练
       B: 带上 Mason
       C: 一个人去
+  hc_hiring_day:
+    topic: 招聘日
+    title: 两个人来应聘
+    body: 告示贴出去一周，来了两个人。现在全俱乐部能干活的只有你和 Dale。
+    options:
+      A: Rosa Ortiz · 维护好手，每周 $180
+      B: Ben Kim · 球童，会招呼人，每周 $110
+      C: 这次不招 · 省下工资
+  hc_hiring_day_2:
+    topic: 招聘日
+    title: 入秋前的招聘日
+    body: 修好的地方越多，要守的地方越多。又有两个人来应聘。
+    options:
+      A: Gus Moreno · 老场地工，维护最强，有点累了，每周 $260
+      B: Lily Chen · 前台出身，服务最好，每周 $220
+      C: 这次不招 · 省下工资
 
 log:
   ball_machine: 发球机到了，课更扎实了
@@ -299,32 +307,47 @@ log:
   promise_broken: 你没兑现对董事会的承诺
   promise_kept: 你兑现了对董事会的承诺
   tree_cleared: 树清走了，课照常上
+  no_hire: 这次没招人，活还是那几个人干
 
 # 界面文案（游戏 app 用）。{x} 是占位符。
-actions:
-  patch_court1: { title: "补裂缝", note: "施工队明天完工" }
-  new_net: { title: "换球网", note: "便宜；场地还是裂的" }
-  watch_lesson: { title: "在场边看课", note: "你在，教练就专心" }
+posts:
+  c1_lesson: { title: "1 号场 · 青少年课", note: "工作日 15–18 点，放学的孩子" }
+  c1_clinic: { title: "1 号场 · 成人班", note: "周一到周四 18–20 点，下班的人" }
+  c1_hitting: { title: "1 号场 · 周末陪打", note: "周末上午，老会员想找人对拉" }
+  c1_upkeep: { title: "1 号场 · 维护", note: "随时可以干；没人管就变旧" }
+  deck_host: { title: "露台 · 接待", note: "每天 8–11 点，喝咖啡的老会员" }
+  deck_social: { title: "露台 · 社交夜", note: "周四到周六 18–20 点" }
+  c2_pickleball: { title: "2 号场 · 匹克球时段", note: "收回以后，有人看场就收钱" }
+  bubble_session: { title: "气膜场 · 看场", note: "9–20 点，下雨天照常" }
+  bubble_upkeep: { title: "气膜场 · 维护", note: "查风机、擦膜、扫场" }
+  clay_lesson: { title: "红土场 · 第二个课", note: "会员到 60 以后，下午的孩子分两组" }
+  clay_session: { title: "红土场 · 周末开放", note: "会员最爱红土" }
+  clay_upkeep: { title: "红土场 · 维护", note: "拖场、洒水；红土最娇气" }
+  pool_guard: { title: "泳池 · 看护", note: "11–17 点，有人看着才能下水" }
+orders:
+  patch_court1: { title: "补裂缝", note: "材料 $300，一个下午" }
+  new_net: { title: "换球网", note: "便宜，一个人一小时" }
+  court1_sweep: { title: "清理 1 号场", note: "落叶、积水、松掉的线" }
+  clay_clear: { title: "红土场除草清树", note: "不花钱，要很多人手" }
+  clay_contractor: { title: "请施工队整红土", note: "$900，谈一小时合同" }
+  clay_weeds: { title: "红土场又长草了", note: "拔掉再压平" }
+  inflate_bubble: { title: "给气膜重新充气", note: "新风机 $2000，再要一整天人手" }
+  patch_roof: { title: "补会所屋顶", note: "不用再摆桶" }
+  fill_pothole: { title: "补停车场的坑", note: "免得再刮到车" }
+  recruit_sign: { title: "挂招生牌", note: "路口，一周一次" }
+  ball_machine: { title: "装发球机", note: "课从此好一截" }
+  host_fundraiser: { title: "办募捐晚会", note: "要人张罗整个下午" }
+  talk_pickleball: { title: "和匹克球那帮人聊聊", note: "成不成看声望" }
   hit_with_tyler: { title: "陪 Tyler 打一会儿", note: "他问了一整周了" }
-  mentor_mason: { title: "单独带 Mason 练反手", note: "下课以后，一对一" }
-  ball_machine: { title: "买一台发球机", note: "课从此好一截" }
-  talk_pickleball: { title: "去和匹克球那帮人聊聊", note: "成不成看声望" }
-  clay_workday: { title: "发起社区劳动日", note: "人来得够就不花钱" }
-  clay_contractor: { title: "请施工队", note: "专业场地，不用求人" }
-  inflate_bubble: { title: "给气膜重新充气", note: "下雨天也有场地" }
-  host_fundraiser: { title: "办一场募捐晚会", note: "整晚要你亲自张罗" }
-  members_coffee: { title: "请老会员喝咖啡", note: "听听他们想要什么" }
-  patch_roof: { title: "把会所屋顶补好", note: "不用再摆桶了" }
-  recruit_sign: { title: "挂一块招生牌", note: "挂在路口" }
-  fill_pothole: { title: "把停车场的坑补上", note: "免得再刮到车" }
-  pool_kids: { title: "请泳池边的孩子来打几拍", note: "也许有人会报名" }
+  mentor_mason: { title: "单独带 Mason", note: "一对一练反手" }
+  open_day: { title: "办免费开放日", note: "几个人一起张罗两小时" }
 seasons:
   late_summer: 夏末
   early_autumn: 初秋
-parts:
-  am: 上午
-  pm: 下午
-  eve: 晚上
+
+people:
+  director: 总监
+  dale: Dale 教练
 
 who:
   board: { name: 董事会, role: 五位能决定卖掉俱乐部的志愿者 }
@@ -334,11 +357,13 @@ who:
   developer: { name: Rick Dorsey, role: 地产开发商 }
   member: { name: 一位老会员, role: 1994 年就在这儿 }
   maple: { name: 枫岭高中, role: 体育主任 }
+  applicants: { name: 应聘者, role: 看到告示来的人 }
 roles:
+  director: 总监
   coach: 主教练
   junior: 青少年球员
   parent: 家长
-  candidate: 教练应聘者
+  candidate: 应聘者
   staff: 员工
   rival: 对手
 
@@ -366,67 +391,43 @@ ui:
     so: 所以
     more: "还有 {n} 条"
     walkThere: 要先走过去
+    staff: 你的人
+    cancel: 放下
+    close: 关上
+    send: 派去
+    stop: 叫停
+    skill_teach: 教学
+    skill_upkeep: 维护
+    skill_service: 服务
     trend: { falling: 在下滑, recovering: 在回升, flat: 持平, bottomed: 见底了 }
   week: "第 {n} 周"
   weather: { sun: 晴, cloud: 多云, rain: 下雨 · 露天场地关闭, wind: 大风 }
   days: { "0": 一, "1": 二, "2": 三, "3": 四, "4": 五, "5": 六, "6": 日 }
   chip:
+    errand: "{name}离岗 {time}"
     hire: "{name} 上任"
     fire: "{name} 离开"
-    energy: "精力 {n}"
-    walk: "走过去 {time}"
-    work: "现场 {time}"
     chance: "成功率 {p}%"
     cost: "−${n}"
-    cooldown: "{time} 后可再做"
-  attr: { skill: 球技, morale: 士气, fatigue: 疲劳 }
+  attr: { skill: 球技, upkeep: 维护, service: 服务, morale: 士气, fatigue: 疲劳 }
   then: "之后：{what}"
-  ring:
-    go: 去做
-    walk: 走到这儿
-    walk_note: 总监走过去站在这儿
-    board: 打开公告板
-    board_note: 改这一季的日程
-    empty: 这儿现在没什么可做的
-    why:
-      cooldown: 刚做过
-      cost: 现金不够
-      energy: 太累了
-      busy: 在别处忙
-  plan:
-    title: 会所公告板
-    subtitle: "{season} · 第 {from}–{to} 周 · 把便条拖进这一周"
-    tray: 便条（拖到板上）
-    lock: 钉好了
-    lock_mid: 完成
-    free: 排日程的时候改是免费的。
-    costs: "季中每改一处，花 {n} 点精力。"
-    cash: 每周现金
-    members: 每周新会员
-    quality: 质量会停在
-    pressure: 每周匹克球压力
-    lessons: 每周课时
-    lessons_over: "每周课时 · 教练太累"
-    blocked: 暂时开不了的格子
   ctx:
     board: "董事会 {n} · {days} 天后表决"
     cash: "现金 ${n}"
     members: "会员 {n}"
-    energy: "你的精力 {n}"
-  work: "{what} · 还剩 {time}"
+    service: "本周服务率 {n}%"
   board: 董事会信心
   board_in: "董事会 · 剩 {days} 天"
   board_today: "董事会 · 今天表决"
   club: { name: 霍洛溪网球俱乐部, badge: HC }
   cash: 现金
   you: 你
-  walking: "正走去{place} · 还要 {time}"
-  standing: "在{place}"
   closed: 俱乐部已关门过夜
   left: "还剩 {time}"
   decided: 已决定
   hint:
-    walk: "要先走去{place} · {time}"
+    leaves: "总监会放下“{what}”"
+    busy: 总监正在办别的事
     cost: "花费 ${n}"
     chance: "成功率 {p}%"
     requires: 现在做不到
@@ -442,3 +443,53 @@ ui:
     won: 第一幕完成
     lost: 第一幕结束
     legacy: "跟你走的人：{names}"
+  skill: { teach: 教学, upkeep: 维护, service: 服务 }
+  fac: { court_1: 1 号场, court_2: 2 号场, bubble: 气膜场, clay: 红土场, pool: 泳池 }
+  condition: 状况
+  nobody: 没人
+  errand_log: "{name}去{place}待了 {time}"
+  because:
+    post: "{name}在“{post}”干了 {n} 圈"
+    order: "{names}做完了“{order}”"
+    worked: （成了）
+    failed: （没成）
+  wire:
+    interrupted: "{name}被叫离“{post}”，这一圈白干了"
+    week: "本周结算 · 服务率 {n}%"
+  status:
+    empty: "{n} 个岗位有客人在等，没人管"
+    covered: 有客人的地方都有人
+  staff:
+    hint: "点一个岗位或工单，把{name}派过去"
+    idle: "在{place}闲着"
+    waiting: "{what} · 等客人"
+    walking: "去{what} · {time}"
+    errand: "在{place}办事 · {time}"
+  why:
+    person: 不能指派
+    busy: 正在办事，叫不回来
+    target: 没有这个岗位
+    gone: 现在开不了
+    cost: 现金不够买料
+    crew: 人已经够了
+  sheet:
+    daily: 每天
+    anytime: 随时可以干
+    cycle: "一圈 {time}"
+    income: 有收入（看能力和会员数）
+    restore: "状况 +{n}/圈"
+    restore_done: "完工后状况 +{n}"
+    wear: "磨损 {n}/圈"
+    work: "还要 {time}（能力 50 的一个人）"
+    crew: "最多 {n} 人一起"
+    post_on: "{name}在干 · 这一圈还要 {time}"
+    post_wait: "{name}在这儿，等客人来"
+    post_empty_now: 没人 · 有客人在等
+    post_empty: 没人
+    order_on: "{names}在干 · {p}%"
+    order_paused: "停工了 · {p}%（进度留着）"
+    order_new: 还没开工
+    walk: "走过去 {time}"
+    here: 就在这儿
+    leaves: "会放下“{what}”"
+    speed: "干活速度 {n}%"

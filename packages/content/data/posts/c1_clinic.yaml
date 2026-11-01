@@ -1,0 +1,14 @@
+# 1 号场成人训练班：傍晚下班的人。收入比青少年课高，偶尔有人入会。
+id: c1_clinic
+act: hollow_creek
+at: court_1
+skill: teach
+cycle: 1h
+hours: [18, 20]
+days: [0, 1, 2, 3]
+when: { not: { weather: rain } }
+effects:
+  - { stat: cash, add: "round(20 * (0.6 + worker.skill / 100) * clamp(stat.members / 50, 0.6, 1.6))" }
+  - { stat: members, add: 1, chance: 0.04 }
+wear: 1
+performance: lesson

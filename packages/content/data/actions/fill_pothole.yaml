@@ -1,8 +1,0 @@
-# 停车场：把那个坑补上。
-id: fill_pothole
-act: hollow_creek
-at: lot
-cost: 120
-once: true
-effects:
-  - { stat: reputation, add: 2 }

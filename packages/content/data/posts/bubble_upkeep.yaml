@@ -1,0 +1,9 @@
+# 气膜维护：查风机、擦膜、扫场。
+id: bubble_upkeep
+act: hollow_creek
+at: bubble_court
+skill: upkeep
+cycle: 1h
+when: { facility: bubble, is: inflated }
+restore: 4
+performance: sweep

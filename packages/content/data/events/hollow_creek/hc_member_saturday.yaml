@@ -17,7 +17,7 @@ options:
       - { stat: pickleball_pressure, add: 6 }
   B:
     # 请他喝杯咖啡慢慢聊
-    requiresDirectorAt: deck
+    errand: { at: deck, for: 1h }
     cost: 10
     effects:
       - { stat: reputation, add: 1 }

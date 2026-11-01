@@ -16,7 +16,7 @@ options:
       - { log: log.tree_cleared }
   B:
     # 叫会员一起来清：省钱长人情，人不够就清不干净
-    requiresDirectorAt: court_1
+    errand: { at: court_1, for: 3h }
     check: { stat: reputation, vs: 45 }
     onSuccess:
       - { stat: reputation, add: 3 }

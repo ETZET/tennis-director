@@ -1,0 +1,13 @@
+# 换球网：便宜，一个人一小时。
+id: new_net
+act: hollow_creek
+at: court_1
+skill: upkeep
+work: 1h
+cost: 80
+crew: 1
+when: { not: { flag: new_net } }
+effects:
+  - { flag: new_net, set: true }
+  - { stat: quality, add: 2 }
+performance: workday

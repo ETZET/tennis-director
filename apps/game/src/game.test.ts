@@ -67,9 +67,8 @@ describe('Session', () => {
     expect(session.log.length).toBeGreaterThan(0);
   });
 
-  it('a walk-first option walks there and then gets chosen', () => {
+  it('an errand option is chosen at once and sends the director over', () => {
     const session = Session.fresh(CONTENT, 7);
-    session.send({ type: 'lockPlan' });
     session.paused = false;
     // 周一 15:30 Dale 玩手机的卡打开（会请求暂停）
     for (let i = 0; i < 20000 && !session.s.cards.open.some((o) => o.card === 'hc_dale_phone'); i++) {
@@ -79,12 +78,29 @@ describe('Session', () => {
     const card = session.s.cards.open.find((o) => o.card === 'hc_dale_phone');
     expect(card).toBeDefined();
     expect(session.choose(card?.uid ?? 0, 'A')).toBe(true);
-    expect(session.intent?.to).toBe('court_1');
-    session.paused = false;
-    for (let i = 0; i < 60 * 30 && session.intent; i++) session.frame(1 / 60);
-    expect(session.s.director.at).toBe('court_1');
+    session.frame(0);
     expect(session.s.cards.open.some((o) => o.uid === card?.uid)).toBe(false);
-    const chose = session.log.find((c) => c.cmd.type === 'chooseOption');
-    expect(chose?.cmd).toMatchObject({ type: 'chooseOption', option: 'A' });
+    expect(session.s.people.director?.errand?.at).toBe('court_1');
+    session.paused = false;
+    for (let i = 0; i < 60 * 60 && session.s.people.director?.errand; i++) session.frame(1 / 60);
+    expect(session.s.people.director?.at).toBe('court_1');
+  });
+
+  it('assigning from the staff bar walks the person over and the snapshot shows it', () => {
+    const session = Session.fresh(CONTENT, 3);
+    const proj = new Projector(CONTENT, createText(CONTENT, 'zh'));
+    session.picked = 'director';
+    expect(proj.snapshot(session).hint).toMatch(/总监/);
+    session.assign('director', 'patch_court1');
+    session.paused = false;
+    session.frame(0.2);
+    const snap = proj.snapshot(session);
+    expect(snap.hint).toBeNull();
+    const me = snap.staff?.find((t) => t.id === 'director');
+    expect(me?.state).toBe('walking');
+    expect(me?.doing).toMatch(/补裂缝/);
+    const sheet = proj.sheet(session, 'patch_court1');
+    expect(sheet?.people.find((p) => p.id === 'director')?.here).toBe(true);
+    expect(JSON.stringify(sheet)).not.toMatch(/\b(ui|posts|orders)\./);
   });
 });

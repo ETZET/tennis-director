@@ -72,64 +72,56 @@ export interface EventCardData {
   context?: Chip[];
 }
 
-/** 会所公告板上的一种便条（一种能排进日程的活动） */
-export interface PlannerNote {
+/** 底部员工条上的一个人（ADR 0012）：点一下拿起来，或者按住拖到场景里的岗位、工单上 */
+export interface StaffToken {
   id: string;
-  label: string;
-  /** 格子里显示的短名 */
-  short: string;
+  name: string;
+  initials: string;
   color: string;
-  /** 能钉在哪些时段 */
-  parts: string[];
+  /** 现在在干什么："1 号场 · 青少年课"、"闲着"、"走去红土场 · 12 分钟" */
+  doing: string;
+  state: 'working' | 'waiting' | 'idle' | 'walking' | 'errand';
+  /** 三项能力 0..100：教学、维护、服务 */
+  skills: { teach: number; upkeep: number; service: number };
+  /** 正拿在手上 */
+  picked?: boolean;
+  /** 被事件叫去办事，叫不回来 */
+  locked?: boolean;
 }
 
-/** 会所公告板：拖便条排一季的周日程 */
-export interface PlannerData {
-  title: string;
-  subtitle: string;
-  parts: { id: string; label: string }[];
-  /** 周一到周日的短名 */
-  days: string[];
-  grid: Record<string, (string | null)[]>;
-  notes: PlannerNote[];
-  /** 这样排每周会怎样（随拖动实时变） */
-  projection: { label: string; value: string; tone?: Tone }[];
-  /** 这时候改日程花不花精力 */
-  costNote: string;
-  trayLabel: string;
-  lockLabel: string;
-  /** 季初必须排（不能关掉），季中是自己打开的（可以关） */
-  required: boolean;
-}
-
-/** 点场景里的地点或人以后，围着它展开的一圈动作 */
-export interface RingAction {
+/** 点了场景里一个岗位或工单（手上没拿人）时，底部弹出的说明和"派谁去" */
+export interface TargetSheetData {
   id: string;
+  kind: 'post' | 'order';
   title: string;
   note: string;
+  /** 现在的状况："Dale 在上课 · 这一圈还要 20 分钟"、"没人 · 有客人在等" */
+  status: string;
   chips: Chip[];
-  /** 不能做的原因（灰掉） */
-  disabled?: string;
-  icon: 'wrench' | 'eye' | 'talk' | 'racket' | 'coins' | 'spade' | 'sign' | 'board' | 'walk' | 'spark';
+  /** 进度 0..1（持续岗位是这一圈，工单是总进度） */
+  progress?: number;
+  people: {
+    id: string;
+    name: string;
+    initials: string;
+    color: string;
+    /** "教学 40 · 走过去 12 分钟" */
+    fit: string;
+    /** 已经在这儿干活 */
+    here?: boolean;
+    /** 不能派的原因 */
+    disabled?: string;
+  }[];
 }
 
-export interface RingData {
-  /** 屏幕坐标（像素） */
-  x: number;
-  y: number;
-  title: string;
-  subtitle?: string;
-  actions: RingAction[];
-  goLabel: string;
-}
-
-/** 季节、天气、总监精力 */
+/** 季节、天气、本周服务率 */
 export interface SeasonInfo {
   label: string;
   weather: 'sun' | 'cloud' | 'rain' | 'wind';
   weatherLabel: string;
-  energy: number;
-  energyLabel: string;
+  /** 本周服务率 0..100（有客人的时候有人在岗的比例） */
+  service: number;
+  serviceLabel: string;
 }
 
 /** 「因为……所以……」：因果日志的一条，讲给玩家听 */
@@ -161,8 +153,11 @@ export interface HudSnapshot {
   /** 俱乐部报告里的"来龙去脉"（最新的在前） */
   story?: readonly StoryItem[];
   season?: SeasonInfo;
-  planner?: PlannerData | null;
-  ring?: RingData | null;
+  /** 底部员工条 */
+  staff?: readonly StaffToken[];
+  /** 拿着人时顶上的一行提示（"点一个岗位，把 Dale 放上去"） */
+  hint?: string | null;
+  sheet?: TargetSheetData | null;
   controls: { paused: boolean; speed: string };
 }
 
@@ -174,11 +169,11 @@ export interface HudActions {
   answer(key: 1 | 2 | 3): void;
   /** 事件卡上的主按钮 */
   cardAction(id: string): void;
-  /** 公告板：把便条钉到某个格子（null 拿掉） */
-  plan?(part: string, weekday: number, note: string | null): void;
-  lockPlan?(): void;
-  closePlanner?(): void;
-  /** 动作圈：做这件事 / 关掉 */
-  act?(id: string): void;
-  closeRing?(): void;
+  /** 员工条：点一下拿起 / 放下（null） */
+  pick?(person: string | null): void;
+  /** 按住拖到屏幕上 (x, y) 放手：落在岗位或工单上就派过去 */
+  drop?(person: string, x: number, y: number): void;
+  /** 底部说明里点了某个人：派到这个岗位或工单上；target 为 null 是叫他停下来 */
+  assign?(person: string, target: string | null): void;
+  closeSheet?(): void;
 }

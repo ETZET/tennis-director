@@ -1,0 +1,12 @@
+# 给气膜重新充气：买新风机，再要一整天的人手把膜拉起来。
+id: inflate_bubble
+act: hollow_creek
+at: bubble_court
+skill: upkeep
+work: 8h
+cost: 2000
+when: { facility: bubble, is: collapsed }
+restore: 100
+effects:
+  - { facility: bubble, set: inflated }
+performance: workday

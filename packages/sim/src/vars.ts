@@ -1,7 +1,7 @@
 import type { Cond } from '@td/content';
 import { type ExprEnv, evalBool, evalNumber, type Value } from '@td/shared';
 import { rand } from './rng';
-import { dayOf, type GameState, minuteOfDay, weekdayOf } from './state';
+import { DIRECTOR, dayOf, type GameState, minuteOfDay, weekdayOf } from './state';
 import type { World } from './world';
 
 /**
@@ -9,15 +9,38 @@ import type { World } from './world';
  * 内容编译时按那张表检查，这里按同一张表提供。
  */
 
-/** 主教练的专注度：特质里最低的那个倍数；总监站在他身边时是 1（"总监在场，教练不玩手机"） */
+/** 总监是不是和主教练在同一个地点（两人都没在路上） */
+export function coachPresent(s: GameState): boolean {
+  const c = s.headCoach ? s.people[s.headCoach] : undefined;
+  const d = s.people[DIRECTOR];
+  return !!c && !!d && !c.walk && !d.walk && c.at === d.at;
+}
+
+/** 主教练的专注度：特质里最低的那个倍数；总监和他在同一个地点时是 1（"总监在场，教练不玩手机"） */
 export function coachAttention(s: GameState, w: World): number {
   const id = s.headCoach;
   if (!id) return 0;
-  const p = s.people[id];
-  if (!p) return 0;
-  if (s.director.at && s.director.at === p.at) return 1;
+  if (!s.people[id]) return 0;
+  if (coachPresent(s)) return 1;
   const traits = w.people.get(id)?.traits ?? [];
   return traits.reduce((m, t) => Math.min(m, w.traits.get(t)?.attention ?? 1), 1);
+}
+
+/** 状况对设施质量贡献的倍数：30 以上全额，低于 30 减半，到 0 归零（只打折正的贡献） */
+export function conditionFactor(c: number): number {
+  return c <= 0 ? 0 : c < 30 ? 0.5 : 1;
+}
+
+/** 本周到现在的服务率；本周还没有需求时用上周的 */
+export function serviceRate(s: GameState): number {
+  return s.week.demand > 0 ? s.week.served / s.week.demand : s.week.last;
+}
+
+/** 能指派的人：在职的总监、教练和员工（青少年球员、家长不算） */
+export function isStaff(s: GameState, w: World, id: string): boolean {
+  const p = s.people[id];
+  const role = w.people.get(id)?.role;
+  return !!p?.hired && (role === 'director' || role === 'coach' || role === 'staff' || role === 'candidate');
 }
 
 /** 设施合计。下雨天只有能挡雨的（rain_ok）场地算开放、有场地收入。 */
@@ -32,7 +55,7 @@ export function facilityTotals(s: GameState, w: World) {
     if (!f) continue;
     const usable = !rain || f.rain_ok;
     courts += usable ? f.courts : 0;
-    quality += f.quality;
+    quality += f.quality > 0 ? f.quality * conditionFactor(s.condition[id] ?? 100) : f.quality;
     income += usable ? f.income_week : 0;
     upkeep += f.upkeep_week;
   }
@@ -41,7 +64,7 @@ export function facilityTotals(s: GameState, w: World) {
 
 export function wagesWeek(s: GameState, w: World): number {
   let total = 0;
-  for (const p of Object.values(s.people)) if (p.hired) total += w.people.get(p.id)?.wage_week ?? 0;
+  for (const p of Object.values(s.people)) if (isStaff(s, w, p.id)) total += w.people.get(p.id)?.wage_week ?? 0;
   return total;
 }
 
@@ -67,7 +90,7 @@ export function makeEnv(s: GameState, w: World, extra: Record<string, Value> = {
           const p = s.people[pid];
           if (attr === 'hired') return p?.hired ?? false;
           if (attr === 'talent') return w.people.get(pid)?.talent ?? 0;
-          return p ? (p[attr as 'skill' | 'morale' | 'fatigue'] ?? 0) : 0;
+          return p ? (p[attr as 'skill' | 'upkeep' | 'service' | 'morale' | 'fatigue'] ?? 0) : 0;
         }
         case 'coach': {
           const p = s.headCoach ? s.people[s.headCoach] : undefined;
@@ -75,22 +98,26 @@ export function makeEnv(s: GameState, w: World, extra: Record<string, Value> = {
           if (rest === 'morale') return p?.morale ?? 0;
           if (rest === 'attention') return coachAttention(s, w);
           if (rest === 'hired') return !!p;
-          if (rest === 'present') return !!p && s.director.at === p.at;
+          if (rest === 'present') return coachPresent(s);
           return undefined;
         }
         case 'director':
-          return rest === 'at' ? (s.director.at ?? '') : rest === 'energy' ? s.director.energy : undefined;
+          return rest === 'at' ? (s.people[DIRECTOR]?.at ?? '') : undefined;
+        case 'condition':
+          return s.condition[rest] ?? 100;
+        case 'service_rate':
+          return serviceRate(s);
+        case 'staff': {
+          let n = 0;
+          for (const id of Object.keys(s.people)) if (isStaff(s, w, id)) n++;
+          return n;
+        }
         case 'weather':
           return s.weather;
         case 'season':
           return s.season;
         case 'weekday':
           return weekdayOf(s.t);
-        case 'plan': {
-          let n = 0;
-          for (const week of Object.values(s.plan)) for (const x of week) if (x === rest) n++;
-          return n;
-        }
         case 'courts_open':
           return facs().courts;
         case 'facility_quality':
@@ -135,7 +162,10 @@ export function test(s: GameState, w: World, c: Cond | undefined): boolean {
   }
   if ('flag' in c) return (s.flags[c.flag] ?? false) === (c.is ?? true);
   if ('facility' in c) return s.facilities[c.facility] === c.is;
-  if ('directorAt' in c) return s.director.at === c.directorAt;
+  if ('assigned' in c) {
+    const p = s.people[c.assigned];
+    return !!p?.job && !p.walk && (c.at === undefined || p.at === c.at);
+  }
   if ('day' in c) {
     const d = dayOf(s.t);
     return (c.day.gte === undefined || d >= c.day.gte) && (c.day.lte === undefined || d <= c.day.lte);

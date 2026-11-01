@@ -1,0 +1,13 @@
+# 买发球机：装好以后课从此好一截。
+id: ball_machine
+act: hollow_creek
+at: court_1
+skill: teach
+work: 30m
+cost: 400
+crew: 1
+once: true
+effects:
+  - { flag: ball_machine, set: true }
+  - { log: log.ball_machine }
+performance: feed

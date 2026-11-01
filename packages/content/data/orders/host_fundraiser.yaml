@@ -1,0 +1,13 @@
+# 募捐晚会：要人张罗半天（几个人一起更快），收多少看声望。
+id: host_fundraiser
+act: hollow_creek
+at: deck
+skill: service
+work: 6h
+crew: 3
+cooldown: 7d
+when: { not: { weather: rain } }
+effects:
+  - { stat: cash, add: "round(300 + stat.reputation * 12 + rand() * 300)" }
+  - { stat: reputation, add: 1 }
+performance: fundraiser

@@ -18,14 +18,19 @@ export type SimEvent =
   | { type: 'requestPause'; reason: string }
   | { type: 'activityStarted'; uid: number; activity: string; anchor: string; performance: string; end: number }
   | { type: 'activityFinished'; uid: number; activity: string }
-  | { type: 'directorDeparted'; from: string; to: string; route: string[]; arrive: number }
-  | { type: 'directorArrived'; at: string }
+  | { type: 'personDeparted'; person: string; from: string; to: string; route: string[]; arrive: number }
+  | { type: 'personArrived'; person: string; at: string }
+  | { type: 'assigned'; person: string; target: string | null }
+  | { type: 'postCycle'; post: string; person: string }
+  | { type: 'postInterrupted'; post: string; person: string; lost: number }
+  | { type: 'orderStarted'; order: string; at: string; performance: string | null }
+  | { type: 'orderFinished'; order: string; people: string[]; success?: boolean }
+  | { type: 'orderCancelled'; order: string }
+  | { type: 'errandStarted'; person: string; at: string; minutes: number }
+  | { type: 'errandFinished'; person: string }
   | { type: 'log'; entry: CausalEntry }
   | { type: 'dayEnded'; day: number }
   | { type: 'actEnded'; result: 'won' | 'lost'; ending: string }
   | { type: 'seasonStarted'; season: string }
   | { type: 'weather'; weather: 'sun' | 'cloud' | 'rain' | 'wind' }
-  | { type: 'planOpened'; season: string }
-  | { type: 'planLocked'; season: string }
-  | { type: 'actionStarted'; action: string; at: string; performance: string | null; end: number }
-  | { type: 'actionFinished'; action: string; success?: boolean };
+  | { type: 'weekSettled'; serviceRate: number };

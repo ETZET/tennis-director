@@ -1,21 +1,23 @@
-# Playtest review brief · Tennis Director, Act 1 (Hollow Creek) · loop v2, phone
+# Playtest review brief · Tennis Director, Act 1 (Hollow Creek) · staffing loop, phone
 
 You are an independent playtester. You have NOT worked on this game. Judge only what a player sees.
 
 ## The game in one paragraph
 Phone-first management sim (portrait, 390×844). You are the new director of a failing community tennis club. Act 1
 runs six weeks, late summer → early autumn; at the end (day 42) the board votes whether to keep the club.
-Day-to-day play is player-initiated:
-- **Noticeboard**: at the start of each season a corkboard opens; you drag notes (lessons, clinics, open play, social
-  night…) onto a week grid (morning / afternoon / evening × Mon–Sun). The board shows what that week will earn and
-  cost. Changing it mid-season costs the director energy.
-- **Action ring**: tap a place on the island and a ring of actions opens around it (walk there, patch a court, hit
-  with a junior, host a fundraiser…). Each shows its cost; picking one sends the director running there to do it.
-- **Energy**: the director starts each season fresh and runs (dust puffs); work drains energy, so later he walks
-  slowly and on-site jobs take longer.
-- **Events** are occasional cards (someone comes to you, a storm, a rival) with a countdown and 1–3 options; some
-  options need you to walk somewhere first. Ignored cards resolve by default.
-- Weather and seasons change; rain closes outdoor courts.
+Day-to-day play is about **hiring people and putting them where they're needed**:
+- **Your people**: a strip of faces along the bottom. At the start it's only you (the director) and Coach Dale. You
+  are a worker too. Tap a face to pick them up, then tap a marker in the scene; or press and drag the face onto it.
+- **Posts** (round markers): ongoing spots like Court 1's junior lesson, the deck host in the morning, upkeep. A post
+  earns a little every round while someone is on it, but only during its hours (morning regulars, after-school kids,
+  after-work adults). Pulling someone off mid-round loses that round.
+- **Jobs** (⚒ markers): one-off work on a problem — weeds, cracks, the collapsed bubble. Some cost materials. Several
+  people can work together; pulling people off keeps the progress.
+- **Upkeep**: places nobody looks after slowly wear down (weeds, leaves), first on screen, then in the numbers.
+  Members and reputation settle each Sunday on the week's **service rate** (how much of the demand someone covered).
+- **Hiring days** and other events are occasional cards with a countdown and 1–3 options; some options send the
+  director away for a while (he leaves his post). Ignored cards resolve by default.
+- Weather and seasons change; rain closes outdoor courts; autumn brings more leaves.
 
 ## Rules for you
 - Do NOT read the game's source code or content files (no `packages/`, `apps/`, YAML). Play through the bridge only.
@@ -30,25 +32,25 @@ Start your own bridge in the background (pick YOUR port from the persona note), 
 
 Wait until `curl -s http://127.0.0.1:<PORT>/state` answers. The game is paused between your calls, like turns.
 
-- `GET /state` — everything on screen: clock, season/weather/energy, status, stat strip, the event card (who, context,
-  options with cost chips and hints), news ticker, place markers, running activities, the noticeboard (when open:
-  grid, notes in the tray, weekly projection), the action ring (when open: each action with costs / why it's
-  unavailable), outcome.
-- Noticeboard: `GET /plan/<am|pm|eve>/<0-6>/<activity id|none>` drags a note into a slot (0 = Mon … 6 = Sun; `none`
-  drags it off). `GET /lock` pins the plan. `GET /board` reopens it mid-season.
-- Scene: `GET /tap/<place>` taps a place marker and opens its action ring; `GET /act/<id>` picks an action and presses
-  "Go" (`walk:<place>` just walks; `plan` opens the noticeboard). `GET /close` closes the ring/board.
-  Places: deck, court_1, court_2, bubble_court, clay_court, lot, pool, creek_bridge.
-- `GET /answer/1|2|3` — pick an option on the current card. `GET /walk/<place>` — walk straight there.
-- `GET /wait/<minutes>` — let time run until a card opens, the game pauses, a job finishes, the noticeboard opens,
-  the act ends, or that many game minutes pass (max 1440).
+- `GET /state` — everything on screen: clock, season/weather/service rate, status, stat strip, the event card (who,
+  context, options with cost chips and hints), news ticker, place names, your people (what each is doing), the post and
+  job markers visible in the scene, the open info sheet, outcome.
+- People: `GET /pick/<person|none>` taps a face (picks it up). `GET /tap/<target>` taps a marker — with someone
+  picked up it sends them there; otherwise it opens the info sheet (what it is, its hours, what it earns, and each
+  person's fit and walk time). `GET /assign/<person>/<target|none>` is the same as dragging a face onto a marker
+  (`none` = stop). `GET /sheet/<target>` reads a sheet without opening it. `GET /close` puts down / closes.
+  Person and target ids are in `state.staffIds` and `state.targets`.
+- `GET /answer/1|2|3` — pick an option on the current card.
+- `GET /wait/<minutes>` — let time run until a card opens, the game pauses, a job finishes, the act ends, or that many
+  open-hours minutes pass (max 1440; nights don't count).
 - `GET /report` — the club report (details + "How we got here" cause→effect story).
 - `GET /shot/<name>` — phone screenshot; returns a PNG path you can look at with the Read tool. Take several (the
-  noticeboard, a ring, a card, a quiet moment, the ending): visuals and touch layout are part of the experience.
+  people strip, a picked-up person, an info sheet, a card, a quiet moment, the ending): visuals and touch layout are
+  part of the experience.
 - `GET /new/<seed>` — restart. `GET /quit` when done.
 
-Time: 1 game minute ≈ 0.25 s real at 1× (time runs 2× faster when nothing is happening). A card with "59 min left"
-gives a real player ~15 s. A club day is ~3 real minutes.
+Time: 1 game minute ≈ 0.17 s real at 1× (time runs 2× faster when every busy post is covered and nothing is moving).
+A card with "59 min left" gives a real player ~10 s. A club day is ~2 real minutes.
 
 ## Tenets the game must meet (the owner's design rules — judge against these explicitly)
 1. **No menu-style operation.** Actions respond to an event or are a direct interaction with the scene / HUD. No
@@ -58,9 +60,11 @@ gives a real player ~15 s. A club day is ~3 real minutes.
    endings) visible in the cause→effect story.
 4. **Events are occasional and weighty.** Not a conveyor belt; each card has enough UI (who, situation, costs) to
    make the choice feel significant.
-5. **Day-to-day management comes from interacting with the UI** (noticeboard planning, tapping places to act).
-6. **If the player does nothing, the club barely changes — but the world keeps moving** (weather, seasons, people
-   on courts, occasional events, animation). Big swings come from decisions.
+5. **Day-to-day management is hiring people and placing them** (drag or tap people onto posts and jobs; no schedule
+   screen — the schedule is implicit in where you put people).
+6. **Left alone, the world keeps running and the club drifts back to how you set it up**: staffed places hold,
+   unattended facilities slowly wear (visible first, then in numbers); income only flows where someone works; members
+   and reputation settle on weekly averages, not in real time.
 
 Also: **phone-first.** Judge thumb reach, tap target size, text legibility, overlap, and whether drag/tap flows make
 sense on a 390-wide screen.
@@ -68,15 +72,15 @@ sense on a 390-wide screen.
 ## Score each 1–10 (one line of evidence each)
 | Item | What to judge |
 | --- | --- |
-| Meaningful choices | Real trade-offs on cards, in the plan and in the ring; no obviously-best option |
+| Meaningful choices | Real trade-offs in who goes where, who to hire, and on cards; no obviously-best option |
 | Readable consequences | Before choosing you can roughly guess; after, you can tell why numbers moved |
 | Pacing | Dead time vs. overload across a 6-week act |
-| Player agency | Planning + acting on your own initiative feels like the core; you're not just waiting for cards |
+| Player agency | Placing people on your own initiative feels like the core; you're not just waiting for cards |
 | Idle & living world | Doing nothing keeps the club stable while the world visibly moves (tenet 6) |
 | Tension arc | Pressure builds toward the board vote; comebacks possible |
-| Replay value | Different seeds / plans / styles give different stories and endings |
+| Replay value | Different seeds / hires / styles give different stories and endings |
 | Onboarding | Without instructions, the first 2 real minutes make sense |
-| Phone UX | Layout, touch targets, legibility, drag/tap flows at 390×844 |
+| Phone UX | Layout, touch targets, legibility, the pick-up / drag / tap flows at 390×844 |
 
 ## Your report (final message)
 1. Score table (the 9 items + average).
@@ -84,4 +88,4 @@ sense on a 390-wide screen.
 3. Top 5 problems, most damaging first — evidence and a concrete suggested fix (content tweak or small mechanic) that
    respects the tenets.
 4. Three things that work and should be kept.
-5. A short play log: your plan, actions, and card decisions — what you expected vs what happened.
+5. A short play log: who you put where, who you hired, and card decisions — what you expected vs what happened.

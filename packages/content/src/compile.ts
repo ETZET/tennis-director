@@ -4,7 +4,6 @@ import type { z } from 'zod';
 import {
   type Act,
   act,
-  action,
   activity,
   type Card,
   type Cond,
@@ -15,7 +14,9 @@ import {
   facility,
   minutes,
   OPTION_KEYS,
+  order,
   person,
+  post,
   stat,
   trait,
 } from './schema';
@@ -58,13 +59,18 @@ export const COMPUTED_VARS = [
   'weather',
   'season',
   'weekday',
-  'director.energy',
+  /** 岗位效果里：在岗这个人对应能力的值 */
+  'worker.skill',
+  /** 在职、能指派的人数（含总监） */
+  'staff',
+  /** 本周到现在的服务率 0..1（有需求的岗位分钟里，有人在岗的比例） */
+  'service_rate',
 ] as const;
-/** 日程变量：plan.<活动 id> = 本季日程里这一项每周排了几次 */
-export const PLAN_VAR = /^plan\.([a-z][a-z0-9_]*)$/;
-export const PERSON_ATTRS = ['skill', 'morale', 'fatigue', 'talent', 'hired'] as const;
+/** 设施状况变量：condition.<设施 id> = 0..100 */
+export const CONDITION_VAR = /^condition\.([a-z][a-z0-9_]*)$/;
+export const PERSON_ATTRS = ['skill', 'upkeep', 'service', 'morale', 'fatigue', 'talent', 'hired'] as const;
 
-const ONE_PER_FILE = /^(events\/[a-z0-9_]+|activities|actions|directors|acts)\/([a-z0-9_]+)\.ya?ml$/;
+const ONE_PER_FILE = /^(events\/[a-z0-9_]+|activities|posts|orders|directors|acts)\/([a-z0-9_]+)\.ya?ml$/;
 
 function flatten(o: unknown, prefix: string, out: Record<string, string>): void {
   if (o && typeof o === 'object' && !Array.isArray(o)) {
@@ -86,7 +92,8 @@ export function compileContent(files: Record<string, string>): CompileResult {
     traits: [],
     directors: [],
     activities: [],
-    actions: [],
+    posts: [],
+    orders: [],
     acts: [],
     cards: [],
     i18n: {},
@@ -132,11 +139,13 @@ export function compileContent(files: Record<string, string>): CompileResult {
         ? card
         : dir === 'activities'
           ? activity
-          : dir === 'actions'
-            ? action
-            : dir === 'directors'
-              ? director
-              : act;
+          : dir === 'posts'
+            ? post
+            : dir === 'orders'
+              ? order
+              : dir === 'directors'
+                ? director
+                : act;
       const v = take(file, schema, raw) as { id: string } | null;
       if (!v) continue;
       if (v.id !== fileId) err(file, `id '${v.id}' must match the file name '${fileId}'`);
@@ -145,7 +154,8 @@ export function compileContent(files: Record<string, string>): CompileResult {
         if (`events/${c.act}` !== dir) err(file, `card act '${c.act}' must match its folder '${dir}'`);
         b.cards.push(c);
       } else if (dir === 'activities') b.activities.push(v as z.infer<typeof activity>);
-      else if (dir === 'actions') b.actions.push(v as z.infer<typeof action>);
+      else if (dir === 'posts') b.posts.push(v as z.infer<typeof post>);
+      else if (dir === 'orders') b.orders.push(v as z.infer<typeof order>);
       else if (dir === 'directors') b.directors.push(v as z.infer<typeof director>);
       else b.acts.push(v as Act);
       origin.set(`${dir}:${v.id}`, file);
@@ -167,7 +177,8 @@ export function compileContent(files: Record<string, string>): CompileResult {
   const traits = index('trait', b.traits, 'traits.yaml');
   const directors = index('directors', b.directors, 'directors/');
   const activities = index('activities', b.activities, 'activities/');
-  index('actions', b.actions, 'actions/');
+  // 岗位和工单共用一个 id 空间（指派命令只带一个 id）
+  index('targets', [...b.posts, ...b.orders], 'posts/');
   const acts = index('acts', b.acts, 'acts/');
   const cards = new Map<string, Card>();
   for (const c of b.cards) {
@@ -196,8 +207,8 @@ export function compileContent(files: Record<string, string>): CompileResult {
     walkEffects(a.effects, (e) => {
       if ('flag' in e) flagWrites.add(e.flag);
     });
-  for (const a of b.actions)
-    for (const effs of [a.effects, a.onSuccess, a.onFail])
+  for (const a of [...b.posts, ...b.orders])
+    for (const effs of [a.effects, 'onSuccess' in a ? a.onSuccess : [], 'onFail' in a ? a.onFail : []])
       walkEffects(effs, (e) => {
         if ('flag' in e) flagWrites.add(e.flag);
       });
@@ -205,8 +216,8 @@ export function compileContent(files: Record<string, string>): CompileResult {
   /* ---------- 表达式 ---------- */
   const knownVar = (p: string): boolean => {
     if ((COMPUTED_VARS as readonly string[]).includes(p)) return true;
-    const pv = PLAN_VAR.exec(p);
-    if (pv) return activities.has(pv[1] as string);
+    const cv = CONDITION_VAR.exec(p);
+    if (cv) return facilities.has(cv[1] as string);
     const [head, a, attr] = p.split('.');
     if (head === 'stat') return !!a && stats.has(a) && attr === undefined;
     if (head === 'flag') return !!a && flagWrites.has(a) && attr === undefined;
@@ -246,7 +257,10 @@ export function compileContent(files: Record<string, string>): CompileResult {
       if (!f) err(file, `${where}: unknown facility '${c.facility}'`);
       else if (!(c.is in f.states)) err(file, `${where}: facility '${c.facility}' has no state '${c.is}'`);
     }
-    if ('directorAt' in c && !anchors.has(c.directorAt)) err(file, `${where}: unknown anchor '${c.directorAt}'`);
+    if ('assigned' in c) {
+      if (!people.has(c.assigned)) err(file, `${where}: unknown person '${c.assigned}'`);
+      if (c.at && !anchors.has(c.at)) err(file, `${where}: unknown anchor '${c.at}'`);
+    }
     if ('seen' in c && !cards.has(c.seen)) err(file, `${where}: unknown card '${c.seen}'`);
     if ('open' in c && !cards.has(c.open)) err(file, `${where}: unknown card '${c.open}'`);
     if ('coach' in c && c.coach !== 'none' && !people.has(c.coach)) err(file, `${where}: unknown person '${c.coach}'`);
@@ -271,11 +285,14 @@ export function compileContent(files: Record<string, string>): CompileResult {
       }
       if ('schedule' in e && !cards.has(e.schedule)) err(file, `${w}: unknown card '${e.schedule}'`);
       if ('activity' in e && !activities.has(e.activity)) err(file, `${w}: unknown activity '${e.activity}'`);
-      for (const k of ['hire', 'fire', 'person', 'follow'] as const)
+      for (const k of ['hire', 'fire', 'person', 'follow', 'errand'] as const)
         if (k in e && !people.has((e as unknown as Record<string, string>)[k] as string))
           err(file, `${w}: unknown person '${(e as unknown as Record<string, string>)[k]}'`);
       if ('person' in e) for (const v of Object.values(e.add)) checkExpr(file, v, w);
-      if ('energy' in e) checkExpr(file, e.energy, w);
+      if ('errand' in e) {
+        if (!anchors.has(e.at)) err(file, `${w}: unknown anchor '${e.at}'`);
+        minutes(e.for);
+      }
       if ('log' in e) needText(file, e.log);
       if ('endAct' in e) {
         needText(file, `endings.${e.ending}.title`);
@@ -313,8 +330,7 @@ export function compileContent(files: Record<string, string>): CompileResult {
       const w = `options.${k}`;
       needText(file, `events.${c.id}.options.${k}`);
       checkCond(file, o.requires, `${w}.requires`);
-      if (o.requiresDirectorAt && !actAnchors.has(o.requiresDirectorAt))
-        err(file, `${w}.requiresDirectorAt: unknown anchor '${o.requiresDirectorAt}'`);
+      if (o.errand && !actAnchors.has(o.errand.at)) err(file, `${w}.errand.at: unknown anchor '${o.errand.at}'`);
       if (o.check && 'stat' in o.check && !stats.has(o.check.stat)) err(file, `${w}.check: unknown stat`);
       if (o.check && 'chance' in o.check) checkExpr(file, o.check.chance, `${w}.check`);
       if (o.check && !o.onSuccess.length && !o.onFail.length)
@@ -329,7 +345,7 @@ export function compileContent(files: Record<string, string>): CompileResult {
           file,
           `${w}: only sets hidden flags; the player sees no result (tenet 2: every option gains and costs something)`,
         );
-      const sig = stableStringify({ e: o.effects, s: o.onSuccess, f: o.onFail, c: o.cost, k: o.check });
+      const sig = stableStringify({ e: o.effects, s: o.onSuccess, f: o.onFail, c: o.cost, k: o.check, r: o.errand });
       const dup = seen.get(sig);
       if (dup && keys.length > 1)
         warn(file, `options ${dup} and ${k} have identical effects (not an interesting choice)`);
@@ -344,30 +360,35 @@ export function compileContent(files: Record<string, string>): CompileResult {
     minutes(a.duration);
     checkEffects(file, a.effects, 'effects');
     needText(file, `activities.${a.id}.title`);
-    if (a.program) {
-      for (const p of a.program.parts)
-        if (!b.acts.some((x) => p in x.schedule.parts)) err(file, `program.parts: unknown day part '${p}'`);
-      checkCond(file, a.program.requires, 'program.requires');
-    }
   }
 
-  /* ---------- 主动经营的动作 ---------- */
-  for (const a of b.actions) {
-    const file = `actions/${a.id}.yaml`;
+  /* ---------- 岗位和工单 ---------- */
+  for (const x of [...b.posts.map((p) => ['posts', p] as const), ...b.orders.map((o) => ['orders', o] as const)]) {
+    const [dir, a] = x;
+    const file = `${dir}/${a.id}.yaml`;
     const ac = acts.get(a.act);
     if (!ac) err(file, `unknown act '${a.act}'`);
     else if (!ac.anchors.includes(a.at)) err(file, `at: unknown anchor '${a.at}'`);
     checkCond(file, a.when, 'when');
-    if (a.check && 'stat' in a.check && !stats.has(a.check.stat)) err(file, 'check: unknown stat');
-    if (a.check && 'chance' in a.check) checkExpr(file, a.check.chance, 'check');
     checkEffects(file, a.effects, 'effects');
-    checkEffects(file, a.onSuccess, 'onSuccess');
-    checkEffects(file, a.onFail, 'onFail');
-    if (!a.onsite && a.energy) warn(file, 'energy only applies to onsite actions');
-    if (a.onsite && !a.energy) warn(file, 'an onsite action costs no energy (tenet 2: every choice costs something)');
-    if (!a.effects.length && !a.onSuccess.length && !a.onFail.length) warn(file, 'action has no effects');
-    needText(file, `actions.${a.id}.title`);
-    needText(file, `actions.${a.id}.note`);
+    needText(file, `${dir}.${a.id}.title`);
+    needText(file, `${dir}.${a.id}.note`);
+    if (dir === 'posts') {
+      const p = a as z.infer<typeof post>;
+      minutes(p.cycle);
+      if (p.hours && p.hours[0] >= p.hours[1]) err(file, 'hours: start must be before end');
+      if (!p.effects.length && !p.restore) warn(file, 'post has no effects and restores nothing');
+      if (p.restore && !b.facilities.some((f) => f.anchor === p.at)) err(file, 'restore: no facility at this anchor');
+    } else {
+      const o = a as z.infer<typeof order>;
+      minutes(o.work);
+      if (o.check && 'stat' in o.check && !stats.has(o.check.stat)) err(file, 'check: unknown stat');
+      if (o.check && 'chance' in o.check) checkExpr(file, o.check.chance, 'check');
+      checkEffects(file, o.onSuccess, 'onSuccess');
+      checkEffects(file, o.onFail, 'onFail');
+      if (o.restore && !b.facilities.some((f) => f.anchor === o.at)) err(file, 'restore: no facility at this anchor');
+      if (!o.effects.length && !o.onSuccess.length && !o.restore) warn(file, 'order has no effects');
+    }
   }
   for (const p of b.people)
     for (const t of p.traits) if (!traits.has(t)) err('people/', `${p.id}: unknown trait '${t}'`);
@@ -399,9 +420,17 @@ export function compileContent(files: Record<string, string>): CompileResult {
     for (const p of a.people) {
       if (!people.has(p.id)) err(file, `people: unknown person '${p.id}'`);
       if (!aAnchors.has(p.at)) err(file, `people.${p.id}: unknown anchor '${p.at}'`);
+      if (p.job) {
+        const t = b.posts.find((x) => x.id === p.job) ?? b.orders.find((x) => x.id === p.job);
+        if (!t) err(file, `people.${p.id}.job: unknown post or order '${p.job}'`);
+        else if (t.at !== p.at) err(file, `people.${p.id}.job: '${p.job}' is at '${t.at}', not '${p.at}'`);
+      }
     }
     if (a.people.filter((p) => p.head_coach).length > 1) err(file, 'only one head coach at the start');
-    if (!aAnchors.has(a.director.at)) err(file, `director.at: unknown anchor '${a.director.at}'`);
+    const boss = a.people.filter((p) => people.get(p.id)?.role === 'director');
+    if (boss.length !== 1) err(file, 'people: exactly one person with role director');
+    const start = boss[0]?.at ?? a.anchors[0] ?? '';
+    for (const k of Object.keys(a.condition)) if (!facilities.has(k)) err(file, `condition: unknown facility '${k}'`);
     for (const [x, y] of a.nav) for (const n of [x, y]) if (!aAnchors.has(n)) err(file, `nav: unknown anchor '${n}'`);
     // 导航图必须连通：总监要能走到每个锚点
     const adj = new Map<string, string[]>();
@@ -409,8 +438,8 @@ export function compileContent(files: Record<string, string>): CompileResult {
       adj.set(x, [...(adj.get(x) ?? []), y]);
       adj.set(y, [...(adj.get(y) ?? []), x]);
     }
-    const reach = new Set([a.director.at]);
-    const q = [a.director.at];
+    const reach = new Set([start]);
+    const q = [start];
     while (q.length) for (const n of adj.get(q.shift() as string) ?? []) if (!reach.has(n) && reach.add(n)) q.push(n);
     for (const n of a.anchors) if (!reach.has(n)) err(file, `nav: anchor '${n}' cannot be reached`);
     for (const c of a.start_cards) if (!cards.has(c)) err(file, `start_cards: unknown card '${c}'`);
@@ -428,16 +457,6 @@ export function compileContent(files: Record<string, string>): CompileResult {
     }
     for (const k of Object.keys(a.weather))
       if (!a.seasons.some((s) => s.id === k)) err(file, `weather: unknown season '${k}'`);
-    for (const p of Object.keys(a.schedule.parts)) needText(file, `parts.${p}`);
-    for (const [p, week] of Object.entries(a.schedule.start)) {
-      if (!(p in a.schedule.parts)) err(file, `schedule.start: '${p}' is not in schedule.parts`);
-      for (const x of week) {
-        if (x === null) continue;
-        const act2 = activities.get(x);
-        if (!act2) err(file, `schedule.start.${p}: unknown activity '${x}'`);
-        else if (!act2.program?.parts.includes(p)) err(file, `schedule.start.${p}: '${x}' cannot be scheduled then`);
-      }
-    }
     if (!directors.has(a.director_config)) err(file, `director_config: unknown director '${a.director_config}'`);
     for (const k of ['quality_target', 'member_drift', 'reputation_drift'] as const)
       checkExpr(file, a.rules[k], `rules.${k}`);
@@ -471,7 +490,8 @@ export function compileContent(files: Record<string, string>): CompileResult {
     scheduleTargets(c.default?.extra ?? []);
   }
   for (const a of b.activities) scheduleTargets(a.effects);
-  for (const a of b.actions) for (const effs of [a.effects, a.onSuccess, a.onFail]) scheduleTargets(effs);
+  for (const a of b.posts) scheduleTargets(a.effects);
+  for (const a of b.orders) for (const effs of [a.effects, a.onSuccess, a.onFail]) scheduleTargets(effs);
   for (const c of b.cards)
     if (!reachable.has(c.id)) warn(`events/${c.act}/${c.id}.yaml`, `card '${c.id}' is never scheduled by anything`);
 

@@ -10,7 +10,7 @@ who: board
 options:
   A:
     # 亲自带她转一圈：看你平时把俱乐部做成什么样
-    requiresDirectorAt: deck
+    errand: { at: deck, for: 2h }
     check: { chance: "clamp((stat.board_support - 10) / 60, 0.2, 0.9)" }
     onSuccess:
       - { flag: chair_impressed, set: true }
