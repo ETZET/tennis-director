@@ -14,7 +14,9 @@
  *   - 拦截 Google Fonts（两边都用后备字体），原型的 three.js CDN 换成本地 r128
  *   - SwiftShader 软件渲染，结果不依赖显卡
  *   - 字体固定成仓库里的 DejaVu Sans（tools/screenshot/fonts）：不拦的话 HUD 文字会落到各台机器自己的
- *     后备字体（本地是 Inter，GitHub 的 Ubuntu 是 DejaVu），同一份代码在不同机器上差 1.3%
+ *     后备字体（本地是 Inter，GitHub 的 Ubuntu 是 DejaVu），同一份代码在不同机器上差 1.3%。
+ *     浏览器用一份自带的 fontconfig（只认这个目录、抗锯齿和微调写死），不读系统的 /etc/fonts：
+ *     同一个字体文件在不同的系统设置下栅格化出来也不一样（又差 0.7%），canvas 里画的字也走这里
  *
  * 环境变量：CHROMIUM_PATH 指定浏览器；SCREENSHOT_MAX_DIFF 允许的差异像素比例（默认 0.001）。
  */
@@ -40,6 +42,31 @@ const FONT_CSS = `
 @font-face{font-family:"TD Shot Sans";src:url("https://td-shot.local/DejaVuSans.ttf");font-weight:100 599}
 @font-face{font-family:"TD Shot Sans";src:url("https://td-shot.local/DejaVuSans-Bold.ttf");font-weight:600 900}
 *,*::before,*::after{font-family:"TD Shot Sans" !important}`;
+
+/** 浏览器专用的 fontconfig：只有 tools/screenshot/fonts，渲染参数固定，所有通用字体名都指向 DejaVu Sans */
+function fontconfig() {
+  const dir = join(OUT, 'fontconfig');
+  mkdirSync(dir, { recursive: true });
+  const file = join(dir, 'fonts.conf');
+  const alias = ['sans-serif', 'serif', 'monospace', 'system-ui', 'cursive', 'fantasy']
+    .map((f) => `<alias binding="strong"><family>${f}</family><prefer><family>DejaVu Sans</family></prefer></alias>`)
+    .join('');
+  writeFileSync(
+    file,
+    `<?xml version="1.0"?><!DOCTYPE fontconfig SYSTEM "fonts.dtd"><fontconfig>
+<dir>${FONTS}</dir><cachedir>${join(dir, 'cache')}</cachedir>${alias}
+<match target="font">
+<edit name="antialias" mode="assign"><bool>true</bool></edit>
+<edit name="hinting" mode="assign"><bool>false</bool></edit>
+<edit name="hintstyle" mode="assign"><const>hintnone</const></edit>
+<edit name="autohint" mode="assign"><bool>false</bool></edit>
+<edit name="rgba" mode="assign"><const>none</const></edit>
+<edit name="lcdfilter" mode="assign"><const>lcdnone</const></edit>
+<edit name="embeddedbitmap" mode="assign"><bool>false</bool></edit>
+</match></fontconfig>`,
+  );
+  return file;
+}
 
 const VIEWPORT = { width: 1280, height: 800 };
 /** 每个角度：先转 90°（Q 两次），再跑这么多毫秒的假时间 */
@@ -122,8 +149,32 @@ async function shoot(browser, url, tag) {
 function diff(a, b, name) {
   const { width, height } = a;
   const out = new PNG({ width, height });
-  const n = pixelmatch(a.data, b.data, out.data, width, height, { threshold: 0.1 });
+  const n = pixelmatch(a.data, b.data, out.data, width, height, { threshold: 0.1, diffMask: true });
   writeFileSync(join(OUT, `${name}-diff.png`), PNG.sync.write(out));
+  if (n) {
+    // 差异像素的外框和最集中的区域（按 160×100 分块），失败时判断是 HUD 文字还是场景
+    let x0 = width,
+      y0 = height,
+      x1 = 0,
+      y1 = 0;
+    const blocks = new Map();
+    for (let y = 0; y < height; y++)
+      for (let x = 0; x < width; x++) {
+        if (out.data[(y * width + x) * 4 + 3] === 0) continue;
+        x0 = Math.min(x0, x);
+        y0 = Math.min(y0, y);
+        x1 = Math.max(x1, x);
+        y1 = Math.max(y1, y);
+        const k = `${Math.floor(x / 160) * 160},${Math.floor(y / 100) * 100}`;
+        blocks.set(k, (blocks.get(k) ?? 0) + 1);
+      }
+    const top = [...blocks]
+      .sort((p, q) => q[1] - p[1])
+      .slice(0, 4)
+      .map(([k, c]) => `${k}:${c}`)
+      .join(' ');
+    console.log(`  ${name}: 差异范围 x ${x0}–${x1}, y ${y0}–${y1}；最多的块 ${top}`);
+  }
   return n / (width * height);
 }
 
@@ -139,6 +190,7 @@ async function main() {
   const browser = await chromium.launch({
     executablePath: process.env.CHROMIUM_PATH || undefined,
     args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--disable-gpu-rasterization'],
+    env: { ...process.env, FONTCONFIG_FILE: fontconfig() },
   });
   try {
     const t0 = Date.now();
