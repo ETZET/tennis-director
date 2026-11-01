@@ -12,7 +12,8 @@ export interface Marker {
   /** 返回 null 表示这一帧不显示 */
   text: () => string | null;
   cls: () => string;
-  lift: number;
+  /** 牌子离地面的高度（像素），可以随状态变（例如拉远时缩成小圆点） */
+  lift: number | (() => number);
   last?: string;
 }
 
@@ -59,19 +60,21 @@ export class GameLabels {
         m.last = key;
         m.el.className = cls;
         m.el.textContent = text;
+        m.el.setAttribute('aria-label', text);
       }
       const p = m.get();
       this.pv.set(p.x, p.y, p.z).project(this.cam);
       const x = (this.pv.x * 0.5 + 0.5) * W;
       const y = (-this.pv.y * 0.5 + 0.5) * H;
       let off = x < -100 || x > W + 100 || y < -40 || y > H + 40;
-      if (!off) off = occ.some((r) => x + 60 > r.left && x - 60 < r.right && y > r.top && y - m.lift - 24 < r.bottom);
+      const base = typeof m.lift === 'function' ? m.lift() : m.lift;
+      if (!off) off = occ.some((r) => x + 60 > r.left && x - 60 < r.right && y > r.top && y - base - 24 < r.bottom);
       m.el.hidden = off;
       if (off) continue;
       // 手机上地点挤在一起：和已经摆好的牌子叠住就往上让（最多让三次）
       const w = m.el.offsetWidth || 80;
       const h = m.el.offsetHeight || 24;
-      let lift = m.lift;
+      let lift = base;
       for (let k = 0; k < 3; k++) {
         const box = { l: x - w / 2, r: x + w / 2, t: y - lift - h, b: y - lift };
         const hit = placed.find((p) => box.l < p.r && box.r > p.l && box.t < p.b && box.b > p.t);

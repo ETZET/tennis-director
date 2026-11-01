@@ -141,6 +141,8 @@ const STATE = () => {
         here: x.classList.contains('pl-here'),
         heading: x.classList.contains('pl-dest'),
         alert: x.classList.contains('pl-card'),
+        // 拉远时只显示成小圆点（看不到名字，点开动作圈才有）
+        dot: x.classList.contains('pl-dot'),
       })),
     activities: [...document.querySelectorAll('#labels .act')]
       .filter((x) => !x.hidden)
