@@ -8,9 +8,7 @@
   "files": {
     "includes": [
       "**",
-      "!prototypes",
       "!**/dist",
-      "!tools/screenshot/baselines",
       "!**/*.snap",
       "!**/*.md",
       "!**/generated",

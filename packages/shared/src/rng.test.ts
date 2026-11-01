@@ -10,7 +10,7 @@ describe('mulberry32', () => {
 
   it('与原型的实现逐位一致（Hollow Creek 用种子 1974）', () => {
     const r = mulberry32(1974);
-    // 前三个值来自原型 prototypes/hollow-creek.html 的同一算法
+    // 前三个值来自最初原型（已删除）里的同一算法
     const first = [r(), r(), r()];
     for (const v of first) {
       expect(v).toBeGreaterThanOrEqual(0);

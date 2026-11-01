@@ -16,7 +16,6 @@
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "check:deps": "depcruise packages apps --config .dependency-cruiser.cjs",
-    "screenshot": "node tools/screenshot/compare.mjs",
     "check": "pnpm typecheck && pnpm lint && pnpm check:deps && pnpm check:content && pnpm test && pnpm build",
     "content": "tsx packages/content/scripts/build.ts",
     "check:content": "tsx packages/content/scripts/build.ts --check",
