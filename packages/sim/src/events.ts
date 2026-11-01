@@ -21,6 +21,8 @@ export type SimEvent =
   | { type: 'personDeparted'; person: string; from: string; to: string; route: string[]; arrive: number }
   | { type: 'personArrived'; person: string; at: string }
   | { type: 'assigned'; person: string; target: string | null }
+  /** 按习惯自己走去一个岗位（ADR 0014） */
+  | { type: 'routine'; person: string; target: string }
   | { type: 'postCycle'; post: string; person: string }
   | { type: 'postInterrupted'; post: string; person: string; lost: number }
   | { type: 'orderStarted'; order: string; at: string; performance: string | null }

@@ -6,7 +6,7 @@ import type { OptionKey } from '@td/content';
  */
 
 /** 存档格式版本；改了格式就加一个迁移函数（见 save.ts） */
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 4;
 
 export interface PersonState {
   id: string;
@@ -27,6 +27,11 @@ export interface PersonState {
   walk: Walk | null;
   /** 被事件叫去办事：到了以后待 minutes 分钟（until 在到达时才定下来） */
   errand: { at: string; minutes: number; until: number | null } | null;
+  /**
+   * 习惯（ADR 0014）：玩家把这个人放上过的岗位（最多 ROUTINE_MAX 个，时段不重叠，"随时"的岗位最多一个）。
+   * 手上的岗位过了时段、工单做完、或者闲着时，自己走去其中此刻开着、空着的那个。
+   */
+  routine: string[];
 }
 
 export interface Walk {

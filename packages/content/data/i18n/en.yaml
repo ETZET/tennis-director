@@ -467,12 +467,14 @@ ui:
     empty: "{n} posts have customers waiting and nobody there"
     covered: Every busy spot has someone
   staff:
-    hint: "Tap a place to send {name} there"
+    next: "Next shift {time} · {what}"
+    hint: "Tap a place to send {name} there · they remember shifts"
     idle: "Idle at {place}"
     waiting: "{what} · waiting for customers"
     walking: "To {what} · {time}"
     errand: "Away at {place} · {time}"
   place:
+    owner: "{name}'s shift · comes at {hours}"
     income: Earns money
     pick: "Send {name} to which job at {place}?"
     empty: Nothing to do here right now

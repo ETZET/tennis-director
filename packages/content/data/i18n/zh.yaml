@@ -462,12 +462,14 @@ ui:
     empty: "{n} 个岗位有客人在等，没人管"
     covered: 有客人的地方都有人
   staff:
-    hint: "点一个地点牌，把{name}派过去"
+    next: "下一班 {time} · {what}"
+    hint: "点一个地点牌，把{name}派过去 · 派上的班他会记住"
     idle: "在{place}闲着"
     waiting: "{what} · 等客人"
     walking: "去{what} · {time}"
     errand: "在{place}办事 · {time}"
   place:
+    owner: "{name}的班 · {hours} 点自己来"
     income: 有收入
     pick: "把{name}派到{place}哪一项？"
     empty: 这儿现在没活

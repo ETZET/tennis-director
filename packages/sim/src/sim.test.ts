@@ -160,6 +160,31 @@ describe('工单', () => {
   });
 });
 
+describe('习惯（ADR 0014）', () => {
+  it('派过一次的班会记住：露台接待 11 点关门后总监自己去泳池；第二天 8 点自己回露台', () => {
+    const s = quiet(fresh());
+    advance(s, CONTENT, [assign('director', 'pool_guard')], 0);
+    advance(s, CONTENT, [assign('director', 'deck_host')], 0);
+    expect(s.people.director?.routine).toEqual(['deck_host', 'pool_guard']);
+    expect(until(s, (x) => x.people.director?.job === 'pool_guard', 4 * 60)).toBe(true);
+    expect(minuteOfDay(s.t)).toBeGreaterThanOrEqual(11 * 60);
+    expect(until(s, (x) => dayOf(x.t) === 2 && x.people.director?.job === 'deck_host', 24 * 60)).toBe(true);
+    expect(minuteOfDay(s.t)).toBeLessThan(8 * 60 + 20);
+  });
+  it('工单不进习惯，也不会被习惯打断；叫停会把那个班从习惯里拿掉；同一个班只记在一个人身上', () => {
+    const s = quiet(fresh());
+    advance(s, CONTENT, [assign('director', 'c1_lesson')], 0);
+    expect(s.people.director?.routine).toEqual(['c1_lesson']);
+    expect(s.people.dale?.routine).toEqual([]);
+    advance(s, CONTENT, [assign('director', 'patch_court1')], 0);
+    expect(s.people.director?.routine).toEqual(['c1_lesson']);
+    advance(s, CONTENT, [], 60);
+    expect(s.people.director?.job).toBe('patch_court1');
+    advance(s, CONTENT, [assign('director', 'deck_host'), assign('director', null)], 0);
+    expect(s.people.director?.routine).toEqual(['c1_lesson']);
+  });
+});
+
 describe('衰减（准则 6）', () => {
   it('放一天数字几乎不动；放一周没人管的场掉下来，状况低于 30 设施质量贡献减半', () => {
     const s = quiet(fresh());
@@ -374,14 +399,14 @@ describe('存档', () => {
     for (const k of ['posts', 'orders', 'orderLog', 'condition', 'week', 'ledger']) delete old.state[k];
     delete old.state.people.director;
     for (const p of Object.values(old.state.people) as Record<string, unknown>[])
-      for (const k of ['upkeep', 'service', 'job', 'walk', 'errand']) delete p[k];
+      for (const k of ['upkeep', 'service', 'job', 'walk', 'errand', 'routine']) delete p[k];
     old.state.director = { at: 'court_1', leg: null, route: [], task: null };
     const { save } = fromSave(old);
-    expect(save.version).toBe(3);
+    expect(save.version).toBe(4);
     expect(save.state.legacy).toEqual([]);
     expect(save.state.cards.shown).toEqual({});
     expect(save.state.people.director).toMatchObject({ hired: true, at: 'court_1', job: null });
-    expect(save.state.people.dale).toMatchObject({ upkeep: 0, job: null, walk: null });
+    expect(save.state.people.dale).toMatchObject({ upkeep: 0, job: null, walk: null, routine: [] });
     expect('director' in save.state).toBe(false);
     expect('plan' in save.state).toBe(false);
     // 迁移后的存档能接着跑

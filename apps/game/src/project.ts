@@ -5,6 +5,8 @@ import {
   type ContentBundle,
   canAssign,
   DIRECTOR,
+  minuteOfDay,
+  weekdayOf,
   facilityTotals,
   type GameState,
   minutes,
@@ -338,12 +340,18 @@ export class Projector {
         text: T.fmt('ui.staff.walking', { what: T.anchor(p.walk.to), time: T.duration(p.walk.end - s.t) }),
         state: 'walking',
       };
-    if (!p.job) return { text: T.fmt('ui.staff.idle', { place: T.anchor(p.at) }), state: 'idle' };
+    // 闲着或在等客人：有下一班就说下一班几点（ADR 0014：到点他自己会去）
+    const next = this.nextShift(s, id);
+    if (!p.job)
+      return next
+        ? { text: T.fmt('ui.staff.next', next), state: 'waiting' }
+        : { text: T.fmt('ui.staff.idle', { place: T.anchor(p.at) }), state: 'idle' };
     const post = w.posts.get(p.job);
     if (post) {
       const st = postStatus(s, w, post);
-      return st.active
-        ? { text: this.targetTitle(p.job), state: 'working' }
+      if (st.active) return { text: this.targetTitle(p.job), state: 'working' };
+      return next && next.what !== this.short(p.job)
+        ? { text: T.fmt('ui.staff.next', next), state: 'waiting' }
         : { text: T.fmt('ui.staff.waiting', { what: this.targetTitle(p.job) }), state: 'waiting' };
     }
     const order = w.orders.get(p.job);
@@ -352,6 +360,19 @@ export class Projector {
       return { text: `${this.targetTitle(p.job)} · ${Math.round(st.progress * 100)}%`, state: 'working' };
     }
     return { text: this.targetTitle(p.job), state: 'working' };
+  }
+
+  /** 这个人今天接下来的第一个班（习惯里还没开始的有时段岗位） */
+  private nextShift(s: GameState, id: string): { time: string; what: string } | null {
+    const w = worldOf(s, this.content);
+    const h = minuteOfDay(s.t) / 60;
+    let best: Post | null = null;
+    for (const x of s.people[id]?.routine ?? []) {
+      const post = w.posts.get(x);
+      if (!post?.hours || post.hours[0] <= h || (post.days && !post.days.includes(weekdayOf(s.t)))) continue;
+      if (!best || post.hours[0] < (best.hours?.[0] ?? 99)) best = post;
+    }
+    return best?.hours ? { time: `${best.hours[0]}:00`, what: this.short(best.id) } : null;
   }
 
   /** 底部员工条：总监在最前，然后按招来的顺序 */
@@ -620,15 +641,19 @@ export class Projector {
     for (const p of posts) {
       const st = postStatus(s, w, p);
       const need = st.demand && st.inHours && !st.person;
+      // 这是谁的班（ADR 0014）：空着的时候告诉玩家谁会自己来
+      const owner = Object.values(s.people).find((x) => x.hired && x.routine?.includes(p.id))?.id ?? null;
       const line = st.person
         ? st.active
           ? T.fmt('ui.place.on', { name: T.personName(st.person), p: Math.round(st.progress * 100) })
           : T.fmt('ui.place.wait', { name: T.personName(st.person) })
-        : need
-          ? T.tr('ui.place.need')
-          : p.hours
-            ? T.fmt('ui.place.hours', { hours: `${p.hours[0]}–${p.hours[1]}` })
-            : T.tr('ui.place.anytime');
+        : owner && p.hours
+          ? T.fmt('ui.place.owner', { name: T.personName(owner), hours: `${p.hours[0]}–${p.hours[1]}` })
+          : need
+            ? T.tr('ui.place.need')
+            : p.hours
+              ? T.fmt('ui.place.hours', { hours: `${p.hours[0]}–${p.hours[1]}` })
+              : T.tr('ui.place.anytime');
       const fit = fitOf(p.id, p.at, p.skill);
       rows.push({
         id: p.id,

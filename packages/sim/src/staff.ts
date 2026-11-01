@@ -193,9 +193,11 @@ export function canAssign(s: GameState, w: World, person: string, target: string
  * 把一个人派到岗位或工单上：放下手上的事（持续岗位这一圈作废），走过去，到了就开始干。
  * 拖到有人的岗位上：原来的人让出来、原地闲着（这一圈同样作废）。
  */
-export function assign(ctx: Ctx, person: string, target: string | null): boolean {
+export function assign(ctx: Ctx, person: string, target: string | null, learn = false): boolean {
   const { s, w } = ctx;
   if (canAssign(s, w, person, target) !== null) return false;
+  // 玩家亲手派的才记进习惯；叫停就把手上那个岗位从习惯里拿掉
+  if (learn) learnRoutine(s, w, person, target);
   leaveJob(ctx, person);
   const p = s.people[person] as PersonState;
   if (target === null) {
@@ -215,6 +217,78 @@ export function assign(ctx: Ctx, person: string, target: string | null): boolean
   p.job = target;
   ctx.events.push({ type: 'assigned', person, target });
   return true;
+}
+
+/* ---------------- 习惯（ADR 0014） ---------------- */
+
+/** 一个人最多记住几个岗位 */
+export const ROUTINE_MAX = 4;
+/** 离时段结束不到这么多分钟就不再按习惯赶过去 */
+const ROUTINE_MIN_LEFT = 45;
+
+const overlaps = (a: Post, b: Post): boolean => {
+  if (!a.hours || !b.hours) return !a.hours && !b.hours; // "随时"的岗位只记一个
+  const days = !a.days || !b.days || a.days.some((d) => b.days?.includes(d));
+  return days && a.hours[0] < b.hours[1] && b.hours[0] < a.hours[1];
+};
+
+/** 玩家把 person 派到 target：岗位记进他的习惯（顶掉和它时段重叠的），并从别人的习惯里拿掉 */
+export function learnRoutine(s: GameState, w: World, person: string, target: string | null): void {
+  const p = s.people[person];
+  if (!p) return;
+  p.routine ??= [];
+  if (target === null) {
+    if (p.job) p.routine = p.routine.filter((x) => x !== p.job);
+    return;
+  }
+  const post = w.posts.get(target);
+  if (!post) return; // 工单是一次性的，不进习惯
+  for (const q of Object.values(s.people)) if (q.routine) q.routine = q.routine.filter((x) => x !== target);
+  p.routine = [
+    target,
+    ...p.routine.filter((x) => {
+      const o = w.posts.get(x);
+      return o && !overlaps(o, post);
+    }),
+  ].slice(0, ROUTINE_MAX);
+}
+
+/** 现在这个人按习惯该去哪儿（null = 留在原地）。工单和办事不打断；正在开着的有时段岗位上不动。 */
+export function routineTarget(s: GameState, w: World, id: string): string | null {
+  const p = s.people[id];
+  if (!p?.hired || p.errand || p.walk || !p.routine?.length) return null;
+  const cur = p.job ? w.posts.get(p.job) : undefined;
+  if (p.job && !cur) return null; // 在做工单
+  const open = (x: Post) => postInHours(s, x) && postExists(s, w, x);
+  if (cur?.hours && open(cur)) return null;
+  const free = (x: Post) => {
+    const who = occupant(s, x.id);
+    return who === null || who === id;
+  };
+  const left = (x: Post) => (x.hours ? x.hours[1] * 60 - minuteOfDay(s.t) : Number.POSITIVE_INFINITY);
+  for (const x of p.routine) {
+    const post = w.posts.get(x);
+    if (!post?.hours || post.id === p.job || !open(post) || !free(post) || left(post) < ROUTINE_MIN_LEFT) continue;
+    return post.id;
+  }
+  // 没有开着的班：手上的岗位关了（或者闲着），就去记住的"随时"岗位（维护）
+  if (cur && !cur.hours && open(cur)) return null;
+  for (const x of p.routine) {
+    const post = w.posts.get(x);
+    if (!post || post.hours || post.id === p.job || !open(post) || !free(post)) continue;
+    return post.id;
+  }
+  return null;
+}
+
+/** 每 10 分钟：手上没活的人按习惯走去开着的岗位 */
+function routineSystem(ctx: Ctx): void {
+  const { s, w } = ctx;
+  if (minuteOfDay(s.t) % 10 !== 0) return;
+  for (const id of staffIds(s, w)) {
+    const t = routineTarget(s, w, id);
+    if (t && assign(ctx, id, t)) ctx.events.push({ type: 'routine', person: id, target: t });
+  }
 }
 
 /* ---------------- 每分钟：岗位、工单、办事 ---------------- */
@@ -390,6 +464,7 @@ function errandSystem(ctx: Ctx): void {
 
 export function staffSystem(ctx: Ctx): void {
   errandSystem(ctx);
+  routineSystem(ctx);
   const jobs = jobIndex(ctx.s);
   postSystem(ctx, jobs);
   orderSystem(ctx, jobs);
