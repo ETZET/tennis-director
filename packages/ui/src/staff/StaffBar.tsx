@@ -88,7 +88,8 @@ export function StaffBar({
   actions: HudActions;
 }) {
   return (
-    <div class="td-staff">
+    // 人多了（4 个以上）换成紧凑的头像，一屏放得下更多人（第二轮试玩 S10）
+    <div class={`td-staff${staff.length >= 4 ? ' td-staff-many' : ''}`}>
       {hint ? (
         <div class="td-staff-hint" role="status">
           <span>{hint}</span>

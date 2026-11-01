@@ -18,6 +18,14 @@ export function PlaceSheet({ p, actions }: { p: PlaceSheetData; actions: HudActi
             ×
           </button>
         </header>
+        {p.condition ? (
+          <div class={`td-place-cond${p.condition.value < 30 ? ' td-place-cond-low' : ''}`}>
+            <span>{p.condition.label}</span>
+            <span class="td-sheet-bar" aria-hidden="true">
+              <i style={{ width: `${p.condition.value}%` }} />
+            </span>
+          </div>
+        ) : null}
         {p.prompt ? <p class="td-sheet-status">{p.prompt}</p> : null}
         {p.rows.length ? (
           <ul class="td-place-rows">

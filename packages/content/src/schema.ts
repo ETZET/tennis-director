@@ -134,6 +134,8 @@ export const card = z.strictObject({
   cooldown: duration.optional(),
   /** 只出现一次（里程碑、日历、后果卡默认只出现一次） */
   once: z.boolean().optional(),
+  /** 一幕里最多出现几次（阈值和随机卡不写时是 2：第二轮试玩 S5，同一张卡来了 4 次） */
+  max_shown: z.number().int().min(1).optional(),
   /** 不处理就过期，执行默认后果 */
   countdown: duration.optional(),
   /** 出现时请求自动暂停 */
@@ -230,6 +232,8 @@ export const director = z.strictObject({
   interval: duration,
   /** 同时开着的卡最多几张（超过就不再发阈值卡） */
   max_open: z.number().int().min(1),
+  /** 任何一张卡（包括日历和后果卡）打开以后，至少隔这么久才抽下一张随机或阈值卡（S5：一小时里来三张） */
+  gap: duration.default('4h'),
   /** 压力值 0..1 的表达式 */
   pressure: z.string(),
   /** 各语气的权重倍数（表达式，可以用 pressure） */
@@ -331,6 +335,13 @@ export const act = z.strictObject({
     dues_week: z.number(),
     /** 每天收盘和开局时重算的派生状态量，例如董事会信心 */
     derived: z.record(id, z.string()).default({}),
+    /**
+     * 拆成几项的派生量（第二轮试玩 S2：董事会信心不能是黑箱）：值 = 各项之和（按状态量的范围截断）。
+     * 每项有名字（文案在 ui.terms.<名字>），界面据此说明它为什么变；周日收盘时记下每项这一周变了多少。
+     */
+    derived_terms: z.record(id, z.record(id, z.string())).default({}),
+    /** 表决把握（0..1 的表达式），HUD 上显示；应和表决卡主选项的成功率一致 */
+    vote_odds: z.string().optional(),
     /** 输掉本幕的条件（每天收盘时检查）和对应的结局 */
     lose_if: z.strictObject({ when: cond, ending: id }).optional(),
     /** 总监每干完一圈岗位或一张工单，那项能力涨多少（上限 director_skill_cap） */

@@ -74,14 +74,22 @@ rules:
   derived:
     # 本周到现在的服务率（HUD 上显示）
     service: round(service_rate * 100)
-    # 董事会的期望一周比一周高（第 7 天起每天 −0.6）：前期做出来的成绩撑不到表决（R2）
-    board_support: >-
-      clamp(40 + (stat.quality - 55) * 0.8 + (stat.members - 50) * 0.5 + (stat.reputation - 40) * 0.4
-      - max(0, day - 7) * 0.6
-      + (flag.match_won ? 8 : 0) + (flag.match_played ? 2 : 0)
-      - (flag.pickleball_lease ? 3 : 0)
-      + (flag.chair_impressed ? 6 : 0) - (flag.chair_worried ? 6 : 0) - (flag.board_impatient ? 8 : 0)
-      + (flag.open_house_held ? 6 : 0) + (flag.turnaround_promised ? 10 : 0) - (flag.broken_promise ? 18 : 0), 0, 100)
+  # 董事会信心 = 下面几项之和（截到 0..100）。拆开写是为了让玩家看到它为什么变（第二轮试玩 S2）；
+  # 数和原来的一条公式完全一样。期望一周比一周高（第 7 天起每天 −0.6）：前期的成绩撑不到表决（R2）。
+  derived_terms:
+    board_support:
+      base: "40"
+      quality: (stat.quality - 55) * 0.8
+      members: (stat.members - 50) * 0.5
+      reputation: (stat.reputation - 40) * 0.4
+      expectations: -max(0, day - 7) * 0.6
+      events: >-
+        (flag.match_won ? 8 : 0) + (flag.match_played ? 2 : 0) - (flag.pickleball_lease ? 3 : 0)
+        + (flag.chair_impressed ? 6 : 0) - (flag.chair_worried ? 6 : 0) - (flag.board_impatient ? 8 : 0)
+        + (flag.open_house_held ? 6 : 0) + (flag.turnaround_promised ? 10 : 0) - (flag.broken_promise ? 18 : 0)
+        - (flag.developer_declined ? 3 : 0)
+  # 表决把握：和表决卡"亲自陈述"的成功率同一条公式
+  vote_odds: clamp((stat.board_support - 40) / 50, 0.08, 0.85)
   lose_if:
     when: { stat: cash, lt: -1500 }
     ending: bankrupt

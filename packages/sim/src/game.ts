@@ -95,6 +95,7 @@ export function newGame(content: ContentBundle, o: NewGameOptions): GameState {
   for (const c of a.start_cards) s.cards.scheduled.push({ card: c, at: s.t, cause: null });
   openDay(ctx, a.start.day, 0);
   recomputeDerived(ctx);
+  s.termsWeek = structuredClone(s.terms ?? {});
   return s;
 }
 

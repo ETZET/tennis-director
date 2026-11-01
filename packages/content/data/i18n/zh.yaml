@@ -34,17 +34,17 @@ activities:
 
 endings:
   saved_with_coach:
-    title: Hollow Creek 保住了
+    title: 霍洛溪保住了
     body: 董事会投票保留俱乐部。枫岭高中发来聘书，你的教练跟你一起走。
   saved_with_kid:
-    title: Hollow Creek 保住了
+    title: 霍洛溪保住了
     body: 董事会投票保留俱乐部。枫岭高中请你去带网球队，Mason 也考进了枫岭。
   saved_alone:
-    title: Hollow Creek 保住了
+    title: 霍洛溪保住了
     body: 董事会投票保留俱乐部。你一个人去了枫岭高中。
   club_sold:
     title: 俱乐部被卖了
-    body: 董事会投票出售。停车场的出售牌没摘下来，Hollow Creek 月底关门。
+    body: 董事会投票出售。停车场的出售牌没摘下来，霍洛溪月底关门。
   sold_to_developer:
     title: 卖给了开发商
     body: 你收了钱。到明年春天，这些球场会变成联排别墅。
@@ -111,7 +111,7 @@ events:
   hc_pickleball_rant:
     topic: 匹克球
     title: 匹克球那帮人在社区群里吐槽你
-    body: “Hollow Creek 不欢迎新人。”帖子底下已经四十条回复。
+    body: “霍洛溪不欢迎新人。”帖子底下已经四十条回复。
     options:
       A: 心平气和地回一帖（成败看声望）
       B: 请他们来打一场友谊赛
@@ -149,11 +149,11 @@ events:
       C: 不管
   hc_rival_flyer:
     topic: 对手
-    title: Pine Crown 把招生传单贴到了我们的围网上
+    title: 松冠把招生传单贴到了我们的围网上
     body: "「真正的教练，真正的场地，首月八折。」已经有三位家长拍了照。"
     options:
       A: 换成我们自己的传单
-      B: 打电话去 Pine Crown 抗议
+      B: 打电话去松冠抗议
       C: 随它去
   hc_board_chair:
     topic: 董事会
@@ -195,7 +195,7 @@ events:
       C: 不管
   hc_rival_van:
     topic: 对手
-    title: Pine Crown 把试训车开进了我们的停车场
+    title: 松冠把试训车开进了我们的停车场
     body: 免费试拍，打八折。我们的会员去球场得从车旁边走过。
     options:
       A: 当面请他们离开（走到停车场）
@@ -222,9 +222,9 @@ events:
     title: 一位退休会员想周末来帮忙带课
     body: 他四十年前打过大学校队，正手还在。
     options:
-      A: 欢迎他上场 · 质量 +3
+      A: 欢迎他上场
       B: 请他帮忙招生
-      C: 客气地谢绝 · 声望 +2
+      C: 客气地谢绝
   hc_double_booked:
     topic: 预约
     title: 1 号场上午约重了
@@ -265,7 +265,7 @@ events:
   hc_board_vote:
     topic: 董事会表决
     title: 董事会就出售俱乐部投票
-    body: 看董事会信心。到露台上亲自陈述，或者让数字自己说话。
+    body: 亲自陈述，成败看董事会信心；让数字说话，成败看项目质量和会员。
     options:
       A: 亲自到露台上陈述
       B: 让数字自己说话
@@ -280,7 +280,7 @@ events:
   hc_hiring_day:
     topic: 招聘日
     title: 两个人来应聘
-    body: 告示贴出去一周，来了两个人。现在全俱乐部能干活的只有你和 Dale。
+    body: 告示贴出去一周，来了两个人。人手一直不够，活总是比人多。
     options:
       A: Rosa Ortiz · 维护好手，每周 $180
       B: Ben Kim · 球童，会招呼人，每周 $110
@@ -296,14 +296,14 @@ events:
 
 log:
   ball_machine: 发球机到了，课更扎实了
-  started: 你接手了 Hollow Creek 网球俱乐部。
+  started: 你接手了霍洛溪网球俱乐部。
   workday_thin: 只来了几个邻居，红土场还是一团糟
   roof_fixed: 屋顶彻底补好了
   vote_passed: 董事会投票保留俱乐部
   vote_failed: 董事会投票出售俱乐部
   trial_onsite: 你在 1 号场门口迎接，多来了几个人
-  match_won: Hollow Creek 赢了 Pine Crown
-  match_lost: Pine Crown 赢了比赛
+  match_won: 霍洛溪赢了松冠
+  match_lost: 松冠赢了比赛
   promise_broken: 你没兑现对董事会的承诺
   promise_kept: 你兑现了对董事会的承诺
   tree_cleared: 树清走了，课照常上
@@ -353,7 +353,7 @@ who:
   board: { name: 董事会, role: 五位能决定卖掉俱乐部的志愿者 }
   parents: { name: Mason 的父母, role: 话不多，心里有期待 }
   pickleball: { name: 匹克球那帮人, role: 十二个常客，嗓门大 }
-  rival: { name: Pine Crown 俱乐部, role: 山谷对面那家 }
+  rival: { name: 松冠俱乐部, role: 山谷对面那家 }
   developer: { name: Rick Dorsey, role: 地产开发商 }
   member: { name: 一位老会员, role: 1994 年就在这儿 }
   maple: { name: 枫岭高中, role: 体育主任 }
@@ -407,6 +407,7 @@ ui:
   days: { "0": 一, "1": 二, "2": 三, "3": 四, "4": 五, "5": 六, "6": 日 }
   chip:
     errand: "{name}离岗 {time}"
+    wage: "周薪 ${n}"
     hire: "{name} 上任"
     fire: "{name} 离开"
     chance: "成功率 {p}%"
@@ -419,8 +420,9 @@ ui:
     members: "会员 {n}"
     service: "本周服务率 {n}%"
   board: 董事会信心
-  board_in: "董事会 · 剩 {days} 天"
-  board_today: "董事会 · 今天表决"
+  board_short: 董事会
+  board_in: "董事会·胜算 {odds}·{days}天"
+  board_today: "董事会·胜算 {odds}·今天"
   club: { name: 霍洛溪网球俱乐部, badge: HC }
   cash: 现金
   you: 你
@@ -458,17 +460,31 @@ ui:
   wire:
     interrupted: "{name}被叫离“{post}”，这一圈白干了"
     week: "本周结算 · 服务率 {n}%"
+    board: "董事会 {n}（本周 {d}）：{why}"
+    worn: "{place}状况跌到 {n}：没人维护就会掉档"
+    board_flat: 没什么变化
   status:
     empty: "{n} 个岗位有客人在等，没人管"
-    covered: 有客人的地方都有人
+    covered: 此刻有客人的地方都有人
+    quiet: 此刻没有岗位有客人
   staff:
     next: "下一班 {time} · {what}"
-    hint: "点一个地点牌，把{name}派过去 · 派上的班他会记住"
+    hint: "点一个地点牌，把{name}派过去 · 派上的班会被记住"
     idle: "在{place}闲着"
     waiting: "{what} · 等客人"
     walking: "去{what} · {time}"
     errand: "在{place}办事 · {time}"
+  terms:
+    base: 起点
+    quality: 项目质量
+    members: 会员
+    reputation: 声望
+    expectations: 期望越来越高
+    events: 事情办得怎样
   place:
+    rain: 下雨，户外的这一项今天关门
+    condition_low: "状况 {n} · 已经掉档，派人维护才能救回来"
+    condition: "状况 {n} · 低于 30 会掉档"
     owner: "{name}的班 · {hours} 点自己来"
     income: 有收入
     pick: "把{name}派到{place}哪一项？"

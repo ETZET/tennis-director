@@ -20,7 +20,10 @@ options:
       - { log: log.vote_failed }
       - { endAct: lost, ending: club_sold }
   B:
-    check: { chance: "clamp((stat.board_support - 50) / 50, 0.05, 0.75)" }
+    # 让数字说话：不看董事会信心，看项目质量和会员（第二轮试玩 S6：原来的 B 处处不如 A）。
+    # 董事会将信将疑、但项目做得扎实时，这条路更稳。
+    # 要项目真的扎实才稳：质量 80、会员 72 约四成；质量 90、会员 100 到八成（上限比亲自陈述低一点）
+    check: { chance: "clamp((stat.quality - 62) / 45 + (stat.members - 70) / 100, 0.05, 0.8)" }
     onSuccess:
       - { flag: board_vote_passed, set: true }
       - { log: log.vote_passed }

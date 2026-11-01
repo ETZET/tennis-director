@@ -237,6 +237,7 @@ export function learnRoutine(s: GameState, w: World, person: string, target: str
   const p = s.people[person];
   if (!p) return;
   p.routine ??= [];
+  p.resume = null;
   if (target === null) {
     if (p.job) p.routine = p.routine.filter((x) => x !== p.job);
     return;
@@ -253,27 +254,39 @@ export function learnRoutine(s: GameState, w: World, person: string, target: str
   ].slice(0, ROUTINE_MAX);
 }
 
-/** 现在这个人按习惯该去哪儿（null = 留在原地）。工单和办事不打断；正在开着的有时段岗位上不动。 */
+/** 班开始后这么多分钟内，在做工单的人会放下工单去上班（工单进度留着，下了班回来接着干） */
+const ROUTINE_SHIFT_START = 30;
+
+/**
+ * 现在这个人按习惯该去哪儿（null = 留在原地）：
+ * 1. 在开着的班上：不动。
+ * 2. 有个记住的班此刻开着、空着、离结束还有 45 分钟以上 → 去上班。在做工单的人只在班刚开始时去（记下工单，下班回来）。
+ * 3. 手上没活（工单做完、班关了、闲着）：回到为上班暂停的工单；再不然去记住的"随时"岗位（维护）。
+ */
 export function routineTarget(s: GameState, w: World, id: string): string | null {
   const p = s.people[id];
-  if (!p?.hired || p.errand || p.walk || !p.routine?.length) return null;
+  if (!p?.hired || p.errand || p.walk) return null;
   const cur = p.job ? w.posts.get(p.job) : undefined;
-  if (p.job && !cur) return null; // 在做工单
+  const onOrder = !!p.job && !cur;
   const open = (x: Post) => postInHours(s, x) && postExists(s, w, x);
   if (cur?.hours && open(cur)) return null;
   const free = (x: Post) => {
     const who = occupant(s, x.id);
     return who === null || who === id;
   };
-  const left = (x: Post) => (x.hours ? x.hours[1] * 60 - minuteOfDay(s.t) : Number.POSITIVE_INFINITY);
-  for (const x of p.routine) {
+  const now = minuteOfDay(s.t);
+  const left = (x: Post) => (x.hours ? x.hours[1] * 60 - now : Number.POSITIVE_INFINITY);
+  for (const x of p.routine ?? []) {
     const post = w.posts.get(x);
     if (!post?.hours || post.id === p.job || !open(post) || !free(post) || left(post) < ROUTINE_MIN_LEFT) continue;
+    if (onOrder && now - post.hours[0] * 60 >= ROUTINE_SHIFT_START) continue;
     return post.id;
   }
-  // 没有开着的班：手上的岗位关了（或者闲着），就去记住的"随时"岗位（维护）
+  if (onOrder) return null;
   if (cur && !cur.hours && open(cur)) return null;
-  for (const x of p.routine) {
+  const back = p.resume ? w.orders.get(p.resume) : undefined;
+  if (back && canAssign(s, w, id, back.id) === null) return back.id;
+  for (const x of p.routine ?? []) {
     const post = w.posts.get(x);
     if (!post || post.hours || post.id === p.job || !open(post) || !free(post)) continue;
     return post.id;
@@ -281,13 +294,22 @@ export function routineTarget(s: GameState, w: World, id: string): string | null
   return null;
 }
 
-/** 每 10 分钟：手上没活的人按习惯走去开着的岗位 */
+/**
+ * 每 10 分钟：按习惯换班。这是玩家布置好的安排，不是被叫走：
+ * 关了门的岗位上没转完的一圈直接清掉，不记"白干了"（只有玩家或事件中途拉人才算）。
+ */
 function routineSystem(ctx: Ctx): void {
   const { s, w } = ctx;
   if (minuteOfDay(s.t) % 10 !== 0) return;
   for (const id of staffIds(s, w)) {
     const t = routineTarget(s, w, id);
-    if (t && assign(ctx, id, t)) ctx.events.push({ type: 'routine', person: id, target: t });
+    if (!t) continue;
+    const p = s.people[id] as PersonState;
+    const job = p.job;
+    if (job && w.orders.has(job)) p.resume = job;
+    else if (job && w.posts.has(job)) delete s.posts[job];
+    if (t === p.resume) p.resume = null;
+    if (assign(ctx, id, t)) ctx.events.push({ type: 'routine', person: id, target: t });
   }
 }
 

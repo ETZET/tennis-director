@@ -270,7 +270,7 @@ events:
   hc_board_vote:
     topic: Board vote
     title: The board votes on selling the club
-    body: Board confidence decides it. Present in person on the deck, or let the numbers speak.
+    body: Present in person and board confidence decides it; let the numbers speak and program quality and members decide it.
     options:
       A: Present in person on the deck
       B: Let the numbers speak for themselves
@@ -285,7 +285,7 @@ events:
   hc_hiring_day:
     topic: Hiring day
     title: Two people came about the job
-    body: The notice has been up for a week and two people turned up. Right now the only people working the club are you and Dale.
+    body: The notice has been up for a week and two people turned up. There is always more work than hands.
     options:
       A: Rosa Ortiz · great at upkeep, $180/wk
       B: Ben Kim · ball kid, good with people, $110/wk
@@ -412,6 +412,7 @@ ui:
   days: { "0": Mon, "1": Tue, "2": Wed, "3": Thu, "4": Fri, "5": Sat, "6": Sun }
   chip:
     errand: "{name} away {time}"
+    wage: "${n}/week"
     hire: "{name} joins"
     fire: "{name} leaves"
     chance: "{p}% chance"
@@ -424,8 +425,9 @@ ui:
     members: "Members {n}"
     service: "Service this week {n}%"
   board: Board confidence
-  board_in: "Board · {days}d left"
-  board_today: "Board · vote today"
+  board_short: Board
+  board_in: "Board · {odds} odds · {days}d"
+  board_today: "Board · {odds} odds · today"
   club: { name: Hollow Creek TC, badge: HC }
   cash: Cash
   you: You
@@ -463,9 +465,13 @@ ui:
   wire:
     interrupted: "{name} was pulled off “{post}”; that round was lost"
     week: "Week settled · service {n}%"
+    board: "Board {n} ({d} this week): {why}"
+    worn: "{place} condition down to {n}: it will lose its grade without upkeep"
+    board_flat: little change
   status:
     empty: "{n} posts have customers waiting and nobody there"
-    covered: Every busy spot has someone
+    covered: Every busy spot has someone right now
+    quiet: No customers waiting right now
   staff:
     next: "Next shift {time} · {what}"
     hint: "Tap a place to send {name} there · they remember shifts"
@@ -473,7 +479,17 @@ ui:
     waiting: "{what} · waiting for customers"
     walking: "To {what} · {time}"
     errand: "Away at {place} · {time}"
+  terms:
+    base: Starting point
+    quality: Program quality
+    members: Members
+    reputation: Reputation
+    expectations: Rising expectations
+    events: How things went
   place:
+    rain: Closed today — it is raining
+    condition_low: "Condition {n} · already lost a grade; upkeep brings it back"
+    condition: "Condition {n} · drops a grade below 30"
     owner: "{name}'s shift · comes at {hours}"
     income: Earns money
     pick: "Send {name} to which job at {place}?"

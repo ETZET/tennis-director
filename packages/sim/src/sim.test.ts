@@ -6,7 +6,7 @@ import { advance, newGame, replay, stateHash, step } from './game';
 import { fromSave, SaveError, toSave } from './save';
 import { canAssign, orderStatus, postStatus } from './staff';
 import { at, dayOf, type GameState, minuteOfDay } from './state';
-import { coachAttention, facilityTotals, serviceRate, test } from './vars';
+import { coachAttention, facilityTotals, num, serviceRate, test } from './vars';
 import { shortestRoute } from './walk';
 import { worldFor } from './world';
 
@@ -182,6 +182,54 @@ describe('习惯（ADR 0014）', () => {
     expect(s.people.director?.job).toBe('patch_court1');
     advance(s, CONTENT, [assign('director', 'deck_host'), assign('director', null)], 0);
     expect(s.people.director?.routine).toEqual(['c1_lesson']);
+  });
+});
+
+describe('习惯：工单和班次（第二轮试玩 S4、S7）', () => {
+  it('在做工单的人班一开始就去上班，下了班回去接着做工单；按习惯换班不记"白干了"', () => {
+    const s = quiet(fresh());
+    advance(s, CONTENT, [assign('dale', null)], 0);
+    advance(s, CONTENT, [assign('director', 'deck_host')], 0);
+    // 总监上午做接待；11 点关门后没别的班，派他去清红土场（12 小时的活）
+    expect(until(s, (x) => minuteOfDay(x.t) >= 11 * 60, 4 * 60)).toBe(true);
+    advance(s, CONTENT, [assign('director', 'clay_clear')], 0);
+    // 第二天 8 点露台接待开门：放下工单去上班，11 点后回来接着清
+    expect(until(s, (x) => dayOf(x.t) === 2 && x.people.director?.job === 'deck_host', 30 * 60)).toBe(true);
+    expect(s.people.director?.resume).toBe('clay_clear');
+    expect(until(s, (x) => x.people.director?.job === 'clay_clear', 5 * 60)).toBe(true);
+    expect(minuteOfDay(s.t)).toBeGreaterThanOrEqual(11 * 60);
+  });
+  it('换班时关了门的岗位不发 postInterrupted', () => {
+    const s = quiet(fresh());
+    advance(s, CONTENT, [assign('director', 'pool_guard'), assign('director', 'deck_host')], 0);
+    const r = advance(s, CONTENT, [], 4 * 60);
+    expect(s.people.director?.job).toBe('pool_guard');
+    expect(r.events.filter((e) => e.type === 'postInterrupted')).toEqual([]);
+  });
+});
+
+describe('董事会信心拆成几项（第二轮试玩 S2）', () => {
+  // 拆开以前的一条公式：拆开后数必须完全一样（平衡不变）
+  const OLD =
+    'clamp(40 + (stat.quality - 55) * 0.8 + (stat.members - 50) * 0.5 + (stat.reputation - 40) * 0.4' +
+    ' - max(0, day - 7) * 0.6 + (flag.match_won ? 8 : 0) + (flag.match_played ? 2 : 0) - (flag.pickleball_lease ? 3 : 0)' +
+    ' + (flag.chair_impressed ? 6 : 0) - (flag.chair_worried ? 6 : 0) - (flag.board_impatient ? 8 : 0)' +
+    ' + (flag.open_house_held ? 6 : 0) + (flag.turnaround_promised ? 10 : 0) - (flag.broken_promise ? 18 : 0)' +
+    ' - (flag.developer_declined ? 3 : 0), 0, 100)';
+  it('各项之和等于原来的公式；周日收盘报每项这一周的变化', () => {
+    const s = fresh(7);
+    const w = W();
+    const weeks: unknown[] = [];
+    for (let d = 0; d < 20 && !s.outcome; d++) {
+      const r = advance(s, CONTENT, [], 24 * 60);
+      // 收盘时算的（现在已经是第二天早上）
+      expect(s.stats.board_support).toBeCloseTo(num(s, w, OLD, { day: dayOf(s.t) - 1 }), 6);
+      const sum = Object.values(s.terms?.board_support ?? {}).reduce((a, b) => a + b, 0);
+      expect(Math.abs(sum - (s.stats.board_support ?? 0))).toBeLessThan(0.5 + (sum < 0 || sum > 100 ? 999 : 0));
+      for (const e of r.events) if (e.type === 'weekSettled') weeks.push(e.terms.board_support);
+    }
+    expect(weeks.length).toBeGreaterThanOrEqual(2);
+    expect(weeks[1]).toMatchObject({ delta: { expectations: -4.2 } });
   });
 });
 

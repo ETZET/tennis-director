@@ -29,6 +29,7 @@ export {
   orderStatus,
   type PostStatus,
   postDemand,
+  postExists,
   postStatus,
   ROUTINE_MAX,
   routineTarget,
@@ -39,7 +40,16 @@ export {
 } from './staff';
 export * from './state';
 export { seasonOn } from './systems';
-export { coachAttention, coachPresent, conditionFactor, facilityTotals, isStaff, serviceRate, wagesWeek } from './vars';
+export {
+  coachAttention,
+  coachPresent,
+  conditionFactor,
+  facilityTotals,
+  isStaff,
+  num,
+  serviceRate,
+  wagesWeek,
+} from './vars';
 export { shortestRoute } from './walk';
 export { type World, worldFor } from './world';
 

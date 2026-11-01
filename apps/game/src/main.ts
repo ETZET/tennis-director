@@ -238,6 +238,7 @@ function addHubs(c: ContentBundle): void {
       {
         get: ground(a, 1.2),
         lift: 6,
+        keepOnScreen: true,
         text: () => (hubOf(a) ? text.anchor(a) : null),
         html: () => {
           const h = hubOf(a);
@@ -245,7 +246,7 @@ function addHubs(c: ContentBundle): void {
           const posts = h.posts
             .map(
               (p) =>
-                `<span class="hb-p${p.need ? ' hb-need' : ''}${p.on ? ' hb-on' : ''}" style="--p:${Math.round(p.progress * 100)}%${p.color ? `;--c:${p.color}` : ''}">${esc(p.initials)}</span>`,
+                `<span class="hb-p${p.need ? ' hb-need' : ''}${p.on ? ' hb-on' : ''}${p.soon ? ' hb-soon' : ''}" style="--p:${Math.round(p.progress * 100)}%${p.color ? `;--c:${p.color}` : ''}">${esc(p.initials)}</span>`,
             )
             .join('');
           const o = h.orders;
@@ -253,7 +254,9 @@ function addHubs(c: ContentBundle): void {
             ? `<span class="hb-o${o.crew ? ' hb-on' : ''}">${o.skills.map((k) => `<i class="hb-${k}"></i>`).join('')}⚒${o.progress !== null ? `${Math.round(o.progress * 100)}%` : o.n > 1 ? o.n : ''}</span>`
             : '';
           const name = `<b>${esc(text.anchor(a))}</b>`;
-          return `${name}${posts}${orders}`;
+          // 设施快撑不住了：红色 ! 加状况（第二轮试玩 S3）
+          const worn = h.worn !== null ? `<span class="hb-worn">!${h.worn}</span>` : '';
+          return `${name}${worn}${posts}${orders}`;
         },
         cls: () => {
           const h = hubOf(a);

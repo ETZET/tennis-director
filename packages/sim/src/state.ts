@@ -32,6 +32,8 @@ export interface PersonState {
    * 手上的岗位过了时段、工单做完、或者闲着时，自己走去其中此刻开着、空着的那个。
    */
   routine: string[];
+  /** 为了上班暂停的工单（ADR 0014）：下了班回去接着干；玩家亲手派活或叫停时清掉 */
+  resume?: string | null;
 }
 
 export interface Walk {
@@ -141,6 +143,12 @@ export interface GameState {
   condition: Record<string, number>;
   /** 本周的需求分钟和有人服务的分钟；last 是上周的服务率 */
   week: { demand: number; served: number; last: number };
+  /**
+   * 拆成几项的派生量（例如董事会信心）每一项现在的值，和上个周日收盘时的值（第二轮试玩 S2）。
+   * 每天收盘重算；没有的老存档在下一次重算时补上。
+   */
+  terms?: Record<string, Record<string, number>>;
+  termsWeek?: Record<string, Record<string, number>>;
   /** 今天每个岗位转了几圈、带来了什么（收盘时合成一条因果日志） */
   ledger: Record<string, { person: string; cycles: number; effects: EffectRecord[] }>;
   cards: {

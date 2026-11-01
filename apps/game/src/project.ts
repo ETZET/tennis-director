@@ -5,15 +5,18 @@ import {
   type ContentBundle,
   canAssign,
   DIRECTOR,
+  type Effect,
   facilityTotals,
   type GameState,
   minuteOfDay,
   minutes,
+  num,
   type OpenCard,
   type Order,
   optionStatus,
   orderStatus,
   type Post,
+  postExists,
   postStatus,
   type SimEvent,
   type SkillKind,
@@ -59,6 +62,8 @@ export class Projector {
   private readonly wire: WireItem[] = [];
   private wireId = 0;
   private readonly history: number[] = [];
+  /** 已经在快讯里提醒过"快撑不住了"的设施（回到 40 以上再清掉） */
+  private readonly worn = new Set<string>();
   private lastSample = -1;
 
   constructor(
@@ -76,7 +81,17 @@ export class Projector {
   onEvents(s: GameState, events: readonly SimEvent[]): void {
     const T = this.text;
     for (const e of events) {
-      if (e.type === 'cardOpened') this.push(s.t, T.cardTitle(e.card), false);
+      if (e.type === 'dayEnded') {
+        // 设施状况跌破 30 提醒一次（第二轮试玩 S3：状况悄悄掉到 0 没人发现）
+        for (const [f, c] of Object.entries(s.condition)) {
+          if (f === 'pool' || !(f in s.facilities)) continue;
+          if (c >= 40) this.worn.delete(f);
+          else if (c < 30 && !this.worn.has(f)) {
+            this.worn.add(f);
+            this.push(s.t, T.fmt('ui.wire.worn', { place: T.tr(`ui.fac.${f}`, f), n: Math.round(c) }), true);
+          }
+        }
+      } else if (e.type === 'cardOpened') this.push(s.t, T.cardTitle(e.card), false);
       else if (e.type === 'log') {
         const so = T.so(e.entry);
         if (!so || e.entry.cause.kind === 'start') continue;
@@ -93,6 +108,23 @@ export class Projector {
         );
       } else if (e.type === 'weekSettled') {
         this.push(s.t, T.fmt('ui.wire.week', { n: Math.round(e.serviceRate * 100) }), e.serviceRate < 0.5);
+        // 董事会信心这一周为什么变：变得最多的几项（第二轮试玩 S2）
+        const b = e.terms.board_support;
+        if (b) {
+          const sign = (v: number) => `${v > 0 ? '+' : '−'}${Math.abs(Math.round(v))}`;
+          const why = Object.entries(b.delta)
+            .filter(([, v]) => Math.round(v) !== 0)
+            .sort((x, y) => Math.abs(y[1]) - Math.abs(x[1]))
+            .slice(0, 3)
+            .map(([k, v]) => `${T.tr(`ui.terms.${k}`)} ${sign(v)}`)
+            .join(' · ');
+          const total = Object.values(b.delta).reduce((a, v) => a + v, 0);
+          this.push(
+            s.t,
+            T.fmt('ui.wire.board', { n: Math.round(b.total), d: sign(total), why: why || T.tr('ui.wire.board_flat') }),
+            total < -2,
+          );
+        }
       }
     }
   }
@@ -178,6 +210,12 @@ export class Projector {
             ...(c < 30 ? { tone: 'bad' as const } : {}),
           };
         }),
+      // 董事会信心由哪几项组成（第二轮试玩 S2：不能是黑箱）
+      ...Object.entries(s.terms?.board_support ?? {}).map(([k, v]) => ({
+        label: `${T.tr('ui.board')} · ${T.tr(`ui.terms.${k}`)}`,
+        value: `${v > 0 && k !== 'base' ? '+' : v < 0 ? '−' : ''}${Math.abs(Math.round(v))}`,
+        ...(v < 0 ? { tone: 'bad' as const } : {}),
+      })),
     ];
 
     const story: StoryItem[] = [];
@@ -232,11 +270,40 @@ export class Projector {
       label:
         days === null || s.outcome
           ? this.text.tr('ui.board')
-          : days === 0
-            ? this.text.tr('ui.board_today')
-            : this.text.fmt('ui.board_in', { days }),
+          : this.text.fmt(days === 0 ? 'ui.board_today' : 'ui.board_in', { days, odds: this.voteOdds(s) }),
       ...(v < 40 ? { tone: 'bad' as const } : {}),
     };
+  }
+
+  /**
+   * 选项里设的旗标会不会动董事会信心（第二轮试玩 S6："董事会会不耐烦"只在选完以后才看得到）：
+   * 把旗标代进董事会信心的各项算一遍，差值就是这个选项对董事会的影响。
+   */
+  private flagChips(s: GameState, effs: readonly Effect[], prob: number): Chip[] {
+    const act = this.content.acts.find((a) => a.id === s.act);
+    if (!act) return [];
+    const w = worldOf(s, this.content);
+    const out: Chip[] = [];
+    for (const [stat, terms] of Object.entries(act.rules.derived_terms)) {
+      const extra: Record<string, boolean> = {};
+      for (const e of effs) if ('flag' in e && 'set' in e) extra[`flag.${e.flag}`] = !!e.set;
+      if (!Object.keys(extra).length) continue;
+      let d = 0;
+      for (const src of Object.values(terms)) d += num(s, w, src, extra) - num(s, w, src);
+      if (Math.abs(d) < 1) continue;
+      const maybe = prob < 1 ? ` (${Math.round(prob * 100)}%)` : '';
+      out.push({
+        text: `${this.text.tr(stat === 'board_support' ? 'ui.board_short' : `stats.${stat}`)} ${d > 0 ? '+' : '−'}${Math.abs(Math.round(d))}${maybe}`,
+        tone: d > 0 ? 'gain' : 'loss',
+      });
+    }
+    return out;
+  }
+
+  /** 现在表决的话，把握有多大（百分比；幕里没写 vote_odds 时为空） */
+  private voteOdds(s: GameState): string {
+    const src = this.content.acts.find((a) => a.id === s.act)?.rules.vote_odds;
+    return src ? `${Math.round(num(s, worldOf(s, this.content), src) * 100)}%` : '';
   }
 
   /** 谁来找你：人物用名字和身份，群体用文案表里的名字 */
@@ -536,7 +603,9 @@ export class Projector {
       const st = postStatus(s, w, p);
       if (!st.exists) return false;
       const low = !!p.restore && (s.condition[w.facilityAt.get(p.at) ?? ''] ?? 100) < 70;
-      return !!st.person || (st.demand && st.inHours) || low || !!session.picked || session.place === anchor;
+      const h = minuteOfDay(s.t) / 60;
+      const soon = !!p.hours && !st.inHours && p.hours[0] > h && p.hours[0] - h <= 2;
+      return !!st.person || (st.demand && st.inHours) || soon || low || !!session.picked || session.place === anchor;
     });
     const orders = [...w.orders.values()].filter((o) => o.at === anchor && orderStatus(s, w, o).visible);
     return { posts, orders };
@@ -547,9 +616,11 @@ export class Projector {
     session: Session,
     anchor: string,
   ): {
-    posts: { initials: string; color: string; progress: number; need: boolean; on: boolean }[];
+    posts: { initials: string; color: string; progress: number; need: boolean; on: boolean; soon: boolean }[];
     orders: { n: number; skills: SkillKind[]; progress: number | null; crew: number };
     fit: 'none' | 'fit' | 'nofit';
+    /** 这儿的设施状况低于 30 时的值（地点牌上挂红色 !） */
+    worn: number | null;
   } | null {
     const { s } = session;
     const w = worldOf(s, this.content);
@@ -559,13 +630,19 @@ export class Projector {
       .map((p) => {
         const st = postStatus(s, w, p);
         const face = st.person ? this.face(st.person) : null;
+        // 两小时内就要开门、还没人管的班：地点牌上提前露出来（第二轮试玩 S8：没人告诉你泳池 11 点要人）
+        const h = minuteOfDay(s.t) / 60;
+        const owned = Object.values(s.people).some((x) => x.hired && x.routine?.includes(p.id));
+        const soon =
+          !st.person && !owned && p.hours && !st.inHours && p.hours[0] > h && p.hours[0] - h <= 2 ? p.hours[0] : null;
         return {
-          initials: face?.initials ?? '+',
+          initials: face?.initials ?? (soon !== null ? `${soon}` : '+'),
           color: face?.color ?? '',
           progress: st.progress,
           need: st.demand && st.inHours && !st.person,
           on: st.active,
-          show: !!st.person || (st.demand && st.inHours),
+          soon: soon !== null,
+          show: !!st.person || (st.demand && st.inHours) || soon !== null,
         };
       })
       // 地点牌只放此刻要紧的岗位格；拿着人时空岗位也露出来（是个落点）
@@ -588,7 +665,18 @@ export class Projector {
       posts: pp,
       orders: { n: orders.length, skills: [...new Set(orders.map((o) => o.skill))], progress: best, crew },
       fit,
+      worn: this.wornAt(s, anchor),
     };
+  }
+
+  /** 这个地点的设施状况（没有设施时为 null） */
+  conditionAt(s: GameState, anchor: string): number | null {
+    const f = worldOf(s, this.content).facilityAt.get(anchor);
+    return f && f !== 'pool' && f in s.facilities ? Math.round(s.condition[f] ?? 100) : null;
+  }
+  private wornAt(s: GameState, anchor: string): number | null {
+    const c = this.conditionAt(s, anchor);
+    return c !== null && c < 30 ? c : null;
   }
 
   /** 拿着这个人落到地点上：能接的活（只有一项就直接派） */
@@ -637,6 +725,7 @@ export class Projector {
       ]
         .slice(0, 3)
         .map((c) => (c.text === income ? { ...c, text: T.tr('ui.place.income') } : c));
+    const cond = this.conditionAt(s, anchor);
     const rows: (PlaceRow & { rank: number })[] = [];
     for (const p of posts) {
       const st = postStatus(s, w, p);
@@ -666,7 +755,8 @@ export class Projector {
         faces: st.person ? [this.face(st.person)] : [],
         chips: payoff(this.postChips(p)),
         ...(fit ? { fit } : {}),
-        rank: need ? 0 : st.person ? 2 : st.inHours ? 3 : 5,
+        // 状况低于 30 时维护岗位排到最前（第二轮试玩 S3）
+        rank: need ? 0 : p.restore && (cond ?? 100) < 30 && !st.person ? 0.5 : st.person ? 2 : st.inHours ? 3 : 5,
       });
     }
     for (const o of orders) {
@@ -711,10 +801,33 @@ export class Projector {
         rank: 9,
       });
     }
+    // 下雨关掉的户外岗位：留一行说明，免得拖过去没反应还不知道为什么（第二轮试玩 S11）
+    if (s.weather === 'rain')
+      for (const p of w.posts.values()) {
+        if (p.at !== anchor || postExists(s, w, p) || !postExists({ ...s, weather: 'sun' }, w, p)) continue;
+        rows.push({
+          id: p.id,
+          kind: 'post',
+          skill: p.skill,
+          title: this.short(p.id),
+          line: T.tr('ui.place.rain'),
+          faces: [],
+          locked: true,
+          rank: 8,
+        });
+      }
     rows.sort((a, b) => a.rank - b.rank || (a.fit?.blocked ? 1 : 0) - (b.fit?.blocked ? 1 : 0));
     return {
       id: anchor,
       title: T.anchor(anchor),
+      ...(cond !== null
+        ? {
+            condition: {
+              value: cond,
+              label: T.fmt(cond < 30 ? 'ui.place.condition_low' : 'ui.place.condition', { n: cond }),
+            },
+          }
+        : {}),
       ...(picked ? { prompt: T.fmt('ui.place.pick', { name: T.personName(picked), place: T.anchor(anchor) }) } : {}),
       rows: rows.map(({ rank: _, ...r }) => r),
       empty: T.tr('ui.place.empty'),
@@ -733,11 +846,16 @@ export class Projector {
     const T = this.text;
     const w = worldOf(s, this.content);
     let empty = 0;
+    let busy = 0;
     for (const post of w.posts.values()) {
       const st = postStatus(s, w, post);
-      if (st.exists && st.demand && st.inHours && !st.person) empty++;
+      if (st.exists && st.demand && st.inHours) {
+        busy++;
+        if (!st.person) empty++;
+      }
     }
-    return empty ? T.fmt('ui.status.empty', { n: empty }) : T.tr('ui.status.covered');
+    // 没有岗位在时段里时不说"都有人"（第二轮试玩 S12：服务率 17% 时还写着"都有人"）
+    return empty ? T.fmt('ui.status.empty', { n: empty }) : T.tr(busy ? 'ui.status.covered' : 'ui.status.quiet');
   }
 
   private card(session: Session): EventCardData | null {
@@ -777,10 +895,13 @@ export class Projector {
           tone: 'time',
         });
       if (opt) {
-        chips.push(...effectChips(T, opt.effects));
+        chips.push(...effectChips(T, opt.effects, 1, this.content.people));
+        chips.push(...this.flagChips(s, opt.effects, 1));
         if (st.chance !== null) {
           chips.push({ text: T.fmt('ui.chip.chance', { p: Math.round(st.chance * 100) }), tone: 'risk' });
-          chips.push(...effectChips(T, opt.onSuccess, st.chance));
+          chips.push(...effectChips(T, opt.onSuccess, st.chance), ...this.flagChips(s, opt.onSuccess, st.chance));
+          // 没成会怎样也要写出来（第二轮试玩 S6：抗议失败扣声望，卡上没提示）
+          chips.push(...effectChips(T, opt.onFail, 1 - st.chance), ...this.flagChips(s, opt.onFail, 1 - st.chance));
         }
       }
       const then = opt ? thenLine(T, [...opt.effects, ...opt.onSuccess]) : undefined;
@@ -793,7 +914,10 @@ export class Projector {
       if (st.blocked === 'requires') hints.push(T.tr('ui.hint.requires'));
       if (st.blocked === 'cost') hints.push(T.tr('ui.hint.cash'));
       // 代价和收益由标签讲，选项文字只留"做什么"（去掉文案里 " · " 后面手写的代价）
-      const text = T.option(o.card, st.key).split(' · ')[0] ?? '';
+      // 招聘选项留下人物的一句介绍（"维护好手"），周薪由标签讲
+      const full = T.option(o.card, st.key);
+      const hires = !!opt?.effects.some((e) => 'hire' in e);
+      const text = hires ? full.replace(/[，,]\s*(每周|\$|per week|\/week).*$/i, '') : (full.split(' · ')[0] ?? '');
       return {
         key: KEYS[i] ?? 1,
         text,

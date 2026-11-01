@@ -32,6 +32,8 @@ export function openCard(ctx: Ctx, cardId: string, cause: number | null): OpenCa
   };
   s.cards.open.push(o);
   s.cards.shown[cardId] = (s.cards.shown[cardId] ?? 0) + 1;
+  // 一张卡打开以后，导演至少隔一段时间才抽下一张（日历和后果卡照常按点来）
+  s.cards.nextDraw = Math.max(s.cards.nextDraw, s.t + minutes(w.director.gap));
   ctx.events.push({ type: 'cardOpened', uid: o.uid, card: cardId, pause: c.pause });
   if (c.pause) ctx.events.push({ type: 'requestPause', reason: cardId });
   return o;
@@ -173,6 +175,9 @@ export function openScheduled(ctx: Ctx): void {
 }
 
 /** 现在满足条件、可以被导演抽到的阈值卡和随机卡，以及各自的权重（调试面板也用它）。 */
+/** 阈值和随机卡一幕里默认最多出现几次 */
+export const MAX_SHOWN = 2;
+
 export function eligibleCards(s: GameState, w: World): { card: string; weight: number }[] {
   const pressure = directorPressure(s, w);
   const env = makeEnv(s, w, { pressure });
@@ -185,6 +190,7 @@ export function eligibleCards(s: GameState, w: World): { card: string; weight: n
   for (const c of w.cards.values()) {
     if (c.act !== s.act || (c.source !== 'threshold' && c.source !== 'random')) continue;
     if (isOnce(c) && (s.cards.shown[c.id] ?? 0) > 0) continue;
+    if ((s.cards.shown[c.id] ?? 0) >= (c.max_shown ?? MAX_SHOWN)) continue;
     if ((s.cards.cooldowns[c.id] ?? -1) > s.t) continue;
     if (s.cards.open.some((o) => o.card === c.id)) continue;
     if (s.cards.scheduled.some((x) => x.card === c.id)) continue;
@@ -219,5 +225,5 @@ export function directorDraw(ctx: Ctx): void {
   if (pick) openCard(ctx, pick, null);
   // 间隔带一点随机，抽卡不总在一天里的同一个钟点
   const base = pick ? interval : Math.round(interval / 3);
-  s.cards.nextDraw = s.t + Math.round(base * (0.75 + rand(s) * 0.5));
+  s.cards.nextDraw = Math.max(s.cards.nextDraw, s.t + Math.round(base * (0.75 + rand(s) * 0.5)));
 }

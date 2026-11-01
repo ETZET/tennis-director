@@ -71,10 +71,13 @@ describe('内容编译', () => {
   it('只被读、从未被写的标记给出警告；两个选项效果相同给出警告', () => {
     const f = files();
     f['events/hollow_creek/hc_member_saturday.yaml'] = (f['events/hollow_creek/hc_member_saturday.yaml'] as string)
-      .replace('when: { day: { gte: 2 } }', 'when: { flag: crow_friend }')
+      .replace(
+        'when: { all: [{ day: { gte: 2 } }, { not: { flag: saturday_returned } }] }',
+        'when: { flag: crow_friend }',
+      )
       .replace(
         '      - { stat: members, add: -1, chance: 0.4 }',
-        '      - { stat: members, add: 1 }\n      - { stat: pickleball_pressure, add: 6 }',
+        '      - { stat: members, add: 1 }\n      - { stat: pickleball_pressure, add: 6 }\n      - { flag: saturday_returned, set: true }',
       );
     const r = compileContent(f);
     expect(msgs(r, 'warnings')).toMatch(/flag 'crow_friend' is read but never written/);

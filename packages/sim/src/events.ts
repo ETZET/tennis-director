@@ -35,4 +35,9 @@ export type SimEvent =
   | { type: 'actEnded'; result: 'won' | 'lost'; ending: string }
   | { type: 'seasonStarted'; season: string }
   | { type: 'weather'; weather: 'sun' | 'cloud' | 'rain' | 'wind' }
-  | { type: 'weekSettled'; serviceRate: number };
+  | {
+      type: 'weekSettled';
+      serviceRate: number;
+      /** 拆成几项的派生量：周末的值和每项这一周的变化 */
+      terms: Record<string, { total: number; delta: Record<string, number> }>;
+    };
