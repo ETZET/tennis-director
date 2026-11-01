@@ -1,16 +1,6 @@
 import { createStage, hollowCreek, OrbitCamera } from '@td/render';
 import { clamp } from '@td/shared';
-import {
-  CONTENT,
-  type ContentBundle,
-  canAssign,
-  DIRECTOR,
-  type GameState,
-  orderStatus,
-  postStatus,
-  type SimEvent,
-  worldOf,
-} from '@td/sim';
+import { CONTENT, type ContentBundle, canAssign, DIRECTOR, type SimEvent, worldOf } from '@td/sim';
 import { type HudActions, mountHud, setHudStrings } from '@td/ui';
 import type * as THREE from 'three';
 import { createDebug } from './debug';
@@ -281,7 +271,10 @@ function addHubs(c: ContentBundle): void {
 function tapPlace(a: string, person: string | null = session.picked): void {
   if (person) {
     const fits = projector.placeFits(session, a, person);
-    if (fits.length === 1 && fits[0]) return assignTo(person, fits[0]);
+    if (fits.length === 1 && fits[0]) {
+      assignTo(person, fits[0]);
+      return;
+    }
     session.picked = person;
   } else if (session.place === a) {
     session.place = null;
@@ -300,7 +293,6 @@ function tapTarget(id: string): void {
     draw();
   }
 }
-const newState = (c: ContentBundle): GameState => Session.fresh(c, 1).s;
 addHubs(content);
 
 // 总监走在路上时头顶挂个"你"

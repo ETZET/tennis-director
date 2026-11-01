@@ -10,7 +10,7 @@ export { Hud, type HudHandle, mountHud } from './hud/Hud';
 export { STR, setHudStrings } from './hud/strings';
 export type * from './hud/types';
 export { Chips } from './staff/Chips';
-export { StaffBar } from './staff/StaffBar';
 export { PlaceSheet } from './staff/PlaceSheet';
+export { StaffBar } from './staff/StaffBar';
 export { TargetSheet } from './staff/TargetSheet';
 export const UI_VERSION = 2;

@@ -1,8 +1,8 @@
 import { render } from 'preact';
 import { useState } from 'preact/hooks';
 import { Chips } from '../staff/Chips';
-import { StaffBar } from '../staff/StaffBar';
 import { PlaceSheet } from '../staff/PlaceSheet';
+import { StaffBar } from '../staff/StaffBar';
 import { TargetSheet } from '../staff/TargetSheet';
 import { GRADE_COLOR, sparkPoints } from './format';
 import { STR } from './strings';
