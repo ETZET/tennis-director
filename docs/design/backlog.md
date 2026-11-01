@@ -64,6 +64,8 @@ Rebuild the Hollow Creek site plan to match [board 5](https://claude.ai/artifact
 | O2 | M0-3: upgrade three.js from r128 to the current release and retune the lighting against screenshots | Next milestone step in the technical doc | To do |
 | O3 | M0-4: move Maple Ridge, Palm Oasis and the activity library over the same way, each as a floating island | Activity library done Oct 31 (ADR 0010); Maple Ridge and Palm Oasis islands still to do | To do |
 | O4 | Time × weather looks from the Floating island page (dawn, dusk, night; wind, heat) | The sim now has seasons and daily weather, and rain is drawn; dawn, dusk, night, wind and heat looks still to do | To do |
+| O5 | Chinese is the default game language | `?lang=en` for English; HUD strings moved into i18n `ui.hud.*` | Done |
+| O6 | Desktop: projection panel covered the HUD stat strip; phone: notes hyphenated mid-word in noticeboard cells | Projection moved bottom-right; whole-word wrap at 10 px | Done |
 
 ## To do · Loop v2 playtest
 
@@ -74,9 +76,9 @@ Two review rounds on the phone build (390×844), each with a newcomer and a vete
 | P1 | Resume round 1 reviews | Newcomer on seed 11, veteran on seed 23; brief in tools/playtest/brief.md | To do |
 | P2 | Fix round 1 findings | Then rerun bots, playability and the 1,000-game determinism gate | To do |
 | P3 | Round 2 reviews and fixes | Republish the playable build afterwards and merge to main | To do |
-| P4 | Tune the idle quality drop | Default plan: quality fell 44 → 34 in two days (settles at 23); may be harsher than tenet 6 intends | To do |
-| P5 | Place labels crowd the island centre on phone | Long stems; consider shorter names or hiding labels while zoomed out | To do |
-| P6 | Delete the merged animlib-port branch | Already in main | To do |
+| P4 | Tune the idle quality drop | Quality target now has a floor of 41 (over-scheduling penalty still applies below it). Idle runs: 44 → ~40.6 on day 1, then hold at 40–41 (was 33 on day 1, settling at 20). Bots unchanged: greedy 83.6%, random 19.9% | Done |
+| P5 | Place labels crowd the island centre on phone | At the zoomed-out view only the director's place, destination and places with a card keep names; the rest are tappable dots (44 px target) | Done |
+| P6 | Delete the merged animlib-port branch | Already in main. Cloud session can't push deletes; delete it on GitHub by hand | Blocked |
 
 ## Open questions
 
