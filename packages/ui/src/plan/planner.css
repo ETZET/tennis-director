@@ -13,7 +13,8 @@
 .tdp-cell.tdp-ok{background:rgba(215,255,60,.22);border-color:#d7ff3c}
 .tdp-cell.tdp-no{opacity:.45}
 .tdp-cell.tdp-over{background:rgba(215,255,60,.55);border-style:solid}
-.tdp-cell .tdp-note{flex:1;font-size:11px;padding:14px 2px 5px;align-items:center;justify-content:center;text-align:center;word-break:normal;overflow-wrap:normal;hyphens:auto;line-height:1.15}
+/* 手机上格子只有三十来像素宽：整词换行、不按音节拆（"Junior les-son" 读着别扭） */
+.tdp-cell .tdp-note{flex:1;font-size:10px;letter-spacing:-.01em;padding:14px 1px 5px;align-items:center;justify-content:center;text-align:center;word-break:normal;overflow-wrap:normal;hyphens:manual;line-height:1.15}
 .tdp-note{position:relative;display:flex;align-items:center;padding:12px 10px 8px;color:#0f1f3a;font:700 13px/1.1 var(--td-text,sans-serif);box-shadow:0 2px 4px rgba(0,0,0,.3);cursor:grab;touch-action:none;min-height:44px;box-sizing:border-box}
 .tdp-note::before{content:"";position:absolute;top:4px;left:50%;width:7px;height:7px;margin-left:-3.5px;border-radius:50%;background:#c84a3a;box-shadow:0 1px 1px rgba(0,0,0,.4)}
 .tdp-note:active{cursor:grabbing}
@@ -33,7 +34,8 @@
 @media (min-width:900px){
   .tdp{flex-direction:row;align-items:stretch;padding:40px max(40px,env(safe-area-inset-right,0px)) 60px max(40px,env(safe-area-inset-left,0px))}
   .tdp-board{max-width:780px}
-  .tdp-proj{width:300px;align-self:flex-start;border-top-width:4px}
+  /* 放在右下：右上角是 HUD 的数值条，不压住它 */
+  .tdp-proj{width:300px;align-self:flex-end;border-top-width:4px}
   .tdp-proj dl{grid-template-columns:minmax(0,1fr) auto}
   .tdp-cell{min-height:72px}
   .tdp-cell .tdp-note{font-size:12px}
