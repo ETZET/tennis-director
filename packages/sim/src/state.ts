@@ -32,6 +32,8 @@ export interface PersonState {
    * 手上的岗位过了时段、工单做完、或者闲着时，自己走去其中此刻开着、空着的那个。
    */
   routine: string[];
+  /** 为了上班暂停的工单（ADR 0014）：下了班回去接着干；玩家亲手派活或叫停时清掉 */
+  resume?: string | null;
 }
 
 export interface Walk {

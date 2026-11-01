@@ -733,11 +733,16 @@ export class Projector {
     const T = this.text;
     const w = worldOf(s, this.content);
     let empty = 0;
+    let busy = 0;
     for (const post of w.posts.values()) {
       const st = postStatus(s, w, post);
-      if (st.exists && st.demand && st.inHours && !st.person) empty++;
+      if (st.exists && st.demand && st.inHours) {
+        busy++;
+        if (!st.person) empty++;
+      }
     }
-    return empty ? T.fmt('ui.status.empty', { n: empty }) : T.tr('ui.status.covered');
+    // 没有岗位在时段里时不说"都有人"（第二轮试玩 S12：服务率 17% 时还写着"都有人"）
+    return empty ? T.fmt('ui.status.empty', { n: empty }) : T.tr(busy ? 'ui.status.covered' : 'ui.status.quiet');
   }
 
   private card(session: Session): EventCardData | null {

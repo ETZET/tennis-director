@@ -185,6 +185,29 @@ describe('习惯（ADR 0014）', () => {
   });
 });
 
+describe('习惯：工单和班次（第二轮试玩 S4、S7）', () => {
+  it('在做工单的人班一开始就去上班，下了班回去接着做工单；按习惯换班不记"白干了"', () => {
+    const s = quiet(fresh());
+    advance(s, CONTENT, [assign('dale', null)], 0);
+    advance(s, CONTENT, [assign('director', 'deck_host')], 0);
+    // 总监上午做接待；11 点关门后没别的班，派他去清红土场（12 小时的活）
+    expect(until(s, (x) => minuteOfDay(x.t) >= 11 * 60, 4 * 60)).toBe(true);
+    advance(s, CONTENT, [assign('director', 'clay_clear')], 0);
+    // 第二天 8 点露台接待开门：放下工单去上班，11 点后回来接着清
+    expect(until(s, (x) => dayOf(x.t) === 2 && x.people.director?.job === 'deck_host', 30 * 60)).toBe(true);
+    expect(s.people.director?.resume).toBe('clay_clear');
+    expect(until(s, (x) => x.people.director?.job === 'clay_clear', 5 * 60)).toBe(true);
+    expect(minuteOfDay(s.t)).toBeGreaterThanOrEqual(11 * 60);
+  });
+  it('换班时关了门的岗位不发 postInterrupted', () => {
+    const s = quiet(fresh());
+    advance(s, CONTENT, [assign('director', 'pool_guard'), assign('director', 'deck_host')], 0);
+    const r = advance(s, CONTENT, [], 4 * 60);
+    expect(s.people.director?.job).toBe('pool_guard');
+    expect(r.events.filter((e) => e.type === 'postInterrupted')).toEqual([]);
+  });
+});
+
 describe('衰减（准则 6）', () => {
   it('放一天数字几乎不动；放一周没人管的场掉下来，状况低于 30 设施质量贡献减半', () => {
     const s = quiet(fresh());

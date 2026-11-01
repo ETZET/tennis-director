@@ -465,7 +465,8 @@ ui:
     week: "Week settled · service {n}%"
   status:
     empty: "{n} posts have customers waiting and nobody there"
-    covered: Every busy spot has someone
+    covered: Every busy spot has someone right now
+    quiet: No customers waiting right now
   staff:
     next: "Next shift {time} · {what}"
     hint: "Tap a place to send {name} there · they remember shifts"
