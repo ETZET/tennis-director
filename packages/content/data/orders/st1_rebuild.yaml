@@ -6,6 +6,7 @@ skill: upkeep
 work: 30h
 cost: 9000
 crew: 6
+once: true
 when: { facility: stadium_1, is: cleared }
 restore: 90
 effects:

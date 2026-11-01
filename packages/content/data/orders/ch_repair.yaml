@@ -6,6 +6,7 @@ skill: upkeep
 work: 14h
 cost: 1800
 crew: 3
+once: true
 when:
   all:
     - { facility: clubhouse, is: ruined }

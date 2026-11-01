@@ -6,6 +6,7 @@ skill: upkeep
 work: 10h
 cost: 1100
 crew: 3
+once: true
 when: { facility: outer_1, is: playable }
 restore: 100
 effects:

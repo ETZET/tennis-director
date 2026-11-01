@@ -98,7 +98,14 @@ export function applyEffects(ctx: Ctx, effects: readonly Effect[], entryId: numb
       p.job = null;
       p.walk = null;
       p.errand = null;
-      if (s.headCoach === e.fire) s.headCoach = null;
+      // 走的是主教练：还在的教练里接一个（Dale 开局不开除，一直都在）
+      if (s.headCoach === e.fire) {
+        const next = Object.values(s.people).find((q) => {
+          const d = w.people.get(q.id);
+          return q.hired && (d?.role === 'coach' || d?.hire_as === 'coach');
+        });
+        s.headCoach = next?.id ?? null;
+      }
       out.push({ kind: 'fire', person: e.fire });
     } else if ('person' in e) {
       const p = s.people[e.person];

@@ -6,6 +6,7 @@ skill: upkeep
 work: 3h
 cost: 250
 crew: 1
+once: true
 when: { all: [{ facility: practice, is: open }, { flag: ball_machine_kept }, { not: { flag: ball_machine } }] }
 effects:
   - { flag: ball_machine, set: true }

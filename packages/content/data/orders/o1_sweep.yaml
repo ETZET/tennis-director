@@ -5,6 +5,7 @@ at: outer_1
 skill: upkeep
 work: 3h
 crew: 2
+once: true
 when: { facility: outer_1, is: sanded }
 restore: 30
 effects:

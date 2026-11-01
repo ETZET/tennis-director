@@ -6,6 +6,7 @@ skill: upkeep
 work: 12h
 cost: 900
 crew: 3
+once: true
 when:
   all:
     - { facility: outer_23, is: ruined }

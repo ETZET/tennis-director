@@ -151,27 +151,27 @@ posts:
   st1_upkeep: { title: "Stadium 1 · Upkeep", note: "It can't break again before the exhibition" }
 orders:
   o1_sweep: { title: "Sweep the sand off Court 1", note: "Free; two people, one morning" }
-  o1_net: { title: "New net for Court 1", note: "$120, one person, one hour" }
-  o1_resurface: { title: "Resurface Court 1", note: "$1100, three people, a full day" }
+  o1_net: { title: "New net for Court 1", note: "$120, one person, one hour", locked: "Sweep the sand first" }
+  o1_resurface: { title: "Resurface Court 1", note: "$1100, three people, a full day", locked: "Once Court 1 is playable" }
   o1_tidy: { title: "Sand on Court 1 again", note: "Sweep and fix the lines" }
-  o23_repair: { title: "Repair Courts 2–3", note: "Raise the fences, two new nets" }
+  o23_repair: { title: "Repair Courts 2–3", note: "Raise the fences, two new nets", locked: "Get Court 1 back first" }
   o23_tidy: { title: "Sand on Courts 2–3 again", note: "Sweep" }
-  pr_repair: { title: "Repair the practice courts", note: "Two courts, half the fence down" }
-  pr_ball_machine: { title: "Fix the ball machine", note: "Academy lessons get better" }
+  pr_repair: { title: "Repair the practice courts", note: "Two courts, half the fence down", locked: "Repair Courts 2–3 first" }
+  pr_ball_machine: { title: "Fix the ball machine", note: "Academy lessons get better", locked: "Practice courts open, and you kept the ball machine" }
   pr_tidy: { title: "Sand on the practice courts", note: "Sweep" }
-  ch_repair: { title: "Repair the clubhouse", note: "Roof, windows, water and power" }
+  ch_repair: { title: "Repair the clubhouse", note: "Roof, windows, water and power", locked: "Get Court 1 back first" }
   ch_fix: { title: "The clubhouse is leaking again", note: "Roof, A/C or pipes" }
   flyers: { title: "Hand out flyers in town", note: "Once a week" }
-  pz_repair: { title: "Repair the plaza", note: "Unblock the fountain, put the food tent back up" }
+  pz_repair: { title: "Repair the plaza", note: "Unblock the fountain, put the food tent back up", locked: "Repair the clubhouse first" }
   pz_tidy: { title: "The fountain is blocked", note: "Clear it" }
-  st3_dig: { title: "Dig out Stadium 3", note: "Five people, several days" }
-  st3_court: { title: "Resurface Stadium 3", note: "The second step after digging" }
+  st3_dig: { title: "Dig out Stadium 3", note: "Five people, several days", locked: "Open the practice courts and the clubhouse first" }
+  st3_court: { title: "Resurface Stadium 3", note: "The second step after digging", locked: "Dig out the sand first" }
   st3_tidy: { title: "Sand in Stadium 3 again", note: "Sweep" }
-  st2_repair: { title: "Repair Stadium 2", note: "Seats, shade sails, court" }
+  st2_repair: { title: "Repair Stadium 2", note: "Seats, shade sails, court", locked: "Open Stadium 3 first" }
   st2_tidy: { title: "Sand in Stadium 2 again", note: "Sweep" }
-  st1_clear: { title: "Clear Stadium 1", note: "Haul away the collapsed southeast corner" }
-  st1_rebuild: { title: "Rebuild Stadium 1", note: "The biggest job of the game" }
-  st1_exhibition: { title: "Hold the exhibition", note: "Reputation 50+, a crew for a whole day" }
+  st1_clear: { title: "Clear Stadium 1", note: "Haul away the collapsed southeast corner", locked: "Open Stadium 2 first" }
+  st1_rebuild: { title: "Rebuild Stadium 1", note: "The biggest job of the game", locked: "Clear Stadium 1 first" }
+  st1_exhibition: { title: "Hold the exhibition", note: "Reputation 50+, a crew for a whole day", locked: "Stadium 1 rebuilt and reputation 50+" }
 seasons:
   autumn: Autumn
   winter: Winter
@@ -295,6 +295,7 @@ ui:
     worked: " (it worked)"
     failed: " (it didn't work)"
   wire:
+    grew: "The director's {skill} reached {n}"
     interrupted: "{name} was pulled off “{post}”; that round was lost"
     week: "Week settled · service {n}%"
     worn: "{place} condition down to {n}: it will lose its grade without upkeep"

@@ -99,6 +99,9 @@ export class Projector {
         this.push(s.t, so, hot);
       } else if (e.type === 'activityStarted') {
         this.push(s.t, T.tr(`activities.${e.activity}.title`), false);
+      } else if (e.type === 'directorGrew') {
+        // 总监在长进：让玩家看见（核心玩法决定）
+        this.push(s.t, T.fmt('ui.wire.grew', { skill: T.tr(`ui.skill.${e.skill}`), n: e.value }), false);
       } else if (e.type === 'postInterrupted') {
         // 拉走持续岗位的代价要让玩家看见
         this.push(

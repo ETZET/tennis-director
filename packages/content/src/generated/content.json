@@ -1,5 +1,5 @@
 {
- "version": "1faec96e",
+ "version": "802c55b7",
  "stats": [
   {
    "id": "cash",
@@ -1032,7 +1032,7 @@
     ]
    },
    "crew": 3,
-   "once": false,
+   "once": true,
    "restore": 80,
    "effects": [
     {
@@ -1088,7 +1088,7 @@
     "is": "swept"
    },
    "crew": 1,
-   "once": false,
+   "once": true,
    "restore": 20,
    "effects": [
     {
@@ -1114,7 +1114,7 @@
     "is": "playable"
    },
    "crew": 3,
-   "once": false,
+   "once": true,
    "restore": 100,
    "effects": [
     {
@@ -1142,7 +1142,7 @@
     "is": "sanded"
    },
    "crew": 2,
-   "once": false,
+   "once": true,
    "restore": 30,
    "effects": [
     {
@@ -1215,7 +1215,7 @@
     ]
    },
    "crew": 3,
-   "once": false,
+   "once": true,
    "restore": 80,
    "effects": [
     {
@@ -1280,7 +1280,7 @@
     ]
    },
    "crew": 1,
-   "once": false,
+   "once": true,
    "restore": 0,
    "effects": [
     {
@@ -1314,7 +1314,7 @@
     ]
    },
    "crew": 3,
-   "once": false,
+   "once": true,
    "restore": 80,
    "effects": [
     {
@@ -1375,7 +1375,7 @@
     ]
    },
    "crew": 3,
-   "once": false,
+   "once": true,
    "restore": 80,
    "effects": [
     {
@@ -1436,7 +1436,7 @@
     ]
    },
    "crew": 6,
-   "once": false,
+   "once": true,
    "restore": 30,
    "effects": [
     {
@@ -1512,7 +1512,7 @@
     "is": "cleared"
    },
    "crew": 6,
-   "once": false,
+   "once": true,
    "restore": 90,
    "effects": [
     {
@@ -1551,7 +1551,7 @@
     ]
    },
    "crew": 5,
-   "once": false,
+   "once": true,
    "restore": 80,
    "effects": [
     {
@@ -1607,7 +1607,7 @@
     "is": "dug"
    },
    "crew": 3,
-   "once": false,
+   "once": true,
    "restore": 60,
    "effects": [
     {
@@ -1650,7 +1650,7 @@
     ]
    },
    "crew": 5,
-   "once": false,
+   "once": true,
    "restore": 40,
    "effects": [
     {
@@ -2818,46 +2818,59 @@
    "orders.o1_sweep.note": "Free; two people, one morning",
    "orders.o1_net.title": "New net for Court 1",
    "orders.o1_net.note": "$120, one person, one hour",
+   "orders.o1_net.locked": "Sweep the sand first",
    "orders.o1_resurface.title": "Resurface Court 1",
    "orders.o1_resurface.note": "$1100, three people, a full day",
+   "orders.o1_resurface.locked": "Once Court 1 is playable",
    "orders.o1_tidy.title": "Sand on Court 1 again",
    "orders.o1_tidy.note": "Sweep and fix the lines",
    "orders.o23_repair.title": "Repair Courts 2–3",
    "orders.o23_repair.note": "Raise the fences, two new nets",
+   "orders.o23_repair.locked": "Get Court 1 back first",
    "orders.o23_tidy.title": "Sand on Courts 2–3 again",
    "orders.o23_tidy.note": "Sweep",
    "orders.pr_repair.title": "Repair the practice courts",
    "orders.pr_repair.note": "Two courts, half the fence down",
+   "orders.pr_repair.locked": "Repair Courts 2–3 first",
    "orders.pr_ball_machine.title": "Fix the ball machine",
    "orders.pr_ball_machine.note": "Academy lessons get better",
+   "orders.pr_ball_machine.locked": "Practice courts open, and you kept the ball machine",
    "orders.pr_tidy.title": "Sand on the practice courts",
    "orders.pr_tidy.note": "Sweep",
    "orders.ch_repair.title": "Repair the clubhouse",
    "orders.ch_repair.note": "Roof, windows, water and power",
+   "orders.ch_repair.locked": "Get Court 1 back first",
    "orders.ch_fix.title": "The clubhouse is leaking again",
    "orders.ch_fix.note": "Roof, A/C or pipes",
    "orders.flyers.title": "Hand out flyers in town",
    "orders.flyers.note": "Once a week",
    "orders.pz_repair.title": "Repair the plaza",
    "orders.pz_repair.note": "Unblock the fountain, put the food tent back up",
+   "orders.pz_repair.locked": "Repair the clubhouse first",
    "orders.pz_tidy.title": "The fountain is blocked",
    "orders.pz_tidy.note": "Clear it",
    "orders.st3_dig.title": "Dig out Stadium 3",
    "orders.st3_dig.note": "Five people, several days",
+   "orders.st3_dig.locked": "Open the practice courts and the clubhouse first",
    "orders.st3_court.title": "Resurface Stadium 3",
    "orders.st3_court.note": "The second step after digging",
+   "orders.st3_court.locked": "Dig out the sand first",
    "orders.st3_tidy.title": "Sand in Stadium 3 again",
    "orders.st3_tidy.note": "Sweep",
    "orders.st2_repair.title": "Repair Stadium 2",
    "orders.st2_repair.note": "Seats, shade sails, court",
+   "orders.st2_repair.locked": "Open Stadium 3 first",
    "orders.st2_tidy.title": "Sand in Stadium 2 again",
    "orders.st2_tidy.note": "Sweep",
    "orders.st1_clear.title": "Clear Stadium 1",
    "orders.st1_clear.note": "Haul away the collapsed southeast corner",
+   "orders.st1_clear.locked": "Open Stadium 2 first",
    "orders.st1_rebuild.title": "Rebuild Stadium 1",
    "orders.st1_rebuild.note": "The biggest job of the game",
+   "orders.st1_rebuild.locked": "Clear Stadium 1 first",
    "orders.st1_exhibition.title": "Hold the exhibition",
    "orders.st1_exhibition.note": "Reputation 50+, a crew for a whole day",
+   "orders.st1_exhibition.locked": "Stadium 1 rebuilt and reputation 50+",
    "seasons.autumn": "Autumn",
    "seasons.winter": "Winter",
    "seasons.spring": "Spring · windy season",
@@ -2986,6 +2999,7 @@
    "ui.because.order": "{names} finished “{order}”",
    "ui.because.worked": " (it worked)",
    "ui.because.failed": " (it didn't work)",
+   "ui.wire.grew": "The director's {skill} reached {n}",
    "ui.wire.interrupted": "{name} was pulled off “{post}”; that round was lost",
    "ui.wire.week": "Week settled · service {n}%",
    "ui.wire.worn": "{place} condition down to {n}: it will lose its grade without upkeep",
@@ -3186,46 +3200,59 @@
    "orders.o1_sweep.note": "不花钱，两个人一个上午",
    "orders.o1_net.title": "给外场 1 换网",
    "orders.o1_net.note": "$120，一个人一小时",
+   "orders.o1_net.locked": "先把沙扫掉",
    "orders.o1_resurface.title": "外场 1 重新铺面",
    "orders.o1_resurface.note": "$1100，三个人一整天",
+   "orders.o1_resurface.locked": "外场 1 能打以后",
    "orders.o1_tidy.title": "外场 1 又积沙了",
    "orders.o1_tidy.note": "扫一扫、补补线",
    "orders.o23_repair.title": "修外场 2–3",
    "orders.o23_repair.note": "扶起围网、换两张网",
+   "orders.o23_repair.locked": "先把外场 1 救回来",
    "orders.o23_tidy.title": "外场 2–3 又积沙了",
    "orders.o23_tidy.note": "扫一扫",
    "orders.pr_repair.title": "修练习场",
    "orders.pr_repair.note": "两块场地，围网倒了一半",
+   "orders.pr_repair.locked": "先修好外场 2–3",
    "orders.pr_ball_machine.title": "修发球机",
    "orders.pr_ball_machine.note": "学院的课从此扎实一截",
+   "orders.pr_ball_machine.locked": "练习场开放、开局留下了发球机",
    "orders.pr_tidy.title": "练习场又积沙了",
    "orders.pr_tidy.note": "扫一扫",
    "orders.ch_repair.title": "修会所",
    "orders.ch_repair.note": "补屋顶、换窗、通水电",
+   "orders.ch_repair.locked": "先把外场 1 救回来",
    "orders.ch_fix.title": "会所又漏了",
    "orders.ch_fix.note": "屋顶、空调、水管",
    "orders.flyers.title": "去镇上发传单",
    "orders.flyers.note": "一周一次",
    "orders.pz_repair.title": "修广场",
    "orders.pz_repair.note": "通喷泉、架回餐饮棚",
+   "orders.pz_repair.locked": "先修好会所",
    "orders.pz_tidy.title": "喷泉又堵了",
    "orders.pz_tidy.note": "清一清",
    "orders.st3_dig.title": "把 Stadium 3 挖出来",
    "orders.st3_dig.note": "五个人干好几天",
+   "orders.st3_dig.locked": "先修好练习场和会所",
    "orders.st3_court.title": "Stadium 3 铺场地",
    "orders.st3_court.note": "挖出来以后的第二步",
+   "orders.st3_court.locked": "先把沙挖出来",
    "orders.st3_tidy.title": "Stadium 3 又积沙了",
    "orders.st3_tidy.note": "扫一扫",
    "orders.st2_repair.title": "修 Stadium 2",
    "orders.st2_repair.note": "换座位、补遮阳布、铺场地",
+   "orders.st2_repair.locked": "先让 Stadium 3 开放",
    "orders.st2_tidy.title": "Stadium 2 又积沙了",
    "orders.st2_tidy.note": "扫一扫",
    "orders.st1_clear.title": "清理 Stadium 1",
    "orders.st1_clear.note": "搬走塌下来的东南角",
+   "orders.st1_clear.locked": "先让 Stadium 2 开放",
    "orders.st1_rebuild.title": "重建 Stadium 1",
    "orders.st1_rebuild.note": "整局最大的一笔",
+   "orders.st1_rebuild.locked": "先清理 Stadium 1",
    "orders.st1_exhibition.title": "办表演赛",
    "orders.st1_exhibition.note": "声望 50 以上，一群人张罗一整天",
+   "orders.st1_exhibition.locked": "Stadium 1 重建完成、声望 50 以上",
    "seasons.autumn": "秋天",
    "seasons.winter": "冬天",
    "seasons.spring": "春天 · 风季",
@@ -3354,6 +3381,7 @@
    "ui.because.order": "{names}做完了“{order}”",
    "ui.because.worked": "（成了）",
    "ui.because.failed": "（没成）",
+   "ui.wire.grew": "总监的{skill}能力到 {n} 了",
    "ui.wire.interrupted": "{name}被叫离“{post}”，这一圈白干了",
    "ui.wire.week": "本周结算 · 服务率 {n}%",
    "ui.wire.worn": "{place}状况跌到 {n}：没人维护就会掉档",

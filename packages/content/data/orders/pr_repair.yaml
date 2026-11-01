@@ -6,6 +6,7 @@ skill: upkeep
 work: 10h
 cost: 800
 crew: 3
+once: true
 when: { all: [{ facility: practice, is: ruined }, { facility: outer_23, is: playable }] }
 restore: 80
 effects:

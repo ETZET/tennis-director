@@ -151,27 +151,27 @@ posts:
   st1_upkeep: { title: "Stadium 1 · 维护", note: "表演赛之前不能再坏" }
 orders:
   o1_sweep: { title: "扫外场 1 的沙", note: "不花钱，两个人一个上午" }
-  o1_net: { title: "给外场 1 换网", note: "$120，一个人一小时" }
-  o1_resurface: { title: "外场 1 重新铺面", note: "$1100，三个人一整天" }
+  o1_net: { title: "给外场 1 换网", note: "$120，一个人一小时", locked: "先把沙扫掉" }
+  o1_resurface: { title: "外场 1 重新铺面", note: "$1100，三个人一整天", locked: "外场 1 能打以后" }
   o1_tidy: { title: "外场 1 又积沙了", note: "扫一扫、补补线" }
-  o23_repair: { title: "修外场 2–3", note: "扶起围网、换两张网" }
+  o23_repair: { title: "修外场 2–3", note: "扶起围网、换两张网", locked: "先把外场 1 救回来" }
   o23_tidy: { title: "外场 2–3 又积沙了", note: "扫一扫" }
-  pr_repair: { title: "修练习场", note: "两块场地，围网倒了一半" }
-  pr_ball_machine: { title: "修发球机", note: "学院的课从此扎实一截" }
+  pr_repair: { title: "修练习场", note: "两块场地，围网倒了一半", locked: "先修好外场 2–3" }
+  pr_ball_machine: { title: "修发球机", note: "学院的课从此扎实一截", locked: "练习场开放、开局留下了发球机" }
   pr_tidy: { title: "练习场又积沙了", note: "扫一扫" }
-  ch_repair: { title: "修会所", note: "补屋顶、换窗、通水电" }
+  ch_repair: { title: "修会所", note: "补屋顶、换窗、通水电", locked: "先把外场 1 救回来" }
   ch_fix: { title: "会所又漏了", note: "屋顶、空调、水管" }
   flyers: { title: "去镇上发传单", note: "一周一次" }
-  pz_repair: { title: "修广场", note: "通喷泉、架回餐饮棚" }
+  pz_repair: { title: "修广场", note: "通喷泉、架回餐饮棚", locked: "先修好会所" }
   pz_tidy: { title: "喷泉又堵了", note: "清一清" }
-  st3_dig: { title: "把 Stadium 3 挖出来", note: "五个人干好几天" }
-  st3_court: { title: "Stadium 3 铺场地", note: "挖出来以后的第二步" }
+  st3_dig: { title: "把 Stadium 3 挖出来", note: "五个人干好几天", locked: "先修好练习场和会所" }
+  st3_court: { title: "Stadium 3 铺场地", note: "挖出来以后的第二步", locked: "先把沙挖出来" }
   st3_tidy: { title: "Stadium 3 又积沙了", note: "扫一扫" }
-  st2_repair: { title: "修 Stadium 2", note: "换座位、补遮阳布、铺场地" }
+  st2_repair: { title: "修 Stadium 2", note: "换座位、补遮阳布、铺场地", locked: "先让 Stadium 3 开放" }
   st2_tidy: { title: "Stadium 2 又积沙了", note: "扫一扫" }
-  st1_clear: { title: "清理 Stadium 1", note: "搬走塌下来的东南角" }
-  st1_rebuild: { title: "重建 Stadium 1", note: "整局最大的一笔" }
-  st1_exhibition: { title: "办表演赛", note: "声望 50 以上，一群人张罗一整天" }
+  st1_clear: { title: "清理 Stadium 1", note: "搬走塌下来的东南角", locked: "先让 Stadium 2 开放" }
+  st1_rebuild: { title: "重建 Stadium 1", note: "整局最大的一笔", locked: "先清理 Stadium 1" }
+  st1_exhibition: { title: "办表演赛", note: "声望 50 以上，一群人张罗一整天", locked: "Stadium 1 重建完成、声望 50 以上" }
 seasons:
   autumn: 秋天
   winter: 冬天
@@ -286,6 +286,7 @@ ui:
     worked: （成了）
     failed: （没成）
   wire:
+    grew: "总监的{skill}能力到 {n} 了"
     interrupted: "{name}被叫离“{post}”，这一圈白干了"
     week: "本周结算 · 服务率 {n}%"
     worn: "{place}状况跌到 {n}：没人维护就会掉档"

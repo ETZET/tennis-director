@@ -6,6 +6,7 @@ skill: upkeep
 work: 12h
 cost: 2000
 crew: 3
+once: true
 when: { all: [{ facility: plaza, is: dry }, { facility: clubhouse, is: open }] }
 restore: 80
 effects:

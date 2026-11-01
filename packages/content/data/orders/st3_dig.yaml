@@ -6,6 +6,7 @@ skill: upkeep
 work: 24h
 cost: 300
 crew: 5
+once: true
 when: { all: [{ facility: stadium_3, is: buried }, { facility: practice, is: open }, { facility: clubhouse, is: open }] }
 restore: 40
 effects:

@@ -377,10 +377,9 @@ export function createGameScene(stage: Stage, content0: ContentBundle, site: Sit
       if (sdt > 0 && dist > 0.01) who.go(target.x, target.z, Math.max(1.2, dist / sdt));
       if (!p.walk) {
         // 站着的时候面朝地点的中心（球场、喷泉、会所）
-        const look = site.courts[p.at]?.[0] ?? site.anchors[p.at];
-        const lx = look && 'ox' in look ? look.ox : look?.x;
-        const lz = look && 'oz' in look ? look.oz : look?.z;
-        who.idleFace = lx !== undefined && lz !== undefined ? Math.atan2(lx - who.pos.x, lz - who.pos.z) : null;
+        const fr = site.courts[p.at]?.[0];
+        const look = fr ? { x: fr.ox, z: fr.oz } : site.anchors[p.at];
+        who.idleFace = look ? Math.atan2(look.x - who.pos.x, look.z - who.pos.z) : null;
       }
     }
   }
@@ -486,7 +485,16 @@ export function createGameScene(stage: Stage, content0: ContentBundle, site: Sit
           running.get(e.uid)?.stop();
           running.delete(e.uid);
         } else if (e.type === 'log') {
-          for (const x of e.entry.effects) if (x.kind === 'facility') overlays.set(x.facility, x.state);
+          for (const x of e.entry.effects)
+            if (x.kind === 'facility') {
+              overlays.set(x.facility, x.state);
+              // 修好了：镜头过去看一眼（ADR 0015：修好就是解锁，画面也跟着复原）
+              const at = w.facilities.get(x.facility)?.anchor;
+              if (at) {
+                focusAnchor = at;
+                focusUntil = sched.now + 4;
+              }
+            }
         } else if (e.type === 'cardOpened') {
           const c = w.cards.get(e.card);
           const loc = c?.stage?.anchor ?? c?.location;

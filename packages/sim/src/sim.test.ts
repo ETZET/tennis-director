@@ -2,6 +2,7 @@ import { CONTENT, type ContentBundle } from '@td/content';
 import { describe, expect, it } from 'vitest';
 import { greedyBot, idleBot, randomBot, runGame } from './bots';
 import { optionStatus } from './cards';
+import { run } from './effects';
 import { advance, newGame, replay, stateHash, step } from './game';
 import { fromSave, SaveError, toSave } from './save';
 import { canAssign, orderStatus, postStatus } from './staff';
@@ -289,6 +290,15 @@ describe('总监成长（核心玩法决定）', () => {
     expect(s.people.director?.service).toBeCloseTo(d0 + 6 * 0.3);
     expect(s.people.dale?.service).toBe(dale0);
   });
+  it('能力跨过整十时发一个事件（界面上的快讯）', () => {
+    const s = quiet(court1(fresh()));
+    (s.people.director as { service: number }).service = 49.9;
+    advance(s, CONTENT, [assign('director', 'o1_rental')], 0);
+    let grew = null as unknown;
+    for (let i = 0; i < 90 && !grew; i++)
+      grew = advance(s, CONTENT, [], 1).events.find((e) => e.type === 'directorGrew') ?? null;
+    expect(grew).toEqual({ type: 'directorGrew', skill: 'service', value: 50 });
+  });
 });
 
 describe('衰减（准则 6）', () => {
@@ -398,6 +408,15 @@ describe('事件卡', () => {
     expect(s.headCoach).toBe('jess_park');
     expect(s.people.dale?.hired).toBe(true);
     expect(Number(W().expr('wages_week').eval(makeEnv(s, W())))).toBe(150 + 180 + 260);
+  });
+
+  it('辞掉接任的主教练：Dale 接回主教练', () => {
+    const s = quiet(fresh());
+    advance(s, CONTENT, [{ type: 'chooseOption', uid: open(s, 'iw_hiring_day_2'), option: 'A' }], 0);
+    expect(s.headCoach).toBe('jess_park');
+    run({ s, w: W(), events: [] }, { kind: 'debug', what: 'fire' }, null, [{ fire: 'jess_park' }]);
+    expect(s.people.jess_park?.hired).toBe(false);
+    expect(s.headCoach).toBe('dale');
   });
 });
 

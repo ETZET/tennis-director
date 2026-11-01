@@ -6,6 +6,7 @@ skill: upkeep
 work: 1h
 cost: 120
 crew: 1
+once: true
 when: { facility: outer_1, is: swept }
 restore: 20
 effects:

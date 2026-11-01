@@ -6,6 +6,7 @@ skill: upkeep
 work: 8h
 cost: 2400
 crew: 3
+once: true
 when: { facility: stadium_3, is: dug }
 restore: 60
 effects:
