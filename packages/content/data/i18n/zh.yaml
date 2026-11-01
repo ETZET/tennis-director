@@ -343,6 +343,30 @@ roles:
   rival: 对手
 
 ui:
+  hud:
+    quality: 质量
+    members: 会员
+    courtsOpen: 开放场地
+    salary: 你的薪水
+    details: 会所报告
+    paused: 已暂停
+    notYet: 还没有
+    failZone: 低于 40 是 F 级
+    qualityChart: 本局项目质量
+    headCoach: 主教练
+    vacant: 空缺
+    wire: 会所快讯
+    rotateLeft: 向左转（Q）
+    rotateRight: 向右转（E）
+    pause: 暂停（空格）
+    resume: 继续（空格）
+    speed: 换速度
+    story: 我们怎么走到这一步
+    because: 因为
+    so: 所以
+    more: "还有 {n} 条"
+    walkThere: 要先走过去
+    trend: { falling: 在下滑, recovering: 在回升, flat: 持平, bottomed: 见底了 }
   week: "第 {n} 周"
   weather: { sun: 晴, cloud: 多云, rain: 下雨 · 露天场地关闭, wind: 大风 }
   days: { "0": 一, "1": 二, "2": 三, "3": 四, "4": 五, "5": 六, "6": 日 }
@@ -409,7 +433,7 @@ ui:
     cash: 现金不够
   details:
     wages: 每周工资
-    courts: Courts open
+    courts: 开放场地
     director: 导演风格
     seed: 种子
   activity: "{title} · 还剩 {time}"

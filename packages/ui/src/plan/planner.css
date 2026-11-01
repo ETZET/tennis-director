@@ -8,6 +8,7 @@
 .tdp-grid{flex:1 1 auto;min-height:0;display:grid;gap:5px;grid-template-rows:auto repeat(3,minmax(58px,1fr))}
 .tdp-day{font:800 12px/1 var(--td-cond,sans-serif);text-align:center;letter-spacing:.06em;text-transform:uppercase}
 .tdp-part{font:800 11px/1.05 var(--td-cond,sans-serif);letter-spacing:.04em;text-transform:uppercase;display:flex;align-items:center;writing-mode:vertical-rl;transform:rotate(180deg);justify-content:center}
+:lang(zh) .tdp-part{writing-mode:horizontal-tb;transform:none;font-size:13px;line-height:1.25;letter-spacing:0;word-break:break-all;width:1em;margin:0 auto;text-align:center}
 .tdp-cell{min-height:58px;background:rgba(255,255,255,.16);border:1.5px dashed rgba(255,255,255,.5);display:flex;align-items:stretch;justify-content:stretch;position:relative}
 .tdp-cell.tdp-ok{background:rgba(215,255,60,.22);border-color:#d7ff3c}
 .tdp-cell.tdp-no{opacity:.45}

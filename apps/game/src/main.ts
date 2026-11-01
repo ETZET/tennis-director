@@ -1,7 +1,7 @@
 import { createStage, hollowCreek, OrbitCamera } from '@td/render';
 import { clamp, PACE } from '@td/shared';
 import { CONTENT, type ContentBundle, type GameState, type SimEvent, worldOf } from '@td/sim';
-import { type HudActions, mountHud } from '@td/ui';
+import { type HudActions, mountHud, setHudStrings } from '@td/ui';
 import type * as THREE from 'three';
 import { createDebug } from './debug';
 import { GameLabels } from './labels';
@@ -26,11 +26,14 @@ const $ = <T extends HTMLElement = HTMLElement>(id: string): T => {
   return el as T;
 };
 const params = new URLSearchParams(location.search);
-const lang: Lang = params.get('lang') === 'zh' ? 'zh' : 'en';
+/** 默认中文；?lang=en 换成英文 */
+const lang: Lang = params.get('lang') === 'en' ? 'en' : 'zh';
 document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en';
 
 let content: ContentBundle = CONTENT;
 let text = createText(content, lang);
+const applyHudStrings = () => setHudStrings((k) => text.tr(`ui.hud.${k}`, '') || undefined);
+applyHudStrings();
 
 /* ---------- 舞台 ---------- */
 const container = $('stage');
@@ -288,6 +291,7 @@ void boot();
 function setContent(c: ContentBundle): void {
   content = c;
   text = createText(c, lang);
+  applyHudStrings();
   session.content = c;
   projector.setContent(c, text);
   scene.setContent(c);
