@@ -24,7 +24,11 @@ function Token({ t, actions }: { t: StaffToken; actions: HudActions }) {
   const onMove = (e: PointerEvent) => {
     const s0 = start.current;
     if (!s0 || s0.id !== e.pointerId) return;
-    if (drag || Math.hypot(e.clientX - s0.x, e.clientY - s0.y) > 8) setDrag({ x: e.clientX, y: e.clientY });
+    if (drag || Math.hypot(e.clientX - s0.x, e.clientY - s0.y) > 8) {
+      // 一开始拖就算拿起来：场景里能去的岗位和工单亮起来
+      if (!drag && !t.picked) actions.pick?.(t.id);
+      setDrag({ x: e.clientX, y: e.clientY });
+    }
   };
   const onUp = (e: PointerEvent) => {
     const s0 = start.current;

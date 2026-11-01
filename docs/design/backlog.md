@@ -75,9 +75,12 @@ Two review rounds on the phone build (390×844), each with a newcomer and a vete
 | --- | --- | --- | --- |
 | P1 | Resume round 1 reviews | Nov 1, Chinese UI. Newcomer (seed 11): 5.0 avg, lost the vote at board 88. Veteran (seed 23): 4.4 avg, won with 171 members; idle control run lost. Scores and findings below | Done — awaiting sign-off |
 | P2 | Fix round 1 findings | Superseded by the staffing loop (ADR 0012): R1 and R7 go away with the noticeboard and energy; the rest are rechecked on the new loop | Superseded |
-| P7 | Staffing loop: sim and content (staff, posts, work orders, condition decay, `assign` command, save v3) | ADR 0012 | In progress |
-| P8 | Staffing loop: phone UI (drag people onto post outlines and work-order markers, two-tap assign, progress rings and bars); remove noticeboard and action ring | ADR 0012 | To do |
-| P9 | Staffing loop: bots, balance report, determinism gate; then round 2 reviews (P3) on the new loop | ADR 0012 | To do |
+| P7 | Staffing loop: sim and content (staff, posts, work orders, condition decay, `assign` command, save v3) | 13 posts, 16 work orders, two hiring days, errands replace "walk there first" options | Done |
+| P8 | Staffing loop: phone UI (drag people onto post and job markers, tap-to-pick, progress, info sheet); remove noticeboard and action ring | Staff strip in the thumb zone, markers in the scene, bottom sheet; playtest bridge and brief updated | Done |
+| P9 | Staffing loop: bots, balance report, determinism gate | Bots greedy / cautious / random / idle; report regenerated; gate passed | Done |
+| P10 | Draw facility condition in the scene: weeds, leaves, litter appear before the grade drops (tenet 6: "visible first, then in the numbers") | Sim tracks `condition`; render does not show it yet | To do |
+| P11 | Staff people have no idle animation of their own at posts without a performance (deck host, upkeep, pool); add simple work gestures per skill | Director gestures; others stand | To do |
+| P12 | Balance pass after round 2: greedy board is ~67 on day 21 and the vote stays open; cash still builds late in the act | First-pass numbers in ADR 0012 | To do |
 | P3 | Round 2 reviews and fixes | Republish the playable build afterwards and merge to main | To do |
 | P4 | Tune the idle quality drop | Quality target now has a floor of 41 (over-scheduling penalty still applies below it). Idle runs: 44 → ~40.6 on day 1, then hold at 40–41 (was 33 on day 1, settling at 20). Bots unchanged: greedy 83.6%, random 19.9% | Done |
 | P5 | Place labels crowd the island centre on phone | At the zoomed-out view only the director's place, destination and places with a card keep names; the rest are tappable dots (44 px target) | Done |
