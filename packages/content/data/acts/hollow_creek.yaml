@@ -87,6 +87,7 @@ rules:
         (flag.match_won ? 8 : 0) + (flag.match_played ? 2 : 0) - (flag.pickleball_lease ? 3 : 0)
         + (flag.chair_impressed ? 6 : 0) - (flag.chair_worried ? 6 : 0) - (flag.board_impatient ? 8 : 0)
         + (flag.open_house_held ? 6 : 0) + (flag.turnaround_promised ? 10 : 0) - (flag.broken_promise ? 18 : 0)
+        - (flag.developer_declined ? 3 : 0)
   # 表决把握：和表决卡"亲自陈述"的成功率同一条公式
   vote_odds: clamp((stat.board_support - 40) / 50, 0.08, 0.85)
   lose_if:

@@ -15,10 +15,14 @@ options:
     effects:
       - { stat: quality, add: 3 }
       - { flag: volunteer_helping, set: true }
+      # Dale 觉得自己被顶替了
+      - { person: dale, add: { morale: -8 } }
   B:
     # 请他帮忙招生
     effects:
       - { stat: members, add: "round(1 + rand() * 2)" }
+      # 印传单的钱
+      - { stat: cash, add: -40 }
   C:
     # 婉拒：他到处说你待人周到
     effects:

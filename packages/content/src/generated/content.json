@@ -1,5 +1,5 @@
 {
- "version": "c8c0ba94",
+ "version": "c084a46e",
  "stats": [
   {
    "id": "cash",
@@ -374,6 +374,7 @@
    "id": "dramatic",
    "interval": "60m",
    "max_open": 3,
+   "gap": "4h",
    "pressure": "clamp((1500 - stat.cash) / 1500, 0, 1) * 0.4 + clamp(open_cards / 3, 0, 1) * 0.3 + clamp((50 - stat.quality) / 30, 0, 1) * 0.3",
    "weights": {
     "crisis": "1 + pressure",
@@ -386,6 +387,7 @@
    "id": "random",
    "interval": "75m",
    "max_open": 2,
+   "gap": "4h",
    "pressure": "0",
    "weights": {
     "crisis": 1,
@@ -398,6 +400,7 @@
    "id": "steady",
    "interval": "2d",
    "max_open": 1,
+   "gap": "4h",
    "pressure": "clamp((1500 - stat.cash) / 1500, 0, 1) * 0.4 + clamp(open_cards / 3, 0, 1) * 0.3 + clamp((50 - stat.quality) / 30, 0, 1) * 0.3",
    "weights": {
     "crisis": "1.2 - pressure",
@@ -1630,7 +1633,7 @@
       "members": "(stat.members - 50) * 0.5",
       "reputation": "(stat.reputation - 40) * 0.4",
       "expectations": "-max(0, day - 7) * 0.6",
-      "events": "(flag.match_won ? 8 : 0) + (flag.match_played ? 2 : 0) - (flag.pickleball_lease ? 3 : 0) + (flag.chair_impressed ? 6 : 0) - (flag.chair_worried ? 6 : 0) - (flag.board_impatient ? 8 : 0) + (flag.open_house_held ? 6 : 0) + (flag.turnaround_promised ? 10 : 0) - (flag.broken_promise ? 18 : 0)"
+      "events": "(flag.match_won ? 8 : 0) + (flag.match_played ? 2 : 0) - (flag.pickleball_lease ? 3 : 0) + (flag.chair_impressed ? 6 : 0) - (flag.chair_worried ? 6 : 0) - (flag.board_impatient ? 8 : 0) + (flag.open_house_held ? 6 : 0) + (flag.turnaround_promised ? 10 : 0) - (flag.broken_promise ? 18 : 0) - (flag.developer_declined ? 3 : 0)"
      }
     },
     "vote_odds": "clamp((stat.board_support - 40) / 50, 0.08, 0.85)",
@@ -1857,7 +1860,7 @@
     "B": {
      "effects": [],
      "check": {
-      "chance": "clamp((stat.board_support - 50) / 50, 0.05, 0.75)"
+      "chance": "clamp((stat.quality - 45) / 50 + (stat.members - 60) / 100, 0.05, 0.8)"
      },
      "onSuccess": [
       {
@@ -2801,9 +2804,18 @@
    "source": "random",
    "tone": "neutral",
    "when": {
-    "day": {
-     "gte": 2
-    }
+    "all": [
+     {
+      "day": {
+       "gte": 2
+      }
+     },
+     {
+      "not": {
+       "flag": "saturday_returned"
+      }
+     }
+    ]
    },
    "weight": 0.6,
    "cooldown": "10d",
@@ -2821,6 +2833,10 @@
       {
        "stat": "pickleball_pressure",
        "add": 6
+      },
+      {
+       "flag": "saturday_returned",
+       "set": true
       }
      ],
      "onSuccess": [],
@@ -3678,6 +3694,12 @@
       {
        "flag": "volunteer_helping",
        "set": true
+      },
+      {
+       "person": "dale",
+       "add": {
+        "morale": -8
+       }
       }
      ],
      "onSuccess": [],
@@ -3688,6 +3710,10 @@
       {
        "stat": "members",
        "add": "round(1 + rand() * 2)"
+      },
+      {
+       "stat": "cash",
+       "add": -40
       }
      ],
      "onSuccess": [],
@@ -3988,7 +4014,7 @@
    "events.hc_community_match.options.C": "Forfeit · reputation −5, juniors rest",
    "events.hc_board_vote.topic": "Board vote",
    "events.hc_board_vote.title": "The board votes on selling the club",
-   "events.hc_board_vote.body": "Board confidence decides it. Present in person on the deck, or let the numbers speak.",
+   "events.hc_board_vote.body": "Present in person and board confidence decides it; let the numbers speak and program quality and members decide it.",
    "events.hc_board_vote.options.A": "Present in person on the deck",
    "events.hc_board_vote.options.B": "Let the numbers speak for themselves",
    "events.hc_who_follows.topic": "Next chapter",
@@ -4175,6 +4201,7 @@
    "ui.ctx.members": "Members {n}",
    "ui.ctx.service": "Service this week {n}%",
    "ui.board": "Board confidence",
+   "ui.board_short": "Board",
    "ui.board_in": "Board · {odds} odds · {days}d",
    "ui.board_today": "Board · {odds} odds · today",
    "ui.club.name": "Hollow Creek TC",
@@ -4444,9 +4471,9 @@
    "events.hc_volunteer_coach.topic": "会员",
    "events.hc_volunteer_coach.title": "一位退休会员想周末来帮忙带课",
    "events.hc_volunteer_coach.body": "他四十年前打过大学校队，正手还在。",
-   "events.hc_volunteer_coach.options.A": "欢迎他上场 · 质量 +3",
+   "events.hc_volunteer_coach.options.A": "欢迎他上场",
    "events.hc_volunteer_coach.options.B": "请他帮忙招生",
-   "events.hc_volunteer_coach.options.C": "客气地谢绝 · 声望 +2",
+   "events.hc_volunteer_coach.options.C": "客气地谢绝",
    "events.hc_double_booked.topic": "预约",
    "events.hc_double_booked.title": "1 号场上午约重了",
    "events.hc_double_booked.body": "两位网球老会员和四个打匹克球的人拿着同一个时段站在门口。",
@@ -4476,7 +4503,7 @@
    "events.hc_community_match.options.C": "弃权 · 声望 −5，孩子们休息",
    "events.hc_board_vote.topic": "董事会表决",
    "events.hc_board_vote.title": "董事会就出售俱乐部投票",
-   "events.hc_board_vote.body": "看董事会信心。到露台上亲自陈述，或者让数字自己说话。",
+   "events.hc_board_vote.body": "亲自陈述，成败看董事会信心；让数字说话，成败看项目质量和会员。",
    "events.hc_board_vote.options.A": "亲自到露台上陈述",
    "events.hc_board_vote.options.B": "让数字自己说话",
    "events.hc_who_follows.topic": "下一站",
@@ -4663,6 +4690,7 @@
    "ui.ctx.members": "会员 {n}",
    "ui.ctx.service": "本周服务率 {n}%",
    "ui.board": "董事会信心",
+   "ui.board_short": "董事会",
    "ui.board_in": "董事会·胜算 {odds}·{days}天",
    "ui.board_today": "董事会·胜算 {odds}·今天",
    "ui.club.name": "霍洛溪网球俱乐部",

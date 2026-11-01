@@ -5,6 +5,7 @@ import {
   type ContentBundle,
   canAssign,
   DIRECTOR,
+  type Effect,
   facilityTotals,
   type GameState,
   minuteOfDay,
@@ -271,6 +272,31 @@ export class Projector {
           : this.text.fmt(days === 0 ? 'ui.board_today' : 'ui.board_in', { days, odds: this.voteOdds(s) }),
       ...(v < 40 ? { tone: 'bad' as const } : {}),
     };
+  }
+
+  /**
+   * 选项里设的旗标会不会动董事会信心（第二轮试玩 S6："董事会会不耐烦"只在选完以后才看得到）：
+   * 把旗标代进董事会信心的各项算一遍，差值就是这个选项对董事会的影响。
+   */
+  private flagChips(s: GameState, effs: readonly Effect[], prob: number): Chip[] {
+    const act = this.content.acts.find((a) => a.id === s.act);
+    if (!act) return [];
+    const w = worldOf(s, this.content);
+    const out: Chip[] = [];
+    for (const [stat, terms] of Object.entries(act.rules.derived_terms)) {
+      const extra: Record<string, boolean> = {};
+      for (const e of effs) if ('flag' in e && 'set' in e) extra[`flag.${e.flag}`] = !!e.set;
+      if (!Object.keys(extra).length) continue;
+      let d = 0;
+      for (const src of Object.values(terms)) d += num(s, w, src, extra) - num(s, w, src);
+      if (Math.abs(d) < 1) continue;
+      const maybe = prob < 1 ? ` (${Math.round(prob * 100)}%)` : '';
+      out.push({
+        text: `${this.text.tr(stat === 'board_support' ? 'ui.board_short' : `stats.${stat}`)} ${d > 0 ? '+' : '−'}${Math.abs(Math.round(d))}${maybe}`,
+        tone: d > 0 ? 'gain' : 'loss',
+      });
+    }
+    return out;
   }
 
   /** 现在表决的话，把握有多大（百分比；幕里没写 vote_odds 时为空） */
@@ -770,7 +796,14 @@ export class Projector {
     return {
       id: anchor,
       title: T.anchor(anchor),
-      ...(cond !== null ? { condition: { value: cond, label: T.fmt(cond < 30 ? 'ui.place.condition_low' : 'ui.place.condition', { n: cond }) } } : {}),
+      ...(cond !== null
+        ? {
+            condition: {
+              value: cond,
+              label: T.fmt(cond < 30 ? 'ui.place.condition_low' : 'ui.place.condition', { n: cond }),
+            },
+          }
+        : {}),
       ...(picked ? { prompt: T.fmt('ui.place.pick', { name: T.personName(picked), place: T.anchor(anchor) }) } : {}),
       rows: rows.map(({ rank: _, ...r }) => r),
       empty: T.tr('ui.place.empty'),
@@ -839,9 +872,12 @@ export class Projector {
         });
       if (opt) {
         chips.push(...effectChips(T, opt.effects, 1, this.content.people));
+        chips.push(...this.flagChips(s, opt.effects, 1));
         if (st.chance !== null) {
           chips.push({ text: T.fmt('ui.chip.chance', { p: Math.round(st.chance * 100) }), tone: 'risk' });
-          chips.push(...effectChips(T, opt.onSuccess, st.chance));
+          chips.push(...effectChips(T, opt.onSuccess, st.chance), ...this.flagChips(s, opt.onSuccess, st.chance));
+          // 没成会怎样也要写出来（第二轮试玩 S6：抗议失败扣声望，卡上没提示）
+          chips.push(...effectChips(T, opt.onFail, 1 - st.chance), ...this.flagChips(s, opt.onFail, 1 - st.chance));
         }
       }
       const then = opt ? thenLine(T, [...opt.effects, ...opt.onSuccess]) : undefined;

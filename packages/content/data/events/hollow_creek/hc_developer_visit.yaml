@@ -14,6 +14,7 @@ options:
       - { endAct: lost, ending: sold_to_developer }
   B:
     effects:
+      # 拒绝：街坊叫好，可董事会里有人想要这笔钱（董事会信心"事情办得怎样"一项 −3）
       - { stat: reputation, add: 2 }
       - { flag: developer_declined, set: true }
   C:

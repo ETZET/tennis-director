@@ -270,7 +270,7 @@ events:
   hc_board_vote:
     topic: Board vote
     title: The board votes on selling the club
-    body: Board confidence decides it. Present in person on the deck, or let the numbers speak.
+    body: Present in person and board confidence decides it; let the numbers speak and program quality and members decide it.
     options:
       A: Present in person on the deck
       B: Let the numbers speak for themselves
@@ -425,6 +425,7 @@ ui:
     members: "Members {n}"
     service: "Service this week {n}%"
   board: Board confidence
+  board_short: Board
   board_in: "Board · {odds} odds · {days}d"
   board_today: "Board · {odds} odds · today"
   club: { name: Hollow Creek TC, badge: HC }

@@ -3,7 +3,8 @@ id: hc_member_saturday
 act: hollow_creek
 source: random
 tone: neutral
-when: { day: { gte: 2 } }
+# 把周六上午还给他以后，这件事就算了结了，不再来（第二轮试玩 S5）
+when: { all: [{ day: { gte: 2 } }, { not: { flag: saturday_returned } }] }
 cooldown: 10d
 weight: 0.6
 countdown: 2h
@@ -15,6 +16,7 @@ options:
     effects:
       - { stat: members, add: 1 }
       - { stat: pickleball_pressure, add: 6 }
+      - { flag: saturday_returned, set: true }
   B:
     # 请他喝杯咖啡慢慢聊
     errand: { at: deck, for: 1h }

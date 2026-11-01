@@ -214,7 +214,8 @@ describe('董事会信心拆成几项（第二轮试玩 S2）', () => {
     'clamp(40 + (stat.quality - 55) * 0.8 + (stat.members - 50) * 0.5 + (stat.reputation - 40) * 0.4' +
     ' - max(0, day - 7) * 0.6 + (flag.match_won ? 8 : 0) + (flag.match_played ? 2 : 0) - (flag.pickleball_lease ? 3 : 0)' +
     ' + (flag.chair_impressed ? 6 : 0) - (flag.chair_worried ? 6 : 0) - (flag.board_impatient ? 8 : 0)' +
-    ' + (flag.open_house_held ? 6 : 0) + (flag.turnaround_promised ? 10 : 0) - (flag.broken_promise ? 18 : 0), 0, 100)';
+    ' + (flag.open_house_held ? 6 : 0) + (flag.turnaround_promised ? 10 : 0) - (flag.broken_promise ? 18 : 0)' +
+    ' - (flag.developer_declined ? 3 : 0), 0, 100)';
   it('各项之和等于原来的公式；周日收盘报每项这一周的变化', () => {
     const s = fresh(7);
     const w = W();

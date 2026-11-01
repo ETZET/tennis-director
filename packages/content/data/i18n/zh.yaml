@@ -222,9 +222,9 @@ events:
     title: 一位退休会员想周末来帮忙带课
     body: 他四十年前打过大学校队，正手还在。
     options:
-      A: 欢迎他上场 · 质量 +3
+      A: 欢迎他上场
       B: 请他帮忙招生
-      C: 客气地谢绝 · 声望 +2
+      C: 客气地谢绝
   hc_double_booked:
     topic: 预约
     title: 1 号场上午约重了
@@ -265,7 +265,7 @@ events:
   hc_board_vote:
     topic: 董事会表决
     title: 董事会就出售俱乐部投票
-    body: 看董事会信心。到露台上亲自陈述，或者让数字自己说话。
+    body: 亲自陈述，成败看董事会信心；让数字说话，成败看项目质量和会员。
     options:
       A: 亲自到露台上陈述
       B: 让数字自己说话
@@ -420,6 +420,7 @@ ui:
     members: "会员 {n}"
     service: "本周服务率 {n}%"
   board: 董事会信心
+  board_short: 董事会
   board_in: "董事会·胜算 {odds}·{days}天"
   board_today: "董事会·胜算 {odds}·今天"
   club: { name: 霍洛溪网球俱乐部, badge: HC }
