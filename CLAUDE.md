@@ -57,7 +57,8 @@ packages/content 只由 sim 读取
 - 不要在 sim 里新增效果或条件而不更新 `@td/content` 的 schema 和编译器校验；两边的变量表（`COMPUTED_VARS`）必须一致。
 - 不要手改 `src/generated/content.json`；改 YAML 再运行 `pnpm content`。
 - 不要在 `apps/game/src/scene.ts` 里改模拟状态；画面只读状态、只订阅领域事件。
-- 改了平衡相关的数值，重跑 `pnpm sim bots --games 1000 > docs/balance/hollow-creek.md` 一起提交；`balance.test.ts` 守着区间。
+- 改了平衡相关的数值，重跑 `pnpm sim bots --games 200 > docs/balance/indian-wells.md` 一起提交；`balance.test.ts` 守着区间。
+- 游戏 app 不直接引用某张地图的模块；地图的画面只通过 `Site` 接口进来（ADR 0016）。改了步道或站位，同步内容里的 `nav` 分钟数（`game.test.ts` 检查）。
 - 新的界面文字放进 i18n 的 `ui.*`，两种语言都要有。
 - 不要在 M0 升级 three.js 以外的方式改画面；改了画面要更新截图基准，并说明原因。
 

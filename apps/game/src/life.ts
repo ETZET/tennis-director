@@ -84,12 +84,11 @@ export function createLife(d: LifeDeps): Life {
     return hash01(day, block, i) < p;
   }
 
-  function startCourt(s: GameState, i: number): void {
+  function startCourt(i: number): void {
     const c = COURTS[i] as Court;
     const [a, b] = players[i] as readonly [Person, Person];
-    const z = 0;
-    const pa = c.frame.w({ x: -9.5, z });
-    const pb = c.frame.w({ x: 9.5, z: -z * 0.3 });
+    const pa = c.frame.w({ x: -9.5, z: 0 });
+    const pb = c.frame.w({ x: 9.5, z: 0 });
     for (const [p, at, face] of [
       [a, pa, EAST],
       [b, pb, WEST],
@@ -220,7 +219,7 @@ export function createLife(d: LifeDeps): Life {
         check = 0.5;
         COURTS.forEach((c, i) => {
           const want = courtWanted(s, c, i);
-          if (want && !playing[i]) startCourt(s, i);
+          if (want && !playing[i]) startCourt(i);
           else if (!want && playing[i]) stopCourt(i);
         });
         syncWalkers(s);

@@ -134,7 +134,18 @@ const LOOKS: Record<string, Omit<PersonOptions, 'name' | 'x' | 'z'>> = {
   },
 };
 
-const SHIRTS = ['#e05a8f', '#2fa3a8', '#f0a020', '#8a5ac4', '#3c7a5a', '#c84a3a', '#4a6fa8', '#d9c35a', '#5a5a62', '#e8e2d2'];
+const SHIRTS = [
+  '#e05a8f',
+  '#2fa3a8',
+  '#f0a020',
+  '#8a5ac4',
+  '#3c7a5a',
+  '#c84a3a',
+  '#4a6fa8',
+  '#d9c35a',
+  '#5a5a62',
+  '#e8e2d2',
+];
 const HAIRS = ['#2a1d16', '#6a4a30', '#a7742f', '#d9d3c6', '#3b2a1e', '#9a9a96'];
 const STYLES = ['short', 'pony', 'curly', 'visor', 'bald', 'long', 'cap'] as const;
 

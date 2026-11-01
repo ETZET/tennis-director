@@ -63,7 +63,10 @@ describe('内容编译', () => {
       'default: { then: B }',
       '',
     );
-    f['posts/o1_rental.yaml'] = (f['posts/o1_rental.yaml'] as string).replace('stat.reputation / 120', 'stat.reputashun / 120');
+    f['posts/o1_rental.yaml'] = (f['posts/o1_rental.yaml'] as string).replace(
+      'stat.reputation / 120',
+      'stat.reputashun / 120',
+    );
     f['i18n/zh.yaml'] = (f['i18n/zh.yaml'] as string).replace('      B: 婉拒\n', '');
     const m = msgs(compileContent(f));
     expect(m).toMatch(/countdown needs a default/);
@@ -75,7 +78,10 @@ describe('内容编译', () => {
     const g = files();
     g['events/indian_wells/iw_first_players.yaml'] = (g['events/indian_wells/iw_first_players.yaml'] as string)
       .replace('when: { any: [', 'when: { any: [{ flag: crow_friend }, ')
-      .replace(/ {2}B:\n {4}# 照价收：钱是钱\n {4}effects:\n[^]*?default/, '  B:\n    effects:\n      - { stat: reputation, add: 3 }\n      - { stat: members, add: 2 }\ndefault');
+      .replace(
+        / {2}B:\n {4}# 照价收：钱是钱\n {4}effects:\n[\s\S]*?default/,
+        '  B:\n    effects:\n      - { stat: reputation, add: 3 }\n      - { stat: members, add: 2 }\ndefault',
+      );
     const rg = compileContent(g);
     expect(msgs(rg, 'warnings')).toMatch(/flag 'crow_friend' is read but never written/);
     expect(msgs(rg, 'warnings')).toMatch(/options A and B have identical effects/);

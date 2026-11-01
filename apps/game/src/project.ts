@@ -177,8 +177,8 @@ export class Projector {
       { label: T.tr('ui.details.courts'), value: `${fac.courts}/${totalCourts}` },
       { label: T.tr('ui.details.wages'), value: `$${wagesWeek(s, w)}` },
       ...Object.entries(s.facilities).map(([id, st]) => {
-          const [name, state] = T.tr(`facilities.${id}.${st}`).split(' · ');
-          const c = Math.round(s.condition[id] ?? 100);
+        const [name, state] = T.tr(`facilities.${id}.${st}`).split(' · ');
+        const c = Math.round(s.condition[id] ?? 100);
         return {
           label: name ?? id,
           value: `${state ?? st} · ${c}`,

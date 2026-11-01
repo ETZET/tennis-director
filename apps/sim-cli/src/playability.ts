@@ -71,7 +71,7 @@ export function traceGame(content: ContentBundle, botName: string, seed: number)
     if (idle > 90) tr.longIdles++;
     idle = 0;
   };
-  const limit = 60 * 1440;
+  const limit = 120 * 1440;
   let k = 0;
   while (!s.outcome && s.t < limit) {
     const cmds = k++ % 5 === 0 ? bot.decide(s, content) : [];

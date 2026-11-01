@@ -65,7 +65,14 @@ const both =
 const fresh =
   (fr: CourtFrame, inner = '#3f6d9c', outer = '#4f8a6a', withNet = true) =>
   (ctx: BuildContext) => {
-    surface(ctx, lift(fr, 0.03), inner, outer, { worn: 0, cracks: 0, weeds: 0, puddles: 0, missing: 0, lineCol: '#f4f1e8' });
+    surface(ctx, lift(fr, 0.03), inner, outer, {
+      worn: 0,
+      cracks: 0,
+      weeds: 0,
+      puddles: 0,
+      missing: 0,
+      lineCol: '#f4f1e8',
+    });
     if (withNet) net(ctx, lift(fr, 0.03), 'new');
   };
 
@@ -91,20 +98,41 @@ function clubhouseRuined(ctx: BuildContext): void {
     ctx.solid.box(x, 1.2, C.z1 + 0.12, 1.8, 0.25, 0.08, PAL.board, 0, 0, -0.6);
   }
   for (let k = 0; k < 10; k++)
-    ctx.solid.box(sr(ctx, C.x0, C.x1), 0, C.z1 + sr(ctx, 0.5, 3), sr(ctx, 0.6, 1.6), 0.2, sr(ctx, 0.6, 1.6), jit(ctx, PAL.roof, 0.06), sr(ctx, 0, 3));
+    ctx.solid.box(
+      sr(ctx, C.x0, C.x1),
+      0,
+      C.z1 + sr(ctx, 0.5, 3),
+      sr(ctx, 0.6, 1.6),
+      0.2,
+      sr(ctx, 0.6, 1.6),
+      jit(ctx, PAL.roof, 0.06),
+      sr(ctx, 0, 3),
+    );
 }
 
 function plazaDry(ctx: BuildContext): void {
   // 餐饮棚的屋顶滑下来一半
   for (let x = PLAZA.x0 + 2; x < PLAZA.x1 - 2; x += 2)
-    ctx.solid.box(x, x < (PLAZA.x0 + PLAZA.x1) / 2 ? 3.2 : 0.4, PLAZA.z1 - 3, 2, 0.15, 5, jit(ctx, '#9a8a72', 0.05), 0, 0, x < (PLAZA.x0 + PLAZA.x1) / 2 ? 0 : 0.3);
+    ctx.solid.box(
+      x,
+      x < (PLAZA.x0 + PLAZA.x1) / 2 ? 3.2 : 0.4,
+      PLAZA.z1 - 3,
+      2,
+      0.15,
+      5,
+      jit(ctx, '#9a8a72', 0.05),
+      0,
+      0,
+      x < (PLAZA.x0 + PLAZA.x1) / 2 ? 0 : 0.3,
+    );
   for (let k = 0; k < 6; k++) sandPile(ctx, sr(ctx, PLAZA.x0, PLAZA.x1), 0, sr(ctx, PLAZA.z0, PLAZA.z1), sr(ctx, 1, 2));
 }
 
 function plazaOpen(ctx: BuildContext): void {
   ctx.flat.box(FOUNTAIN.x, 0.1, FOUNTAIN.z, FOUNTAIN.r * 1.7, 0.08, FOUNTAIN.r * 1.7, '#5db4d4');
   ctx.flat.box(FOUNTAIN.x, 0.1, 9, 21.6, 0.08, 2.6, '#4ea6c8');
-  for (let x = PLAZA.x0 + 2; x < PLAZA.x1 - 2; x += 2) ctx.solid.box(x, 3.4, PLAZA.z1 - 3, 2, 0.15, 5, jit(ctx, '#e8e2d2', 0.03));
+  for (let x = PLAZA.x0 + 2; x < PLAZA.x1 - 2; x += 2)
+    ctx.solid.box(x, 3.4, PLAZA.z1 - 3, 2, 0.15, 5, jit(ctx, '#e8e2d2', 0.03));
   for (const [x, z, c] of [
     [PLAZA.x0 + 6, -12, '#d6362f'],
     [PLAZA.x0 + 14, -12, '#2fa3a8'],
@@ -126,10 +154,31 @@ function s1Rubble(ctx: BuildContext): void {
   for (let k = 0; k < 70; k++) {
     const x = sr(ctx, S1.cx + 14, S1.cx + S1.hx);
     const z = sr(ctx, S1.cz + 10, S1.cz + S1.hz);
-    ctx.solid.box(x, 0, z, sr(ctx, 0.6, 2), sr(ctx, 0.3, 1.4), sr(ctx, 0.6, 2), jit(ctx, PAL.concrete[k % 3] as string, 0.08), sr(ctx, 0, 3), sr(ctx, -0.3, 0.3));
+    ctx.solid.box(
+      x,
+      0,
+      z,
+      sr(ctx, 0.6, 2),
+      sr(ctx, 0.3, 1.4),
+      sr(ctx, 0.6, 2),
+      jit(ctx, PAL.concrete[k % 3] as string, 0.08),
+      sr(ctx, 0, 3),
+      sr(ctx, -0.3, 0.3),
+    );
   }
   for (let k = 0; k < 14; k++)
-    ctx.solid.box(sr(ctx, S1.cx + 16, S1.cx + S1.hx), 0.4, sr(ctx, S1.cz + 12, S1.cz + S1.hz), 0.06, sr(ctx, 1, 2.4), 0.06, '#6b4a34', 0, sr(ctx, -0.6, 0.6), sr(ctx, -0.6, 0.6));
+    ctx.solid.box(
+      sr(ctx, S1.cx + 16, S1.cx + S1.hx),
+      0.4,
+      sr(ctx, S1.cz + 12, S1.cz + S1.hz),
+      0.06,
+      sr(ctx, 1, 2.4),
+      0.06,
+      '#6b4a34',
+      0,
+      sr(ctx, -0.6, 0.6),
+      sr(ctx, -0.6, 0.6),
+    );
   sanded(F_S1, 10)(ctx);
   // 翻倒的裁判椅
   const p = F_S1.w({ x: 0, z: -7.4 });
@@ -148,7 +197,15 @@ function s3Buried(ctx: BuildContext): void {
   for (let x = S3.cx - S3.hx + 2; x < S3.cx + S3.hx - 2; x += 3)
     for (let z = S3.cz - S3.hz + 2; z < S3.cz + S3.hz - 2; z += 3)
       if (ctx.rand() < 0.85)
-        ctx.flat.box(x + 1.5, -S3.depth, z + 1.5, 3.1, S3.depth * sr(ctx, 0.5, 1.02), 3.1, jit(ctx, PAL.sand[k3(x, z)] as string, 0.04));
+        ctx.flat.box(
+          x + 1.5,
+          -S3.depth,
+          z + 1.5,
+          3.1,
+          S3.depth * sr(ctx, 0.5, 1.02),
+          3.1,
+          jit(ctx, PAL.sand[k3(x, z)] as string, 0.04),
+        );
 }
 const k3 = (x: number, z: number) => Math.abs(Math.round(x * 7 + z * 13)) % PAL.sand.length;
 

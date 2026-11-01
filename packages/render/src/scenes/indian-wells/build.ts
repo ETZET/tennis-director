@@ -99,7 +99,8 @@ export function palm(ctx: BuildContext, x: number, z: number, h: number, kind: '
     const a = (k / 7) * Math.PI * 2 + sr(ctx, -0.2, 0.2);
     ctx.solid.box(x, trunk, z, 0.3, 0.12, 2.6, jit(ctx, pickc(ctx, leaf), 0.05), a, kind === 'dead' ? 0.9 : 0.35);
   }
-  if (kind === 'dead') for (let y = trunk - 1.6; y < trunk; y += 0.4) ctx.solid.box(x, y, z, 0.9, 0.45, 0.9, jit(ctx, '#8f7c55', 0.05));
+  if (kind === 'dead')
+    for (let y = trunk - 1.6; y < trunk; y += 0.4) ctx.solid.box(x, y, z, 0.9, 0.45, 0.9, jit(ctx, '#8f7c55', 0.05));
 }
 
 /** 一段看台：沿 (x0,z0)→(x1,z1) 的一排排台阶，朝向场内。skip 返回 true 的格子不放（塌了的地方） */
@@ -127,7 +128,16 @@ function standRows(
       if (skip(x, z, r)) continue;
       const h = (rows - r) * rise;
       const missing = ctx.rand() < 0.12;
-      ctx.solid.box(x, y0, z, rowD, h, len / n - 0.04, jit(ctx, missing ? pickc(ctx, PAL.concrete) : pickc(ctx, colors), 0.04), ry);
+      ctx.solid.box(
+        x,
+        y0,
+        z,
+        rowD,
+        h,
+        len / n - 0.04,
+        jit(ctx, missing ? pickc(ctx, PAL.concrete) : pickc(ctx, colors), 0.04),
+        ry,
+      );
     }
   }
 }
@@ -149,13 +159,57 @@ export function bowl(
   const rise = 0.45;
   const W = rows * rowD;
   if (sides.includes('N'))
-    standRows(ctx, { x: cx - hx - W, z: cz - hz - W / 2 }, { x: cx + hx + W, z: cz - hz - W / 2 }, { x: 0, z: 1 }, rows, rowD, rise, y0, colors, o.skip);
+    standRows(
+      ctx,
+      { x: cx - hx - W, z: cz - hz - W / 2 },
+      { x: cx + hx + W, z: cz - hz - W / 2 },
+      { x: 0, z: 1 },
+      rows,
+      rowD,
+      rise,
+      y0,
+      colors,
+      o.skip,
+    );
   if (sides.includes('S'))
-    standRows(ctx, { x: cx - hx - W, z: cz + hz + W / 2 }, { x: cx + hx + W, z: cz + hz + W / 2 }, { x: 0, z: -1 }, rows, rowD, rise, y0, colors, o.skip);
+    standRows(
+      ctx,
+      { x: cx - hx - W, z: cz + hz + W / 2 },
+      { x: cx + hx + W, z: cz + hz + W / 2 },
+      { x: 0, z: -1 },
+      rows,
+      rowD,
+      rise,
+      y0,
+      colors,
+      o.skip,
+    );
   if (sides.includes('E'))
-    standRows(ctx, { x: cx + hx + W / 2, z: cz - hz }, { x: cx + hx + W / 2, z: cz + hz }, { x: -1, z: 0 }, rows, rowD, rise, y0, colors, o.skip);
+    standRows(
+      ctx,
+      { x: cx + hx + W / 2, z: cz - hz },
+      { x: cx + hx + W / 2, z: cz + hz },
+      { x: -1, z: 0 },
+      rows,
+      rowD,
+      rise,
+      y0,
+      colors,
+      o.skip,
+    );
   if (sides.includes('W'))
-    standRows(ctx, { x: cx - hx - W / 2, z: cz - hz }, { x: cx - hx - W / 2, z: cz + hz }, { x: 1, z: 0 }, rows, rowD, rise, y0, colors, o.skip);
+    standRows(
+      ctx,
+      { x: cx - hx - W / 2, z: cz - hz },
+      { x: cx - hx - W / 2, z: cz + hz },
+      { x: 1, z: 0 },
+      rows,
+      rowD,
+      rise,
+      y0,
+      colors,
+      o.skip,
+    );
 }
 
 /** 生锈的旧车 */
@@ -176,14 +230,30 @@ function pathStrip(ctx: BuildContext, pts: readonly XZ[], w: number): void {
     const ry = Math.atan2(b.x - a.x, b.z - a.z);
     for (let k = 0; k < n; k++) {
       const u = (k + 0.5) / n;
-      ctx.flat.box(a.x + (b.x - a.x) * u, 0.01, a.z + (b.z - a.z) * u, w, 0.03, len / n + 0.3, jit(ctx, PAL.path, 0.04), ry);
+      ctx.flat.box(
+        a.x + (b.x - a.x) * u,
+        0.01,
+        a.z + (b.z - a.z) * u,
+        w,
+        0.03,
+        len / n + 0.3,
+        jit(ctx, PAL.path, 0.04),
+        ry,
+      );
     }
   }
 }
 
 /** 废弃的硬地场：褪色、开裂、长草，网塌着 */
 export function wornCourt(ctx: BuildContext, fr: CourtFrame, withNet = true): void {
-  surface(ctx, fr, PAL.courtIn, PAL.courtOut, { worn: 0.35, cracks: 10, weeds: 0.45, puddles: 0, missing: 0.45, lineCol: '#cfc8b4' });
+  surface(ctx, fr, PAL.courtIn, PAL.courtOut, {
+    worn: 0.35,
+    cracks: 10,
+    weeds: 0.45,
+    puddles: 0,
+    missing: 0.45,
+    lineCol: '#cfc8b4',
+  });
   if (withNet) net(ctx, fr, 'sag');
 }
 
@@ -191,7 +261,8 @@ export function wornCourt(ctx: BuildContext, fr: CourtFrame, withNet = true): vo
 function mountains(ctx: BuildContext): void {
   const ridge = (x0: number, x1: number, z0: number, z1: number, axis: 'x' | 'z', seed: number) => {
     for (let u = axis === 'x' ? x0 : z0; u < (axis === 'x' ? x1 : z1); u += 4) {
-      const n = Math.sin(u * 0.05 + seed) * 0.5 + Math.sin(u * 0.13 + seed * 2) * 0.3 + Math.sin(u * 0.021 + seed * 3) * 0.4;
+      const n =
+        Math.sin(u * 0.05 + seed) * 0.5 + Math.sin(u * 0.13 + seed * 2) * 0.3 + Math.sin(u * 0.021 + seed * 3) * 0.4;
       for (let v = axis === 'x' ? z0 : x0; v < (axis === 'x' ? z1 : x1); v += 4) {
         const depth = axis === 'x' ? (z1 - v) / (z1 - z0) : (x1 - v) / (x1 - x0);
         const h = Math.max(1, (8 + n * 8) * depth + depth * 10);
@@ -240,8 +311,17 @@ export function buildIndianWells(ctx: BuildContext): IndianWellsStatic {
   /* 停车场：褪色的沥青，大半被沙盖住，几辆锈车 */
   for (let x = PARKING.x0; x < PARKING.x1; x += 4)
     for (let z = PARKING.z0; z < PARKING.z1; z += 4)
-      flat.box(x + 2, -0.05, z + 2, 4, 0.08, 4, jit(ctx, ctx.rand() < 0.45 ? pickc(ctx, PAL.sand) : pickc(ctx, PAL.asphalt), 0.03));
-  for (let k = 0; k < 14; k++) sandPile(ctx, sr(ctx, PARKING.x0, PARKING.x1), 0, sr(ctx, PARKING.z0, PARKING.z1), sr(ctx, 1.5, 3.5));
+      flat.box(
+        x + 2,
+        -0.05,
+        z + 2,
+        4,
+        0.08,
+        4,
+        jit(ctx, ctx.rand() < 0.45 ? pickc(ctx, PAL.sand) : pickc(ctx, PAL.asphalt), 0.03),
+      );
+  for (let k = 0; k < 14; k++)
+    sandPile(ctx, sr(ctx, PARKING.x0, PARKING.x1), 0, sr(ctx, PARKING.z0, PARKING.z1), sr(ctx, 1.5, 3.5));
   car(ctx, 62, -60, 0.1);
   car(ctx, 74, -52, -0.2);
   car(ctx, 90, -44, 1.5);
@@ -254,27 +334,51 @@ export function buildIndianWells(ctx: BuildContext): IndianWellsStatic {
   solid.box(GATE.x, 6, (GATE.z0 + GATE.z1) / 2 - 2, 0.8, 0.9, 13, jit(ctx, '#6a5f52', 0.04), 0, -0.35);
   solid.box(GATE.x + 4, 0, GATE.z1 + 5, 3, 3, 3, jit(ctx, PAL.wall, 0.04));
   solid.box(GATE.x + 2.45, 1, GATE.z1 + 5, 0.1, 1.2, 2, PAL.board);
-  sign(ctx.scene, 'INDIAN WELLS TENNIS GARDEN', 9, 0.9, GATE.x - 0.7, 6.4, 0, Math.PI / 2 * -1, '#5d5446', '#d8cdb4', 22);
+  sign(
+    ctx.scene,
+    'INDIAN WELLS TENNIS GARDEN',
+    9,
+    0.9,
+    GATE.x - 0.7,
+    6.4,
+    0,
+    Math.PI / 2 * -1,
+    '#5d5446',
+    '#d8cdb4',
+    22,
+  );
 
   /* 会所：两层的盒子，屋顶有洞 */
   const C = CLUBHOUSE;
   for (let x = C.x0; x < C.x1; x += 2)
     for (let z = C.z0; z < C.z1; z += 2) solid.box(x + 1, 0, z + 1, 2, 6, 2, jit(ctx, PAL.wall, 0.03));
   for (let x = C.x0; x < C.x1; x += 2)
-    for (let z = C.z0; z < C.z1; z += 2) if (ctx.rand() > 0.12) solid.box(x + 1, 6, z + 1, 2.02, 0.3, 2.02, jit(ctx, PAL.roof, 0.05));
+    for (let z = C.z0; z < C.z1; z += 2)
+      if (ctx.rand() > 0.12) solid.box(x + 1, 6, z + 1, 2.02, 0.3, 2.02, jit(ctx, PAL.roof, 0.05));
   // 南面的窗：一半碎了
   for (let x = C.x0 + 2; x < C.x1 - 1; x += 3)
     for (const y of [1.2, 3.8]) solid.box(x, y, C.z1 + 0.02, 1.6, 1.3, 0.06, ctx.rand() < 0.5 ? '#3b3f44' : '#6d7a80');
 
   /* 广场：干涸的喷泉和长水池、餐饮棚的柱子 */
   for (let x = PLAZA.x0; x < PLAZA.x1; x += 4)
-    for (let z = PLAZA.z0; z < PLAZA.z1; z += 4) flat.box(x + 2, 0, z + 2, 4, 0.04, 4, jit(ctx, pickc(ctx, PAL.concrete), 0.03));
+    for (let z = PLAZA.z0; z < PLAZA.z1; z += 4)
+      flat.box(x + 2, 0, z + 2, 4, 0.04, 4, jit(ctx, pickc(ctx, PAL.concrete), 0.03));
   for (let a = 0; a < Math.PI * 2; a += 0.35)
-    solid.box(FOUNTAIN.x + Math.cos(a) * FOUNTAIN.r, 0, FOUNTAIN.z + Math.sin(a) * FOUNTAIN.r, 1.9, 0.7, 0.5, jit(ctx, PAL.concrete[2], 0.04), -a);
+    solid.box(
+      FOUNTAIN.x + Math.cos(a) * FOUNTAIN.r,
+      0,
+      FOUNTAIN.z + Math.sin(a) * FOUNTAIN.r,
+      1.9,
+      0.7,
+      0.5,
+      jit(ctx, PAL.concrete[2], 0.04),
+      -a,
+    );
   flat.box(FOUNTAIN.x, 0.04, FOUNTAIN.z, FOUNTAIN.r * 1.6, 0.04, FOUNTAIN.r * 1.6, '#a69a86');
   solid.box(FOUNTAIN.x, 0, FOUNTAIN.z, 1.2, 1.6, 1.2, jit(ctx, PAL.concrete[1], 0.04));
   flat.box(FOUNTAIN.x, 0.04, 9, 22, 0.05, 3, '#a39783');
-  for (const x of [PLAZA.x0 + 3, PLAZA.x0 + 11, PLAZA.x1 - 9, PLAZA.x1 - 3]) solid.box(x, 0, PLAZA.z1 - 3, 0.3, 3.4, 0.3, jit(ctx, '#7a6a58', 0.05));
+  for (const x of [PLAZA.x0 + 3, PLAZA.x0 + 11, PLAZA.x1 - 9, PLAZA.x1 - 3])
+    solid.box(x, 0, PLAZA.z1 - 3, 0.3, 3.4, 0.3, jit(ctx, '#7a6a58', 0.05));
 
   /* 棕榈：活的、死的、断头的 */
   const PALMS: [number, number, 'ok' | 'dead' | 'snap'][] = [
@@ -324,7 +428,8 @@ export function buildIndianWells(ctx: BuildContext): IndianWellsStatic {
 
   /* 到处都是的小东西：杂草、风滚草、沙堆 */
   for (let k = 0; k < 60; k++) weed(ctx, sr(ctx, SITE.x0, SITE.x1), 0, sr(ctx, SITE.z0, SITE.z1), 4);
-  for (let k = 0; k < 18; k++) tumbleweed(ctx, sr(ctx, SITE.x0, SITE.x1), 0, sr(ctx, SITE.z0, SITE.z1), sr(ctx, 0.8, 1.4));
+  for (let k = 0; k < 18; k++)
+    tumbleweed(ctx, sr(ctx, SITE.x0, SITE.x1), 0, sr(ctx, SITE.z0, SITE.z1), sr(ctx, 0.8, 1.4));
   for (let k = 0; k < 20; k++) sandPile(ctx, sr(ctx, SITE.x0, SITE.x1), 0, sr(ctx, SITE.z0, SITE.z1), sr(ctx, 1, 3));
 
   flat.build(ctx.scene, false, true);

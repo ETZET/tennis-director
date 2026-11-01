@@ -55,7 +55,10 @@ export function effectChips(T: Text, effs: readonly Effect[], prob = 1, people?:
           : [{ text: T.fmt('ui.chip.hire', { name: T.personName(e.hire) }), tone: 'info' as const }]),
       );
     } else if ('condition' in e && typeof e.add === 'number')
-      out.push({ text: `${T.tr(`ui.fac.${e.condition}`, e.condition)} ${T.tr('ui.condition')} ${fmtNum(e.add)}`, tone: e.add > 0 ? 'gain' : 'loss' });
+      out.push({
+        text: `${T.tr(`ui.fac.${e.condition}`, e.condition)} ${T.tr('ui.condition')} ${fmtNum(e.add)}`,
+        tone: e.add > 0 ? 'gain' : 'loss',
+      });
     else if ('fire' in e) out.push({ text: T.fmt('ui.chip.fire', { name: T.personName(e.fire) }), tone: 'loss' });
     else if ('person' in e)
       for (const [attr, v] of Object.entries(e.add)) {
