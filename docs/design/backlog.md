@@ -127,20 +127,20 @@ Kept by both: place hub → list → send flow with fit, walk time and what is d
 
 ### Round 2 findings for P3 (both reviewers unless noted)
 
-| # | Finding | Fix |
-| --- | --- | --- |
-| S1 | Hiring is blind: candidates show only a name; skills, wage and trait appear after choosing (Nadia added $900/week) | Hire chips show best skills, weekly wage (as a cost) and a one-line trait |
-| S2 | Board confidence is a black box: no pass line, moves never explained, vote odds surprise (27% at B / 72 members); with good play it climbs to 86 and the last 20 days have no pressure | Pass line on the board cell; weekly board settlement explained in wire and story; board costs shown on options; late pressure (P12) |
-| S3 | Facility condition falls to 0 silently (Court 1, bubble, clay) | Hub warning below 30, wire alert below 10, condition bar in the place list |
-| S4 | After a job ends people sometimes stand idle instead of returning to their shift (Rosa at clay, director at the lot) | Fix routine fallback |
-| S5 | Repeated cards (Saturday morning 4×, double booking 3–4×, even after the issue was settled), three cards in an hour on day 3 | Cap repeats per act, minimum gap between cards |
-| S6 | Free options: "ask for money" +$600, "refuse developer" rep +2, "promise to change" rep +1; side costs only shown after choosing; failure costs of chance options hidden | Show side effects and failure chips on options |
-| S7 | Wire says "X was pulled off the deck, round wasted" on every normal shift change | Only log a real interruption |
-| S8 | Onboarding: no hint that the pool needs someone at 11; posts outside their hours look absent | Show upcoming shifts on hubs |
-| S9 | Text: "他" for Rosa in the pick hint; Pine Crown / 松冠 and Hollow Creek / 霍洛溪 mixed | Neutral pronoun; zh names table |
-| S10 | Phone: staff strip shows ~2.5 people with 4+ staff; hubs pushed off the right edge; ⟲ ⟳ unclear (newcomer) | Compact tokens; hub layout (P17) |
-| S11 | Rain: assigning to outdoor posts silently does nothing (veteran) | Say why on the place list |
-| S12 | Idle control: board drops every day (28 → 0 by day 12) instead of settling weekly; status line says "covered" at 17% service (veteran) | Settle board weekly; status line reflects the week's rate |
+| # | Finding | Fix | Status |
+| --- | --- | --- | --- |
+| S1 | Hiring is blind: candidates show only a name; skills, wage and trait appear after choosing (Nadia added $900/week) | Hire chips show best skills, weekly wage (as a cost) and a one-line trait | Done — skills and weekly wage chips on hire options |
+| S2 | Board confidence is a black box: no pass line, moves never explained, vote odds surprise (27% at B / 72 members); with good play it climbs to 86 and the last 20 days have no pressure | Pass line on the board cell; weekly board settlement explained in wire and story; board costs shown on options; late pressure (P12) | Partly — board split into named terms (same numbers), vote odds on the board cell, weekly "why" on the wire, terms in the club report; late pressure and a money sink still open (P12) |
+| S3 | Facility condition falls to 0 silently (Court 1, bubble, clay) | Hub warning below 30, wire alert below 10, condition bar in the place list | Done — hub "!n" below 30, condition bar in the place list, one wire alert |
+| S4 | After a job ends people sometimes stand idle instead of returning to their shift (Rosa at clay, director at the lot) | Fix routine fallback | Done — a shift that is opening pauses a job; after the shift they resume it |
+| S5 | Repeated cards (Saturday morning 4×, double booking 3–4×, even after the issue was settled), three cards in an hour on day 3 | Cap repeats per act, minimum gap between cards | Done — max 2 showings per random card per act, 4 h gap after any card; Saturday member stops after you give the slot back |
+| S6 | Free options: "ask for money" +$600, "refuse developer" rep +2, "promise to change" rep +1; side costs only shown after choosing; failure costs of chance options hidden | Show side effects and failure chips on options | Done — board effects of flags and failure costs shown as chips; developer, volunteer and vote options rebalanced |
+| S7 | Wire says "X was pulled off the deck, round wasted" on every normal shift change | Only log a real interruption | Done — routine shift changes are silent |
+| S8 | Onboarding: no hint that the pool needs someone at 11; posts outside their hours look absent | Show upcoming shifts on hubs | Done — shifts opening within 2 h show on the hub |
+| S9 | Text: "他" for Rosa in the pick hint; Pine Crown / 松冠 and Hollow Creek / 霍洛溪 mixed | Neutral pronoun; zh names table | Done |
+| S10 | Phone: staff strip shows ~2.5 people with 4+ staff; hubs pushed off the right edge; ⟲ ⟳ unclear (newcomer) | Compact tokens; hub layout (P17) | Partly — compact tokens with 4+ staff, hubs kept on screen; hub stacking still P17 |
+| S11 | Rain: assigning to outdoor posts silently does nothing (veteran) | Say why on the place list | Done — dim "closed today — rain" row |
+| S12 | Idle control: board drops every day (28 → 0 by day 12) instead of settling weekly; status line says "covered" at 17% service (veteran) | Settle board weekly; status line reflects the week's rate | Partly — status line fixed; board still drifts daily by design (rising expectations), now explained on the wire |
 
 ### Round 1 findings for P2 (both reviewers unless noted)
 
