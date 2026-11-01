@@ -6,7 +6,8 @@ skill: service
 work: 6h
 crew: 3
 cooldown: 7d
-when: { not: { weather: rain } }
+# 募捐会办在露台上：屋顶补好以前没法请人来
+when: { all: [{ not: { weather: rain } }, { flag: roof_patched }] }
 effects:
   - { stat: cash, add: "round(300 + stat.reputation * 12 + rand() * 300)" }
   - { stat: reputation, add: 1 }

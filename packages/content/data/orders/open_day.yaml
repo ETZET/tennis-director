@@ -7,7 +7,8 @@ work: 6h
 cost: 60
 crew: 3
 cooldown: 7d
-when: { not: { weather: rain } }
+# 开放日要一块像样的场地：1 号场的裂缝补好以前办不了（修设施 → 开出新的经营手段，准则 3）
+when: { all: [{ not: { weather: rain } }, { not: { facility: court_1, is: worn } }] }
 effects:
   - { stat: members, add: "round(1 + stat.reputation / 30 + rand() * 2)" }
   - { schedule: hc_discover_kid, in: 30m, chance: "clamp(0.25 + coach.skill / 200, 0, 0.9)" }

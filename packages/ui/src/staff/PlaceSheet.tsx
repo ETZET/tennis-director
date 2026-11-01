@@ -25,14 +25,15 @@ export function PlaceSheet({ p, actions }: { p: PlaceSheetData; actions: HudActi
               <li key={r.id}>
                 <button
                   type="button"
-                  data-target={r.id}
+                  disabled={!!r.locked}
+                  {...(r.locked ? {} : { 'data-target': r.id })}
                   class={`td-row td-row-${r.kind} td-row-${r.skill}${r.need ? ' td-row-need' : ''}${
-                    r.fit ? (r.fit.blocked ? ' td-row-blocked' : ' td-row-fit') : ''
+                    r.locked ? ' td-row-locked' : r.fit ? (r.fit.blocked ? ' td-row-blocked' : ' td-row-fit') : ''
                   }`}
                   onClick={() => actions.target?.(r.id)}
                 >
                   <span class="td-row-icon" aria-hidden="true">
-                    {r.kind === 'order' ? '⚒' : r.faces.length ? '' : '+'}
+                    {r.locked ? '🔒' : r.kind === 'order' ? '⚒' : r.faces.length ? '' : '+'}
                     {r.kind === 'post' && r.faces[0] ? (
                       <span class="td-row-face" style={{ background: r.faces[0].color }}>
                         {r.faces[0].initials}
@@ -43,7 +44,7 @@ export function PlaceSheet({ p, actions }: { p: PlaceSheetData; actions: HudActi
                     <b>{r.title}</b>
                     <span>
                       {r.fit?.best && !r.fit.blocked ? <em class="td-row-best">{STR.best}</em> : null}
-                      {r.fit ? r.fit.text : r.line}
+                      {r.fit && !r.locked ? r.fit.text : r.line}
                     </span>
                     {r.chips?.length && !r.fit?.blocked ? <Chips chips={r.chips} /> : null}
                     {r.progress !== undefined && r.progress > 0 ? (
@@ -61,7 +62,9 @@ export function PlaceSheet({ p, actions }: { p: PlaceSheetData; actions: HudActi
                       ))}
                     </span>
                   ) : null}
-                  <span class="td-row-go">{r.fit && !r.fit.blocked ? (r.fit.here ? STR.stop : STR.send) : '›'}</span>
+                  <span class="td-row-go">
+                    {r.locked ? '' : r.fit && !r.fit.blocked ? (r.fit.here ? STR.stop : STR.send) : '›'}
+                  </span>
                 </button>
               </li>
             ))}

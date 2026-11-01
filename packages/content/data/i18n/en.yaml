@@ -340,12 +340,12 @@ orders:
   patch_roof: { title: "Fix the clubhouse roof", note: "No more buckets" }
   fill_pothole: { title: "Fill the pothole", note: "Before someone else scrapes a car" }
   recruit_sign: { title: "Put up a recruiting sign", note: "At the turn-off, once a week" }
-  ball_machine: { title: "Set up a ball machine", note: "Lessons get better for good" }
-  host_fundraiser: { title: "Host a fundraiser", note: "Takes people all afternoon" }
+  ball_machine: { title: "Set up a ball machine", note: "Lessons get better for good", locked: "Needs the new net first" }
+  host_fundraiser: { title: "Host a fundraiser", note: "Takes people all afternoon", locked: "Fix the deck roof first" }
   talk_pickleball: { title: "Talk to the pickleball group", note: "Depends on your reputation" }
   hit_with_tyler: { title: "Hit with Tyler", note: "He has been asking all week" }
   mentor_mason: { title: "Coach Mason one-on-one", note: "Backhand drills" }
-  open_day: { title: "Run a free open day", note: "Takes a few people a couple of hours" }
+  open_day: { title: "Run a free open day", note: "Takes a few people a couple of hours", locked: "Patch Court 1's cracks first" }
 seasons:
   late_summer: Late summer
   early_autumn: Early autumn

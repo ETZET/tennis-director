@@ -1,5 +1,5 @@
 {
- "version": "9d183b94",
+ "version": "dbd2b0ca",
  "stats": [
   {
    "id": "cash",
@@ -999,6 +999,9 @@
    "skill": "teach",
    "work": "30m",
    "cost": 400,
+   "when": {
+    "flag": "new_net"
+   },
    "crew": 1,
    "once": true,
    "restore": 0,
@@ -1176,9 +1179,16 @@
    "work": "6h",
    "cost": 0,
    "when": {
-    "not": {
-     "weather": "rain"
-    }
+    "all": [
+     {
+      "not": {
+       "weather": "rain"
+      }
+     },
+     {
+      "flag": "roof_patched"
+     }
+    ]
    },
    "crew": 3,
    "cooldown": "7d",
@@ -1290,9 +1300,19 @@
    "work": "6h",
    "cost": 60,
    "when": {
-    "not": {
-     "weather": "rain"
-    }
+    "all": [
+     {
+      "not": {
+       "weather": "rain"
+      }
+     },
+     {
+      "not": {
+       "facility": "court_1",
+       "is": "worn"
+      }
+     }
+    ]
    },
    "crew": 3,
    "cooldown": "7d",
@@ -4040,8 +4060,10 @@
    "orders.recruit_sign.note": "At the turn-off, once a week",
    "orders.ball_machine.title": "Set up a ball machine",
    "orders.ball_machine.note": "Lessons get better for good",
+   "orders.ball_machine.locked": "Needs the new net first",
    "orders.host_fundraiser.title": "Host a fundraiser",
    "orders.host_fundraiser.note": "Takes people all afternoon",
+   "orders.host_fundraiser.locked": "Fix the deck roof first",
    "orders.talk_pickleball.title": "Talk to the pickleball group",
    "orders.talk_pickleball.note": "Depends on your reputation",
    "orders.hit_with_tyler.title": "Hit with Tyler",
@@ -4050,6 +4072,7 @@
    "orders.mentor_mason.note": "Backhand drills",
    "orders.open_day.title": "Run a free open day",
    "orders.open_day.note": "Takes a few people a couple of hours",
+   "orders.open_day.locked": "Patch Court 1's cracks first",
    "seasons.late_summer": "Late summer",
    "seasons.early_autumn": "Early autumn",
    "people.director": "Director",
@@ -4512,8 +4535,10 @@
    "orders.recruit_sign.note": "路口，一周一次",
    "orders.ball_machine.title": "装发球机",
    "orders.ball_machine.note": "课从此好一截",
+   "orders.ball_machine.locked": "先换上新球网",
    "orders.host_fundraiser.title": "办募捐晚会",
    "orders.host_fundraiser.note": "要人张罗整个下午",
+   "orders.host_fundraiser.locked": "先把露台屋顶补好",
    "orders.talk_pickleball.title": "和匹克球那帮人聊聊",
    "orders.talk_pickleball.note": "成不成看声望",
    "orders.hit_with_tyler.title": "陪 Tyler 打一会儿",
@@ -4522,6 +4547,7 @@
    "orders.mentor_mason.note": "一对一练反手",
    "orders.open_day.title": "办免费开放日",
    "orders.open_day.note": "几个人一起张罗两小时",
+   "orders.open_day.locked": "先把 1 号场的裂缝补好",
    "seasons.late_summer": "夏末",
    "seasons.early_autumn": "初秋",
    "people.director": "总监",

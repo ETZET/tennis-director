@@ -335,12 +335,12 @@ orders:
   patch_roof: { title: "补会所屋顶", note: "不用再摆桶" }
   fill_pothole: { title: "补停车场的坑", note: "免得再刮到车" }
   recruit_sign: { title: "挂招生牌", note: "路口，一周一次" }
-  ball_machine: { title: "装发球机", note: "课从此好一截" }
-  host_fundraiser: { title: "办募捐晚会", note: "要人张罗整个下午" }
+  ball_machine: { title: "装发球机", note: "课从此好一截", locked: "先换上新球网" }
+  host_fundraiser: { title: "办募捐晚会", note: "要人张罗整个下午", locked: "先把露台屋顶补好" }
   talk_pickleball: { title: "和匹克球那帮人聊聊", note: "成不成看声望" }
   hit_with_tyler: { title: "陪 Tyler 打一会儿", note: "他问了一整周了" }
   mentor_mason: { title: "单独带 Mason", note: "一对一练反手" }
-  open_day: { title: "办免费开放日", note: "几个人一起张罗两小时" }
+  open_day: { title: "办免费开放日", note: "几个人一起张罗两小时", locked: "先把 1 号场的裂缝补好" }
 seasons:
   late_summer: 夏末
   early_autumn: 初秋

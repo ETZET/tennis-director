@@ -131,6 +131,8 @@ export interface PlaceRow {
   fit?: { text: string; blocked?: boolean; here?: boolean; best?: boolean };
   /** 换来什么、花什么（最多三个，先代价后收益） */
   chips?: Chip[];
+  /** 还没开出来的工单：line 是怎么开出来（"先把 1 号场的裂缝补好"） */
+  locked?: boolean;
 }
 
 /** 点了场景里的地点牌：这个地点的所有工作（ADR 0013） */

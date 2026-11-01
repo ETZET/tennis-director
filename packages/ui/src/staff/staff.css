@@ -82,3 +82,5 @@
 .td-row .td-chips{justify-content:flex-start;flex-wrap:nowrap;overflow:hidden}
 .td-row .td-chip{font-size:11px;padding:2px 4px}
 .td-row-best{font-style:normal;margin-right:5px;padding:1px 4px;background:var(--td-optic,#d7ff3c);color:var(--td-navy,#0f1f3a);font:800 11px/1.2 var(--td-cond,sans-serif)}
+.td-row-locked{opacity:.55;cursor:default;background:rgba(255,255,255,.04);border-left-style:dashed}
+.td-row-locked .td-row-icon{font-size:15px;color:#dfe6ef}

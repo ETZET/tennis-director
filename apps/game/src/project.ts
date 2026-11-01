@@ -666,7 +666,7 @@ export class Projector {
         faces: st.person ? [this.face(st.person)] : [],
         chips: payoff(this.postChips(p)),
         ...(fit ? { fit } : {}),
-        rank: need ? 0 : st.person ? 2 : 3,
+        rank: need ? 0 : st.person ? 2 : st.inHours ? 3 : 5,
       });
     }
     for (const o of orders) {
@@ -691,6 +691,24 @@ export class Projector {
         chips: payoff(this.orderChips(s, o)),
         ...(fit ? { fit } : {}),
         rank: st.crew.length ? 1 : st.started ? 1.5 : 4,
+      });
+    }
+    // 还没开出来的工单（ADR 0015）：告诉玩家修好什么就能开出它，排在最后
+    for (const o of w.orders.values()) {
+      if (o.at !== anchor || orderStatus(s, w, o).visible) continue;
+      if (o.once && (s.orderLog.done[o.id] ?? 0) > 0) continue;
+      if ((s.orderLog.cooldowns[o.id] ?? -1) > s.t) continue;
+      const how = T.tr(`orders.${o.id}.locked`, '');
+      if (!how) continue;
+      rows.push({
+        id: o.id,
+        kind: 'order',
+        skill: o.skill,
+        title: this.targetTitle(o.id),
+        line: how,
+        faces: [],
+        locked: true,
+        rank: 9,
       });
     }
     rows.sort((a, b) => a.rank - b.rank || (a.fit?.blocked ? 1 : 0) - (b.fit?.blocked ? 1 : 0));
