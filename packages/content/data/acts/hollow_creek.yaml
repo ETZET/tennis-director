@@ -61,10 +61,11 @@ director_config: steady
 rules:
   # 质量每分钟向目标靠近。目标由你搭起来的东西决定：教练、场地、公告板上排的课，以及买过的器材。
   # 课排得太满教练会累（每周超过 5 节，每多一节 −3）。
+  # 底线 41（准则 6）：什么都不做时质量只从 44 慢慢滑到 41 左右；排课过多的扣分在底线之外，排坏了照样会掉。
   quality_target: >-
-    20 + coach.skill * 0.4 * coach.attention * min(1, (plan.junior_lesson + plan.adult_clinic) / 3)
+    max(41, 20 + coach.skill * 0.4 * coach.attention * min(1, (plan.junior_lesson + plan.adult_clinic) / 3)
     + facility_quality + courts_open * 2
-    + (flag.ball_machine ? 4 : 0) + (flag.volunteer_helping ? 3 : 0)
+    + (flag.ball_machine ? 4 : 0) + (flag.volunteer_helping ? 3 : 0))
     - max(0, plan.junior_lesson + plan.adult_clinic - 5) * 3
   quality_rate: 0.25
   # 不操作时局面基本不动：会员和声望只在每周日收盘时按质量小幅调整一次

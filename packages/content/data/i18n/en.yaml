@@ -348,6 +348,30 @@ roles:
   rival: Rival
 
 ui:
+  hud:
+    quality: Quality
+    members: Members
+    courtsOpen: Courts open
+    salary: Your salary
+    details: Club report
+    paused: Paused
+    notYet: Not yet
+    failZone: Grade F below 40
+    qualityChart: Program quality this session
+    headCoach: Head coach
+    vacant: Vacant
+    wire: Club wire
+    rotateLeft: Rotate left (Q)
+    rotateRight: Rotate right (E)
+    pause: Pause (Space)
+    resume: Resume (Space)
+    speed: Change speed
+    story: How we got here
+    because: Because
+    so: so
+    more: "+{n} more"
+    walkThere: Walks there first
+    trend: { falling: Falling, recovering: Recovering, flat: Flat, bottomed: Bottomed out }
   week: "Wk {n}"
   weather: { sun: Sunny, cloud: Cloudy, rain: Rain · outdoor courts closed, wind: Windy }
   days: { "0": Mon, "1": Tue, "2": Wed, "3": Thu, "4": Fri, "5": Sat, "6": Sun }
