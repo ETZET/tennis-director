@@ -13,6 +13,8 @@
  *   - Math.random 换成固定种子的 mulberry32，Playwright 假时钟驱动 requestAnimationFrame
  *   - 拦截 Google Fonts（两边都用后备字体），原型的 three.js CDN 换成本地 r128
  *   - SwiftShader 软件渲染，结果不依赖显卡
+ *   - 字体固定成仓库里的 DejaVu Sans（tools/screenshot/fonts）：不拦的话 HUD 文字会落到各台机器自己的
+ *     后备字体（本地是 Inter，GitHub 的 Ubuntu 是 DejaVu），同一份代码在不同机器上差 1.3%
  *
  * 环境变量：CHROMIUM_PATH 指定浏览器；SCREENSHOT_MAX_DIFF 允许的差异像素比例（默认 0.001）。
  */
@@ -32,6 +34,12 @@ const args = process.argv.slice(2);
 const against = args.includes('--against') ? args[args.indexOf('--against') + 1] : 'baselines';
 const update = args.includes('--update');
 const MAX_DIFF = Number(process.env.SCREENSHOT_MAX_DIFF ?? 0.001);
+const FONTS = join(ROOT, 'tools/screenshot/fonts');
+/** 页面里所有文字都换成同一份字体文件；粗体（600 以上）用 Bold */
+const FONT_CSS = `
+@font-face{font-family:"TD Shot Sans";src:url("https://td-shot.local/DejaVuSans.ttf");font-weight:100 599}
+@font-face{font-family:"TD Shot Sans";src:url("https://td-shot.local/DejaVuSans-Bold.ttf");font-weight:600 900}
+*,*::before,*::after{font-family:"TD Shot Sans" !important}`;
 
 const VIEWPORT = { width: 1280, height: 800 };
 /** 每个角度：先转 90°（Q 两次），再跑这么多毫秒的假时间 */
@@ -79,6 +87,9 @@ async function shoot(browser, url, tag) {
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e)));
   await page.route(/fonts\.(googleapis|gstatic)\.com/, (r) => r.abort());
+  await page.route(/^https:\/\/td-shot\.local\//, (r) =>
+    r.fulfill({ path: join(FONTS, new URL(r.request().url()).pathname.slice(1)), contentType: 'font/ttf' }),
+  );
   await page.route(/cdnjs\.cloudflare\.com\/.*three\.min\.js/, (r) =>
     r.fulfill({ path: THREE_R128, contentType: 'text/javascript' }),
   );
@@ -88,6 +99,8 @@ async function shoot(browser, url, tag) {
   await page.clock.pauseAt(T0 + 1000);
   await page.addInitScript(INIT);
   await page.goto(url, { waitUntil: 'load' });
+  await page.addStyleTag({ content: FONT_CSS });
+  await page.evaluate(() => document.fonts.ready);
   // 暂停演出（与工具栏的 Pause 相同），相机仍然按真实帧间隔缓动
   await page.keyboard.press('Space');
   const shots = [];
