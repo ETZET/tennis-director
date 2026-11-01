@@ -137,6 +137,24 @@ async function shoot(browser, url, tag) {
       await page.keyboard.press('q');
     }
     await page.clock.runFor(SETTLE_MS);
+    // DEBUG（临时）：CI 和本地的 HUD 文字是否一样
+    if (i === 0)
+      console.log(
+        'DBG-TEXT',
+        JSON.stringify(
+          await page.evaluate(() => ({
+            lang: navigator.language,
+            tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
+            dpr: devicePixelRatio,
+            text: [...document.querySelectorAll('.td-strip,.td-bug,.td-wire')].map((e) => e.innerText),
+            widths: [...document.querySelectorAll('.td-strip *,.td-wire li')]
+              .slice(0, 30)
+              .map((e) => e.getBoundingClientRect().width.toFixed(2)),
+            font: getComputedStyle(document.querySelector('.td-strip') ?? document.body).fontFamily,
+            ok: document.fonts.check('16px "TD Shot Sans"'),
+          })),
+        ),
+      );
     const buf = await page.screenshot({ type: 'png' });
     writeFileSync(join(OUT, `${tag}-${i}.png`), buf);
     shots.push(PNG.sync.read(buf));
@@ -220,6 +238,16 @@ async function main() {
     let failed = false;
     for (let i = 0; i < ANGLES; i++) {
       const r = diff(mine[i], ref[i], `angle-${i}`);
+      // DEBUG（临时）：把差异最集中那块的两张小图打进日志
+      if (i === 0 && r > MAX_DIFF)
+        for (const [tag, img] of [
+          ['MINE', mine[0]],
+          ['REF', ref[0]],
+        ]) {
+          const crop = new PNG({ width: 200, height: 60 });
+          PNG.bitblt(img, crop, 840, 20, 200, 60, 0, 0);
+          console.log(`DBG-${tag} ${PNG.sync.write(crop).toString('base64')}`);
+        }
       const ok = r <= MAX_DIFF;
       failed ||= !ok;
       console.log(`角度 ${i}（${i * 90}°）：差异像素 ${(r * 100).toFixed(4)}%  ${ok ? '通过' : '不通过'}`);
