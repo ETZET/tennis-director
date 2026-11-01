@@ -1,4 +1,4 @@
-import { type Effect, minutes } from '@td/sim';
+import { type ContentBundle, type Effect, minutes } from '@td/sim';
 import type { Chip } from '@td/ui';
 import type { Text } from './text';
 
@@ -10,7 +10,28 @@ import type { Text } from './text';
 const LOWER_IS_BETTER = new Set(['pickleball_pressure']);
 const fmtNum = (n: number) => `${n > 0 ? '+' : '−'}${Math.abs(Math.round(n * 10) / 10)}`;
 
-export function effectChips(T: Text, effs: readonly Effect[], prob = 1): Chip[] {
+/** 招聘：这个人最强的两项能力和周薪（第二轮试玩 S1：招人不能是盲选） */
+function hireChips(T: Text, id: string, people: ContentBundle['people'] | undefined): Chip[] {
+  const p = people?.find((x) => x.id === id);
+  if (!p) return [];
+  const skills = (
+    [
+      ['teach', p.skill],
+      ['upkeep', p.upkeep ?? 0],
+      ['service', p.service ?? 0],
+    ] as const
+  )
+    .slice()
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 2)
+    .map(([k, v]) => `${T.tr(`ui.skill.${k}`)} ${Math.round(v)}`)
+    .join(' · ');
+  const out: Chip[] = [{ text: skills, tone: 'info' }];
+  if (p.wage_week) out.push({ text: T.fmt('ui.chip.wage', { n: p.wage_week }), tone: 'cost' });
+  return out;
+}
+
+export function effectChips(T: Text, effs: readonly Effect[], prob = 1, people?: ContentBundle['people']): Chip[] {
   const out: Chip[] = [];
   for (const e of effs) {
     const p = prob * (typeof e.chance === 'number' ? e.chance : 1);
@@ -25,8 +46,15 @@ export function effectChips(T: Text, effs: readonly Effect[], prob = 1): Chip[] 
       const text = e.stat === 'cash' ? `${e.add > 0 ? '+' : '−'}$${Math.abs(e.add)}` : `${name} ${fmtNum(e.add)}`;
       out.push({ text: text + maybe, tone: e.stat === 'cash' && e.add < 0 ? 'cost' : good ? 'gain' : 'loss' });
     } else if ('facility' in e) out.push({ text: T.tr(`facilities.${e.facility}.${e.set}`), tone: 'gain' });
-    else if ('hire' in e) out.push({ text: T.fmt('ui.chip.hire', { name: T.personName(e.hire) }), tone: 'info' });
-    else if ('fire' in e) out.push({ text: T.fmt('ui.chip.fire', { name: T.personName(e.fire) }), tone: 'loss' });
+    else if ('hire' in e) {
+      const who = hireChips(T, e.hire, people);
+      // 有能力和周薪就不再重复"某某上任"（选项文字里已经有名字）
+      out.push(
+        ...(who.length
+          ? who
+          : [{ text: T.fmt('ui.chip.hire', { name: T.personName(e.hire) }), tone: 'info' as const }]),
+      );
+    } else if ('fire' in e) out.push({ text: T.fmt('ui.chip.fire', { name: T.personName(e.fire) }), tone: 'loss' });
     else if ('person' in e)
       for (const [attr, v] of Object.entries(e.add)) {
         if (v === undefined) continue;

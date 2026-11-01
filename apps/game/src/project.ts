@@ -782,7 +782,7 @@ export class Projector {
           tone: 'time',
         });
       if (opt) {
-        chips.push(...effectChips(T, opt.effects));
+        chips.push(...effectChips(T, opt.effects, 1, this.content.people));
         if (st.chance !== null) {
           chips.push({ text: T.fmt('ui.chip.chance', { p: Math.round(st.chance * 100) }), tone: 'risk' });
           chips.push(...effectChips(T, opt.onSuccess, st.chance));
@@ -798,7 +798,10 @@ export class Projector {
       if (st.blocked === 'requires') hints.push(T.tr('ui.hint.requires'));
       if (st.blocked === 'cost') hints.push(T.tr('ui.hint.cash'));
       // 代价和收益由标签讲，选项文字只留"做什么"（去掉文案里 " · " 后面手写的代价）
-      const text = T.option(o.card, st.key).split(' · ')[0] ?? '';
+      // 招聘选项留下人物的一句介绍（"维护好手"），周薪由标签讲
+      const full = T.option(o.card, st.key);
+      const hires = !!opt?.effects.some((e) => 'hire' in e);
+      const text = hires ? full.replace(/[，,]\s*(每周|\$|per week|\/week).*$/i, '') : (full.split(' · ')[0] ?? '');
       return {
         key: KEYS[i] ?? 1,
         text,

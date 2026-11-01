@@ -280,7 +280,7 @@ events:
   hc_hiring_day:
     topic: 招聘日
     title: 两个人来应聘
-    body: 告示贴出去一周，来了两个人。现在全俱乐部能干活的只有你和 Dale。
+    body: 告示贴出去一周，来了两个人。人手一直不够，活总是比人多。
     options:
       A: Rosa Ortiz · 维护好手，每周 $180
       B: Ben Kim · 球童，会招呼人，每周 $110
@@ -407,6 +407,7 @@ ui:
   days: { "0": 一, "1": 二, "2": 三, "3": 四, "4": 五, "5": 六, "6": 日 }
   chip:
     errand: "{name}离岗 {time}"
+    wage: "周薪 ${n}"
     hire: "{name} 上任"
     fire: "{name} 离开"
     chance: "成功率 {p}%"

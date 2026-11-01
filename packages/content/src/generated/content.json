@@ -1,5 +1,5 @@
 {
- "version": "b2cff518",
+ "version": "db559fbf",
  "stats": [
   {
    "id": "cash",
@@ -3989,7 +3989,7 @@
    "events.hc_who_follows.options.C": "Go alone",
    "events.hc_hiring_day.topic": "Hiring day",
    "events.hc_hiring_day.title": "Two people came about the job",
-   "events.hc_hiring_day.body": "The notice has been up for a week and two people turned up. Right now the only people working the club are you and Dale.",
+   "events.hc_hiring_day.body": "The notice has been up for a week and two people turned up. There is always more work than hands.",
    "events.hc_hiring_day.options.A": "Rosa Ortiz · great at upkeep, $180/wk",
    "events.hc_hiring_day.options.B": "Ben Kim · ball kid, good with people, $110/wk",
    "events.hc_hiring_day.options.C": "Hire no one · keep the wages",
@@ -4149,6 +4149,7 @@
    "ui.days.5": "Sat",
    "ui.days.6": "Sun",
    "ui.chip.errand": "{name} away {time}",
+   "ui.chip.wage": "${n}/week",
    "ui.chip.hire": "{name} joins",
    "ui.chip.fire": "{name} leaves",
    "ui.chip.chance": "{p}% chance",
@@ -4465,7 +4466,7 @@
    "events.hc_who_follows.options.C": "一个人去",
    "events.hc_hiring_day.topic": "招聘日",
    "events.hc_hiring_day.title": "两个人来应聘",
-   "events.hc_hiring_day.body": "告示贴出去一周，来了两个人。现在全俱乐部能干活的只有你和 Dale。",
+   "events.hc_hiring_day.body": "告示贴出去一周，来了两个人。人手一直不够，活总是比人多。",
    "events.hc_hiring_day.options.A": "Rosa Ortiz · 维护好手，每周 $180",
    "events.hc_hiring_day.options.B": "Ben Kim · 球童，会招呼人，每周 $110",
    "events.hc_hiring_day.options.C": "这次不招 · 省下工资",
@@ -4625,6 +4626,7 @@
    "ui.days.5": "六",
    "ui.days.6": "日",
    "ui.chip.errand": "{name}离岗 {time}",
+   "ui.chip.wage": "周薪 ${n}",
    "ui.chip.hire": "{name} 上任",
    "ui.chip.fire": "{name} 离开",
    "ui.chip.chance": "成功率 {p}%",
