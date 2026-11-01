@@ -205,7 +205,8 @@ for (const a of content.acts[0]?.anchors ?? []) {
     get: ground(a, 0.2),
     lift: () => (placeFlags(a).dot ? 10 : 34),
     // 缩成小圆点的地方如果立着地点牌，圆点就不画了（地点牌本身能点）
-    text: () => (placeFlags(a).dot && hubOf(a) ? null : text.anchor(a)),
+    // 立着地点牌的地方，名字和状态（总监在这儿、正要去、有卡）都画在地点牌上（一个地点只有一块牌）
+    text: () => (hubOf(a) ? null : text.anchor(a)),
     cls: () => {
       const f = placeFlags(a);
       return `pl${f.here ? ' pl-here' : ''}${f.dest ? ' pl-dest' : ''}${f.card ? ' pl-card' : ''}${f.dot ? ' pl-dot' : ''}`;
@@ -261,13 +262,14 @@ function addHubs(c: ContentBundle): void {
           const orders = o.n
             ? `<span class="hb-o${o.crew ? ' hb-on' : ''}">${o.skills.map((k) => `<i class="hb-${k}"></i>`).join('')}⚒${o.progress !== null ? `${Math.round(o.progress * 100)}%` : o.n > 1 ? o.n : ''}</span>`
             : '';
-          const name = labels.compact ? '' : `<b>${esc(text.anchor(a))}</b>`;
+          const name = `<b>${esc(text.anchor(a))}</b>`;
           return `${name}${posts}${orders}`;
         },
         cls: () => {
           const h = hubOf(a);
           const need = h?.posts.some((p) => p.need);
-          return `hub${need ? ' hub-need' : ''}${h?.fit === 'fit' ? ' tg-fit' : h?.fit === 'nofit' ? ' tg-nofit' : ''}${session.place === a ? ' hub-open' : ''}`;
+          const f = placeFlags(a);
+          return `hub${f.here ? ' hub-here' : ''}${f.dest ? ' hub-dest' : ''}${f.card ? ' hub-card' : ''}${need ? ' hub-need' : ''}${h?.fit === 'fit' ? ' tg-fit' : h?.fit === 'nofit' ? ' tg-nofit' : ''}${session.place === a ? ' hub-open' : ''}`;
         },
       },
       () => tapPlace(a),
