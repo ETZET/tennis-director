@@ -337,19 +337,7 @@ export function buildIndianWells(ctx: BuildContext): IndianWellsStatic {
   solid.box(GATE.x, 6, (GATE.z0 + GATE.z1) / 2 - 2, 0.8, 0.9, 13, jit(ctx, '#6a5f52', 0.04), 0, -0.35);
   solid.box(GATE.x + 4, 0, GATE.z1 + 5, 3, 3, 3, jit(ctx, PAL.wall, 0.04));
   solid.box(GATE.x + 2.45, 1, GATE.z1 + 5, 0.1, 1.2, 2, PAL.board);
-  sign(
-    ctx.scene,
-    'INDIAN WELLS TENNIS GARDEN',
-    9,
-    0.9,
-    GATE.x - 0.7,
-    6.4,
-    0,
-    -Math.PI / 2,
-    '#5d5446',
-    '#d8cdb4',
-    22,
-  );
+  sign(ctx.scene, 'INDIAN WELLS TENNIS GARDEN', 9, 0.9, GATE.x - 0.7, 6.4, 0, -Math.PI / 2, '#5d5446', '#d8cdb4', 22);
 
   /* 会所：两层的盒子，屋顶有洞 */
   const C = CLUBHOUSE;
