@@ -73,12 +73,42 @@ Two review rounds on the phone build (390×844), each with a newcomer and a vete
 
 | # | Item | Note | Status |
 | --- | --- | --- | --- |
-| P1 | Resume round 1 reviews | Newcomer on seed 11, veteran on seed 23; brief in tools/playtest/brief.md | To do |
+| P1 | Resume round 1 reviews | Nov 1, Chinese UI. Newcomer (seed 11): 5.0 avg, lost the vote at board 88. Veteran (seed 23): 4.4 avg, won with 171 members; idle control run lost. Scores and findings below | Done — awaiting sign-off |
 | P2 | Fix round 1 findings | Then rerun bots, playability and the 1,000-game determinism gate | To do |
 | P3 | Round 2 reviews and fixes | Republish the playable build afterwards and merge to main | To do |
 | P4 | Tune the idle quality drop | Quality target now has a floor of 41 (over-scheduling penalty still applies below it). Idle runs: 44 → ~40.6 on day 1, then hold at 40–41 (was 33 on day 1, settling at 20). Bots unchanged: greedy 83.6%, random 19.9% | Done |
 | P5 | Place labels crowd the island centre on phone | At the zoomed-out view only the director's place, destination and places with a card keep names; the rest are tappable dots (44 px target) | Done |
 | P6 | Delete the merged animlib-port branch | Already in main. Cloud session can't push deletes; delete it on GitHub by hand | Blocked |
+
+### Round 1 scores (Nov 1)
+
+| Item | Newcomer | Veteran |
+| --- | --- | --- |
+| Meaningful choices | 5 | 4 |
+| Readable consequences | 5 | 4 |
+| Pacing | 4 | 4 |
+| Player agency | 5 | 5 |
+| Idle & living world | 7 | 6 |
+| Tension arc | 3 | 2 |
+| Replay value | 5 | 4 |
+| Onboarding | 5 | 5 |
+| Phone UX | 6 | 6 |
+| **Average** | **5.0** | **4.4** |
+
+### Round 1 findings for P2 (both reviewers unless noted)
+
+| # | Finding | Suggested fix |
+| --- | --- | --- |
+| R1 | Open day stacks with no falloff (5 notes ≈ +19 members/week); social night every evening has no cost. One dominant plan for every seed (veteran) | Diminishing returns per week (4/2/1/0); open day uses courts or coach energy; social night costs after the third |
+| R2 | Tension dies mid-act: board reaches 88–100 by day 21; the final vote is still a 75–85% roll (newcomer lost at 88) | Weekly board decay; escalating rival/board asks in weeks 4–6; near-certain vote at high confidence, or a conditional stay with a rescue card; list the deciding factors on the ending |
+| R3 | Cards repeat and ignore state: Saturday-morning card 3–4×, court-1 double booking 3–4× (even in rain), roof leak 5× when idle, 4 cards within two hours on day 3, empty stretches days 16–21, 24–28, 38–42 | Cooldowns or once-only flags; state-aware triggers; a minimum gap between cards; second appearances escalate |
+| R4 | Free or dominated options: walk-there options cost nothing, retired-member card is all upside, "ask for money" is a free +$600, trial-van option 2 dominated, last card's three options show the same outcome, pool card has one option | Every option gets a visible cost (energy for walking, board confidence for asking); differentiate the outcomes; a one-option card becomes a wire item |
+| R5 | Key info hidden until after the choice: coach candidates look identical, side effects ("board gets impatient") only appear in the log, ring actions show no cost on the button, odds missing on some outcomes (workday) | Show the option subtitles and side effects on the card; a cost line under ring buttons; percentages on every chance |
+| R6 | The causal log can't be trusted: only 14 entries, crowded out by daily cash; ring actions logged as "because the season started"; failures and board moves never reach the wire; the day 7 time-share choice had no settlement | Merge daily close lines; keep the player's decisions; log as "you did X"; send failures and board moves to the wire; fix the missing settlement |
+| R7 | Energy never binds (back to 100 each morning, low of 65); cash piles up with nothing to buy late in the act; the ring empties after week 3; "patch roof" still offered after the roof was fixed by a card | Seasonal ring actions; walking and open days draw energy; hide finished repairs |
+| R8 | Onboarding: noticeboard opens with no explanation, rejected drops give no reason (adult clinic is evening only), reputation is not on the HUD, D/C grades unexplained, unnamed dots on the map | Highlight valid cells while dragging; one-line note descriptions; reputation in the strip or details |
+| R9 | Text: untranslated names and mixed terms (Coach Dale Pruitt, Hollow Creek, "Coach 士气", Pine Crown / 松冠), "这儿现在没什么可做的" wraps two characters per line, fifth strip cell clipped on phone, camera often leaves half the screen as sky | zh names table; wider ring note; strip fit at 390 px; camera framing |
+| R10 | Bridge only: /plan returns the previous state; /wait/1440 sometimes runs 2,880 minutes (newcomer) | Fix in tools/playtest/server.mjs |
 
 ## Open questions
 
