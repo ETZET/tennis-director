@@ -1,5 +1,5 @@
 {
- "version": "3f38d8c1",
+ "version": "c9e2ae6b",
  "stats": [
   {
    "id": "cash",
@@ -1401,7 +1401,7 @@
    ],
    "director_config": "steady",
    "rules": {
-    "quality_target": "20 + coach.skill * 0.4 * coach.attention * min(1, (plan.junior_lesson + plan.adult_clinic) / 3) + facility_quality + courts_open * 2 + (flag.ball_machine ? 4 : 0) + (flag.volunteer_helping ? 3 : 0) - max(0, plan.junior_lesson + plan.adult_clinic - 5) * 3",
+    "quality_target": "max(41, 20 + coach.skill * 0.4 * coach.attention * min(1, (plan.junior_lesson + plan.adult_clinic) / 3) + facility_quality + courts_open * 2 + (flag.ball_machine ? 4 : 0) + (flag.volunteer_helping ? 3 : 0)) - max(0, plan.junior_lesson + plan.adult_clinic - 5) * 3",
     "quality_rate": 0.25,
     "member_drift": "weekday == 6 ? round((stat.quality - 50) / 15) : 0",
     "reputation_drift": "weekday == 6 ? (stat.quality - 50) / 30 : 0",
