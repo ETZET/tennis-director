@@ -395,6 +395,7 @@ ui:
     cancel: 放下
     close: 关上
     back: 返回
+    best: 拿手
     send: 派去
     stop: 叫停
     skill_teach: 教学
@@ -467,6 +468,7 @@ ui:
     walking: "去{what} · {time}"
     errand: "在{place}办事 · {time}"
   place:
+    income: 有收入
     pick: "把{name}派到{place}哪一项？"
     empty: 这儿现在没活
     need: 没人 · 有客人在等

@@ -1,5 +1,5 @@
 {
- "version": "c01737bc",
+ "version": "5ddd571b",
  "stats": [
   {
    "id": "cash",
@@ -4103,6 +4103,7 @@
    "ui.hud.cancel": "Put down",
    "ui.hud.close": "Close",
    "ui.hud.back": "Back",
+   "ui.hud.best": "Strong suit",
    "ui.hud.send": "Send",
    "ui.hud.stop": "Stop",
    "ui.hud.skill_teach": "Coaching",
@@ -4188,6 +4189,7 @@
    "ui.staff.waiting": "{what} · waiting for customers",
    "ui.staff.walking": "To {what} · {time}",
    "ui.staff.errand": "Away at {place} · {time}",
+   "ui.place.income": "Earns money",
    "ui.place.pick": "Send {name} to which job at {place}?",
    "ui.place.empty": "Nothing to do here right now",
    "ui.place.need": "Nobody · customers waiting",
@@ -4571,6 +4573,7 @@
    "ui.hud.cancel": "放下",
    "ui.hud.close": "关上",
    "ui.hud.back": "返回",
+   "ui.hud.best": "拿手",
    "ui.hud.send": "派去",
    "ui.hud.stop": "叫停",
    "ui.hud.skill_teach": "教学",
@@ -4656,6 +4659,7 @@
    "ui.staff.waiting": "{what} · 等客人",
    "ui.staff.walking": "去{what} · {time}",
    "ui.staff.errand": "在{place}办事 · {time}",
+   "ui.place.income": "有收入",
    "ui.place.pick": "把{name}派到{place}哪一项？",
    "ui.place.empty": "这儿现在没活",
    "ui.place.need": "没人 · 有客人在等",

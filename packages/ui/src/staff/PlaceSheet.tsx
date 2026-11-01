@@ -1,5 +1,6 @@
 import { STR } from '../hud/strings';
 import type { HudActions, PlaceSheetData } from '../hud/types';
+import { Chips } from './Chips';
 import './staff.css';
 
 /**
@@ -40,7 +41,11 @@ export function PlaceSheet({ p, actions }: { p: PlaceSheetData; actions: HudActi
                   </span>
                   <span class="td-row-text">
                     <b>{r.title}</b>
-                    <span>{r.fit ? r.fit.text : r.line}</span>
+                    <span>
+                      {r.fit?.best && !r.fit.blocked ? <em class="td-row-best">{STR.best}</em> : null}
+                      {r.fit ? r.fit.text : r.line}
+                    </span>
+                    {r.chips?.length && !r.fit?.blocked ? <Chips chips={r.chips} /> : null}
                     {r.progress !== undefined && r.progress > 0 ? (
                       <span class="td-row-bar">
                         <i style={{ width: `${Math.round(r.progress * 100)}%` }} />

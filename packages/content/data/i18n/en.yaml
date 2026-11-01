@@ -400,6 +400,7 @@ ui:
     cancel: Put down
     close: Close
     back: Back
+    best: Strong suit
     send: Send
     stop: Stop
     skill_teach: Coaching
@@ -472,6 +473,7 @@ ui:
     walking: "To {what} · {time}"
     errand: "Away at {place} · {time}"
   place:
+    income: Earns money
     pick: "Send {name} to which job at {place}?"
     empty: Nothing to do here right now
     need: Nobody · customers waiting

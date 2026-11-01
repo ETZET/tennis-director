@@ -594,16 +594,28 @@ export class Projector {
       if (here) return { text: T.tr('ui.sheet.here'), here: true };
       if (block && block !== 'same') return { text: T.tr(`ui.why.${block}`), blocked: true };
       const walk = this.walkMinutes(s, picked, at);
+      const lv = (k: SkillKind) => (p ? skillOf(p, k) : 0);
+      const best = lv(skill) >= Math.max(lv('teach'), lv('upkeep'), lv('service'));
       return {
+        ...(best ? { best: true } : {}),
         text: [
           `${T.tr(`ui.skill.${skill}`)} ${Math.round(p ? skillOf(p, skill) : 0)}`,
           walk ? T.fmt('ui.sheet.walk', { time: T.duration(walk) }) : T.tr('ui.sheet.here'),
-          p?.job ? T.fmt('ui.sheet.leaves', { what: this.targetTitle(p.job) }) : '',
+          p?.job ? T.fmt('ui.sheet.leaves', { what: this.short(p.job) }) : '',
         ]
           .filter(Boolean)
           .join(' · '),
       };
     };
+    // 清单一行只放"换来什么、花什么"：能力、时长这些在说明里看
+    const income = T.tr('ui.sheet.income');
+    const payoff = (cs: Chip[]) =>
+      [
+        ...cs.filter((c) => c.tone === 'cost'),
+        ...cs.filter((c) => c.tone === 'gain' || c.tone === 'loss' || c.tone === 'risk'),
+      ]
+        .slice(0, 3)
+        .map((c) => (c.text === income ? { ...c, text: T.tr('ui.place.income') } : c));
     const rows: (PlaceRow & { rank: number })[] = [];
     for (const p of posts) {
       const st = postStatus(s, w, p);
@@ -627,6 +639,7 @@ export class Projector {
         ...(need ? { need: true } : {}),
         ...(st.active ? { progress: st.progress } : {}),
         faces: st.person ? [this.face(st.person)] : [],
+        chips: payoff(this.postChips(p)),
         ...(fit ? { fit } : {}),
         rank: need ? 0 : st.person ? 2 : 3,
       });
@@ -650,6 +663,7 @@ export class Projector {
         line,
         ...(st.started ? { progress: st.progress } : {}),
         faces: st.crew.map((x) => this.face(x)),
+        chips: payoff(this.orderChips(s, o)),
         ...(fit ? { fit } : {}),
         rank: st.crew.length ? 1 : st.started ? 1.5 : 4,
       });

@@ -127,8 +127,10 @@ export interface PlaceRow {
   progress?: number;
   /** 谁在这儿干 */
   faces: { initials: string; color: string }[];
-  /** 手上拿着人时：这个人去了怎样；blocked 是派不过去的原因 */
-  fit?: { text: string; blocked?: boolean; here?: boolean };
+  /** 手上拿着人时：这个人去了怎样；blocked 是派不过去的原因；best 是这个人最拿手的能力 */
+  fit?: { text: string; blocked?: boolean; here?: boolean; best?: boolean };
+  /** 换来什么、花什么（最多三个，先代价后收益） */
+  chips?: Chip[];
 }
 
 /** 点了场景里的地点牌：这个地点的所有工作（ADR 0013） */
