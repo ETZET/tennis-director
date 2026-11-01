@@ -83,6 +83,8 @@ export function newGame(content: ContentBundle, o: NewGameOptions): GameState {
       job: placed?.job ?? null,
       walk: null,
       errand: null,
+      // 开局就在岗位上的人（Dale 的青少年课）：这就是他的习惯
+      routine: placed?.job && w.posts.has(placed.job) ? [placed.job] : [],
     };
     if (placed?.head_coach) s.headCoach = p.id;
   }
@@ -101,7 +103,7 @@ function applyCommand(ctx: Ctx, cmd: Command): boolean {
     case 'chooseOption':
       return resolveCard(ctx, cmd.uid, cmd.option, 'player');
     case 'assign':
-      return assign(ctx, cmd.person, cmd.target);
+      return assign(ctx, cmd.person, cmd.target, true);
     case 'debugSetStat':
       setStat(ctx, cmd.stat, cmd.value);
       run(ctx, { kind: 'debug', what: `set ${cmd.stat} = ${cmd.value}` }, null, []);

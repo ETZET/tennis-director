@@ -30,6 +30,8 @@ export {
   type PostStatus,
   postDemand,
   postStatus,
+  ROUTINE_MAX,
+  routineTarget,
   skillOf,
   speedOf,
   staffIds,

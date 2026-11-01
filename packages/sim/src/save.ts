@@ -90,6 +90,16 @@ export const MIGRATIONS: Record<number, Migration> = {
     state.version = 3;
     return { ...save, version: 3, state };
   },
+  // 3 → 4（习惯，ADR 0014）：每个人记住玩家放他上过的岗位；旧档从空的习惯开始（迁移时读不到内容，分不清岗位和工单）
+  3: (save) => {
+    const state = { ...(save.state as Record<string, unknown>) };
+    const people: Record<string, Record<string, unknown>> = {};
+    for (const [id, p] of Object.entries((state.people as Record<string, Record<string, unknown>>) ?? {}))
+      people[id] = { routine: [], ...p };
+    state.people = people;
+    state.version = 4;
+    return { ...save, version: 4, state };
+  },
 };
 
 export class SaveError extends Error {}

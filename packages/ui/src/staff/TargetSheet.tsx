@@ -7,15 +7,20 @@ import './staff.css';
  * 点了场景里的岗位或工单（手上没拿人）：底部弹出它是什么、现在怎样、每个人去了会怎样。
  * 点一个人就派过去；已经在这儿的人可以叫停。点外面关掉。
  */
-export function TargetSheet({ t, actions }: { t: Sheet; actions: HudActions }) {
+export function TargetSheet({ t, actions, back }: { t: Sheet; actions: HudActions; back?: boolean }) {
   return (
     <div class="td-sheet-wrap">
       {/* 点说明外面关掉（键盘用户用 Esc 或右上角的 ×） */}
-      <button type="button" class="td-sheet-scrim" aria-label={STR.close} onClick={() => actions.closeSheet?.()} />
+      <button type="button" class="td-sheet-scrim" aria-label={STR.close} onClick={() => actions.closeSheet?.(true)} />
       <section class={`td-sheet td-sheet-${t.kind}`} aria-label={t.title}>
         <header>
+          {back ? (
+            <button type="button" class="td-sheet-x" aria-label={STR.back} onClick={() => actions.closeSheet?.(false)}>
+              ‹
+            </button>
+          ) : null}
           <b>{t.title}</b>
-          <button type="button" class="td-sheet-x" aria-label={STR.close} onClick={() => actions.closeSheet?.()}>
+          <button type="button" class="td-sheet-x" aria-label={STR.close} onClick={() => actions.closeSheet?.(true)}>
             ×
           </button>
         </header>

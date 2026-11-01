@@ -7,6 +7,7 @@ import {
   DIRECTOR,
   facilityTotals,
   type GameState,
+  minuteOfDay,
   minutes,
   type OpenCard,
   type Order,
@@ -22,6 +23,7 @@ import {
   speedOf,
   staffIds,
   wagesWeek,
+  weekdayOf,
   working,
   worldOf,
 } from '@td/sim';
@@ -31,6 +33,8 @@ import {
   type EventCardData,
   grade,
   type HudSnapshot,
+  type PlaceRow,
+  type PlaceSheetData,
   type SeasonInfo,
   type StaffToken,
   type StatRow,
@@ -211,8 +215,9 @@ export class Projector {
       story,
       season: this.season(s),
       staff: this.staff(session),
-      hint: session.picked ? T.fmt('ui.staff.hint', { name: T.personName(session.picked) }) : null,
+      hint: session.picked && !session.place ? T.fmt('ui.staff.hint', { name: T.personName(session.picked) }) : null,
       sheet: session.sheet ? this.sheet(session, session.sheet) : null,
+      place: session.place ? this.placeSheet(session, session.place) : null,
       controls: { paused: session.paused, speed: `${session.speed}×` },
     };
   }
@@ -335,12 +340,18 @@ export class Projector {
         text: T.fmt('ui.staff.walking', { what: T.anchor(p.walk.to), time: T.duration(p.walk.end - s.t) }),
         state: 'walking',
       };
-    if (!p.job) return { text: T.fmt('ui.staff.idle', { place: T.anchor(p.at) }), state: 'idle' };
+    // 闲着或在等客人：有下一班就说下一班几点（ADR 0014：到点他自己会去）
+    const next = this.nextShift(s, id);
+    if (!p.job)
+      return next
+        ? { text: T.fmt('ui.staff.next', next), state: 'waiting' }
+        : { text: T.fmt('ui.staff.idle', { place: T.anchor(p.at) }), state: 'idle' };
     const post = w.posts.get(p.job);
     if (post) {
       const st = postStatus(s, w, post);
-      return st.active
-        ? { text: this.targetTitle(p.job), state: 'working' }
+      if (st.active) return { text: this.targetTitle(p.job), state: 'working' };
+      return next && next.what !== this.short(p.job)
+        ? { text: T.fmt('ui.staff.next', next), state: 'waiting' }
         : { text: T.fmt('ui.staff.waiting', { what: this.targetTitle(p.job) }), state: 'waiting' };
     }
     const order = w.orders.get(p.job);
@@ -349,6 +360,19 @@ export class Projector {
       return { text: `${this.targetTitle(p.job)} · ${Math.round(st.progress * 100)}%`, state: 'working' };
     }
     return { text: this.targetTitle(p.job), state: 'working' };
+  }
+
+  /** 这个人今天接下来的第一个班（习惯里还没开始的有时段岗位） */
+  private nextShift(s: GameState, id: string): { time: string; what: string } | null {
+    const w = worldOf(s, this.content);
+    const h = minuteOfDay(s.t) / 60;
+    let best: Post | null = null;
+    for (const x of s.people[id]?.routine ?? []) {
+      const post = w.posts.get(x);
+      if (!post?.hours || post.hours[0] <= h || (post.days && !post.days.includes(weekdayOf(s.t)))) continue;
+      if (!best || post.hours[0] < (best.hours?.[0] ?? 99)) best = post;
+    }
+    return best?.hours ? { time: `${best.hours[0]}:00`, what: this.short(best.id) } : null;
   }
 
   /** 底部员工条：总监在最前，然后按招来的顺序 */
@@ -498,6 +522,209 @@ export class Projector {
       ...(progress !== undefined ? { progress } : {}),
       people,
     };
+  }
+
+  /**
+   * 一个地点此刻在场景里露出来的工作（ADR 0013）：存在的岗位（有人、在时段里、或设施该维护了），看得见的工单。
+   * 拿着人的时候，所有存在的岗位都算（好让他能被派去等客人）。
+   */
+  placeTargets(session: Session, anchor: string): { posts: Post[]; orders: Order[] } {
+    const { s } = session;
+    const w = worldOf(s, this.content);
+    const posts = [...w.posts.values()].filter((p) => {
+      if (p.at !== anchor) return false;
+      const st = postStatus(s, w, p);
+      if (!st.exists) return false;
+      const low = !!p.restore && (s.condition[w.facilityAt.get(p.at) ?? ''] ?? 100) < 70;
+      return !!st.person || (st.demand && st.inHours) || low || !!session.picked || session.place === anchor;
+    });
+    const orders = [...w.orders.values()].filter((o) => o.at === anchor && orderStatus(s, w, o).visible);
+    return { posts, orders };
+  }
+
+  /** 地点牌上的内容：要人的岗位一格一格，工单合成一格（ADR 0013） */
+  hub(
+    session: Session,
+    anchor: string,
+  ): {
+    posts: { initials: string; color: string; progress: number; need: boolean; on: boolean }[];
+    orders: { n: number; skills: SkillKind[]; progress: number | null; crew: number };
+    fit: 'none' | 'fit' | 'nofit';
+  } | null {
+    const { s } = session;
+    const w = worldOf(s, this.content);
+    const { posts, orders } = this.placeTargets(session, anchor);
+    if (!posts.length && !orders.length) return null;
+    const pp = posts
+      .map((p) => {
+        const st = postStatus(s, w, p);
+        const face = st.person ? this.face(st.person) : null;
+        return {
+          initials: face?.initials ?? '+',
+          color: face?.color ?? '',
+          progress: st.progress,
+          need: st.demand && st.inHours && !st.person,
+          on: st.active,
+          show: !!st.person || (st.demand && st.inHours),
+        };
+      })
+      // 地点牌只放此刻要紧的岗位格；拿着人时空岗位也露出来（是个落点）
+      .filter((p) => p.show || session.picked)
+      .map(({ show: _, ...p }) => p);
+    let best: number | null = null;
+    let crew = 0;
+    for (const o of orders) {
+      const st = orderStatus(s, w, o);
+      if (st.started) best = Math.max(best ?? 0, st.progress);
+      crew += st.crew.length;
+    }
+    const picked = session.picked;
+    const fit = !picked
+      ? 'none'
+      : [...posts, ...orders].some((t) => canAssign(s, w, picked, t.id) === null)
+        ? 'fit'
+        : 'nofit';
+    return {
+      posts: pp,
+      orders: { n: orders.length, skills: [...new Set(orders.map((o) => o.skill))], progress: best, crew },
+      fit,
+    };
+  }
+
+  /** 拿着这个人落到地点上：能接的活（只有一项就直接派） */
+  placeFits(session: Session, anchor: string, person: string): string[] {
+    const { s } = session;
+    const w = worldOf(s, this.content);
+    const { posts, orders } = this.placeTargets(session, anchor);
+    return [...posts, ...orders].filter((t) => canAssign(s, w, person, t.id) === null).map((t) => t.id);
+  }
+
+  /** 地点清单（ADR 0013）：这个地点的每项工作一行；缺人的、开了工的排前面 */
+  placeSheet(session: Session, anchor: string): PlaceSheetData {
+    const { s } = session;
+    const T = this.text;
+    const w = worldOf(s, this.content);
+    const { posts, orders } = this.placeTargets(session, anchor);
+    const picked = session.picked;
+    const names = (ids: readonly string[]) => ids.map((x) => T.personName(x)).join(T.lang === 'zh' ? '、' : ', ');
+    const fitOf = (id: string, at: string, skill: SkillKind): PlaceRow['fit'] => {
+      if (!picked) return undefined;
+      const p = s.people[picked];
+      const here = p?.job === id;
+      const block = canAssign(s, w, picked, id);
+      if (here) return { text: T.tr('ui.sheet.here'), here: true };
+      if (block && block !== 'same') return { text: T.tr(`ui.why.${block}`), blocked: true };
+      const walk = this.walkMinutes(s, picked, at);
+      const lv = (k: SkillKind) => (p ? skillOf(p, k) : 0);
+      const best = lv(skill) >= Math.max(lv('teach'), lv('upkeep'), lv('service'));
+      return {
+        ...(best ? { best: true } : {}),
+        text: [
+          `${T.tr(`ui.skill.${skill}`)} ${Math.round(p ? skillOf(p, skill) : 0)}`,
+          walk ? T.fmt('ui.sheet.walk', { time: T.duration(walk) }) : T.tr('ui.sheet.here'),
+          p?.job ? T.fmt('ui.sheet.leaves', { what: this.short(p.job) }) : '',
+        ]
+          .filter(Boolean)
+          .join(' · '),
+      };
+    };
+    // 清单一行只放"换来什么、花什么"：能力、时长这些在说明里看
+    const income = T.tr('ui.sheet.income');
+    const payoff = (cs: Chip[]) =>
+      [
+        ...cs.filter((c) => c.tone === 'cost'),
+        ...cs.filter((c) => c.tone === 'gain' || c.tone === 'loss' || c.tone === 'risk'),
+      ]
+        .slice(0, 3)
+        .map((c) => (c.text === income ? { ...c, text: T.tr('ui.place.income') } : c));
+    const rows: (PlaceRow & { rank: number })[] = [];
+    for (const p of posts) {
+      const st = postStatus(s, w, p);
+      const need = st.demand && st.inHours && !st.person;
+      // 这是谁的班（ADR 0014）：空着的时候告诉玩家谁会自己来
+      const owner = Object.values(s.people).find((x) => x.hired && x.routine?.includes(p.id))?.id ?? null;
+      const line = st.person
+        ? st.active
+          ? T.fmt('ui.place.on', { name: T.personName(st.person), p: Math.round(st.progress * 100) })
+          : T.fmt('ui.place.wait', { name: T.personName(st.person) })
+        : owner && p.hours
+          ? T.fmt('ui.place.owner', { name: T.personName(owner), hours: `${p.hours[0]}–${p.hours[1]}` })
+          : need
+            ? T.tr('ui.place.need')
+            : p.hours
+              ? T.fmt('ui.place.hours', { hours: `${p.hours[0]}–${p.hours[1]}` })
+              : T.tr('ui.place.anytime');
+      const fit = fitOf(p.id, p.at, p.skill);
+      rows.push({
+        id: p.id,
+        kind: 'post',
+        skill: p.skill,
+        title: this.short(p.id),
+        line,
+        ...(need ? { need: true } : {}),
+        ...(st.active ? { progress: st.progress } : {}),
+        faces: st.person ? [this.face(st.person)] : [],
+        chips: payoff(this.postChips(p)),
+        ...(fit ? { fit } : {}),
+        rank: need ? 0 : st.person ? 2 : st.inHours ? 3 : 5,
+      });
+    }
+    for (const o of orders) {
+      const st = orderStatus(s, w, o);
+      const line = st.crew.length
+        ? T.fmt('ui.place.order_on', { names: names(st.crew), p: Math.round(st.progress * 100) })
+        : st.started
+          ? T.fmt('ui.place.order_paused', { p: Math.round(st.progress * 100) })
+          : T.fmt('ui.place.order_new', {
+              cost: o.cost ? `$${o.cost} · ` : '',
+              time: T.duration(minutes(o.work)),
+            });
+      const fit = fitOf(o.id, o.at, o.skill);
+      rows.push({
+        id: o.id,
+        kind: 'order',
+        skill: o.skill,
+        title: this.targetTitle(o.id),
+        line,
+        ...(st.started ? { progress: st.progress } : {}),
+        faces: st.crew.map((x) => this.face(x)),
+        chips: payoff(this.orderChips(s, o)),
+        ...(fit ? { fit } : {}),
+        rank: st.crew.length ? 1 : st.started ? 1.5 : 4,
+      });
+    }
+    // 还没开出来的工单（ADR 0015）：告诉玩家修好什么就能开出它，排在最后
+    for (const o of w.orders.values()) {
+      if (o.at !== anchor || orderStatus(s, w, o).visible) continue;
+      if (o.once && (s.orderLog.done[o.id] ?? 0) > 0) continue;
+      if ((s.orderLog.cooldowns[o.id] ?? -1) > s.t) continue;
+      const how = T.tr(`orders.${o.id}.locked`, '');
+      if (!how) continue;
+      rows.push({
+        id: o.id,
+        kind: 'order',
+        skill: o.skill,
+        title: this.targetTitle(o.id),
+        line: how,
+        faces: [],
+        locked: true,
+        rank: 9,
+      });
+    }
+    rows.sort((a, b) => a.rank - b.rank || (a.fit?.blocked ? 1 : 0) - (b.fit?.blocked ? 1 : 0));
+    return {
+      id: anchor,
+      title: T.anchor(anchor),
+      ...(picked ? { prompt: T.fmt('ui.place.pick', { name: T.personName(picked), place: T.anchor(anchor) }) } : {}),
+      rows: rows.map(({ rank: _, ...r }) => r),
+      empty: T.tr('ui.place.empty'),
+    };
+  }
+
+  /** 岗位名去掉地点前缀（"1 号场 · 青少年课" → "青少年课"）：清单的标题已经是地点了 */
+  private short(id: string): string {
+    const t = this.targetTitle(id);
+    return t.includes(' · ') ? (t.split(' · ').slice(1).join(' · ') as string) : t;
   }
 
   /** 记分牌下面一行：有客人却没人管的岗位有几个（最要紧的提醒） */

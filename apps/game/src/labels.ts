@@ -11,6 +11,8 @@ export interface Marker {
   get: () => XYZ;
   /** 返回 null 表示这一帧不显示 */
   text: () => string | null;
+  /** 有就用这段 HTML 画牌子（text 只当无障碍名字）；调用方负责转义 */
+  html?: () => string;
   cls: () => string;
   /** 牌子离地面的高度（像素），可以随状态变（例如拉远时缩成小圆点） */
   lift: number | (() => number);
@@ -57,11 +59,13 @@ export class GameLabels {
         continue;
       }
       const cls = m.cls();
-      const key = `${cls}|${text}`;
+      const html = m.html?.();
+      const key = `${cls}|${text}|${html ?? ''}`;
       if (key !== m.last) {
         m.last = key;
         m.el.className = cls;
-        m.el.textContent = text;
+        if (html !== undefined) m.el.innerHTML = html;
+        else m.el.textContent = text;
         m.el.setAttribute('aria-label', text);
       }
       if (m.vars) for (const [k, v] of Object.entries(m.vars())) m.el.style.setProperty(k, v);

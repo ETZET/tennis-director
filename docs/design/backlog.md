@@ -81,6 +81,11 @@ Two review rounds on the phone build (390×844), each with a newcomer and a vete
 | P10 | Draw facility condition in the scene: weeds, leaves, litter appear before the grade drops (tenet 6: "visible first, then in the numbers") | Sim tracks `condition`; render does not show it yet | To do |
 | P11 | Staff people have no idle animation of their own at posts without a performance (deck host, upkeep, pool); add simple work gestures per skill | Director gestures; others stand | To do |
 | P12 | Balance pass after round 2: greedy board is ~67 on day 21 and the vote stays open; cash still builds late in the act | First-pass numbers in ADR 0012 | To do |
+| P13 | Place hubs: one marker per place; posts and jobs listed in a thumb-zone place sheet; drop a person on a hub (one fitting job assigns directly) | 13 identical ⚒ markers crowded the island centre on phone. ADR 0013 | Done |
+| P14 | Place rows show gains and costs; a held person's strong suit is tagged; drop target under the finger lights up while dragging | Choosing between jobs was guesswork (tenet 2) | Done |
+| P15 | Routines: people remember the shifts you put them on and walk there when their post closes or a job ends; staff strip shows the next shift | Every shift change needed a drag; day-1 service 44% → 86% on the same opening. ADR 0014, save v4 | Done |
+| P16 | Growth jobs unlock from repairs (open day ← Court 1 patched, fundraiser ← roof, ball machine ← net); locked jobs previewed in the place list | 13 jobs open on day 1 → 10, mostly repairs. ADR 0015 | Done |
+| P17 | Hubs stack upward around Court 1 / Court 2 / lot in the default phone view and can sit far from their place | Stems connect them; a layout pass (fan out sideways, or anchor per place offset) still to do | To do |
 | P3 | Round 2 reviews and fixes | Republish the playable build afterwards and merge to main | To do |
 | P4 | Tune the idle quality drop | Quality target now has a floor of 41 (over-scheduling penalty still applies below it). Idle runs: 44 → ~40.6 on day 1, then hold at 40–41 (was 33 on day 1, settling at 20). Bots unchanged: greedy 83.6%, random 19.9% | Done |
 | P5 | Place labels crowd the island centre on phone | At the zoomed-out view only the director's place, destination and places with a card keep names; the rest are tappable dots (44 px target) | Done |

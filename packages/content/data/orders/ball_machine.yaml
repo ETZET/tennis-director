@@ -7,6 +7,8 @@ work: 30m
 cost: 400
 crew: 1
 once: true
+# 先换上新球网，发球机才有用
+when: { flag: new_net }
 effects:
   - { flag: ball_machine, set: true }
   - { log: log.ball_machine }

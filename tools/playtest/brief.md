@@ -13,6 +13,11 @@ Day-to-day play is about **hiring people and putting them where they're needed**
   after-work adults). Pulling someone off mid-round loses that round.
 - **Jobs** (⚒ markers): one-off work on a problem — weeds, cracks, the collapsed bubble. Some cost materials. Several
   people can work together; pulling people off keeps the progress.
+- **Places**: each place on the island has one marker (its name, the posts that need someone, and a ⚒ count). Tap it
+  for the place's list of posts and jobs; drop a person on it and they take the only job that fits, or you choose
+  from the list. Locked jobs show what to fix first.
+- **Routines**: people remember the posts you put them on and walk to their next shift on their own when their
+  post closes or a job ends.
 - **Upkeep**: places nobody looks after slowly wear down (weeds, leaves), first on screen, then in the numbers.
   Members and reputation settle each Sunday on the week's **service rate** (how much of the demand someone covered).
 - **Hiring days** and other events are occasional cards with a countdown and 1–3 options; some options send the
@@ -35,8 +40,8 @@ Wait until `curl -s http://127.0.0.1:<PORT>/state` answers. The game is paused b
 - `GET /state` — everything on screen: clock, season/weather/service rate, status, stat strip, the event card (who,
   context, options with cost chips and hints), news ticker, place names, your people (what each is doing), the post and
   job markers visible in the scene, the open info sheet, outcome.
-- People: `GET /pick/<person|none>` taps a face (picks it up). `GET /tap/<target>` taps a marker — with someone
-  picked up it sends them there; otherwise it opens the info sheet (what it is, its hours, what it earns, and each
+- People: `GET /pick/<person|none>` taps a face (picks it up). `GET /tap/<target>` taps a place marker (target = place id) or a row in the open place list (target = post/job id)
+  — with someone picked up it sends them there; otherwise it opens the list / the info sheet (what it is, its hours, what it earns, and each
   person's fit and walk time). `GET /assign/<person>/<target|none>` is the same as dragging a face onto a marker
   (`none` = stop). `GET /sheet/<target>` reads a sheet without opening it. `GET /close` puts down / closes.
   Person and target ids are in `state.staffIds` and `state.targets`.

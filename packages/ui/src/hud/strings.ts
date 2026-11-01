@@ -29,6 +29,8 @@ const EN = {
   staff: 'Your people',
   cancel: 'Put down',
   close: 'Close',
+  back: 'Back',
+  best: 'Strong suit',
   send: 'Send',
   stop: 'Stop',
   skill_teach: 'Coaching',

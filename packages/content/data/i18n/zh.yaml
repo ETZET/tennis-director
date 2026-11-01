@@ -335,12 +335,12 @@ orders:
   patch_roof: { title: "补会所屋顶", note: "不用再摆桶" }
   fill_pothole: { title: "补停车场的坑", note: "免得再刮到车" }
   recruit_sign: { title: "挂招生牌", note: "路口，一周一次" }
-  ball_machine: { title: "装发球机", note: "课从此好一截" }
-  host_fundraiser: { title: "办募捐晚会", note: "要人张罗整个下午" }
+  ball_machine: { title: "装发球机", note: "课从此好一截", locked: "先换上新球网" }
+  host_fundraiser: { title: "办募捐晚会", note: "要人张罗整个下午", locked: "先把露台屋顶补好" }
   talk_pickleball: { title: "和匹克球那帮人聊聊", note: "成不成看声望" }
   hit_with_tyler: { title: "陪 Tyler 打一会儿", note: "他问了一整周了" }
   mentor_mason: { title: "单独带 Mason", note: "一对一练反手" }
-  open_day: { title: "办免费开放日", note: "几个人一起张罗两小时" }
+  open_day: { title: "办免费开放日", note: "几个人一起张罗两小时", locked: "先把 1 号场的裂缝补好" }
 seasons:
   late_summer: 夏末
   early_autumn: 初秋
@@ -394,6 +394,8 @@ ui:
     staff: 你的人
     cancel: 放下
     close: 关上
+    back: 返回
+    best: 拿手
     send: 派去
     stop: 叫停
     skill_teach: 教学
@@ -460,11 +462,25 @@ ui:
     empty: "{n} 个岗位有客人在等，没人管"
     covered: 有客人的地方都有人
   staff:
-    hint: "点一个岗位或工单，把{name}派过去"
+    next: "下一班 {time} · {what}"
+    hint: "点一个地点牌，把{name}派过去 · 派上的班他会记住"
     idle: "在{place}闲着"
     waiting: "{what} · 等客人"
     walking: "去{what} · {time}"
     errand: "在{place}办事 · {time}"
+  place:
+    owner: "{name}的班 · {hours} 点自己来"
+    income: 有收入
+    pick: "把{name}派到{place}哪一项？"
+    empty: 这儿现在没活
+    need: 没人 · 有客人在等
+    hours: "{hours} 点有客人"
+    anytime: 随时可以干 · 空着
+    on: "{name}在干 · 这一圈 {p}%"
+    wait: "{name}在这儿等客人"
+    order_new: "{cost}{time} · 还没开工"
+    order_on: "{names}在干 · {p}%"
+    order_paused: "停工 · {p}%"
   why:
     person: 不能指派
     busy: 正在办事，叫不回来
