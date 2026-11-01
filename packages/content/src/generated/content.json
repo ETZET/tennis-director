@@ -1,5 +1,5 @@
 {
- "version": "16f6f9a4",
+ "version": "c8c0ba94",
  "stats": [
   {
    "id": "cash",
@@ -4217,6 +4217,7 @@
    "ui.wire.interrupted": "{name} was pulled off “{post}”; that round was lost",
    "ui.wire.week": "Week settled · service {n}%",
    "ui.wire.board": "Board {n} ({d} this week): {why}",
+   "ui.wire.worn": "{place} condition down to {n}: it will lose its grade without upkeep",
    "ui.wire.board_flat": "little change",
    "ui.status.empty": "{n} posts have customers waiting and nobody there",
    "ui.status.covered": "Every busy spot has someone right now",
@@ -4233,6 +4234,8 @@
    "ui.terms.reputation": "Reputation",
    "ui.terms.expectations": "Rising expectations",
    "ui.terms.events": "How things went",
+   "ui.place.condition_low": "Condition {n} · already lost a grade; upkeep brings it back",
+   "ui.place.condition": "Condition {n} · drops a grade below 30",
    "ui.place.owner": "{name}'s shift · comes at {hours}",
    "ui.place.income": "Earns money",
    "ui.place.pick": "Send {name} to which job at {place}?",
@@ -4702,6 +4705,7 @@
    "ui.wire.interrupted": "{name}被叫离“{post}”，这一圈白干了",
    "ui.wire.week": "本周结算 · 服务率 {n}%",
    "ui.wire.board": "董事会 {n}（本周 {d}）：{why}",
+   "ui.wire.worn": "{place}状况跌到 {n}：没人维护就会掉档",
    "ui.wire.board_flat": "没什么变化",
    "ui.status.empty": "{n} 个岗位有客人在等，没人管",
    "ui.status.covered": "此刻有客人的地方都有人",
@@ -4718,6 +4722,8 @@
    "ui.terms.reputation": "声望",
    "ui.terms.expectations": "期望越来越高",
    "ui.terms.events": "事情办得怎样",
+   "ui.place.condition_low": "状况 {n} · 已经掉档，派人维护才能救回来",
+   "ui.place.condition": "状况 {n} · 低于 30 会掉档",
    "ui.place.owner": "{name}的班 · {hours} 点自己来",
    "ui.place.income": "有收入",
    "ui.place.pick": "把{name}派到{place}哪一项？",

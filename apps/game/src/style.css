@@ -87,3 +87,4 @@ body{background:var(--sky);color:var(--navy);font-family:var(--f-text);overflow:
 .hub-card b::before{content:"!";display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;margin-right:4px;background:#ff8a6b;color:var(--navy);font:800 12px/1 var(--f-cond)}
 #labels.compact .hub b{font-size:11px;padding:0 5px;letter-spacing:.02em}
 .hub.drop-hover{transform-origin:50% 100%;outline:3px solid var(--optic);outline-offset:2px;filter:brightness(1.25)}
+.hb-worn{height:28px;display:flex;align-items:center;padding:0 5px;background:#ff8a6b;color:var(--navy);font:800 13px/1 var(--f-cond)}

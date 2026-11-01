@@ -465,6 +465,7 @@ ui:
     interrupted: "{name} was pulled off “{post}”; that round was lost"
     week: "Week settled · service {n}%"
     board: "Board {n} ({d} this week): {why}"
+    worn: "{place} condition down to {n}: it will lose its grade without upkeep"
     board_flat: little change
   status:
     empty: "{n} posts have customers waiting and nobody there"
@@ -485,6 +486,8 @@ ui:
     expectations: Rising expectations
     events: How things went
   place:
+    condition_low: "Condition {n} · already lost a grade; upkeep brings it back"
+    condition: "Condition {n} · drops a grade below 30"
     owner: "{name}'s shift · comes at {hours}"
     income: Earns money
     pick: "Send {name} to which job at {place}?"

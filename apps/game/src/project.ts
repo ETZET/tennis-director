@@ -60,6 +60,8 @@ export class Projector {
   private readonly wire: WireItem[] = [];
   private wireId = 0;
   private readonly history: number[] = [];
+  /** 已经在快讯里提醒过"快撑不住了"的设施（回到 40 以上再清掉） */
+  private readonly worn = new Set<string>();
   private lastSample = -1;
 
   constructor(
@@ -77,7 +79,17 @@ export class Projector {
   onEvents(s: GameState, events: readonly SimEvent[]): void {
     const T = this.text;
     for (const e of events) {
-      if (e.type === 'cardOpened') this.push(s.t, T.cardTitle(e.card), false);
+      if (e.type === 'dayEnded') {
+        // 设施状况跌破 30 提醒一次（第二轮试玩 S3：状况悄悄掉到 0 没人发现）
+        for (const [f, c] of Object.entries(s.condition)) {
+          if (f === 'pool' || !(f in s.facilities)) continue;
+          if (c >= 40) this.worn.delete(f);
+          else if (c < 30 && !this.worn.has(f)) {
+            this.worn.add(f);
+            this.push(s.t, T.fmt('ui.wire.worn', { place: T.tr(`ui.fac.${f}`, f), n: Math.round(c) }), true);
+          }
+        }
+      } else if (e.type === 'cardOpened') this.push(s.t, T.cardTitle(e.card), false);
       else if (e.type === 'log') {
         const so = T.so(e.entry);
         if (!so || e.entry.cause.kind === 'start') continue;
@@ -578,6 +590,8 @@ export class Projector {
     posts: { initials: string; color: string; progress: number; need: boolean; on: boolean }[];
     orders: { n: number; skills: SkillKind[]; progress: number | null; crew: number };
     fit: 'none' | 'fit' | 'nofit';
+    /** 这儿的设施状况低于 30 时的值（地点牌上挂红色 !） */
+    worn: number | null;
   } | null {
     const { s } = session;
     const w = worldOf(s, this.content);
@@ -616,7 +630,18 @@ export class Projector {
       posts: pp,
       orders: { n: orders.length, skills: [...new Set(orders.map((o) => o.skill))], progress: best, crew },
       fit,
+      worn: this.wornAt(s, anchor),
     };
+  }
+
+  /** 这个地点的设施状况（没有设施时为 null） */
+  conditionAt(s: GameState, anchor: string): number | null {
+    const f = worldOf(s, this.content).facilityAt.get(anchor);
+    return f && f !== 'pool' && f in s.facilities ? Math.round(s.condition[f] ?? 100) : null;
+  }
+  private wornAt(s: GameState, anchor: string): number | null {
+    const c = this.conditionAt(s, anchor);
+    return c !== null && c < 30 ? c : null;
   }
 
   /** 拿着这个人落到地点上：能接的活（只有一项就直接派） */
@@ -665,6 +690,7 @@ export class Projector {
       ]
         .slice(0, 3)
         .map((c) => (c.text === income ? { ...c, text: T.tr('ui.place.income') } : c));
+    const cond = this.conditionAt(s, anchor);
     const rows: (PlaceRow & { rank: number })[] = [];
     for (const p of posts) {
       const st = postStatus(s, w, p);
@@ -694,7 +720,8 @@ export class Projector {
         faces: st.person ? [this.face(st.person)] : [],
         chips: payoff(this.postChips(p)),
         ...(fit ? { fit } : {}),
-        rank: need ? 0 : st.person ? 2 : st.inHours ? 3 : 5,
+        // 状况低于 30 时维护岗位排到最前（第二轮试玩 S3）
+        rank: need ? 0 : p.restore && (cond ?? 100) < 30 && !st.person ? 0.5 : st.person ? 2 : st.inHours ? 3 : 5,
       });
     }
     for (const o of orders) {
@@ -743,6 +770,7 @@ export class Projector {
     return {
       id: anchor,
       title: T.anchor(anchor),
+      ...(cond !== null ? { condition: { value: cond, label: T.fmt(cond < 30 ? 'ui.place.condition_low' : 'ui.place.condition', { n: cond }) } } : {}),
       ...(picked ? { prompt: T.fmt('ui.place.pick', { name: T.personName(picked), place: T.anchor(anchor) }) } : {}),
       rows: rows.map(({ rank: _, ...r }) => r),
       empty: T.tr('ui.place.empty'),

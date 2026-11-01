@@ -253,7 +253,9 @@ function addHubs(c: ContentBundle): void {
             ? `<span class="hb-o${o.crew ? ' hb-on' : ''}">${o.skills.map((k) => `<i class="hb-${k}"></i>`).join('')}⚒${o.progress !== null ? `${Math.round(o.progress * 100)}%` : o.n > 1 ? o.n : ''}</span>`
             : '';
           const name = `<b>${esc(text.anchor(a))}</b>`;
-          return `${name}${posts}${orders}`;
+          // 设施快撑不住了：红色 ! 加状况（第二轮试玩 S3）
+          const worn = h.worn !== null ? `<span class="hb-worn">!${h.worn}</span>` : '';
+          return `${name}${worn}${posts}${orders}`;
         },
         cls: () => {
           const h = hubOf(a);

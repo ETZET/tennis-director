@@ -143,6 +143,8 @@ export interface PlaceSheetData {
   prompt?: string;
   rows: PlaceRow[];
   empty?: string;
+  /** 这个地点的设施状况 0..100（"状况 23 · 没人维护就会掉档"） */
+  condition?: { value: number; label: string };
 }
 
 /** 季节、天气、本周服务率 */

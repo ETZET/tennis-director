@@ -85,3 +85,7 @@
 .td-row-locked{opacity:.55;cursor:default;background:rgba(255,255,255,.04);border-left-style:dashed}
 .td-row-locked .td-row-icon{font-size:15px;color:#dfe6ef}
 .td-row.drop-hover{box-shadow:inset 0 0 0 3px var(--td-optic,#d7ff3c);background:rgba(215,255,60,.18)}
+.td-place-cond{display:flex;flex-direction:column;gap:4px;font:600 12px/1.2 var(--td-text,sans-serif);color:#dfe6ef}
+.td-place-cond .td-sheet-bar i{background:#9be07f}
+.td-place-cond-low{color:#ffc8b5}
+.td-place-cond-low .td-sheet-bar i{background:#ff8a6b}

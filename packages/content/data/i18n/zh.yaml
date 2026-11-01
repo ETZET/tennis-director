@@ -460,6 +460,7 @@ ui:
     interrupted: "{name}被叫离“{post}”，这一圈白干了"
     week: "本周结算 · 服务率 {n}%"
     board: "董事会 {n}（本周 {d}）：{why}"
+    worn: "{place}状况跌到 {n}：没人维护就会掉档"
     board_flat: 没什么变化
   status:
     empty: "{n} 个岗位有客人在等，没人管"
@@ -480,6 +481,8 @@ ui:
     expectations: 期望越来越高
     events: 事情办得怎样
   place:
+    condition_low: "状况 {n} · 已经掉档，派人维护才能救回来"
+    condition: "状况 {n} · 低于 30 会掉档"
     owner: "{name}的班 · {hours} 点自己来"
     income: 有收入
     pick: "把{name}派到{place}哪一项？"
