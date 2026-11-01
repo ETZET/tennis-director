@@ -1,188 +1,94 @@
-# Hollow Creek · Change Backlog
+# Indian Wells · Change Backlog
 
-Oct 31, 2026 · @Enting
+Oct 31, 2026 · @Enting · rewritten Nov 1, 2026 for the single Indian Wells map
 
-A running list of agreed changes to the Hollow Creek sandbox. Nothing here is implemented yet unless it's under Done; add to it as new feedback comes in.
+The running to-do list for the game. The game now runs on one map, the abandoned Indian Wells Tennis Garden (ADR 0016); the Hollow Creek backlog that used to live here is archived at the bottom. Items keep their IDs when they move between sections. Add new feedback under the right section with a new ID.
 
-## Decisions
+How the game works now: [game-design.md](game-design.md) (v0.3). How it is tested: [testing.md](testing.md) (v0.2). How we got here: [indian-wells-migration.md](indian-wells-migration.md) and `docs/adr/`.
 
-| Decision | Choice | Source |
-| --- | --- | --- |
-| Interface direction | **B · Courtside broadcast**: TV-style score bug, stat strip, lower-third event cards, news ticker | [Interface Directions canvas](https://claude.ai/artifact/Q4yXHarTTMGQEqSE1RQR9s), board B |
-| World shape | Floating island in the sky, no water falling off the edges | Design Options canvas, Floating island page |
-| Render resolution | Always Fine (native); no pixel-size control | Feedback, Oct 30 |
-| Board layout | **5 · Creek divide**: the creek splits the island; the working club is on the north bank, the dead courts are across a footbridge | [Board Layouts canvas](https://claude.ai/artifact/9sFvYXXi1P6faNLgFvjdP2), board 5 |
-| Visual style | **Rejected (Oct 30): **pixel diorama test (low-res pixels, depth outlines, OKLab 64 colours, hard shadows). Do not implement. Still looking for a new direction. | [Hollow Creek Diorama (deprecated)](https://claude.ai/artifact/6NZnAEQTg1KDTbSAqhVGf7) |
-| Default view | Whole floating island on load (V4); story beats zoom in | Interface Directions canvas, View options board |
+## Now · in priority order
 
-## To do · Interface (direction B)
-
-Replace today's dark panels with the broadcast look from board B. Type: Saira Semi Condensed for numbers and headings, Saira for text. Colors: navy panels `#0f1f3a` at about 90% opacity, court green `#1f6b4f`, optic yellow `#d7ff3c` as the one accent.
-
-| # | Change | Replaces | Status |
+| # | Item | Why now | Status |
 | --- | --- | --- | --- |
-| B1 | Score bug, top left: club badge, club name, game clock | Title card with crest and four chips | Done |
-| B2 | Stat strip, top right: quality grade and score, members, courts open, your salary | Program report panel (always open, a quarter of the screen) | Done |
-| B3 | Event cards as a lower third: topic tag, location tag, headline, countdown bar, three numbered answers (keys 1, 2, 3) | Story toasts; also the format for M1 event cards | Done |
-| B4 | “Club wire” ticker along the bottom edge for the day's incidents | Incident log inside the report panel | Done |
-| B5 | Court markers: yellow number box plus a short status for courts in use, grey for closed ones | Black all-caps label plates | Done |
-| B6 | Controls folded into the right end of the ticker: rotate, pause (highlighted), speed | Nine-button toolbar | Done |
-| B7 | Detailed stats (balls left on court, coach phone time, shot accuracy, complaints) open from the stat strip on click | The rest of the report panel | Done |
-| B8 | Build the HUD as Preact components in `packages/ui`, reading a state snapshot, per the technical doc | Hand-built DOM in `apps/sandbox` | Done |
-| B9 | Update screenshot baselines and the sandbox preview once B1–B6 land | — | Done |
+| N1 | Indian Wells review round 1: a newcomer and a veteran review agent each play a full 16-week game on phone through the playtest bridge, plus an idle control run; score the 9 items against tenets 1–6 | P1-7 was only done with bots. Nobody has played the Indian Wells loop yet, and every tuning decision below waits on it | To do |
+| N2 | Human playtest of the preview (you): first 20 minutes on phone | Checks onboarding (IW-02, IW-05, IW-06 in testing.md) and whether 16 weeks feels right | To do |
+| N3 | Fix round 1 findings | Unknown until N1 and N2 | Blocked on N1 |
+| N4 | Mid-game cards (weeks 8–14 are quiet): staff friction, a rival club, the press, the sponsor's follow-up | Only 12 cards; the playability report shows long card-free stretches late in the game | To do |
+| N5 | Deadline length and difficulty after N1/N2: keep 16 weeks, widen it, or offer two lengths | The greedy bot finishes on day 91–111 out of 112; a human may not | Blocked on N1, N2 |
+| N6 | Delete the merged branches on GitHub: `feat/indian-wells`, `chore/remove-hollow-creek`, `design/core-loop-staffing`, `design/indian-wells-single-map`, `animlib-port` | Cloud sessions can't delete branches | Blocked (by hand) |
 
-## To do · View and scene
-
-From the View options board. These were only tried as quick renders in a scratch copy; none is in the code yet.
-
-| # | Change | Why | Status |
-| --- | --- | --- | --- |
-| V1 | Calm the grass: one family of greens, and tone the 12% dirt tiles to a darker green | Eight grass colors in a patchwork read as noise | Done |
-| V2 | Cover the bare brown strip on the north and west edges of the upper terraces | Prototype ground that was off-screen; now visible on the island | Done |
-| V3 | Trim the island closer to the club (about x −62 to 64, z −73 to 52) | The club sits in a lot of empty grass | Done |
-| V4 | Set the default camera so the floating island reads on load | Today's start view crops the island | Done |
-
-## To do · Board layout (5, Creek divide)
-
-Rebuild the Hollow Creek site plan to match [board 5](https://claude.ai/artifact/9sFvYXXi1P6faNLgFvjdP2). Once this lands it replaces V3 (the new plan sets the island size), and V2 should be checked again because the terraces get rebuilt.
-
-| # | Change | Replaces | Status |
-| --- | --- | --- | --- |
-| L1 | The creek runs west to east across the middle of the island, with a footbridge at the centre | Creek along the south edge | Done |
-| L2 | North bank, the working club: clubhouse and deck (with the director) in the northwest, pool below them, Court 1 tennis and Court 2 pickleball side by side to the east | Clubhouse on the upper terrace above all four courts | Done |
-| L3 | Parking in the northeast; the road leaves the island at the east edge, and the car exit route and road end move with it | Parking and road on the east side running north to south | Done |
-| L4 | South bank, to be won back: Court 3 collapsed bubble and Court 4 overgrown clay, surrounded by thicker trees, reachable only over the footbridge | Courts 3 and 4 in the second row under Courts 1 and 2 | Done |
-| L5 | Footpaths: deck to Court 1, and from the courts over the footbridge to the south bank | Two short paths down the terraces | Done |
-| L6 | Update the Act 1 timeline so walkers and events on Courts 3 and 4 cross the footbridge | Today's walk routes | Done |
-| L7 | Update screenshot baselines and the sandbox preview once L1 to L6 land | — | Done |
-
-## Other open work
+## Gameplay and content
 
 | # | Item | Note | Status |
 | --- | --- | --- | --- |
-| O1 | Push the local commits to GitHub | Pushed Oct 31 to `ETZET/tennis-director` | Done |
-| O2 | M0-3: upgrade three.js from r128 to the current release and retune the lighting against screenshots | Next milestone step in the technical doc | To do |
-| O3 | M0-4: move Maple Ridge, Palm Oasis and the activity library over the same way, each as a floating island | Activity library done Oct 31 (ADR 0010); Maple Ridge and Palm Oasis islands still to do | To do |
-| O4 | Time × weather looks from the Floating island page (dawn, dusk, night; wind, heat) | The sim now has seasons and daily weather, and rain is drawn; dawn, dusk, night, wind and heat looks still to do | To do |
-| O5 | Chinese is the default game language | `?lang=en` for English; HUD strings moved into i18n `ui.hud.*` | Done |
-| O6 | Desktop: projection panel covered the HUD stat strip; phone: notes hyphenated mid-word in noticeboard cells | Projection moved bottom-right; whole-word wrap at 10 px | Done |
+| G1 | Dale's story: why he stayed ten years; beats at the clubhouse, Stadium 2 and the exhibition | Two cards today (arrival, last tournament); `dale_umpire` already feeds the exhibition odds | To do |
+| G2 | Desert heat: midday heat in autumn and spring lowers outdoor demand and work speed; wind adds decay | Today wind is one card plus blowing sand on screen; heat is not modelled | To do |
+| G3 | Staff roles: decide whether posts take anyone or only a role (court crew, coach, desk/ball kid) | Today everyone has three skills and can take any post | Open question |
+| G4 | Reputation saturates at 100 for a good player; give it a late-game use (sponsors, media, bigger events) | Seen in bot runs | To do |
+| G5 | After the exhibition: continue into a "real tournament" season, or end there | Cash has nowhere to go after Stadium 1 | Open question |
+| G6 | Tryout day | Not built: hiring cards already show skills and wage (ADR 0016). Revisit if candidates' skills become partly hidden | Parked |
+| G7 | Demand that grows with the garden: more and different visitors as places reopen (families at the plaza, pros at Stadium 2) | Partly there through per-post income formulas | To do |
+| G8 | Rename the content layer "act" to "site" | Cosmetic; wait for a second map (ADR 0016) | Parked |
 
-## To do · Loop v2 playtest
-
-Two review rounds on the phone build (390×844), each with a newcomer and a veteran reviewer scoring 9 items against tenets 1–6. Round 1 started Oct 31 and stopped early when the account hit its monthly spend limit; no scores yet.
+## Visuals (P3)
 
 | # | Item | Note | Status |
 | --- | --- | --- | --- |
-| P1 | Resume round 1 reviews | Nov 1, Chinese UI. Newcomer (seed 11): 5.0 avg, lost the vote at board 88. Veteran (seed 23): 4.4 avg, won with 171 members; idle control run lost. Scores and findings below | Done — awaiting sign-off |
-| P2 | Fix round 1 findings | Superseded by the staffing loop (ADR 0012): R1 and R7 go away with the noticeboard and energy; the rest are rechecked on the new loop | Superseded |
-| P7 | Staffing loop: sim and content (staff, posts, work orders, condition decay, `assign` command, save v3) | 13 posts, 16 work orders, two hiring days, errands replace "walk there first" options | Done |
-| P8 | Staffing loop: phone UI (drag people onto post and job markers, tap-to-pick, progress, info sheet); remove noticeboard and action ring | Staff strip in the thumb zone, markers in the scene, bottom sheet; playtest bridge and brief updated | Done |
-| P9 | Staffing loop: bots, balance report, determinism gate | Bots greedy / cautious / random / idle; report regenerated; gate passed | Done |
-| P10 | Draw facility condition in the scene: weeds, leaves, litter appear before the grade drops (tenet 6: "visible first, then in the numbers") | Sim tracks `condition`; render does not show it yet | To do |
-| P11 | Staff people have no idle animation of their own at posts without a performance (deck host, upkeep, pool); add simple work gestures per skill | Director gestures; others stand | To do |
-| P12 | Balance pass after round 2: greedy board is ~67 on day 21 and the vote stays open; cash still builds late in the act | First-pass numbers in ADR 0012 | To do |
-| P13 | Place hubs: one marker per place; posts and jobs listed in a thumb-zone place sheet; drop a person on a hub (one fitting job assigns directly) | 13 identical ⚒ markers crowded the island centre on phone. ADR 0013 | Done |
-| P14 | Place rows show gains and costs; a held person's strong suit is tagged; drop target under the finger lights up while dragging | Choosing between jobs was guesswork (tenet 2) | Done |
-| P15 | Routines: people remember the shifts you put them on and walk there when their post closes or a job ends; staff strip shows the next shift | Every shift change needed a drag; day-1 service 44% → 86% on the same opening. ADR 0014, save v4 | Done |
-| P16 | Growth jobs unlock from repairs (open day ← Court 1 patched, fundraiser ← roof, ball machine ← net); locked jobs previewed in the place list | 13 jobs open on day 1 → 10, mostly repairs. ADR 0015 | Done |
-| P17 | Hubs stack upward around Court 1 / Court 2 / lot in the default phone view and can sit far from their place | Stems connect them; a layout pass (fan out sideways, or anchor per place offset) still to do | To do |
-| P3 | Round 2 reviews and fixes | Reviews done Nov 1 (5.0 / 5.0, below); fixes S1–S12 in progress | In progress |
-| P4 | Tune the idle quality drop | Quality target now has a floor of 41 (over-scheduling penalty still applies below it). Idle runs: 44 → ~40.6 on day 1, then hold at 40–41 (was 33 on day 1, settling at 20). Bots unchanged: greedy 83.6%, random 19.9% | Done |
-| P5 | Place labels crowd the island centre on phone | At the zoomed-out view only the director's place, destination and places with a card keep names; the rest are tappable dots (44 px target) | Done |
-| P6 | Delete the merged animlib-port branch | Already in main. Cloud session can't push deletes; delete it on GitHub by hand | Blocked |
+| V1 | Detailed abandoned scene: rebuild Indian Wells in the Palm Oasis style with the concept's decay (faded seats, cracks, sand, the collapsed Stadium 1 corner, mountains, tumbleweeds, crows), replacing the greybox behind the same `Site` interface | Concept: the subagent demo; the user liked the backdrop, the sanded parking lot and the collapsed corner | To do |
+| V2 | Repaired look per facility (replaces the greybox overlays one by one) | Overlays exist per facility state | To do |
+| V3 | Facility condition visible before the numbers drop: sand drifts, weeds and litter grow as condition falls (tenet 6) | Was P10. Today only the state change is drawn, not the slow decay | To do |
+| V4 | Posts as seats with a ring and jobs as markers with a bar, drawn in the scene (decided Nov 1) | Today progress is on the place hubs and lists | To do |
+| V5 | Work gestures for staff at posts without a performance (desk, upkeep, plaza) | Was P11 | To do |
+| V6 | Time of day and weather looks: dawn, dusk, night, wind, heat | Was O4 | To do |
+| V7 | Upgrade three.js from r128 and retune lighting | Was O2 (M0-3) | To do |
+| V8 | Visual regression for Indian Wells: four angles × abandoned and fully repaired, plus a rotation flicker check | Removed with Hollow Creek in #6 | Blocked on V1 |
 
-### Round 1 scores (Nov 1)
+## UI and phone
 
-| Item | Newcomer | Veteran |
-| --- | --- | --- |
-| Meaningful choices | 5 | 4 |
-| Readable consequences | 5 | 4 |
-| Pacing | 4 | 4 |
-| Player agency | 5 | 5 |
-| Idle & living world | 7 | 6 |
-| Tension arc | 3 | 2 |
-| Replay value | 5 | 4 |
-| Onboarding | 5 | 5 |
-| Phone UX | 6 | 6 |
-| **Average** | **5.0** | **4.4** |
-
-### Round 2 scores (Nov 1, staffing loop with place hubs and routines)
-
-Newcomer: seed 31, full act, won (board 54, vote at 27%). Veteran: seed 47, full act, won (board 86); idle control on seed 53.
-
-| Item | Newcomer | Veteran |
-| --- | --- | --- |
-| Meaningful choices | 5 | 5 |
-| Readable consequences | 4 | 5 |
-| Pacing | 5 | 4 |
-| Player agency | 6 | 6 |
-| Idle & living world | 6 | 5 |
-| Tension arc | 3 | 3 |
-| Replay value | 6 | 5 |
-| Onboarding | 4 | 7 |
-| Phone UX | 6 | 5 |
-| **Average** | **5.0** | **5.0** |
-
-Kept by both: place hub → list → send flow with fit, walk time and what is dropped; routines; the card layout and the cause→effect story; the Mason line and "who follows you".
-
-### Round 2 findings for P3 (both reviewers unless noted)
-
-| # | Finding | Fix | Status |
+| # | Item | Note | Status |
 | --- | --- | --- | --- |
-| S1 | Hiring is blind: candidates show only a name; skills, wage and trait appear after choosing (Nadia added $900/week) | Hire chips show best skills, weekly wage (as a cost) and a one-line trait | Done — skills and weekly wage chips on hire options |
-| S2 | Board confidence is a black box: no pass line, moves never explained, vote odds surprise (27% at B / 72 members); with good play it climbs to 86 and the last 20 days have no pressure | Pass line on the board cell; weekly board settlement explained in wire and story; board costs shown on options; late pressure (P12) | Partly — board split into named terms (same numbers), vote odds on the board cell, weekly "why" on the wire, terms in the club report; late pressure and a money sink still open (P12) |
-| S3 | Facility condition falls to 0 silently (Court 1, bubble, clay) | Hub warning below 30, wire alert below 10, condition bar in the place list | Done — hub "!n" below 30, condition bar in the place list, one wire alert |
-| S4 | After a job ends people sometimes stand idle instead of returning to their shift (Rosa at clay, director at the lot) | Fix routine fallback | Done — a shift that is opening pauses a job; after the shift they resume it |
-| S5 | Repeated cards (Saturday morning 4×, double booking 3–4×, even after the issue was settled), three cards in an hour on day 3 | Cap repeats per act, minimum gap between cards | Done — max 2 showings per random card per act, 4 h gap after any card; Saturday member stops after you give the slot back |
-| S6 | Free options: "ask for money" +$600, "refuse developer" rep +2, "promise to change" rep +1; side costs only shown after choosing; failure costs of chance options hidden | Show side effects and failure chips on options | Done — board effects of flags and failure costs shown as chips; developer, volunteer and vote options rebalanced |
-| S7 | Wire says "X was pulled off the deck, round wasted" on every normal shift change | Only log a real interruption | Done — routine shift changes are silent |
-| S8 | Onboarding: no hint that the pool needs someone at 11; posts outside their hours look absent | Show upcoming shifts on hubs | Done — shifts opening within 2 h show on the hub |
-| S9 | Text: "他" for Rosa in the pick hint; Pine Crown / 松冠 and Hollow Creek / 霍洛溪 mixed | Neutral pronoun; zh names table | Done |
-| S10 | Phone: staff strip shows ~2.5 people with 4+ staff; hubs pushed off the right edge; ⟲ ⟳ unclear (newcomer) | Compact tokens; hub layout (P17) | Partly — compact tokens with 4+ staff, hubs kept on screen; hub stacking still P17 |
-| S11 | Rain: assigning to outdoor posts silently does nothing (veteran) | Say why on the place list | Done — dim "closed today — rain" row |
-| S12 | Idle control: board drops every day (28 → 0 by day 12) instead of settling weekly; status line says "covered" at 17% service (veteran) | Settle board weekly; status line reflects the week's rate | Partly — status line fixed; board still drifts daily by design (rising expectations), now explained on the wire |
+| U1 | Check place hubs on the Indian Wells layout (10 places, a much bigger map): stacking, hubs far from their place, compact dots when zoomed out | Was P17 on Hollow Creek | To do |
+| U2 | Default camera on phone: frame the whole garden, with the mountains behind | Tuned once from screenshots; check on real phones | To do |
+| U3 | Restoration cell: tie its colour to the pace needed to make the deadline, and explain it on tap | Today it turns red when fewer than 10 days are left per unrepaired place | To do |
 
-### Round 1 findings for P2 (both reviewers unless noted)
+## Tests and tools
 
-| # | Finding | Suggested fix |
-| --- | --- | --- |
-| R1 | Open day stacks with no falloff (5 notes ≈ +19 members/week); social night every evening has no cost. One dominant plan for every seed (veteran) | Diminishing returns per week (4/2/1/0); open day uses courts or coach energy; social night costs after the third |
-| R2 | Tension dies mid-act: board reaches 88–100 by day 21; the final vote is still a 75–85% roll (newcomer lost at 88) | Weekly board decay; escalating rival/board asks in weeks 4–6; near-certain vote at high confidence, or a conditional stay with a rescue card; list the deciding factors on the ending |
-| R3 | Cards repeat and ignore state: Saturday-morning card 3–4×, court-1 double booking 3–4× (even in rain), roof leak 5× when idle, 4 cards within two hours on day 3, empty stretches days 16–21, 24–28, 38–42 | Cooldowns or once-only flags; state-aware triggers; a minimum gap between cards; second appearances escalate |
-| R4 | Free or dominated options: walk-there options cost nothing, retired-member card is all upside, "ask for money" is a free +$600, trial-van option 2 dominated, last card's three options show the same outcome, pool card has one option | Every option gets a visible cost (energy for walking, board confidence for asking); differentiate the outcomes; a one-option card becomes a wire item |
-| R5 | Key info hidden until after the choice: coach candidates look identical, side effects ("board gets impatient") only appear in the log, ring actions show no cost on the button, odds missing on some outcomes (workday) | Show the option subtitles and side effects on the card; a cost line under ring buttons; percentages on every chance |
-| R6 | The causal log can't be trusted: only 14 entries, crowded out by daily cash; ring actions logged as "because the season started"; failures and board moves never reach the wire; the day 7 time-share choice had no settlement | Merge daily close lines; keep the player's decisions; log as "you did X"; send failures and board moves to the wire; fix the missing settlement |
-| R7 | Energy never binds (back to 100 each morning, low of 65); cash piles up with nothing to buy late in the act; the ring empties after week 3; "patch roof" still offered after the roof was fixed by a card | Seasonal ring actions; walking and open days draw energy; hide finished repairs |
-| R8 | Onboarding: noticeboard opens with no explanation, rejected drops give no reason (adult clinic is evening only), reputation is not on the HUD, D/C grades unexplained, unnamed dots on the map | Highlight valid cells while dragging; one-line note descriptions; reputation in the strip or details |
-| R9 | Text: untranslated names and mixed terms (Coach Dale Pruitt, Hollow Creek, "Coach 士气", Pine Crown / 松冠), "这儿现在没什么可做的" wraps two characters per line, fifth strip cell clipped on phone, camera often leaves half the screen as sky | zh names table; wider ring note; strip fit at 390 px; camera framing |
-| R10 | Bridge only: /plan returns the previous state; /wait/1440 sometimes runs 2,880 minutes (newcomer) | Fix in tools/playtest/server.mjs |
+| # | Item | Note | Status |
+| --- | --- | --- | --- |
+| T1 | End-to-end smoke test (Playwright): start, sweep, net, save, reload, same state | testing.md "待补的测试" | To do |
+| T2 | Render vs headless determinism: one game in the browser and headless, same state hash | testing.md | To do |
+| T3 | Replay set: one command log per fixed bug | testing.md | To do |
+| T4 | Frame rate, draw calls and first load on real phones for the bigger map | testing.md | To do |
 
 ## Open questions
 
-- [x] Default view: V3 (whole island, my pick) or V4 (one step closer, courts easier to follow)? Answered: whole island on load.
-- [x] Should the labels toggle stay, or do the court markers (B5) replace it for good? Answered: markers replace it; the toggle is gone.
-- [ ] Does the broadcast look carry into the other two acts unchanged, or does each club get its own bug color (for example Maple Ridge in school colors)?
-- [x] Detailed stats (B7): a drop-down under the stat strip, or a side sheet? Answered: drop-down under the strip, with the quality chart.
+- [ ] Deadline: 16 weeks for everyone, or difficulty levels? (N5)
+- [ ] Staff roles, or skills only? (G3)
+- [ ] What happens after the exhibition? (G5)
 
 ## Done
 
-On GitHub at [ETZET/tennis-director](https://github.com/ETZET/tennis-director), branch main. Playable build: [Tennis Director · Act 1](https://claude.ai/artifact/36oBECv3X1qQnAAbtgcJTd).
+On GitHub at [ETZET/tennis-director](https://github.com/ETZET/tennis-director), branch main. Playable preview: [Indian Wells 灰盒](https://claude.ai/artifact/VbYaaKrg8f5NYdnPvZHJgP).
 
 | Date | Change | Commit |
 | --- | --- | --- |
-| Oct 31 | Merged the v2 work into main and pushed all branches to GitHub (ETZET/tennis-director). | `75c5f00` |
-| Oct 31 | Activity animation library ported from the prototype: 9 activities plus cleanup and pickleball, particle FX and comic text, a phone-first sandbox page (activities.html). Wired to the v2 performances: open play is doubles on the scheduled court, open day, and the workday and fundraiser actions get their own show. ADR 0010. | `6d56710, 6561090` |
-| Oct 31 | Living club (tenet 6): members play on courts that are open, passers-by walk between places, leaves fall in early autumn, the pool holds water while open. | `994e1ca` |
-| Oct 31 | Loop v2 phone UI: drag-based noticeboard with a weekly projection, action ring with a thumb-zone bottom sheet, event cards with who, situation and cost chips, season and energy row. Playtest bridge on 390×844, tenets 4–6, ADR 0011, reports regenerated (greedy bot 83.6%, random 20.4%; determinism gate passed). | `7df45dc, 53f6728, 01e51df` |
-| Oct 31 | Loop v2 sim and content: six-week act (late summer → early autumn), daily weather, director energy that sets run speed, 16 on-site actions, noticeboard schedule with 8 programs, drift only on Sundays. | `98831b4` |
-| Oct 31 | Gameplay review round 1 on the v1 loop: playtest bridge, playability metrics, cautious and walker bots; fixes for dominated options, filler repeats, dead time and hidden board confidence. | `7de6a0b, 1aad9ef` |
-| Oct 30 | M3: content hot reload (edit YAML, the running game picks it up; errors open an overlay), debug panel (\` key), i18n parity check, balance pass (greedy bot wins 83.7%, random 10.4% over 1,000 games each) with a test guarding the band, and hc\_rival\_flyer added as YAML only. Content guide in docs/content-guide.md. Playable build: [Tennis Director · Act 1](https://claude.ai/artifact/JvxW8dPj16xFV54sEsbjBs) | `9117d19` |
-| Oct 30 | M2: Act 1 playable in apps/game. The sim drives the island: the director walks the drawn routes (walk times derived from route length), options that need you on site walk you there and then choose, cards come from the sim with countdowns and odds, facility upgrades show on the island, activities have performances, "how we got here" causal story in the club report, autosave. | `92c1554` |
-| Oct 30 | M1: sim core (clock, state, commands, storylet event engine and director, saves with migrations), Act 1 content in YAML, sim-cli. 1,000-game determinism gate passed. | `574fe4e` |
-| Oct 30 | Two independent review rounds and fixes. Round 1 scores: HUD 7, world clarity 5, scene 6, HUD look 8, phone 3. Round 2: 7, 6, 6, 8.5, 5. Fixes: red clay, readable collapsed bubble, near-side fences hidden, brighter creek and footbridge, drained pool, rented marker state for Court 2, camera lifts above event cards, phone layout, paused clock, quality chart axis. Sandbox ?t= fast-forward for checking story beats. | `b81b57f, ef570b1` |
-| Oct 30 | All three to-do sections: layout 5 creek divide (L1–L7), calm grass and whole-island default view (V1–V4, V3 replaced by layout 5), broadcast HUD as Preact components in packages/ui (B1–B9). ADR 0006. Preview: [Hollow Creek Sandbox](https://claude.ai/artifact/5qietdeGT5RHdNu5jnRnKY) | `62cb718` |
-| Oct 30 | Render always at Fine; Pixels button removed. No water falls off the island; the creek stops at rocky banks | `35e6f54` |
-| Oct 30 | Hollow Creek rebuilt as a floating island: soil and stone underside, hanging roots, drifting clouds, floating chunks, Day · Cloud and Day · Rain skies | `9d36a01` |
-| Oct 30 | First island pass: Hollow Creek as an island at sea (replaced by the floating island) | `ec0fb6d` |
-| Oct 30 | M0-2: Hollow Creek split into `packages/render` and `apps/sandbox`; matched the prototype pixel for pixel | `498030d`, `7cf5a16` |
-| Oct 30 | M0-1: pnpm workspace, TypeScript 7, Vite 8, Vitest, Biome, layering rules, CI | `dc9b86e` |
+| Nov 1 | Main game moved onto Indian Wells (P0 + P1, PR #7): `Site` interface and a greybox scene with ruined and repaired layers per facility; 8 facilities in a repair chain, 19 posts, 22 jobs, Dale and 8 candidates, 12 cards; exhibition win with a turnout check, 16-week deadline and bankruptcy; hiring days every two weeks; director growth on the wire; the camera visits a repair; locked repairs say what to fix first; cross-act inheritance removed (save v5); bots, balance band and playtest brief ported. Greedy bot 99%, cautious (never hires) 0%, random 0%, idle 0%. ADR 0016 | `620d426` |
+| Nov 1 | Removed the Hollow Creek demo, prototype, screenshot regression and act content (PR #6) | `2af0c58` |
+| Nov 1 | Design: single Indian Wells map, three acts dropped; migration plan and priorities | `0c4618b`, `848425a` |
+| Nov 1 | Core-loop pivot recorded: staffing management sim, posts vs one-off jobs, implicit scheduling, tenet 6 rewritten | `f1718af`…`588c3a3` |
+| Nov 1 | Round 2 fixes S1–S12 on the Hollow Creek staffing loop (hire chips, condition warnings, routine fallback, repeat caps, option side effects, rain rows) | `625059a`, `1a92fad` |
+| Nov 1 | Routines, place hubs, jobs that unlock from repairs (ADR 0013–0015) | — |
+| Oct 31 | Staffing loop: staff, posts, jobs, condition decay, `assign`, save v3; phone UI with the staff strip; bots and balance (ADR 0012) | — |
+| Oct 31 | Activity animation library ported (ADR 0010); living club; loop v2 (later replaced) | `6d56710`, `994e1ca`, `7df45dc` |
+| Oct 30 | M3: content hot reload, debug panel, i18n parity, balance band, content guide | `9117d19` |
+| Oct 30 | M2: Act 1 playable in apps/game | `92c1554` |
+| Oct 30 | M1: sim core, content in YAML, sim-cli, 1,000-game determinism gate | `574fe4e` |
+| Oct 30 | M0: workspace, TypeScript 7, Vite 8, Vitest, Biome, layering rules, CI; Hollow Creek split into packages/render | `dc9b86e`, `498030d` |
+
+## Archive · Hollow Creek (Oct 30 – Nov 1)
+
+The Hollow Creek act, its floating-island scene and its backlog were retired on Nov 1 (ADR 0016). The full old backlog, with the broadcast-HUD and layout work (B1–B9, V1–V4, L1–L7), is in the git history of this file before `620d426`. Kept here because the lessons still apply:
+
+- **Review round 1** (Nov 1, noticeboard loop): newcomer 5.0, veteran 4.4. The worst item was the tension arc (3 and 2). Main findings: one dominant plan, repeated cards, free options and a causal log that couldn't be trusted (R1–R10).
+- **Review round 2** (Nov 1, staffing loop with hubs and routines): 5.0 and 5.0. Both reviewers kept the hub → list → send flow, routines, the card layout and the cause→effect story. Findings S1–S12 were fixed. The one left open was late-game pressure: the board vote was settled by week 4.
+- **What carries over to Indian Wells:** an open-ended goal kills tension (hence the deadline); hiring must not be blind (hence the hire chips); every option needs a visible cost; cards must not repeat. Decay must show on screen before it shows in the numbers (that is still V3).

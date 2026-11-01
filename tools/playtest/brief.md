@@ -81,7 +81,7 @@ sense on a 390-wide screen.
 | --- | --- |
 | Meaningful choices | Real trade-offs in who goes where, who to hire, and on cards; no obviously-best option |
 | Readable consequences | Before choosing you can roughly guess; after, you can tell why numbers moved |
-| Pacing | Dead time vs. overload across a 6-week act |
+| Pacing | Dead time vs. overload across the 16-week game |
 | Player agency | Placing people on your own initiative feels like the core; you're not just waiting for cards |
 | Idle & living world | Doing nothing keeps the club stable while the world visibly moves (tenet 6) |
 | Tension arc | Pressure builds toward the investors' deadline; comebacks possible |
