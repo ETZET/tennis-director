@@ -1,4 +1,4 @@
-import type { Effect } from '@td/sim';
+import { type Effect, minutes } from '@td/sim';
 import type { Chip } from '@td/ui';
 import type { Text } from './text';
 
@@ -37,8 +37,11 @@ export function effectChips(T: Text, effs: readonly Effect[], prob = 1): Chip[] 
             : { text: `${label} ↑`, tone: 'gain' },
         );
       }
-    else if ('energy' in e && typeof e.energy === 'number')
-      out.push({ text: T.fmt('ui.chip.energy', { n: fmtNum(e.energy) }), tone: 'energy' });
+    else if ('errand' in e)
+      out.push({
+        text: T.fmt('ui.chip.errand', { name: T.personName(e.errand), time: T.duration(minutes(e.for)) }),
+        tone: 'time',
+      });
     else if ('activity' in e) out.push({ text: T.tr(`activities.${e.activity}.title`), tone: 'time' });
     else if ('endAct' in e)
       out.push({ text: T.tr(`endings.${e.ending}.title`), tone: e.endAct === 'won' ? 'gain' : 'loss' });

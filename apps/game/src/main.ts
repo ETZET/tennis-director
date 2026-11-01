@@ -1,6 +1,16 @@
 import { createStage, hollowCreek, OrbitCamera } from '@td/render';
-import { clamp, PACE } from '@td/shared';
-import { CONTENT, type ContentBundle, type GameState, type SimEvent, worldOf } from '@td/sim';
+import { clamp } from '@td/shared';
+import {
+  CONTENT,
+  type ContentBundle,
+  canAssign,
+  DIRECTOR,
+  type GameState,
+  orderStatus,
+  postStatus,
+  type SimEvent,
+  worldOf,
+} from '@td/sim';
 import { type HudActions, mountHud, setHudStrings } from '@td/ui';
 import type * as THREE from 'three';
 import { createDebug } from './debug';
@@ -8,7 +18,7 @@ import { GameLabels } from './labels';
 import { clearAutosave, downloadSave, readAutosave, writeAutosave } from './persist';
 import { Projector } from './project';
 import { createGameScene } from './scene';
-import { MINUTES_PER_SECOND, Session } from './session';
+import { Session } from './session';
 import { createText, type Lang } from './text';
 
 /**
@@ -16,8 +26,8 @@ import { createText, type Lang } from './text';
  *
  *   真实时间 → Session.frame() → advance() → 领域事件
  *                                       ├→ Projector（HUD 快照、快讯）
- *                                       └→ GameScene（总监走位、演出、设施）
- *   玩家点击 → HudActions / 地点牌 → Session.send(命令)
+ *                                       └→ GameScene（员工走位、演出、设施）
+ *   玩家拖人 / 点标记 → HudActions / 岗位标记 → Session.assign → assign 命令（ADR 0012）
  */
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string): T => {
@@ -100,34 +110,49 @@ const hudActions: HudActions = {
       begin(freshSession());
     }
   },
-  // 公告板：拖一下就改，"每周会怎样"马上跟着变
-  plan: (part, weekday, note) => {
-    session.send({ type: 'setPlan', part, weekday, activity: note });
-    pump([]);
-  },
-  lockPlan: () => {
-    if (session.s.planning) session.send({ type: 'lockPlan' });
-    session.plannerOpen = false;
-    pump([]);
-  },
-  closePlanner: () => {
-    session.plannerOpen = false;
+  // 员工条：点一下拿起来，再点场景里的岗位或工单；或者按住直接拖过去
+  pick: (person) => {
+    session.picked = person;
+    session.sheet = null;
     draw();
   },
-  // 动作圈：走过去、打开公告板，或者去做一件事
-  act: (id) => {
-    session.ring = null;
-    if (id.startsWith('walk:')) session.walkTo(id.slice(5));
-    else if (id === 'plan') session.plannerOpen = true;
-    else session.send({ type: 'act', action: id });
-    session.paused = false;
+  drop: (person, x, y) => {
+    const t = targetAt(x, y);
+    if (t) assignTo(person, t);
+    else {
+      session.picked = null;
+      draw();
+    }
+  },
+  assign: (person, target) => {
+    session.assign(person, target);
     pump([]);
   },
-  closeRing: () => {
-    session.ring = null;
+  closeSheet: () => {
+    session.sheet = null;
     draw();
   },
 };
+/** 屏幕上 (x, y) 那儿是哪个岗位或工单的标记 */
+function targetAt(x: number, y: number): string | null {
+  for (const el of document.elementsFromPoint(x, y)) {
+    const t = (el as HTMLElement).closest?.<HTMLElement>('[data-target]')?.dataset.target;
+    if (t) return t;
+  }
+  return null;
+}
+function assignTo(person: string, target: string): void {
+  const w = worldOf(session.s, content);
+  if (canAssign(session.s, w, person, target) === null) {
+    session.assign(person, target);
+    pump([]);
+  } else {
+    // 派不过去（例如钱不够买料）：打开说明，让玩家看到为什么
+    session.picked = null;
+    session.sheet = target;
+    draw();
+  }
+}
 const ui = mountHud($('hud'), hudActions);
 
 function answer(key: 1 | 2 | 3): void {
@@ -138,20 +163,16 @@ function answer(key: 1 | 2 | 3): void {
   if (!c) return;
   const keys = (['A', 'B', 'C'] as const).filter((k) => c.options[k]);
   const opt = keys[key - 1];
-  if (opt && session.choose(o.uid, opt)) {
-    // 选了要走过去的选项：继续走时间，不然总监永远走不到
-    if (session.intent) session.paused = false;
-    pump([]);
-  }
+  if (opt && session.choose(o.uid, opt)) pump([]);
 }
 
 const draw = () => ui.update(projector.snapshot(session));
 
-/* ---------- 地点牌：点一下总监就走过去 ---------- */
+/* ---------- 地点牌、岗位和工单的标记 ---------- */
 const labels = new GameLabels($('labels'), stage.cam);
 labels.occluders = () =>
-  [...document.querySelectorAll('.td-bug,.td-strip-wrap,.td-card,.td-wire,.td-bug-status')].map((el) =>
-    el.getBoundingClientRect(),
+  [...document.querySelectorAll('.td-bug,.td-strip-wrap,.td-card,.td-wire,.td-bug-status,.td-staff,.td-sheet')].map(
+    (el) => el.getBoundingClientRect(),
   );
 // 红土场的站位就在桥头，牌子挪到场地北边线上，不和"人行桥"叠在一起
 const LABEL_AT: Record<string, { x: number; z: number }> = { clay_court: hollowCreek.FD.w({ x: 0, z: -10.4 }) };
@@ -159,13 +180,13 @@ const ground = (a: string, dy: number) => () => {
   const p = LABEL_AT[a] ?? hollowCreek.STANDS[a] ?? { x: 0, z: 0 };
   return { x: p.x, y: hollowCreek.groundY(p.x, p.z) + dy, z: p.z };
 };
-const destination = (s: GameState) =>
-  s.director.leg ? (s.director.route[s.director.route.length - 1] ?? s.director.leg.to) : null;
-/** 拉远看整座岛时（手机默认视角），只给总监所在、正要去、有事的地方挂名字；其余缩成能点的小圆点 */
+const director = () => session.s.people[DIRECTOR];
+/** 拉远看整座岛时（手机默认视角），只给总监所在、正要去、有事的地方挂名字；其余缩成小圆点 */
 const placeFlags = (a: string) => {
   const s = session.s;
-  const here = s.director.at === a;
-  const dest = destination(s) === a;
+  const d = director();
+  const here = !d?.walk && d?.at === a;
+  const dest = d?.walk?.to === a;
   const card = s.cards.open.some((o) => {
     const c = worldOf(s, content).cards.get(o.card);
     return (c?.stage?.anchor ?? c?.location) === a;
@@ -173,23 +194,15 @@ const placeFlags = (a: string) => {
   return { here, dest, card, dot: labels.compact && !here && !dest && !card };
 };
 for (const a of content.acts[0]?.anchors ?? []) {
-  const placeLabel = labels.add(
-    {
-      get: ground(a, 0.2),
-      lift: () => (placeFlags(a).dot ? 10 : 34),
-      text: () => text.anchor(a),
-      cls: () => {
-        const f = placeFlags(a);
-        return `pl${f.here ? ' pl-here' : ''}${f.dest ? ' pl-dest' : ''}${f.card ? ' pl-card' : ''}${f.dot ? ' pl-dot' : ''}`;
-      },
+  const placeLabel = labels.add({
+    get: ground(a, 0.2),
+    lift: () => (placeFlags(a).dot ? 10 : 34),
+    text: () => text.anchor(a),
+    cls: () => {
+      const f = placeFlags(a);
+      return `pl${f.here ? ' pl-here' : ''}${f.dest ? ' pl-dest' : ''}${f.card ? ' pl-card' : ''}${f.dot ? ' pl-dot' : ''}`;
     },
-    (el) => {
-      // 点地点牌：围着它展开这个地方能做的事
-      const r = el.getBoundingClientRect();
-      session.ring = { anchor: a, x: r.left + r.width / 2, y: r.bottom + 40 };
-      draw();
-    },
-  );
+  });
   placeLabel.el.dataset.anchor = a;
   const center = (hollowCreek.ANCHORS as Record<string, { x: number; z: number }>)[a];
   labels.add({
@@ -208,12 +221,113 @@ for (const a of content.acts[0]?.anchors ?? []) {
     },
   });
 }
-// 站定时地点牌已经变绿，"你"只在路上显示
+
+/**
+ * 岗位和工单的标记（ADR 0012）：持续岗位是场边的"位子"（环形进度，空着就一直提醒），
+ * 一次性工单是长在问题上的工具标记（直条进度）。拿着人时点它就派过去；没拿人时点它看说明。
+ */
+function addTargets(c: ContentBundle): void {
+  const w = worldOf(session?.s ?? newState(c), c);
+  const short = (id: string) => {
+    const t = projector?.targetTitle(id) ?? id;
+    return t.includes(' · ') ? (t.split(' · ')[1] as string) : t;
+  };
+  for (const post of w.posts.values()) {
+    const m = labels.add(
+      {
+        get: ground(post.at, 1.2),
+        lift: 6,
+        text: () => {
+          const s = session.s;
+          const ww = worldOf(s, content);
+          const p = ww.posts.get(post.id);
+          if (!p) return null;
+          const st = postStatus(s, ww, p);
+          if (!st.exists) return null;
+          const picked = session.picked;
+          const lowCondition = !!p.restore && (s.condition[ww.facilityAt.get(p.at) ?? ''] ?? 100) < 70;
+          const show = st.person || (st.demand && st.inHours) || picked || lowCondition;
+          if (!show) return null;
+          const who = st.person ? (projector?.face(st.person).initials ?? '') : '+';
+          return labels.compact ? who : `${who} ${short(post.id)}`;
+        },
+        cls: () => {
+          const s = session.s;
+          const ww = worldOf(s, content);
+          const p = ww.posts.get(post.id);
+          if (!p) return 'tg';
+          const st = postStatus(s, ww, p);
+          const need = st.demand && st.inHours && !st.person;
+          const picked = session.picked;
+          const fit = picked ? canAssign(s, ww, picked, post.id) : null;
+          return `tg tg-post${st.active ? ' tg-on' : ''}${need ? ' tg-need' : ''}${!st.inHours && st.demand ? ' tg-off' : ''}${picked ? (fit === null ? ' tg-fit' : ' tg-nofit') : ''}`;
+        },
+        vars: () => {
+          const s = session.s;
+          const ww = worldOf(s, content);
+          const p = ww.posts.get(post.id);
+          return { '--p': p ? `${Math.round(postStatus(s, ww, p).progress * 100)}%` : '0%' };
+        },
+      },
+      () => tapTarget(post.id),
+    );
+    m.el.dataset.target = post.id;
+  }
+  for (const o of w.orders.values()) {
+    const m = labels.add(
+      {
+        get: ground(o.at, 0.6),
+        lift: 6,
+        text: () => {
+          const s = session.s;
+          const ww = worldOf(s, content);
+          const oo = ww.orders.get(o.id);
+          if (!oo) return null;
+          const st = orderStatus(s, ww, oo);
+          if (!st.visible) return null;
+          // 拉远时只留开了工的和手上拿着人时能去的，免得满屏工具
+          if (labels.compact && !st.started && !st.crew.length && !session.picked) return '⚒';
+          const pct = st.started ? ` ${Math.round(st.progress * 100)}%` : '';
+          return labels.compact ? `⚒${pct}` : `⚒ ${short(o.id)}${pct}`;
+        },
+        cls: () => {
+          const s = session.s;
+          const ww = worldOf(s, content);
+          const oo = ww.orders.get(o.id);
+          if (!oo) return 'tg';
+          const st = orderStatus(s, ww, oo);
+          const picked = session.picked;
+          const fit = picked ? canAssign(s, ww, picked, o.id) : null;
+          return `tg tg-order${st.crew.length ? ' tg-on' : ''}${st.started ? ' tg-started' : ''}${picked ? (fit === null ? ' tg-fit' : ' tg-nofit') : ''}`;
+        },
+        vars: () => {
+          const s = session.s;
+          const ww = worldOf(s, content);
+          const oo = ww.orders.get(o.id);
+          return { '--p': oo ? `${Math.round(orderStatus(s, ww, oo).progress * 100)}%` : '0%' };
+        },
+      },
+      () => tapTarget(o.id),
+    );
+    m.el.dataset.target = o.id;
+  }
+}
+function tapTarget(id: string): void {
+  if (session.picked) assignTo(session.picked, id);
+  else {
+    session.sheet = session.sheet === id ? null : id;
+    draw();
+  }
+}
+const newState = (c: ContentBundle): GameState => Session.fresh(c, 1).s;
+addTargets(content);
+
+// 总监走在路上时头顶挂个"你"
 labels.add({
   get: () => scene.directorHead(),
   lift: 0,
   cls: () => 'you',
-  text: () => (session.s.director.leg ? text.tr('ui.you') : null),
+  text: () => (director()?.walk ? text.tr('ui.you') : null),
 });
 
 /* ---------- 键盘 ---------- */
@@ -232,8 +346,8 @@ window.addEventListener('keydown', (e) => {
     draw();
   } else if (e.key === '1' || e.key === '2' || e.key === '3') answer(Number(e.key) as 1 | 2 | 3);
   else if (e.key === 'Escape') {
-    session.ring = null;
-    session.plannerOpen = false;
+    session.picked = null;
+    session.sheet = null;
     draw();
   } else if (e.key === ' ') {
     e.preventDefault();
@@ -268,8 +382,6 @@ function frame(ts: number) {
   camera.occludedBottomPx = card ? container.clientHeight - card.getBoundingClientRect().top : 0;
   const pxPerM = container.clientHeight / (stage.cam.top - stage.cam.bottom);
   labels.compact = pxPerM < 4;
-  // 公告板和动作圈打开时，地点牌收起来，不和它们抢位置
-  $('labels').style.visibility = session.held ? 'hidden' : '';
   labels.place(container.clientWidth, container.clientHeight);
   uiT += dt;
   if (uiT > 0.2) {
@@ -332,25 +444,21 @@ if (import.meta.hot)
   });
 
 /**
- * 试玩桥（tools/playtest 用）：一分钟一分钟地快进，直到有新卡打开、要求暂停、本幕结束，或走满 max 分钟。
+ * 试玩桥（tools/playtest 用）：一分钟一分钟地快进，直到有新卡打开、要求暂停、本幕结束、工单做完，或走满 max 分钟。
  * 走完停在暂停状态，像回合制一样把决定交还给试玩者。
  */
 function fastForward(max: number): { minutes: number; stop: string } {
   const t0 = session.s.t;
   session.paused = false;
   let stop = 'time';
+  // 按营业分钟数走（夜里跳过的时间不算），每次正好一分钟（R10：/wait/1440 不会走成两天）
   for (let i = 0; i < max; i++) {
-    if (session.held) {
-      stop = 'held';
-      break;
-    }
-    const ev = session.frame(1 / (MINUTES_PER_SECOND * session.speed * (session.idle ? PACE.idleSpeedup : 1)));
+    const ev = session.stepMinute();
     pump(ev);
     if (session.s.outcome) stop = 'actEnded';
     else if (ev.some((e) => e.type === 'cardOpened')) stop = 'cardOpened';
     else if (session.paused) stop = 'pause';
-    else if (ev.some((e) => e.type === 'actionFinished')) stop = 'actionFinished';
-    else if (session.held) stop = 'held';
+    else if (ev.some((e) => e.type === 'orderFinished')) stop = 'orderFinished';
     else continue;
     break;
   }
@@ -367,18 +475,18 @@ declare global {
       resync: () => void;
       fastForward: (max: number) => { minutes: number; stop: string };
       answer: (key: 1 | 2 | 3) => void;
-      walk: (anchor: string) => void;
-      /** 试玩桥：点一个地点会弹出的动作圈（数据） */
-      ring: (anchor: string) => unknown;
-      act: (id: string) => void;
-      /** 返回 null，或者这一步为什么没成（例如这张便条不能放在这一格） */
-      plan: (part: string, weekday: number, note: string | null) => string | null;
-      tap: (anchor: string) => void;
+      /** 把人派到岗位或工单上（null 叫他停下来）；返回 null，或者为什么没成 */
+      assign: (person: string, target: string | null) => string | null;
+      /** 员工条的数据 */
+      staff: () => unknown;
+      /** 某个岗位或工单的说明（和点开时看到的一样） */
+      sheet: (target: string) => unknown;
+      /** 现在场景里看得见的岗位和工单标记 */
+      targets: () => unknown;
+      /** 点一个标记（和手指点一样：拿着人就派，没拿就打开说明） */
+      tap: (target: string) => void;
+      pick: (person: string | null) => void;
       close: () => void;
-      ringData: () => unknown;
-      lockPlan: () => void;
-      openPlanner: () => void;
-      planner: () => unknown;
     };
   }
 }
@@ -388,33 +496,25 @@ window.__td = {
   resync: () => scene.sync(session.s),
   fastForward,
   answer,
-  walk: (a) => {
-    session.walkTo(a);
+  assign: (person, target) => {
+    const w = worldOf(session.s, content);
+    const why = canAssign(session.s, w, person, target);
+    if (why !== null) return `rejected: ${why}`;
+    session.assign(person, target);
     pump([]);
+    return null;
   },
-  ring: (a) => projector.ring(session, a, 0, 0),
-  act: (id) => hudActions.act?.(id),
-  plan: (part, weekday, note) => {
-    const n = session.log.length;
-    hudActions.plan?.(part, weekday, note);
-    return session.log.length > n
-      ? null
-      : 'rejected (that note cannot go in that slot, or no energy to change the plan)';
-  },
-  tap: (a) => {
-    const el = [...document.querySelectorAll<HTMLElement>('#labels .pl')].find((x) => x.dataset.anchor === a);
-    if (el) el.click();
-  },
+  staff: () => projector.staff(session),
+  sheet: (t) => projector.sheet(session, t),
+  targets: () =>
+    [...document.querySelectorAll<HTMLElement>('#labels [data-target]')]
+      .filter((el) => !el.hidden)
+      .map((el) => ({ target: el.dataset.target, text: el.textContent, cls: el.className })),
+  tap: (t) => tapTarget(t),
+  pick: (p) => hudActions.pick?.(p),
   close: () => {
-    session.ring = null;
-    session.plannerOpen = false;
+    session.picked = null;
+    session.sheet = null;
     draw();
   },
-  ringData: () => (session.ring ? projector.ring(session, session.ring.anchor, 0, 0) : null),
-  lockPlan: () => hudActions.lockPlan?.(),
-  openPlanner: () => {
-    session.plannerOpen = true;
-    draw();
-  },
-  planner: () => (session.s.planning || session.plannerOpen ? projector.planner(session) : null),
 };

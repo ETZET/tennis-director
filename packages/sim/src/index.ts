@@ -6,7 +6,7 @@
  */
 
 export type { Activity, Card, ContentBundle, Effect, OptionKey, Order, Post, SkillKind } from '@td/content';
-export { CONTENT } from '@td/content';
+export { CONTENT, minutes } from '@td/content';
 export * from './bots';
 export {
   directorPressure,

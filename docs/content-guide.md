@@ -43,19 +43,27 @@ options:
 default: { then: C }    # 倒计时到了按哪个选项处理；extra 里可以再加惩罚
 ```
 
-其他字段：`once: true`（只出现一次）、`pause: true`（打开时自动暂停）、`cost`（选项花钱，钱不够就选不了）、`requires`（选项的条件，不满足就锁住）、`stage: { anchor, performance }`（打开时在某处演一段）。
+其他字段：`once: true`（只出现一次）、`pause: true`（打开时自动暂停）、`cost`（选项花钱，钱不够就选不了）、`requires`（选项的条件，不满足就锁住）、`errand: { at, for }`（选了以后总监放下手上的岗位，去那儿待一段时间；代价是总监的工时）、`stage: { anchor, performance }`（打开时在某处演一段）。
 
 ### 条件
 
-`all` / `any` / `not` 组合；`stat`（`lt` `lte` `gt` `gte` `eq`）、`flag`（`is`）、`facility`（`is`）、`directorAt`、`day`、`hour`、`seen`、`open`、`coach`（`none` 表示没有主教练）、`activity`（`running`）、`expr`（任意表达式）。
+`all` / `any` / `not` 组合；`stat`（`lt` `lte` `gt` `gte` `eq`）、`flag`（`is`）、`facility`（`is`）、`assigned`（某人正在干活，可带 `at` 要求在某地）、`day`、`hour`、`seen`、`open`、`coach`（`none` 表示没有主教练）、`activity`（`running`）、`expr`（任意表达式）。
 
 ### 效果
 
-改状态量（`add` / `set`）、设标记、改设施状态、`schedule` 安排后续卡（`in: 1d`）、`activity` 开始活动、`hire` / `fire`、改人的 `skill` `morale` `fatigue`、`log` 写一行快讯、`endAct` 结束本幕、`follow`「谁跟我走」。每个效果都可以带 `if` 和 `chance`。
+改状态量（`add` / `set`）、设标记、改设施状态、`schedule` 安排后续卡（`in: 1d`）、`activity` 开始活动、`hire` / `fire`、改人的 `skill` `upkeep` `service` `morale` `fatigue`、`errand` 把某人叫去办事、`log` 写一行快讯、`endAct` 结束本幕、`follow`「谁跟我走」。每个效果都可以带 `if` 和 `chance`。
 
 ### 表达式
 
-数值可以写成表达式，例如 `round(2 + stat.reputation / 15 + rand() * 3)`。能用的变量：`stat.<id>`、`flag.<id>`、`facility.<id>`、`person.<id>.skill|morale|fatigue`、`coach.skill|attention|morale|present|hired`、`director.at`、`courts_open`、`facility_quality`、`wages_week`、`open_cards`、`day`、`hour`、`pressure`。函数：`min max clamp round floor ceil abs rand`。拼错的变量名在编译时就报错。
+数值可以写成表达式，例如 `round(2 + stat.reputation / 15 + rand() * 3)`。能用的变量：`stat.<id>`、`flag.<id>`、`facility.<id>`、`person.<id>.skill|upkeep|service|morale|fatigue`、`coach.skill|attention|morale|present|hired`、`director.at`、`condition.<设施>`、`service_rate`、`staff`、`courts_open`、`facility_quality`、`wages_week`、`open_cards`、`day`、`hour`、`pressure`；岗位效果里还有 `worker.skill`（在岗这个人对应那项能力）。函数：`min max clamp round floor ceil abs rand`。拼错的变量名在编译时就报错。
+
+## 岗位和工单（ADR 0012）
+
+岗位放在 `data/posts/<id>.yaml`，是地点上的一个"位子"：`at`（锚点）、`skill`（teach / upkeep / service）、`cycle`（一圈多久）、`hours: [15, 18]` 和 `days: [0, 1, 2, 3, 4]`（有客人的时段；有时段的岗位算需求，计入服务率）、`when`（岗位什么时候存在）、`effects`（每圈结算，可以用 `worker.skill`）、`wear`（每圈磨损）、`restore`（维护岗位每圈修复多少，乘能力）、`performance`。
+
+工单放在 `data/orders/<id>.yaml`，是长在问题上的一次性活：`work`（能力 50 的一个人要干多久）、`cost`（开工时扣的材料费）、`crew`（最多几个人）、`when`（标记什么时候出现；中途变成不满足，工单作废）、`cooldown` / `once`、`restore`（完工后设施状况加多少）、`check` 和 `effects` / `onSuccess` / `onFail`、`performance`。
+
+岗位和工单共用一个 id 空间。文案在 `posts.<id>` / `orders.<id>` 下，要有 `title` 和 `note`。设施的 `decay_day` 是没人维护时每天掉多少状况；季节的 `decay` 是倍数。
 
 ## 文案
 
@@ -67,4 +75,4 @@ default: { then: C }    # 倒计时到了按哪个选项处理；extra 里可以
 
 ## 平衡
 
-`docs/balance/hollow-creek.md` 是当前内容的机器人跑局报告。第一幕的目标：贪心型机器人通关 80–90%，随机型 8–15%，每张卡都要出现过。改完数值重跑一次，把报告一起提交。
+`docs/balance/hollow-creek.md` 是当前内容的机器人跑局报告。第一幕的目标：贪心型机器人通关 70–85%，随机型很少赢（0–15%），放置不管的对照组输，每张卡都要出现过（ADR 0012 起的区间，等第二轮试玩后再收紧）。改完数值重跑一次，把报告一起提交。

@@ -345,6 +345,10 @@ seasons:
   late_summer: 夏末
   early_autumn: 初秋
 
+people:
+  director: 总监
+  dale: Dale 教练
+
 who:
   board: { name: 董事会, role: 五位能决定卖掉俱乐部的志愿者 }
   parents: { name: Mason 的父母, role: 话不多，心里有期待 }
@@ -387,67 +391,43 @@ ui:
     so: 所以
     more: "还有 {n} 条"
     walkThere: 要先走过去
+    staff: 你的人
+    cancel: 放下
+    close: 关上
+    send: 派去
+    stop: 叫停
+    skill_teach: 教学
+    skill_upkeep: 维护
+    skill_service: 服务
     trend: { falling: 在下滑, recovering: 在回升, flat: 持平, bottomed: 见底了 }
   week: "第 {n} 周"
   weather: { sun: 晴, cloud: 多云, rain: 下雨 · 露天场地关闭, wind: 大风 }
   days: { "0": 一, "1": 二, "2": 三, "3": 四, "4": 五, "5": 六, "6": 日 }
   chip:
+    errand: "{name}离岗 {time}"
     hire: "{name} 上任"
     fire: "{name} 离开"
-    energy: "精力 {n}"
-    walk: "走过去 {time}"
-    work: "现场 {time}"
     chance: "成功率 {p}%"
     cost: "−${n}"
-    cooldown: "{time} 后可再做"
-  attr: { skill: 球技, morale: 士气, fatigue: 疲劳 }
+  attr: { skill: 球技, upkeep: 维护, service: 服务, morale: 士气, fatigue: 疲劳 }
   then: "之后：{what}"
-  ring:
-    go: 去做
-    walk: 走到这儿
-    walk_note: 总监走过去站在这儿
-    board: 打开公告板
-    board_note: 改这一季的日程
-    empty: 这儿现在没什么可做的
-    why:
-      cooldown: 刚做过
-      cost: 现金不够
-      energy: 太累了
-      busy: 在别处忙
-  plan:
-    title: 会所公告板
-    subtitle: "{season} · 第 {from}–{to} 周 · 把便条拖进这一周"
-    tray: 便条（拖到板上）
-    lock: 钉好了
-    lock_mid: 完成
-    free: 排日程的时候改是免费的。
-    costs: "季中每改一处，花 {n} 点精力。"
-    cash: 每周现金
-    members: 每周新会员
-    quality: 质量会停在
-    pressure: 每周匹克球压力
-    lessons: 每周课时
-    lessons_over: "每周课时 · 教练太累"
-    blocked: 暂时开不了的格子
   ctx:
     board: "董事会 {n} · {days} 天后表决"
     cash: "现金 ${n}"
     members: "会员 {n}"
-    energy: "你的精力 {n}"
-  work: "{what} · 还剩 {time}"
+    service: "本周服务率 {n}%"
   board: 董事会信心
   board_in: "董事会 · 剩 {days} 天"
   board_today: "董事会 · 今天表决"
   club: { name: 霍洛溪网球俱乐部, badge: HC }
   cash: 现金
   you: 你
-  walking: "正走去{place} · 还要 {time}"
-  standing: "在{place}"
   closed: 俱乐部已关门过夜
   left: "还剩 {time}"
   decided: 已决定
   hint:
-    walk: "要先走去{place} · {time}"
+    leaves: "总监会放下“{what}”"
+    busy: 总监正在办别的事
     cost: "花费 ${n}"
     chance: "成功率 {p}%"
     requires: 现在做不到
@@ -463,3 +443,53 @@ ui:
     won: 第一幕完成
     lost: 第一幕结束
     legacy: "跟你走的人：{names}"
+  skill: { teach: 教学, upkeep: 维护, service: 服务 }
+  fac: { court_1: 1 号场, court_2: 2 号场, bubble: 气膜场, clay: 红土场, pool: 泳池 }
+  condition: 状况
+  nobody: 没人
+  errand_log: "{name}去{place}待了 {time}"
+  because:
+    post: "{name}在“{post}”干了 {n} 圈"
+    order: "{names}做完了“{order}”"
+    worked: （成了）
+    failed: （没成）
+  wire:
+    interrupted: "{name}被叫离“{post}”，这一圈白干了"
+    week: "本周结算 · 服务率 {n}%"
+  status:
+    empty: "{n} 个岗位有客人在等，没人管"
+    covered: 有客人的地方都有人
+  staff:
+    hint: "点一个岗位或工单，把{name}派过去"
+    idle: "在{place}闲着"
+    waiting: "{what} · 等客人"
+    walking: "去{what} · {time}"
+    errand: "在{place}办事 · {time}"
+  why:
+    person: 不能指派
+    busy: 正在办事，叫不回来
+    target: 没有这个岗位
+    gone: 现在开不了
+    cost: 现金不够买料
+    crew: 人已经够了
+  sheet:
+    daily: 每天
+    anytime: 随时可以干
+    cycle: "一圈 {time}"
+    income: 有收入（看能力和会员数）
+    restore: "状况 +{n}/圈"
+    restore_done: "完工后状况 +{n}"
+    wear: "磨损 {n}/圈"
+    work: "还要 {time}（能力 50 的一个人）"
+    crew: "最多 {n} 人一起"
+    post_on: "{name}在干 · 这一圈还要 {time}"
+    post_wait: "{name}在这儿，等客人来"
+    post_empty_now: 没人 · 有客人在等
+    post_empty: 没人
+    order_on: "{names}在干 · {p}%"
+    order_paused: "停工了 · {p}%（进度留着）"
+    order_new: 还没开工
+    walk: "走过去 {time}"
+    here: 就在这儿
+    leaves: "会放下“{what}”"
+    speed: "干活速度 {n}%"

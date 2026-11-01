@@ -350,6 +350,10 @@ seasons:
   late_summer: Late summer
   early_autumn: Early autumn
 
+people:
+  director: Director
+  dale: Coach Dale
+
 who:
   board: { name: The Board, role: Five volunteers who can sell the club }
   parents: { name: Mason's parents, role: Quiet, hopeful }
@@ -392,67 +396,43 @@ ui:
     so: so
     more: "+{n} more"
     walkThere: Walks there first
+    staff: Your people
+    cancel: Put down
+    close: Close
+    send: Send
+    stop: Stop
+    skill_teach: Coaching
+    skill_upkeep: Upkeep
+    skill_service: Service
     trend: { falling: Falling, recovering: Recovering, flat: Flat, bottomed: Bottomed out }
   week: "Wk {n}"
   weather: { sun: Sunny, cloud: Cloudy, rain: Rain · outdoor courts closed, wind: Windy }
   days: { "0": Mon, "1": Tue, "2": Wed, "3": Thu, "4": Fri, "5": Sat, "6": Sun }
   chip:
+    errand: "{name} away {time}"
     hire: "{name} joins"
     fire: "{name} leaves"
-    energy: "Energy {n}"
-    walk: "{time} walk"
-    work: "{time} on site"
     chance: "{p}% chance"
     cost: "−${n}"
-    cooldown: "Again in {time}"
-  attr: { skill: skill, morale: morale, fatigue: fatigue }
+  attr: { skill: skill, upkeep: upkeep, service: service, morale: morale, fatigue: fatigue }
   then: "Then: {what}"
-  ring:
-    go: Go do it
-    walk: Walk here
-    walk_note: The director goes and stands here
-    board: Open the noticeboard
-    board_note: Change this season's plan
-    empty: Nothing to do here right now
-    why:
-      cooldown: Done recently
-      cost: Not enough cash
-      energy: Too tired
-      busy: Busy elsewhere
-  plan:
-    title: Clubhouse noticeboard
-    subtitle: "{season} · weeks {from}–{to} · drag notes onto the week"
-    tray: Notes (drag onto the board)
-    lock: Pin it up
-    lock_mid: Done
-    free: Changes are free while you plan the season.
-    costs: "Mid-season, every change costs {n} energy."
-    cash: Cash per week
-    members: New members per week
-    quality: Quality settles at
-    pressure: Pickleball pressure per week
-    lessons: Lessons per week
-    lessons_over: "Lessons per week · coach overworked"
-    blocked: Slots that can't run yet
   ctx:
     board: "Board {n} · vote in {days}d"
     cash: "Cash ${n}"
     members: "Members {n}"
-    energy: "Your energy {n}"
-  work: "{what} · {time} left"
+    service: "Service this week {n}%"
   board: Board confidence
   board_in: "Board · {days}d left"
   board_today: "Board · vote today"
   club: { name: Hollow Creek TC, badge: HC }
   cash: Cash
   you: You
-  walking: "Walking to {place} · {time}"
-  standing: "At {place}"
   closed: Club closed for the night
   left: "{time} left"
   decided: Decided
   hint:
-    walk: "Walk to {place} first · {time}"
+    leaves: "The director leaves “{what}”"
+    busy: The director is away on something else
     cost: "Costs ${n}"
     chance: "{p}% chance"
     requires: Not possible right now
@@ -468,3 +448,53 @@ ui:
     won: Act 1 complete
     lost: Act 1 over
     legacy: "Coming with you: {names}"
+  skill: { teach: Coaching, upkeep: Upkeep, service: Service }
+  fac: { court_1: Court 1, court_2: Court 2, bubble: Bubble, clay: Clay court, pool: Pool }
+  condition: condition
+  nobody: nobody
+  errand_log: "{name} spent {time} at {place}"
+  because:
+    post: "{name} worked {n} rounds on “{post}”"
+    order: "{names} finished “{order}”"
+    worked: " (it worked)"
+    failed: " (it didn't work)"
+  wire:
+    interrupted: "{name} was pulled off “{post}”; that round was lost"
+    week: "Week settled · service {n}%"
+  status:
+    empty: "{n} posts have customers waiting and nobody there"
+    covered: Every busy spot has someone
+  staff:
+    hint: "Tap a post or job to send {name} there"
+    idle: "Idle at {place}"
+    waiting: "{what} · waiting for customers"
+    walking: "To {what} · {time}"
+    errand: "Away at {place} · {time}"
+  why:
+    person: Can't be assigned
+    busy: Away on an errand
+    target: No such post
+    gone: Not open right now
+    cost: Not enough cash for materials
+    crew: Already full
+  sheet:
+    daily: Daily
+    anytime: Any time
+    cycle: "{time} per round"
+    income: Earns money (skill and members)
+    restore: "Condition +{n}/round"
+    restore_done: "Condition +{n} when done"
+    wear: "Wear {n}/round"
+    work: "{time} left (one person, skill 50)"
+    crew: "Up to {n} people"
+    post_on: "{name} is on it · {time} left this round"
+    post_wait: "{name} is here, waiting for customers"
+    post_empty_now: Nobody · customers waiting
+    post_empty: Nobody
+    order_on: "{names} working · {p}%"
+    order_paused: "Paused · {p}% (progress kept)"
+    order_new: Not started
+    walk: "{time} walk"
+    here: Right here
+    leaves: "leaves “{what}”"
+    speed: "Working at {n}%"

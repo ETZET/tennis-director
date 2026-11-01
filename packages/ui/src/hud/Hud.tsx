@@ -1,7 +1,8 @@
 import { render } from 'preact';
 import { useState } from 'preact/hooks';
-import { ActionRing, Chips } from '../plan/ActionRing';
-import { Planner } from '../plan/Planner';
+import { Chips } from '../staff/Chips';
+import { StaffBar } from '../staff/StaffBar';
+import { TargetSheet } from '../staff/TargetSheet';
 import { GRADE_COLOR, sparkPoints } from './format';
 import { STR } from './strings';
 import type { EventCardData, HudActions, HudSnapshot, SeasonInfo } from './types';
@@ -21,7 +22,7 @@ const WX: Record<SeasonInfo['weather'], string> = {
 
 function SeasonRow({ s, status }: { s?: SeasonInfo | undefined; status?: string | null | undefined }) {
   if (!s && !status) return null;
-  const pct = Math.max(0, Math.min(100, s?.energy ?? 0));
+  const pct = Math.max(0, Math.min(100, s?.service ?? 0));
   return (
     <span class="td-bug-status" aria-live="polite">
       {s ? (
@@ -40,12 +41,12 @@ function SeasonRow({ s, status }: { s?: SeasonInfo | undefined; status?: string 
             </svg>
             {s.label}
           </span>
-          <span class="td-energy" title={s.energyLabel}>
+          <span class="td-energy" title={s.serviceLabel}>
             <span class="td-energy-bar" aria-hidden="true">
-              <i style={{ width: `${pct}%` }} class={pct < 30 ? 'td-low' : ''} />
+              <i style={{ width: `${pct}%` }} class={pct < 50 ? 'td-low' : ''} />
             </span>
-            <span class="td-sr">{s.energyLabel}</span>
-            {Math.round(pct)}
+            <span class="td-sr">{s.serviceLabel}</span>
+            {Math.round(pct)}%
           </span>
         </>
       ) : null}
@@ -422,9 +423,10 @@ export function Hud({ s, actions }: { s: HudSnapshot; actions: HudActions }) {
       <ScoreBug club={s.club} paused={s.controls.paused} status={s.status} season={s.season} />
       <StatStrip s={s} />
       {s.card ? <EventCard c={s.card} actions={actions} /> : null}
+      {/* 卡开着的时候先拍板，员工条让开 */}
+      {s.staff && !s.card ? <StaffBar staff={s.staff} hint={s.hint} actions={actions} /> : null}
       <ClubWire s={s} actions={actions} />
-      {s.ring && !s.card && !s.planner ? <ActionRing r={s.ring} actions={actions} /> : null}
-      {s.planner ? <Planner p={s.planner} actions={actions} /> : null}
+      {s.sheet && !s.card ? <TargetSheet t={s.sheet} actions={actions} /> : null}
     </div>
   );
 }

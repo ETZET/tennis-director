@@ -1,18 +1,28 @@
 import {
-  actionStatus,
+  type AssignBlock,
   at,
   type CausalEntry,
   type ContentBundle,
+  canAssign,
+  DIRECTOR,
   facilityTotals,
   type GameState,
+  minutes,
   type OpenCard,
+  type Order,
   optionStatus,
-  PLAN_CHANGE_ENERGY,
-  planPreview,
+  orderStatus,
+  type Post,
+  postStatus,
   type SimEvent,
+  type SkillKind,
+  serviceRate,
   shortestRoute,
-  speedFactor,
+  skillOf,
+  speedOf,
+  staffIds,
   wagesWeek,
+  working,
   worldOf,
 } from '@td/sim';
 import {
@@ -21,12 +31,11 @@ import {
   type EventCardData,
   grade,
   type HudSnapshot,
-  type PlannerData,
-  type RingAction,
-  type RingData,
   type SeasonInfo,
+  type StaffToken,
   type StatRow,
   type StoryItem,
+  type TargetSheetData,
   trend,
   type WireItem,
 } from '@td/ui';
@@ -71,6 +80,15 @@ export class Projector {
         this.push(s.t, so, hot);
       } else if (e.type === 'activityStarted') {
         this.push(s.t, T.tr(`activities.${e.activity}.title`), false);
+      } else if (e.type === 'postInterrupted') {
+        // 拉走持续岗位的代价要让玩家看见
+        this.push(
+          s.t,
+          T.fmt('ui.wire.interrupted', { name: T.personName(e.person), post: T.tr(`posts.${e.post}.title`) }),
+          true,
+        );
+      } else if (e.type === 'weekSettled') {
+        this.push(s.t, T.fmt('ui.wire.week', { n: Math.round(e.serviceRate * 100) }), e.serviceRate < 0.5);
       }
     }
   }
@@ -100,14 +118,14 @@ export class Projector {
     return last ? at(last.day, last.hour) : null;
   }
 
-  /** 走到某处还要几分钟（正在路上就从这一段的终点算起） */
-  walkMinutes(s: GameState, to: string): number {
+  /** 某人走到某处还要几分钟（正在路上就从这一段的终点算起） */
+  walkMinutes(s: GameState, person: string, to: string): number {
     const w = worldOf(s, this.content);
-    const d = s.director;
-    const from = d.leg ? d.leg.to : (d.at ?? to);
-    const rest = d.leg ? d.leg.end - s.t : 0;
-    // 导航图的分钟是"精力一般"时的；现在跑得快还是走得慢看精力
-    return Math.round(rest + (shortestRoute(w, from, to)?.minutes ?? 0) / speedFactor(s, w));
+    const p = s.people[person];
+    if (!p) return 0;
+    const from = p.walk ? p.walk.to : p.at;
+    const rest = p.walk ? p.walk.end - s.t : 0;
+    return Math.round(rest + (shortestRoute(w, from, to)?.minutes ?? 0));
   }
 
   snapshot(session: Session): HudSnapshot {
@@ -129,6 +147,11 @@ export class Projector {
     const details: StatRow[] = [
       { label: T.tr('stats.reputation'), value: String(Math.round(s.stats.reputation ?? 0)) },
       {
+        label: T.tr('stats.service'),
+        value: `${Math.round(serviceRate(s) * 100)}%`,
+        ...(serviceRate(s) < 0.5 ? { tone: 'bad' as const } : {}),
+      },
+      {
         label: T.tr('stats.board_support'),
         value: `${Math.round(s.stats.board_support ?? 0)}`,
         ...((s.stats.board_support ?? 0) < 40 ? { tone: 'bad' as const } : {}),
@@ -144,7 +167,12 @@ export class Projector {
         .filter(([id]) => id !== 'pool')
         .map(([id, st]) => {
           const [name, state] = T.tr(`facilities.${id}.${st}`).split(' · ');
-          return { label: name ?? id, value: state ?? st };
+          const c = Math.round(s.condition[id] ?? 100);
+          return {
+            label: name ?? id,
+            value: `${state ?? st} · ${c}`,
+            ...(c < 30 ? { tone: 'bad' as const } : {}),
+          };
         }),
     ];
 
@@ -182,8 +210,9 @@ export class Projector {
       status: this.status(session),
       story,
       season: this.season(s),
-      planner: s.planning || session.plannerOpen ? this.planner(session) : null,
-      ring: session.ring ? this.ring(session, session.ring.anchor, session.ring.x, session.ring.y) : null,
+      staff: this.staff(session),
+      hint: session.picked ? T.fmt('ui.staff.hint', { name: T.personName(session.picked) }) : null,
+      sheet: session.sheet ? this.sheet(session, session.sheet) : null,
       controls: { paused: session.paused, speed: `${session.speed}×` },
     };
   }
@@ -238,172 +267,250 @@ export class Projector {
       },
       { text: T.fmt('ui.ctx.members', { n: Math.round(s.stats.members ?? 0) }) },
       {
-        text: T.fmt('ui.ctx.energy', { n: Math.round(s.director.energy) }),
-        tone: s.director.energy < 30 ? 'loss' : 'info',
+        text: T.fmt('ui.ctx.service', { n: Math.round(serviceRate(s) * 100) }),
+        tone: serviceRate(s) < 0.5 ? 'loss' : 'info',
       },
     ];
   }
 
-  /** 季节、天气、精力 */
+  /** 季节、天气、本周服务率 */
   private season(s: GameState): SeasonInfo {
     const T = this.text;
     const week = Math.floor(Math.floor(s.t / 1440) / 7) + 1;
+    const service = Math.round(serviceRate(s) * 100);
     return {
       label: `${T.tr(`seasons.${s.season}`, '')} · ${T.fmt('ui.week', { n: week })}`,
       weather: s.weather,
       weatherLabel: T.tr(`ui.weather.${s.weather}`),
-      energy: s.director.energy,
-      energyLabel: T.fmt('ui.ctx.energy', { n: Math.round(s.director.energy) }),
+      service,
+      serviceLabel: T.fmt('ui.ctx.service', { n: service }),
     };
   }
 
-  /** 动作圈：点了某个地点以后能做的事 */
-  ring(session: Session, anchor: string, x: number, y: number): RingData {
-    const { s } = session;
+  /** 头像：名字的首字母（中文名取第一个字）和一个固定的颜色 */
+  face(id: string): { name: string; initials: string; color: string } {
+    const name = this.text.personName(id);
+    // 首字母取内容里的原名（"Dale 教练"也是 DP）；只有中文名的人（总监）取第一个字
+    const raw = this.content.people.find((p) => p.id === id)?.name ?? name;
+    const clean = (/^[A-Za-z]/.test(name) || id !== DIRECTOR ? raw : name).replace(/^(Coach|Ms\.|Mr\.)\s+/, '');
+    const initials = /^[A-Za-z0-9]/.test(clean)
+      ? clean
+          .split(/\s+/)
+          .map((x) => x[0] ?? '')
+          .join('')
+          .slice(0, 2)
+          .toUpperCase()
+      : clean.slice(0, 1);
+    const COLORS = ['#d7ff3c', '#9be07f', '#ffc8b5', '#c9e8ff', '#fff7a8', '#e6d0ff'];
+    let h = 0;
+    for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+    return { name, initials, color: id === DIRECTOR ? '#62e08c' : (COLORS[h % COLORS.length] as string) };
+  }
+
+  /** 岗位或工单的名字 */
+  targetTitle(id: string): string {
+    return this.text.tr(`posts.${id}.title`, this.text.tr(`orders.${id}.title`, id));
+  }
+
+  /** 这个人在干什么（员工条上的一行小字） */
+  doing(s: GameState, id: string): { text: string; state: StaffToken['state'] } {
     const T = this.text;
     const w = worldOf(s, this.content);
-    const acts: RingAction[] = [];
-    const ICON: Record<string, RingAction['icon']> = {
-      watch: 'eye',
-      talk: 'talk',
-      rally: 'racket',
-      feed: 'racket',
-      fundraiser: 'coins',
-      workday: 'spade',
-    };
-    if (s.director.at !== anchor)
-      acts.push({
-        id: `walk:${anchor}`,
-        title: T.tr('ui.ring.walk'),
-        note: T.tr('ui.ring.walk_note'),
-        chips: [{ text: T.fmt('ui.chip.walk', { time: T.duration(this.walkMinutes(s, anchor)) }), tone: 'time' }],
-        icon: 'walk',
-      });
-    if (anchor === 'deck')
-      acts.push({
-        id: 'plan',
-        title: T.tr('ui.ring.board'),
-        note: T.tr('ui.ring.board_note'),
-        chips: [],
-        icon: 'board',
-      });
-    for (const a of w.actions.values()) {
-      if (a.at !== anchor) continue;
-      const st = actionStatus(s, w, a);
-      if (st.blocked === 'when' || st.blocked === 'once') continue;
-      const chips: Chip[] = [];
-      if (a.cost) chips.push({ text: T.fmt('ui.chip.cost', { n: a.cost }), tone: 'cost' });
-      if (st.onsite) {
-        chips.push({ text: T.fmt('ui.chip.energy', { n: `−${a.energy}` }), tone: 'energy' });
-        if (s.director.at !== anchor)
-          chips.push({ text: T.fmt('ui.chip.walk', { time: T.duration(this.walkMinutes(s, anchor)) }), tone: 'time' });
-        chips.push({ text: T.fmt('ui.chip.work', { time: T.duration(st.minutes) }), tone: 'time' });
-      }
-      if (st.chance !== null)
-        chips.push({ text: T.fmt('ui.chip.chance', { p: Math.round(st.chance * 100) }), tone: 'risk' });
-      chips.push(...effectChips(T, a.effects));
-      if (st.chance !== null) chips.push(...effectChips(T, a.onSuccess, st.chance));
-      const cd = st.blocked === 'cooldown' ? (s.actions.cooldowns[a.id] ?? s.t) - s.t : 0;
-      acts.push({
-        id: a.id,
-        title: T.tr(`actions.${a.id}.title`),
-        note: T.tr(`actions.${a.id}.note`),
-        chips,
-        icon: a.onsite ? (ICON[a.performance ?? ''] ?? 'spark') : a.cost ? 'wrench' : 'sign',
-        ...(st.blocked
-          ? {
-              disabled:
-                st.blocked === 'cooldown'
-                  ? T.fmt('ui.chip.cooldown', { time: T.duration(cd) })
-                  : T.tr(`ui.ring.why.${st.blocked}`),
-            }
-          : {}),
-      });
+    const p = s.people[id];
+    if (!p) return { text: '', state: 'idle' };
+    if (p.errand) {
+      const left = p.errand.until === null ? (p.walk ? p.walk.end - s.t : 0) + p.errand.minutes : p.errand.until - s.t;
+      return {
+        text: T.fmt('ui.staff.errand', { place: T.anchor(p.errand.at), time: T.duration(left) }),
+        state: 'errand',
+      };
     }
-    return {
-      x,
-      y,
-      title: T.anchor(anchor),
-      ...(acts.length <= (s.director.at !== anchor ? 1 : 0) ? { subtitle: T.tr('ui.ring.empty') } : {}),
-      actions: acts.slice(0, 6),
-      goLabel: T.tr('ui.ring.go'),
-    };
+    if (p.walk && p.job)
+      return {
+        text: T.fmt('ui.staff.walking', { what: this.targetTitle(p.job), time: T.duration(p.walk.end - s.t) }),
+        state: 'walking',
+      };
+    if (p.walk)
+      return {
+        text: T.fmt('ui.staff.walking', { what: T.anchor(p.walk.to), time: T.duration(p.walk.end - s.t) }),
+        state: 'walking',
+      };
+    if (!p.job) return { text: T.fmt('ui.staff.idle', { place: T.anchor(p.at) }), state: 'idle' };
+    const post = w.posts.get(p.job);
+    if (post) {
+      const st = postStatus(s, w, post);
+      return st.active
+        ? { text: this.targetTitle(p.job), state: 'working' }
+        : { text: T.fmt('ui.staff.waiting', { what: this.targetTitle(p.job) }), state: 'waiting' };
+    }
+    const order = w.orders.get(p.job);
+    if (order) {
+      const st = orderStatus(s, w, order);
+      return { text: `${this.targetTitle(p.job)} · ${Math.round(st.progress * 100)}%`, state: 'working' };
+    }
+    return { text: this.targetTitle(p.job), state: 'working' };
   }
 
-  /** 公告板：便条、格子、"这样排每周会怎样" */
-  planner(session: Session): PlannerData {
+  /** 底部员工条：总监在最前，然后按招来的顺序 */
+  staff(session: Session): StaffToken[] {
     const { s } = session;
-    const T = this.text;
     const w = worldOf(s, this.content);
-    const parts = Object.keys(w.act.schedule.parts);
-    const notes = [...w.activities.values()]
-      .filter((a) => a.program)
-      .map((a, i) => {
-        const COLORS = ['#fff7a8', '#c9e8ff', '#d6f5c4', '#ffffff', '#ffc8b5', '#e6d0ff', '#ffe0a8', '#d0f0ec'];
-        const label = T.tr(`activities.${a.id}.title`);
+    return staffIds(s, w)
+      .sort((a, b) => (a === DIRECTOR ? -1 : b === DIRECTOR ? 1 : 0))
+      .map((id) => {
+        const p = s.people[id];
+        const d = this.doing(s, id);
         return {
-          id: a.id,
-          label,
-          short: T.tr(`activities.${a.id}.short`, label),
-          color: COLORS[i % COLORS.length] as string,
-          parts: a.program?.parts ?? [],
+          id,
+          ...this.face(id),
+          doing: d.text,
+          state: d.state,
+          skills: { teach: p?.skill ?? 0, upkeep: p?.upkeep ?? 0, service: p?.service ?? 0 },
+          ...(session.picked === id ? { picked: true } : {}),
+          ...(p?.errand ? { locked: true } : {}),
         };
       });
-    const pv = planPreview(s, this.content, s.plan);
-    const seasons = w.act.seasons;
-    const idx = Math.max(
-      0,
-      seasons.findIndex((x) => x.id === s.season),
+  }
+
+  /** 每圈大概带来什么：把岗位效果里的数折成标签（表达式按在岗这个人的能力估） */
+  private postChips(post: Post): Chip[] {
+    const T = this.text;
+    const chips: Chip[] = [];
+    chips.push({ text: T.tr(`ui.skill.${post.skill}`), tone: 'info' });
+    if (post.hours) {
+      const ds = post.days ?? [];
+      const run = ds.length > 2 && ds.every((d, i) => i === 0 || d === (ds[i - 1] as number) + 1);
+      const days = !post.days
+        ? T.tr('ui.sheet.daily')
+        : run
+          ? `${T.tr(`ui.days.${ds[0]}`)}–${T.tr(`ui.days.${ds[ds.length - 1]}`)}`
+          : ds.map((d) => T.tr(`ui.days.${d}`)).join(T.lang === 'zh' ? '' : '/');
+      chips.push({ text: `${days} ${post.hours[0]}–${post.hours[1]}`, tone: 'time' });
+    } else chips.push({ text: T.tr('ui.sheet.anytime'), tone: 'time' });
+    chips.push({ text: T.fmt('ui.sheet.cycle', { time: T.duration(minutes(post.cycle)) }), tone: 'time' });
+    // 收入随能力和会员数变：表达式不出具体数字，只说"有收入"
+    const variable = (e: (typeof post.effects)[number]) => 'stat' in e && 'add' in e && typeof e.add !== 'number';
+    chips.push(
+      ...effectChips(
+        T,
+        post.effects.filter((e) => !variable(e)),
+      ),
     );
-    const from = Math.floor(((seasons[idx]?.from_day ?? 1) - 1) / 7) + 1;
-    const lastDay = (seasons[idx + 1]?.from_day ?? (w.act.calendar.at(-1)?.day ?? 42) + 1) - 1;
-    const to = Math.floor((lastDay - 1) / 7) + 1;
-    const money = (n: number) => `${n < 0 ? '−' : '+'}$${Math.abs(n)}`;
+    if (post.effects.some((e) => variable(e) && 'stat' in e && e.stat === 'cash'))
+      chips.push({ text: T.tr('ui.sheet.income'), tone: 'gain' });
+    if (post.restore) chips.push({ text: T.fmt('ui.sheet.restore', { n: post.restore }), tone: 'gain' });
+    if (post.wear) chips.push({ text: T.fmt('ui.sheet.wear', { n: post.wear }), tone: 'loss' });
+    return chips;
+  }
+
+  private orderChips(s: GameState, o: Order): Chip[] {
+    const T = this.text;
+    const w = worldOf(s, this.content);
+    const st = orderStatus(s, w, o);
+    const chips: Chip[] = [{ text: T.tr(`ui.skill.${o.skill}`), tone: 'info' }];
+    if (o.cost && !st.started) chips.push({ text: T.fmt('ui.chip.cost', { n: o.cost }), tone: 'cost' });
+    chips.push({
+      text: T.fmt('ui.sheet.work', { time: T.duration(minutes(o.work) * (1 - st.progress)) }),
+      tone: 'time',
+    });
+    if (o.crew > 1) chips.push({ text: T.fmt('ui.sheet.crew', { n: o.crew }), tone: 'info' });
+    if (st.chance !== null)
+      chips.push({ text: T.fmt('ui.chip.chance', { p: Math.round(st.chance * 100) }), tone: 'risk' });
+    chips.push(...effectChips(T, o.effects));
+    if (st.chance !== null) chips.push(...effectChips(T, o.onSuccess, st.chance));
+    if (o.restore) chips.push({ text: T.fmt('ui.sheet.restore_done', { n: o.restore }), tone: 'gain' });
+    return chips;
+  }
+
+  /** 点了场景里的岗位或工单：它是什么、现在怎样、派谁去会怎样 */
+  sheet(session: Session, target: string): TargetSheetData | null {
+    const { s } = session;
+    const T = this.text;
+    const w = worldOf(s, this.content);
+    const post = w.posts.get(target);
+    const order = w.orders.get(target);
+    const def = post ?? order;
+    if (!def) return null;
+    let status: string;
+    let progress: number | undefined;
+    let chips: Chip[];
+    if (post) {
+      const st = postStatus(s, w, post);
+      chips = this.postChips(post);
+      progress = st.progress;
+      status = st.person
+        ? st.active
+          ? T.fmt('ui.sheet.post_on', {
+              name: T.personName(st.person),
+              time: T.duration((1 - st.progress) * st.cycle),
+            })
+          : T.fmt('ui.sheet.post_wait', { name: T.personName(st.person) })
+        : st.demand && st.inHours
+          ? T.tr('ui.sheet.post_empty_now')
+          : T.tr('ui.sheet.post_empty');
+    } else {
+      const o = order as Order;
+      const st = orderStatus(s, w, o);
+      chips = this.orderChips(s, o);
+      progress = st.progress;
+      status = st.crew.length
+        ? T.fmt('ui.sheet.order_on', {
+            names: st.crew.map((x) => T.personName(x)).join(T.lang === 'zh' ? '、' : ', '),
+            p: Math.round(st.progress * 100),
+          })
+        : st.started
+          ? T.fmt('ui.sheet.order_paused', { p: Math.round(st.progress * 100) })
+          : T.tr('ui.sheet.order_new');
+    }
+    const skill: SkillKind = def.skill;
+    const people = staffIds(s, w)
+      .sort((a, b) => (a === DIRECTOR ? -1 : b === DIRECTOR ? 1 : 0))
+      .map((id) => {
+        const p = s.people[id];
+        const here = p?.job === target;
+        const block: AssignBlock = canAssign(s, w, id, target);
+        const walk = this.walkMinutes(s, id, def.at);
+        const fit = [
+          `${T.tr(`ui.skill.${skill}`)} ${Math.round(p ? skillOf(p, skill) : 0)}`,
+          walk ? T.fmt('ui.sheet.walk', { time: T.duration(walk) }) : T.tr('ui.sheet.here'),
+          p?.job && !here ? T.fmt('ui.sheet.leaves', { what: this.targetTitle(p.job) }) : '',
+        ]
+          .filter(Boolean)
+          .join(' · ');
+        return {
+          id,
+          ...this.face(id),
+          fit:
+            here && p && working(s, w, id)
+              ? T.fmt('ui.sheet.speed', { n: Math.round(speedOf(skillOf(p, skill)) * 100) })
+              : fit,
+          ...(here ? { here: true } : {}),
+          ...(block && block !== 'same' ? { disabled: T.tr(`ui.why.${block}`) } : {}),
+        };
+      });
     return {
-      title: T.tr('ui.plan.title'),
-      subtitle: T.fmt('ui.plan.subtitle', { season: T.tr(`seasons.${s.season}`, ''), from, to }),
-      parts: parts.map((p) => ({ id: p, label: T.tr(`parts.${p}`) })),
-      days: [0, 1, 2, 3, 4, 5, 6].map((d) => T.tr(`ui.days.${d}`)),
-      grid: Object.fromEntries(parts.map((p) => [p, [...(s.plan[p] ?? Array(7).fill(null))]])),
-      notes,
-      projection: [
-        {
-          label: T.tr('ui.plan.cash'),
-          value: money(pv.cashWeek),
-          ...(pv.cashWeek < 0 ? { tone: 'bad' as const } : {}),
-        },
-        { label: T.tr('ui.plan.members'), value: `+${pv.membersWeek}` },
-        {
-          label: T.tr('ui.plan.quality'),
-          value: String(pv.quality),
-          ...(pv.quality < 40 ? { tone: 'bad' as const } : {}),
-        },
-        {
-          label: T.tr(pv.lessons > 5 ? 'ui.plan.lessons_over' : 'ui.plan.lessons'),
-          value: String(pv.lessons),
-          ...(pv.lessons > 5 ? { tone: 'bad' as const } : {}),
-        },
-        { label: T.tr('ui.plan.pressure'), value: `${pv.pressureWeek > 0 ? '+' : ''}${pv.pressureWeek}` },
-        ...(pv.blocked ? [{ label: T.tr('ui.plan.blocked'), value: String(pv.blocked), tone: 'bad' as const }] : []),
-      ],
-      costNote: s.planning ? T.tr('ui.plan.free') : T.fmt('ui.plan.costs', { n: PLAN_CHANGE_ENERGY }),
-      trayLabel: T.tr('ui.plan.tray'),
-      lockLabel: T.tr(s.planning ? 'ui.plan.lock' : 'ui.plan.lock_mid'),
-      required: s.planning,
+      id: target,
+      kind: post ? 'post' : 'order',
+      title: this.targetTitle(target),
+      note: T.tr(`${post ? 'posts' : 'orders'}.${target}.note`, ''),
+      status,
+      chips,
+      ...(progress !== undefined ? { progress } : {}),
+      people,
     };
   }
 
+  /** 记分牌下面一行：有客人却没人管的岗位有几个（最要紧的提醒） */
   private status(session: Session): string | null {
     const { s } = session;
     const T = this.text;
-    const d = s.director;
-    if (d.task?.phase === 'working')
-      return T.fmt('ui.work', { what: T.tr(`actions.${d.task.action}.title`), time: T.duration(d.task.end - s.t) });
-    if (d.leg) {
-      const dest = d.route.length ? (d.route[d.route.length - 1] as string) : d.leg.to;
-      return T.fmt('ui.walking', { place: T.anchor(dest), time: T.duration(this.walkMinutes(s, dest)) });
+    const w = worldOf(s, this.content);
+    let empty = 0;
+    for (const post of w.posts.values()) {
+      const st = postStatus(s, w, post);
+      if (st.exists && st.demand && st.inHours && !st.person) empty++;
     }
-    return d.at ? T.fmt('ui.standing', { place: T.anchor(d.at) }) : null;
+    return empty ? T.fmt('ui.status.empty', { n: empty }) : T.tr('ui.status.covered');
   }
 
   private card(session: Session): EventCardData | null {
@@ -429,11 +536,19 @@ export class Projector {
     const c = w.cards.get(o.card);
     if (!c) return null;
     const statuses = optionStatus(s, w, o.uid);
-    const it = session.intent?.uid === o.uid ? session.intent : null;
     const answers: CardAnswer[] = statuses.slice(0, 3).map((st, i) => {
       const opt = c.options[st.key];
       const chips: Chip[] = [];
       if (st.cost) chips.push({ text: T.fmt('ui.chip.cost', { n: st.cost }), tone: 'cost' });
+      // 要总监亲自去办：他放下手上的岗位，走过去待一段时间（代价是总监的工时）
+      if (st.errand)
+        chips.push({
+          text: T.fmt('ui.chip.errand', {
+            name: T.personName(DIRECTOR),
+            time: T.duration(this.walkMinutes(s, DIRECTOR, st.errand.at) + st.errand.minutes),
+          }),
+          tone: 'time',
+        });
       if (opt) {
         chips.push(...effectChips(T, opt.effects));
         if (st.chance !== null) {
@@ -443,13 +558,11 @@ export class Projector {
       }
       const then = opt ? thenLine(T, [...opt.effects, ...opt.onSuccess]) : undefined;
       const hints: string[] = [];
-      if (st.blocked === 'director' && st.requiresDirectorAt)
-        hints.push(
-          T.fmt('ui.hint.walk', {
-            place: T.anchor(st.requiresDirectorAt),
-            time: T.duration(this.walkMinutes(s, st.requiresDirectorAt)),
-          }),
-        );
+      if (st.errand) {
+        const job = s.people[DIRECTOR]?.job;
+        if (job) hints.push(T.fmt('ui.hint.leaves', { what: this.targetTitle(job) }));
+      }
+      if (st.blocked === 'busy') hints.push(T.tr('ui.hint.busy'));
       if (st.blocked === 'requires') hints.push(T.tr('ui.hint.requires'));
       if (st.blocked === 'cost') hints.push(T.tr('ui.hint.cash'));
       // 代价和收益由标签讲，选项文字只留"做什么"（去掉文案里 " · " 后面手写的代价）
@@ -459,9 +572,7 @@ export class Projector {
         text,
         ...(chips.length ? { chips } : {}),
         ...(then ? { then } : {}),
-        ...(st.blocked === 'requires' || st.blocked === 'cost' ? { disabled: true } : {}),
-        ...(st.blocked === 'director' ? { walk: true } : {}),
-        ...(it?.option === st.key ? { chosen: true } : {}),
+        ...(st.blocked ? { disabled: true } : {}),
         ...(hints.length ? { hint: hints.join(' · ') } : {}),
       };
     });

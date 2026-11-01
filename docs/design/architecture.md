@@ -126,7 +126,7 @@ interface GameState {
 
 ### 命令
 
-玩家的所有操作都是命令对象，例如 `{ type: 'chooseOption', card: 'hc_pickleball_court2', option: 'C' }`、`{ type: 'moveDirector', to: 'court_2' }`、`{ type: 'setSpeed', speed: 2 }`。命令先校验，再执行，执行结果追加到命令日志。初始种子加命令日志就能完整重放一局。
+玩家的所有操作都是命令对象，例如 `{ type: 'chooseOption', card: 'hc_pickleball_court2', option: 'C' }`、`{ type: 'assign', person: 'director', target: 'c1_upkeep' }`（ADR 0012）、`{ type: 'setSpeed', speed: 2 }`。命令先校验，再执行，执行结果追加到命令日志。初始种子加命令日志就能完整重放一局。
 
 ### 每个 tick 的系统顺序
 
