@@ -16,12 +16,12 @@ import { PAL } from './build';
 
 /** 风滚草走的几条走廊：z 固定，x 从 x0 滚到 x1（避开看台和楼） */
 const LANES: readonly { z: number; x0: number; x1: number }[] = [
-  { z: 37.5, x0: -42, x1: 86 },
-  { z: -35.5, x0: -46, x1: 48 },
-  { z: -72, x0: -96, x1: 46 },
-  { z: 72, x0: -112, x1: 112 },
-  { z: 26, x0: 42, x1: 86 },
-  { z: -80, x0: -112, x1: 112 },
+  { z: -6.5, x0: -36, x1: 58 },
+  { z: 15.5, x0: -36, x1: 34 },
+  { z: -45.5, x0: -70, x1: 94 },
+  { z: 0, x0: 62, x1: 94 },
+  { z: 30, x0: 62, x1: 94 },
+  { z: -30, x0: 62, x1: 94 },
 ];
 
 interface Weed {
@@ -80,10 +80,10 @@ export function createIndianWellsSky(stage: Stage): {
   stage.scene.add(dust);
   const puffs: Puff[] = [];
   const spawn = (): Puff => {
-    // 多在墙外的沙地和停车场起沙
-    const out = rand() < 0.6;
-    const x = out ? R(-110, 110) : R(50, 98);
-    const z = out ? (rand() < 0.5 ? R(-84, -72) : R(66, 80)) : R(-70, -36);
+    // 多在墙外的沙地起沙：北墙外一条、东边停车场外一片
+    const north = rand() < 0.6;
+    const x = north ? R(-70, 94) : R(62, 94);
+    const z = north ? R(-47, -44) : R(-40, 40);
     return { x, z, y: 0, life: 0, ttl: R(2.5, 5), s: R(0.5, 1.3) };
   };
   for (let i = 0; i < N; i++) {

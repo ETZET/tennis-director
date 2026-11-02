@@ -743,7 +743,7 @@ export function createGameScene(stage: Stage, content0: ContentBundle, site: Sit
     focus() {
       if (!focusAnchor || sched.now > focusUntil) return null;
       const p = STANDS[focusAnchor];
-      return p ? { x: p.x, z: p.z, zoom: 0.62 } : null;
+      return p ? { x: p.x, z: p.z, zoom: 1.2 } : null;
     },
   };
 }

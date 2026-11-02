@@ -1,4 +1,4 @@
-# Stadium 2 · 高水平训练：工作日上午 8–12 点，路过的职业球员要一块好场地和一个懂行的人。
+# 泳池 · 水中健身课：工作日上午 8–12 点，退休会员最爱的一节课，要一个会带课的人。
 id: st2_pro
 act: indian_wells
 at: stadium_2
@@ -11,4 +11,3 @@ effects:
   - { stat: cash, add: "round(12 * (0.6 + worker.skill / 100))" }
   - { stat: reputation, add: 0.04 }
 wear: 0.5
-performance: lesson

@@ -65,8 +65,8 @@ const DUSK: Key = {
 };
 const NIGHT: Key = {
   at: 19 * 60 + 40,
-  hemi: ['#5a6aa0', '#2a2030', 0.42],
-  sun: ['#8090c0', 0.2],
+  hemi: ['#6a7ab0', '#3a3040', 0.56],
+  sun: ['#8090c0', 0.26],
   sunPos: [30, 80, -40],
   sky: ['#0b1028', '#1c1f44', '#3a2f58'],
   mtn: ['#2c2842', '#221f38', '#1a182c'],
@@ -197,12 +197,16 @@ export function createDaylight(stage: Stage): Daylight {
   stage.renderer.setClearColor(0x000000, 0);
   stage.scene.fog = null;
   let drawn = -999;
-  let lamp = 0;
+  let lamp = -1;
   let lastRain = -1;
   return {
     update(minute, rain) {
       const k = daylightAt(minute);
-      lamp = k.lamps;
+      if (Math.abs(k.lamps - lamp) > 0.01 || drawn < -1) {
+        lamp = k.lamps;
+        // 地图登记的灯（灯头、窗、串灯）：白天灰、夜里亮
+        for (const f of (stage.scene.userData.tdLamps ?? []) as ((v: number) => void)[]) f(lamp);
+      }
       const dim = 1 - 0.38 * rain;
       stage.hemi.color.set(k.hemi[0]);
       stage.hemi.groundColor.set(k.hemi[1]);
@@ -223,6 +227,6 @@ export function createDaylight(stage: Stage): Daylight {
         bg.style.filter = r > 0 ? `saturate(${1 - 0.6 * r}) brightness(${1 - 0.3 * r})` : '';
       }
     },
-    lamps: () => lamp,
+    lamps: () => Math.max(0, lamp),
   };
 }

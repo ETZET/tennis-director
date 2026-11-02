@@ -10,29 +10,29 @@ stats:
 anchors:
   entrance: Main gate
   parking: Parking
-  plaza: Plaza
+  plaza: Circle of Palms
   clubhouse: Clubhouse
-  stadium_1: Stadium 1
-  stadium_2: Stadium 2
-  stadium_3: Stadium 3
-  practice: Practice courts
-  outer_1: Outer court 1
-  outer_23: Outer courts 2–3
+  stadium_1: Stadium
+  stadium_2: Pool
+  stadium_3: Pickleball courts
+  practice: Academy courts
+  outer_1: Members' court
+  outer_23: Clay courts
 
 facilities:
-  outer_1: { sanded: Court 1 · buried in sand, swept: Court 1 · swept, playable: Court 1 · playable, resurfaced: Court 1 · resurfaced, worn: Court 1 · closed (lines under sand) }
-  outer_23: { ruined: Courts 2–3 · fences down, playable: Courts 2–3 · repaired, worn: Courts 2–3 · closed (sanded over) }
-  practice: { ruined: Practice courts · abandoned, open: Practice courts · open, worn: Practice courts · closed (sanded over) }
+  outer_1: { sanded: Members' court · buried in sand, swept: Members' court · swept, playable: Members' court · playable, resurfaced: Members' court · resurfaced, worn: Members' court · closed (lines under sand) }
+  outer_23: { ruined: Clay courts · fences down, playable: Clay courts · repaired, worn: Clay courts · closed (sanded over) }
+  practice: { ruined: Academy courts · abandoned, open: Academy courts · open, worn: Academy courts · closed (sanded over) }
   clubhouse: { ruined: Clubhouse · leaking roof, open: Clubhouse · front desk open, worn: Clubhouse · front desk closed (leaks, no power) }
-  plaza: { dry: Plaza · fountain dry, open: Plaza · fountain running, worn: Plaza · closed (fountain clogged) }
-  stadium_3: { buried: Stadium 3 · filled with sand, dug: Stadium 3 · dug out, open: Stadium 3 · open, worn: Stadium 3 · closed (sand again) }
-  stadium_2: { ruined: Stadium 2 · run down, open: Stadium 2 · open, worn: Stadium 2 · closed (sand on every seat) }
-  stadium_1: { ruined: Stadium 1 · southeast corner collapsed, cleared: Stadium 1 · cleared, restored: Stadium 1 · rebuilt, worn: Stadium 1 · closed (can't host a match) }
+  plaza: { dry: Circle of Palms · fountain dry, palms dead, open: Circle of Palms · fountain running, worn: Circle of Palms · closed (fountain clogged) }
+  stadium_3: { buried: Pickleball courts · buried in sand, dug: Pickleball courts · dug out, open: Pickleball courts · open, worn: Pickleball courts · closed (sand again) }
+  stadium_2: { ruined: Pool · empty and sanded over, open: Pool · filled, worn: Pool · closed (the water turned green) }
+  stadium_1: { ruined: Stadium · northeast stands collapsed, cleared: Stadium · cleared, restored: Stadium · rebuilt, worn: Stadium · closed (can't host a match) }
 
 endings:
   exhibition:
     title: The exhibition happened
-    body: For the first time in ten years, the stands of Stadium 1 were full. Indian Wells is alive again.
+    body: For the first time in ten years, the Stadium stands were full. Palm Oasis is alive again.
   deadline:
     title: Time's up
     body: The investors' sixteen weeks are over and the exhibition never happened. The restoration stops and the gates are locked again.
@@ -60,37 +60,37 @@ events:
       B: Sell it for some cash now
   iw_first_players:
     title: The first visitors
-    body: Two retirees from Palm Desert stand at the gate of Court 1 and ask if they can play.
+    body: Two retirees from Palm Desert stand at the gate of the members' court and ask if they can play.
     options:
       A: Free for the first week
       B: Charge the normal rate
   iw_sandstorm:
     title: The wind is up
-    body: Sand is pouring onto the outer courts. Dale asks over the radio whether to cover them now.
+    body: Sand is pouring onto the courts. Dale asks over the radio whether to cover them now.
     options:
       A: I'll cover them myself
       B: Wait for the wind to stop
   iw_reporter:
     title: The Desert Sun is here
-    body: A reporter heard someone is restoring the abandoned garden and wants to write a story.
+    body: A reporter heard someone is restoring the abandoned club and wants to write a story.
     options:
       A: Give him a two-hour tour and lunch
       B: Send a statement
   iw_sponsor:
     title: The bank's banner
-    body: A local bank saw Stadium 3 reopen and wants to hang a big banner over the stands. The offer is good.
+    body: A local bank saw the pickleball courts reopen and wants to hang banners all along the fence. The offer is good.
     options:
       A: Take it
       B: Decline
   iw_dale_story:
     title: The last tournament
-    body: The night Stadium 2 reopens, Dale talks about the last tournament before the garden closed. He was in the umpire's chair that year.
+    body: The night the pool is filled, Dale sits by the water and talks about the last tournament before the club closed. He was in the umpire's chair that year.
     options:
       A: You'll umpire the exhibition
       B: Take a few days off first
   iw_dale_nudge:
     title: '"We''ve been standing around"'
-    body: Dale finds you by the clubhouse. "Two of us, a whole garden, and we've been standing around for a day. There's still work we can start. Want me to take the next repair, or shall I go drum up some interest in town?"
+    body: Dale finds you by the clubhouse. "Two of us, a whole club, and we've been standing around for a day. There's still work we can start. Want me to take the next repair, or shall I go drum up some interest in town?"
     options:
       A: Dale takes the next repair (materials paid when he starts)
       B: Dale runs a free taster lesson in town
@@ -109,7 +109,7 @@ events:
       B: Two more weeks, pay the interest
   iw_loan_final:
     title: The extension is over
-    body: The credit union takes what it can of the $3000 straight from the account. Word gets around town that the garden owed money; the emptier the account, the worse it sounds.
+    body: The credit union takes what it can of the $3000 straight from the account. Word gets around town that the club owed money; the emptier the account, the worse it sounds.
     options:
       A: Pay up
   iw_investor_call:
@@ -120,7 +120,7 @@ events:
       B: Promise we'll catch up (5 places by the visit)
   iw_rival_club:
     title: A challenge from La Quinta
-    body: The head coach of the La Quinta Racquet Club turns up at Courts 2–3. "Your members keep telling mine this place is back. Prove it. Club match, this weekend."
+    body: The head coach of the La Quinta Racquet Club turns up at the clay courts. "Your members keep telling mine this place is back. Prove it. Club match, this weekend."
     options:
       A: Take the challenge and host it
       B: Not now, we're busy
@@ -174,22 +174,22 @@ events:
       C: Not this time
   iw_hiring_day_4b:
     title: The fourth hiring day
-    body: The old grounds chief heard the garden is coming back and turned up himself; so did a local kid who used to be a ball kid.
+    body: The old grounds chief heard the club is coming back and turned up himself; so did a local kid who used to be a ball kid.
     options:
       A: Hire Ray (old grounds chief)
       B: Hire Mateo (ball kid)
       C: Not this time
 
 log:
-  started: You arrive at the abandoned Indian Wells Tennis Garden.
-  first_court: "Court 1 has a new net: the first playable court in ten years"
+  started: You arrive at the abandoned Palm Oasis Racquet Club.
+  first_court: "The members' court has a new net: the first playable court in ten years"
   ball_machine: The ball machine works again; academy lessons are better
   loan_declined: You turned down the credit union's loan
   loan_paid: The credit union loan is paid off
   clubhouse_open: The clubhouse front desk is open; hiring days can start
-  stadium_3_open: Stadium 3 is usable again
-  stadium_2_open: Stadium 2 is open
-  stadium_1_open: Stadium 1 is rebuilt; the exhibition can be held
+  stadium_3_open: The pickleball courts are open
+  stadium_2_open: The pool is filled
+  stadium_1_open: The Stadium is rebuilt; the exhibition can be held
   sand_covered: The courts were covered in time
   exhibition_flop: "The exhibition fell flat: the stands were half empty. Try again in a week"
   no_hire: No hire this time; the same people do the work
@@ -197,62 +197,62 @@ log:
   tournament_lost: Your player went out early this time, but learned something
 
 posts:
-  o1_rental: { title: "Court 1 · Court desk", note: "Daily 8–15, locals come to play" }
-  o1_lesson: { title: "Court 1 · Afternoon lessons", note: "Weekdays 15–19" }
-  o1_upkeep: { title: "Court 1 · Upkeep", note: "Any time; it wears down if nobody looks after it" }
-  o23_rental: { title: "Courts 2–3 · Court desk", note: "Daily 8–17, two courts" }
-  o23_clinic: { title: "Courts 2–3 · Adult clinic", note: "Mon–Thu 17–20" }
-  o23_upkeep: { title: "Courts 2–3 · Upkeep", note: "Any time; it wears down if nobody looks after it" }
-  pr_academy: { title: "Practice · Junior academy", note: "Weekdays 14–18" }
-  pr_weekend: { title: "Practice · Weekend open", note: "Weekends 8–13" }
-  pr_upkeep: { title: "Practice · Upkeep", note: "Any time; it wears down if nobody looks after it" }
+  o1_rental: { title: "Members' court · Court desk", note: "Daily 8–15, locals come to play" }
+  o1_lesson: { title: "Members' court · Afternoon lessons", note: "Weekdays 15–19" }
+  o1_upkeep: { title: "Members' court · Upkeep", note: "Any time; it wears down if nobody looks after it" }
+  o23_rental: { title: "Clay courts · Court desk", note: "Daily 8–17, two courts" }
+  o23_clinic: { title: "Clay courts · Adult clinic", note: "Mon–Thu 17–20" }
+  o23_upkeep: { title: "Clay courts · Upkeep", note: "Any time; it wears down if nobody looks after it" }
+  pr_academy: { title: "Academy · Junior academy", note: "Weekdays 14–18" }
+  pr_weekend: { title: "Academy · Weekend open", note: "Weekends 8–13" }
+  pr_upkeep: { title: "Academy · Upkeep", note: "Any time; it wears down if nobody looks after it" }
   ch_desk: { title: "Clubhouse · Front desk", note: "Daily 8–18: sign-ups, directions, the phone" }
-  pz_food: { title: "Plaza · Lunch stand", note: "Daily 11–14" }
-  pz_evening: { title: "Plaza · Weekend evenings", note: "Thu–Sun 17–20" }
-  pz_upkeep: { title: "Plaza · Upkeep", note: "Clean the fountain, sweep the sand" }
-  st3_league: { title: "Stadium 3 · Weekend league", note: "Weekends 9–17" }
-  st3_upkeep: { title: "Stadium 3 · Upkeep", note: "The sunken court collects sand fastest" }
-  st2_events: { title: "Stadium 2 · Event days", note: "Fri–Sun 10–18" }
-  st2_pro: { title: "Stadium 2 · Pro practice", note: "Weekdays 8–12" }
-  st2_upkeep: { title: "Stadium 2 · Upkeep", note: "Any time; it wears down if nobody looks after it" }
-  st1_upkeep: { title: "Stadium 1 · Upkeep", note: "It can't break again before the exhibition" }
+  pz_food: { title: "Circle of Palms · Lunch stand", note: "Daily 11–14" }
+  pz_evening: { title: "Circle of Palms · Weekend evenings", note: "Thu–Sun 17–20" }
+  pz_upkeep: { title: "Circle of Palms · Upkeep", note: "Clean the fountain, sweep the sand" }
+  st3_league: { title: "Pickleball · Weekend league", note: "Weekends 9–17" }
+  st3_upkeep: { title: "Pickleball · Upkeep", note: "Right by the desert, it collects sand fastest" }
+  st2_events: { title: "Pool · Cabana service", note: "Fri–Sun 10–18" }
+  st2_pro: { title: "Pool · Aqua fitness", note: "Weekdays 8–12" }
+  st2_upkeep: { title: "Pool · Upkeep", note: "Any time; without it the water turns green" }
+  st1_upkeep: { title: "Stadium · Upkeep", note: "It can't break again before the exhibition" }
   ch_stringing: { title: "Clubhouse · Stringing bench", note: "Daily 9–17, stringers only" }
-  pr_fitness: { title: "Practice · Fitness class", note: "Weekdays 8–11, fitness coaches only" }
-  st3_ballkids: { title: "Stadium 3 · Ball kids", note: "Weekend league 9–17, ball kids only" }
-  pr_training: { title: "Practice · Training", note: "Players only; train any time, play slowly improves" }
-  o23_training: { title: "Courts 2–3 · Training", note: "Where players train until the practice courts are fixed; slower" }
+  pr_fitness: { title: "Academy · Fitness class", note: "Weekdays 8–11, fitness coaches only" }
+  st3_ballkids: { title: "Pickleball · Ball kids", note: "Weekend league 9–17, ball kids only" }
+  pr_training: { title: "Academy · Training", note: "Players only; train any time, play slowly improves" }
+  o23_training: { title: "Clay courts · Training", note: "Where players train until the academy courts are fixed; slower" }
 orders:
-  o1_sweep: { title: "Sweep the sand off Court 1", note: "Free; two people, one morning" }
-  o1_net: { title: "New net for Court 1", note: "$120, one person, one hour", locked: "Sweep the sand first" }
-  o1_resurface: { title: "Resurface Court 1", note: "$1100, three people, a full day", locked: "Once Court 1 is playable" }
-  o1_tidy: { title: "Sand on Court 1 again", note: "Sweep and fix the lines" }
-  o23_repair: { title: "Repair Courts 2–3", note: "Raise the fences, two new nets", locked: "Get Court 1 back first" }
-  o23_tidy: { title: "Sand on Courts 2–3 again", note: "Sweep" }
-  pr_repair: { title: "Repair the practice courts", note: "Two courts, half the fence down", locked: "Repair Courts 2–3 first" }
-  pr_ball_machine: { title: "Fix the ball machine", note: "Academy lessons get better", locked: "Practice courts open, and you kept the ball machine" }
+  o1_sweep: { title: "Sweep the sand off the members' court", note: "Free; two people, one morning" }
+  o1_net: { title: "New net for the members' court", note: "$120, one person, one hour", locked: "Sweep the sand first" }
+  o1_resurface: { title: "Resurface the members' court", note: "$1100, three people, a full day", locked: "Once the members' court is playable" }
+  o1_tidy: { title: "Sand on the members' court again", note: "Sweep and fix the lines" }
+  o23_repair: { title: "Repair the clay courts", note: "Raise the fences, rake the clay, two new nets", locked: "Get the members' court back first" }
+  o23_tidy: { title: "Sand on the clay courts again", note: "Sweep" }
+  pr_repair: { title: "Repair the academy courts", note: "Two courts, half the fence down", locked: "Repair the clay courts first" }
+  pr_ball_machine: { title: "Fix the ball machine", note: "Academy lessons get better", locked: "Academy courts open, and you kept the ball machine" }
   pr_tidy: { title: "Sand on the practice courts", note: "Sweep" }
-  ch_repair: { title: "Repair the clubhouse", note: "Roof, windows, water and power", locked: "Get Court 1 back first" }
+  ch_repair: { title: "Repair the clubhouse", note: "Roof, windows, water and power", locked: "Get the members' court back first" }
   ch_fix: { title: "The clubhouse is leaking again", note: "Roof, A/C or pipes" }
   flyers: { title: "Hand out flyers in town", note: "Once a week" }
-  pz_repair: { title: "Repair the plaza", note: "Unblock the fountain, put the food tent back up", locked: "Repair the clubhouse first" }
+  pz_repair: { title: "Repair the Circle of Palms", note: "Unblock the fountain, replant the palms", locked: "Repair the clubhouse first" }
   pz_tidy: { title: "The fountain is blocked", note: "Clear it" }
-  st3_dig: { title: "Dig out Stadium 3", note: "Five people, several days", locked: "Open the practice courts and the clubhouse first" }
-  st3_court: { title: "Resurface Stadium 3", note: "The second step after digging", locked: "Dig out the sand first" }
-  st3_tidy: { title: "Sand in Stadium 3 again", note: "Sweep" }
-  st2_repair: { title: "Repair Stadium 2", note: "Seats, shade sails, court", locked: "Open Stadium 3 first" }
-  st2_tidy: { title: "Sand in Stadium 2 again", note: "Sweep" }
-  o1_reopen: { title: "Reopen Court 1", note: "It lost its grade: dig out the lines, new net, $30" }
-  o1_refinish: { title: "Patch Court 1's new surface", note: "The new surface lost its grade: patch and re-line, $150" }
-  o23_reopen: { title: "Reopen Courts 2–3", note: "It lost its grade: fences up, sweep, $75" }
+  st3_dig: { title: "Dig out the pickleball courts", note: "Five people, several days", locked: "Open the academy courts and the clubhouse first" }
+  st3_court: { title: "Surface the pickleball courts", note: "The second step after digging", locked: "Dig out the sand first" }
+  st3_tidy: { title: "Sand on the pickleball courts again", note: "Sweep" }
+  st2_repair: { title: "Repair the pool", note: "Patch the walls, new pump, fill it", locked: "Open the pickleball courts first" }
+  st2_tidy: { title: "Sand in the pool again", note: "Skim it" }
+  o1_reopen: { title: "Reopen the members' court", note: "It lost its grade: dig out the lines, new net, $30" }
+  o1_refinish: { title: "Patch the members' court surface", note: "The new surface lost its grade: patch and re-line, $150" }
+  o23_reopen: { title: "Reopen the clay courts", note: "It lost its grade: fences up, sweep, $75" }
   pr_reopen: { title: "Reopen the practice courts", note: "It lost its grade: re-line both courts, $60" }
   ch_reopen: { title: "Reopen the front desk", note: "It lost its grade: roof and wiring, $125" }
-  pz_reopen: { title: "Reopen the plaza", note: "It lost its grade: unclog the fountain, patch the tent, $125" }
-  st3_reopen: { title: "Reopen Stadium 3", note: "It lost its grade: dig out another layer of sand, $150" }
-  st2_reopen: { title: "Reopen Stadium 2", note: "It lost its grade: clear the seats, new shade sails, $250" }
-  st1_reopen: { title: "Reopen Stadium 1", note: "It lost its grade: fix the big screen, clear the stands, $450" }
-  st1_clear: { title: "Clear Stadium 1", note: "Haul away the collapsed southeast corner", locked: "Open Stadium 2 first" }
-  st1_rebuild: { title: "Rebuild Stadium 1", note: "The biggest job of the game", locked: "Clear Stadium 1 first" }
-  st1_exhibition: { title: "Hold the exhibition", note: "Reputation 50+, a crew for a whole day", locked: "Stadium 1 rebuilt and reputation 50+" }
+  pz_reopen: { title: "Reopen the Circle of Palms", note: "It lost its grade: unclog the fountain, fix the pump, $125" }
+  st3_reopen: { title: "Reopen the pickleball courts", note: "It lost its grade: dig out another layer of sand, $150" }
+  st2_reopen: { title: "Reopen the pool", note: "It lost its grade: drain, scrub and refill, $250" }
+  st1_reopen: { title: "Reopen the Stadium", note: "It lost its grade: fix the big screen, clear the stands, $450" }
+  st1_clear: { title: "Clear the Stadium", note: "Haul away the collapsed northeast stands", locked: "Open the pool first" }
+  st1_rebuild: { title: "Rebuild the Stadium", note: "The biggest job of the game", locked: "Clear the Stadium first" }
+  st1_exhibition: { title: "Hold the exhibition", note: "Reputation 50+, a crew for a whole day", locked: "Stadium rebuilt and reputation 50+" }
   pl_tournament: { title: "Play a tournament", note: "Players only, once a week; the better they play, the likelier a win" }
 
 seasons:
@@ -275,7 +275,7 @@ bios:
   rosa_ortiz: Grew up beside the date groves in Coachella and kept La Quinta golf greens alive for twelve years; she always knows when the sand is coming.
   ben_kim: A UC Riverside student who works at a Palm Desert coffee shop and remembers every regular's order; sharpest in the morning.
   jess_park: Four years on a small-college team, then teaching kids in Palm Desert; she has always wanted courts of her own.
-  gus_moreno: He laid these hard courts himself before the garden closed; since the layoffs he hasn't set foot on a tennis court.
+  gus_moreno: He laid these hard courts himself before the club closed; since the layoffs he hasn't set foot on a tennis court.
   kofi_mensah: Raised in Accra, eight years as strength coach for a college track team; always there before sunrise.
   amara_okafor: Born in Lagos, came to the US on a tennis scholarship and played four years of college matches; ranked outside the top 500, she wants one more shot.
   lily_chen: Grew up in her parents' restaurant in Palm Springs, then ran a resort hotel's front desk; the busier the evening, the better she gets.
@@ -309,7 +309,7 @@ traits:
   mentor: { name: Mentor, note: Coaching +6; morale slowly rises }
   stringer: { name: Stringer, note: Can work the clubhouse stringing bench }
   trainer: { name: Fitness coach, note: Can run the fitness class at the practice courts }
-  ball_kid: { name: Ball kid, note: Can work as a ball kid at Stadium 3 league days }
+  ball_kid: { name: Ball kid, note: Can work as a ball kid at pickleball league days }
 
 who:
   investors: { name: The investors, role: The people paying for the restoration }
@@ -334,14 +334,14 @@ ui:
     members: Members
     courtsOpen: Courts open
     salary: Your salary
-    details: Garden report
+    details: Club report
     paused: Paused
     notYet: Not yet
     failZone: Grade F below 40
     qualityChart: Program quality this session
     headCoach: Head coach
     vacant: Vacant
-    wire: Garden wire
+    wire: Club wire
     rotateLeft: Rotate left (Q)
     rotateRight: Rotate right (E)
     pause: Pause (Space)
@@ -387,10 +387,10 @@ ui:
   restore: "Restored (of {total})"
   restore_in: "Restored/{total} · {days}d left"
   restore_today: "Restored/{total} · due today"
-  club: { name: Indian Wells Tennis Garden, badge: IW }
+  club: { name: Palm Oasis Racquet Club, badge: PO }
   cash: Cash
   you: You
-  closed: Garden closed for the night
+  closed: Club closed for the night
   left: "{time} left"
   decided: Decided
   hint:
@@ -413,14 +413,14 @@ ui:
   skill: { teach: Coaching, upkeep: Upkeep, service: Service, play: Play }
   fac:
     {
-      outer_1: Court 1,
-      outer_23: Courts 2–3,
-      practice: Practice courts,
+      outer_1: Members' court,
+      outer_23: Clay courts,
+      practice: Academy courts,
       clubhouse: Clubhouse,
-      plaza: Plaza,
-      stadium_3: Stadium 3,
-      stadium_2: Stadium 2,
-      stadium_1: Stadium 1,
+      plaza: Circle of Palms,
+      stadium_3: Pickleball courts,
+      stadium_2: Pool,
+      stadium_1: Stadium,
     }
   condition: condition
   nobody: nobody

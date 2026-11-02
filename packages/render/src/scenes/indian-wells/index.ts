@@ -12,11 +12,11 @@ import {
   F_O3,
   F_P1,
   F_P2,
+  F_PB1,
+  F_PB2,
   F_S1,
-  F_S2,
-  F_S3,
   groundY,
-  PLAZA,
+  LAWN,
   routeLine,
   SITE,
   STANDS,
@@ -26,17 +26,20 @@ import { createFacilityOverlays } from './overlays';
 export * from './layout';
 export { createFacilityOverlays, type FacilityOverlays } from './overlays';
 
-/** 静态场景的随机种子（BNP Paribas Open 在这里办了几十年） */
+/** 静态场景的随机种子 */
 export const INDIAN_WELLS_SEED = 2000;
 
-/** 广场北半边一块空地：烧烤会、开放日之类不在球场上的演出 */
-const PLAZA_GROUND = new CourtFrame((PLAZA.x0 + PLAZA.x1) / 2, 0, -9, 0, 12, 7);
+/** 球员草坪：烧烤会、开放日之类不在球场上的演出（喷泉那一带的景观，归 plaza） */
+const PLAZA_GROUND = new CourtFrame((LAWN.x0 + LAWN.x1) / 2, 0, (LAWN.z0 + LAWN.z1) / 2, 0, 9.5, 8.7);
 
-/** Indian Wells Tennis Garden：整局唯一的地图，开局是废弃的（2026-11-01）。 */
+/**
+ * Palm Oasis Racquet Club（Indian Wells, CA）：整局唯一的地图，开局荒了十年（ADR 0018）。
+ * 内容和存档里的地图 id 仍然是 indian_wells。
+ */
 export const INDIAN_WELLS: Site = {
   id: 'indian_wells',
   lighting: {
-    // 沙漠的下午：干燥、偏暖的天色
+    // 天色和灯光由 world/daylight.ts 按游戏时钟设；这里是起始值
     sky: '#e9d3b4',
     // 照参考图：不投阴影；天色和灯光由 daylight 按游戏时钟设
     shadows: false,
@@ -59,10 +62,9 @@ export const INDIAN_WELLS: Site = {
     skyRain: new THREE.Color('#9a9488'),
   },
   camera: {
-    // 默认看整个园区（十个地点和地点牌都在 HUD 之间的空当里）：桌面从东南看，背后（西北）是群山
-    overview: { yaw: 0.7, pitch: 0.72, zoom: 0.256, tx: -1, tz: -8 },
-    // 竖屏从东边看过去：园区的长边竖着放，西边的群山在上面
-    portrait: { yaw: 1.3, pitch: 0.95, zoom: 0.4, tx: -15.5, tz: -9 },
+    // 照参考图的默认视角：从东南看整个俱乐部，背后是画出来的群山
+    overview: { yaw: 0.66, pitch: 0.55, zoom: 0.62, tx: -2, tz: 4 },
+    portrait: { yaw: 0.66, pitch: 0.6, zoom: 0.85, tx: 6, tz: -2 },
     limits: { zoom: [0.2, 3.2], pitch: [0.4, 1.3], tx: [SITE.x0 + 10, SITE.x1 - 10], tz: [SITE.z0 + 10, SITE.z1 - 10] },
   },
   venue: 'hollow',
@@ -73,8 +75,7 @@ export const INDIAN_WELLS: Site = {
   routeLine,
   courts: {
     stadium_1: [F_S1],
-    stadium_2: [F_S2],
-    stadium_3: [F_S3],
+    stadium_3: [F_PB1, F_PB2],
     practice: [F_P1, F_P2],
     outer_1: [F_O1],
     outer_23: [F_O2, F_O3],
