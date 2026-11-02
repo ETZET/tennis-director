@@ -31,9 +31,39 @@ export function conditionFactor(c: number): number {
   return c <= 0 ? 0 : c < 30 ? 0.5 : 1;
 }
 
-/** 本周到现在的服务率；本周还没有需求时用上周的 */
+/**
+ * 本周到现在的服务率；本周还没有需求时用上周的。
+ * 上周也没有需求（开局、或者还没有一个开放的岗位）时是 0，不是凭空的 50%（GM-1）：
+ * 这时 hasDemand 为假，周结算不算服务项，界面显示"还没有客人"。
+ */
 export function serviceRate(s: GameState): number {
-  return s.week.demand > 0 ? s.week.served / s.week.demand : s.week.last;
+  if (s.week.demand > 0) return s.week.served / s.week.demand;
+  return s.week.lastDemand > 0 ? s.week.last : 0;
+}
+
+/** 本周（或者上周）有没有需求：服务率有没有意义 */
+export function hasDemand(s: GameState): boolean {
+  return s.week.demand > 0 || s.week.lastDemand > 0;
+}
+
+/** 声望服务项的及格线 */
+export const servicePass = (w: World): number => w.act.rules.week?.service_pass ?? 0.5;
+
+/** 质量的目标和各项（没拆开写的目标只有一项 total） */
+export function qualityTarget(s: GameState, w: World): { total: number; terms: Record<string, number> } {
+  const src = w.act.rules.quality_target;
+  if (typeof src === 'string') {
+    const total = num(s, w, src);
+    return { total, terms: { total } };
+  }
+  const terms: Record<string, number> = {};
+  let total = 0;
+  for (const [k, v] of Object.entries(src)) {
+    const x = num(s, w, v);
+    terms[k] = x;
+    total += x;
+  }
+  return { total, terms };
 }
 
 /** 能指派的人：在职的总监、教练和员工（青少年球员、家长不算） */
@@ -57,6 +87,7 @@ export function hiredWith(s: GameState, w: World, tag: string): number {
 /** 设施合计。下雨天只有能挡雨的（rain_ok）场地算开放、有场地收入。 */
 export function facilityTotals(s: GameState, w: World) {
   let courts = 0;
+  let built = 0;
   let quality = 0;
   let income = 0;
   let upkeep = 0;
@@ -66,11 +97,12 @@ export function facilityTotals(s: GameState, w: World) {
     if (!f) continue;
     const usable = !rain || f.rain_ok;
     courts += usable ? f.courts : 0;
+    built += f.courts;
     quality += f.quality > 0 ? f.quality * conditionFactor(s.condition[id] ?? 100) : f.quality;
     income += usable ? f.income_week : 0;
     upkeep += f.upkeep_week;
   }
-  return { courts, quality, income, upkeep };
+  return { courts, built, quality, income, upkeep };
 }
 
 export function wagesWeek(s: GameState, w: World): number {
@@ -118,6 +150,12 @@ export function makeEnv(s: GameState, w: World, extra: Record<string, Value> = {
           return s.condition[rest] ?? 100;
         case 'service_rate':
           return serviceRate(s);
+        case 'service_demand':
+          return hasDemand(s) ? 1 : 0;
+        case 'service_pass':
+          return servicePass(w);
+        case 'courts_built':
+          return facs().built;
         case 'hired':
           return hiredWith(s, w, rest);
         case 'staff': {

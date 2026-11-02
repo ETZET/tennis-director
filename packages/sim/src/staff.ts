@@ -436,6 +436,7 @@ function postSystem(ctx: Ctx, jobs: Map<string, string[]>): void {
     if (demand) {
       s.week.demand += 1;
       if (busy) s.week.served += 1;
+      else s.week.missed[post.id] = (s.week.missed[post.id] ?? 0) + 1;
     }
     if (!busy) {
       // 时段过了、条件没了、人走了：这一圈作废（被拉走的情况已经在 leaveJob 里结算过）

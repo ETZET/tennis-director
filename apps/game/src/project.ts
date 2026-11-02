@@ -8,6 +8,7 @@ import {
   type Effect,
   facilityTotals,
   type GameState,
+  hasDemand,
   minuteOfDay,
   minutes,
   num,
@@ -20,6 +21,7 @@ import {
   postStatus,
   type SimEvent,
   type SkillKind,
+  servicePass,
   serviceRate,
   shortestRoute,
   speedOf,
@@ -83,8 +85,11 @@ export class Projector {
     for (const e of events) {
       if (e.type === 'dayEnded') {
         // 设施状况跌破 30 提醒一次（第二轮试玩 S3：状况悄悄掉到 0 没人发现）
+        const w = worldOf(s, this.content);
         for (const [f, c] of Object.entries(s.condition)) {
           if (!(f in s.facilities)) continue;
+          // 还废着的设施不会再变旧，也不挂提醒（设计文档"衰减"；GM-1：开局三条废墟提醒把快讯挤满）
+          if (!w.facilities.get(f)?.states[s.facilities[f] ?? '']?.decay_day) continue;
           if (c >= 40) this.worn.delete(f);
           else if (c < 30 && !this.worn.has(f)) {
             this.worn.add(f);
@@ -92,7 +97,27 @@ export class Projector {
           }
         }
       } else if (e.type === 'cardOpened') this.push(s.t, T.cardTitle(e.card), false);
-      else if (e.type === 'log') {
+      else if (e.type === 'log' && e.entry.cause.kind === 'week') {
+        // 周结算一周一条（GM-1）：服务率 + 这一周动了哪些数；细节（为什么）在"我们怎么走到这一步"里
+        const c = e.entry.cause;
+        const what = e.entry.effects
+          .map((x) => (x.kind === 'stat' ? T.effect(x) : null))
+          .filter((x): x is string => !!x)
+          .join(' · ');
+        const rate = c.demand ? c.served / c.demand : 0;
+        const hot =
+          (c.demand > 0 && rate < c.pass) ||
+          e.entry.effects.some((x) => x.kind === 'stat' && x.stat !== 'cash' && x.stat !== 'quality' && x.delta < 0);
+        this.push(
+          s.t,
+          T.fmt('ui.wire.week', {
+            n: c.week,
+            rate: c.demand ? T.fmt('ui.wire.week_rate', { n: Math.round(rate * 100) }) : T.tr('ui.wire.week_none'),
+            what,
+          }),
+          hot,
+        );
+      } else if (e.type === 'log') {
         const so = T.so(e.entry);
         if (!so || e.entry.cause.kind === 'start') continue;
         const hot = e.entry.effects.some((x) => x.kind === 'fire' || x.kind === 'hire' || x.kind === 'end');
@@ -109,8 +134,6 @@ export class Projector {
           T.fmt('ui.wire.interrupted', { name: T.personName(e.person), post: T.tr(`posts.${e.post}.title`) }),
           true,
         );
-      } else if (e.type === 'weekSettled') {
-        this.push(s.t, T.fmt('ui.wire.week', { n: Math.round(e.serviceRate * 100) }), e.serviceRate < 0.5);
       }
     }
   }
@@ -166,12 +189,13 @@ export class Projector {
     const cash = s.stats.cash ?? 0;
     const coach = s.headCoach;
 
+    const low = hasDemand(s) && serviceRate(s) < servicePass(w);
     const details: StatRow[] = [
       { label: T.tr('stats.reputation'), value: String(Math.round(s.stats.reputation ?? 0)) },
       {
         label: T.tr('stats.service'),
-        value: `${Math.round(serviceRate(s) * 100)}%`,
-        ...(serviceRate(s) < 0.5 ? { tone: 'bad' as const } : {}),
+        value: hasDemand(s) ? `${Math.round(serviceRate(s) * 100)}%` : '—',
+        ...(low ? { tone: 'bad' as const } : {}),
       },
       { label: T.tr('stats.restoration'), value: `${Math.round(s.stats.restoration ?? 0)}/${w.facilities.size}` },
       { label: T.tr('ui.details.courts'), value: `${fac.courts}/${totalCourts}` },
@@ -304,10 +328,12 @@ export class Projector {
         tone: (s.stats.cash ?? 0) < 0 ? 'loss' : 'info',
       },
       { text: T.fmt('ui.ctx.members', { n: Math.round(s.stats.members ?? 0) }) },
-      {
-        text: T.fmt('ui.ctx.service', { n: Math.round(serviceRate(s) * 100) }),
-        tone: serviceRate(s) < 0.5 ? 'loss' : 'info',
-      },
+      hasDemand(s)
+        ? {
+            text: T.fmt('ui.ctx.service', { n: Math.round(serviceRate(s) * 100) }),
+            tone: serviceRate(s) < servicePass(worldOf(s, this.content)) ? 'loss' : 'info',
+          }
+        : { text: T.tr('ui.ctx.service_none'), tone: 'info' },
     ];
   }
 
@@ -315,13 +341,13 @@ export class Projector {
   private season(s: GameState): SeasonInfo {
     const T = this.text;
     const week = Math.floor(Math.floor(s.t / 1440) / 7) + 1;
-    const service = Math.round(serviceRate(s) * 100);
+    const service = hasDemand(s) ? Math.round(serviceRate(s) * 100) : null;
     return {
       label: `${T.tr(`seasons.${s.season}`, '')} · ${T.fmt('ui.week', { n: week })}`,
       weather: s.weather,
       weatherLabel: T.tr(`ui.weather.${s.weather}`),
       service,
-      serviceLabel: T.fmt('ui.ctx.service', { n: service }),
+      serviceLabel: service === null ? T.tr('ui.ctx.service_none') : T.fmt('ui.ctx.service', { n: service }),
     };
   }
 

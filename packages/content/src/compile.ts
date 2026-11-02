@@ -68,6 +68,12 @@ export const COMPUTED_VARS = [
   'restored',
   /** 本周到现在的服务率 0..1（有需求的岗位分钟里，有人在岗的比例） */
   'service_rate',
+  /** 这一周（或者上一周）有没有需求：0 或 1。没有需求的一周，服务率无从谈起（GM-1） */
+  'service_demand',
+  /** 周结算里声望服务项的及格线（rules.week.service_pass） */
+  'service_pass',
+  /** 修好、能打的场地数，不管今天下不下雨（会员上限按这个算） */
+  'courts_built',
 ] as const;
 /** 设施状况变量：condition.<设施 id> = 0..100 */
 export const CONDITION_VAR = /^condition\.([a-z][a-z0-9_]*)$/;
@@ -496,8 +502,21 @@ export function compileContent(files: Record<string, string>): CompileResult {
     for (const k of Object.keys(a.weather))
       if (!a.seasons.some((s) => s.id === k)) err(file, `weather: unknown season '${k}'`);
     if (!directors.has(a.director_config)) err(file, `director_config: unknown director '${a.director_config}'`);
-    for (const k of ['quality_target', 'member_drift', 'reputation_drift'] as const)
-      checkExpr(file, a.rules[k], `rules.${k}`);
+    for (const k of ['member_drift', 'reputation_drift'] as const) checkExpr(file, a.rules[k], `rules.${k}`);
+    if (typeof a.rules.quality_target === 'string') checkExpr(file, a.rules.quality_target, 'rules.quality_target');
+    else
+      for (const [t, v] of Object.entries(a.rules.quality_target)) {
+        checkExpr(file, v, `rules.quality_target.${t}`);
+        needText(file, `ui.terms.${t}`);
+      }
+    if (a.rules.week) {
+      for (const [t, v] of Object.entries(a.rules.week.reputation)) {
+        checkExpr(file, v, `rules.week.reputation.${t}`);
+        needText(file, `ui.terms.${t}`);
+      }
+      checkExpr(file, a.rules.week.members, 'rules.week.members');
+      checkExpr(file, a.rules.week.member_cap, 'rules.week.member_cap');
+    }
     for (const [k, v] of Object.entries(a.rules.derived)) {
       if (!stats.has(k)) err(file, `rules.derived: unknown stat '${k}'`);
       checkExpr(file, v, `rules.derived.${k}`);

@@ -1,5 +1,5 @@
 import { indianWells } from '@td/render';
-import { CONTENT, randomBot } from '@td/sim';
+import { advance, CONTENT, newGame, randomBot } from '@td/sim';
 import { describe, expect, it } from 'vitest';
 import { Projector } from './project';
 import { Session } from './session';
@@ -54,6 +54,37 @@ describe('text', () => {
     const zh = CONTENT.i18n.zh ?? {};
     const missing = Object.keys(en).filter((k) => !(k in zh));
     expect(missing).toEqual([]);
+  });
+});
+
+describe('weekly settlement in the wire and the story (GM-1)', () => {
+  it('idle game: one wire line a week instead of a daily "Cash −$21"; the story says why', () => {
+    const s = newGame(CONTENT, { seed: 37 });
+    const proj = new Projector(CONTENT, createText(CONTENT, 'en'));
+    proj.onEvents(s, advance(s, CONTENT, [{ type: 'assign', person: 'director', target: 'o1_sweep' }], 0).events);
+    proj.onEvents(s, advance(s, CONTENT, [{ type: 'assign', person: 'dale', target: 'o1_sweep' }], 0).events);
+    for (let i = 0; i < 14 * 12; i++) proj.onEvents(s, advance(s, CONTENT, [], 60).events);
+    const wire = (proj as unknown as { wire: { text: string }[] }).wire.map((x) => x.text);
+    expect(wire.filter((x) => /^Cash −\$21/.test(x))).toEqual([]);
+    expect(
+      wire.filter((x) => x.startsWith('Week ')),
+      wire.join('\n'),
+    ).toHaveLength(2);
+    expect(wire.join('\n')).toMatch(/Week 2 settled · no customers yet · Cash −\$150/);
+    // 废墟不挂"状况跌到"的提醒
+    expect(wire.some((x) => x.includes('Stadium 1 condition'))).toBe(false);
+    for (const lang of ['en', 'zh'] as const) {
+      const T = createText(CONTENT, lang);
+      const e = s.log.filter((x) => x.cause.kind === 'week').at(-1);
+      expect(e).toBeDefined();
+      const line = `${T.because(e as never)} ${T.so(e as never)}`;
+      expect(line).not.toMatch(/\bui\.|\{/);
+      if (lang === 'en') {
+        expect(line).toMatch(/no post open yet/);
+        expect(line).toMatch(/Cash −\$150 \(wages −\$150\)/);
+        expect(line).toMatch(/Program quality .* \(heading for [\d.]+: /);
+      } else expect(line).toMatch(/工资 −\$150/);
+    }
   });
 });
 

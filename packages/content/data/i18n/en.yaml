@@ -327,6 +327,7 @@ ui:
     cash: "Cash ${n}"
     members: "Members {n}"
     service: "Service this week {n}%"
+    service_none: No customers yet
   restore: "Restored (of {total})"
   restore_in: "Restored/{total} · {days}d left"
   restore_today: "Restored/{total} · due today"
@@ -368,6 +369,28 @@ ui:
   condition: condition
   nobody: nobody
   errand_log: "{name} spent {time} at {place}"
+  # Weekly settlement (GM-1): one line a week with the service rate, the pass mark, the post most left empty, money,
+  # and why reputation, members and quality moved
+  settle:
+    because: "week {n} settled: service {rate}%, pass mark {pass}%"
+    missed: "; “{post}” was left empty the most ({time})"
+    none: "week {n} settled with no post open yet (no customers: service and word of mouth don't count)"
+    part: "{what} ({parts})"
+    capped: "the courts only hold {cap}; the rest didn't renew"
+    full: "the courts only hold {cap}; {n} more wanted to join"
+    target: "heading for {n}: {parts}"
+    money: { dues: dues, income: facilities, upkeep: upkeep, wages: wages }
+  # Names of the parts of split quantities (the quality target, the weekly reputation)
+  terms:
+    base: base
+    facilities: facilities
+    courts: open courts
+    service: service
+    coach: head coach
+    gear: equipment
+    quality: quality
+    restored: repairs
+    traits: staff traits
   because:
     post: "{name} worked {n} rounds on “{post}”"
     order: "{names} finished “{order}”"
@@ -376,7 +399,9 @@ ui:
   wire:
     grew: "The director's {skill} reached {n}"
     interrupted: "{name} was pulled off “{post}”; that round was lost"
-    week: "Week settled · service {n}%"
+    week: "Week {n} settled · {rate} · {what}"
+    week_rate: "service {n}%"
+    week_none: no customers yet
     worn: "{place} condition down to {n}: it will lose its grade without upkeep"
   status:
     empty: "{n} posts have customers waiting and nobody there"

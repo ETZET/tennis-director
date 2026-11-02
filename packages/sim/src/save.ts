@@ -117,6 +117,26 @@ export const MIGRATIONS: Record<number, Migration> = {
     state.version = 6;
     return { ...save, version: 6, state };
   },
+  // 6 → 7（周结算讲清楚，GM-1）：本周的账多记缺人分钟、钱、特质声望和周初质量。
+  // 旧档的 last 是真算出来的（或者开局的 50%），当作上周有过需求，保持旧档的行为。
+  6: (save) => {
+    const state = { ...(save.state as Record<string, unknown>) };
+    const week = (state.week as Record<string, unknown>) ?? {};
+    const stats = (state.stats as Record<string, number>) ?? {};
+    state.week = {
+      demand: 0,
+      served: 0,
+      last: 0,
+      lastDemand: 1,
+      missed: {},
+      money: { dues: 0, income: 0, upkeep: 0, wages: 0 },
+      traitRep: 0,
+      q0: stats.quality ?? 0,
+      ...week,
+    };
+    state.version = 7;
+    return { ...save, version: 7, state };
+  },
 };
 
 export class SaveError extends Error {}

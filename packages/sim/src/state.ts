@@ -6,7 +6,7 @@ import type { OptionKey } from '@td/content';
  */
 
 /** 存档格式版本；改了格式就加一个迁移函数（见 save.ts） */
-export const SAVE_VERSION = 6;
+export const SAVE_VERSION = 7;
 
 export interface PersonState {
   id: string;
@@ -73,9 +73,51 @@ export type Cause =
   | { kind: 'default'; card: string; option: OptionKey | null; success?: boolean }
   | { kind: 'activity'; activity: string }
   | { kind: 'day'; day: number }
+  /** 周日收盘的周结算：服务率、缺人最多的岗位、这一周的钱，以及声望、会员、质量为什么这样变 */
+  | ({ kind: 'week' } & WeekSettlement)
   | { kind: 'post'; post: string; person: string; cycles: number }
   | { kind: 'order'; order: string; people: string[]; success?: boolean }
   | { kind: 'debug'; what: string };
+
+/** 一周的钱（每天收盘按天折算记进现金，周日收盘合成一条讲给玩家） */
+export interface WeekMoney {
+  dues: number;
+  income: number;
+  upkeep: number;
+  wages: number;
+}
+
+export interface WeekState {
+  /** 有需求的岗位分钟，和其中有人在岗的分钟 */
+  demand: number;
+  served: number;
+  /** 上周的服务率和上周的需求分钟（上周没有需求时服务率无从谈起） */
+  last: number;
+  lastDemand: number;
+  /** 每个有需求的岗位这周没人的分钟（周结算讲"缺人最多的岗位"） */
+  missed: Record<string, number>;
+  money: WeekMoney;
+  /** 在职人员特质带来的声望（每天收盘记进声望，周日一起讲） */
+  traitRep: number;
+  /** 这一周开始时的质量 */
+  q0: number;
+}
+
+export interface WeekSettlement {
+  week: number;
+  demand: number;
+  served: number;
+  /** 声望服务项的及格线（服务率高于它声望涨，低于它掉） */
+  pass: number;
+  missed: { post: string; minutes: number } | null;
+  money: WeekMoney;
+  /** 声望各项（规则 week.reputation 的项，加上特质 traits） */
+  rep: Record<string, number>;
+  /** 会员：按公式该来多少人、场地撑得起多少人（null = 没上限） */
+  members: { gain: number; cap: number | null };
+  /** 质量这周在向哪个目标靠近，目标的各项 */
+  quality: { target: number; terms: Record<string, number> };
+}
 
 /** 效果能改的人物属性 */
 export type PersonAttr = 'skill' | 'upkeep' | 'service' | 'play' | 'morale' | 'fatigue';
@@ -145,8 +187,8 @@ export interface GameState {
   orderLog: { cooldowns: Record<string, number>; done: Record<string, number> };
   /** 设施状况 0..100 */
   condition: Record<string, number>;
-  /** 本周的需求分钟和有人服务的分钟；last 是上周的服务率 */
-  week: { demand: number; served: number; last: number };
+  /** 本周的账（周日收盘结算、写成一条因果日志，然后清零） */
+  week: WeekState;
   /**
    * 拆成几项的派生量（例如董事会信心）每一项现在的值，和上个周日收盘时的值（第二轮试玩 S2）。
    * 每天收盘重算；没有的老存档在下一次重算时补上。

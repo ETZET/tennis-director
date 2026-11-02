@@ -56,7 +56,17 @@ export function newGame(content: ContentBundle, o: NewGameOptions): GameState {
     orders: {},
     orderLog: { cooldowns: {}, done: {} },
     condition: Object.fromEntries(content.facilities.map((f) => [f.id, a.condition[f.id] ?? 100])),
-    week: { demand: 0, served: 0, last: (a.stats.service ?? 50) / 100 },
+    // 开局没有"上周"：服务率无从谈起，算 0，周结算的服务项不算（GM-1）
+    week: {
+      demand: 0,
+      served: 0,
+      last: 0,
+      lastDemand: 0,
+      missed: {},
+      money: { dues: 0, income: 0, upkeep: 0, wages: 0 },
+      traitRep: 0,
+      q0: a.stats.quality ?? 0,
+    },
     ledger: {},
     cards: { open: [], scheduled: [], cooldowns: {}, seen: {}, shown: {}, nextDraw: 0 },
     activities: [],

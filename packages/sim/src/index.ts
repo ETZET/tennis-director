@@ -48,9 +48,12 @@ export {
   coachPresent,
   conditionFactor,
   facilityTotals,
+  hasDemand,
   hiredWith,
   isStaff,
   num,
+  qualityTarget,
+  servicePass,
   serviceRate,
   wagesWeek,
 } from './vars';

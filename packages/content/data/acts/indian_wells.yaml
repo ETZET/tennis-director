@@ -91,18 +91,29 @@ calendar:
   - { day: 112, hour: 18, card: iw_deadline }
 director_config: steady
 rules:
-  # 质量每 10 分钟向目标靠近：修好的设施、开着的场地、本周服务率、主教练（总监在同一个地点时他才专心）、器材
-  quality_target: >-
-    10 + facility_quality + courts_open * 2 + stat.service * 0.2 + coach.skill * 0.15 * coach.attention
-    + (flag.ball_machine ? 4 : 0)
+  # 质量每 10 分钟向目标靠近。目标拆成几项（文案在 ui.terms.*），周结算讲得出质量为什么涨、为什么掉（GM-1）：
+  # 修好的设施（废墟是负的）、开着的场地、本周服务率（还没有客人时是 0）、主教练（总监在同一个地点时他才专心）、器材
+  quality_target:
+    base: "10"
+    facilities: facility_quality
+    courts: courts_open * 2
+    service: stat.service * 0.2
+    coach: coach.skill * 0.15 * coach.attention
+    gear: "flag.ball_machine ? 4 : 0"
   quality_rate: 0.15
-  # 会员和声望每周日收盘结算一次（准则 6）：开着的场地有人看、质量、名气。
-  # 会员有上限：每块能打的场地撑得起 12 个会员，会所开了再多 15 个；超出的人周末就不续了。
-  member_drift: >-
-    weekday == 6 ? min(max(0, round(courts_open * service_rate + (stat.quality - 30) / 12 + stat.reputation / 30)),
-    courts_open * 12 + (facility.clubhouse == "open" ? 15 : 0) - stat.members) : 0
-  reputation_drift: >-
-    weekday == 6 ? (service_rate - 0.5) * 2 + (stat.quality - 50) / 25 + restored * 0.15 : 0
+  # 会员和声望每周日收盘结算一次（准则 6），写成一条周结算日志。service_rate 是这一周的服务率，
+  # service_demand 是这一周有没有需求：还没有一个开放的岗位时，没有客人，也就没有口碑——服务项和质量项都不算（不倒扣）。
+  week:
+    service_pass: 0.5
+    reputation:
+      service: service_demand * (service_rate - service_pass) * 2
+      quality: service_demand * (stat.quality - 50) / 25
+      restored: restored * 0.15
+    members: >-
+      max(0, round(courts_built * service_rate + service_demand * ((stat.quality - 30) / 12 + stat.reputation / 30)))
+    # 会员有上限：每块修好的场地撑得起 12 个会员（下雨天场地关门，但会员不会因此退会），会所开了再多 15 个；超出的人周末就不续了
+    member_cap: >-
+      courts_built * 12 + (facility.clubhouse == "open" ? 15 : 0)
   dues_week: 12
   derived:
     service: round(service_rate * 100)

@@ -355,12 +355,29 @@ export const act = z.strictObject({
   director_config: id,
   /** 每天收盘时结算的规则（表达式） */
   rules: z.strictObject({
-    quality_target: z.string(),
+    /**
+     * 质量的目标：一个表达式，或者拆成几项（值 = 各项之和，文案在 ui.terms.<名字>）。
+     * 拆开写，周结算才能讲清楚质量为什么涨、为什么掉（GM-1）。
+     */
+    quality_target: z.union([z.string(), z.record(id, z.string())]),
     /** 每天向目标靠近的比例 0..1 */
     quality_rate: z.number().min(0).max(1),
-    /** 每天会员变化（可以用 rand） */
-    member_drift: z.string(),
-    reputation_drift: z.string(),
+    /** 每天收盘的会员、声望变化（老写法；Indian Wells 用下面的 week） */
+    member_drift: z.string().default('0'),
+    reputation_drift: z.string().default('0'),
+    /**
+     * 周日收盘的周结算（准则 6）。表达式里 service_rate 是这一周的服务率，service_demand 是这一周有没有需求（0/1）。
+     * reputation：拆成几项（文案在 ui.terms.<名字>）；members：该来多少人；member_cap：场地撑得起多少人（超出的不续）；
+     * service_pass：声望服务项的及格线（表达式里是 service_pass，界面讲给玩家）。
+     */
+    week: z
+      .strictObject({
+        reputation: z.record(id, z.string()),
+        members: z.string(),
+        member_cap: z.string().optional(),
+        service_pass: z.number().min(0).max(1).default(0.5),
+      })
+      .optional(),
     /** 每个会员每周的会费 */
     dues_week: z.number(),
     /** 每天收盘和开局时重算的派生状态量，例如董事会信心 */

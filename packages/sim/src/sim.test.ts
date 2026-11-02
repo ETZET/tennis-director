@@ -6,8 +6,8 @@ import { run } from './effects';
 import { advance, newGame, replay, stateHash, step } from './game';
 import { fromSave, SaveError, toSave } from './save';
 import { canAssign, orderLead, orderStatus, postStatus, workSkill } from './staff';
-import { at, dayOf, type GameState, minuteOfDay, SAVE_VERSION } from './state';
-import { facilityTotals, makeEnv, serviceRate, test } from './vars';
+import { at, type CausalEntry, dayOf, type GameState, minuteOfDay, SAVE_VERSION, weekdayOf } from './state';
+import { facilityTotals, hasDemand, makeEnv, qualityTarget, serviceRate, test } from './vars';
 import { shortestRoute } from './walk';
 import { worldFor } from './world';
 
@@ -193,6 +193,97 @@ describe('岗位', () => {
     expect(r.settled).toBe(true);
     expect(dayOf(s.t)).toBe(8);
     expect(s.week).toMatchObject({ demand: 0, served: 0, last: 0 });
+  });
+});
+
+/** 跑到下一个周日收盘，返回这一次的周结算日志 */
+function toSettlement(s: GameState): CausalEntry & { cause: { kind: 'week' } } {
+  const n = s.log.length;
+  until(s, (x) => x.log.slice(n).some((e) => e.cause.kind === 'week'), 8 * 1440);
+  return s.log.slice(n).find((e) => e.cause.kind === 'week') as CausalEntry & { cause: { kind: 'week' } };
+}
+const statDelta = (e: CausalEntry, stat: string) =>
+  e.effects.find((x) => x.kind === 'stat' && x.stat === stat) as { delta: number } | undefined;
+
+describe('周结算（GM-1：放着不管时数字的变化要讲得清）', () => {
+  it('还没有开放的岗位：服务率是 0、不是凭空的 50%；周结算不算服务项和质量项（不倒扣）', () => {
+    const s = quiet(fresh(37));
+    expect(serviceRate(s)).toBe(0);
+    expect(hasDemand(s)).toBe(false);
+    expect(s.stats.service).toBe(0);
+    const rep = s.stats.reputation ?? 0;
+    const e = toSettlement(s);
+    expect(e.cause).toMatchObject({ week: 1, demand: 0, served: 0, pass: 0.5, missed: null });
+    expect(e.cause.rep).toMatchObject({ service: 0, quality: 0 });
+    // 只剩修复项（开局什么都没修好：0）
+    expect(s.stats.reputation).toBe(rep + (e.cause.rep.restored ?? 0));
+    expect(s.week).toMatchObject({ demand: 0, lastDemand: 0, last: 0 });
+  });
+
+  it('工资和会费按天记进现金但不各写一条日志；周结算合成一条"本周工资 −$150"', () => {
+    const s = quiet(fresh(37));
+    const n = s.log.length;
+    const e = toSettlement(s);
+    expect(s.log.slice(n).filter((x) => x.cause.kind === 'day')).toEqual([]);
+    expect(e.cause.money).toEqual({ dues: 0, income: 0, upkeep: 0, wages: 150 });
+    expect(statDelta(e, 'cash')?.delta).toBe(-150);
+    expect(s.stats.cash).toBeCloseTo(3000 - 150, 6);
+  });
+
+  it('质量的目标拆成几项，加起来就是目标；周结算讲这一周质量走了多少、在向哪个目标靠近', () => {
+    const s = quiet(fresh(37));
+    const q = qualityTarget(s, W());
+    expect(Object.values(q.terms).reduce((a, b) => a + b, 0)).toBeCloseTo(q.total);
+    expect(q.terms.service).toBe(0);
+    const q0 = s.stats.quality ?? 0;
+    const e = toSettlement(s);
+    expect(e.cause.quality.target).toBeCloseTo(qualityTarget(s, W()).total, 0);
+    expect(statDelta(e, 'quality')?.delta).toBeCloseTo((s.stats.quality ?? 0) - q0, 1);
+  });
+
+  it('有客人没人管：服务率 0 低于及格线，声望服务项 −1；周结算点名缺人最多的岗位', () => {
+    const s = quiet(court1(fresh(9)));
+    const e = toSettlement(s);
+    expect(e.cause.demand).toBeGreaterThan(0);
+    expect(e.cause.served).toBe(0);
+    expect(e.cause.rep.service).toBe(-1);
+    // 外场 1 看场 8–15 点每天 7 小时，比下午的课（工作日 15–19 点）空得多
+    expect(e.cause.missed).toMatchObject({ post: 'o1_rental' });
+    expect(s.week.lastDemand).toBe(e.cause.demand);
+  });
+
+  it('下雨的周日不会让会员退会：会员上限按修好的场地算，不按今天开着的', () => {
+    const s = quiet(court1(fresh(9)));
+    s.facilities.outer_23 = 'playable';
+    s.facilities.clubhouse = 'open';
+    s.stats.members = 40; // 上限 3 块场 × 12 + 会所 15 = 51
+    until(s, (x) => weekdayOf(x.t) === 6 && minuteOfDay(x.t) >= 19 * 60);
+    s.weather = 'rain';
+    expect(facilityTotals(s, W()).courts).toBe(0);
+    const e = toSettlement(s);
+    expect(e.cause.members.cap).toBe(51);
+    expect(s.stats.members ?? 0).toBeGreaterThanOrEqual(40);
+  });
+
+  it('超过上限的会员周末不续了：周结算写明场地撑得起多少人', () => {
+    const s = quiet(court1(fresh(9)));
+    s.stats.members = 30; // 上限 1 块场 × 12
+    const e = toSettlement(s);
+    expect(e.cause.members.cap).toBe(12);
+    expect(statDelta(e, 'members')?.delta).toBe(-18);
+    expect(s.stats.members).toBe(12);
+  });
+
+  it('员工特质的声望不每天漂：记在本周的账上，周日一起结算并写进周结算', () => {
+    const s = quiet(court1(fresh(9)));
+    const star = Object.values(s.people).find((p) => W().people.get(p.id)?.traits.includes('star'));
+    expect(star).toBeDefined();
+    (star as { hired: boolean }).hired = true;
+    const rep = s.stats.reputation ?? 0;
+    until(s, (x) => dayOf(x.t) === 3);
+    expect(s.stats.reputation).toBe(rep);
+    const e = toSettlement(s);
+    expect(e.cause.rep.traits ?? 0).toBeGreaterThan(0);
   });
 });
 
