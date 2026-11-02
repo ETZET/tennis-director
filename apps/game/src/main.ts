@@ -481,6 +481,15 @@ declare global {
       tap: (target: string) => void;
       pick: (person: string | null) => void;
       close: () => void;
+      /** 复原进度、第几天、离投资方期限还有几天（试玩桥的 /state 用） */
+      progress: () => {
+        day: number;
+        restored: number;
+        total: number;
+        daysLeft: number | null;
+        deadlineDay: number | null;
+        anchors: readonly string[];
+      };
     };
   }
 }
@@ -518,5 +527,19 @@ window.__td = {
     session.sheet = null;
     session.place = null;
     draw();
+  },
+  progress: () => {
+    const s = session.s;
+    const w = worldOf(s, content);
+    const last = w.act.calendar[w.act.calendar.length - 1];
+    const end = last ? (last.day - 1) * 1440 + last.hour * 60 : null;
+    return {
+      day: Math.floor(s.t / 1440) + 1,
+      restored: Math.round(s.stats.restoration ?? 0),
+      total: w.facilities.size,
+      daysLeft: end === null ? null : Math.max(0, Math.ceil((end - s.t) / 1440)),
+      deadlineDay: last?.day ?? null,
+      anchors: w.act.anchors,
+    };
   },
 };
