@@ -1,4 +1,4 @@
-# 第一个招聘日：会所前台开张了，门口贴了告示，来了两个人。工资每周扣。
+# 第一个招聘日：会所前台开张了，门口贴了告示，来了两个人。工资每周扣。每一局都是这两个人：一个干活的，一个招呼人的。
 id: iw_hiring_day_1
 act: indian_wells
 source: threshold
@@ -13,14 +13,23 @@ options:
   A:
     effects:
       - { hire: rosa_ortiz }
-      - { schedule: iw_hiring_day_2, in: 14d }
+      # 下一个招聘日来哪一拨人，按这一局的种子抽（docs/design/people.md「招聘日怎么出人」）
+      - { flag: iw_hiring_day_2_b, set: true, chance: 0.5 }
+      - { schedule: iw_hiring_day_2, in: 14d, if: { not: { flag: iw_hiring_day_2_b } } }
+      - { schedule: iw_hiring_day_2b, in: 14d, if: { flag: iw_hiring_day_2_b } }
   B:
     effects:
       - { hire: ben_kim }
-      - { schedule: iw_hiring_day_2, in: 14d }
+      # 下一个招聘日来哪一拨人，按这一局的种子抽（docs/design/people.md「招聘日怎么出人」）
+      - { flag: iw_hiring_day_2_b, set: true, chance: 0.5 }
+      - { schedule: iw_hiring_day_2, in: 14d, if: { not: { flag: iw_hiring_day_2_b } } }
+      - { schedule: iw_hiring_day_2b, in: 14d, if: { flag: iw_hiring_day_2_b } }
   C:
-    # 不招：省下工资，活还是你和 Dale 两个人干
     effects:
+      # 不招：省下工资，活还是那几个人干
       - { log: log.no_hire }
-      - { schedule: iw_hiring_day_2, in: 14d }
+      # 下一个招聘日来哪一拨人，按这一局的种子抽（docs/design/people.md「招聘日怎么出人」）
+      - { flag: iw_hiring_day_2_b, set: true, chance: 0.5 }
+      - { schedule: iw_hiring_day_2, in: 14d, if: { not: { flag: iw_hiring_day_2_b } } }
+      - { schedule: iw_hiring_day_2b, in: 14d, if: { flag: iw_hiring_day_2_b } }
 default: { then: C }

@@ -66,6 +66,18 @@ default: { then: B }    # 倒计时到了按哪个选项处理；extra 里可以
 
 岗位和工单共用一个 id 空间。文案在 `posts.<id>` / `orders.<id>` 下，要有 `title` 和 `note`。设施的 `decay_day` 是没人维护时每天掉多少状况；季节的 `decay` 是倍数。
 
+岗位和工单都可以写 `only: [player]`（作用或特质 id，命中一个就行）只收特定的人；这样的岗位最好在 `when` 里加上
+`{ expr: "hired.player >= 1" }`，没招到人时它就不存在、不算需求。效果里 `{ person: worker, add: { play: 0.1 } }` 改在岗的那个人；
+工单的效果和 `check` 可以用 `worker.skill`（干这张工单的人里最高的那项能力）。`skill` 多了 `play`（球技）。
+
+## 人物和特质
+
+人物在 `data/people/<地图>.yaml`（设计见 `docs/design/people.md`）。招聘日的候选人 `role: candidate`，必须写 `kind`
+（coach / crew / special / player），并在 `i18n` 的 `bios.<id>` 写一句话背景（两种语言）；作用的名字在 `kinds.<作用>`。
+特质在 `data/traits.yaml`：`attention`、`morale_drift`、`reputation_drift`，以及干活时的能力加减 `bonus: { upkeep: 12, service: -10 }`
+和只在某些时候生效的 `when`（条件，和卡的 `when` 一样）。每个特质在 `traits.<id>` 下要有 `name` 和 `note`。
+名字和经历写成虚构的人，不用真实的在世名人。
+
 ## 文案
 
 每张卡在 `i18n/en.yaml` 和 `i18n/zh.yaml` 的 `events.<id>` 下要有 `topic`、`title`、`body` 和每个选项的文字。缺了会报错；一种语言有、另一种没有的键会给警告。

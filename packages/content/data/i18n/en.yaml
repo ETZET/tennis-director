@@ -92,29 +92,50 @@ events:
     title: The first hiring day
     body: You put a notice on the clubhouse door and two people came. Anyone you hire is paid weekly.
     options:
-      A: Hire Rosa (upkeep)
-      B: Hire Ben (service)
+      A: Hire Rosa (grounds crew)
+      B: Hire Ben (front desk)
       C: Not this time
   iw_hiring_day_2:
     title: The second hiring day
-    body: "Two weeks later two more came: a coach and a quick, experienced handyman."
+    body: "Two weeks later two more came: a coach and a man who has worked on courts half his life."
     options:
       A: Hire Jess (coach)
       B: Hire Gus (upkeep veteran)
       C: Not this time
+  iw_hiring_day_2b:
+    title: The second hiring day
+    body: "Two weeks later two more came: a fitness coach and a college player who wants one more shot."
+    options:
+      A: Hire Kofi (fitness coach)
+      B: Hire Amara (player)
+      C: Not this time
   iw_hiring_day_3:
     title: The third hiring day
-    body: The garden has a bit of a name now, and the applicants are better.
+    body: "The garden has a bit of a name now, and the applicants are better: a front-desk pro and a veteran coach."
     options:
       A: Hire Lily (great service)
       B: Hire Walt (veteran coach)
       C: Not this time
+  iw_hiring_day_3b:
+    title: The third hiring day
+    body: "The garden has a bit of a name now: someone who has strung racquets on tour, and an injured former prodigy."
+    options:
+      A: Hire Teodora (stringer)
+      B: Hire Luca (player)
+      C: Not this time
   iw_hiring_day_4:
     title: The fourth hiring day
-    body: A former pro heard about the place and wants to be head coach; a young all-rounder came too.
+    body: A former pro heard about the place and wants to be head coach; a young local all-rounder came too.
     options:
       A: Hire Nadia (former pro)
       B: Hire Marco (all-rounder)
+      C: Not this time
+  iw_hiring_day_4b:
+    title: The fourth hiring day
+    body: The old grounds chief heard the garden is coming back and turned up himself; so did a local kid who used to be a ball kid.
+    options:
+      A: Hire Ray (old grounds chief)
+      B: Hire Mateo (ball kid)
       C: Not this time
 
 log:
@@ -128,6 +149,8 @@ log:
   sand_covered: The courts were covered in time
   exhibition_flop: "The exhibition fell flat: the stands were half empty. Try again in a week"
   no_hire: No hire this time; the same people do the work
+  tournament_won: Your player won a tournament and brought home the prize money
+  tournament_lost: Your player went out early this time, but learned something
 
 posts:
   o1_rental: { title: "Court 1 · Court desk", note: "Daily 8–15, locals come to play" }
@@ -149,6 +172,11 @@ posts:
   st2_pro: { title: "Stadium 2 · Pro practice", note: "Weekdays 8–12" }
   st2_upkeep: { title: "Stadium 2 · Upkeep", note: "Any time; it wears down if nobody looks after it" }
   st1_upkeep: { title: "Stadium 1 · Upkeep", note: "It can't break again before the exhibition" }
+  ch_stringing: { title: "Clubhouse · Stringing bench", note: "Daily 9–17, stringers only" }
+  pr_fitness: { title: "Practice · Fitness class", note: "Weekdays 8–11, fitness coaches only" }
+  st3_ballkids: { title: "Stadium 3 · Ball kids", note: "Weekend league 9–17, ball kids only" }
+  pr_training: { title: "Practice · Training", note: "Players only; train any time, play slowly improves" }
+  o23_training: { title: "Courts 2–3 · Training", note: "Where players train until the practice courts are fixed; slower" }
 orders:
   o1_sweep: { title: "Sweep the sand off Court 1", note: "Free; two people, one morning" }
   o1_net: { title: "New net for Court 1", note: "$120, one person, one hour", locked: "Sweep the sand first" }
@@ -172,6 +200,8 @@ orders:
   st1_clear: { title: "Clear Stadium 1", note: "Haul away the collapsed southeast corner", locked: "Open Stadium 2 first" }
   st1_rebuild: { title: "Rebuild Stadium 1", note: "The biggest job of the game", locked: "Clear Stadium 1 first" }
   st1_exhibition: { title: "Hold the exhibition", note: "Reputation 50+, a crew for a whole day", locked: "Stadium 1 rebuilt and reputation 50+" }
+  pl_tournament: { title: "Play a tournament", note: "Players only, once a week; the better they play, the likelier a win" }
+
 seasons:
   autumn: Autumn
   winter: Winter
@@ -180,6 +210,53 @@ seasons:
 people:
   director: Director
   dale: Dale
+
+kinds:
+  coach: Coach
+  crew: Grounds crew
+  special: Specialist
+  player: Player
+
+# One-line backgrounds (shown on the hiring card; everyone is fictional)
+bios:
+  rosa_ortiz: Grew up beside the date groves in Coachella and kept La Quinta golf greens alive for twelve years; she always knows when the sand is coming.
+  ben_kim: A UC Riverside student who works at a Palm Desert coffee shop and remembers every regular's order; sharpest in the morning.
+  jess_park: Four years on a small-college team, then teaching kids in Palm Desert; she has always wanted courts of her own.
+  gus_moreno: He laid these hard courts himself before the garden closed; since the layoffs he hasn't set foot on a tennis court.
+  kofi_mensah: Raised in Accra, eight years as strength coach for a college track team; always there before sunrise.
+  amara_okafor: Born in Lagos, came to the US on a tennis scholarship and played four years of college matches; ranked outside the top 500, she wants one more shot.
+  lily_chen: Grew up in her parents' restaurant in Palm Springs, then ran a resort hotel's front desk; the busier the evening, the better she gets.
+  walt_hendricks: Thirty years teaching winter visitors at a Rancho Mirage country club; the skill is still there, the spark less so.
+  teo_ilic: From Novi Sad; she has strung forty racquets a day in tour stringing rooms, and no racquet leaves her bench until the strings are straight.
+  luca_ferreira: Top 20 in the junior rankings at sixteen, injured and burnt out at nineteen; at twenty-three he wants to like tennis again.
+  nadia_volkov: A former tour pro who retired after shoulder surgery; her name still sells tickets.
+  marco_ruiz: Grew up in Indio and works night shifts on the festival stage crews every spring; he has done a bit of everything.
+  ray_delgado: Ran the grounds crew here when the big tournament came in the nineties and retired in Indian Wells; he remembers every pipe, but his knees don't keep up.
+  mateo_salgado: Sixteen, from Coachella, a ball kid at the big tournament two years running; he bikes over straight after school.
+
+# Traits: name and a one-line note (numbers in traits.yaml)
+traits:
+  phone_addict: { name: Phone addict, note: Drifts in lessons when the director isn't there }
+  eager: { name: Eager, note: Morale slowly rises }
+  burnt_out: { name: Burnt out, note: Morale slowly falls; a little distracted in lessons }
+  star: { name: Star, note: A little reputation every day }
+  daydreamer: { name: Daydreamer, note: Harmless }
+  perfectionist: { name: Perfectionist, note: Upkeep +12, service −10 }
+  showman: { name: Showman, note: Service +12, upkeep −10 }
+  early_bird: { name: Early bird, note: Everything +12 before 11am }
+  night_owl: { name: Night owl, note: Everything +12 after 4pm }
+  bilingual: { name: Bilingual, note: Service +10 }
+  desert_born: { name: Desert-born, note: Upkeep +15 on windy days and in the windy season }
+  local_hero: { name: Local hero, note: A little reputation every day }
+  legend: { name: Retired great, note: A little reputation every day; exhibition +5% }
+  college: { name: College tennis, note: Coaching +5, service +5 }
+  prodigy: { name: Prodigy, note: Play +8 }
+  late_bloomer: { name: Late bloomer, note: Play +12 from day 50 }
+  old_injury: { name: Old injury, note: Upkeep −8, play −10 }
+  mentor: { name: Mentor, note: Coaching +6; morale slowly rises }
+  stringer: { name: Stringer, note: Can work the clubhouse stringing bench }
+  trainer: { name: Fitness coach, note: Can run the fitness class at the practice courts }
+  ball_kid: { name: Ball kid, note: Can work as a ball kid at Stadium 3 league days }
 
 who:
   investors: { name: The investors, role: The people paying for the restoration }
@@ -230,6 +307,7 @@ ui:
     skill_teach: Coaching
     skill_upkeep: Upkeep
     skill_service: Service
+    skill_play: Play
     trend: { falling: Falling, recovering: Recovering, flat: Flat, bottomed: Bottomed out }
   week: "Wk {n}"
   weather: { sun: Sunny, cloud: Cloudy, rain: Rain · outdoor courts closed, wind: Windy }
@@ -239,9 +317,10 @@ ui:
     wage: "${n}/week"
     hire: "{name} joins"
     fire: "{name} leaves"
+    worker: Whoever works here
     chance: "{p}% chance"
     cost: "−${n}"
-  attr: { skill: skill, upkeep: upkeep, service: service, morale: morale, fatigue: fatigue }
+  attr: { skill: coaching, upkeep: upkeep, service: service, play: play, morale: morale, fatigue: fatigue }
   then: "Then: {what}"
   ctx:
     restore: "Restored {n}/{total} · {days}d left"
@@ -274,7 +353,7 @@ ui:
     again: Play again
     won: The garden lives again
     lost: Game over
-  skill: { teach: Coaching, upkeep: Upkeep, service: Service }
+  skill: { teach: Coaching, upkeep: Upkeep, service: Service, play: Play }
   fac:
     {
       outer_1: Court 1,
@@ -330,6 +409,7 @@ ui:
     person: Can't be assigned
     busy: Away on an errand
     target: No such post
+    only: Only certain people can do this
     gone: Not open right now
     cost: Not enough cash for materials
     crew: Already full

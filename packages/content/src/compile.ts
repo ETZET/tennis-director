@@ -15,6 +15,7 @@ import {
   minutes,
   OPTION_KEYS,
   order,
+  PERSON_KINDS,
   person,
   post,
   stat,
@@ -70,7 +71,11 @@ export const COMPUTED_VARS = [
 ] as const;
 /** 设施状况变量：condition.<设施 id> = 0..100 */
 export const CONDITION_VAR = /^condition\.([a-z][a-z0-9_]*)$/;
-export const PERSON_ATTRS = ['skill', 'upkeep', 'service', 'morale', 'fatigue', 'talent', 'hired'] as const;
+/** 在职人数变量：hired.<作用或特质> = 在职的人里作用是它、或者带着这个特质的有几个 */
+export const HIRED_VAR = /^hired\.([a-z][a-z0-9_]*)$/;
+export const PERSON_ATTRS = ['skill', 'upkeep', 'service', 'play', 'morale', 'fatigue', 'talent', 'hired'] as const;
+/** 岗位和工单效果里代表"在岗的那个人"的 person */
+export const WORKER = 'worker';
 
 const ONE_PER_FILE = /^(events\/[a-z0-9_]+|activities|posts|orders|directors|acts)\/([a-z0-9_]+)\.ya?ml$/;
 
@@ -220,6 +225,8 @@ export function compileContent(files: Record<string, string>): CompileResult {
     if ((COMPUTED_VARS as readonly string[]).includes(p)) return true;
     const cv = CONDITION_VAR.exec(p);
     if (cv) return facilities.has(cv[1] as string);
+    const hv = HIRED_VAR.exec(p);
+    if (hv) return (PERSON_KINDS as readonly string[]).includes(hv[1] as string) || traits.has(hv[1] as string);
     const [head, a, attr] = p.split('.');
     if (head === 'stat') return !!a && stats.has(a) && attr === undefined;
     if (head === 'flag') return !!a && flagWrites.has(a) && attr === undefined;
@@ -271,7 +278,8 @@ export function compileContent(files: Record<string, string>): CompileResult {
       err(file, `${where}: unknown season '${c.season}'`);
     if ('expr' in c) checkExpr(file, c.expr, where);
   };
-  const checkEffects = (file: string, effs: readonly Effect[], where: string) =>
+  /** worker：岗位和工单的效果里可以用 person: worker 指在岗的人 */
+  const checkEffects = (file: string, effs: readonly Effect[], where: string, worker = false) =>
     effs.forEach((e, i) => {
       const w = `${where}[${i}]`;
       checkCond(file, e.if, w);
@@ -291,9 +299,15 @@ export function compileContent(files: Record<string, string>): CompileResult {
       }
       if ('schedule' in e && !cards.has(e.schedule)) err(file, `${w}: unknown card '${e.schedule}'`);
       if ('activity' in e && !activities.has(e.activity)) err(file, `${w}: unknown activity '${e.activity}'`);
-      for (const k of ['hire', 'fire', 'person', 'errand'] as const)
-        if (k in e && !people.has((e as unknown as Record<string, string>)[k] as string))
-          err(file, `${w}: unknown person '${(e as unknown as Record<string, string>)[k]}'`);
+      for (const k of ['hire', 'fire', 'person', 'errand'] as const) {
+        const who = (e as unknown as Record<string, string>)[k];
+        if (!(k in e) || people.has(who as string)) continue;
+        if (k === 'person' && who === WORKER) {
+          if (!worker) err(file, `${w}: 'person: ${WORKER}' only works in post and order effects`);
+          continue;
+        }
+        err(file, `${w}: unknown person '${who}'`);
+      }
       if ('person' in e) for (const v of Object.values(e.add)) checkExpr(file, v, w);
       if ('errand' in e) {
         if (!anchors.has(e.at)) err(file, `${w}: unknown anchor '${e.at}'`);
@@ -376,7 +390,12 @@ export function compileContent(files: Record<string, string>): CompileResult {
     if (!ac) err(file, `unknown act '${a.act}'`);
     else if (!ac.anchors.includes(a.at)) err(file, `at: unknown anchor '${a.at}'`);
     checkCond(file, a.when, 'when');
-    checkEffects(file, a.effects, 'effects');
+    checkEffects(file, a.effects, 'effects', true);
+    for (const k of a.only ?? [])
+      if (!(PERSON_KINDS as readonly string[]).includes(k) && !traits.has(k))
+        err(file, `only: '${k}' is neither a person kind nor a trait`);
+    if (a.only && !b.people.some((p) => p.kind && a.only?.some((k) => k === p.kind || p.traits.includes(k))))
+      warn(file, `only: nobody in people/ can take this ${dir === 'posts' ? 'post' : 'order'}`);
     needText(file, `${dir}.${a.id}.title`);
     needText(file, `${dir}.${a.id}.note`);
     if (dir === 'posts') {
@@ -390,14 +409,27 @@ export function compileContent(files: Record<string, string>): CompileResult {
       minutes(o.work);
       if (o.check && 'stat' in o.check && !stats.has(o.check.stat)) err(file, 'check: unknown stat');
       if (o.check && 'chance' in o.check) checkExpr(file, o.check.chance, 'check');
-      checkEffects(file, o.onSuccess, 'onSuccess');
-      checkEffects(file, o.onFail, 'onFail');
+      checkEffects(file, o.onSuccess, 'onSuccess', true);
+      checkEffects(file, o.onFail, 'onFail', true);
       if (o.restore && !b.facilities.some((f) => f.anchor === o.at)) err(file, 'restore: no facility at this anchor');
       if (!o.effects.length && !o.onSuccess.length && !o.restore) warn(file, 'order has no effects');
     }
   }
-  for (const p of b.people)
+  for (const p of b.people) {
     for (const t of p.traits) if (!traits.has(t)) err('people/', `${p.id}: unknown trait '${t}'`);
+    if (p.id === WORKER) err('people/', `'${WORKER}' is reserved for "the person on this post"`);
+    // 招聘日的人要有作用和一句话背景（docs/design/people.md：让玩家记住一个人）
+    if (p.role === 'candidate') {
+      if (!p.kind) err('people/', `${p.id}: candidates need a kind (${PERSON_KINDS.join(', ')})`);
+      needText('people/', `bios.${p.id}`);
+    }
+    if (p.kind === 'player' && !p.play) warn('people/', `${p.id}: a player with play 0`);
+  }
+  for (const k of PERSON_KINDS) needText('people/', `kinds.${k}`);
+  for (const t of b.traits) {
+    needText('traits.yaml', `traits.${t.id}.name`);
+    checkCond('traits.yaml', t.when, `${t.id}.when`);
+  }
   for (const s of b.stats) needText('stats.yaml', `stats.${s.id}`);
   for (const f of b.facilities) {
     if (!anchors.has(f.anchor)) err('facilities.yaml', `${f.id}: unknown anchor '${f.anchor}'`);

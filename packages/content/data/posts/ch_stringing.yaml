@@ -1,0 +1,14 @@
+# 会所 · 穿线台：只有穿线师能坐（特质 stringer）。会员的拍子有人管，人就愿意续卡；按会员规模收钱。
+# 没招到穿线师时这个岗位不存在，不算需求（不拉低服务率）。
+id: ch_stringing
+act: indian_wells
+at: clubhouse
+skill: upkeep
+cycle: 1h
+hours: [9, 17]
+when: { all: [{ facility: clubhouse, is: open }, { expr: "hired.stringer >= 1" }] }
+only: [stringer]
+effects:
+  - { stat: cash, add: "round(5 * (0.6 + worker.skill / 100) * clamp(0.5 + stat.members / 30, 0.5, 2))" }
+  - { stat: members, add: 1, chance: "0.02 + worker.skill / 2500" }
+  - { stat: reputation, add: 0.01 }

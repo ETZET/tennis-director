@@ -96,6 +96,28 @@ describe('内容编译', () => {
     expect(msgs(compileContent(f), 'warnings')).toMatch(/options\.A: only sets hidden flags/);
   });
 
+  it('人物：候选人要有作用和一句话背景；only 只能写作用或特质；person: worker 只能用在岗位和工单里', () => {
+    const f = files();
+    f['people/indian_wells.yaml'] = (f['people/indian_wells.yaml'] as string).replace('    kind: crew,\n', '');
+    f['i18n/en.yaml'] = (f['i18n/en.yaml'] as string).replace(/ {2}ben_kim: A UC Riverside[^\n]*\n/, '');
+    f['posts/pr_training.yaml'] = (f['posts/pr_training.yaml'] as string).replace('only: [player]', 'only: [plaier]');
+    f['events/indian_wells/iw_sponsor.yaml'] = (f['events/indian_wells/iw_sponsor.yaml'] as string).replace(
+      '      - { stat: reputation, add: 2 }\n',
+      '      - { person: worker, add: { morale: 1 } }\n',
+    );
+    const m = msgs(compileContent(f));
+    expect(m).toMatch(/rosa_ortiz: candidates need a kind/);
+    expect(m).toMatch(/missing text 'bios.ben_kim' in i18n\/en.yaml/);
+    expect(m).toMatch(/only: 'plaier' is neither a person kind nor a trait/);
+    expect(m).toMatch(/'person: worker' only works in post and order effects/);
+  });
+
+  it('表达式里的 hired.<作用或特质> 要认识', () => {
+    const f = files();
+    f['posts/ch_stringing.yaml'] = (f['posts/ch_stringing.yaml'] as string).replace('hired.stringer', 'hired.stringr');
+    expect(msgs(compileContent(f))).toMatch(/unknown variable 'hired.stringr'/);
+  });
+
   it('文件名必须和 id 一致', () => {
     const f = files();
     f['events/indian_wells/iw_spons.yaml'] = f['events/indian_wells/iw_sponsor.yaml'] as string;

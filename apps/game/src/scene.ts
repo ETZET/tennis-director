@@ -132,6 +132,74 @@ const LOOKS: Record<string, Omit<PersonOptions, 'name' | 'x' | 'z'>> = {
     shoes: '#ffffff',
     racket: '#d6362f',
   },
+  // 体能师：一身深绿的运动服
+  kofi_mensah: {
+    wide: true,
+    shirt: '#2f6b4f',
+    trim: '#f0a020',
+    shorts: '#1d1d22',
+    skin: SK[6],
+    hair: '#1d1d22',
+    hairStyle: 'bald',
+    shoes: '#f1ece0',
+  },
+  // 大学球员：校队的白衣，拍子是橙色
+  amara_okafor: {
+    shirt: '#f1ece0',
+    trim: '#3a8fd9',
+    shorts: '#1f3a5a',
+    skin: SK[5],
+    hair: '#1d1d22',
+    hairStyle: 'pony',
+    shoes: '#ffffff',
+    racket: '#f0a020',
+  },
+  // 穿线师：围裙色的上衣，手里抱着一箱拍子
+  teo_ilic: {
+    shirt: '#8a5ac4',
+    shorts: '#3a3f4a',
+    pants: true,
+    skin: SK[0],
+    hair: '#6a4a30',
+    hairStyle: 'short',
+    shoes: '#2e2e33',
+    box: true,
+  },
+  // 前天才少年：黄绿配色的旧球衣
+  luca_ferreira: {
+    shirt: '#d9c35a',
+    trim: '#3c7a5a',
+    shorts: '#3c7a5a',
+    skin: SK[3],
+    hair: '#3b2a1e',
+    hairStyle: 'curly',
+    shoes: '#ffffff',
+    racket: '#2a2a2a',
+  },
+  // 老场地主管：长裤、宽檐帽、白胡子
+  ray_delgado: {
+    wide: true,
+    shirt: '#c9b48a',
+    shorts: '#5a4a3a',
+    pants: true,
+    skin: SK[4],
+    hair: '#d9d3c6',
+    hairStyle: 'cap',
+    cap: '#7a5a3a',
+    beard: '#d9d3c6',
+    shoes: '#3a2a20',
+  },
+  // 球童：比大人小一号，统一的球童衫
+  mateo_salgado: {
+    shirt: '#4a6fa8',
+    trim: '#ffffff',
+    shorts: '#2e2e33',
+    skin: SK[4],
+    hair: '#2a1d16',
+    hairStyle: 'short',
+    shoes: '#f1ece0',
+    scale: 0.85,
+  },
 };
 
 const SHIRTS = [

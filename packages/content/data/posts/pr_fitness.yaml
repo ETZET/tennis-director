@@ -1,0 +1,16 @@
+# 练习场 · 体能课：工作日上午 8–11 点，只有体能师能带（特质 trainer）。退休会员和学院的孩子都来，带来会员。
+id: pr_fitness
+act: indian_wells
+at: practice
+skill: teach
+cycle: 1h
+hours: [8, 11]
+days: [0, 1, 2, 3, 4]
+when: { all: [{ facility: practice, is: open }, { expr: "hired.trainer >= 1" }] }
+only: [trainer]
+effects:
+  - { stat: cash, add: "round(8 * (0.6 + worker.skill / 100) * clamp(0.5 + stat.members / 40, 0.5, 2))" }
+  - { stat: members, add: 1, chance: 0.05 }
+  - { stat: reputation, add: 0.02 }
+wear: 0.5
+performance: lesson

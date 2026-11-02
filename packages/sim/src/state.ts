@@ -6,7 +6,7 @@ import type { OptionKey } from '@td/content';
  */
 
 /** 存档格式版本；改了格式就加一个迁移函数（见 save.ts） */
-export const SAVE_VERSION = 5;
+export const SAVE_VERSION = 6;
 
 export interface PersonState {
   id: string;
@@ -19,6 +19,8 @@ export interface PersonState {
   upkeep: number;
   /** 服务能力 */
   service: number;
+  /** 球技（球员训练和比赛用；docs/design/people.md） */
+  play: number;
   morale: number;
   fatigue: number;
   /** 指派到哪个岗位或工单（id）；null = 闲着 */
@@ -75,6 +77,9 @@ export type Cause =
   | { kind: 'order'; order: string; people: string[]; success?: boolean }
   | { kind: 'debug'; what: string };
 
+/** 效果能改的人物属性 */
+export type PersonAttr = 'skill' | 'upkeep' | 'service' | 'play' | 'morale' | 'fatigue';
+
 export type EffectRecord =
   | { kind: 'stat'; stat: string; delta: number }
   | { kind: 'cost'; amount: number }
@@ -84,7 +89,7 @@ export type EffectRecord =
   | { kind: 'activity'; activity: string; at: number }
   | { kind: 'hire'; person: string }
   | { kind: 'fire'; person: string }
-  | { kind: 'person'; person: string; attr: 'skill' | 'upkeep' | 'service' | 'morale' | 'fatigue'; delta: number }
+  | { kind: 'person'; person: string; attr: PersonAttr; delta: number }
   | { kind: 'text'; key: string }
   | { kind: 'errand'; person: string; at: string; minutes: number }
   | { kind: 'condition'; facility: string; delta: number }

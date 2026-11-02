@@ -1,0 +1,13 @@
+# Stadium 3 · 球童：周末联赛的时候，只有球童能干（特质 ball_kid）。比赛打得利索，看台上的人愿意再来。
+id: st3_ballkids
+act: indian_wells
+at: stadium_3
+skill: service
+cycle: 1h
+hours: [9, 17]
+days: [5, 6]
+when: { all: [{ facility: stadium_3, is: open }, { expr: "hired.ball_kid >= 1" }] }
+only: [ball_kid]
+effects:
+  - { stat: reputation, add: "0.03 + worker.skill / 2000" }
+  - { stat: members, add: 1, chance: 0.03 }

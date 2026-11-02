@@ -12,6 +12,8 @@ import './staff.css';
  */
 
 const SKILL_KEYS = ['teach', 'upkeep', 'service'] as const;
+/** 球员多一条球技 */
+const PLAYER_KEYS = ['teach', 'upkeep', 'service', 'play'] as const;
 
 function Token({ t, actions }: { t: StaffToken; actions: HudActions }) {
   const start = useRef<{ x: number; y: number; id: number } | null>(null);
@@ -61,9 +63,9 @@ function Token({ t, actions }: { t: StaffToken; actions: HudActions }) {
           <b>{t.name}</b>
           <span class="td-tok-doing">{t.doing}</span>
           <span class="td-tok-skills" aria-hidden="true">
-            {SKILL_KEYS.map((k) => (
+            {(t.skills.play === undefined ? SKILL_KEYS : PLAYER_KEYS).map((k) => (
               <span key={k} class={`td-sk td-sk-${k}`} title={STR[`skill_${k}`]}>
-                <i style={{ width: `${Math.round(t.skills[k])}%` }} />
+                <i style={{ width: `${Math.round(t.skills[k] ?? 0)}%` }} />
               </span>
             ))}
           </span>

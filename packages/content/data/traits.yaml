@@ -1,6 +1,47 @@
-# 特质修正。attention：教练在总监不在场时的专注度（1 = 正常）。
+# 特质（docs/design/people.md「特质」）。每个人 1–2 个，名字和一句说明在 i18n 的 traits.<id>。
+# attention：教练在总监不在场时的专注度（1 = 正常）；morale_drift / reputation_drift：每天的士气、声望漂移；
+# bonus：干活时某项能力加减几点（影响速度和每圈收入），when 写了就只在那时生效。
+# 好的特质大多带着代价（准则 2）：要么另一项减，要么只在某些时候灵。
+
+# ---- 性格 ----
 - { id: phone_addict, attention: 0.35, morale_drift: -0.5 }
 - { id: eager, attention: 1, morale_drift: 0.5 }
 - { id: burnt_out, attention: 0.8, morale_drift: -0.5 }
 - { id: star, attention: 1, reputation_drift: 0.4 }
 - { id: daydreamer, attention: 1 }
+# 完美主义：活干得细，但跟客人打交道没耐心
+- { id: perfectionist, bonus: { upkeep: 12, service: -10 } }
+# 爱表现：站在人前就来劲，蹲下扫沙就磨蹭
+- { id: showman, bonus: { service: 12, upkeep: -10 } }
+# 早起的人：上午 11 点以前什么都快一截
+- { id: early_bird, bonus: { teach: 12, upkeep: 12, service: 12 }, when: { hour: { lte: 11 } } }
+# 夜猫子：下午四点以后才醒过来
+- { id: night_owl, bonus: { teach: 12, upkeep: 12, service: 12 }, when: { hour: { gte: 16 } } }
+
+# ---- 出身 ----
+# 双语：Coachella Valley 一半以上的人说西班牙语（或者会所里来了说中文、韩语的客人）
+- { id: bilingual, bonus: { service: 10 } }
+# 沙漠长大：知道风沙怎么来，大风天和春天风季维护更快
+- { id: desert_born, bonus: { upkeep: 15 }, when: { any: [{ weather: wind }, { season: spring }] } }
+# 本地名人：镇上的人都认识他，每天一点口碑
+- { id: local_hero, reputation_drift: 0.2 }
+# 退役名将：名字本身就能卖票（表演赛成功率 +5%）
+- { id: legend, reputation_drift: 0.2 }
+# 大学网球出身：四年校队，会带训练、会跟人打交道
+- { id: college, bonus: { teach: 5, service: 5 } }
+# 天才少年：十几岁就打出了名，底子在那儿
+- { id: prodigy, bonus: { play: 8 } }
+# 大器晚成：开局平平，第 50 天以后突然开窍
+- { id: late_bloomer, bonus: { play: 12 }, when: { day: { gte: 50 } } }
+# 老伤：膝盖或者肩膀，蹲不久也打不满三盘
+- { id: old_injury, bonus: { upkeep: -8, play: -10 } }
+# 带徒弟：教人有耐心
+- { id: mentor, bonus: { teach: 6 }, morale_drift: 0.2 }
+
+# ---- 手艺（特殊岗位只收带着这些特质的人） ----
+# 穿线师：会所的穿线台
+- { id: stringer }
+# 体能师：练习场的体能课
+- { id: trainer }
+# 球童：Stadium 3 周末联赛的球童
+- { id: ball_kid }

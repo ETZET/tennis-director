@@ -16,6 +16,8 @@ export {
   type ContentIssue,
   compileContent,
   formatIssues,
+  HIRED_VAR,
   PERSON_ATTRS,
+  WORKER,
 } from './compile';
 export * from './schema';

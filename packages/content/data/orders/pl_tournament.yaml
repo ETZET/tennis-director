@@ -1,0 +1,23 @@
+# 出去打一站比赛：只有球员能去（作用 player）。从大门出发，Palm Springs、La Quinta 的地区赛，一周一次。
+# 球技越高越可能赢（判定看去的那个人的球技）；赢了带回奖金和名气，输了也长见识。
+id: pl_tournament
+act: indian_wells
+at: entrance
+skill: play
+work: 6h
+cost: 120
+crew: 1
+cooldown: 6d
+when: { expr: "hired.player >= 1" }
+only: [player]
+check: { chance: "clamp(0.1 + (worker.skill - 50) / 45, 0.05, 0.85)" }
+effects:
+  - { stat: reputation, add: 1 }
+  - { person: worker, add: { play: 1 } }
+onSuccess:
+  - { stat: cash, add: 600 }
+  - { stat: reputation, add: 4 }
+  - { log: log.tournament_won }
+onFail:
+  - { log: log.tournament_lost }
+performance: match

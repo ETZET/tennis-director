@@ -36,6 +36,7 @@ const EN = {
   skill_teach: 'Coaching',
   skill_upkeep: 'Upkeep',
   skill_service: 'Service',
+  skill_play: 'Play',
 };
 
 type Key = keyof typeof EN;

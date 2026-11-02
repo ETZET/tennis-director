@@ -16,8 +16,31 @@ import type { World } from './world';
  * - 设施状况：收盘时按 decay_day × 季节倍数衰减；岗位每圈的 wear 额外磨损；维护岗位和工单修复。
  */
 
-/** 人在某项能力上的值 */
-export const skillOf = (p: PersonState, k: SkillKind): number => (k === 'teach' ? p.skill : p[k]);
+/** 人在某项能力上的值（底子，不算特质） */
+export const skillOf = (p: PersonState, k: SkillKind): number => (k === 'teach' ? p.skill : (p[k] ?? 0));
+
+/**
+ * 干活时的能力：底子加上特质的加成（例如"沙漠长大"大风天维护 +15、"夜猫子"下午四点以后 +12），截在 0..100。
+ * 速度、维护的修复量、每圈收入（worker.skill）都按它算。
+ */
+export function workSkill(s: GameState, w: World, id: string, k: SkillKind): number {
+  const p = s.people[id];
+  if (!p) return 0;
+  let v = skillOf(p, k);
+  for (const t of w.people.get(id)?.traits ?? []) {
+    const tr = w.traits.get(t);
+    const b = tr?.bonus[k];
+    if (b && test(s, w, tr.when)) v += b;
+  }
+  return clamp(v, 0, 100);
+}
+
+/** 这个人能不能干这个岗位或工单：没写 only 谁都行；写了要作用或特质命中一个 */
+export function eligible(w: World, id: string, t: Post | Order): boolean {
+  if (!t.only) return true;
+  const d = w.people.get(id);
+  return !!d && ((!!d.kind && t.only.includes(d.kind)) || d.traits.some((x) => t.only?.includes(x)));
+}
 
 /** 能力换算成速度：能力 50 的人是 1 倍 */
 export const speedOf = (skill: number): number => 0.5 + skill / 100;
@@ -124,11 +147,28 @@ export interface OrderStatus {
   chance: number | null;
 }
 
+/**
+ * 工单表达式里的 worker.skill：在干的人里那项能力最高的；还没人干时，按能来干的在职的人里最高的估
+ * （卡和清单上的成功率因此跟着"谁去"变）。
+ */
+export function orderLead(s: GameState, w: World, o: Order): { id: string | null; skill: number } {
+  const crew = crewOf(s, o.id);
+  const pool = crew.length ? crew : staffIds(s, w).filter((id) => eligible(w, id, o));
+  let best: { id: string | null; skill: number } = { id: null, skill: 0 };
+  for (const id of pool) {
+    const v = workSkill(s, w, id, o.skill);
+    if (best.id === null || v > best.skill) best = { id, skill: v };
+  }
+  return best;
+}
+
 function checkChance(s: GameState, w: World, o: Order): number | null {
   if (!o.check) return null;
   if ('stat' in o.check) return clamp(0.5 + ((s.stats[o.check.stat] ?? 0) - o.check.vs) / 50, 0.05, 0.95);
   const saved = s.rng;
-  const v = clamp(num(s, w, o.check.chance), 0, 1);
+  // 只有用到 worker.skill 的判定才去找"谁去"（表演赛不看人，省一次人员表扫描）
+  const vars = o.check.chance.includes('worker.') ? { 'worker.skill': orderLead(s, w, o).skill } : undefined;
+  const v = clamp(num(s, w, o.check.chance, vars), 0, 1);
   s.rng = saved;
   return v;
 }
@@ -168,7 +208,7 @@ export const staffIds = (s: GameState, w: World): string[] => Object.keys(s.peop
 
 /* ---------------- 命令：指派 ---------------- */
 
-export type AssignBlock = 'person' | 'busy' | 'target' | 'gone' | 'cost' | 'crew' | 'same' | null;
+export type AssignBlock = 'person' | 'busy' | 'target' | 'only' | 'gone' | 'cost' | 'crew' | 'same' | null;
 
 /** 能不能把 person 派到 target（null 表示叫他停下来） */
 export function canAssign(s: GameState, w: World, person: string, target: string | null): AssignBlock {
@@ -179,9 +219,10 @@ export function canAssign(s: GameState, w: World, person: string, target: string
   if (target === null) return p.job ? null : 'same';
   if (p.job === target) return 'same';
   const post = w.posts.get(target);
-  if (post) return postExists(s, w, post) ? null : 'gone';
+  if (post) return !eligible(w, person, post) ? 'only' : postExists(s, w, post) ? null : 'gone';
   const order = w.orders.get(target);
   if (!order) return 'target';
+  if (!eligible(w, person, order)) return 'only';
   const st = orderStatus(s, w, order);
   if (!st.visible) return 'gone';
   if (st.blocked === 'cost') return 'cost';
@@ -342,14 +383,13 @@ function grow(ctx: Ctx, person: string, k: SkillKind): void {
 }
 
 function finishCycle(ctx: Ctx, post: Post, person: string): void {
-  const { s } = ctx;
-  const p = s.people[person] as PersonState;
-  const skill = skillOf(p, post.skill);
+  const { s, w } = ctx;
+  const skill = workSkill(s, w, person, post.skill);
   const entry = (s.ledger[post.id] ??= { person, cycles: 0, effects: [] });
   entry.person = person;
   entry.cycles += 1;
   const out: EffectRecord[] = [];
-  applyEffects({ ...ctx, vars: { 'worker.skill': skill } }, post.effects, -1, out);
+  applyEffects({ ...ctx, vars: { 'worker.skill': skill }, worker: person }, post.effects, -1, out);
   if (post.wear) condAdd(ctx, post.at, -post.wear);
   if (post.restore) condAdd(ctx, post.at, post.restore * speedOf(skill), out);
   // 同一种效果合并成一条，收盘时写进日志
@@ -414,12 +454,13 @@ function postSystem(ctx: Ctx, jobs: Map<string, string[]>): void {
 function finishOrder(ctx: Ctx, o: Order): void {
   const { s, w } = ctx;
   const crew = crewOf(s, o.id);
+  const lead = orderLead(s, w, o);
   delete s.orders[o.id];
   let success: boolean | undefined;
   if (o.check) success = rand(s) < (checkChance(s, w, o) ?? 1);
   const effects = [...o.effects, ...(success === undefined ? [] : success ? o.onSuccess : o.onFail)];
   const entry = run(
-    ctx,
+    { ...ctx, vars: { 'worker.skill': lead.skill }, ...(lead.id ? { worker: lead.id } : {}) },
     { kind: 'order', order: o.id, people: crew, ...(success === undefined ? {} : { success }) },
     null,
     effects,
@@ -470,7 +511,7 @@ function orderSystem(ctx: Ctx, jobs: Map<string, string[]>): void {
       state = s.orders[o.id] = { progress: 0, started: true };
       ctx.events.push({ type: 'orderStarted', order: o.id, at: o.at, performance: o.performance ?? null });
     }
-    for (const id of here) state.progress += speedOf(skillOf(s.people[id] as PersonState, o.skill));
+    for (const id of here) state.progress += speedOf(workSkill(s, w, id, o.skill));
     if (state.progress >= minutes(o.work)) finishOrder(ctx, o);
   }
 }

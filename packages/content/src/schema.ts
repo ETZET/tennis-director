@@ -79,6 +79,7 @@ export const effect = z.union([
   z.strictObject({ ...gate, activity: id, in: duration.optional() }),
   z.strictObject({ ...gate, hire: id }),
   z.strictObject({ ...gate, fire: id }),
+  /** 改某人的属性。岗位和工单的效果里 person 可以写 worker：在岗（干完这一圈、做完这张工单）的那个人 */
   z.strictObject({
     ...gate,
     person: id,
@@ -86,6 +87,7 @@ export const effect = z.union([
       skill: amount.optional(),
       upkeep: amount.optional(),
       service: amount.optional(),
+      play: amount.optional(),
       morale: amount.optional(),
       fatigue: amount.optional(),
     }),
@@ -194,9 +196,19 @@ export const facilityState = z.strictObject({
 export const facility = z.strictObject({ id, anchor: id, states: z.record(id, facilityState) });
 export type Facility = z.infer<typeof facility>;
 
+/**
+ * 人物的作用（docs/design/people.md）：coach 教练（上课、学院，招来接任主教练）、crew 维护工（修和维护设施）、
+ * special 特殊作用人物（穿线师、体能师、球童、前台……靠特质解锁自己的岗位）、
+ * player 球员（训练、出去打比赛、赢了带来名气）。
+ */
+export const PERSON_KINDS = ['coach', 'crew', 'special', 'player'] as const;
+export type PersonKind = (typeof PERSON_KINDS)[number];
+
 export const person = z.strictObject({
   id,
   name: z.string(),
+  /** 作用；招聘日的候选人必须写（文案在 kinds.<作用>，一句话背景在 bios.<id>） */
+  kind: z.enum(PERSON_KINDS).optional(),
   /** director：总监本人（可指派、没有士气）；coach / staff：员工；candidate：招聘日的候选人 */
   role: z.enum(['director', 'coach', 'junior', 'staff', 'parent', 'candidate', 'rival']),
   /** 教学能力（沿用 skill 这个名字） */
@@ -205,11 +217,13 @@ export const person = z.strictObject({
   upkeep: z.number().min(0).max(100).default(0),
   /** 服务能力：接待、陪打、办活动 */
   service: z.number().min(0).max(100).default(0),
+  /** 球技：球员训练和打比赛用（其他人一般是 0） */
+  play: z.number().min(0).max(100).default(0),
   morale: z.number().min(0).max(100).default(60),
   fatigue: z.number().min(0).max(100).default(0),
   wage_week: z.number().min(0).default(0),
   talent: z.number().min(0).max(100).optional(),
-  /** 应聘者招进来以后当什么：coach 会接任主教练（原来的主教练留下当员工），staff 是普通员工 */
+  /** 旧写法：应聘者招进来以后当什么（coach 会接任主教练）。新人物用 kind: coach */
   hire_as: z.enum(['coach', 'staff']).optional(),
   traits: z.array(id).default([]),
 });
@@ -223,6 +237,17 @@ export const trait = z.strictObject({
   morale_drift: z.number().default(0),
   /** 对声望的每日影响 */
   reputation_drift: z.number().default(0),
+  /** 干活时某项能力加（减）多少点：影响速度和每圈收入（docs/design/people.md「特质」） */
+  bonus: z
+    .strictObject({
+      teach: z.number().optional(),
+      upkeep: z.number().optional(),
+      service: z.number().optional(),
+      play: z.number().optional(),
+    })
+    .default({}),
+  /** bonus 只在这个条件下生效（例如大风天、下午四点以后）；不写表示一直生效 */
+  when: cond.optional(),
 });
 export type Trait = z.infer<typeof trait>;
 
@@ -243,8 +268,8 @@ export type DirectorConfig = z.infer<typeof director>;
 
 /* ---------------- 岗位和工单（ADR 0012）：玩家把人拖上去 ---------------- */
 
-/** 员工的三项能力 */
-export const SKILLS = ['teach', 'upkeep', 'service'] as const;
+/** 员工的能力：教学、维护、服务，加上球员的球技 */
+export const SKILLS = ['teach', 'upkeep', 'service', 'play'] as const;
 export type SkillKind = (typeof SKILLS)[number];
 
 /**
@@ -271,6 +296,8 @@ export const post = z.strictObject({
   wear: z.number().default(0),
   /** 维护岗位修复多少要乘能力：restore × (0.5 + worker.skill / 100) */
   restore: z.number().min(0).default(0),
+  /** 只收这些人：作用（kind）或特质 id，命中一个就行；不写谁都能干 */
+  only: z.array(id).min(1).optional(),
   performance: id.optional(),
 });
 export type Post = z.infer<typeof post>;
@@ -278,6 +305,7 @@ export type Post = z.infer<typeof post>;
 /**
  * 一次性工单：长在问题上的标记（杂草、裂缝、塌掉的气膜）。拖人上去开始干，可以多人一起，
  * 拉走进度保留。第一个人开工时扣材料费；做满 work（人·分钟，按能力加速）就结算 effects。
+ * effects 和 check 的表达式可以用 worker.skill：干这张工单的人里那项能力最高的值（还没人时按能来干的人里最高的算）。
  */
 export const order = z.strictObject({
   id,
@@ -301,6 +329,8 @@ export const order = z.strictObject({
   effects: z.array(effect).default([]),
   onSuccess: z.array(effect).default([]),
   onFail: z.array(effect).default([]),
+  /** 只收这些人：作用（kind）或特质 id，命中一个就行；不写谁都能干 */
+  only: z.array(id).min(1).optional(),
   performance: id.optional(),
 });
 export type Order = z.infer<typeof order>;

@@ -23,9 +23,11 @@ export {
   type AssignBlock,
   canAssign,
   crewOf,
+  eligible,
   type OrderBlock,
   type OrderStatus,
   occupant,
+  orderLead,
   orderStatus,
   type PostStatus,
   postDemand,
@@ -37,6 +39,7 @@ export {
   speedOf,
   staffIds,
   working,
+  workSkill,
 } from './staff';
 export * from './state';
 export { seasonOn } from './systems';
@@ -45,6 +48,7 @@ export {
   coachPresent,
   conditionFactor,
   facilityTotals,
+  hiredWith,
   isStaff,
   num,
   serviceRate,

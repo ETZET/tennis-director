@@ -1,4 +1,4 @@
-# 第四个招聘日：一位前职业球员听说了这里，想来当主教练；还有一个什么都会一点的年轻人。
+# 第四个招聘日（a）：一位前职业球员想来当主教练；还有一个什么都会一点的本地年轻人。
 id: iw_hiring_day_4
 act: indian_wells
 source: consequence
@@ -16,5 +16,6 @@ options:
       - { hire: marco_ruiz }
   C:
     effects:
+      # 不招：省下工资，活还是那几个人干
       - { log: log.no_hire }
 default: { then: C }

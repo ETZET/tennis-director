@@ -1,0 +1,21 @@
+# 第四个招聘日（b）：当年的场地主管回来了；还有一个当过球童的本地孩子。
+id: iw_hiring_day_4b
+act: indian_wells
+source: consequence
+tone: relief
+pause: true
+countdown: 1d
+location: clubhouse
+who: applicants
+options:
+  A:
+    effects:
+      - { hire: ray_delgado }
+  B:
+    effects:
+      - { hire: mateo_salgado }
+  C:
+    effects:
+      # 不招：省下工资，活还是那几个人干
+      - { log: log.no_hire }
+default: { then: C }

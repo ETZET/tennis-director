@@ -1,7 +1,17 @@
-import { type Card, type ContentBundle, type Effect, minutes, type OptionKey } from '@td/content';
+import { type Card, type ContentBundle, type Effect, minutes, type OptionKey, type SkillKind } from '@td/content';
 import { type OptionStatus, optionStatus } from './cards';
 import { advance, type Command, type LoggedCommand, newGame } from './game';
-import { canAssign, occupant, orderStatus, postDemand, postExists, skillOf, staffIds, working } from './staff';
+import {
+  canAssign,
+  eligible,
+  occupant,
+  orderStatus,
+  postDemand,
+  postExists,
+  skillOf,
+  staffIds,
+  working,
+} from './staff';
 import { DIRECTOR, type GameState, minuteOfDay, weekdayOf } from './state';
 import { shortestRoute } from './walk';
 import { type World, worldFor } from './world';
@@ -91,8 +101,9 @@ function scoreOption(w: World, c: Card, st: OptionStatus, expected: boolean): nu
       if ('facility' in e) score += m * 12;
       if ('hire' in e) {
         const d = w.people.get(e.hire);
-        // 多一个人手的价值，减去工资
-        score += m * (8 + Math.max(d?.skill ?? 0, d?.upkeep ?? 0, d?.service ?? 0) / 8 - (d?.wage_week ?? 0) / 100);
+        // 多一个人手的价值，减去工资（球员的球技打个折：要练、要出去比赛才换成名气）
+        const best = Math.max(d?.skill ?? 0, d?.upkeep ?? 0, d?.service ?? 0, (d?.play ?? 0) * 0.8);
+        score += m * (8 + best / 8 - (d?.wage_week ?? 0) / 100);
       }
       if ('activity' in e) score += m * 6;
       if ('endAct' in e) score += m * (e.endAct === 'won' ? 100 : -100);
@@ -161,7 +172,7 @@ function staffCommands(s: GameState, w: World, st: StaffStyle): Command[] {
   const coachTeaching =
     !!coach && !!s.headCoach && working(s, w, s.headCoach) && !!coach.job && !!w.posts.get(coach.job)?.hours;
   const h = minuteOfDay(s.t) / 60;
-  type Option = { target: string; at: string; skill: 'teach' | 'upkeep' | 'service'; value: number; crew: number };
+  type Option = { target: string; at: string; skill: SkillKind; value: number; crew: number };
   const options: Option[] = [];
   for (const p of w.posts.values()) {
     if (!postExists(s, w, p)) continue;
@@ -177,7 +188,7 @@ function staffCommands(s: GameState, w: World, st: StaffStyle): Command[] {
       const c = f ? (s.condition[f] ?? 100) : 100;
       if (c > 85) continue;
       value = (100 - c) / 6;
-    }
+    } else value = 2; // 随时能干、不修东西的岗位（球员自己练球）：闲着不如去
     options.push({ target: p.id, at: p.at, skill: p.skill, value, crew: 1 });
   }
   for (const o of w.orders.values()) {
@@ -205,6 +216,8 @@ function staffCommands(s: GameState, w: World, st: StaffStyle): Command[] {
       if ((post && postDemand(s, w, post)) || s.orders[cur]) continue;
     }
     for (const o of options) {
+      const def = w.posts.get(o.target) ?? w.orders.get(o.target);
+      if (def && !eligible(w, id, def)) continue;
       const fit = 0.4 + skillOf(pp, o.skill) / 80;
       const walk = shortestRoute(w, pp.walk?.to ?? pp.at, o.at)?.minutes ?? 60;
       let score = o.value * fit - walk / 30;

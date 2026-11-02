@@ -107,6 +107,16 @@ export const MIGRATIONS: Record<number, Migration> = {
     state.version = 5;
     return { ...save, version: 5, state };
   },
+  // 5 → 6（人物的作用和球员，docs/design/people.md）：每个人加上球技；新加的候选人不在旧档里，招的时候按内容补上
+  5: (save) => {
+    const state = { ...(save.state as Record<string, unknown>) };
+    const people: Record<string, Record<string, unknown>> = {};
+    for (const [id, p] of Object.entries((state.people as Record<string, Record<string, unknown>>) ?? {}))
+      people[id] = { play: 0, ...p };
+    state.people = people;
+    state.version = 6;
+    return { ...save, version: 6, state };
+  },
 };
 
 export class SaveError extends Error {}

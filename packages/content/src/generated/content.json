@@ -1,5 +1,5 @@
 {
- "version": "802c55b7",
+ "version": "9cbb2e98",
  "stats": [
   {
    "id": "cash",
@@ -262,6 +262,7 @@
    "skill": 30,
    "upkeep": 35,
    "service": 40,
+   "play": 0,
    "morale": 100,
    "fatigue": 0,
    "wage_week": 0,
@@ -270,10 +271,12 @@
   {
    "id": "dale",
    "name": "Dale Pruitt",
+   "kind": "coach",
    "role": "coach",
    "skill": 45,
    "upkeep": 40,
    "service": 20,
+   "play": 30,
    "morale": 55,
    "fatigue": 0,
    "wage_week": 150,
@@ -282,113 +285,238 @@
   {
    "id": "rosa_ortiz",
    "name": "Rosa Ortiz",
+   "kind": "crew",
    "role": "candidate",
    "skill": 5,
-   "upkeep": 65,
-   "service": 30,
+   "upkeep": 62,
+   "service": 28,
+   "play": 0,
    "morale": 70,
    "fatigue": 0,
    "wage_week": 180,
-   "hire_as": "staff",
-   "traits": []
+   "traits": [
+    "desert_born",
+    "bilingual"
+   ]
   },
   {
    "id": "ben_kim",
    "name": "Ben Kim",
+   "kind": "special",
    "role": "candidate",
    "skill": 25,
    "upkeep": 20,
-   "service": 60,
+   "service": 55,
+   "play": 0,
    "morale": 80,
    "fatigue": 0,
    "wage_week": 140,
-   "hire_as": "staff",
-   "traits": []
+   "traits": [
+    "early_bird"
+   ]
   },
   {
    "id": "jess_park",
    "name": "Jess Park",
+   "kind": "coach",
    "role": "candidate",
-   "skill": 58,
+   "skill": 56,
    "upkeep": 0,
    "service": 40,
+   "play": 45,
    "morale": 85,
    "fatigue": 0,
    "wage_week": 260,
-   "hire_as": "coach",
    "traits": [
-    "eager"
+    "eager",
+    "college"
    ]
   },
   {
    "id": "gus_moreno",
    "name": "Gus Moreno",
+   "kind": "crew",
    "role": "candidate",
    "skill": 10,
-   "upkeep": 78,
+   "upkeep": 70,
    "service": 15,
+   "play": 0,
    "morale": 55,
    "fatigue": 0,
    "wage_week": 240,
-   "hire_as": "staff",
    "traits": [
-    "burnt_out"
+    "burnt_out",
+    "perfectionist"
+   ]
+  },
+  {
+   "id": "kofi_mensah",
+   "name": "Kofi Mensah",
+   "kind": "special",
+   "role": "candidate",
+   "skill": 52,
+   "upkeep": 25,
+   "service": 35,
+   "play": 20,
+   "morale": 75,
+   "fatigue": 0,
+   "wage_week": 230,
+   "traits": [
+    "trainer",
+    "early_bird"
+   ]
+  },
+  {
+   "id": "amara_okafor",
+   "name": "Amara Okafor",
+   "kind": "player",
+   "role": "candidate",
+   "skill": 40,
+   "upkeep": 20,
+   "service": 35,
+   "play": 56,
+   "morale": 80,
+   "fatigue": 0,
+   "wage_week": 120,
+   "traits": [
+    "college",
+    "late_bloomer"
    ]
   },
   {
    "id": "lily_chen",
    "name": "Lily Chen",
+   "kind": "special",
    "role": "candidate",
    "skill": 30,
    "upkeep": 15,
-   "service": 74,
+   "service": 66,
+   "play": 0,
    "morale": 75,
    "fatigue": 0,
    "wage_week": 220,
-   "hire_as": "staff",
-   "traits": []
+   "traits": [
+    "bilingual",
+    "night_owl"
+   ]
   },
   {
    "id": "walt_hendricks",
    "name": "Walt Hendricks",
+   "kind": "coach",
    "role": "candidate",
-   "skill": 70,
+   "skill": 66,
    "upkeep": 30,
    "service": 20,
+   "play": 35,
    "morale": 40,
    "fatigue": 0,
    "wage_week": 420,
-   "hire_as": "coach",
    "traits": [
+    "burnt_out",
+    "mentor"
+   ]
+  },
+  {
+   "id": "teo_ilic",
+   "name": "Teodora Ilić",
+   "kind": "special",
+   "role": "candidate",
+   "skill": 15,
+   "upkeep": 60,
+   "service": 45,
+   "play": 30,
+   "morale": 70,
+   "fatigue": 0,
+   "wage_week": 210,
+   "traits": [
+    "stringer",
+    "perfectionist"
+   ]
+  },
+  {
+   "id": "luca_ferreira",
+   "name": "Luca Ferreira",
+   "kind": "player",
+   "role": "candidate",
+   "skill": 35,
+   "upkeep": 15,
+   "service": 25,
+   "play": 66,
+   "morale": 50,
+   "fatigue": 0,
+   "wage_week": 180,
+   "traits": [
+    "prodigy",
     "burnt_out"
+   ]
+  },
+  {
+   "id": "nadia_volkov",
+   "name": "Nadia Volkov",
+   "kind": "coach",
+   "role": "candidate",
+   "skill": 86,
+   "upkeep": 0,
+   "service": 55,
+   "play": 70,
+   "morale": 70,
+   "fatigue": 0,
+   "wage_week": 900,
+   "traits": [
+    "star",
+    "legend"
    ]
   },
   {
    "id": "marco_ruiz",
    "name": "Marco Ruiz",
+   "kind": "crew",
    "role": "candidate",
    "skill": 20,
-   "upkeep": 60,
-   "service": 50,
+   "upkeep": 58,
+   "service": 45,
+   "play": 0,
    "morale": 70,
    "fatigue": 0,
    "wage_week": 230,
-   "hire_as": "staff",
-   "traits": []
+   "traits": [
+    "bilingual",
+    "night_owl"
+   ]
   },
   {
-   "id": "nadia_volkov",
-   "name": "Nadia Volkov",
+   "id": "ray_delgado",
+   "name": "Ray Delgado",
+   "kind": "crew",
    "role": "candidate",
-   "skill": 86,
-   "upkeep": 0,
-   "service": 55,
-   "morale": 70,
+   "skill": 25,
+   "upkeep": 84,
+   "service": 30,
+   "play": 20,
+   "morale": 65,
    "fatigue": 0,
-   "wage_week": 900,
-   "hire_as": "coach",
+   "wage_week": 320,
    "traits": [
-    "star"
+    "local_hero",
+    "old_injury"
+   ]
+  },
+  {
+   "id": "mateo_salgado",
+   "name": "Mateo Salgado",
+   "kind": "special",
+   "role": "candidate",
+   "skill": 10,
+   "upkeep": 35,
+   "service": 48,
+   "play": 42,
+   "morale": 90,
+   "fatigue": 0,
+   "wage_week": 70,
+   "traits": [
+    "ball_kid",
+    "eager"
    ]
   }
  ],
@@ -397,31 +525,203 @@
    "id": "phone_addict",
    "attention": 0.35,
    "morale_drift": -0.5,
-   "reputation_drift": 0
+   "reputation_drift": 0,
+   "bonus": {}
   },
   {
    "id": "eager",
    "attention": 1,
    "morale_drift": 0.5,
-   "reputation_drift": 0
+   "reputation_drift": 0,
+   "bonus": {}
   },
   {
    "id": "burnt_out",
    "attention": 0.8,
    "morale_drift": -0.5,
-   "reputation_drift": 0
+   "reputation_drift": 0,
+   "bonus": {}
   },
   {
    "id": "star",
    "attention": 1,
    "morale_drift": 0,
-   "reputation_drift": 0.4
+   "reputation_drift": 0.4,
+   "bonus": {}
   },
   {
    "id": "daydreamer",
    "attention": 1,
    "morale_drift": 0,
-   "reputation_drift": 0
+   "reputation_drift": 0,
+   "bonus": {}
+  },
+  {
+   "id": "perfectionist",
+   "attention": 1,
+   "morale_drift": 0,
+   "reputation_drift": 0,
+   "bonus": {
+    "upkeep": 12,
+    "service": -10
+   }
+  },
+  {
+   "id": "showman",
+   "attention": 1,
+   "morale_drift": 0,
+   "reputation_drift": 0,
+   "bonus": {
+    "upkeep": -10,
+    "service": 12
+   }
+  },
+  {
+   "id": "early_bird",
+   "attention": 1,
+   "morale_drift": 0,
+   "reputation_drift": 0,
+   "bonus": {
+    "teach": 12,
+    "upkeep": 12,
+    "service": 12
+   },
+   "when": {
+    "hour": {
+     "lte": 11
+    }
+   }
+  },
+  {
+   "id": "night_owl",
+   "attention": 1,
+   "morale_drift": 0,
+   "reputation_drift": 0,
+   "bonus": {
+    "teach": 12,
+    "upkeep": 12,
+    "service": 12
+   },
+   "when": {
+    "hour": {
+     "gte": 16
+    }
+   }
+  },
+  {
+   "id": "bilingual",
+   "attention": 1,
+   "morale_drift": 0,
+   "reputation_drift": 0,
+   "bonus": {
+    "service": 10
+   }
+  },
+  {
+   "id": "desert_born",
+   "attention": 1,
+   "morale_drift": 0,
+   "reputation_drift": 0,
+   "bonus": {
+    "upkeep": 15
+   },
+   "when": {
+    "any": [
+     {
+      "weather": "wind"
+     },
+     {
+      "season": "spring"
+     }
+    ]
+   }
+  },
+  {
+   "id": "local_hero",
+   "attention": 1,
+   "morale_drift": 0,
+   "reputation_drift": 0.2,
+   "bonus": {}
+  },
+  {
+   "id": "legend",
+   "attention": 1,
+   "morale_drift": 0,
+   "reputation_drift": 0.2,
+   "bonus": {}
+  },
+  {
+   "id": "college",
+   "attention": 1,
+   "morale_drift": 0,
+   "reputation_drift": 0,
+   "bonus": {
+    "teach": 5,
+    "service": 5
+   }
+  },
+  {
+   "id": "prodigy",
+   "attention": 1,
+   "morale_drift": 0,
+   "reputation_drift": 0,
+   "bonus": {
+    "play": 8
+   }
+  },
+  {
+   "id": "late_bloomer",
+   "attention": 1,
+   "morale_drift": 0,
+   "reputation_drift": 0,
+   "bonus": {
+    "play": 12
+   },
+   "when": {
+    "day": {
+     "gte": 50
+    }
+   }
+  },
+  {
+   "id": "old_injury",
+   "attention": 1,
+   "morale_drift": 0,
+   "reputation_drift": 0,
+   "bonus": {
+    "upkeep": -8,
+    "play": -10
+   }
+  },
+  {
+   "id": "mentor",
+   "attention": 1,
+   "morale_drift": 0.2,
+   "reputation_drift": 0,
+   "bonus": {
+    "teach": 6
+   }
+  },
+  {
+   "id": "stringer",
+   "attention": 1,
+   "morale_drift": 0,
+   "reputation_drift": 0,
+   "bonus": {}
+  },
+  {
+   "id": "trainer",
+   "attention": 1,
+   "morale_drift": 0,
+   "reputation_drift": 0,
+   "bonus": {}
+  },
+  {
+   "id": "ball_kid",
+   "attention": 1,
+   "morale_drift": 0,
+   "reputation_drift": 0,
+   "bonus": {}
   }
  ],
  "directors": [
@@ -498,6 +798,48 @@
    ],
    "wear": 0,
    "restore": 0
+  },
+  {
+   "id": "ch_stringing",
+   "act": "indian_wells",
+   "at": "clubhouse",
+   "skill": "upkeep",
+   "cycle": "1h",
+   "hours": [
+    9,
+    17
+   ],
+   "when": {
+    "all": [
+     {
+      "facility": "clubhouse",
+      "is": "open"
+     },
+     {
+      "expr": "hired.stringer >= 1"
+     }
+    ]
+   },
+   "effects": [
+    {
+     "stat": "cash",
+     "add": "round(5 * (0.6 + worker.skill / 100) * clamp(0.5 + stat.members / 30, 0.5, 2))"
+    },
+    {
+     "chance": "0.02 + worker.skill / 2500",
+     "stat": "members",
+     "add": 1
+    },
+    {
+     "stat": "reputation",
+     "add": 0.01
+    }
+   ],
+   "wear": 0,
+   "restore": 0,
+   "only": [
+    "stringer"
+   ]
   },
   {
    "id": "o1_lesson",
@@ -665,6 +1007,38 @@
    "performance": "open_play"
   },
   {
+   "id": "o23_training",
+   "act": "indian_wells",
+   "at": "outer_23",
+   "skill": "play",
+   "cycle": "1h",
+   "when": {
+    "all": [
+     {
+      "facility": "outer_23",
+      "is": "playable"
+     },
+     {
+      "expr": "hired.player >= 1"
+     }
+    ]
+   },
+   "effects": [
+    {
+     "person": "worker",
+     "add": {
+      "play": 0.06
+     }
+    }
+   ],
+   "wear": 0.5,
+   "restore": 0,
+   "only": [
+    "player"
+   ],
+   "performance": "open_play"
+  },
+  {
    "id": "o23_upkeep",
    "act": "indian_wells",
    "at": "outer_23",
@@ -717,6 +1091,88 @@
    "wear": 1,
    "restore": 0,
    "performance": "lesson"
+  },
+  {
+   "id": "pr_fitness",
+   "act": "indian_wells",
+   "at": "practice",
+   "skill": "teach",
+   "cycle": "1h",
+   "hours": [
+    8,
+    11
+   ],
+   "days": [
+    0,
+    1,
+    2,
+    3,
+    4
+   ],
+   "when": {
+    "all": [
+     {
+      "facility": "practice",
+      "is": "open"
+     },
+     {
+      "expr": "hired.trainer >= 1"
+     }
+    ]
+   },
+   "effects": [
+    {
+     "stat": "cash",
+     "add": "round(8 * (0.6 + worker.skill / 100) * clamp(0.5 + stat.members / 40, 0.5, 2))"
+    },
+    {
+     "chance": 0.05,
+     "stat": "members",
+     "add": 1
+    },
+    {
+     "stat": "reputation",
+     "add": 0.02
+    }
+   ],
+   "wear": 0.5,
+   "restore": 0,
+   "only": [
+    "trainer"
+   ],
+   "performance": "lesson"
+  },
+  {
+   "id": "pr_training",
+   "act": "indian_wells",
+   "at": "practice",
+   "skill": "play",
+   "cycle": "1h",
+   "when": {
+    "all": [
+     {
+      "facility": "practice",
+      "is": "open"
+     },
+     {
+      "expr": "hired.player >= 1"
+     }
+    ]
+   },
+   "effects": [
+    {
+     "person": "worker",
+     "add": {
+      "play": 0.1
+     }
+    }
+   ],
+   "wear": 0.5,
+   "restore": 0,
+   "only": [
+    "player"
+   ],
+   "performance": "open_play"
   },
   {
    "id": "pr_upkeep",
@@ -930,6 +1386,48 @@
    "effects": [],
    "wear": 0,
    "restore": 4
+  },
+  {
+   "id": "st3_ballkids",
+   "act": "indian_wells",
+   "at": "stadium_3",
+   "skill": "service",
+   "cycle": "1h",
+   "hours": [
+    9,
+    17
+   ],
+   "days": [
+    5,
+    6
+   ],
+   "when": {
+    "all": [
+     {
+      "facility": "stadium_3",
+      "is": "open"
+     },
+     {
+      "expr": "hired.ball_kid >= 1"
+     }
+    ]
+   },
+   "effects": [
+    {
+     "stat": "reputation",
+     "add": "0.03 + worker.skill / 2000"
+    },
+    {
+     "chance": 0.03,
+     "stat": "members",
+     "add": 1
+    }
+   ],
+   "wear": 0,
+   "restore": 0,
+   "only": [
+    "ball_kid"
+   ]
   },
   {
    "id": "st3_league",
@@ -1257,6 +1755,58 @@
    "onFail": []
   },
   {
+   "id": "pl_tournament",
+   "act": "indian_wells",
+   "at": "entrance",
+   "skill": "play",
+   "work": "6h",
+   "cost": 120,
+   "when": {
+    "expr": "hired.player >= 1"
+   },
+   "crew": 1,
+   "cooldown": "6d",
+   "once": false,
+   "restore": 0,
+   "check": {
+    "chance": "clamp(0.1 + (worker.skill - 50) / 45, 0.05, 0.85)"
+   },
+   "effects": [
+    {
+     "stat": "reputation",
+     "add": 1
+    },
+    {
+     "person": "worker",
+     "add": {
+      "play": 1
+     }
+    }
+   ],
+   "onSuccess": [
+    {
+     "stat": "cash",
+     "add": 600
+    },
+    {
+     "stat": "reputation",
+     "add": 4
+    },
+    {
+     "log": "log.tournament_won"
+    }
+   ],
+   "onFail": [
+    {
+     "log": "log.tournament_lost"
+    }
+   ],
+   "only": [
+    "player"
+   ],
+   "performance": "match"
+  },
+  {
    "id": "pr_ball_machine",
    "act": "indian_wells",
    "at": "practice",
@@ -1472,7 +2022,7 @@
    "once": false,
    "restore": 0,
    "check": {
-    "chance": "clamp(0.3 + (stat.reputation - 50) / 80 + (stat.quality - 60) / 100 + (flag.dale_umpire ? 0.05 : 0), 0.15, 0.85)"
+    "chance": "clamp(0.3 + (stat.reputation - 50) / 80 + (stat.quality - 60) / 100 + (flag.dale_umpire ? 0.05 : 0) + min(hired.legend, 1) * 0.05, 0.15, 0.85)"
    },
    "effects": [],
    "onSuccess": [
@@ -2257,7 +2807,24 @@
        "hire": "rosa_ortiz"
       },
       {
+       "chance": 0.5,
+       "flag": "iw_hiring_day_2_b",
+       "set": true
+      },
+      {
+       "if": {
+        "not": {
+         "flag": "iw_hiring_day_2_b"
+        }
+       },
        "schedule": "iw_hiring_day_2",
+       "in": "14d"
+      },
+      {
+       "if": {
+        "flag": "iw_hiring_day_2_b"
+       },
+       "schedule": "iw_hiring_day_2b",
        "in": "14d"
       }
      ],
@@ -2270,7 +2837,24 @@
        "hire": "ben_kim"
       },
       {
+       "chance": 0.5,
+       "flag": "iw_hiring_day_2_b",
+       "set": true
+      },
+      {
+       "if": {
+        "not": {
+         "flag": "iw_hiring_day_2_b"
+        }
+       },
        "schedule": "iw_hiring_day_2",
+       "in": "14d"
+      },
+      {
+       "if": {
+        "flag": "iw_hiring_day_2_b"
+       },
+       "schedule": "iw_hiring_day_2b",
        "in": "14d"
       }
      ],
@@ -2283,7 +2867,24 @@
        "log": "log.no_hire"
       },
       {
+       "chance": 0.5,
+       "flag": "iw_hiring_day_2_b",
+       "set": true
+      },
+      {
+       "if": {
+        "not": {
+         "flag": "iw_hiring_day_2_b"
+        }
+       },
        "schedule": "iw_hiring_day_2",
+       "in": "14d"
+      },
+      {
+       "if": {
+        "flag": "iw_hiring_day_2_b"
+       },
+       "schedule": "iw_hiring_day_2b",
        "in": "14d"
       }
      ],
@@ -2313,7 +2914,24 @@
        "hire": "jess_park"
       },
       {
+       "chance": 0.5,
+       "flag": "iw_hiring_day_3_b",
+       "set": true
+      },
+      {
+       "if": {
+        "not": {
+         "flag": "iw_hiring_day_3_b"
+        }
+       },
        "schedule": "iw_hiring_day_3",
+       "in": "14d"
+      },
+      {
+       "if": {
+        "flag": "iw_hiring_day_3_b"
+       },
+       "schedule": "iw_hiring_day_3b",
        "in": "14d"
       }
      ],
@@ -2326,7 +2944,24 @@
        "hire": "gus_moreno"
       },
       {
+       "chance": 0.5,
+       "flag": "iw_hiring_day_3_b",
+       "set": true
+      },
+      {
+       "if": {
+        "not": {
+         "flag": "iw_hiring_day_3_b"
+        }
+       },
        "schedule": "iw_hiring_day_3",
+       "in": "14d"
+      },
+      {
+       "if": {
+        "flag": "iw_hiring_day_3_b"
+       },
+       "schedule": "iw_hiring_day_3b",
        "in": "14d"
       }
      ],
@@ -2339,7 +2974,131 @@
        "log": "log.no_hire"
       },
       {
+       "chance": 0.5,
+       "flag": "iw_hiring_day_3_b",
+       "set": true
+      },
+      {
+       "if": {
+        "not": {
+         "flag": "iw_hiring_day_3_b"
+        }
+       },
        "schedule": "iw_hiring_day_3",
+       "in": "14d"
+      },
+      {
+       "if": {
+        "flag": "iw_hiring_day_3_b"
+       },
+       "schedule": "iw_hiring_day_3b",
+       "in": "14d"
+      }
+     ],
+     "onSuccess": [],
+     "onFail": []
+    }
+   },
+   "default": {
+    "then": "C",
+    "extra": []
+   }
+  },
+  {
+   "id": "iw_hiring_day_2b",
+   "act": "indian_wells",
+   "source": "consequence",
+   "tone": "relief",
+   "weight": 1,
+   "countdown": "1d",
+   "pause": true,
+   "location": "clubhouse",
+   "who": "applicants",
+   "options": {
+    "A": {
+     "effects": [
+      {
+       "hire": "kofi_mensah"
+      },
+      {
+       "chance": 0.5,
+       "flag": "iw_hiring_day_3_b",
+       "set": true
+      },
+      {
+       "if": {
+        "not": {
+         "flag": "iw_hiring_day_3_b"
+        }
+       },
+       "schedule": "iw_hiring_day_3",
+       "in": "14d"
+      },
+      {
+       "if": {
+        "flag": "iw_hiring_day_3_b"
+       },
+       "schedule": "iw_hiring_day_3b",
+       "in": "14d"
+      }
+     ],
+     "onSuccess": [],
+     "onFail": []
+    },
+    "B": {
+     "effects": [
+      {
+       "hire": "amara_okafor"
+      },
+      {
+       "chance": 0.5,
+       "flag": "iw_hiring_day_3_b",
+       "set": true
+      },
+      {
+       "if": {
+        "not": {
+         "flag": "iw_hiring_day_3_b"
+        }
+       },
+       "schedule": "iw_hiring_day_3",
+       "in": "14d"
+      },
+      {
+       "if": {
+        "flag": "iw_hiring_day_3_b"
+       },
+       "schedule": "iw_hiring_day_3b",
+       "in": "14d"
+      }
+     ],
+     "onSuccess": [],
+     "onFail": []
+    },
+    "C": {
+     "effects": [
+      {
+       "log": "log.no_hire"
+      },
+      {
+       "chance": 0.5,
+       "flag": "iw_hiring_day_3_b",
+       "set": true
+      },
+      {
+       "if": {
+        "not": {
+         "flag": "iw_hiring_day_3_b"
+        }
+       },
+       "schedule": "iw_hiring_day_3",
+       "in": "14d"
+      },
+      {
+       "if": {
+        "flag": "iw_hiring_day_3_b"
+       },
+       "schedule": "iw_hiring_day_3b",
        "in": "14d"
       }
      ],
@@ -2369,7 +3128,24 @@
        "hire": "lily_chen"
       },
       {
+       "chance": 0.5,
+       "flag": "iw_hiring_day_4_b",
+       "set": true
+      },
+      {
+       "if": {
+        "not": {
+         "flag": "iw_hiring_day_4_b"
+        }
+       },
        "schedule": "iw_hiring_day_4",
+       "in": "14d"
+      },
+      {
+       "if": {
+        "flag": "iw_hiring_day_4_b"
+       },
+       "schedule": "iw_hiring_day_4b",
        "in": "14d"
       }
      ],
@@ -2382,7 +3158,24 @@
        "hire": "walt_hendricks"
       },
       {
+       "chance": 0.5,
+       "flag": "iw_hiring_day_4_b",
+       "set": true
+      },
+      {
+       "if": {
+        "not": {
+         "flag": "iw_hiring_day_4_b"
+        }
+       },
        "schedule": "iw_hiring_day_4",
+       "in": "14d"
+      },
+      {
+       "if": {
+        "flag": "iw_hiring_day_4_b"
+       },
+       "schedule": "iw_hiring_day_4b",
        "in": "14d"
       }
      ],
@@ -2395,7 +3188,131 @@
        "log": "log.no_hire"
       },
       {
+       "chance": 0.5,
+       "flag": "iw_hiring_day_4_b",
+       "set": true
+      },
+      {
+       "if": {
+        "not": {
+         "flag": "iw_hiring_day_4_b"
+        }
+       },
        "schedule": "iw_hiring_day_4",
+       "in": "14d"
+      },
+      {
+       "if": {
+        "flag": "iw_hiring_day_4_b"
+       },
+       "schedule": "iw_hiring_day_4b",
+       "in": "14d"
+      }
+     ],
+     "onSuccess": [],
+     "onFail": []
+    }
+   },
+   "default": {
+    "then": "C",
+    "extra": []
+   }
+  },
+  {
+   "id": "iw_hiring_day_3b",
+   "act": "indian_wells",
+   "source": "consequence",
+   "tone": "relief",
+   "weight": 1,
+   "countdown": "1d",
+   "pause": true,
+   "location": "clubhouse",
+   "who": "applicants",
+   "options": {
+    "A": {
+     "effects": [
+      {
+       "hire": "teo_ilic"
+      },
+      {
+       "chance": 0.5,
+       "flag": "iw_hiring_day_4_b",
+       "set": true
+      },
+      {
+       "if": {
+        "not": {
+         "flag": "iw_hiring_day_4_b"
+        }
+       },
+       "schedule": "iw_hiring_day_4",
+       "in": "14d"
+      },
+      {
+       "if": {
+        "flag": "iw_hiring_day_4_b"
+       },
+       "schedule": "iw_hiring_day_4b",
+       "in": "14d"
+      }
+     ],
+     "onSuccess": [],
+     "onFail": []
+    },
+    "B": {
+     "effects": [
+      {
+       "hire": "luca_ferreira"
+      },
+      {
+       "chance": 0.5,
+       "flag": "iw_hiring_day_4_b",
+       "set": true
+      },
+      {
+       "if": {
+        "not": {
+         "flag": "iw_hiring_day_4_b"
+        }
+       },
+       "schedule": "iw_hiring_day_4",
+       "in": "14d"
+      },
+      {
+       "if": {
+        "flag": "iw_hiring_day_4_b"
+       },
+       "schedule": "iw_hiring_day_4b",
+       "in": "14d"
+      }
+     ],
+     "onSuccess": [],
+     "onFail": []
+    },
+    "C": {
+     "effects": [
+      {
+       "log": "log.no_hire"
+      },
+      {
+       "chance": 0.5,
+       "flag": "iw_hiring_day_4_b",
+       "set": true
+      },
+      {
+       "if": {
+        "not": {
+         "flag": "iw_hiring_day_4_b"
+        }
+       },
+       "schedule": "iw_hiring_day_4",
+       "in": "14d"
+      },
+      {
+       "if": {
+        "flag": "iw_hiring_day_4_b"
+       },
+       "schedule": "iw_hiring_day_4b",
        "in": "14d"
       }
      ],
@@ -2432,6 +3349,50 @@
      "effects": [
       {
        "hire": "marco_ruiz"
+      }
+     ],
+     "onSuccess": [],
+     "onFail": []
+    },
+    "C": {
+     "effects": [
+      {
+       "log": "log.no_hire"
+      }
+     ],
+     "onSuccess": [],
+     "onFail": []
+    }
+   },
+   "default": {
+    "then": "C",
+    "extra": []
+   }
+  },
+  {
+   "id": "iw_hiring_day_4b",
+   "act": "indian_wells",
+   "source": "consequence",
+   "tone": "relief",
+   "weight": 1,
+   "countdown": "1d",
+   "pause": true,
+   "location": "clubhouse",
+   "who": "applicants",
+   "options": {
+    "A": {
+     "effects": [
+      {
+       "hire": "ray_delgado"
+      }
+     ],
+     "onSuccess": [],
+     "onFail": []
+    },
+    "B": {
+     "effects": [
+      {
+       "hire": "mateo_salgado"
       }
      ],
      "onSuccess": [],
@@ -2748,24 +3709,39 @@
    "events.iw_dale_story.options.B": "Take a few days off first",
    "events.iw_hiring_day_1.title": "The first hiring day",
    "events.iw_hiring_day_1.body": "You put a notice on the clubhouse door and two people came. Anyone you hire is paid weekly.",
-   "events.iw_hiring_day_1.options.A": "Hire Rosa (upkeep)",
-   "events.iw_hiring_day_1.options.B": "Hire Ben (service)",
+   "events.iw_hiring_day_1.options.A": "Hire Rosa (grounds crew)",
+   "events.iw_hiring_day_1.options.B": "Hire Ben (front desk)",
    "events.iw_hiring_day_1.options.C": "Not this time",
    "events.iw_hiring_day_2.title": "The second hiring day",
-   "events.iw_hiring_day_2.body": "Two weeks later two more came: a coach and a quick, experienced handyman.",
+   "events.iw_hiring_day_2.body": "Two weeks later two more came: a coach and a man who has worked on courts half his life.",
    "events.iw_hiring_day_2.options.A": "Hire Jess (coach)",
    "events.iw_hiring_day_2.options.B": "Hire Gus (upkeep veteran)",
    "events.iw_hiring_day_2.options.C": "Not this time",
+   "events.iw_hiring_day_2b.title": "The second hiring day",
+   "events.iw_hiring_day_2b.body": "Two weeks later two more came: a fitness coach and a college player who wants one more shot.",
+   "events.iw_hiring_day_2b.options.A": "Hire Kofi (fitness coach)",
+   "events.iw_hiring_day_2b.options.B": "Hire Amara (player)",
+   "events.iw_hiring_day_2b.options.C": "Not this time",
    "events.iw_hiring_day_3.title": "The third hiring day",
-   "events.iw_hiring_day_3.body": "The garden has a bit of a name now, and the applicants are better.",
+   "events.iw_hiring_day_3.body": "The garden has a bit of a name now, and the applicants are better: a front-desk pro and a veteran coach.",
    "events.iw_hiring_day_3.options.A": "Hire Lily (great service)",
    "events.iw_hiring_day_3.options.B": "Hire Walt (veteran coach)",
    "events.iw_hiring_day_3.options.C": "Not this time",
+   "events.iw_hiring_day_3b.title": "The third hiring day",
+   "events.iw_hiring_day_3b.body": "The garden has a bit of a name now: someone who has strung racquets on tour, and an injured former prodigy.",
+   "events.iw_hiring_day_3b.options.A": "Hire Teodora (stringer)",
+   "events.iw_hiring_day_3b.options.B": "Hire Luca (player)",
+   "events.iw_hiring_day_3b.options.C": "Not this time",
    "events.iw_hiring_day_4.title": "The fourth hiring day",
-   "events.iw_hiring_day_4.body": "A former pro heard about the place and wants to be head coach; a young all-rounder came too.",
+   "events.iw_hiring_day_4.body": "A former pro heard about the place and wants to be head coach; a young local all-rounder came too.",
    "events.iw_hiring_day_4.options.A": "Hire Nadia (former pro)",
    "events.iw_hiring_day_4.options.B": "Hire Marco (all-rounder)",
    "events.iw_hiring_day_4.options.C": "Not this time",
+   "events.iw_hiring_day_4b.title": "The fourth hiring day",
+   "events.iw_hiring_day_4b.body": "The old grounds chief heard the garden is coming back and turned up himself; so did a local kid who used to be a ball kid.",
+   "events.iw_hiring_day_4b.options.A": "Hire Ray (old grounds chief)",
+   "events.iw_hiring_day_4b.options.B": "Hire Mateo (ball kid)",
+   "events.iw_hiring_day_4b.options.C": "Not this time",
    "log.started": "You arrive at the abandoned Indian Wells Tennis Garden.",
    "log.first_court": "Court 1 has a new net: the first playable court in ten years",
    "log.ball_machine": "The ball machine works again; academy lessons are better",
@@ -2776,6 +3752,8 @@
    "log.sand_covered": "The courts were covered in time",
    "log.exhibition_flop": "The exhibition fell flat: the stands were half empty. Try again in a week",
    "log.no_hire": "No hire this time; the same people do the work",
+   "log.tournament_won": "Your player won a tournament and brought home the prize money",
+   "log.tournament_lost": "Your player went out early this time, but learned something",
    "posts.o1_rental.title": "Court 1 · Court desk",
    "posts.o1_rental.note": "Daily 8–15, locals come to play",
    "posts.o1_lesson.title": "Court 1 · Afternoon lessons",
@@ -2814,6 +3792,16 @@
    "posts.st2_upkeep.note": "Any time; it wears down if nobody looks after it",
    "posts.st1_upkeep.title": "Stadium 1 · Upkeep",
    "posts.st1_upkeep.note": "It can't break again before the exhibition",
+   "posts.ch_stringing.title": "Clubhouse · Stringing bench",
+   "posts.ch_stringing.note": "Daily 9–17, stringers only",
+   "posts.pr_fitness.title": "Practice · Fitness class",
+   "posts.pr_fitness.note": "Weekdays 8–11, fitness coaches only",
+   "posts.st3_ballkids.title": "Stadium 3 · Ball kids",
+   "posts.st3_ballkids.note": "Weekend league 9–17, ball kids only",
+   "posts.pr_training.title": "Practice · Training",
+   "posts.pr_training.note": "Players only; train any time, play slowly improves",
+   "posts.o23_training.title": "Courts 2–3 · Training",
+   "posts.o23_training.note": "Where players train until the practice courts are fixed; slower",
    "orders.o1_sweep.title": "Sweep the sand off Court 1",
    "orders.o1_sweep.note": "Free; two people, one morning",
    "orders.o1_net.title": "New net for Court 1",
@@ -2871,11 +3859,73 @@
    "orders.st1_exhibition.title": "Hold the exhibition",
    "orders.st1_exhibition.note": "Reputation 50+, a crew for a whole day",
    "orders.st1_exhibition.locked": "Stadium 1 rebuilt and reputation 50+",
+   "orders.pl_tournament.title": "Play a tournament",
+   "orders.pl_tournament.note": "Players only, once a week; the better they play, the likelier a win",
    "seasons.autumn": "Autumn",
    "seasons.winter": "Winter",
    "seasons.spring": "Spring · windy season",
    "people.director": "Director",
    "people.dale": "Dale",
+   "kinds.coach": "Coach",
+   "kinds.crew": "Grounds crew",
+   "kinds.special": "Specialist",
+   "kinds.player": "Player",
+   "bios.rosa_ortiz": "Grew up beside the date groves in Coachella and kept La Quinta golf greens alive for twelve years; she always knows when the sand is coming.",
+   "bios.ben_kim": "A UC Riverside student who works at a Palm Desert coffee shop and remembers every regular's order; sharpest in the morning.",
+   "bios.jess_park": "Four years on a small-college team, then teaching kids in Palm Desert; she has always wanted courts of her own.",
+   "bios.gus_moreno": "He laid these hard courts himself before the garden closed; since the layoffs he hasn't set foot on a tennis court.",
+   "bios.kofi_mensah": "Raised in Accra, eight years as strength coach for a college track team; always there before sunrise.",
+   "bios.amara_okafor": "Born in Lagos, came to the US on a tennis scholarship and played four years of college matches; ranked outside the top 500, she wants one more shot.",
+   "bios.lily_chen": "Grew up in her parents' restaurant in Palm Springs, then ran a resort hotel's front desk; the busier the evening, the better she gets.",
+   "bios.walt_hendricks": "Thirty years teaching winter visitors at a Rancho Mirage country club; the skill is still there, the spark less so.",
+   "bios.teo_ilic": "From Novi Sad; she has strung forty racquets a day in tour stringing rooms, and no racquet leaves her bench until the strings are straight.",
+   "bios.luca_ferreira": "Top 20 in the junior rankings at sixteen, injured and burnt out at nineteen; at twenty-three he wants to like tennis again.",
+   "bios.nadia_volkov": "A former tour pro who retired after shoulder surgery; her name still sells tickets.",
+   "bios.marco_ruiz": "Grew up in Indio and works night shifts on the festival stage crews every spring; he has done a bit of everything.",
+   "bios.ray_delgado": "Ran the grounds crew here when the big tournament came in the nineties and retired in Indian Wells; he remembers every pipe, but his knees don't keep up.",
+   "bios.mateo_salgado": "Sixteen, from Coachella, a ball kid at the big tournament two years running; he bikes over straight after school.",
+   "traits.phone_addict.name": "Phone addict",
+   "traits.phone_addict.note": "Drifts in lessons when the director isn't there",
+   "traits.eager.name": "Eager",
+   "traits.eager.note": "Morale slowly rises",
+   "traits.burnt_out.name": "Burnt out",
+   "traits.burnt_out.note": "Morale slowly falls; a little distracted in lessons",
+   "traits.star.name": "Star",
+   "traits.star.note": "A little reputation every day",
+   "traits.daydreamer.name": "Daydreamer",
+   "traits.daydreamer.note": "Harmless",
+   "traits.perfectionist.name": "Perfectionist",
+   "traits.perfectionist.note": "Upkeep +12",
+   "traits.showman.name": "Showman",
+   "traits.showman.note": "Service +12",
+   "traits.early_bird.name": "Early bird",
+   "traits.early_bird.note": "Everything +12 before 11am",
+   "traits.night_owl.name": "Night owl",
+   "traits.night_owl.note": "Everything +12 after 4pm",
+   "traits.bilingual.name": "Bilingual",
+   "traits.bilingual.note": "Service +10",
+   "traits.desert_born.name": "Desert-born",
+   "traits.desert_born.note": "Upkeep +15 on windy days and in the windy season",
+   "traits.local_hero.name": "Local hero",
+   "traits.local_hero.note": "A little reputation every day",
+   "traits.legend.name": "Retired great",
+   "traits.legend.note": "A little reputation every day; exhibition +5%",
+   "traits.college.name": "College tennis",
+   "traits.college.note": "Coaching +5",
+   "traits.prodigy.name": "Prodigy",
+   "traits.prodigy.note": "Play +8",
+   "traits.late_bloomer.name": "Late bloomer",
+   "traits.late_bloomer.note": "Play +12 from day 50",
+   "traits.old_injury.name": "Old injury",
+   "traits.old_injury.note": "Upkeep −8",
+   "traits.mentor.name": "Mentor",
+   "traits.mentor.note": "Coaching +6; morale slowly rises",
+   "traits.stringer.name": "Stringer",
+   "traits.stringer.note": "Can work the clubhouse stringing bench",
+   "traits.trainer.name": "Fitness coach",
+   "traits.trainer.note": "Can run the fitness class at the practice courts",
+   "traits.ball_kid.name": "Ball kid",
+   "traits.ball_kid.note": "Can work as a ball kid at Stadium 3 league days",
    "who.investors.name": "The investors",
    "who.investors.role": "The people paying for the restoration",
    "who.applicants.name": "Applicants",
@@ -2925,6 +3975,7 @@
    "ui.hud.skill_teach": "Coaching",
    "ui.hud.skill_upkeep": "Upkeep",
    "ui.hud.skill_service": "Service",
+   "ui.hud.skill_play": "Play",
    "ui.hud.trend.falling": "Falling",
    "ui.hud.trend.recovering": "Recovering",
    "ui.hud.trend.flat": "Flat",
@@ -2945,11 +3996,13 @@
    "ui.chip.wage": "${n}/week",
    "ui.chip.hire": "{name} joins",
    "ui.chip.fire": "{name} leaves",
+   "ui.chip.worker": "Whoever works here",
    "ui.chip.chance": "{p}% chance",
    "ui.chip.cost": "−${n}",
-   "ui.attr.skill": "skill",
+   "ui.attr.skill": "coaching",
    "ui.attr.upkeep": "upkeep",
    "ui.attr.service": "service",
+   "ui.attr.play": "play",
    "ui.attr.morale": "morale",
    "ui.attr.fatigue": "fatigue",
    "ui.then": "Then: {what}",
@@ -2984,6 +4037,7 @@
    "ui.skill.teach": "Coaching",
    "ui.skill.upkeep": "Upkeep",
    "ui.skill.service": "Service",
+   "ui.skill.play": "Play",
    "ui.fac.outer_1": "Court 1",
    "ui.fac.outer_23": "Courts 2–3",
    "ui.fac.practice": "Practice courts",
@@ -3030,6 +4084,7 @@
    "ui.why.person": "Can't be assigned",
    "ui.why.busy": "Away on an errand",
    "ui.why.target": "No such post",
+   "ui.why.only": "Only certain people can do this",
    "ui.why.gone": "Not open right now",
    "ui.why.cost": "Not enough cash for materials",
    "ui.why.crew": "Already full",
@@ -3130,24 +4185,39 @@
    "events.iw_dale_story.options.B": "你先歇几天",
    "events.iw_hiring_day_1.title": "第一个招聘日",
    "events.iw_hiring_day_1.body": "会所门口贴了告示，来了两个人。招了就每周付工资。",
-   "events.iw_hiring_day_1.options.A": "招 Rosa（维护好手）",
-   "events.iw_hiring_day_1.options.B": "招 Ben（会招呼人）",
+   "events.iw_hiring_day_1.options.A": "招 Rosa（维护工）",
+   "events.iw_hiring_day_1.options.B": "招 Ben（前台）",
    "events.iw_hiring_day_1.options.C": "这次不招",
    "events.iw_hiring_day_2.title": "第二个招聘日",
-   "events.iw_hiring_day_2.body": "两周后又来了两个人：一位教练，一位干活很利索的老师傅。",
+   "events.iw_hiring_day_2.body": "两周后又来了两个人：一位教练，一个干了半辈子的场地工。",
    "events.iw_hiring_day_2.options.A": "招 Jess（教练）",
    "events.iw_hiring_day_2.options.B": "招 Gus（维护老手）",
    "events.iw_hiring_day_2.options.C": "这次不招",
+   "events.iw_hiring_day_2b.title": "第二个招聘日",
+   "events.iw_hiring_day_2b.body": "两周后又来了两个人：一个体能师，一个大学打完还想再拼一次的球员。",
+   "events.iw_hiring_day_2b.options.A": "招 Kofi（体能师）",
+   "events.iw_hiring_day_2b.options.B": "招 Amara（球员）",
+   "events.iw_hiring_day_2b.options.C": "这次不招",
    "events.iw_hiring_day_3.title": "第三个招聘日",
-   "events.iw_hiring_day_3.body": "园区有点名气了，来的人水平也高了。",
-   "events.iw_hiring_day_3.options.A": "招 Lily（服务一流）",
+   "events.iw_hiring_day_3.body": "园区有点名气了，来的人水平也高了：一个前台好手，一位老教练。",
+   "events.iw_hiring_day_3.options.A": "招 Lily（前台好手）",
    "events.iw_hiring_day_3.options.B": "招 Walt（老教练）",
    "events.iw_hiring_day_3.options.C": "这次不招",
+   "events.iw_hiring_day_3b.title": "第三个招聘日",
+   "events.iw_hiring_day_3b.body": "园区有点名气了：一个在巡回赛上穿过线的人，一个受过伤的天才少年。",
+   "events.iw_hiring_day_3b.options.A": "招 Teodora（穿线师）",
+   "events.iw_hiring_day_3b.options.B": "招 Luca（球员）",
+   "events.iw_hiring_day_3b.options.C": "这次不招",
    "events.iw_hiring_day_4.title": "第四个招聘日",
-   "events.iw_hiring_day_4.body": "一位前职业球员听说了这里，想来当主教练；还有一个什么都会一点的年轻人。",
+   "events.iw_hiring_day_4.body": "一位前职业球员听说了这里，想来当主教练；还有一个什么都会一点的本地年轻人。",
    "events.iw_hiring_day_4.options.A": "招 Nadia（前职业球员）",
    "events.iw_hiring_day_4.options.B": "招 Marco（多面手）",
    "events.iw_hiring_day_4.options.C": "这次不招",
+   "events.iw_hiring_day_4b.title": "第四个招聘日",
+   "events.iw_hiring_day_4b.body": "当年的场地主管听说园区要活过来，自己找上门；还有一个当过球童的本地孩子。",
+   "events.iw_hiring_day_4b.options.A": "招 Ray（老场地主管）",
+   "events.iw_hiring_day_4b.options.B": "招 Mateo（球童）",
+   "events.iw_hiring_day_4b.options.C": "这次不招",
    "log.started": "你来到了废弃的 Indian Wells Tennis Garden。",
    "log.first_court": "外场 1 换上了新网：十年来第一块能打的场地",
    "log.ball_machine": "发球机修好了，学院的课更扎实了",
@@ -3158,6 +4228,8 @@
    "log.sand_covered": "场地盖住了，沙没灌进来",
    "log.exhibition_flop": "表演赛冷场了：看台上稀稀拉拉，一周后再试一次",
    "log.no_hire": "这次没招人，活还是那几个人干",
+   "log.tournament_won": "你的球员在外面赢了一站比赛，带回了奖金",
+   "log.tournament_lost": "你的球员这站输了，不过长了见识",
    "posts.o1_rental.title": "外场 1 · 看场",
    "posts.o1_rental.note": "每天 8–15 点，附近的人来打球",
    "posts.o1_lesson.title": "外场 1 · 下午的课",
@@ -3196,6 +4268,16 @@
    "posts.st2_upkeep.note": "随时可以干；没人管就变旧",
    "posts.st1_upkeep.title": "Stadium 1 · 维护",
    "posts.st1_upkeep.note": "表演赛之前不能再坏",
+   "posts.ch_stringing.title": "会所 · 穿线台",
+   "posts.ch_stringing.note": "每天 9–17 点，只有穿线师能坐",
+   "posts.pr_fitness.title": "练习场 · 体能课",
+   "posts.pr_fitness.note": "工作日 8–11 点，只有体能师能带",
+   "posts.st3_ballkids.title": "Stadium 3 · 球童",
+   "posts.st3_ballkids.note": "周末联赛 9–17 点，只有球童能干",
+   "posts.pr_training.title": "练习场 · 自己练球",
+   "posts.pr_training.note": "只有球员能用；随时可以练，球技慢慢涨",
+   "posts.o23_training.title": "外场 2–3 · 自己练球",
+   "posts.o23_training.note": "练习场修好之前的去处，涨得慢一点",
    "orders.o1_sweep.title": "扫外场 1 的沙",
    "orders.o1_sweep.note": "不花钱，两个人一个上午",
    "orders.o1_net.title": "给外场 1 换网",
@@ -3253,11 +4335,73 @@
    "orders.st1_exhibition.title": "办表演赛",
    "orders.st1_exhibition.note": "声望 50 以上，一群人张罗一整天",
    "orders.st1_exhibition.locked": "Stadium 1 重建完成、声望 50 以上",
+   "orders.pl_tournament.title": "出去打一站比赛",
+   "orders.pl_tournament.note": "只有球员能去，一周一次；球技越高越可能赢",
    "seasons.autumn": "秋天",
    "seasons.winter": "冬天",
    "seasons.spring": "春天 · 风季",
    "people.director": "总监",
    "people.dale": "Dale",
+   "kinds.coach": "教练",
+   "kinds.crew": "维护工",
+   "kinds.special": "特殊岗位",
+   "kinds.player": "球员",
+   "bios.rosa_ortiz": "在 Coachella 的椰枣园边长大，给 La Quinta 的高尔夫球场修了十二年草坪；风沙要来，她总是先知道。",
+   "bios.ben_kim": "UC Riverside 的学生，在 Palm Desert 的咖啡店打工，记得每个熟客点什么；早上精神最好。",
+   "bios.jess_park": "在一所小大学打了四年校队，毕业后在 Palm Desert 教孩子打球，一直想有一块自己的场地。",
+   "bios.gus_moreno": "园区关门前，这里的硬地是他一块块铺的；裁员那天以后，他再没进过网球场。",
+   "bios.kofi_mensah": "在 Accra 长大，给一所大学的田径队当了八年体能教练，天亮之前就到场。",
+   "bios.amara_okafor": "生在 Lagos，拿网球奖学金来美国打了四年大学比赛；排名在五百开外，想再拼一次。",
+   "bios.lily_chen": "在父母开在 Palm Springs 的餐馆里长大，后来在度假酒店管前台；晚上客人越多，她越来劲。",
+   "bios.walt_hendricks": "在 Rancho Mirage 的乡村俱乐部教了三十年过冬的退休客人；手艺还在，心有点累了。",
+   "bios.teo_ilic": "从 Novi Sad 来，在巡回赛的穿线房里一天穿过四十支拍子；线不直，她不交拍。",
+   "bios.luca_ferreira": "十六岁进过青少年排名前二十，十九岁手腕伤了、也打怕了；现在二十三岁，想重新喜欢上网球。",
+   "bios.nadia_volkov": "前职业球员，肩伤动过手术以后退役；她的名字还能卖出票。",
+   "bios.marco_ruiz": "在 Indio 长大，每年春天在音乐节的搭台队上夜班，什么活都干过一点。",
+   "bios.ray_delgado": "九十年代这里办大赛时的场地主管，退休后就住在 Indian Wells；园区的每根水管他都记得，膝盖却不行了。",
+   "bios.mateo_salgado": "十六岁，Coachella 人，前两年在大赛上当过球童；一放学就骑车过来。",
+   "traits.phone_addict.name": "爱玩手机",
+   "traits.phone_addict.note": "总监不在场时上课走神",
+   "traits.eager.name": "干劲足",
+   "traits.eager.note": "士气慢慢涨",
+   "traits.burnt_out.name": "心累了",
+   "traits.burnt_out.note": "士气慢慢掉，上课有点走神",
+   "traits.star.name": "明星",
+   "traits.star.note": "每天带来一点声望",
+   "traits.daydreamer.name": "爱发呆",
+   "traits.daydreamer.note": "没什么影响",
+   "traits.perfectionist.name": "完美主义",
+   "traits.perfectionist.note": "维护 +12，服务 −10",
+   "traits.showman.name": "爱表现",
+   "traits.showman.note": "服务 +12，维护 −10",
+   "traits.early_bird.name": "早起",
+   "traits.early_bird.note": "上午 11 点前各项 +12",
+   "traits.night_owl.name": "夜猫子",
+   "traits.night_owl.note": "下午 4 点后各项 +12",
+   "traits.bilingual.name": "双语",
+   "traits.bilingual.note": "服务 +10",
+   "traits.desert_born.name": "沙漠长大",
+   "traits.desert_born.note": "大风天和风季维护 +15",
+   "traits.local_hero.name": "本地名人",
+   "traits.local_hero.note": "每天带来一点声望",
+   "traits.legend.name": "退役名将",
+   "traits.legend.note": "每天一点声望，表演赛成功率 +5%",
+   "traits.college.name": "大学网球",
+   "traits.college.note": "教学 +5，服务 +5",
+   "traits.prodigy.name": "天才少年",
+   "traits.prodigy.note": "球技 +8",
+   "traits.late_bloomer.name": "大器晚成",
+   "traits.late_bloomer.note": "第 50 天起球技 +12",
+   "traits.old_injury.name": "老伤",
+   "traits.old_injury.note": "维护 −8，球技 −10",
+   "traits.mentor.name": "带徒弟",
+   "traits.mentor.note": "教学 +6，士气慢慢涨",
+   "traits.stringer.name": "穿线师",
+   "traits.stringer.note": "能坐会所的穿线台",
+   "traits.trainer.name": "体能师",
+   "traits.trainer.note": "能带练习场的体能课",
+   "traits.ball_kid.name": "球童",
+   "traits.ball_kid.note": "能在 Stadium 3 的联赛当球童",
    "who.investors.name": "投资方",
    "who.investors.role": "出钱修复园区的人",
    "who.applicants.name": "应聘者",
@@ -3307,6 +4451,7 @@
    "ui.hud.skill_teach": "教学",
    "ui.hud.skill_upkeep": "维护",
    "ui.hud.skill_service": "服务",
+   "ui.hud.skill_play": "球技",
    "ui.hud.trend.falling": "在下滑",
    "ui.hud.trend.recovering": "在回升",
    "ui.hud.trend.flat": "持平",
@@ -3327,11 +4472,13 @@
    "ui.chip.wage": "周薪 ${n}",
    "ui.chip.hire": "{name} 上任",
    "ui.chip.fire": "{name} 离开",
+   "ui.chip.worker": "在岗的人",
    "ui.chip.chance": "成功率 {p}%",
    "ui.chip.cost": "−${n}",
-   "ui.attr.skill": "球技",
+   "ui.attr.skill": "教学",
    "ui.attr.upkeep": "维护",
    "ui.attr.service": "服务",
+   "ui.attr.play": "球技",
    "ui.attr.morale": "士气",
    "ui.attr.fatigue": "疲劳",
    "ui.then": "之后：{what}",
@@ -3366,6 +4513,7 @@
    "ui.skill.teach": "教学",
    "ui.skill.upkeep": "维护",
    "ui.skill.service": "服务",
+   "ui.skill.play": "球技",
    "ui.fac.outer_1": "外场 1",
    "ui.fac.outer_23": "外场 2–3",
    "ui.fac.practice": "练习场",
@@ -3412,6 +4560,7 @@
    "ui.why.person": "不能指派",
    "ui.why.busy": "正在办事，叫不回来",
    "ui.why.target": "没有这个岗位",
+   "ui.why.only": "这个活只收特定的人",
    "ui.why.gone": "现在开不了",
    "ui.why.cost": "现金不够买料",
    "ui.why.crew": "人已经够了",

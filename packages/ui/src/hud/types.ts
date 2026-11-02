@@ -81,8 +81,8 @@ export interface StaffToken {
   /** 现在在干什么："1 号场 · 青少年课"、"闲着"、"走去红土场 · 12 分钟" */
   doing: string;
   state: 'working' | 'waiting' | 'idle' | 'walking' | 'errand';
-  /** 三项能力 0..100：教学、维护、服务 */
-  skills: { teach: number; upkeep: number; service: number };
+  /** 三项能力 0..100：教学、维护、服务；球员还有球技 */
+  skills: { teach: number; upkeep: number; service: number; play?: number };
   /** 正拿在手上 */
   picked?: boolean;
   /** 被事件叫去办事，叫不回来 */
