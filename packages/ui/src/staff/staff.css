@@ -61,6 +61,7 @@
 .td-row-teach{border-left-color:#d7ff3c}
 .td-row-upkeep{border-left-color:#9be07f}
 .td-row-service{border-left-color:#c9e8ff}
+.td-row-play{border-left-color:#ffb35c}
 .td-row-need{background:rgba(255,138,107,.2)}
 .td-row-fit{box-shadow:inset 0 0 0 2px var(--td-optic,#d7ff3c)}
 .td-row-blocked{opacity:.5}

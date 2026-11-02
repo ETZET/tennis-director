@@ -118,7 +118,8 @@ export interface TargetSheetData {
 export interface PlaceRow {
   id: string;
   kind: 'post' | 'order';
-  skill: 'teach' | 'upkeep' | 'service';
+  /** 要哪项能力（球员的活是 play） */
+  skill: 'teach' | 'upkeep' | 'service' | 'play';
   title: string;
   /** 一行小字："Dale 在干 · 40%"、"没人 · 有客人在等"、"$300 · 4 小时" */
   line: string;
