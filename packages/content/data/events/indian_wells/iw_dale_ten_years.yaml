@@ -1,0 +1,27 @@
+# 一个星期没什么事的时候，Dale 在会所后面的办公室里叫住你：他为什么一个人守了这里十年（GM-4 的第一个节点）。
+# 导演在长时间没卡（quiet_days）时才放它出来。听了，Stadium 2 那张"最后一届比赛"会有后话。
+id: iw_dale_ten_years
+act: indian_wells
+source: threshold
+tone: neutral
+once: true
+countdown: 8h
+when:
+  all:
+    - { expr: "quiet_days >= 7" }
+    # 在这儿干了一个多月以后（中段最长的空档在第 40–85 天）
+    - { day: { gte: 40, lte: 100 } }
+location: clubhouse
+who: dale
+options:
+  A:
+    # 坐下来听：总监离开手上的活两个小时，Dale 心里踏实了
+    errand: { at: clubhouse, for: 2h }
+    effects:
+      - { person: dale, add: { morale: 12 } }
+      - { flag: dale_heard, set: true }
+  B:
+    # 改天吧：活还多，Dale 点点头回去了
+    effects:
+      - { person: dale, add: { morale: -4 } }
+default: { then: B }

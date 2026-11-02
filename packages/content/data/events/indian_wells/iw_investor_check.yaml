@@ -13,8 +13,15 @@ options:
     errand: { at: entrance, for: 3h }
     effects:
       - { stat: reputation, add: "restored * 1.5" }
+      # 电话里拍过胸脯（iw_investor_call）：做到了加分，没做到扣分
+      - { stat: reputation, add: 3, if: { all: [{ flag: investors_promised }, { expr: "restored >= 5" }] } }
+      - { stat: reputation, add: -4, if: { all: [{ flag: investors_promised }, { expr: "restored < 5" }] } }
   B:
     # 让他们自己看：省时间
     effects:
       - { stat: reputation, add: -2 }
+      - { stat: reputation, add: 3, if: { all: [{ flag: investors_promised }, { expr: "restored >= 5" }] } }
+      - { stat: reputation, add: -4, if: { all: [{ flag: investors_promised }, { expr: "restored < 5" }] } }
+      # 追加过预算（iw_investor_call）：他们本来就担心，没人陪着看更不放心
+      - { stat: reputation, add: -3, if: { flag: investors_worried } }
 default: { then: B }

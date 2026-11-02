@@ -528,9 +528,20 @@ function errandSystem(ctx: Ctx): void {
   }
 }
 
+/** 每个营业分钟：在职的人手上没活（没岗位没工单、没在走路、没在办事）就记一分钟"闲着"，有活就清零 */
+function idleSystem(ctx: Ctx): void {
+  const { s, w } = ctx;
+  for (const id of staffIds(s, w)) {
+    const p = s.people[id] as PersonState;
+    if (!p.job && !p.walk && !p.errand) p.idleMin = (p.idleMin ?? 0) + 1;
+    else if (p.idleMin) p.idleMin = 0;
+  }
+}
+
 export function staffSystem(ctx: Ctx): void {
   errandSystem(ctx);
   routineSystem(ctx);
+  idleSystem(ctx);
   const jobs = jobIndex(ctx.s);
   postSystem(ctx, jobs);
   orderSystem(ctx, jobs);

@@ -78,6 +78,10 @@ export function createText(content: ContentBundle, lang: Lang): Text {
           .replace('{name}', personName(e.person))
           .replace('{place}', tr(`anchors.${e.at}`, e.at))
           .replace('{time}', duration(e.minutes));
+      case 'task':
+        return tr('ui.task_log')
+          .replace('{name}', personName(e.person))
+          .replace('{what}', tr(`orders.${e.order}.title`, e.order));
       case 'condition': {
         if (Math.abs(e.delta) < 1) return null;
         return `${tr(`ui.fac.${e.facility}`, e.facility)} ${tr('ui.condition')} ${signed(e.delta)}`;

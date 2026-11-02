@@ -178,10 +178,20 @@ export function makeEnv(s: GameState, w: World, extra: Record<string, Value> = {
         case 'facility_upkeep_week':
           return facs().upkeep;
         case 'restored': {
+          // 修好 = 换到了一个给园区加分的状态（扫完沙、挖完沙、清完碎石这些中间状态还不算）
           let n = 0;
-          for (const [id, st] of Object.entries(s.facilities)) if (st !== w.act.facilities[id]) n++;
+          for (const [id, st] of Object.entries(s.facilities))
+            if (st !== w.act.facilities[id] && (w.facilities.get(id)?.states[st]?.quality ?? 0) > 0) n++;
           return n;
         }
+        case 'idle_days': {
+          // 在职的人里闲得最久的那个，连续闲了几个营业日（720 营业分钟算一天）
+          let m = 0;
+          for (const id of Object.keys(s.people)) if (isStaff(s, w, id)) m = Math.max(m, s.people[id]?.idleMin ?? 0);
+          return m / 720;
+        }
+        case 'quiet_days':
+          return (s.t - (s.cards.lastOpened ?? 0)) / 1440;
         case 'wages_week':
           return wagesWeek(s, w);
         case 'open_cards':

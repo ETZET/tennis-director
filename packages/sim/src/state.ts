@@ -36,6 +36,8 @@ export interface PersonState {
   routine: string[];
   /** 为了上班暂停的工单（ADR 0014）：下了班回去接着干；玩家亲手派活或叫停时清掉 */
   resume?: string | null;
+  /** 连续闲了多少营业分钟（没有岗位或工单、没在走路、没在办事）；有活就清零。导演和卡用它（idle_days） */
+  idleMin?: number;
 }
 
 export interface Walk {
@@ -136,6 +138,7 @@ export type EffectRecord =
   | { kind: 'person'; person: string; attr: PersonAttr; delta: number }
   | { kind: 'text'; key: string }
   | { kind: 'errand'; person: string; at: string; minutes: number }
+  | { kind: 'task'; person: string; order: string }
   | { kind: 'condition'; facility: string; delta: number }
   | { kind: 'end'; result: 'won' | 'lost'; ending: string };
 
@@ -209,6 +212,8 @@ export interface GameState {
     /** 卡 → 出现过几次（机器人跑局统计用） */
     shown: Record<string, number>;
     nextDraw: number;
+    /** 上一张卡（任何来源）打开的时刻；老存档没有，按 0 算（quiet_days） */
+    lastOpened?: number;
   };
   activities: RunningActivity[];
   /** 当前季节 id 和今天的天气 */

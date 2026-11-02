@@ -7,7 +7,7 @@ import { advance, newGame, replay, stateHash, step } from './game';
 import { fromSave, SaveError, toSave } from './save';
 import { canAssign, orderLead, orderStatus, postStatus, workSkill } from './staff';
 import { at, type CausalEntry, dayOf, type GameState, minuteOfDay, SAVE_VERSION, weekdayOf } from './state';
-import { facilityTotals, hasDemand, makeEnv, qualityTarget, serviceRate, test } from './vars';
+import { facilityTotals, hasDemand, makeEnv, num, qualityTarget, serviceRate, test } from './vars';
 import { shortestRoute } from './walk';
 import { worldFor } from './world';
 
@@ -748,6 +748,79 @@ describe('条件', () => {
     expect(test(s, w, { expr: 'stat.members == 0 && facility.stadium_1 == "ruined" && restored == 0' })).toBe(true);
     s.facilities.outer_1 = 'playable';
     expect(test(s, w, { expr: 'restored == 1' })).toBe(true);
+  });
+
+  it('修好了几处只算给园区加分的状态：扫完沙、挖完沙、清完碎石还不算（e7：扫完沙 HUD 就写"复原 1/8"）', () => {
+    const s = fresh();
+    const w = W();
+    s.facilities.outer_1 = 'swept';
+    s.facilities.stadium_3 = 'dug';
+    s.facilities.stadium_1 = 'cleared';
+    expect(num(s, w, 'restored')).toBe(0);
+    s.facilities.stadium_3 = 'open';
+    expect(num(s, w, 'restored')).toBe(1);
+  });
+});
+
+describe('停滞和闲着（e7）', () => {
+  it('idle_days：在职的人里闲得最久的那个连续闲了几个营业日；派上活就清零', () => {
+    const s = quiet(fresh());
+    const w = W();
+    expect(num(s, w, 'idle_days')).toBe(0);
+    advance(s, CONTENT, [], 360);
+    expect(num(s, w, 'idle_days')).toBeCloseTo(0.5, 5);
+    advance(s, CONTENT, [assign('director', 'o1_sweep')], 1);
+    // Dale 还闲着
+    expect(num(s, w, 'idle_days')).toBeCloseTo(361 / 720, 5);
+    advance(s, CONTENT, [assign('dale', 'o1_sweep')], 1);
+    expect(num(s, w, 'idle_days')).toBe(0);
+  });
+
+  it('quiet_days：离上一张卡打开过了几天（任何来源）', () => {
+    const s = fresh();
+    const w = W();
+    advance(s, CONTENT, [], 1);
+    expect(s.cards.lastOpened).toBe(s.t - 1);
+    s.cards.nextDraw = Number.POSITIVE_INFINITY;
+    s.cards.scheduled = [];
+    until(s, (x) => dayOf(x.t) === 4);
+    expect(num(s, w, 'quiet_days')).toBeGreaterThanOrEqual(2.5);
+    open(s, 'iw_reporter');
+    expect(num(s, w, 'quiet_days')).toBeLessThan(0.01);
+  });
+
+  it('开局的发球机卡放着不管一天就按"留着"处理，不会一直开着把导演堵住', () => {
+    const s = fresh();
+    advance(s, CONTENT, [], 1);
+    expect(s.cards.open.map((o) => o.card)).toEqual(['iw_arrival']);
+    expect(until(s, (x) => !x.cards.open.some((o) => o.card === 'iw_arrival'), 2000)).toBe(true);
+    expect(s.flags.ball_machine_kept).toBe(true);
+    expect(s.log.some((e) => e.cause.kind === 'default' && e.cause.card === 'iw_arrival')).toBe(true);
+  });
+
+  it('task 效果：把下一件修复交给 Dale，他闲着就自己走过去开工，材料费开工时扣', () => {
+    const s = quiet(fresh());
+    s.facilities.outer_1 = 'swept';
+    const uid = open(s, 'iw_dale_nudge');
+    expect(advance(s, CONTENT, [{ type: 'chooseOption', uid, option: 'A' }], 0).accepted).toHaveLength(1);
+    expect(s.people.dale?.resume).toBe('o1_net');
+    // 习惯系统每 10 分钟看一次
+    expect(until(s, (x) => x.people.dale?.job === 'o1_net', 20)).toBe(true);
+    expect(until(s, (x) => x.facilities.outer_1 === 'playable', 600)).toBe(true);
+    expect(s.stats.cash).toBe(3000 - 120);
+    expect(s.log.some((e) => e.effects.some((r) => r.kind === 'task' && r.order === 'o1_net'))).toBe(true);
+  });
+
+  it('Dale 来找你：有人闲了一天半、手边有开局的修复才来；不处理就什么都不动（准则 6）', () => {
+    const s = fresh();
+    const w = W();
+    advance(s, CONTENT, [assign('director', 'o1_sweep'), assign('dale', 'o1_sweep')], 0);
+    expect(until(s, (x) => x.cards.open.some((o) => o.card === 'iw_dale_nudge'), 6 * 1440)).toBe(true);
+    expect(num(s, w, 'idle_days')).toBeGreaterThanOrEqual(1.5);
+    expect(s.facilities.outer_1).toBe('swept');
+    expect(until(s, (x) => !x.cards.open.some((o) => o.card === 'iw_dale_nudge'), 1440)).toBe(true);
+    expect(s.facilities.outer_1).toBe('swept');
+    expect(s.people.dale?.resume ?? null).toBeNull();
   });
 });
 

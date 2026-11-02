@@ -1,0 +1,22 @@
+# 四周到了：信用社来收钱。一次还清，或者再拖两周、多付利息。
+id: iw_loan_due
+act: indian_wells
+source: consequence
+tone: crisis
+pause: true
+countdown: 1d
+location: entrance
+who: lender
+options:
+  A:
+    # 还清：$3000，一了百了
+    cost: 3000
+    effects:
+      - { flag: loan_taken, set: false }
+      - { log: log.loan_paid }
+  B:
+    # 展期两周：先付 $400 利息，两周后还是要还 $3000
+    cost: 400
+    effects:
+      - { schedule: iw_loan_final, in: 14d }
+default: { then: B }

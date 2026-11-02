@@ -64,7 +64,7 @@ export const COMPUTED_VARS = [
   'worker.skill',
   /** 在职、能指派的人数（含总监） */
   'staff',
-  /** 状态和开局不一样的设施有几处（修好了几处，ADR 0015） */
+  /** 修好了几处设施：状态和开局不一样、而且给园区加分（扫完沙这种中间状态不算，ADR 0015） */
   'restored',
   /** 本周到现在的服务率 0..1（有需求的岗位分钟里，有人在岗的比例） */
   'service_rate',
@@ -74,6 +74,10 @@ export const COMPUTED_VARS = [
   'service_pass',
   /** 修好、能打的场地数，不管今天下不下雨（会员上限按这个算） */
   'courts_built',
+  /** 在职的人里闲得最久的那个，连续闲了几个营业日（没岗位没工单、没在走路办事；720 营业分钟 = 1 天） */
+  'idle_days',
+  /** 离上一张卡打开过了几天（任何来源的卡；导演在长时间没卡时用） */
+  'quiet_days',
 ] as const;
 /** 设施状况变量：condition.<设施 id> = 0..100 */
 export const CONDITION_VAR = /^condition\.([a-z][a-z0-9_]*)$/;
@@ -318,6 +322,10 @@ export function compileContent(files: Record<string, string>): CompileResult {
       if ('errand' in e) {
         if (!anchors.has(e.at)) err(file, `${w}: unknown anchor '${e.at}'`);
         minutes(e.for);
+      }
+      if ('task' in e) {
+        if (!people.has(e.who)) err(file, `${w}: unknown person '${e.who}'`);
+        if (!b.orders.some((o) => o.id === e.task)) err(file, `${w}: unknown order '${e.task}'`);
       }
       if ('log' in e) needText(file, e.log);
       if ('endAct' in e) {

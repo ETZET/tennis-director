@@ -38,7 +38,13 @@ function hireChips(T: Text, id: string, people: ContentBundle['people'] | undefi
   return out;
 }
 
-export function effectChips(T: Text, effs: readonly Effect[], prob = 1, people?: ContentBundle['people']): Chip[] {
+export function effectChips(
+  T: Text,
+  effs: readonly Effect[],
+  prob = 1,
+  people?: ContentBundle['people'],
+  orders?: ContentBundle['orders'],
+): Chip[] {
   const out: Chip[] = [];
   for (const e of effs) {
     const p = prob * (typeof e.chance === 'number' ? e.chance : 1);
@@ -84,7 +90,18 @@ export function effectChips(T: Text, effs: readonly Effect[], prob = 1, people?:
         text: T.fmt('ui.chip.errand', { name: T.personName(e.errand), time: T.duration(minutes(e.for)) }),
         tone: 'time',
       });
-    else if ('activity' in e) out.push({ text: T.tr(`activities.${e.activity}.title`), tone: 'time' });
+    else if ('task' in e) {
+      // 把一张工单交给某人：谁去做什么，开工时要扣的材料费另给一个标签
+      out.push({
+        text: T.fmt('ui.chip.task', {
+          name: T.personName(e.who).split(' ')[0] ?? '',
+          what: T.tr(`orders.${e.task}.title`),
+        }),
+        tone: 'time',
+      });
+      const cost = orders?.find((o) => o.id === e.task)?.cost ?? 0;
+      if (cost) out.push({ text: T.fmt('ui.chip.cost', { n: cost }), tone: 'cost' });
+    } else if ('activity' in e) out.push({ text: T.tr(`activities.${e.activity}.title`), tone: 'time' });
     else if ('endAct' in e)
       out.push({ text: T.tr(`endings.${e.ending}.title`), tone: e.endAct === 'won' ? 'gain' : 'loss' });
   }

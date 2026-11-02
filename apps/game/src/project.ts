@@ -26,6 +26,7 @@ import {
   shortestRoute,
   speedOf,
   staffIds,
+  testCond,
   wagesWeek,
   weekdayOf,
   working,
@@ -388,6 +389,30 @@ export class Projector {
     return { name, initials, color: id === DIRECTOR ? '#62e08c' : (COLORS[h % COLORS.length] as string) };
   }
 
+  /**
+   * 此刻能开工、又没人在做的工单（钱够、人数没满）：修复类（做完换设施状态）在前，便宜的在前。
+   * 员工条和地点牌的"下一步"提示用（只读状态，不改任何东西）。
+   */
+  readyOrders(s: GameState): Order[] {
+    const w = worldOf(s, this.content);
+    const repair = (o: Order) => o.effects.some((e) => 'facility' in e && 'set' in e);
+    return [...w.orders.values()]
+      .filter((o) => {
+        const st = orderStatus(s, w, o);
+        return st.visible && st.blocked === null && st.crew.length === 0;
+      })
+      .sort((a, b) => Number(repair(b)) - Number(repair(a)) || a.cost - b.cost || a.id.localeCompare(b.id));
+  }
+
+  /** 有没有在职的人手上没活（没岗位没工单、没在走路、没在办事） */
+  anyIdle(s: GameState): boolean {
+    const w = worldOf(s, this.content);
+    return staffIds(s, w).some((id) => {
+      const p = s.people[id];
+      return !!p && !p.job && !p.walk && !p.errand;
+    });
+  }
+
   /** 岗位或工单的名字 */
   targetTitle(id: string): string {
     return this.text.tr(`posts.${id}.title`, this.text.tr(`orders.${id}.title`, id));
@@ -418,10 +443,14 @@ export class Projector {
       };
     // 闲着或在等客人：有下一班就说下一班几点（ADR 0014：到点他自己会去）
     const next = this.nextShift(s, id);
-    if (!p.job)
-      return next
-        ? { text: T.fmt('ui.staff.next', next), state: 'waiting' }
+    if (!p.job) {
+      if (next) return { text: T.fmt('ui.staff.next', next), state: 'waiting' };
+      // 闲着、手边又有能开工的活：员工条上直接说下一步是什么（e7：放置对照里没人告诉你下一步）
+      const ready = this.readyOrders(s).find((o) => canAssign(s, w, id, o.id) === null);
+      return ready
+        ? { text: T.fmt('ui.staff.idle_next', { what: this.targetTitle(ready.id) }), state: 'idle' }
         : { text: T.fmt('ui.staff.idle', { place: T.anchor(p.at) }), state: 'idle' };
+    }
     const post = w.posts.get(p.job);
     if (post) {
       const st = postStatus(s, w, post);
@@ -635,6 +664,8 @@ export class Projector {
     fit: 'none' | 'fit' | 'nofit';
     /** 这儿的设施状况低于 30 时的值（地点牌上挂红色 !） */
     worn: number | null;
+    /** 有人闲着、"下一步"的活就在这儿：工单格亮起来（e7 的轻提示） */
+    ready: boolean;
   } | null {
     const { s } = session;
     const w = worldOf(s, this.content);
@@ -680,6 +711,8 @@ export class Projector {
       orders: { n: orders.length, skills: [...new Set(orders.map((o) => o.skill))], progress: best, crew },
       fit,
       worn: this.lowAt(s, anchor),
+      // 只亮"下一步"那一处（修复优先、便宜的优先），不把所有能干的活都点亮
+      ready: !picked && this.anyIdle(s) && this.readyOrders(s)[0]?.at === anchor,
     };
   }
 
@@ -925,13 +958,22 @@ export class Projector {
           tone: 'time',
         });
       if (opt) {
-        chips.push(...effectChips(T, opt.effects, 1, this.content.people));
+        // 只讲此刻会生效的效果（带 if 的效果按现在的状态筛一遍，例如 Dale 只会接下一件修复）
+        const live = (effs: readonly Effect[]) => effs.filter((e) => !e.if || testCond(s, w, e.if));
+        const { people, orders } = this.content;
+        chips.push(...effectChips(T, live(opt.effects), 1, people, orders));
         chips.push(...this.flagChips(s, opt.effects, 1));
         if (st.chance !== null) {
           chips.push({ text: T.fmt('ui.chip.chance', { p: Math.round(st.chance * 100) }), tone: 'risk' });
-          chips.push(...effectChips(T, opt.onSuccess, st.chance), ...this.flagChips(s, opt.onSuccess, st.chance));
+          chips.push(
+            ...effectChips(T, live(opt.onSuccess), st.chance, people, orders),
+            ...this.flagChips(s, opt.onSuccess, st.chance),
+          );
           // 没成会怎样也要写出来（第二轮试玩 S6：抗议失败扣声望，卡上没提示）
-          chips.push(...effectChips(T, opt.onFail, 1 - st.chance), ...this.flagChips(s, opt.onFail, 1 - st.chance));
+          chips.push(
+            ...effectChips(T, live(opt.onFail), 1 - st.chance, people, orders),
+            ...this.flagChips(s, opt.onFail, 1 - st.chance),
+          );
         }
       }
       const then = opt ? thenLine(T, [...opt.effects, ...opt.onSuccess]) : undefined;

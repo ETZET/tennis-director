@@ -88,6 +88,48 @@ events:
     options:
       A: 表演赛那天请你坐裁判椅
       B: 你先歇几天
+  iw_dale_nudge:
+    title: "“咱俩站了一天了”"
+    body: Dale 在会所门口找到你："两个人，一整座园子，咱俩干站了一天了。还有能动手的活。下一件修复交给我，还是我去镇上给咱们攒点人气？"
+    options:
+      A: 交给 Dale 去干下一件修复（开工时扣材料费）
+      B: 让 Dale 去镇上上一堂免费体验课
+      C: 我自己有安排
+  iw_credit_union:
+    title: 信用社来电
+    body: Coachella Valley 信用社的信贷员停在大门口："这礼拜挺清闲？我们现在可以先借你 $2500，四周后还 $3000。"
+    options:
+      A: 借
+      B: 不欠债，谢谢
+  iw_loan_due:
+    title: 贷款到期
+    body: 信用社来收那 $3000 了。现在先付 $400 利息，可以再宽限两周。
+    options:
+      A: 一次还清
+      B: 付利息，再拖两周
+  iw_loan_final:
+    title: 展期到了
+    body: 信用社直接从账上扣钱，最多 $3000。镇上都传开了：园区欠过钱，账上越空，名声越难听。
+    options:
+      A: 还钱
+  iw_investor_call:
+    title: 投资方来电
+    body: "“这个礼拜没什么动静，修好的地方也比我们预想的少。”投资方在电话里问，“要再加点钱，还是第 13 周我们来看的时候你能赶上？”"
+    options:
+      A: 请他们追加 $1500
+      B: 保证赶上（来看时修好 5 处）
+  iw_rival_club:
+    title: La Quinta 来下战书
+    body: La Quinta 网球俱乐部的主教练来到外场 2–3："你们的会员老跟我的会员说这儿又活过来了。那就比一场，这个周末，俱乐部对抗赛。"
+    options:
+      A: 接下挑战，在这儿办
+      B: 现在没空
+  iw_dale_ten_years:
+    title: 十年
+    body: 清闲的一个礼拜，Dale 把你叫进会所后面的办公室："你从来没问过我为什么留下来。十年，一个人守着这片沙子。"他拉出第二把椅子。
+    options:
+      A: 坐下来听他说
+      B: 改天吧，活还多
   iw_hiring_day_1:
     title: 第一个招聘日
     body: 会所门口贴了告示，来了两个人。招了就每周付工资。
@@ -142,6 +184,8 @@ log:
   started: 你来到了废弃的 Indian Wells Tennis Garden。
   first_court: 外场 1 换上了新网：十年来第一块能打的场地
   ball_machine: 发球机修好了，学院的课更扎实了
+  loan_declined: 你没借信用社的钱
+  loan_paid: 信用社的贷款还清了
   clubhouse_open: 会所前台开张了，可以开招聘日了
   stadium_3_open: Stadium 3 又能用了
   stadium_2_open: Stadium 2 开放了
@@ -273,6 +317,8 @@ who:
   retirees: { name: 两位退休老人, role: 从 Palm Desert 来 }
   reporter: { name: The Desert Sun, role: 本地报纸的记者 }
   sponsor: { name: 沙漠储蓄银行, role: 本地的银行 }
+  lender: { name: Coachella Valley 信用社, role: 信贷员 }
+  rival_coach: { name: La Quinta 网球俱乐部, role: 他们的主教练 }
 roles:
   director: 总监
   coach: 主教练
@@ -323,6 +369,7 @@ ui:
   days: { "0": 一, "1": 二, "2": 三, "3": 四, "4": 五, "5": 六, "6": 日 }
   chip:
     errand: "{name}离岗 {time}"
+    task: "{name}去做：{what}"
     wage: "周薪 ${n}"
     hire: "{name} 上任"
     fire: "{name} 离开"
@@ -390,6 +437,7 @@ ui:
     quality: 质量
     restored: 修复
     traits: 员工特质
+  task_log: "{name}闲下来就去做{what}"
   because:
     post: "{name}在“{post}”干了 {n} 圈"
     order: "{names}做完了“{order}”"
@@ -412,6 +460,7 @@ ui:
     next: "下一班 {time} · {what}"
     hint: "点一个地点牌，把{name}派过去 · 派上的班会被记住"
     idle: "在{place}闲着"
+    idle_next: "闲着 · ⚒ {what}"
     waiting: "{what} · 等客人"
     walking: "去{what} · {time}"
     errand: "在{place}办事 · {time}"

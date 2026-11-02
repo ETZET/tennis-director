@@ -246,7 +246,7 @@ function addHubs(c: ContentBundle): void {
             .join('');
           const o = h.orders;
           const orders = o.n
-            ? `<span class="hb-o${o.crew ? ' hb-on' : ''}">${o.skills.map((k) => `<i class="hb-${k}"></i>`).join('')}⚒${o.progress !== null ? `${Math.round(o.progress * 100)}%` : o.n > 1 ? o.n : ''}</span>`
+            ? `<span class="hb-o${o.crew ? ' hb-on' : ''}${h.ready ? ' hb-ready' : ''}">${o.skills.map((k) => `<i class="hb-${k}"></i>`).join('')}⚒${o.progress !== null ? `${Math.round(o.progress * 100)}%` : o.n > 1 ? o.n : ''}</span>`
             : '';
           const name = `<b>${esc(text.anchor(a))}</b>`;
           // 设施快撑不住了：红色 ! 加状况（第二轮试玩 S3）

@@ -73,6 +73,10 @@ body{background:var(--sky);color:var(--navy);font-family:var(--f-text);overflow:
 .hb-need{background:#ff8a6b;color:var(--paper);font-size:16px}
 .hb-o{height:28px;display:flex;align-items:center;gap:2px;padding:0 6px 0 4px;background:rgba(255,192,74,.22);border:1px solid #ffc04a;color:#ffd78a;font:800 13px/1 var(--f-cond)}
 .hb-o.hb-on{border-color:var(--optic);color:var(--optic)}
+/* 有人闲着、这儿有能开工的活：工单格亮成琥珀色并轻轻跳（e7 的"下一步"提示；拿起人以后由 tg-fit 接手） */
+.hb-o.hb-ready{background:#ffc04a;color:var(--navy);border-color:#ffd78a;animation:hb-ready 1.6s ease-in-out infinite}
+@keyframes hb-ready{50%{box-shadow:0 0 0 4px rgba(255,192,74,.5)}}
+@media (prefers-reduced-motion:reduce){.hb-o.hb-ready{animation:none}}
 .hb-o i{width:4px;height:16px;margin-right:1px}
 .hb-teach{background:#d7ff3c}
 .hb-upkeep{background:#9be07f}

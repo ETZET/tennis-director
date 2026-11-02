@@ -1,0 +1,29 @@
+# 中后段一个星期没什么事时，La Quinta 那家俱乐部的主教练来下战书：会员在两边比较。
+# 导演在停滞时才放它出来（quiet_days）；只给已经有几块场地和一批会员的园区。
+id: iw_rival_club
+act: indian_wells
+source: threshold
+tone: crisis
+once: true
+countdown: 1d
+when:
+  all:
+    - { expr: "quiet_days >= 7" }
+    - { day: { gte: 45, lte: 105 } }
+    - { expr: "courts_open >= 3" }
+    - { stat: members, gte: 10 }
+location: outer_23
+who: rival_coach
+options:
+  A:
+    # 接下挑战赛：总监亲自去外场 2–3 张罗三个小时，奖品和饮料 $150；赢了面子，也拉来几个会员
+    errand: { at: outer_23, for: 3h }
+    cost: 150
+    effects:
+      - { stat: reputation, add: 4 }
+      - { stat: members, add: 3 }
+  B:
+    # 不接：省下时间和钱，有几个会员觉得这边不如 La Quinta 热闹
+    effects:
+      - { stat: members, add: -4 }
+default: { then: B }

@@ -88,6 +88,48 @@ events:
     options:
       A: You'll umpire the exhibition
       B: Take a few days off first
+  iw_dale_nudge:
+    title: '"We''ve been standing around"'
+    body: Dale finds you by the clubhouse. "Two of us, a whole garden, and we've been standing around for a day. There's still work we can start. Want me to take the next repair, or shall I go drum up some interest in town?"
+    options:
+      A: Dale takes the next repair (materials paid when he starts)
+      B: Dale runs a free taster lesson in town
+      C: I've got a plan
+  iw_credit_union:
+    title: The credit union calls
+    body: A loan officer from the Coachella Valley Credit Union stops at the gate. "Quiet week? We can float you $2500 now. Four weeks, $3000 back."
+    options:
+      A: Take the loan
+      B: No debts, thanks
+  iw_loan_due:
+    title: The loan is due
+    body: The credit union is back for its $3000. They'll give you two more weeks if you pay $400 interest now.
+    options:
+      A: Pay it all back
+      B: Two more weeks, pay the interest
+  iw_loan_final:
+    title: The extension is over
+    body: The credit union takes what it can of the $3000 straight from the account. Word gets around town that the garden owed money; the emptier the account, the worse it sounds.
+    options:
+      A: Pay up
+  iw_investor_call:
+    title: The investors call
+    body: '"A quiet week, and we count fewer places fixed than we hoped by now." The investors are on the phone. "Do you need more money, or will you catch up by our visit in week 13?"'
+    options:
+      A: Ask for $1500 more
+      B: Promise we'll catch up (5 places by the visit)
+  iw_rival_club:
+    title: A challenge from La Quinta
+    body: The head coach of the La Quinta Racquet Club turns up at Courts 2–3. "Your members keep telling mine this place is back. Prove it. Club match, this weekend."
+    options:
+      A: Take the challenge and host it
+      B: Not now, we're busy
+  iw_dale_ten_years:
+    title: Ten years
+    body: A quiet week. Dale calls you into his office behind the clubhouse. "You never asked why I stayed. Ten years, alone with the sand." He pulls out a second chair.
+    options:
+      A: Sit down and listen
+      B: Another time, there's work to do
   iw_hiring_day_1:
     title: The first hiring day
     body: You put a notice on the clubhouse door and two people came. Anyone you hire is paid weekly.
@@ -142,6 +184,8 @@ log:
   started: You arrive at the abandoned Indian Wells Tennis Garden.
   first_court: "Court 1 has a new net: the first playable court in ten years"
   ball_machine: The ball machine works again; academy lessons are better
+  loan_declined: You turned down the credit union's loan
+  loan_paid: The credit union loan is paid off
   clubhouse_open: The clubhouse front desk is open; hiring days can start
   stadium_3_open: Stadium 3 is usable again
   stadium_2_open: Stadium 2 is open
@@ -273,6 +317,8 @@ who:
   retirees: { name: Two retirees, role: From Palm Desert }
   reporter: { name: The Desert Sun, role: Local newspaper reporter }
   sponsor: { name: Desert Savings Bank, role: A local bank }
+  lender: { name: Coachella Valley Credit Union, role: A loan officer }
+  rival_coach: { name: La Quinta Racquet Club, role: Their head coach }
 roles:
   director: Director
   coach: Head coach
@@ -323,6 +369,7 @@ ui:
   days: { "0": Mon, "1": Tue, "2": Wed, "3": Thu, "4": Fri, "5": Sat, "6": Sun }
   chip:
     errand: "{name} away {time}"
+    task: "{name} → {what}"
     wage: "${n}/week"
     hire: "{name} joins"
     fire: "{name} leaves"
@@ -400,6 +447,7 @@ ui:
     quality: quality
     restored: repairs
     traits: staff traits
+  task_log: "{name} will take on {what} when free"
   because:
     post: "{name} worked {n} rounds on “{post}”"
     order: "{names} finished “{order}”"
@@ -422,6 +470,7 @@ ui:
     next: "Next shift {time} · {what}"
     hint: "Tap a place to send {name} there · they remember shifts"
     idle: "Idle at {place}"
+    idle_next: "Free · ⚒ {what}"
     waiting: "{what} · waiting for customers"
     walking: "To {what} · {time}"
     errand: "Away at {place} · {time}"

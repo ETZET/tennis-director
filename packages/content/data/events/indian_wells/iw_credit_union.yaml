@@ -1,0 +1,27 @@
+# 一个星期没什么事、钱又见底的时候，Coachella Valley 信用社的人找上门：可以先借一笔周转。
+# 导演在长时间没卡（quiet_days）时才放它出来（e7：中段 30 多天没卡、钱是唯一的瓶颈）。
+id: iw_credit_union
+act: indian_wells
+source: threshold
+tone: relief
+once: true
+countdown: 1d
+when:
+  all:
+    - { expr: "quiet_days >= 7" }
+    - { stat: cash, lt: 1500 }
+    - { day: { gte: 20, lte: 90 } }
+location: entrance
+who: lender
+options:
+  A:
+    # 借：现在多 $2500 修东西，四周后要还 $3000
+    effects:
+      - { stat: cash, add: 2500 }
+      - { flag: loan_taken, set: true }
+      - { schedule: iw_loan_due, in: 28d }
+  B:
+    # 不借：不欠人钱，修复按自己的钱慢慢来
+    effects:
+      - { log: log.loan_declined }
+default: { then: B }

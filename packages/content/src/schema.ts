@@ -100,6 +100,8 @@ export const effect = z.union([
   z.strictObject({ ...gate, endAct: z.enum(['won', 'lost']), ending: id }),
   /** 把某人从手上的岗位叫走，到 at 去办一件事，办 for 这么久（拉走持续岗位照样丢掉这一圈） */
   z.strictObject({ ...gate, errand: id, at: id, for: duration }),
+  /** 把一张工单记给某人：他闲下来（手上的班结束、工单做完）就自己走过去开工，材料费照常在开工时扣 */
+  z.strictObject({ ...gate, task: id, who: id }),
 ]);
 export type Effect = z.infer<typeof effect>;
 
