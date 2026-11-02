@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { createBuildContext } from '../../world/build-context';
 import { CourtFrame } from '../../world/frame';
 import type { Site } from '../../world/site';
+import { createIndianWellsSky } from './ambient';
 import { buildIndianWells } from './build';
 import {
   ANCHORS,
@@ -57,9 +58,10 @@ export const INDIAN_WELLS: Site = {
     skyRain: new THREE.Color('#9a9488'),
   },
   camera: {
-    // 默认看整个园区：Stadium 1 在中间，背后（西北）是群山
-    overview: { yaw: 0.72, pitch: 0.7, zoom: 0.3, tx: -16, tz: -6 },
-    portrait: { yaw: 0.72, pitch: 0.9, zoom: 0.62, tx: -24, tz: -22 },
+    // 默认看整个园区（十个地点和地点牌都在 HUD 之间的空当里）：桌面从东南看，背后（西北）是群山
+    overview: { yaw: 0.7, pitch: 0.72, zoom: 0.256, tx: -1, tz: -8 },
+    // 竖屏从东边看过去：园区的长边竖着放，西边的群山在上面
+    portrait: { yaw: 1.3, pitch: 0.95, zoom: 0.4, tx: -15.5, tz: -9 },
     limits: { zoom: [0.2, 3.2], pitch: [0.4, 1.3], tx: [SITE.x0 + 10, SITE.x1 - 10], tz: [SITE.z0 + 10, SITE.z1 - 10] },
   },
   venue: 'hollow',
@@ -81,5 +83,5 @@ export const INDIAN_WELLS: Site = {
     buildIndianWells(createBuildContext(stage.scene, mulberry32(INDIAN_WELLS_SEED)));
   },
   createOverlays: createFacilityOverlays,
-  createSky: () => ({ update() {} }),
+  createSky: createIndianWellsSky,
 };

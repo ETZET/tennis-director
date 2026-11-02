@@ -1,5 +1,6 @@
 import { lerp, pick } from '@td/shared';
 import * as THREE from 'three';
+import { VoxelBatcher } from '../voxel/batcher';
 import { sign } from '../voxel/text';
 import { type BuildContext, cbox, jit, sr } from '../world/build-context';
 import type { CourtFrame } from '../world/frame';
@@ -143,12 +144,6 @@ export function courtLines(ctx: BuildContext, fr: CourtFrame, col: string, missi
   seg(-SL, 0, SL, 0);
 }
 
-let netMat: THREE.MeshLambertMaterial | null = null;
-const getNetMat = () => {
-  netMat ??= new THREE.MeshLambertMaterial({ color: '#1c201d', transparent: true, opacity: 0.5, depthWrite: false });
-  return netMat;
-};
-
 export type NetMode = 'sag' | 'new' | 'normal';
 
 /** 球网：网柱、半透明网面、网带。sag 是下垂的旧网。 */
@@ -157,15 +152,14 @@ export function net(ctx: BuildContext, fr: CourtFrame, mode: NetMode): void {
   cbox(ctx, fr, 0, 0, 6.4, 0.12, 1.0, 0.12, '#2a332d');
   const n = 16;
   const sw = 12.8 / n;
+  // 半透明的网面合成一个网格（一块网一次绘制调用）
+  const mesh = new VoxelBatcher();
   for (let i = 0; i < n; i++) {
     const lz = -6.4 + sw * (i + 0.5);
     const u = lz / 6.4;
     const top = mode === 'sag' ? 1.0 - 0.36 * (1 - u * u) : 0.92;
-    const p = fr.w({ x: 0, y: 0.09 + (top - 0.12) / 2, z: lz });
-    const m = new THREE.Mesh(new THREE.BoxGeometry(0.03, top - 0.12, sw), getNetMat());
-    m.position.set(p.x, p.y, p.z);
-    m.rotation.y = fr.a;
-    ctx.scene.add(m);
+    const p = fr.w({ x: 0, y: 0.09, z: lz });
+    mesh.box(p.x, p.y, p.z, 0.03, top - 0.12, sw, '#1c201d', fr.a);
     cbox(
       ctx,
       fr,
@@ -178,6 +172,7 @@ export function net(ctx: BuildContext, fr: CourtFrame, mode: NetMode): void {
       mode === 'new' ? '#f3f1ea' : i % 5 === 2 ? '#bdb8a8' : '#d9d4c3',
     );
   }
+  mesh.build(ctx.scene, false, false, { transparent: true, opacity: 0.5, depthWrite: false });
 }
 
 export type FenceSide = 'S' | 'N' | 'E' | 'W';
@@ -215,7 +210,11 @@ export function pen(
     { ax: 'z', k: -fr.hx, a: -fr.hz, b: fr.hz, ry: Math.PI / 2, id: 'W' },
   ] as const;
   let bayIdx = 0;
+  const dummy = new THREE.Object3D();
+  dummy.rotation.order = 'YXZ';
   for (const s of sides) {
+    // 一面围网的网片合成一个网格；朝外的法线（世界坐标）挂在它上面，相机这一侧的整面可以隐藏
+    const parts: THREE.BufferGeometry[] = [];
     const n = Math.round((s.b - s.a) / 3);
     const bw = (s.b - s.a) / n;
     for (let i = 0; i <= n; i++) {
@@ -247,16 +246,11 @@ export function pen(
       const isHole = holes.includes(bayIdx);
       if (!isGate && !isHole) {
         const pl = bayIdx === peel;
-        const m = new THREE.Mesh(new THREE.PlaneGeometry(bw, pl ? H * 0.6 : H), mat);
         const p = fr.w({ x: lx, y: (pl ? 0.8 : H / 2) - 0.07, z: lz });
-        m.position.set(p.x, p.y, p.z);
-        m.rotation.order = 'YXZ';
-        m.rotation.y = fr.a + s.ry;
-        if (pl) m.rotation.x = 0.9;
-        // 朝外的法线（世界坐标）：相机这一侧的网片可以整片隐藏，场地不再像隔着一层玻璃
-        const ln = s.ax === 'x' ? { x: 0, z: Math.sign(s.k) } : { x: Math.sign(s.k), z: 0 };
-        m.userData.fenceNormal = { x: ln.x * fr.c + ln.z * fr.s, z: -ln.x * fr.s + ln.z * fr.c };
-        ctx.scene.add(m);
+        dummy.position.set(p.x, p.y, p.z);
+        dummy.rotation.set(pl ? 0.9 : 0, fr.a + s.ry, 0);
+        dummy.updateMatrix();
+        parts.push(new THREE.PlaneGeometry(bw, pl ? H * 0.6 : H).toNonIndexed().applyMatrix4(dummy.matrix));
       }
       for (const [yy, miss] of [
         [H, 0.15],
@@ -272,7 +266,33 @@ export function pen(
         weed(ctx, p.x, fr.oy - 0.07, p.z, 3);
       }
     }
+    if (parts.length) {
+      const m = new THREE.Mesh(mergePositions(parts), mat);
+      // 朝外的法线（世界坐标）：相机这一侧的网可以整面隐藏，场地不再像隔着一层玻璃
+      const ln = s.ax === 'x' ? { x: 0, z: Math.sign(s.k) } : { x: Math.sign(s.k), z: 0 };
+      m.userData.fenceNormal = { x: ln.x * fr.c + ln.z * fr.s, z: -ln.x * fr.s + ln.z * fr.c };
+      ctx.scene.add(m);
+    }
   }
+}
+
+/** 把几块非索引几何合成一块（只要位置和法线） */
+function mergePositions(parts: readonly THREE.BufferGeometry[]): THREE.BufferGeometry {
+  const pos: number[] = [];
+  const nor: number[] = [];
+  for (const g of parts) {
+    const p = g.getAttribute('position');
+    const n = g.getAttribute('normal');
+    for (let i = 0; i < p.count; i++) {
+      pos.push(p.getX(i), p.getY(i), p.getZ(i));
+      nor.push(n.getX(i), n.getY(i), n.getZ(i));
+    }
+    g.dispose();
+  }
+  const out = new THREE.BufferGeometry();
+  out.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  out.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+  return out;
 }
 
 /** 在场地坐标系里立一块招牌。 */
