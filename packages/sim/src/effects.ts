@@ -1,4 +1,4 @@
-import { type Effect, minutes } from '@td/content';
+import { type Effect, minutes, type Person, WORKER } from '@td/content';
 import { clamp, type Value } from '@td/shared';
 import type { SimEvent } from './events';
 import { rand } from './rng';
@@ -19,7 +19,13 @@ export interface Ctx {
   readonly events: SimEvent[];
   /** 表达式里额外能读的变量（岗位效果里的 worker.skill） */
   readonly vars?: Record<string, Value>;
+  /** 岗位和工单的效果里 person: worker 指的人 */
+  readonly worker?: string;
 }
+
+/** 招来以后当主教练的人：作用是教练（旧写法 role: coach、hire_as: coach） */
+export const isCoach = (d: Person | undefined): boolean =>
+  !!d && (d.kind === 'coach' || d.role === 'coach' || d.hire_as === 'coach');
 
 /** 写一条因果日志；没有任何效果的条目也记（"你选了 C，什么都没发生"也是故事的一部分）。 */
 export function logEntry(ctx: Ctx, cause: Cause, parent: number | null, effects: EffectRecord[]): CausalEntry {
@@ -39,7 +45,7 @@ export function setStat(ctx: Ctx, stat: string, value: number): number {
   return v - before;
 }
 
-const PERSON_ATTRS = ['skill', 'upkeep', 'service', 'morale', 'fatigue'] as const;
+const PERSON_ATTRS = ['skill', 'upkeep', 'service', 'play', 'morale', 'fatigue'] as const;
 
 /** 执行一串效果，把结果追加到 out。entryId 是这次执行对应的日志条目（后续事件带着它当原因）。 */
 export function applyEffects(ctx: Ctx, effects: readonly Effect[], entryId: number, out: EffectRecord[]): void {
@@ -79,11 +85,28 @@ export function applyEffects(ctx: Ctx, effects: readonly Effect[], entryId: numb
       });
       out.push({ kind: 'activity', activity: a.id, at: start });
     } else if ('hire' in e) {
+      const def = w.people.get(e.hire);
+      // 内容里后来加的候选人不在旧存档里：招的时候按内容补上
+      if (!s.people[e.hire] && def)
+        s.people[e.hire] = {
+          id: def.id,
+          hired: false,
+          at: '',
+          skill: def.skill,
+          upkeep: def.upkeep,
+          service: def.service,
+          play: def.play,
+          morale: def.morale,
+          fatigue: def.fatigue,
+          job: null,
+          walk: null,
+          errand: null,
+          routine: [],
+        };
       const p = s.people[e.hire];
       if (!p || p.hired) continue;
-      const def = w.people.get(e.hire);
       // 招来的教练接任主教练；原来的主教练留下当员工（核心玩法决定：Dale 开局不开除）
-      if (def && (def.role === 'coach' || def.hire_as === 'coach')) s.headCoach = e.hire;
+      if (isCoach(def)) s.headCoach = e.hire;
       // 新人从总监开局的地方（Indian Wells 是大门）进来，等你把他拖到岗位上
       p.at = w.act.people.find((x) => w.people.get(x.id)?.role === 'director')?.at ?? p.at;
       p.job = null;
@@ -100,23 +123,21 @@ export function applyEffects(ctx: Ctx, effects: readonly Effect[], entryId: numb
       p.errand = null;
       // 走的是主教练：还在的教练里接一个（Dale 开局不开除，一直都在）
       if (s.headCoach === e.fire) {
-        const next = Object.values(s.people).find((q) => {
-          const d = w.people.get(q.id);
-          return q.hired && (d?.role === 'coach' || d?.hire_as === 'coach');
-        });
+        const next = Object.values(s.people).find((q) => q.hired && isCoach(w.people.get(q.id)));
         s.headCoach = next?.id ?? null;
       }
       out.push({ kind: 'fire', person: e.fire });
     } else if ('person' in e) {
-      const p = s.people[e.person];
-      if (!p) continue;
+      const who = e.person === WORKER ? ctx.worker : e.person;
+      const p = who ? s.people[who] : undefined;
+      if (!p || !who) continue;
       for (const attr of PERSON_ATTRS) {
         const v = e.add[attr];
         if (v === undefined) continue;
         const before = p[attr];
         p[attr] = clamp(before + num(s, w, v, ctx.vars), 0, 100);
         const delta = p[attr] - before;
-        if (delta !== 0) out.push({ kind: 'person', person: e.person, attr, delta });
+        if (delta !== 0) out.push({ kind: 'person', person: who, attr, delta });
       }
     } else if ('condition' in e) {
       const before = s.condition[e.condition] ?? 100;

@@ -22,12 +22,12 @@ import {
   type SkillKind,
   serviceRate,
   shortestRoute,
-  skillOf,
   speedOf,
   staffIds,
   wagesWeek,
   weekdayOf,
   working,
+  workSkill,
   worldOf,
 } from '@td/sim';
 import {
@@ -422,7 +422,12 @@ export class Projector {
           ...this.face(id),
           doing: d.text,
           state: d.state,
-          skills: { teach: p?.skill ?? 0, upkeep: p?.upkeep ?? 0, service: p?.service ?? 0 },
+          skills: {
+            teach: p?.skill ?? 0,
+            upkeep: p?.upkeep ?? 0,
+            service: p?.service ?? 0,
+            ...(this.content.people.find((x) => x.id === id)?.kind === 'player' ? { play: p?.play ?? 0 } : {}),
+          },
           ...(session.picked === id ? { picked: true } : {}),
           ...(p?.errand ? { locked: true } : {}),
         };
@@ -528,7 +533,7 @@ export class Projector {
         const block: AssignBlock = canAssign(s, w, id, target);
         const walk = this.walkMinutes(s, id, def.at);
         const fit = [
-          `${T.tr(`ui.skill.${skill}`)} ${Math.round(p ? skillOf(p, skill) : 0)}`,
+          `${T.tr(`ui.skill.${skill}`)} ${Math.round(workSkill(s, w, id, skill))}`,
           walk ? T.fmt('ui.sheet.walk', { time: T.duration(walk) }) : T.tr('ui.sheet.here'),
           p?.job && !here ? T.fmt('ui.sheet.leaves', { what: this.targetTitle(p.job) }) : '',
         ]
@@ -539,7 +544,7 @@ export class Projector {
           ...this.face(id),
           fit:
             here && p && working(s, w, id)
-              ? T.fmt('ui.sheet.speed', { n: Math.round(speedOf(skillOf(p, skill)) * 100) })
+              ? T.fmt('ui.sheet.speed', { n: Math.round(speedOf(workSkill(s, w, id, skill)) * 100) })
               : fit,
           ...(here ? { here: true } : {}),
           ...(block && block !== 'same' ? { disabled: T.tr(`ui.why.${block}`) } : {}),
@@ -672,12 +677,12 @@ export class Projector {
       if (here) return { text: T.tr('ui.sheet.here'), here: true };
       if (block && block !== 'same') return { text: T.tr(`ui.why.${block}`), blocked: true };
       const walk = this.walkMinutes(s, picked, at);
-      const lv = (k: SkillKind) => (p ? skillOf(p, k) : 0);
-      const best = lv(skill) >= Math.max(lv('teach'), lv('upkeep'), lv('service'));
+      const lv = (k: SkillKind) => (p ? workSkill(s, w, picked, k) : 0);
+      const best = lv(skill) >= Math.max(lv('teach'), lv('upkeep'), lv('service'), lv('play'));
       return {
         ...(best ? { best: true } : {}),
         text: [
-          `${T.tr(`ui.skill.${skill}`)} ${Math.round(p ? skillOf(p, skill) : 0)}`,
+          `${T.tr(`ui.skill.${skill}`)} ${Math.round(lv(skill))}`,
           walk ? T.fmt('ui.sheet.walk', { time: T.duration(walk) }) : T.tr('ui.sheet.here'),
           p?.job ? T.fmt('ui.sheet.leaves', { what: this.short(p.job) }) : '',
         ]
@@ -880,6 +885,9 @@ export class Projector {
       if (st.blocked === 'busy') hints.push(T.tr('ui.hint.busy'));
       if (st.blocked === 'requires') hints.push(T.tr('ui.hint.requires'));
       if (st.blocked === 'cost') hints.push(T.tr('ui.hint.cash'));
+      // 招聘选项：这个人的一句话背景（docs/design/people.md）
+      const bios = (opt?.effects ?? []).map((e) => ('hire' in e ? T.tr(`bios.${e.hire}`, '') : ''));
+      hints.push(...bios.filter(Boolean));
       // 代价和收益由标签讲，选项文字只留"做什么"（去掉文案里 " · " 后面手写的代价）
       // 招聘选项留下人物的一句介绍（"维护好手"），周薪由标签讲
       const full = T.option(o.card, st.key);

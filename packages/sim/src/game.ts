@@ -77,6 +77,7 @@ export function newGame(content: ContentBundle, o: NewGameOptions): GameState {
       skill: p.skill,
       upkeep: p.upkeep,
       service: p.service,
+      play: p.play,
       morale: p.morale,
       fatigue: p.fatigue,
       job: placed?.job ?? null,

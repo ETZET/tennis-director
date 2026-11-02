@@ -1,25 +1,190 @@
-# Indian Wells 的人物。director 是总监本人；candidate 是招聘日能招来的人（hire_as：教练或员工）。
-# skill = 教学，upkeep = 维护，service = 服务（ADR 0012）。总监没有士气（核心玩法决定），能力随干活慢慢涨。
+# Indian Wells 的人物（docs/design/people.md）。director 是总监本人；candidate 是招聘日能招来的人。
+# kind：coach 教练 / crew 维护工 / special 特殊作用人物 / player 球员。
+# skill = 教学，upkeep = 维护，service = 服务，play = 球技（ADR 0012；球技只有球员用）。总监没有士气，能力随干活慢慢涨。
+# 一句话背景在 i18n 的 bios.<id>，特质在 traits.yaml。名字和经历都是虚构的。
 - { id: director, name: Director, role: director, skill: 30, upkeep: 35, service: 40, morale: 100 }
 # Dale：园区关门以后一直守在这里的老教练。开局不开除（核心玩法决定）。
-- { id: dale, name: Dale Pruitt, role: coach, skill: 45, upkeep: 40, service: 20, morale: 55, wage_week: 150 }
-# 招聘日的候选人
-- { id: rosa_ortiz, name: Rosa Ortiz, role: candidate, hire_as: staff, skill: 5, upkeep: 65, service: 30, morale: 70, wage_week: 180 }
-- { id: ben_kim, name: Ben Kim, role: candidate, hire_as: staff, skill: 25, upkeep: 20, service: 60, morale: 80, wage_week: 140 }
-- { id: jess_park, name: Jess Park, role: candidate, hire_as: coach, skill: 58, service: 40, morale: 85, wage_week: 260, traits: [eager] }
-- { id: gus_moreno, name: Gus Moreno, role: candidate, hire_as: staff, skill: 10, upkeep: 78, service: 15, morale: 55, wage_week: 240, traits: [burnt_out] }
-- { id: lily_chen, name: Lily Chen, role: candidate, hire_as: staff, skill: 30, upkeep: 15, service: 74, morale: 75, wage_week: 220 }
+- { id: dale, name: Dale Pruitt, role: coach, kind: coach, skill: 45, upkeep: 40, service: 20, play: 30, morale: 55, wage_week: 150 }
+
+# ---- 招聘日 1（固定）：一个干活的，一个招呼人的 ----
+- {
+    id: rosa_ortiz,
+    name: Rosa Ortiz,
+    role: candidate,
+    kind: crew,
+    skill: 5,
+    upkeep: 62,
+    service: 28,
+    morale: 70,
+    wage_week: 180,
+    traits: [desert_born, bilingual],
+  }
+- {
+    id: ben_kim,
+    name: Ben Kim,
+    role: candidate,
+    kind: special,
+    skill: 25,
+    upkeep: 20,
+    service: 55,
+    morale: 80,
+    wage_week: 140,
+    traits: [early_bird],
+  }
+
+# ---- 招聘日 2：a 一位教练 / 一个老场地工；b 一个体能师 / 一个想再拼一次的球员 ----
+- {
+    id: jess_park,
+    name: Jess Park,
+    role: candidate,
+    kind: coach,
+    skill: 56,
+    service: 40,
+    play: 45,
+    morale: 85,
+    wage_week: 260,
+    traits: [eager, college],
+  }
+- {
+    id: gus_moreno,
+    name: Gus Moreno,
+    role: candidate,
+    kind: crew,
+    skill: 10,
+    upkeep: 70,
+    service: 15,
+    morale: 55,
+    wage_week: 240,
+    traits: [burnt_out, perfectionist],
+  }
+- {
+    id: kofi_mensah,
+    name: Kofi Mensah,
+    role: candidate,
+    kind: special,
+    skill: 52,
+    upkeep: 25,
+    service: 35,
+    play: 20,
+    morale: 75,
+    wage_week: 230,
+    traits: [trainer, early_bird],
+  }
+- {
+    id: amara_okafor,
+    name: Amara Okafor,
+    role: candidate,
+    kind: player,
+    skill: 40,
+    upkeep: 20,
+    service: 35,
+    play: 56,
+    morale: 80,
+    wage_week: 120,
+    traits: [college, late_bloomer],
+  }
+
+# ---- 招聘日 3：a 前台好手 / 一位老教练；b 一个穿线师 / 一个受过伤的天才少年 ----
+- {
+    id: lily_chen,
+    name: Lily Chen,
+    role: candidate,
+    kind: special,
+    skill: 30,
+    upkeep: 15,
+    service: 66,
+    morale: 75,
+    wage_week: 220,
+    traits: [bilingual, night_owl],
+  }
 - {
     id: walt_hendricks,
     name: Walt Hendricks,
     role: candidate,
-    hire_as: coach,
-    skill: 70,
+    kind: coach,
+    skill: 66,
     upkeep: 30,
     service: 20,
+    play: 35,
     morale: 40,
     wage_week: 420,
-    traits: [burnt_out],
+    traits: [burnt_out, mentor],
   }
-- { id: marco_ruiz, name: Marco Ruiz, role: candidate, hire_as: staff, skill: 20, upkeep: 60, service: 50, morale: 70, wage_week: 230 }
-- { id: nadia_volkov, name: Nadia Volkov, role: candidate, hire_as: coach, skill: 86, service: 55, morale: 70, wage_week: 900, traits: [star] }
+- {
+    id: teo_ilic,
+    name: Teodora Ilić,
+    role: candidate,
+    kind: special,
+    skill: 15,
+    upkeep: 60,
+    service: 45,
+    play: 30,
+    morale: 70,
+    wage_week: 210,
+    traits: [stringer, perfectionist],
+  }
+- {
+    id: luca_ferreira,
+    name: Luca Ferreira,
+    role: candidate,
+    kind: player,
+    skill: 35,
+    upkeep: 15,
+    service: 25,
+    play: 66,
+    morale: 50,
+    wage_week: 180,
+    traits: [prodigy, burnt_out],
+  }
+
+# ---- 招聘日 4：a 一位前职业球员 / 一个多面手；b 一个老场地主管 / 一个本地的球童 ----
+- {
+    id: nadia_volkov,
+    name: Nadia Volkov,
+    role: candidate,
+    kind: coach,
+    skill: 86,
+    service: 55,
+    play: 70,
+    morale: 70,
+    wage_week: 900,
+    traits: [star, legend],
+  }
+- {
+    id: marco_ruiz,
+    name: Marco Ruiz,
+    role: candidate,
+    kind: crew,
+    skill: 20,
+    upkeep: 58,
+    service: 45,
+    morale: 70,
+    wage_week: 230,
+    traits: [bilingual, night_owl],
+  }
+- {
+    id: ray_delgado,
+    name: Ray Delgado,
+    role: candidate,
+    kind: crew,
+    skill: 25,
+    upkeep: 84,
+    service: 30,
+    play: 20,
+    morale: 65,
+    wage_week: 320,
+    traits: [local_hero, old_injury],
+  }
+- {
+    id: mateo_salgado,
+    name: Mateo Salgado,
+    role: candidate,
+    kind: special,
+    skill: 10,
+    upkeep: 35,
+    service: 48,
+    play: 42,
+    morale: 90,
+    wage_week: 70,
+    traits: [ball_kid, eager],
+  }

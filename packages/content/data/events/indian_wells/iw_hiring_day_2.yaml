@@ -1,4 +1,4 @@
-# 第二个招聘日：两周后又来了两个人，一个教练，一个干活很利索的老师傅。
+# 第二个招聘日（a）：一位教练，一个干了半辈子的场地工。
 id: iw_hiring_day_2
 act: indian_wells
 source: consequence
@@ -11,13 +11,23 @@ options:
   A:
     effects:
       - { hire: jess_park }
-      - { schedule: iw_hiring_day_3, in: 14d }
+      # 下一个招聘日来哪一拨人，按这一局的种子抽（docs/design/people.md「招聘日怎么出人」）
+      - { flag: iw_hiring_day_3_b, set: true, chance: 0.5 }
+      - { schedule: iw_hiring_day_3, in: 14d, if: { not: { flag: iw_hiring_day_3_b } } }
+      - { schedule: iw_hiring_day_3b, in: 14d, if: { flag: iw_hiring_day_3_b } }
   B:
     effects:
       - { hire: gus_moreno }
-      - { schedule: iw_hiring_day_3, in: 14d }
+      # 下一个招聘日来哪一拨人，按这一局的种子抽（docs/design/people.md「招聘日怎么出人」）
+      - { flag: iw_hiring_day_3_b, set: true, chance: 0.5 }
+      - { schedule: iw_hiring_day_3, in: 14d, if: { not: { flag: iw_hiring_day_3_b } } }
+      - { schedule: iw_hiring_day_3b, in: 14d, if: { flag: iw_hiring_day_3_b } }
   C:
     effects:
+      # 不招：省下工资，活还是那几个人干
       - { log: log.no_hire }
-      - { schedule: iw_hiring_day_3, in: 14d }
+      # 下一个招聘日来哪一拨人，按这一局的种子抽（docs/design/people.md「招聘日怎么出人」）
+      - { flag: iw_hiring_day_3_b, set: true, chance: 0.5 }
+      - { schedule: iw_hiring_day_3, in: 14d, if: { not: { flag: iw_hiring_day_3_b } } }
+      - { schedule: iw_hiring_day_3b, in: 14d, if: { flag: iw_hiring_day_3_b } }
 default: { then: C }

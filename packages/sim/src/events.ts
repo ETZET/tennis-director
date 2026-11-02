@@ -1,4 +1,4 @@
-import type { OptionKey } from '@td/content';
+import type { OptionKey, SkillKind } from '@td/content';
 import type { CausalEntry } from './state';
 
 /**
@@ -25,7 +25,7 @@ export type SimEvent =
   | { type: 'routine'; person: string; target: string }
   | { type: 'postCycle'; post: string; person: string }
   /** 总监的一项能力跨过了一个整十（核心玩法决定：总监没有情绪，能力随干活慢慢涨） */
-  | { type: 'directorGrew'; skill: 'teach' | 'upkeep' | 'service'; value: number }
+  | { type: 'directorGrew'; skill: SkillKind; value: number }
   | { type: 'postInterrupted'; post: string; person: string; lost: number }
   | { type: 'orderStarted'; order: string; at: string; performance: string | null }
   | { type: 'orderFinished'; order: string; people: string[]; success?: boolean }

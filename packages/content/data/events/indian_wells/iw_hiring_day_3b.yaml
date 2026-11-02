@@ -1,0 +1,33 @@
+# 第三个招聘日（b）：一个在巡回赛上穿过线的人，一个受过伤的天才少年。
+id: iw_hiring_day_3b
+act: indian_wells
+source: consequence
+tone: relief
+pause: true
+countdown: 1d
+location: clubhouse
+who: applicants
+options:
+  A:
+    effects:
+      - { hire: teo_ilic }
+      # 下一个招聘日来哪一拨人，按这一局的种子抽（docs/design/people.md「招聘日怎么出人」）
+      - { flag: iw_hiring_day_4_b, set: true, chance: 0.5 }
+      - { schedule: iw_hiring_day_4, in: 14d, if: { not: { flag: iw_hiring_day_4_b } } }
+      - { schedule: iw_hiring_day_4b, in: 14d, if: { flag: iw_hiring_day_4_b } }
+  B:
+    effects:
+      - { hire: luca_ferreira }
+      # 下一个招聘日来哪一拨人，按这一局的种子抽（docs/design/people.md「招聘日怎么出人」）
+      - { flag: iw_hiring_day_4_b, set: true, chance: 0.5 }
+      - { schedule: iw_hiring_day_4, in: 14d, if: { not: { flag: iw_hiring_day_4_b } } }
+      - { schedule: iw_hiring_day_4b, in: 14d, if: { flag: iw_hiring_day_4_b } }
+  C:
+    effects:
+      # 不招：省下工资，活还是那几个人干
+      - { log: log.no_hire }
+      # 下一个招聘日来哪一拨人，按这一局的种子抽（docs/design/people.md「招聘日怎么出人」）
+      - { flag: iw_hiring_day_4_b, set: true, chance: 0.5 }
+      - { schedule: iw_hiring_day_4, in: 14d, if: { not: { flag: iw_hiring_day_4_b } } }
+      - { schedule: iw_hiring_day_4b, in: 14d, if: { flag: iw_hiring_day_4_b } }
+default: { then: C }

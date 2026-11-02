@@ -1,7 +1,7 @@
 import type { Cond } from '@td/content';
 import { type ExprEnv, evalBool, evalNumber, type Value } from '@td/shared';
 import { rand } from './rng';
-import { DIRECTOR, dayOf, type GameState, minuteOfDay, weekdayOf } from './state';
+import { DIRECTOR, dayOf, type GameState, minuteOfDay, type PersonAttr, weekdayOf } from './state';
 import type { World } from './world';
 
 /**
@@ -41,6 +41,17 @@ export function isStaff(s: GameState, w: World, id: string): boolean {
   const p = s.people[id];
   const role = w.people.get(id)?.role;
   return !!p?.hired && (role === 'director' || role === 'coach' || role === 'staff' || role === 'candidate');
+}
+
+/** 在职的人里作用是 tag、或者带着 tag 这个特质的有几个（变量 hired.<tag>） */
+export function hiredWith(s: GameState, w: World, tag: string): number {
+  let n = 0;
+  for (const id in s.people) {
+    if (!s.people[id]?.hired) continue;
+    const d = w.people.get(id);
+    if (d && (d.kind === tag || d.traits.includes(tag))) n++;
+  }
+  return n;
 }
 
 /** 设施合计。下雨天只有能挡雨的（rain_ok）场地算开放、有场地收入。 */
@@ -90,7 +101,7 @@ export function makeEnv(s: GameState, w: World, extra: Record<string, Value> = {
           const p = s.people[pid];
           if (attr === 'hired') return p?.hired ?? false;
           if (attr === 'talent') return w.people.get(pid)?.talent ?? 0;
-          return p ? (p[attr as 'skill' | 'upkeep' | 'service' | 'morale' | 'fatigue'] ?? 0) : 0;
+          return p ? (p[attr as PersonAttr] ?? 0) : 0;
         }
         case 'coach': {
           const p = s.headCoach ? s.people[s.headCoach] : undefined;
@@ -107,6 +118,8 @@ export function makeEnv(s: GameState, w: World, extra: Record<string, Value> = {
           return s.condition[rest] ?? 100;
         case 'service_rate':
           return serviceRate(s);
+        case 'hired':
+          return hiredWith(s, w, rest);
         case 'staff': {
           let n = 0;
           for (const id of Object.keys(s.people)) if (isStaff(s, w, id)) n++;

@@ -92,29 +92,50 @@ events:
     title: 第一个招聘日
     body: 会所门口贴了告示，来了两个人。招了就每周付工资。
     options:
-      A: 招 Rosa（维护好手）
-      B: 招 Ben（会招呼人）
+      A: 招 Rosa（维护工）
+      B: 招 Ben（前台）
       C: 这次不招
   iw_hiring_day_2:
     title: 第二个招聘日
-    body: 两周后又来了两个人：一位教练，一位干活很利索的老师傅。
+    body: 两周后又来了两个人：一位教练，一个干了半辈子的场地工。
     options:
       A: 招 Jess（教练）
       B: 招 Gus（维护老手）
       C: 这次不招
+  iw_hiring_day_2b:
+    title: 第二个招聘日
+    body: 两周后又来了两个人：一个体能师，一个大学打完还想再拼一次的球员。
+    options:
+      A: 招 Kofi（体能师）
+      B: 招 Amara（球员）
+      C: 这次不招
   iw_hiring_day_3:
     title: 第三个招聘日
-    body: 园区有点名气了，来的人水平也高了。
+    body: 园区有点名气了，来的人水平也高了：一个前台好手，一位老教练。
     options:
-      A: 招 Lily（服务一流）
+      A: 招 Lily（前台好手）
       B: 招 Walt（老教练）
+      C: 这次不招
+  iw_hiring_day_3b:
+    title: 第三个招聘日
+    body: 园区有点名气了：一个在巡回赛上穿过线的人，一个受过伤的天才少年。
+    options:
+      A: 招 Teodora（穿线师）
+      B: 招 Luca（球员）
       C: 这次不招
   iw_hiring_day_4:
     title: 第四个招聘日
-    body: 一位前职业球员听说了这里，想来当主教练；还有一个什么都会一点的年轻人。
+    body: 一位前职业球员听说了这里，想来当主教练；还有一个什么都会一点的本地年轻人。
     options:
       A: 招 Nadia（前职业球员）
       B: 招 Marco（多面手）
+      C: 这次不招
+  iw_hiring_day_4b:
+    title: 第四个招聘日
+    body: 当年的场地主管听说园区要活过来，自己找上门；还有一个当过球童的本地孩子。
+    options:
+      A: 招 Ray（老场地主管）
+      B: 招 Mateo（球童）
       C: 这次不招
 
 log:
@@ -128,6 +149,8 @@ log:
   sand_covered: 场地盖住了，沙没灌进来
   exhibition_flop: 表演赛冷场了：看台上稀稀拉拉，一周后再试一次
   no_hire: 这次没招人，活还是那几个人干
+  tournament_won: 你的球员在外面赢了一站比赛，带回了奖金
+  tournament_lost: 你的球员这站输了，不过长了见识
 
 posts:
   o1_rental: { title: "外场 1 · 看场", note: "每天 8–15 点，附近的人来打球" }
@@ -149,6 +172,11 @@ posts:
   st2_pro: { title: "Stadium 2 · 高水平训练", note: "工作日 8–12 点" }
   st2_upkeep: { title: "Stadium 2 · 维护", note: "随时可以干；没人管就变旧" }
   st1_upkeep: { title: "Stadium 1 · 维护", note: "表演赛之前不能再坏" }
+  ch_stringing: { title: "会所 · 穿线台", note: "每天 9–17 点，只有穿线师能坐" }
+  pr_fitness: { title: "练习场 · 体能课", note: "工作日 8–11 点，只有体能师能带" }
+  st3_ballkids: { title: "Stadium 3 · 球童", note: "周末联赛 9–17 点，只有球童能干" }
+  pr_training: { title: "练习场 · 自己练球", note: "只有球员能用；随时可以练，球技慢慢涨" }
+  o23_training: { title: "外场 2–3 · 自己练球", note: "练习场修好之前的去处，涨得慢一点" }
 orders:
   o1_sweep: { title: "扫外场 1 的沙", note: "不花钱，两个人一个上午" }
   o1_net: { title: "给外场 1 换网", note: "$120，一个人一小时", locked: "先把沙扫掉" }
@@ -172,6 +200,8 @@ orders:
   st1_clear: { title: "清理 Stadium 1", note: "搬走塌下来的东南角", locked: "先让 Stadium 2 开放" }
   st1_rebuild: { title: "重建 Stadium 1", note: "整局最大的一笔", locked: "先清理 Stadium 1" }
   st1_exhibition: { title: "办表演赛", note: "声望 50 以上，一群人张罗一整天", locked: "Stadium 1 重建完成、声望 50 以上" }
+  pl_tournament: { title: "出去打一站比赛", note: "只有球员能去，一周一次；球技越高越可能赢" }
+
 seasons:
   autumn: 秋天
   winter: 冬天
@@ -180,6 +210,53 @@ seasons:
 people:
   director: 总监
   dale: Dale
+
+kinds:
+  coach: 教练
+  crew: 维护工
+  special: 特殊岗位
+  player: 球员
+
+# 一句话背景（招聘卡上显示；人物都是虚构的）
+bios:
+  rosa_ortiz: 在 Coachella 的椰枣园边长大，给 La Quinta 的高尔夫球场修了十二年草坪；风沙要来，她总是先知道。
+  ben_kim: UC Riverside 的学生，在 Palm Desert 的咖啡店打工，记得每个熟客点什么；早上精神最好。
+  jess_park: 在一所小大学打了四年校队，毕业后在 Palm Desert 教孩子打球，一直想有一块自己的场地。
+  gus_moreno: 园区关门前，这里的硬地是他一块块铺的；裁员那天以后，他再没进过网球场。
+  kofi_mensah: 在 Accra 长大，给一所大学的田径队当了八年体能教练，天亮之前就到场。
+  amara_okafor: 生在 Lagos，拿网球奖学金来美国打了四年大学比赛；排名在五百开外，想再拼一次。
+  lily_chen: 在父母开在 Palm Springs 的餐馆里长大，后来在度假酒店管前台；晚上客人越多，她越来劲。
+  walt_hendricks: 在 Rancho Mirage 的乡村俱乐部教了三十年过冬的退休客人；手艺还在，心有点累了。
+  teo_ilic: 从 Novi Sad 来，在巡回赛的穿线房里一天穿过四十支拍子；线不直，她不交拍。
+  luca_ferreira: 十六岁进过青少年排名前二十，十九岁手腕伤了、也打怕了；现在二十三岁，想重新喜欢上网球。
+  nadia_volkov: 前职业球员，肩伤动过手术以后退役；她的名字还能卖出票。
+  marco_ruiz: 在 Indio 长大，每年春天在音乐节的搭台队上夜班，什么活都干过一点。
+  ray_delgado: 九十年代这里办大赛时的场地主管，退休后就住在 Indian Wells；园区的每根水管他都记得，膝盖却不行了。
+  mateo_salgado: 十六岁，Coachella 人，前两年在大赛上当过球童；一放学就骑车过来。
+
+# 特质：名字和一句说明（数值在 traits.yaml）
+traits:
+  phone_addict: { name: 爱玩手机, note: 总监不在场时上课走神 }
+  eager: { name: 干劲足, note: 士气慢慢涨 }
+  burnt_out: { name: 心累了, note: 士气慢慢掉，上课有点走神 }
+  star: { name: 明星, note: 每天带来一点声望 }
+  daydreamer: { name: 爱发呆, note: 没什么影响 }
+  perfectionist: { name: 完美主义, note: 维护 +12，服务 −10 }
+  showman: { name: 爱表现, note: 服务 +12，维护 −10 }
+  early_bird: { name: 早起, note: 上午 11 点前各项 +12 }
+  night_owl: { name: 夜猫子, note: 下午 4 点后各项 +12 }
+  bilingual: { name: 双语, note: 服务 +10 }
+  desert_born: { name: 沙漠长大, note: 大风天和风季维护 +15 }
+  local_hero: { name: 本地名人, note: 每天带来一点声望 }
+  legend: { name: 退役名将, note: 每天一点声望，表演赛成功率 +5% }
+  college: { name: 大学网球, note: 教学 +5，服务 +5 }
+  prodigy: { name: 天才少年, note: 球技 +8 }
+  late_bloomer: { name: 大器晚成, note: 第 50 天起球技 +12 }
+  old_injury: { name: 老伤, note: 维护 −8，球技 −10 }
+  mentor: { name: 带徒弟, note: 教学 +6，士气慢慢涨 }
+  stringer: { name: 穿线师, note: 能坐会所的穿线台 }
+  trainer: { name: 体能师, note: 能带练习场的体能课 }
+  ball_kid: { name: 球童, note: 能在 Stadium 3 的联赛当球童 }
 
 who:
   investors: { name: 投资方, role: 出钱修复园区的人 }
@@ -230,6 +307,7 @@ ui:
     skill_teach: 教学
     skill_upkeep: 维护
     skill_service: 服务
+    skill_play: 球技
     trend: { falling: 在下滑, recovering: 在回升, flat: 持平, bottomed: 见底了 }
   week: "第 {n} 周"
   weather: { sun: 晴, cloud: 多云, rain: 下雨 · 露天场地关闭, wind: 大风 }
@@ -239,9 +317,10 @@ ui:
     wage: "周薪 ${n}"
     hire: "{name} 上任"
     fire: "{name} 离开"
+    worker: 在岗的人
     chance: "成功率 {p}%"
     cost: "−${n}"
-  attr: { skill: 球技, upkeep: 维护, service: 服务, morale: 士气, fatigue: 疲劳 }
+  attr: { skill: 教学, upkeep: 维护, service: 服务, play: 球技, morale: 士气, fatigue: 疲劳 }
   then: "之后：{what}"
   ctx:
     restore: "复原 {n}/{total} · 还剩 {days} 天"
@@ -274,7 +353,7 @@ ui:
     again: 再来一局
     won: 园区复活了
     lost: 游戏结束
-  skill: { teach: 教学, upkeep: 维护, service: 服务 }
+  skill: { teach: 教学, upkeep: 维护, service: 服务, play: 球技 }
   fac:
     { outer_1: 外场 1, outer_23: 外场 2–3, practice: 练习场, clubhouse: 会所, plaza: 广场, stadium_3: Stadium 3, stadium_2: Stadium 2, stadium_1: Stadium 1 }
   condition: 状况
@@ -321,6 +400,7 @@ ui:
     person: 不能指派
     busy: 正在办事，叫不回来
     target: 没有这个岗位
+    only: 这个活只收特定的人
     gone: 现在开不了
     cost: 现金不够买料
     crew: 人已经够了

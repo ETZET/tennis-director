@@ -5,8 +5,8 @@ import { optionStatus } from './cards';
 import { run } from './effects';
 import { advance, newGame, replay, stateHash, step } from './game';
 import { fromSave, SaveError, toSave } from './save';
-import { canAssign, orderStatus, postStatus } from './staff';
-import { at, dayOf, type GameState, minuteOfDay } from './state';
+import { canAssign, orderLead, orderStatus, postStatus, workSkill } from './staff';
+import { at, dayOf, type GameState, minuteOfDay, SAVE_VERSION } from './state';
 import { facilityTotals, makeEnv, serviceRate, test } from './vars';
 import { shortestRoute } from './walk';
 import { worldFor } from './world';
@@ -393,9 +393,12 @@ describe('事件卡', () => {
     const uid = open(s, 'iw_hiring_day_1');
     advance(s, CONTENT, [{ type: 'chooseOption', uid, option: 'C' }], 0);
     const chose = s.log.at(-1);
-    expect(until(s, (x) => x.cards.open.some((o) => o.card === 'iw_hiring_day_2'), 15 * 720)).toBe(true);
+    // 第二个招聘日来哪一拨人按种子抽：a 或 b，只来一张
+    const second = (o: { card: string }) => o.card.startsWith('iw_hiring_day_2');
+    expect(s.cards.scheduled.filter(second)).toHaveLength(1);
+    expect(until(s, (x) => x.cards.open.some(second), 15 * 720)).toBe(true);
     expect(dayOf(s.t)).toBe(15);
-    const next = s.cards.open.find((o) => o.card === 'iw_hiring_day_2');
+    const next = s.cards.open.find(second);
     expect(next?.cause).toBe(chose?.id);
   });
 
@@ -428,6 +431,99 @@ describe('事件卡', () => {
     run({ s, w: W(), events: [] }, { kind: 'debug', what: 'fire' }, null, [{ fire: 'jess_park' }]);
     expect(s.people.jess_park?.hired).toBe(false);
     expect(s.headCoach).toBe('dale');
+  });
+});
+
+describe('人物的作用（docs/design/people.md）', () => {
+  const hire = (s: GameState, ...ids: string[]) =>
+    run(
+      { s, w: W(), events: [] },
+      { kind: 'debug', what: 'hire' },
+      null,
+      ids.map((id) => ({ hire: id })),
+    );
+
+  it('特质的加成只在条件下生效：沙漠长大的 Rosa 大风天维护更快；双语一直 +10', () => {
+    const s = quiet(fresh());
+    hire(s, 'rosa_ortiz');
+    s.weather = 'sun';
+    expect(workSkill(s, W(), 'rosa_ortiz', 'upkeep')).toBe(62);
+    expect(workSkill(s, W(), 'rosa_ortiz', 'service')).toBe(38);
+    s.weather = 'wind';
+    expect(workSkill(s, W(), 'rosa_ortiz', 'upkeep')).toBe(77);
+  });
+
+  it('只收特定的人的岗位：没招到穿线师时穿线台不存在；招来以后只有她能坐', () => {
+    const s = quiet(fresh());
+    s.facilities.clubhouse = 'open';
+    const w = W();
+    const bench = w.posts.get('ch_stringing');
+    if (!bench) throw new Error('no stringing post');
+    expect(postStatus(s, w, bench).exists).toBe(false);
+    hire(s, 'teo_ilic');
+    expect(postStatus(s, w, bench).exists).toBe(true);
+    expect(canAssign(s, w, 'teo_ilic', 'ch_stringing')).toBeNull();
+    expect(canAssign(s, w, 'director', 'ch_stringing')).toBe('only');
+    // 普通岗位谁都能干
+    expect(canAssign(s, w, 'teo_ilic', 'ch_desk')).toBeNull();
+  });
+
+  it('球员自己练球，球技一圈一圈地涨；总监不能去', () => {
+    const s = quiet(fresh());
+    s.facilities.practice = 'open';
+    hire(s, 'amara_okafor');
+    (s.people.amara_okafor as { at: string }).at = 'practice';
+    expect(canAssign(s, W(), 'director', 'pr_training')).toBe('only');
+    advance(s, CONTENT, [assign('amara_okafor', 'pr_training')], 5 * 60 + 5);
+    expect(s.people.amara_okafor?.play).toBeCloseTo(56.5, 5);
+  });
+
+  it('出去打比赛：成功率看去的人的球技；打完球技 +1、声望 +1 起', () => {
+    const s = quiet(fresh());
+    s.stats.cash = 2000;
+    const w = W();
+    const o = w.orders.get('pl_tournament');
+    if (!o) throw new Error('no tournament');
+    expect(orderStatus(s, w, o).visible).toBe(false);
+    hire(s, 'amara_okafor', 'luca_ferreira');
+    // 还没人去：按能去的人里球技最高的估（Luca 66 + 天才少年 8）
+    expect(orderLead(s, w, o)).toEqual({ id: 'luca_ferreira', skill: 74 });
+    expect(orderStatus(s, w, o).chance).toBeCloseTo(0.1 + 24 / 45, 5);
+    const rep = s.stats.reputation ?? 0;
+    advance(s, CONTENT, [assign('amara_okafor', 'pl_tournament')], 1);
+    expect(orderStatus(s, w, o).chance).toBeCloseTo(0.1 + 6 / 45, 5);
+    expect(until(s, (x) => (x.orderLog.done.pl_tournament ?? 0) > 0, 3 * 720)).toBe(true);
+    expect(s.people.amara_okafor?.play).toBe(57);
+    expect(s.stats.reputation ?? 0).toBeGreaterThanOrEqual(rep + 1);
+  });
+
+  it('退役名将在园区，表演赛的成功率 +5%', () => {
+    const s = quiet(fresh());
+    const w = W();
+    const o = w.orders.get('st1_exhibition');
+    if (!o) throw new Error('no exhibition');
+    s.stats.reputation = 60;
+    s.stats.quality = 60;
+    const before = orderStatus(s, w, o).chance ?? 0;
+    hire(s, 'nadia_volkov');
+    expect((orderStatus(s, w, o).chance ?? 0) - before).toBeCloseTo(0.05, 5);
+  });
+
+  it('旧档里没有的新候选人，招的时候按内容补上', () => {
+    const s = quiet(fresh());
+    delete s.people.mateo_salgado;
+    hire(s, 'mateo_salgado');
+    expect(s.people.mateo_salgado).toMatchObject({ hired: true, at: 'entrance', play: 42, routine: [] });
+  });
+
+  it('每个候选人都出现在某个招聘日上，每个招聘日都是两个人', () => {
+    const hires = CONTENT.cards
+      .filter((c) => c.id.startsWith('iw_hiring_day_'))
+      .map((c) => Object.values(c.options).flatMap((o) => o?.effects.filter((e) => 'hire' in e) ?? []));
+    for (const h of hires) expect(h).toHaveLength(2);
+    const ids = hires.flat().map((e) => ('hire' in e ? e.hire : ''));
+    const candidates = CONTENT.people.filter((p) => p.role === 'candidate').map((p) => p.id);
+    expect(new Set(ids)).toEqual(new Set(candidates));
   });
 });
 
@@ -549,14 +645,14 @@ describe('存档', () => {
     for (const k of ['posts', 'orders', 'orderLog', 'condition', 'week', 'ledger']) delete old.state[k];
     delete old.state.people.director;
     for (const p of Object.values(old.state.people) as Record<string, unknown>[])
-      for (const k of ['upkeep', 'service', 'job', 'walk', 'errand', 'routine']) delete p[k];
+      for (const k of ['upkeep', 'service', 'play', 'job', 'walk', 'errand', 'routine']) delete p[k];
     old.state.director = { at: 'outer_1', leg: null, route: [], task: null };
     const { save } = fromSave(old);
-    expect(save.version).toBe(5);
+    expect(save.version).toBe(SAVE_VERSION);
     expect('legacy' in save.state).toBe(false);
     expect(save.state.cards.shown).toEqual({});
     expect(save.state.people.director).toMatchObject({ hired: true, at: 'outer_1', job: null });
-    expect(save.state.people.dale).toMatchObject({ upkeep: 0, job: null, walk: null, routine: [] });
+    expect(save.state.people.dale).toMatchObject({ upkeep: 0, play: 0, job: null, walk: null, routine: [] });
     expect('director' in save.state).toBe(false);
     expect('plan' in save.state).toBe(false);
     // 迁移后的存档能接着跑

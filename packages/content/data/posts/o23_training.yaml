@@ -1,0 +1,12 @@
+# 外场 2–3 · 对着墙练：练习场还没修好的时候，球员只能在外场自己练，涨得慢一点。
+id: o23_training
+act: indian_wells
+at: outer_23
+skill: play
+cycle: 1h
+when: { all: [{ facility: outer_23, is: playable }, { expr: "hired.player >= 1" }] }
+only: [player]
+effects:
+  - { person: worker, add: { play: 0.06 } }
+wear: 0.5
+performance: open_play

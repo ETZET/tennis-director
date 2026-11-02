@@ -1,0 +1,12 @@
+# 练习场 · 自己练球：只有球员能用（作用 player）。随时可以练，不算需求；每练一小时球技涨一点，场地磨一点。
+id: pr_training
+act: indian_wells
+at: practice
+skill: play
+cycle: 1h
+when: { all: [{ facility: practice, is: open }, { expr: "hired.player >= 1" }] }
+only: [player]
+effects:
+  - { person: worker, add: { play: 0.1 } }
+wear: 0.5
+performance: open_play
