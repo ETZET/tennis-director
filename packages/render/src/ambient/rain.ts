@@ -1,6 +1,7 @@
 import { lerp, range } from '@td/shared';
 import * as THREE from 'three';
 import { boxGeo } from '../people/parts';
+import { LIGHT_UNIT } from '../world/color';
 import type { Stage } from '../world/stage';
 
 export interface Rain {
@@ -70,8 +71,8 @@ export function createRain(stage: Stage, lighting: RainLighting, n = 800): Rain 
         mesh.setMatrixAt(i, d.matrix);
       }
       mesh.instanceMatrix.needsUpdate = true;
-      stage.hemi.intensity = lerp(lighting.hemi[0], lighting.hemi[1], on);
-      stage.sun.intensity = lerp(lighting.sun[0], lighting.sun[1], on);
+      stage.hemi.intensity = lerp(lighting.hemi[0], lighting.hemi[1], on) * LIGHT_UNIT;
+      stage.sun.intensity = lerp(lighting.sun[0], lighting.sun[1], on) * LIGHT_UNIT;
       const sky = lighting.sky.clone().lerp(lighting.skyRain, on);
       stage.renderer.setClearColor(sky);
       // 雾和天色一起变暗，远处的云才不会露出一圈亮边

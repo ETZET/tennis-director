@@ -1,4 +1,4 @@
-import { activities, type PeopleWorld, Scheduler } from '@td/render';
+import { activities, type PeopleWorld, Scheduler, useLegacyColor } from '@td/render';
 import { clamp, mulberry32 } from '@td/shared';
 import * as THREE from 'three';
 import { CATEGORY_INFO, effectsFor, SCENE_NOTES, VENUE_NAMES, WEATHER_NAMES } from './effects';
@@ -498,6 +498,7 @@ const renderer = new THREE.WebGLRenderer({
   alpha: true,
   powerPreference: 'high-performance',
 });
+useLegacyColor(renderer);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.BasicShadowMap;
 renderer.setClearColor(0x000000, 0);

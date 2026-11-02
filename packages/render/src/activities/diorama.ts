@@ -4,6 +4,7 @@ import { Particles } from '../fx/particles';
 import { labelPlane } from '../fx/sprites';
 import { boxGeo } from '../people/parts';
 import { VoxelBatcher } from '../voxel/batcher';
+import { LIGHT_UNIT } from '../world/color';
 import { CourtFrame } from '../world/frame';
 import { VENUE_STYLE } from './looks';
 import { AUTUMN, bareTree, jit, line, tree } from './props';
@@ -62,9 +63,9 @@ export function buildDiorama(meta: ActivityMeta, C: Conditions, seed = 7): Diora
   const w = WX[C.weather];
   const sky = new THREE.Color(w.sky);
   if (S.sky) sky.lerp(new THREE.Color(S.sky[0]), S.sky[1]);
-  const hemi = new THREE.HemisphereLight(w.hemi[0], w.hemi[1], w.hemi[2]);
+  const hemi = new THREE.HemisphereLight(w.hemi[0], w.hemi[1], w.hemi[2] * LIGHT_UNIT);
   scene.add(hemi);
-  const sun = new THREE.DirectionalLight(w.sun[0], w.sun[1] + 0.15);
+  const sun = new THREE.DirectionalLight(w.sun[0], (w.sun[1] + 0.15) * LIGHT_UNIT);
   sun.position.set(-30, 60, -18);
   sun.castShadow = true;
   const R = Math.hypot(W, D) / 2 + 4;
@@ -266,6 +267,8 @@ export function buildDiorama(meta: ActivityMeta, C: Conditions, seed = 7): Diora
       opacity: 0.18,
       side: THREE.DoubleSide,
       depthWrite: false,
+      // r150 起透明 + 双面默认分两遍画（先背面后正面）；r128 是一遍，绘制调用也少一半
+      forceSinglePass: true,
     });
     const posts: number[] = [];
     for (let i = 0; i <= n; i++) {

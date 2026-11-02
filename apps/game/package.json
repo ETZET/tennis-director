@@ -16,10 +16,10 @@
     "@td/sim": "workspace:*",
     "@td/ui": "workspace:*",
     "preact": "10.29.8",
-    "three": "0.128.0"
+    "three": "0.187.0"
   },
   "devDependencies": {
-    "@types/three": "0.128.0",
-    "@td/content": "workspace:*"
+    "@td/content": "workspace:*",
+    "@types/three": "0.187.0"
   }
 }
