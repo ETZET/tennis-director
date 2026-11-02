@@ -67,7 +67,7 @@ export function optionStatus(s: GameState, w: World, uid: number): OptionStatus[
         ? 'requires'
         : opt.errand && s.people[DIRECTOR]?.errand
           ? 'busy'
-          : cost > (s.stats.cash ?? 0)
+          : cost > 0 && cost > (s.stats.cash ?? 0)
             ? 'cost'
             : null;
     return [
