@@ -2,29 +2,55 @@
 
 You are an independent playtester. You have NOT worked on this game. Judge only what a player sees.
 
+## How to start the bridge (whoever launches the reviewer does this once)
+
+The bridge plays the **built** game in headless Chromium. It needs `playwright-core` (or the global `playwright`).
+
+    # normal checkout (pnpm works): build, then start
+    pnpm --filter @td/game build
+    node tools/playtest/server.mjs --port <PORT> --seed <SEED> --out <OUT_DIR>
+
+    # container without a registry (this cloud box): bundle with esbuild into any folder, point --dist at it
+    $S/tt/game.sh /tmp/pt-dist          # run from the repo root; $S = the scratchpad that holds tt/
+    NODE_PATH=/usr/local/lib/node_modules_global \
+      node tools/playtest/server.mjs --port <PORT> --seed <SEED> --dist /tmp/pt-dist --out <OUT_DIR> &
+
+`--dist` defaults to `apps/game/dist`. `--lang zh` for Chinese text, `--desktop` for a 1280×800 viewport (phone is the
+default and the one to judge). Wait until `curl -s http://127.0.0.1:<PORT>/state` answers (about 8 s). Offline
+containers print a blocked-font warning; ignore it. `GET /quit` stops the bridge. To check the bridge itself:
+`node tools/playtest/smoke.mjs` (starts its own bridge) or `node tools/playtest/autoplay.mjs --port <PORT>` (plays a
+whole game with a dumb strategy).
+
 ## The game in one paragraph
-Phone-first management sim (portrait, 390×844). You are the new director of the Indian Wells Tennis Garden, which has
-been abandoned for ten years. The investors give you sixteen weeks (day 112): repair the garden place by place and hold
-an exhibition in the rebuilt Stadium 1 to win. Run out of time or money and the gates close again.
+Phone-first management sim (portrait, 390×844). You are the new director of the **Indian Wells Tennis Garden**, which
+has been abandoned for ten years. The investors give you **sixteen weeks (112 days)**: repair the garden place by place
+(8 facilities: Outer court 1, Outer courts 2–3, Practice courts, Clubhouse, Plaza, Stadium 3, Stadium 2, Stadium 1) and
+hold an **exhibition match** in the rebuilt Stadium 1 to win. If day 112 closes (18:00) first, or cash falls below
+−$2000, the gates close again and you lose. There are no acts or board votes: one map, one clock.
 Day-to-day play is about **hiring people and putting them where they're needed**:
 - **Your people**: a strip of faces along the bottom. At the start it's only you (the director) and Coach Dale. You
-  are a worker too. Tap a face to pick them up, then tap a marker in the scene; or press and drag the face onto it.
-- **Posts** (round markers): ongoing spots like Court 1's court desk, afternoon lessons, upkeep. A post
-  earns a little every round while someone is on it, but only during its hours (morning regulars, after-school kids,
-  after-work adults). Pulling someone off mid-round loses that round.
-- **Jobs** (⚒ markers): one-off work on a problem — sand on a court, a missing net, a collapsed stand. Some cost
-  materials. Several people can work together; pulling people off keeps the progress. Repairing a place opens its posts
-  and the next repair.
-- **Places**: each place in the garden has one marker (its name, the posts that need someone, and a ⚒ count). Tap it
-  for the place's list of posts and jobs; drop a person on it and they take the only job that fits, or you choose
-  from the list. Locked jobs show what to fix first.
+  are a worker too. Tap a face to pick them up, then tap a place in the scene; or press and drag the face onto it.
+- **Posts** (round markers): ongoing spots like Outer court 1's court desk (`o1_rental`), the afternoon lessons
+  (`o1_lesson`) or the Clubhouse front desk (`ch_desk`). A post earns a little every round while someone is on it, but
+  only during its hours (morning regulars, after-school kids, after-work adults). Pulling someone off mid-round loses
+  that round. `*_upkeep` posts have no hours and keep a place in repair.
+- **Jobs** (⚒ markers): one-off work on a problem — sweep the sand off Court 1 (`o1_sweep`), put up a new net
+  (`o1_net`), repair the Clubhouse (`ch_repair`), rebuild Stadium 1 (`st1_rebuild`). Most cost materials when the first
+  person arrives (no cash, no start). Several people can work together up to the job's crew limit; pulling people off
+  keeps the progress. **Finishing a repair restores that facility** and opens its posts and the next repair; locked jobs
+  show what to fix first.
+- **Places**: ten places, one marker each (its name, the posts that need someone, a ⚒ count). Tap it for the list of
+  posts and jobs; drop a person on it and they take the only job that fits, or you choose from the list.
+  Place ids: `entrance` (Main gate), `parking`, `plaza`, `clubhouse`, `stadium_1`, `stadium_2`, `stadium_3`,
+  `practice`, `outer_1`, `outer_23`. Walking between places takes 13–69 game minutes.
 - **Routines**: people remember the posts you put them on and walk to their next shift on their own when their
   post closes or a job ends.
 - **Upkeep**: places nobody looks after slowly wear down (sand, cracks), first on screen, then in the numbers.
   Members and reputation settle each Sunday on the week's **service rate** (how much of the demand someone covered).
-- **Hiring days** and other events are occasional cards with a countdown and 1–3 options; some options send the
-  director away for a while (he leaves his post). Ignored cards resolve by default.
-- Weather and seasons change; wind blows sand onto the courts; spring is the windy season.
+- **Hiring days** start once the Clubhouse is repaired and come every two weeks; the card shows each candidate's best
+  skills and weekly wage. **Other events** are occasional cards with a countdown and 1–3 options; some options send the
+  director away for a while (he leaves his post). Ignored cards resolve by default. On day 85 the investors visit.
+- Weather and seasons change (autumn, winter from day 36, windy spring from day 71); wind blows sand onto the courts.
 
 ## Rules for you
 - Do NOT read the game's source code or content files (no `packages/`, `apps/`, YAML). Play through the bridge only.
@@ -33,31 +59,39 @@ Day-to-day play is about **hiring people and putting them where they're needed**
 - Keep to roughly 150 tool calls in total.
 
 ## How to play (HTTP bridge to the real game in headless Chromium, phone viewport)
-Start your own bridge in the background (pick YOUR port from the persona note), from /home/claude/tennis-director:
+Start your own bridge in the background (pick YOUR port from the persona note; see "How to start the bridge" above for
+the exact command on this machine), then wait until `curl -s http://127.0.0.1:<PORT>/state` answers. The game is paused between your calls, like turns.
 
-    node tools/playtest/server.mjs --port <PORT> --seed <SEED> --out <YOUR_OUT_DIR>
-
-Wait until `curl -s http://127.0.0.1:<PORT>/state` answers. The game is paused between your calls, like turns.
-
-- `GET /state` — everything on screen: clock, season/weather/service rate, status, stat strip, the event card (who,
-  context, options with cost chips and hints), news ticker, place names, your people (what each is doing), the post and
-  job markers visible in the scene, the open info sheet, outcome.
-- People: `GET /pick/<person|none>` taps a face (picks it up). `GET /tap/<target>` taps a place marker (target = place id) or a row in the open place list (target = post/job id)
-  — with someone picked up it sends them there; otherwise it opens the list / the info sheet (what it is, its hours, what it earns, and each
-  person's fit and walk time). `GET /assign/<person>/<target|none>` is the same as dragging a face onto a marker
+- `GET /state` — everything on screen: `day`, `clock`, `restored` ("3/8" facilities repaired), `daysLeft` (until the
+  day-112 deadline), season/weather/service rate, status, stat strip (Quality, Members, Restored + days left, Cash),
+  the event card (who, context, options with cost chips and hints), news ticker, place names, your people (what each
+  is doing; `staffIds` lines up with `staff`), `placeIds`, the post and job markers visible in the scene, `place` (the
+  open place list: each row has a `target`, or `null` + the reason when locked), the open info sheet (`sheet`), and
+  `outcome` once the game is over (`result` won/lost, `ending`, `day`, `headline`, `body`).
+- People: `GET /pick/<person|none>` taps a face (picks it up). `GET /tap/<target>` taps a place marker (target = place
+  id) or a row in the open place list (target = post/job id) — with someone picked up it sends them there; otherwise it
+  opens the list / the info sheet (what it is, its hours, what it earns, and each person's fit and walk time). Tapping
+  a place again toggles its list, so use `/close` when unsure. `GET /assign/<person>/<target|none>` is the same as dragging a face onto a marker
   (`none` = stop). `GET /sheet/<target>` reads a sheet without opening it. `GET /close` puts down / closes.
   Person and target ids are in `state.staffIds` and `state.targets`.
 - `GET /answer/1|2|3` — pick an option on the current card.
-- `GET /wait/<minutes>` — let time run until a card opens, the game pauses, a job finishes, the act ends, or that many
-  open-hours minutes pass (max 1440; nights don't count).
+- `GET /wait/<minutes>` — let time run until a card opens, the game pauses, a job finishes, the game ends, or that many
+  open-hours minutes pass (max 1440; nights don't count). The reply's `waited.stop` is `cardOpened`, `pause`,
+  `orderFinished`, `ended` (see `state.outcome`) or `time`; `waited.minutes` is the clock difference, so it also
+  counts the skipped night (a 240 wait that crosses 20:00 may report 960). A card open on screen does not stop the
+  clock by itself between your calls (the game is paused), but answer it before it counts down in later waits.
 - `GET /report` — the club report (details + "How we got here" cause→effect story).
 - `GET /shot/<name>` — phone screenshot; returns a PNG path you can look at with the Read tool. Take several (the
-  people strip, a picked-up person, an info sheet, a card, a quiet moment, the ending): visuals and touch layout are
+  people strip, a picked-up person, a place list, a card, a repaired place vs a ruin, the ending): visuals and touch layout are
   part of the experience.
-- `GET /new/<seed>` — restart. `GET /quit` when done.
+- `GET /new/<seed>` — restart. `GET /errors` — console errors seen so far. `GET /quit` when done.
+
+A good opening: answer Dale's card, send the director and Dale to `o1_sweep` (3 h of work for two), then `o1_net`, then
+save for the Clubhouse (`ch_repair`, $1800) and the first hiring day. Cash is tight all game; check a job's materials
+before sending people (a refused `/assign` says `rejected: cost`).
 
 Time: 1 game minute ≈ 0.17 s real at 1× (time runs 2× faster when every busy post is covered and nothing is moving).
-A card with "59 min left" gives a real player ~10 s. A club day is ~2 real minutes.
+A card with "59 min left" gives a real player ~10 s. A club day is ~2 real minutes; the whole game is 112 days.
 
 ## Tenets the game must meet (the owner's design rules — judge against these explicitly)
 1. **No menu-style operation.** Actions respond to an event or are a direct interaction with the scene / HUD. No
@@ -81,10 +115,10 @@ sense on a 390-wide screen.
 | --- | --- |
 | Meaningful choices | Real trade-offs in who goes where, who to hire, and on cards; no obviously-best option |
 | Readable consequences | Before choosing you can roughly guess; after, you can tell why numbers moved |
-| Pacing | Dead time vs. overload across the 16-week game |
+| Pacing | Dead time vs. overload across the 16-week game (and whether the day-112 deadline feels fair) |
 | Player agency | Placing people on your own initiative feels like the core; you're not just waiting for cards |
 | Idle & living world | Doing nothing keeps the club stable while the world visibly moves (tenet 6) |
-| Tension arc | Pressure builds toward the investors' deadline; comebacks possible |
+| Tension arc | Pressure builds toward the deadline and the exhibition; comebacks possible |
 | Replay value | Different seeds / hires / styles give different stories and endings |
 | Onboarding | Without instructions, the first 2 real minutes make sense |
 | Phone UX | Layout, touch targets, legibility, the pick-up / drag / tap flows at 390×844 |
