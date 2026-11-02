@@ -440,6 +440,36 @@ export function compileContent(files: Record<string, string>): CompileResult {
   for (const f of b.facilities) {
     if (!anchors.has(f.anchor)) err('facilities.yaml', `${f.id}: unknown anchor '${f.anchor}'`);
     for (const st of Object.keys(f.states)) needText('facilities.yaml', `facilities.${f.id}.${st}`);
+    // 掉档（准则 6）：drops_to 指向同一设施的另一个状态；顺着掉下去不能绕回来；
+    // 掉到的状态要有一张工单能把它修回来（不然掉一次就永远关着）
+    for (const [st, x] of Object.entries(f.states)) {
+      if (!x.drops_to) continue;
+      if (!(x.drops_to in f.states)) err('facilities.yaml', `${f.id}.${st}: drops_to unknown state '${x.drops_to}'`);
+      else if (x.drops_to === st) err('facilities.yaml', `${f.id}.${st}: drops_to itself`);
+      if (!x.decay_day) warn('facilities.yaml', `${f.id}.${st}: has drops_to but no decay_day, so it never drops`);
+      const seen = new Set([st]);
+      for (let cur: string | undefined = x.drops_to; cur; cur = f.states[cur]?.drops_to) {
+        if (seen.has(cur)) {
+          err('facilities.yaml', `${f.id}.${st}: drops_to loops back to '${cur}'`);
+          break;
+        }
+        seen.add(cur);
+      }
+      const mentions = (c: Cond | undefined, state: string): boolean =>
+        !!c &&
+        ('all' in c
+          ? c.all.some((y) => mentions(y, state))
+          : 'any' in c
+            ? c.any.some((y) => mentions(y, state))
+            : 'facility' in c && c.facility === f.id && c.is === state);
+      const back = b.orders.some(
+        (o) =>
+          mentions(o.when, x.drops_to as string) &&
+          [...o.effects, ...o.onSuccess].some((e) => 'facility' in e && e.facility === f.id && e.set !== x.drops_to),
+      );
+      if (x.drops_to in f.states && !back)
+        err('facilities.yaml', `${f.id}.${st}: no order brings '${f.id}' back from '${x.drops_to}'`);
+    }
   }
   for (const d of b.directors) {
     const file = `directors/${d.id}.yaml`;

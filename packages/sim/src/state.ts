@@ -77,6 +77,8 @@ export type Cause =
   | ({ kind: 'week' } & WeekSettlement)
   | { kind: 'post'; post: string; person: string; cycles: number }
   | { kind: 'order'; order: string; people: string[]; success?: boolean }
+  /** 周日收盘时状况低于掉档阈值，设施掉了一档（准则 6） */
+  | { kind: 'wear'; facility: string; condition: number }
   | { kind: 'debug'; what: string };
 
 /** 一周的钱（每天收盘按天折算记进现金，周日收盘合成一条讲给玩家） */

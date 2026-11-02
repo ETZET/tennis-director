@@ -10,7 +10,7 @@ once: true
 when:
   all:
     - { facility: clubhouse, is: ruined }
-    - { any: [{ facility: outer_1, is: playable }, { facility: outer_1, is: resurfaced }] }
+    - { any: [{ facility: outer_1, is: playable }, { facility: outer_1, is: resurfaced }, { facility: outer_1, is: worn }] }
 restore: 80
 effects:
   - { facility: clubhouse, set: open }

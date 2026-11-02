@@ -1,0 +1,14 @@
+# 外场 1 新铺的面没人管、掉回了旧场地：补面、重新划线。比整个重铺便宜，但也要两个人半天。
+# 掉档以后才冒出来（准则 6）。
+id: o1_refinish
+act: indian_wells
+at: outer_1
+skill: upkeep
+work: 4h
+cost: 150
+crew: 2
+when: { all: [{ facility: outer_1, is: playable }, { flag: o1_resurfaced }] }
+restore: 60
+effects:
+  - { facility: outer_1, set: resurfaced }
+performance: workday

@@ -143,6 +143,10 @@ export function createText(content: ContentBundle, lang: Lang): Text {
           })
         );
       }
+      case 'wear':
+        return tr('ui.because.wear')
+          .replace('{place}', tr(`ui.fac.${c.facility}`, c.facility))
+          .replace('{n}', String(c.condition));
       case 'debug':
         return zh ? `调试：${c.what}` : `debug: ${c.what}`;
       default:
@@ -251,5 +255,7 @@ export function entryTone(e: CausalEntry): 'bad' | 'good' | undefined {
     }
     if (x.kind === 'end') return x.result === 'won' ? 'good' : 'bad';
   }
+  // 掉档（准则 6）是坏消息
+  if (e.cause.kind === 'wear') return 'bad';
   return bad > good ? 'bad' : good > bad ? 'good' : undefined;
 }

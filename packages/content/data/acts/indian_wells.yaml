@@ -122,6 +122,9 @@ rules:
   lose_if:
     when: { stat: cash, lt: -2000 }
     ending: bankrupt
+  # 掉档（准则 6）：周日收盘时状况低于 15 的设施掉一档（facilities.yaml 的 drops_to）。
+  # 先有画面信号（状况低于 60 起积沙、杂草），低于 30 质量减半、快讯提醒，周六收盘再提醒一次，周日才掉。
+  grade_drop_below: 15
   director_growth: 0.3
   director_skill_cap: 80
 daily: []

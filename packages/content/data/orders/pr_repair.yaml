@@ -7,7 +7,7 @@ work: 10h
 cost: 800
 crew: 3
 once: true
-when: { all: [{ facility: practice, is: ruined }, { facility: outer_23, is: playable }] }
+when: { all: [{ facility: practice, is: ruined }, { any: [{ facility: outer_23, is: playable }, { facility: outer_23, is: worn }] }] }
 restore: 80
 effects:
   - { facility: practice, set: open }

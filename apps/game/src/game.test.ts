@@ -151,3 +151,42 @@ describe('Session', () => {
     expect(JSON.stringify(sheet)).not.toMatch(/\b(ui|posts|orders)\./);
   });
 });
+
+describe('衰减和掉档的快讯（准则 6；GM-1：废墟天天刷屏）', () => {
+  it('废墟不提醒；会掉档的设施跌破 30 提醒一次，周六收盘再提醒"明天掉档"，周日掉档是一条红色快讯', () => {
+    const s = newGame(CONTENT, { seed: 5 });
+    s.cards.scheduled = [];
+    s.cards.open = [];
+    s.cards.nextDraw = Number.POSITIVE_INFINITY;
+    s.facilities.outer_1 = 'playable';
+    s.condition.outer_1 = 45;
+    const session = new Session(CONTENT, s);
+    const proj = new Projector(CONTENT, createText(CONTENT, 'en'));
+    const pushed: { day: number; text: string; hot: boolean }[] = [];
+    while (s.t < 7 * 1440 + 9 * 60) {
+      const before = proj.snapshot(session).wire[0]?.id ?? -1;
+      proj.onEvents(s, advance(s, CONTENT, [], 30).events);
+      for (const x of proj
+        .snapshot(session)
+        .wire.filter((x) => x.id > before)
+        .reverse())
+        pushed.push({ day: Math.floor(s.t / 1440) + 1, text: x.text, hot: !!x.hot });
+    }
+    const texts = pushed.map((x) => x.text);
+    // 开局七处废墟一条都不提醒
+    expect(texts.filter((x) => /condition down to/.test(x))).toEqual([
+      'Court 1 condition down to 25: below 15 at Sunday close it loses a grade and its jobs stop',
+    ]);
+    expect(texts.filter((x) => /tomorrow \(Sunday\)/.test(x))).toHaveLength(1);
+    const drop = pushed.find((x) => /closed/.test(x.text));
+    expect(drop?.text).toMatch(/Court 1 · closed/);
+    expect(drop?.hot).toBe(true);
+    expect(s.facilities.outer_1).toBe('worn');
+    // 地点清单：停用的设施说清楚为什么岗位没了、怎么回来；重开工单在清单里
+    const sheet = proj.placeSheet(session, 'outer_1');
+    expect(sheet.condition?.label).toMatch(/Lost a grade/);
+    expect(sheet.rows.map((r) => r.id)).toContain('o1_reopen');
+    // 废墟的地点清单不挂状况
+    expect(proj.placeSheet(session, 'stadium_2').condition).toBeUndefined();
+  });
+});

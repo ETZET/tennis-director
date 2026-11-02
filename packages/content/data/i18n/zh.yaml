@@ -20,14 +20,14 @@ anchors:
   outer_23: 外场 2–3
 
 facilities:
-  outer_1: { sanded: 外场 1 · 被沙埋了, swept: 外场 1 · 扫出来了, playable: 外场 1 · 能打了, resurfaced: 外场 1 · 新铺的 }
-  outer_23: { ruined: 外场 2–3 · 围网倒了, playable: 外场 2–3 · 修好了 }
-  practice: { ruined: 练习场 · 废弃, open: 练习场 · 开放 }
-  clubhouse: { ruined: 会所 · 屋顶漏了, open: 会所 · 前台开张 }
-  plaza: { dry: 广场 · 喷泉干了, open: 广场 · 喷泉又有水了 }
-  stadium_3: { buried: Stadium 3 · 被沙填满, dug: Stadium 3 · 挖出来了, open: Stadium 3 · 开放 }
-  stadium_2: { ruined: Stadium 2 · 破败, open: Stadium 2 · 开放 }
-  stadium_1: { ruined: Stadium 1 · 东南角塌了, cleared: Stadium 1 · 清理干净, restored: Stadium 1 · 重建完成 }
+  outer_1: { sanded: 外场 1 · 被沙埋了, swept: 外场 1 · 扫出来了, playable: 外场 1 · 能打了, resurfaced: 外场 1 · 新铺的, worn: 外场 1 · 停用（线被沙盖住了） }
+  outer_23: { ruined: 外场 2–3 · 围网倒了, playable: 外场 2–3 · 修好了, worn: 外场 2–3 · 停用（又积沙了） }
+  practice: { ruined: 练习场 · 废弃, open: 练习场 · 开放, worn: 练习场 · 停用（又积沙了） }
+  clubhouse: { ruined: 会所 · 屋顶漏了, open: 会所 · 前台开张, worn: 会所 · 前台关门（又漏又跳闸） }
+  plaza: { dry: 广场 · 喷泉干了, open: 广场 · 喷泉又有水了, worn: 广场 · 停了（喷泉堵死） }
+  stadium_3: { buried: Stadium 3 · 被沙填满, dug: Stadium 3 · 挖出来了, open: Stadium 3 · 开放, worn: Stadium 3 · 停用（又灌了沙） }
+  stadium_2: { ruined: Stadium 2 · 破败, open: Stadium 2 · 开放, worn: Stadium 2 · 停用（座位全是沙） }
+  stadium_1: { ruined: Stadium 1 · 东南角塌了, cleared: Stadium 1 · 清理干净, restored: Stadium 1 · 重建完成, worn: Stadium 1 · 停用（办不了比赛） }
 
 endings:
   exhibition:
@@ -197,6 +197,15 @@ orders:
   st3_tidy: { title: "Stadium 3 又积沙了", note: "扫一扫" }
   st2_repair: { title: "修 Stadium 2", note: "换座位、补遮阳布、铺场地", locked: "先让 Stadium 3 开放" }
   st2_tidy: { title: "Stadium 2 又积沙了", note: "扫一扫" }
+  o1_reopen: { title: "重开外场 1", note: "掉档了：扫出线、换网，$30" }
+  o1_refinish: { title: "外场 1 补面", note: "新面掉档了：补面、划线，$150" }
+  o23_reopen: { title: "重开外场 2–3", note: "掉档了：扶围网、扫沙，$75" }
+  pr_reopen: { title: "重开练习场", note: "掉档了：两块场地重新划线，$60" }
+  ch_reopen: { title: "重开会所前台", note: "掉档了：补屋顶、修电路，$125" }
+  pz_reopen: { title: "重开广场", note: "掉档了：通喷泉、补帆布，$125" }
+  st3_reopen: { title: "重开 Stadium 3", note: "掉档了：再挖一层沙，$150" }
+  st2_reopen: { title: "重开 Stadium 2", note: "掉档了：清座位、换遮阳布，$250" }
+  st1_reopen: { title: "重开 Stadium 1", note: "掉档了：修大屏、清看台，$450" }
   st1_clear: { title: "清理 Stadium 1", note: "搬走塌下来的东南角", locked: "先让 Stadium 2 开放" }
   st1_rebuild: { title: "重建 Stadium 1", note: "整局最大的一笔", locked: "先清理 Stadium 1" }
   st1_exhibition: { title: "办表演赛", note: "声望 50 以上，一群人张罗一整天", locked: "Stadium 1 重建完成、声望 50 以上" }
@@ -384,6 +393,7 @@ ui:
   because:
     post: "{name}在“{post}”干了 {n} 圈"
     order: "{names}做完了“{order}”"
+    wear: "{place}状况只剩 {n}，周日收盘时没撑住"
     worked: （成了）
     failed: （没成）
   wire:
@@ -392,7 +402,8 @@ ui:
     week: "第 {n} 周结算 · {rate} · {what}"
     week_rate: "服务率 {n}%"
     week_none: 还没有客人
-    worn: "{place}状况跌到 {n}：没人维护就会掉档"
+    worn: "{place}状况跌到 {n}：周日收盘时低于 {limit} 就掉档，岗位停开"
+    dropping: "{place}状况 {n}，明天（周日）收盘前不维护就掉档"
   status:
     empty: "{n} 个岗位有客人在等，没人管"
     covered: 此刻有客人的地方都有人
@@ -406,8 +417,9 @@ ui:
     errand: "在{place}办事 · {time}"
   place:
     rain: 下雨，户外的这一项今天关门
-    condition_low: "状况 {n} · 已经掉档，派人维护才能救回来"
-    condition: "状况 {n} · 低于 30 会掉档"
+    condition_low: "状况 {n} · 质量减半；周日收盘低于 {limit} 就掉档"
+    condition: "状况 {n} · 周日收盘低于 {limit} 会掉档"
+    worn: "已掉档 · 这里的岗位停了，做“重开”工单才回来"
     owner: "{name}的班 · {hours} 点自己来"
     income: 有收入
     pick: "把{name}派到{place}哪一项？"

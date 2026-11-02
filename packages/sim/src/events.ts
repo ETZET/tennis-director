@@ -30,6 +30,8 @@ export type SimEvent =
   | { type: 'orderStarted'; order: string; at: string; performance: string | null }
   | { type: 'orderFinished'; order: string; people: string[]; success?: boolean }
   | { type: 'orderCancelled'; order: string }
+  /** 设施掉了一档（周日收盘，状况低于 grade_drop_below）：画面换层、快讯、岗位停开 */
+  | { type: 'facilityWorn'; facility: string; from: string; to: string; condition: number }
   | { type: 'errandStarted'; person: string; at: string; minutes: number }
   | { type: 'errandFinished'; person: string }
   | { type: 'log'; entry: CausalEntry }

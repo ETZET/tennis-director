@@ -84,17 +84,28 @@ export class Projector {
     const T = this.text;
     for (const e of events) {
       if (e.type === 'dayEnded') {
-        // 设施状况跌破 30 提醒一次（第二轮试玩 S3：状况悄悄掉到 0 没人发现）
+        // 设施状况跌破 30 提醒一次（第二轮试玩 S3：状况悄悄掉到 0 没人发现）；周六收盘再提醒一次"明天掉档"。
+        // 只提醒会变旧、会掉档的设施：废墟和停用的设施不会再往下掉，也不挂提醒（GM-1：废墟天天刷屏）
         const w = worldOf(s, this.content);
+        const limit = w.act.rules.grade_drop_below;
+        const saturday = e.day % 7 === 6;
         for (const [f, c] of Object.entries(s.condition)) {
-          if (!(f in s.facilities)) continue;
-          // 还废着的设施不会再变旧，也不挂提醒（设计文档"衰减"；GM-1：开局三条废墟提醒把快讯挤满）
-          if (!w.facilities.get(f)?.states[s.facilities[f] ?? '']?.decay_day) continue;
+          const st = w.facilities.get(f)?.states[s.facilities[f] ?? ''];
+          if (!st?.decay_day) {
+            this.worn.delete(f);
+            continue;
+          }
+          const place = T.tr(`ui.fac.${f}`, f);
+          const n = Math.round(c);
           if (c >= 40) this.worn.delete(f);
           else if (c < 30 && !this.worn.has(f)) {
             this.worn.add(f);
-            this.push(s.t, T.fmt('ui.wire.worn', { place: T.tr(`ui.fac.${f}`, f), n: Math.round(c) }), true);
+            if (!(saturday && st.drops_to && c < limit + st.decay_day))
+              this.push(s.t, T.fmt('ui.wire.worn', { place, n, limit }), true);
           }
+          // 明天收盘就要掉：按一天的衰减估一下，够不着阈值的才提醒
+          if (saturday && st.drops_to && limit && c < limit + st.decay_day)
+            this.push(s.t, T.fmt('ui.wire.dropping', { place, n }), true);
         }
       } else if (e.type === 'cardOpened') this.push(s.t, T.cardTitle(e.card), false);
       else if (e.type === 'log' && e.entry.cause.kind === 'week') {
@@ -120,7 +131,9 @@ export class Projector {
       } else if (e.type === 'log') {
         const so = T.so(e.entry);
         if (!so || e.entry.cause.kind === 'start') continue;
-        const hot = e.entry.effects.some((x) => x.kind === 'fire' || x.kind === 'hire' || x.kind === 'end');
+        const hot =
+          e.entry.cause.kind === 'wear' ||
+          e.entry.effects.some((x) => x.kind === 'fire' || x.kind === 'hire' || x.kind === 'end');
         this.push(s.t, so, hot);
       } else if (e.type === 'activityStarted') {
         this.push(s.t, T.tr(`activities.${e.activity}.title`), false);
@@ -203,10 +216,14 @@ export class Projector {
       ...Object.entries(s.facilities).map(([id, st]) => {
         const [name, state] = T.tr(`facilities.${id}.${st}`).split(' · ');
         const c = Math.round(s.condition[id] ?? 100);
+        // 红色只给会掉档的低状况和已经停用的；废墟本来就是这样，不算坏消息
+        const def = w.facilities.get(id);
+        const decays = !!def?.states[st]?.decay_day;
+        const worn = !decays && !!def && Object.values(def.states).some((x) => x.drops_to === st);
         return {
           label: name ?? id,
           value: `${state ?? st} · ${c}`,
-          ...(c < 30 ? { tone: 'bad' as const } : {}),
+          ...((decays && c < 30) || worn ? { tone: 'bad' as const } : {}),
         };
       }),
     ];
@@ -662,8 +679,18 @@ export class Projector {
       posts: pp,
       orders: { n: orders.length, skills: [...new Set(orders.map((o) => o.skill))], progress: best, crew },
       fit,
-      worn: this.wornAt(s, anchor),
+      worn: this.lowAt(s, anchor),
     };
+  }
+
+  /** 这个地点的设施掉过档、正停用着（准则 6）：状态是别的状态的 drops_to，自己不再变旧 */
+  wornAt(s: GameState, anchor: string): boolean {
+    const w = worldOf(s, this.content);
+    const f = w.facilityAt.get(anchor);
+    const st = f ? s.facilities[f] : undefined;
+    const def = f ? w.facilities.get(f) : undefined;
+    if (!def || !st || def.states[st]?.decay_day) return false;
+    return Object.values(def.states).some((x) => x.drops_to === st);
   }
 
   /** 这个地点的设施状况（没有设施、或者设施还废着不会再变旧时为 null：废墟上不挂"快撑不住了"） */
@@ -674,7 +701,7 @@ export class Projector {
     if (!w.facilities.get(f)?.states[s.facilities[f] ?? '']?.decay_day) return null;
     return Math.round(s.condition[f] ?? 100);
   }
-  private wornAt(s: GameState, anchor: string): number | null {
+  private lowAt(s: GameState, anchor: string): number | null {
     const c = this.conditionAt(s, anchor);
     return c !== null && c < 30 ? c : null;
   }
@@ -824,10 +851,15 @@ export class Projector {
         ? {
             condition: {
               value: cond,
-              label: T.fmt(cond < 30 ? 'ui.place.condition_low' : 'ui.place.condition', { n: cond }),
+              label: T.fmt(cond < 30 ? 'ui.place.condition_low' : 'ui.place.condition', {
+                n: cond,
+                limit: w.act.rules.grade_drop_below,
+              }),
             },
           }
-        : {}),
+        : this.wornAt(s, anchor)
+          ? { condition: { value: 0, label: T.tr('ui.place.worn') } }
+          : {}),
       ...(picked ? { prompt: T.fmt('ui.place.pick', { name: T.personName(picked), place: T.anchor(anchor) }) } : {}),
       rows: rows.map(({ rank: _, ...r }) => r),
       empty: T.tr('ui.place.empty'),

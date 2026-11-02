@@ -2,7 +2,7 @@ import { minutes } from '@td/content';
 import { directorDraw, expireCards, openScheduled } from './cards';
 import { type Ctx, run, setStat } from './effects';
 import { weightedPick } from './rng';
-import { closeLedger, decayDay, overnight, staffSystem } from './staff';
+import { closeLedger, decayDay, gradeDrop, overnight, staffSystem } from './staff';
 import { at, dayOf, minuteOfDay, weekdayOf } from './state';
 import { num, qualityTarget, test } from './vars';
 import { walkSystem } from './walk';
@@ -12,7 +12,7 @@ import type { World } from './world';
 /**
  * 每个 tick 按固定顺序执行的系统，每个只负责一件事（ADR 0012）：
  * 日历 → 员工走路 → 岗位和工单 → 活动 → 质量 → 事件 → 导演。
- * 收盘时：今天的岗位账 → 衰减 → 经济（按天记账）→ 周结算（周日，一条因果日志）。
+ * 收盘时：今天的岗位账 → 衰减 → 经济（按天记账）→（周日）周结算（一条因果日志）→ 掉档。
  */
 
 /* ---------------- 活动 ---------------- */
@@ -105,6 +105,8 @@ function closeDay(ctx: Ctx): void {
   // 周日收盘：会员和声望按这一周的服务率结算，写成一条周结算日志，本周清零（week.ts）
   const sunday = weekdayOf(s.t) === 6;
   if (sunday) settleWeek(ctx, day);
+  // 周日收盘：会员声望结算完了，再看哪处设施没撑住、掉一档（准则 6，ADR 0017）
+  if (sunday) gradeDrop(ctx);
   recomputeDerived(ctx);
   if (sunday) {
     // 拆成几项的派生量：这一周每项变了多少（界面说明董事会信心为什么变）

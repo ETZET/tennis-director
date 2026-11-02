@@ -406,6 +406,75 @@ describe('衰减（准则 6）', () => {
     expect(orderStatus(s, W(), W().orders.get('o1_tidy') as never).visible).toBe(true);
   });
 
+  it('掉档：周日收盘时状况低于 15 掉一档，岗位停开，冒出重开工单；做完回到原来那档', () => {
+    const s = quiet(court1(fresh()));
+    const w = W();
+    s.facilities.outer_23 = 'playable';
+    s.condition.outer_23 = 30; // 一天掉 5：周日收盘时 30 − 7×5 < 15
+    s.condition.outer_1 = 100; // 外场 1 一周掉 35，还在 15 以上：不掉
+    const vis = (o: string) => orderStatus(s, w, w.orders.get(o) as never).visible;
+    // 周一到周六收盘都不掉，哪怕已经低于 15
+    until(s, (x) => dayOf(x.t) === 7);
+    expect(s.condition.outer_23).toBeLessThan(15);
+    expect(s.facilities.outer_23).toBe('playable');
+    const r = advance(s, CONTENT, [], 12 * 60);
+    expect(dayOf(s.t)).toBe(8);
+    expect(s.facilities.outer_23).toBe('worn');
+    expect(s.facilities.outer_1).toBe('playable');
+    expect(r.events).toContainEqual(
+      expect.objectContaining({ type: 'facilityWorn', facility: 'outer_23', from: 'playable', to: 'worn' }),
+    );
+    const entry = s.log.find((e) => e.cause.kind === 'wear');
+    expect(entry?.cause).toMatchObject({ kind: 'wear', facility: 'outer_23' });
+    expect(entry?.effects).toContainEqual({ kind: 'facility', facility: 'outer_23', state: 'worn' });
+    // 停用：岗位不开、不算场地、不再变旧；清理工单换成重开工单
+    for (const p of ['o23_rental', 'o23_clinic', 'o23_upkeep'])
+      expect(postStatus(s, w, w.posts.get(p) as never).exists).toBe(false);
+    expect(facilityTotals(s, w).courts).toBe(1);
+    expect(vis('o23_tidy')).toBe(false);
+    expect(vis('o23_reopen')).toBe(true);
+    const c = s.condition.outer_23 as number;
+    until(s, (x) => dayOf(x.t) === 9);
+    expect(s.condition.outer_23).toBe(c);
+    // 修复主线不倒退：停用的外场 2–3 照样算练习场的前提
+    expect(vis('pr_repair')).toBe(true);
+    // 重开：扣材料费，做完回到"修好了"，状况 +50
+    for (const id of ['director', 'dale']) (s.people[id] as { at: string }).at = 'outer_23';
+    const cash = s.stats.cash as number;
+    advance(s, CONTENT, [assign('director', 'o23_reopen'), assign('dale', 'o23_reopen')], 0);
+    expect(until(s, (x) => x.facilities.outer_23 === 'playable', 600)).toBe(true);
+    expect(s.stats.cash).toBe(cash - 75);
+    expect(s.condition.outer_23).toBeCloseTo(c + 50);
+  });
+
+  it('掉档一周最多一档：新铺的外场 1 先掉回旧场地（可以补面），再一周才停用；废墟不掉档', () => {
+    const s = quiet(fresh());
+    const w = W();
+    s.facilities.outer_1 = 'resurfaced';
+    s.flags.o1_resurfaced = true;
+    s.condition.outer_1 = 5;
+    s.condition.outer_23 = 0; // 还是废墟
+    until(s, (x) => dayOf(x.t) === 8);
+    expect(s.facilities.outer_1).toBe('playable');
+    expect(orderStatus(s, w, w.orders.get('o1_refinish') as never).visible).toBe(true);
+    expect(orderStatus(s, w, w.orders.get('o1_resurface') as never).visible).toBe(true);
+    s.orderLog.done.o1_resurface = 1;
+    expect(orderStatus(s, w, w.orders.get('o1_resurface') as never).visible).toBe(false);
+    until(s, (x) => dayOf(x.t) === 15);
+    expect(s.facilities.outer_1).toBe('worn');
+    expect(s.facilities.outer_23).toBe('ruined');
+  });
+
+  it('幕规则 grade_drop_below 为 0 时不掉档', () => {
+    const c = structuredClone(CONTENT) as ContentBundle & { version: string };
+    (c.acts[0] as { rules: { grade_drop_below: number } }).rules.grade_drop_below = 0;
+    c.version += '+nodrop';
+    const s = quiet(court1(newGame(c, { seed: 1 })));
+    s.condition.outer_1 = 0;
+    until(s, (x) => dayOf(x.t) === 8, 20000, c);
+    expect(s.facilities.outer_1).toBe('playable');
+  });
+
   it('维护岗位每圈修复，修多少看维护能力', () => {
     const s = quiet(court1(fresh()));
     s.condition.outer_1 = 50;

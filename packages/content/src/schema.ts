@@ -192,6 +192,11 @@ export const facilityState = z.strictObject({
   upkeep_week: z.number().default(0),
   /** 没人维护时每天掉多少状况（0..100）；岗位每圈的 wear 另算 */
   decay_day: z.number().min(0).default(0),
+  /**
+   * 掉档（准则 6）：周日收盘时状况低于幕规则 grade_drop_below，就掉到这个状态（同一设施里的另一个状态）。
+   * 掉到的状态通常是"停用"：没有场地、岗位不开，要做一张修复工单才回得来。不写就不会掉档（废墟、已经是最低档）。
+   */
+  drops_to: id.optional(),
 });
 export const facility = z.strictObject({ id, anchor: id, states: z.record(id, facilityState) });
 export type Facility = z.infer<typeof facility>;
@@ -394,6 +399,11 @@ export const act = z.strictObject({
     /** 总监每干完一圈岗位或一张工单，那项能力涨多少（上限 director_skill_cap） */
     director_growth: z.number().min(0).default(0.3),
     director_skill_cap: z.number().min(0).max(100).default(80),
+    /**
+     * 掉档阈值（准则 6"先出画面信号，再掉档"）：周日收盘时，状况低于它、而且当前状态写了 drops_to 的设施掉一档。
+     * 0 = 不掉档。
+     */
+    grade_drop_below: z.number().min(0).max(100).default(0),
   }),
   /** 每天固定开的活动（例如下午的青少年课） */
   daily: z.array(z.strictObject({ hour: z.number(), activity: id, if: cond.optional() })).default([]),

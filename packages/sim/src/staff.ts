@@ -548,6 +548,24 @@ export function decayDay(ctx: Ctx, seasonDecay: number): void {
   }
 }
 
+/**
+ * 周日收盘：掉档（准则 6"先出画面信号，再掉档"）。状况低于 grade_drop_below、当前状态写了 drops_to 的设施掉一档，
+ * 一周最多掉一档。掉到的状态（停用）没有场地、岗位不开，要做重开工单才回来。
+ * 放在会员和声望结算之后：掉档这一周先少了岗位收入，下一个周日才按少了的场地数结算会员。
+ */
+export function gradeDrop(ctx: Ctx): void {
+  const { s, w } = ctx;
+  const limit = w.act.rules.grade_drop_below;
+  if (!limit) return;
+  for (const [id, state] of Object.entries(s.facilities)) {
+    const to = w.facilities.get(id)?.states[state]?.drops_to;
+    const c = s.condition[id] ?? 100;
+    if (!to || c >= limit) continue;
+    run(ctx, { kind: 'wear', facility: id, condition: Math.round(c) }, null, [{ facility: id, set: to }]);
+    ctx.events.push({ type: 'facilityWorn', facility: id, from: state, to, condition: c });
+  }
+}
+
 /** 今天每个岗位的账合成一条因果日志："因为 Dale 在 1 号场上课 3 圈，所以 +$51" */
 export function closeLedger(ctx: Ctx): void {
   const { s } = ctx;
