@@ -159,6 +159,8 @@ interface StaffStyle {
   minChance: number;
   /** 有需求的岗位值多少分（每小时） */
   demandValue: number;
+  /** 看走眼：给每个岗位或工单的价值乘一个系数（普通玩家用；不给就是看得准） */
+  misjudge?: (target: string) => number;
 }
 
 /**
@@ -189,7 +191,7 @@ function staffCommands(s: GameState, w: World, st: StaffStyle): Command[] {
       if (c > 85) continue;
       value = (100 - c) / 6;
     } else value = 2; // 随时能干、不修东西的岗位（球员自己练球）：闲着不如去
-    options.push({ target: p.id, at: p.at, skill: p.skill, value, crew: 1 });
+    options.push({ target: p.id, at: p.at, skill: p.skill, value: value * (st.misjudge?.(p.id) ?? 1), crew: 1 });
   }
   for (const o of w.orders.values()) {
     const os = orderStatus(s, w, o);
@@ -201,6 +203,7 @@ function staffCommands(s: GameState, w: World, st: StaffStyle): Command[] {
     value -= o.cost * (WEIGHT.cash ?? 0);
     // 按工时折算（开平方）：大工程也值得一点一点干
     value = value / Math.max(1, Math.sqrt(minutes(o.work) / 60)) + (os.started ? 4 : 0);
+    value *= st.misjudge?.(o.id) ?? 1;
     if (value < 1.5) continue;
     options.push({ target: o.id, at: o.at, skill: o.skill, value, crew: o.crew });
   }
@@ -289,6 +292,112 @@ export function cautiousBot(): Bot {
     minChance: 0.7,
     demandValue: 6,
   });
+}
+
+/**
+ * 普通玩家（LG-9 原型）。和贪心型用同一套"看得见的好处"打分，但像真人一样受限：
+ *
+ * - **看一眼才动手。** 每个游戏日只有 checks 次"看场景"的时刻（营业时间里随机分布），每次最多拖 drags 个人；
+ *   中间全靠习惯（ADR 0014）换班。设计文档："人手比岗位少，玩家一天重派两三次人。"
+ * - **卡要过一会儿才答。** 暂停的卡（招聘日、投资方、期限）时间停着，立刻答；不暂停的卡（起风了、记者、
+ *   第一批客人、横幅）要过一段时间才注意到（指数分布，平均 cardDelay 分钟），倒计时短的会错过、走默认。
+ *   答卡时顺便看一眼场景（算一次 check）。
+ * - **有时选次优。** 每张卡有 slip 的概率随手选一个能选的项（可能是不招人）。
+ * - **不会完美规划。** 每天对每个岗位和工单的价值有一个看走眼的系数 exp(N(0, noise))：
+ *   有时先做不急的、大工程只派一两个人、维护拖着不做。
+ *
+ * 两个旋钮：skill（0..1）一起调 checks、drags、cardDelay、slip、noise；三档预设见 HUMAN_TIERS。
+ * 自己的随机数和游戏的种子随机流分开（确定性不受影响）。
+ */
+export interface HumanProfile {
+  /** 每个游戏日看几次场景 */
+  checks: number;
+  /** 每次最多拖几个人 */
+  drags: number;
+  /** 不暂停的卡平均多久才答（游戏分钟） */
+  cardDelay: number;
+  /** 随手选项的概率 */
+  slip: number;
+  /** 看走眼的程度（对数正态的 σ） */
+  noise: number;
+  /** 工单留多少现金不动 */
+  reserve: number;
+}
+
+/** skill 0 = 刚上手，1 = 很会玩（但仍然只是一天看几次的人） */
+export function humanProfile(skill: number): HumanProfile {
+  const k = Math.min(1, Math.max(0, skill));
+  const lerp = (a: number, b: number) => a + (b - a) * k;
+  return {
+    checks: Math.round(lerp(2, 6)),
+    drags: Math.round(lerp(2, 5)),
+    cardDelay: lerp(240, 30),
+    slip: lerp(0.35, 0.05),
+    noise: lerp(0.9, 0.2),
+    reserve: Math.round(lerp(800, 300)),
+  };
+}
+
+export const HUMAN_TIERS = { novice: 0.15, average: 0.5, good: 0.85 } as const;
+
+export function humanBot(seed: number, profile: HumanProfile, name = 'human'): Bot {
+  const r = botRand(seed * 2654435761 + 17);
+  const gauss = () => Math.sqrt(-2 * Math.log(1 - r())) * Math.cos(2 * Math.PI * r());
+  const cardAt = new Map<number, number>();
+  const judged = new Map<string, number>();
+  let day = -1;
+  let checks: number[] = [];
+  let pending = false;
+  return {
+    name,
+    decide(s, content) {
+      const w = worldFor(content, s.act, s.directorConfig);
+      const today = Math.floor(s.t / 1440);
+      if (today !== day) {
+        day = today;
+        judged.clear();
+        const { open, close } = w.act.hours;
+        checks = Array.from(
+          { length: profile.checks },
+          () => today * 1440 + open * 60 + Math.floor(r() * (close - open) * 60),
+        ).sort((a, b) => a - b);
+      }
+      const cmds: Command[] = [];
+      for (const o of s.cards.open) {
+        const c = w.cards.get(o.card);
+        if (!c) continue;
+        let when = cardAt.get(o.uid);
+        if (when === undefined) {
+          when = c.pause ? s.t : s.t + Math.floor(-Math.log(1 - r()) * profile.cardDelay);
+          cardAt.set(o.uid, when);
+        }
+        if (s.t < when) continue;
+        const avail = optionStatus(s, w, o.uid).filter((x) => x.available);
+        if (!avail.length) continue;
+        let pick = avail[0] as OptionStatus;
+        if (r() < profile.slip) pick = avail[Math.floor(r() * avail.length)] as OptionStatus;
+        else for (const st of avail) if (scoreOption(w, c, st, false) > scoreOption(w, c, pick, false)) pick = st;
+        cmds.push({ type: 'chooseOption', uid: o.uid, option: pick.key });
+        pending = true;
+      }
+      if (cmds.length) return cmds; // 先答卡，下一眼再排人（答卡时的那一眼记下来）
+      if (checks.length && (checks[0] as number) <= s.t) {
+        checks.shift();
+        pending = true;
+      }
+      if (!pending) return [];
+      pending = false;
+      const misjudge = (target: string) => {
+        let m = judged.get(target);
+        if (m === undefined) judged.set(target, (m = Math.exp(gauss() * profile.noise)));
+        return m;
+      };
+      return staffCommands(s, w, { reserve: profile.reserve, minChance: 0.3, demandValue: 6, misjudge }).slice(
+        0,
+        profile.drags,
+      );
+    },
+  };
 }
 
 export interface RunResult {

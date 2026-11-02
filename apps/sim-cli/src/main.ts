@@ -2,6 +2,7 @@ import { writeFileSync } from 'node:fs';
 import { CONTENT, SIM_VERSION } from '@td/sim';
 import { playabilityReport } from './playability';
 import { BOT_NAMES, type BotName, botReport, determinismCheck, reportMarkdown } from './report';
+import { runCell, type Variant } from './sweep';
 
 /**
  * 命令行无头跑局。只依赖 @td/sim 和 @td/shared，不碰 three.js 或 DOM。
@@ -33,7 +34,7 @@ export function main(): number {
   }
   if (cmd === 'bots') {
     const games = Number(arg('games', '1000'));
-    const bots = arg('bots', BOT_NAMES.join(','))
+    const bots = arg('bots', 'greedy,random,cautious,idle')
       .split(',')
       .filter((b): b is BotName => (BOT_NAMES as string[]).includes(b));
     const director = arg('director', '');
@@ -46,6 +47,19 @@ export function main(): number {
       console.log(`报告已写入 ${out}`);
     }
     console.log(md);
+    return 0;
+  }
+  if (cmd === 'sweep') {
+    // 一格：pnpm sim sweep --bot average --games 100 --weeks 16 [--cash 3000] [--decay 1] [--work 1] [--costs 1] [--rep 50]
+    // 输出一行 JSON（变体、机器人、每局结果），给扫参脚本汇总
+    const v: Variant = {};
+    for (const k of ['weeks', 'investor', 'cash', 'decay', 'work', 'costs', 'rep'] as const) {
+      const x = arg(k, '');
+      if (x) v[k] = Number(x);
+    }
+    const bot = arg('bot', 'average');
+    const rows = runCell(CONTENT, v, bot, Number(arg('games', '100')), Number(arg('seed0', '1')));
+    console.log(JSON.stringify({ variant: v, bot, rows }));
     return 0;
   }
   if (cmd === 'playability') {

@@ -1,5 +1,17 @@
 import type { ContentBundle } from '@td/sim';
-import { cautiousBot, greedyBot, idleBot, type RunResult, randomBot, replay, runGame, stateHash } from '@td/sim';
+import {
+  cautiousBot,
+  greedyBot,
+  HUMAN_TIERS,
+  humanBot,
+  humanProfile,
+  idleBot,
+  type RunResult,
+  randomBot,
+  replay,
+  runGame,
+  stateHash,
+} from '@td/sim';
 
 /**
  * 机器人跑局报告：平衡工具。
@@ -35,9 +47,14 @@ const BOTS = {
   random: (seed: number) => randomBot(seed * 7919),
   cautious: (_seed: number) => cautiousBot(),
   idle: (_seed: number) => idleBot(),
+  // 普通玩家（LG-9）：三档
+  novice: (seed: number) => humanBot(seed, humanProfile(HUMAN_TIERS.novice), 'novice'),
+  average: (seed: number) => humanBot(seed, humanProfile(HUMAN_TIERS.average), 'average'),
+  good: (seed: number) => humanBot(seed, humanProfile(HUMAN_TIERS.good), 'good'),
 } as const;
 export type BotName = keyof typeof BOTS;
 export const BOT_NAMES = Object.keys(BOTS) as BotName[];
+export const makeBot = (name: BotName, seed: number) => BOTS[name](seed);
 
 export function botReport(
   content: ContentBundle,
