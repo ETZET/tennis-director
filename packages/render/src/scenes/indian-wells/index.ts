@@ -38,7 +38,8 @@ export const INDIAN_WELLS: Site = {
   lighting: {
     // 沙漠的下午：干燥、偏暖的天色
     sky: '#e9d3b4',
-    fog: { near: 380, far: 640 },
+    // 照参考图：不投阴影；天色和灯光由 daylight 按游戏时钟设
+    shadows: false,
     hemi: { sky: '#f4e4cc', ground: '#a88a64', intensity: 0.82 },
     sun: {
       color: '#fff1d8',
