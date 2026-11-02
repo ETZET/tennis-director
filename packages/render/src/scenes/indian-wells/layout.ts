@@ -216,3 +216,46 @@ export function walkMinutes(a: string, b: string): number | null {
   const l = routeLine(a, b);
   return l ? Math.max(1, Math.round(polylineLength(l) / WALK_METERS_PER_MINUTE)) : null;
 }
+
+/* ---------------- 美术用的布局常量（只管画面，不影响步道、站位和导航分钟数） ---------------- */
+
+/** 园区围墙以内（墙外是沙漠）。东墙在大门（ARCH_X）两侧，停车场那一截往东凸出去到 LOT_WALL_X */
+export const CAMPUS = { x0: -98, x1: 89.5, z0: -75, z1: 68 } as const;
+/** 大门的门楼（在站位东边，门外是售票亭和前广场） */
+export const ARCH_X = 89.5;
+/** 停车场东边的围墙 */
+export const LOT_WALL_X = 100;
+/** 大门外的 Washington St（南北向） */
+export const ROAD = { x0: 104, x1: 111 } as const;
+/**
+ * Stadium 1 看台：内沿是圆角矩形（半宽 ix、半深 iz），往外 rows 排，每排 rowD 深、高 rise。
+ * 东边和南边各留一个入场口（步道从这里穿进去），东南角上半截是塌的。
+ */
+export const S1_BOWL = { ix: 22, iz: 15, rows: 10, rowD: 1, rise: 0.55, corner: 3 } as const;
+/** Stadium 2：南北两条看台（东头敞开，步道从东边进场） */
+export const S2_STANDS = { x0: -88, x1: -52, iz: 13.6, rows: 6 } as const;
+
+/**
+ * 草坪：每块归一个设施。开局是枯草，那处设施修好了就换成剪过的绿草（overlays.ts）。
+ * 步道和场地都盖在草坪上面。
+ */
+export const LAWNS: Readonly<Record<string, readonly { x0: number; x1: number; z0: number; z1: number }[]>> = {
+  outer_1: [{ x0: -42, x1: 0, z0: 40, z1: 67 }],
+  outer_23: [{ x0: 0, x1: 78, z0: 40, z1: 67 }],
+  practice: [{ x0: -94, x1: -50, z0: -20, z1: 25 }],
+  stadium_2: [{ x0: -96, x1: -44, z0: 25, z1: 66 }],
+  stadium_3: [{ x0: -96, x1: -44, z0: -66, z1: -26 }],
+  clubhouse: [
+    { x0: -36, x1: 20, z0: -49, z1: -38 },
+    { x0: -36, x1: -27, z0: -70, z1: -49 },
+    { x0: 11, x1: 20, z0: -70, z1: -49 },
+  ],
+  plaza: [
+    { x0: 42, x1: 78, z0: 18, z1: 36 },
+    { x0: 73, x1: 84, z0: -20, z1: 18 },
+  ],
+  stadium_1: [
+    { x0: -36, x1: 36, z0: -30, z1: -26 },
+    { x0: -36, x1: 36, z0: 26, z1: 30 },
+  ],
+};

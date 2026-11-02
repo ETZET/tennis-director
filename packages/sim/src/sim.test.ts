@@ -350,6 +350,17 @@ describe('事件卡', () => {
     });
   });
 
+  it('现金是负的时候，不花钱的选项和工单照样能选、能开工', () => {
+    const s = quiet(court1(fresh()));
+    s.stats.cash = -500;
+    const uid = open(s, 'iw_sponsor');
+    expect(optionStatus(s, W(), uid).every((o) => o.available)).toBe(true);
+    s.facilities.outer_1 = 'sanded';
+    expect(canAssign(s, W(), 'director', 'o1_sweep')).toBeNull();
+    advance(s, CONTENT, [assign('director', 'o1_sweep')], 30);
+    expect(s.orders.o1_sweep?.progress).toBeGreaterThan(0);
+  });
+
   it('现金不够的选项不能选', () => {
     const s = quiet(fresh());
     s.stats.cash = 10;

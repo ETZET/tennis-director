@@ -182,7 +182,7 @@ export function orderStatus(s: GameState, w: World, o: Order): OrderStatus {
     ? (s.orderLog.cooldowns[o.id] ?? -1) > s.t
       ? 'cooldown'
       : 'done'
-    : !st?.started && o.cost > (s.stats.cash ?? 0)
+    : !st?.started && o.cost > 0 && o.cost > (s.stats.cash ?? 0)
       ? 'cost'
       : crew.length >= o.crew
         ? 'crew'
@@ -500,7 +500,7 @@ function orderSystem(ctx: Ctx, jobs: Map<string, string[]>): void {
     let state = st;
     if (!state) {
       // 第一个人到场：扣材料费开工；钱不够就开不了，人闲下来
-      if (o.cost > (s.stats.cash ?? 0)) {
+      if (o.cost > 0 && o.cost > (s.stats.cash ?? 0)) {
         for (const id of crew) {
           const p = s.people[id];
           if (p) p.job = null;
