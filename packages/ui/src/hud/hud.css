@@ -1,21 +1,25 @@
-/* 「场边转播」HUD：深海军蓝面板、球场绿标签、荧光黄是唯一的强调色。
-   数字和标题用 Saira Semi Condensed，正文用 Saira（字体由宿主页面加载）。 */
+/* HUD（参考图 Palm Oasis，2026-11-02）：海军蓝方块面板、香槟色强调、像素字体、硬边投影。
+   拉丁字母用 Pixelify Sans / Silkscreen，中文落到 ZCOOL QingKe HuangYou（字体由宿主页面加载）。 */
 .td-hud{
-  --td-navy:#0f1f3a;
-  --td-panel:rgba(15,31,58,.92);
-  --td-panel-2:rgba(15,31,58,.96);
-  --td-green:#1f6b4f;
-  --td-optic:#d7ff3c;
-  --td-white:#ffffff;
-  --td-dim:#a9b6c7;
-  --td-line:rgba(255,255,255,.15);
+  --td-navy:#14223a;
+  --td-panel:rgba(20,34,58,.92);
+  --td-panel-2:rgba(20,34,58,.96);
+  --td-green:#2f7a49;
+  --td-optic:#d8c08a;
+  --td-white:#f3ecdc;
+  --td-champ-2:#efe2bf;
+  --td-navy-2:#1d2f4f;
+  --td-good:#7fe0a0;
+  --td-dim:#a9b0bd;
+  --td-line:rgba(243,236,220,.12);
   --td-down:#ff8a6b;
   --td-pickle:#9be07f;
-  --td-cond:'Saira Semi Condensed','Arial Narrow',system-ui,sans-serif;
-  --td-text:'Saira',system-ui,sans-serif;
-  --td-shadow:0 4px 12px rgba(15,31,58,.35);
+  --td-cond:'Pixelify Sans','ZCOOL QingKe HuangYou','Noto Sans SC','PingFang SC',monospace;
+  --td-text:'Pixelify Sans','ZCOOL QingKe HuangYou','Noto Sans SC','PingFang SC',sans-serif;
+  --td-label:'Silkscreen','ZCOOL QingKe HuangYou','Courier New',monospace;
+  --td-shadow:3px 3px 0 rgba(0,0,0,.3);
   position:fixed;inset:0;pointer-events:none;z-index:4;color:var(--td-white);font-family:var(--td-text);
-  -webkit-font-smoothing:antialiased;
+  -webkit-font-smoothing:none;
 }
 .td-hud>*{pointer-events:auto}
 :where(.td-hud) button{font:inherit;color:inherit;cursor:pointer}
@@ -69,7 +73,7 @@
 .td-pickle{color:var(--td-pickle)}
 
 /* ---------- 下三分之一事件卡 ---------- */
-.td-card{position:absolute;left:50%;bottom:calc(74px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);width:min(820px,calc(100% - 32px));display:flex;flex-direction:column;box-shadow:0 8px 20px rgba(15,31,58,.45);animation:td-in .35s cubic-bezier(.2,.8,.2,1)}
+.td-card{position:absolute;left:50%;bottom:calc(74px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);width:min(820px,calc(100% - 32px));display:flex;flex-direction:column;box-shadow:0 8px 20px rgba(20,34,58,.45);animation:td-in .35s cubic-bezier(.2,.8,.2,1)}
 @keyframes td-in{from{opacity:0;transform:translate(-50%,16px)}to{opacity:1;transform:translate(-50%,0)}}
 .td-card-tags{display:flex;height:30px}
 .td-tag-topic{padding:0 12px;background:var(--td-optic);color:var(--td-navy);display:flex;align-items:center;font:800 14px/1 var(--td-cond);letter-spacing:.1em;text-transform:uppercase}
@@ -85,7 +89,7 @@
 .td-answers{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
 .td-answer{display:flex;gap:10px;align-items:center;padding:10px 12px;background:var(--td-white);color:var(--td-navy) !important;border:0;text-align:left;font:600 14px/1.25 var(--td-text) !important}
 .td-answer .td-key{background:var(--td-navy);color:var(--td-white)}
-.td-answer:hover:not([aria-disabled="true"]){background:#eef3d0}
+.td-answer:hover:not([aria-disabled="true"]){background:#efe2bf}
 .td-answer-col{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
 .td-answer-text{min-width:0}
 .td-answer-hint{font:600 11px/1.2 var(--td-text);letter-spacing:.02em;opacity:.72}
@@ -122,7 +126,7 @@
 .td-ctrl button{width:44px;border:0;border-left:1px solid var(--td-line);background:transparent;display:flex;align-items:center;justify-content:center;padding:0}
 .td-ctrl button:hover{background:rgba(255,255,255,.08)}
 .td-ctrl .td-ctrl-main{width:52px;border-left:0;background:var(--td-optic);color:var(--td-navy)}
-.td-ctrl .td-ctrl-main:hover{background:#e6ff7a}
+.td-ctrl .td-ctrl-main:hover{background:#efe2bf}
 .td-ctrl .td-ctrl-speed{width:52px;font:700 15px/1 var(--td-cond)}
 
 @media (max-width:760px){
@@ -185,3 +189,45 @@
   .td-card-text{font-size:13.5px}
   .td-bug-status{gap:8px;max-width:calc(100vw - 24px)}
 }
+
+/* ---------- 参考图 Palm Oasis（2026-11-02）：标题卡、俱乐部报告、方块按钮 ---------- */
+.td-top{position:absolute;left:max(16px,env(safe-area-inset-left,0px));right:max(16px,env(safe-area-inset-right,0px));top:max(14px,env(safe-area-inset-top,0px));display:flex;justify-content:space-between;align-items:flex-start;gap:12px;pointer-events:none}
+.td-top>*{pointer-events:auto}
+.td-hud .td-bug{position:static;height:auto;max-width:min(560px,100%);display:flex;gap:12px;align-items:flex-start;padding:10px 14px 10px 10px;background:var(--td-navy);border-bottom:4px solid var(--td-optic);box-shadow:4px 4px 0 rgba(0,0,0,.3);font:inherit;min-width:0}
+.td-crest{flex:none;width:46px;height:46px;background:var(--td-navy-2);border:3px solid var(--td-optic);display:grid;place-items:center;box-sizing:border-box}
+.td-crest svg{width:30px;height:30px}
+.td-bug-col{min-width:0;display:flex;flex-direction:column;gap:6px}
+.td-hud .td-bug-name{padding:0;background:none;font:700 21px/1.05 var(--td-cond);letter-spacing:0;text-transform:none;color:var(--td-white);white-space:normal;text-wrap:balance}
+.td-hud .td-bug-status{position:static;display:flex;flex-wrap:wrap;gap:6px;padding:0;background:none;box-shadow:none;max-width:none}
+.td-chip{display:inline-flex;align-items:center;gap:5px;min-height:20px;padding:3px 7px 2px;background:var(--td-navy-2);color:var(--td-white);font:400 11px/1.2 var(--td-label);letter-spacing:.04em;text-transform:uppercase;font-variant-numeric:tabular-nums;white-space:nowrap}
+.td-chip-clock{background:var(--td-optic);color:var(--td-navy)}
+.td-chip-clock.td-paused{background:var(--td-champ-2)}
+.td-chip.td-where{color:var(--td-dim);text-transform:none;font-family:var(--td-text);font-size:12px;white-space:normal}
+.td-chip .td-energy-bar{width:30px;height:6px}
+.td-chip .td-energy-bar i{background:var(--td-good)}
+.td-hud .td-strip-wrap{position:static;flex:none}
+.td-hud .td-strip{border-top:4px solid var(--td-optic);background:var(--td-navy);box-shadow:4px 4px 0 rgba(0,0,0,.3)}
+.td-hud .td-grade{border:3px solid currentColor;box-sizing:border-box;font-family:var(--td-cond)}
+.td-hud .td-lab,.td-hud .td-details-head,.td-wire-tag,.td-tag-topic,.td-tag-loc,.td-who-col b,.td-card-action{font-family:var(--td-label)!important;font-weight:400!important}
+.td-hud .td-details{border-top:0;box-shadow:4px 4px 0 rgba(0,0,0,.3);margin-top:0;background:var(--td-navy)}
+.td-hud .td-spark-line{stroke:var(--td-good)}
+.td-hud .td-trend-recovering,.td-hud .td-good{color:var(--td-good)}
+.td-card{box-shadow:4px 4px 0 rgba(0,0,0,.35)}
+.td-card-body{border-top:4px solid var(--td-optic);background:var(--td-navy)}
+.td-card-head{font-weight:700}
+.td-answer{background:var(--td-white);box-shadow:3px 3px 0 rgba(0,0,0,.3)}
+.td-answer:active:not([aria-disabled="true"]){transform:translate(2px,2px);box-shadow:1px 1px 0 rgba(0,0,0,.3)}
+.td-wire{background:var(--td-navy);border-top:4px solid var(--td-optic)}
+.td-wire-tag{background:var(--td-green);font-size:11px;letter-spacing:.06em}
+.td-ctrl button:active{transform:translate(1px,1px)}
+@media (max-width:760px){
+  .td-top{flex-direction:column;align-items:stretch;gap:8px;left:max(10px,env(safe-area-inset-left,0px));right:max(10px,env(safe-area-inset-right,0px));top:max(10px,env(safe-area-inset-top,0px))}
+  .td-hud .td-bug{max-width:none;padding:8px 10px 8px 8px;gap:10px}
+  .td-crest{width:38px;height:38px}
+  .td-crest svg{width:24px;height:24px}
+  .td-hud .td-bug-name{font-size:17px}
+  .td-chip{font-size:10px;padding:2px 6px 1px}
+  .td-hud .td-strip-wrap{left:auto;right:auto;top:auto}
+  .td-card{max-height:calc(100% - 250px)}
+}
+@media (prefers-reduced-motion:reduce){.td-answer:active,.td-ctrl button:active{transform:none}}

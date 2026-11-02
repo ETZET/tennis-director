@@ -72,7 +72,7 @@ describe('weekly settlement in the wire and the story (GM-1)', () => {
     ).toHaveLength(2);
     expect(wire.join('\n')).toMatch(/Week 2 settled · no customers yet · Cash −\$150/);
     // 废墟不挂"状况跌到"的提醒
-    expect(wire.some((x) => x.includes('Stadium 1 condition'))).toBe(false);
+    expect(wire.some((x) => x.includes('Stadium condition'))).toBe(false);
     for (const lang of ['en', 'zh'] as const) {
       const T = createText(CONTENT, lang);
       const e = s.log.filter((x) => x.cause.kind === 'week').at(-1);
@@ -145,7 +145,7 @@ describe('Session', () => {
     expect(snap.hint).toBeNull();
     const me = snap.staff?.find((t) => t.id === 'director');
     expect(me?.state).toBe('walking');
-    expect(me?.doing).toMatch(/扫外场 1 的沙/);
+    expect(me?.doing).toMatch(/扫会员场的沙/);
     const sheet = proj.sheet(session, 'o1_sweep');
     expect(sheet?.people.find((p) => p.id === 'director')?.here).toBe(true);
     expect(JSON.stringify(sheet)).not.toMatch(/\b(ui|posts|orders)\./);
@@ -175,11 +175,11 @@ describe('衰减和掉档的快讯（准则 6；GM-1：废墟天天刷屏）', (
     const texts = pushed.map((x) => x.text);
     // 开局七处废墟一条都不提醒
     expect(texts.filter((x) => /condition down to/.test(x))).toEqual([
-      'Court 1 condition down to 25: below 15 at Sunday close it loses a grade and its jobs stop',
+      "Members' court condition down to 25: below 15 at Sunday close it loses a grade and its jobs stop",
     ]);
     expect(texts.filter((x) => /tomorrow \(Sunday\)/.test(x))).toHaveLength(1);
     const drop = pushed.find((x) => /closed/.test(x.text));
-    expect(drop?.text).toMatch(/Court 1 · closed/);
+    expect(drop?.text).toMatch(/Members' court · closed/);
     expect(drop?.hot).toBe(true);
     expect(s.facilities.outer_1).toBe('worn');
     // 地点清单：停用的设施说清楚为什么岗位没了、怎么回来；重开工单在清单里

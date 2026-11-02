@@ -1,4 +1,4 @@
-# Stadium 2 · 赛事日：周五到周日 10–18 点，大学比赛、表演赛、包场。
+# 泳池 · 小木屋服务：周五到周日 10–18 点，送毛巾、送饮料、看着租出去的小木屋。
 id: st2_events
 act: indian_wells
 at: stadium_2
@@ -11,4 +11,3 @@ effects:
   - { stat: cash, add: "round(22 * (0.6 + worker.skill / 100) * (1 + stat.reputation / 120))" }
   - { stat: reputation, add: 0.05 }
 wear: 1
-performance: match

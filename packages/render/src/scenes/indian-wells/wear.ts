@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import type { CourtFrame } from '../../world/frame';
 import type { Stage } from '../../world/stage';
 import { PAL } from './build';
-import { CLUBHOUSE, F_O1, F_O2, F_O3, F_P1, F_P2, F_S1, F_S2, F_S3, PLAZA } from './layout';
+import { CLUBHOUSE, F_O1, F_O2, F_O3, F_P1, F_P2, F_PB1, F_PB2, F_S1, PLAZA, POOL_DECK, TERRACE } from './layout';
 
 /**
  * 状况看得见（ART-8 原型，准则 6"先出画面信号，再掉档"）：修好的设施没人维护、状况往下掉时，
@@ -45,8 +45,7 @@ const COURTS: Record<string, readonly CourtFrame[]> = {
   outer_23: [F_O2, F_O3],
   practice: [F_P1, F_P2],
   stadium_1: [F_S1],
-  stadium_2: [F_S2],
-  stadium_3: [F_S3],
+  stadium_3: [F_PB1, F_PB2],
 };
 
 export function createWear(stage: Stage): WearLayer {
@@ -160,8 +159,10 @@ export function createWear(stage: Stage): WearLayer {
         R(0.05, 1.6),
       );
   };
-  rect('clubhouse', CLUBHOUSE.x0 + 1, CLUBHOUSE.x1 - 1, CLUBHOUSE.z1 + 0.6, CLUBHOUSE.z1 + 9, 14, 16, 30);
+  rect('clubhouse', CLUBHOUSE.x1 + 0.6, TERRACE.x1, TERRACE.z0, TERRACE.z1, 14, 16, 30);
   rect('plaza', PLAZA.x0 + 1, PLAZA.x1 - 1, PLAZA.z0 + 1, PLAZA.z1 - 1, 18, 18, 36);
+  // 泳池：池畔积沙、落叶和垃圾
+  rect('stadium_2', POOL_DECK.x0 + 0.5, POOL_DECK.x1 - 0.5, POOL_DECK.z0 + 0.5, POOL_DECK.z1 - 0.5, 16, 10, 30);
 
   const o = new THREE.Object3D();
   const zero = new THREE.Matrix4().makeScale(0, 0, 0);

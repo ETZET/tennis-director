@@ -1,4 +1,4 @@
-# Indian Wells 的设施。每个设施的第一个状态是开局废弃的样子，后面是一级级修好的样子（ADR 0015）。
+# Palm Oasis 的设施（ADR 0018：id 沿用原来的，stadium_3 是匹克球场、stadium_2 是泳池）。每个设施的第一个状态是开局废弃的样子，后面是一级级修好的样子（ADR 0015）。
 # courts：能打网球的场地数；quality：对质量目标的贡献（状况低于 30 减半，到 0 归零）；
 # decay_day：没人维护时每天掉多少状况（准则 6：没人管的地方慢慢变旧）。
 # drops_to：周日收盘时状况低于幕规则 grade_drop_below，就掉到这一档（准则 6：先出画面信号，再掉档）。
@@ -54,7 +54,8 @@
   anchor: stadium_2
   states:
     ruined: { quality: -1 }
-    open: { courts: 1, quality: 12, upkeep_week: 140, decay_day: 3, drops_to: worn }
+    # 泳池不是球场：不算场地数（会员上限按场地算），质量和收入从岗位来
+    open: { quality: 12, upkeep_week: 140, decay_day: 3, drops_to: worn }
     worn: { upkeep_week: 45 }
 - id: stadium_1
   anchor: stadium_1

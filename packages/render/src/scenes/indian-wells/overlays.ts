@@ -7,66 +7,41 @@ import { type BuildContext, jit, sr } from '../../world/build-context';
 import { CourtFrame } from '../../world/frame';
 import type { Stage } from '../../world/stage';
 import { onTick } from './anim';
+import { bench, boug, PAL, type PalmKind, palm, pickc, sandPile, tile, tumbleweed, umbrella } from './build';
 import {
-  car,
-  facade,
-  inPit,
-  PAL,
-  type PalmKind,
-  palm,
-  S1_SPEC,
-  S2_SPEC_N,
-  S2_SPEC_S,
-  S3_SPECS,
-  type Seg,
-  s1Collapsed,
-  s1Gap,
-  s1Seat,
-  s2Seat,
-  sandPile,
-  stands,
-  tumbleweed,
-  wornCourt,
-} from './build';
-import {
-  ARCH_X,
   CLUBHOUSE,
   F_O1,
   F_O2,
   F_O3,
   F_P1,
   F_P2,
+  F_PB1,
+  F_PB2,
   F_S1,
-  F_S2,
-  F_S3,
   FOUNTAIN,
-  LAWNS,
-  PLAZA,
-  S1,
-  S1_BOWL,
-  S2,
-  S3,
+  GROUNDS,
+  PICKLE,
+  POOL,
+  STAD,
+  TERRACE,
 } from './layout';
 import { createWear } from './wear';
 
 /**
- * 设施状态的画面（ADR 0015：修好就是解锁，画面也跟着复原）。
- * 每个 "设施.状态" 一层，模拟里设施换了状态就只显示那一层；没有对应层的状态就是静态底子的样子。
- * 开局的破败（积沙、倒网、碎石、钉木板、枯树）是一层，修好以后收起来，换上
- * 新场地、新网、绿草、活的棕榈、补好的看台、亮灯的会所、有水的喷泉和飘着的旗。
- * 球场的场地面每个状态都在层里画（旧的、新的二选一），修好以后旧场地裂缝里的草不会透出来。
+ * 设施状态的画面（ADR 0015：修好就是解锁，画面也跟着复原；ADR 0018：Palm Oasis 的八处设施）。
+ * 每个 "设施.状态" 一层，模拟里设施换了状态就只显示那一层。
+ * 开局的破败（积沙、倒网、褪色开裂的场地、空池子、枯棕榈）是一层；修好以后换上新场地、新网、绿草、
+ * 有水的泳池和喷泉、亮灯的会所；掉档（worn）是褪色的场地、积沙、浑水。
  */
 
 export interface FacilityOverlays {
   set(facility: string, state: string): void;
-  /** 状况往下掉时的积沙、杂草、垃圾（wear.ts，ART-8 原型）：0 干净，1 快掉档，再往上已经掉档 */
+  /** 状况往下掉时的积沙、杂草、垃圾（wear.ts）：0 干净，1 快掉档，再往上已经掉档 */
   wear(facility: string, amount: number): void;
 }
 
-/** ctx 往这一层的批次里加盒子；g 是这一层（网、招牌、旗这些单独的网格加在这里）；root 是整个场景（登记动画用） */
+/** ctx 往这一层的批次里加盒子；g 是这一层（网、招牌这些单独的网格加在这里）；root 是整个场景（登记动画用） */
 type Build = (ctx: BuildContext, g: THREE.Object3D, root: THREE.Object3D) => void;
-
-const lift = (fr: CourtFrame, dy: number) => new CourtFrame(fr.ox, fr.oy - 0.07 + dy, fr.oz, fr.a, fr.hx, fr.hz);
 
 function layer(root: THREE.Object3D, seed: number, build: Build): THREE.Group {
   const sc = new THREE.Scene();
@@ -75,7 +50,7 @@ function layer(root: THREE.Object3D, seed: number, build: Build): THREE.Group {
   g.visible = false;
   build(ctx, g, root);
   if (ctx.flat.boxCount) ctx.flat.build(sc, false, true);
-  if (ctx.solid.boxCount) ctx.solid.build(sc, true, true);
+  if (ctx.solid.boxCount) ctx.solid.build(sc, false, true);
   g.add(...sc.children);
   root.add(g);
   return g;
@@ -87,58 +62,70 @@ const all =
     for (const f of fs) f(ctx, g, root);
   };
 
-/* ---------------- 共用的几样 ---------------- */
+/* ---------------- 每处设施修好以后的草地（一条深一条浅） ---------------- */
 
-/** 沙子盖住一块场地 */
-const sanded =
-  (fr: CourtFrame, n: number): Build =>
+type Rect = { x0: number; x1: number; z0: number; z1: number };
+const LAWNS: Readonly<Record<string, readonly Rect[]>> = {
+  stadium_1: [{ x0: -34.5, x1: 34, z0: GROUNDS.z0, z1: -8.6 }],
+  clubhouse: [{ x0: GROUNDS.x0, x1: -38.5, z0: GROUNDS.z0, z1: -1 }],
+  stadium_2: [{ x0: GROUNDS.x0, x1: -38.5, z0: -1, z1: GROUNDS.z1 }],
+  practice: [{ x0: -34.5, x1: 34, z0: -4.4, z1: 14.4 }],
+  outer_1: [{ x0: -34.5, x1: 0, z0: 16.6, z1: GROUNDS.z1 }],
+  outer_23: [{ x0: 0, x1: 34, z0: 16.6, z1: GROUNDS.z1 }],
+  plaza: [
+    { x0: 37, x1: GROUNDS.x1, z0: GROUNDS.z0, z1: -8.6 },
+    { x0: 37, x1: GROUNDS.x1, z0: 16, z1: GROUNDS.z1 },
+  ],
+  stadium_3: [{ x0: 37, x1: GROUNDS.x1, z0: -4.4, z1: 16 }],
+};
+
+const lawn =
+  (facility: string, col: readonly string[] = PAL.liveGrass): Build =>
   (ctx) => {
-    for (let k = 0; k < n; k++) {
-      const p = fr.w({ x: sr(ctx, -fr.hx, fr.hx), z: sr(ctx, -fr.hz, fr.hz) });
-      sandPile(ctx, p.x, fr.oy, p.z, sr(ctx, 1.4, 3.4));
-    }
-    for (let k = 0; k < 3; k++) {
-      const p = fr.w({ x: sr(ctx, -fr.hx, fr.hx), z: fr.hz * (ctx.rand() < 0.5 ? -1 : 1) });
-      tumbleweed(ctx, p.x, fr.oy, p.z);
-    }
+    for (const r of LAWNS[facility] ?? [])
+      for (let x = r.x0; x < r.x1 - 1e-6; x += 2)
+        for (let z = r.z0; z < r.z1 - 1e-6; z += 2) {
+          const w = Math.min(2, r.x1 - x);
+          const d = Math.min(2, r.z1 - z);
+          const stripe = col[Math.floor((x - r.x0) / 4) % 2 ? 0 : 1] as string;
+          ctx.flat.box(x + w / 2, 0, z + d / 2, w, 0.03, d, jit(ctx, stripe, 0.02));
+        }
   };
 
-/** 废弃的场地面（sag：网还挂着、塌着） */
-const worn =
-  (fr: CourtFrame, sag = false): Build =>
-  (ctx, g) =>
-    wornCourt({ ...ctx, scene: g as THREE.Scene }, fr, sag);
+/* ---------------- 球场 ---------------- */
 
-/** 倒在地上的网和网柱 */
-const downedNet =
-  (fr: CourtFrame): Build =>
+type CourtKind = 'hard' | 'clay';
+
+/** 一块场地面：大块拼起来，只带一点色差；faded 是掉档后褪色的样子 */
+const courtFace =
+  (fr: CourtFrame, kind: CourtKind, faded = false): Build =>
   (ctx) => {
-    const p = fr.w({ x: 0, z: -6.4 });
-    ctx.solid.box(p.x, fr.oy, p.z, 0.12, 0.12, 1.1, '#2a332d', fr.a);
-    for (let i = 0; i < 8; i++) {
-      const q = fr.w({ x: sr(ctx, -0.6, 0.6), z: -5 + i * 1.4 });
-      ctx.flat.box(q.x, fr.oy, q.z, 0.8, 0.05, 1.4, jit(ctx, '#2c2f2c', 0.06), fr.a + sr(ctx, -0.3, 0.3));
-    }
-  };
-
-/** 新铺的硬地场（蓝场地紫外圈）+ 新网 */
-const fresh =
-  (fr: CourtFrame, inner: string = PAL.courtIn, outer: string = PAL.courtOut, withNet = true): Build =>
-  (ctx, g) => {
-    // 新铺的面是平整的：大块拼起来（比 surface() 的 2 米小格省很多三角形），只带一点点色差
-    const y = fr.oy - 0.04;
+    const y = fr.oy - 0.07;
     const box = (lx: number, lz: number, w: number, d: number, h: number, dy: number, col: string, amt: number) => {
       const p = fr.w({ x: lx, z: lz });
       ctx.flat.box(p.x, y + dy, p.z, w, h, d, jit(ctx, col, amt), fr.a);
     };
-    const W = 2 * fr.hx + 0.4;
-    const D = 2 * fr.hz + 0.4;
-    for (let i = 0; i < 4; i++)
-      for (let j = 0; j < 2; j++)
-        box(-W / 2 + (W / 4) * (i + 0.5), -D / 2 + (D / 2) * (j + 0.5), W / 4, D / 2, 0.06, 0, outer, 0.02);
+    const W = 2 * fr.hx;
+    const D = 2 * fr.hz;
+    const outer = kind === 'clay' ? (faded ? PAL.clayWorn : PAL.clay[0]) : faded ? PAL.courtOutWorn : PAL.dkGreen[0];
+    const inner = kind === 'clay' ? outer : faded ? PAL.courtInWorn : PAL.purple[0];
+    const n = 8;
+    for (let i = 0; i < n; i++)
+      for (let j = 0; j < 4; j++)
+        box(
+          -W / 2 + (W / n) * (i + 0.5),
+          -D / 2 + (D / 4) * (j + 0.5),
+          W / n,
+          D / 4,
+          0.06,
+          0,
+          outer,
+          faded ? 0.05 : 0.025,
+        );
     const { HL, HWD, HWS, SL } = COURT;
-    for (let i = 0; i < 2; i++) box(-HL / 2 + HL * i, 0, HL, 2 * HWD, 0.012, 0.06, inner, 0.02);
-    const L = '#f4f1e8';
+    if (kind === 'hard')
+      for (let i = 0; i < 4; i++) box(-HL + (HL / 2) * (i + 0.5), 0, HL / 2, 2 * HWD, 0.012, 0.06, inner, 0.02);
+    const L = faded ? '#d8d2c2' : '#f6f4ee';
     const line = (x0: number, z0: number, x1: number, z1: number) =>
       box(
         (x0 + x1) / 2,
@@ -159,380 +146,465 @@ const fresh =
     line(-SL, -HWS, -SL, HWS);
     line(SL, -HWS, SL, HWS);
     line(-SL, 0, SL, 0);
-    if (withNet) net({ ...ctx, scene: g as THREE.Scene }, lift(fr, 0.03), 'new');
+    if (faded)
+      for (let k = 0; k < 14; k++) {
+        const p = fr.w({ x: sr(ctx, -fr.hx + 1, fr.hx - 1), z: sr(ctx, -fr.hz + 1, fr.hz - 1) });
+        ctx.flat.box(p.x, y + 0.074, p.z, sr(ctx, 1, 3), 0.004, 0.08, '#4a4e48', fr.a + sr(ctx, 0, 3));
+      }
   };
 
-/** 扫干净、换了网，但场地还是旧的 */
-const patched =
-  (fr: CourtFrame): Build =>
-  (ctx, g) =>
-    net({ ...ctx, scene: g as THREE.Scene }, lift(fr, 0.01), 'new');
-
-/** 剪过的绿草坪（一条深一条浅） */
-const lawn =
-  (facility: string): Build =>
-  (ctx) => {
-    for (const r of LAWNS[facility] ?? [])
-      for (let x = r.x0; x < r.x1; x += 4)
-        for (let z = r.z0; z < r.z1; z += 4) {
-          if (inPit(x + 2, z + 2)) continue;
-          const w = Math.min(4, r.x1 - x);
-          const d = Math.min(4, r.z1 - z);
-          const col = PAL.liveGrass[Math.floor((x - r.x0) / 4) % 2] as string;
-          ctx.flat.box(x + w / 2, 0, z + d / 2, w, 0.025, d, jit(ctx, col, 0.015));
-        }
-  };
-
-const palms =
-  (spots: readonly (readonly [number, number])[], kind: PalmKind | ((i: number) => PalmKind)): Build =>
-  (ctx) => {
-    for (const [i, [x, z]] of spots.entries())
-      palm(ctx, x, z, sr(ctx, 7.5, 10), typeof kind === 'function' ? kind(i) : kind);
-  };
-
-/** 场边的长凳 */
-const benches =
-  (fr: CourtFrame): Build =>
-  (ctx) => {
-    for (const lx of [-4, 4]) {
-      const p = fr.w({ x: lx, z: -fr.hz + 0.9 });
-      ctx.solid.box(p.x, 0, p.z, 2.4, 0.45, 0.6, '#2f5a55', fr.a);
-      ctx.solid.box(p.x, 0.45, p.z - 0.25, 2.4, 0.5, 0.1, '#2f5a55', fr.a);
+/** 荒废的场地：褪色、开裂、网倒在地上 */
+const ruinCourt =
+  (fr: CourtFrame, kind: CourtKind): Build =>
+  (ctx, g, root) => {
+    courtFace(fr, kind, true)(ctx, g, root);
+    const p = fr.w({ x: 0, z: -6.4 });
+    ctx.solid.box(p.x, fr.oy, p.z, 0.12, 0.12, 1.1, '#2a332d', fr.a);
+    for (let i = 0; i < 8; i++) {
+      const q = fr.w({ x: sr(ctx, -0.6, 0.6), z: -5 + i * 1.4 });
+      ctx.flat.box(q.x, fr.oy, q.z, 0.8, 0.05, 1.4, jit(ctx, '#2c2f2c', 0.06), fr.a + sr(ctx, -0.3, 0.3));
     }
   };
 
-/** 风里飘的旗：挂在 (x,y,z) 的旗杆顶上，旗面朝 +x 方向展开，每帧摆一摆 */
-const flagMats = new Map<string, THREE.MeshLambertMaterial>();
-function flag(scene: THREE.Object3D, x: number, y: number, z: number, color: string, root: THREE.Object3D): void {
-  const mat = flagMats.get(color) ?? new THREE.MeshLambertMaterial({ color, side: THREE.DoubleSide });
-  flagMats.set(color, mat);
-  const pivot = new THREE.Group();
-  pivot.position.set(x, y, z);
-  const m = new THREE.Mesh(new THREE.BoxGeometry(2.2, 1.3, 0.05), mat);
-  m.position.set(1.1, -0.65, 0);
-  pivot.add(m);
-  scene.add(pivot);
-  const phase = (x * 0.37 + z * 0.61) % 6.28;
-  onTick(root, (now) => {
-    if (!pivot.parent?.visible) return;
-    pivot.rotation.y = 0.35 + Math.sin(now * 2.2 + phase) * 0.28;
-    m.scale.y = 1 - Math.abs(Math.sin(now * 3.1 + phase)) * 0.12;
-    m.rotation.x = Math.sin(now * 4 + phase) * 0.15;
-  });
-}
+const lift = (fr: CourtFrame, dy: number) => new CourtFrame(fr.ox, fr.oy - 0.07 + dy, fr.oz, fr.a, fr.hx, fr.hz);
 
-/* ---------------- 外场、练习场 ---------------- */
+/** 网：new 是新网，sag 是塌着的旧网 */
+const courtNet =
+  (fr: CourtFrame, mode: 'new' | 'sag'): Build =>
+  (ctx, g) =>
+    net({ ...ctx, scene: g as THREE.Scene }, lift(fr, 0.03), mode);
 
-/** 修好的外场之间的遮阳帆 */
-const shadeSails: Build = (ctx) => {
-  for (const [x, c] of [
-    [-1, '#e6b03c'],
-    [37, '#2fa3a8'],
-  ] as const) {
-    for (const z of [47, 61]) ctx.solid.box(x, 0, z, 0.2, 3.4, 0.2, '#7d8084');
-    ctx.solid.box(x, 3.3, 54, 2.6, 0.08, 14, c, 0, 0, 0.12);
+/** 沙子盖住一块地方 */
+const sanded =
+  (fr: CourtFrame, n: number): Build =>
+  (ctx) => {
+    for (let k = 0; k < n; k++) {
+      const p = fr.w({ x: sr(ctx, -fr.hx, fr.hx), z: sr(ctx, -fr.hz, fr.hz) });
+      sandPile(ctx, p.x, fr.oy, p.z, sr(ctx, 1.4, 3.4));
+    }
+    for (let k = 0; k < 3; k++) {
+      const p = fr.w({ x: sr(ctx, -fr.hx, fr.hx), z: fr.hz * (ctx.rand() < 0.5 ? -1 : 1) });
+      tumbleweed(ctx, p.x, fr.oy, p.z);
+    }
+  };
+
+/** 深绿挡风布（围网下半截），修好的场地才挂 */
+const windscreen =
+  (fr: CourtFrame): Build =>
+  (ctx) => {
+    for (const s of [-1, 1]) {
+      const p = fr.w({ x: 0, z: s * fr.hz });
+      ctx.solid.box(p.x, 0, p.z, 2 * fr.hx, 1.4, 0.06, jit(ctx, '#24402e', 0.02), fr.a);
+    }
+    for (const s of [-1, 1]) {
+      const p = fr.w({ x: s * fr.hx, z: 0 });
+      ctx.solid.box(p.x, 0, p.z, 0.06, 1.4, 2 * fr.hz, jit(ctx, '#24402e', 0.02), fr.a);
+    }
+  };
+
+/** 场边：长椅和遮阳伞 */
+const courtside =
+  (fr: CourtFrame): Build =>
+  (ctx) => {
+    const p = fr.w({ x: 0, z: -fr.hz + 0.9 });
+    bench(ctx, p.x, p.z, 3, fr.a);
+    const q = fr.w({ x: -2.4, z: -fr.hz + 0.7 });
+    umbrella(ctx, q.x, q.z, '#f4efe4', PAL.navy, 2.3, 1);
+  };
+
+const palms =
+  (spots: readonly (readonly [number, number])[], kind: PalmKind): Build =>
+  (ctx) => {
+    for (const [x, z] of spots) palm(ctx, x, z, sr(ctx, 8, 11), kind);
+  };
+
+/* ---------------- 会员双打（outer_1）：喷雾杆和遮阳帆 ---------------- */
+
+const misters: Build = (ctx) => {
+  for (let i = -2; i <= 2; i++) {
+    const x = F_O1.ox + i * 6;
+    ctx.solid.box(x, 0, F_O1.oz - 8.1, 0.12, 2.8, 0.12, '#c9cccd');
+    ctx.solid.box(x, 2.8, F_O1.oz - 7.9, 0.5, 0.12, 0.5, '#9aa0a3');
   }
+  ctx.solid.box(F_O1.ox, 3.4, F_O1.oz - 7.4, 7, 0.06, 2.4, '#f4efe4', 0, 0.12);
 };
 
-const ballBaskets: Build = (ctx) => {
-  for (const fr of [F_P1, F_P2]) {
-    const p = fr.w({ x: -12, z: 3 });
-    ctx.solid.box(p.x, 0, p.z, 0.6, 0.7, 0.6, '#3a3d40');
-    ctx.solid.box(p.x, 0.7, p.z, 0.5, 0.15, 0.5, '#d6e04a');
-  }
+/* ---------------- 青训（practice）：发球机、球筐、招牌 ---------------- */
+
+const academy: Build = (ctx, g) => {
+  const mx = F_P1.ox + 10.6;
+  const mz = F_P1.oz;
+  ctx.solid.box(mx, 0.1, mz, 0.85, 0.55, 0.7, '#2f5d8a');
+  ctx.solid.box(mx, 0.65, mz, 0.8, 0.32, 0.8, '#1e1e1e');
+  ctx.solid.box(mx, 0.97, mz, 0.7, 0.06, 0.7, '#d7e64a');
+  const bx = F_P2.ox + 6.9;
+  const bz = F_P2.oz - 0.6;
+  for (const [u, v] of [
+    [-0.2, -0.2],
+    [0.2, -0.2],
+    [-0.2, 0.2],
+    [0.2, 0.2],
+  ] as const)
+    ctx.solid.box(bx + u, 0, bz + v, 0.04, 0.55, 0.04, '#2c2c2c');
+  for (let k = 0; k < 10; k++)
+    ctx.solid.box(bx + sr(ctx, -0.2, 0.2), 0.45, bz + sr(ctx, -0.2, 0.2), 0.12, 0.12, 0.12, '#d7e64a');
+  sign(g, '青训学院 · ACADEMY', 5.2, 0.55, 0, 1.05, F_P1.oz - 8.26, 0, PAL.navy, PAL.champ, 20);
 };
 
 /* ---------------- 会所 ---------------- */
 
-const CLUB_PALMS = [
-  [-30, -46],
-  [-18, -44],
-  [2, -44],
-  [14, -46],
-] as const;
+const { x0: CX0, x1: CX1, z0: CZ0, z1: CZ1 } = CLUBHOUSE;
 
-function clubhouseRuined(ctx: BuildContext, g: THREE.Object3D, root: THREE.Object3D): void {
-  const C = CLUBHOUSE;
-  // 钉上木板的窗、门口的碎屋顶和沙
-  for (let x = C.x0 + 2; x < C.x1 - 1; x += 6.4) {
-    ctx.solid.box(x, 2.1, C.z1 + 0.1, 2.8, 0.3, 0.1, PAL.board, 0, 0, 0.5);
-    ctx.solid.box(x, 2.1, C.z1 + 0.14, 2.8, 0.3, 0.1, PAL.board, 0, 0, -0.5);
+const clubhouseRuined: Build = (ctx) => {
+  // 东立面的拱门钉着木板，屋顶缺瓦，门口积沙
+  for (let z = CZ0 + 2; z < CZ1 - 1; z += 3.2) {
+    ctx.solid.box(CX1 + 0.14, 0.1, z + 1.4, 0.08, 2.5, 1.7, jit(ctx, '#a8875a', 0.06));
+    ctx.solid.box(CX1 + 0.2, 1.1, z + 1.4, 0.06, 0.18, 1.9, '#8a6a42', 0, 0.4);
   }
-  for (let k = 0; k < 14; k++)
+  for (let k = 0; k < 9; k++)
     ctx.solid.box(
-      sr(ctx, C.x0, C.x1),
-      0,
-      C.z1 + sr(ctx, 0.6, 4),
-      sr(ctx, 0.6, 1.8),
-      0.22,
-      sr(ctx, 0.6, 1.8),
-      jit(ctx, PAL.roof, 0.06),
-      sr(ctx, 0, 3),
-      sr(ctx, -0.2, 0.2),
+      sr(ctx, CX0 + 2, CX1 - 8),
+      8.2 + sr(ctx, 0, 0.9),
+      sr(ctx, CZ0 + 3, CZ1 - 3),
+      sr(ctx, 1, 2.4),
+      0.2,
+      sr(ctx, 1, 2),
+      '#3a2e28',
     );
-  for (let k = 0; k < 6; k++)
-    sandPile(ctx, sr(ctx, C.x0 - 2, C.x1 + 2), 0, C.z1 + sr(ctx, 0.5, 2.5), sr(ctx, 1.2, 2.4));
-  palms(CLUB_PALMS, (i) => (i === 2 ? 'snap' : 'dead'))(ctx, g, root);
-}
+  for (let k = 0; k < 6; k++) sandPile(ctx, CX1 + sr(ctx, 1, 6), 0, sr(ctx, CZ0, CZ1), sr(ctx, 1.2, 2.6));
+  for (let k = 0; k < 4; k++) tumbleweed(ctx, sr(ctx, TERRACE.x0, TERRACE.x1), 0.05, sr(ctx, TERRACE.z0, TERRACE.z1));
+};
 
-function clubhouseOpen(ctx: BuildContext, scene: THREE.Object3D, root: THREE.Object3D): void {
-  const C = CLUBHOUSE;
-  const cx = (C.x0 + C.x1) / 2;
-  // 补好的屋顶（盖住开局的洞）、新刷的女儿墙
-  ctx.solid.box(cx - 3, 7.66, C.z0 + 7, C.x1 - C.x0 - 7.8, 0.36, 14.2, jit(ctx, '#b77a52', 0.03));
-  ctx.solid.box(cx, 4.26, C.z1 - 0.2, C.x1 - C.x0 + 0.04, 0.72, 0.44, '#f0e6d2');
-  // 亮着灯的窗（自发光的一批）
+const clubhouseOpen: Build = (ctx, g) => {
   const lit = new VoxelBatcher();
-  for (let x = C.x0 + 2; x < C.x1 - 1; x += 3.2) lit.box(x, 0.9, C.z1 + 0.06, 2.6, 2.5, 0.08, '#ffd98a');
-  for (let x = C.x0 + 2.5; x < C.x1 - 10; x += 3.2) lit.box(x, 5.1, C.z1 - 4 + 0.06, 2, 1.6, 0.08, '#ffd98a');
-  for (let z = C.z0 + 2; z < C.z1 - 1; z += 3.2) lit.box(C.x1 + 0.06, 1.2, z, 0.08, 2, 2, '#ffd98a');
-  lit.build(scene, false, false, { emissive: new THREE.Color('#c88a2a'), emissiveIntensity: 0.7 });
-  // 条纹雨棚、露台上的遮阳伞
-  for (let k = 0; k < 5; k++)
-    ctx.solid.box(-12 + k * 2 + 1, 3.95, C.z1 + 1.7, 2, 0.2, 4.1, k % 2 ? '#f2ede0' : '#2f7f86');
-  for (const x of [-20, -12, -4, 4]) {
-    ctx.solid.box(x, 4.25, C.z1 - 2, 0.12, 2, 0.12, '#5a5a5a');
-    ctx.solid.box(x, 6.2, C.z1 - 2, 2.6, 0.2, 2.6, x % 8 ? '#e6b03c' : '#2f7f86');
+  for (let z = CZ0 + 2; z < CZ1 - 1; z += 3.2) {
+    ctx.solid.box(CX1 + 0.12, 0.1, z + 1.4, 0.06, 2.5, 1.7, '#7fb2c9');
+    lit.box(CX1 + 0.16, 0.1, z + 1.4, 0.04, 2.5, 1.7, '#ffd890');
   }
-  sign(scene, 'CLUBHOUSE', 7, 0.9, cx, 4.6, C.z1 + 0.12, 0, '#1f3a5a', '#f2e6c8', 24);
-  palms(CLUB_PALMS, 'ok')(ctx, scene, root);
-  // 花坛
-  for (const x of [-15, -1]) {
-    ctx.solid.box(x, 0, C.z1 + 2.2, 3, 0.6, 1.2, '#7a6a58');
-    ctx.solid.box(x, 0.6, C.z1 + 2.2, 2.8, 0.4, 1, '#d6505a');
+  for (let z = CZ0 + 2; z < CZ1 - 2; z += 3.2) {
+    ctx.solid.box(CX1 - 2.94, 4.9, z + 1.4, 0.1, 1.8, 1.4, '#7fb2c9');
+    lit.box(CX1 - 2.88, 4.9, z + 1.4, 0.04, 1.8, 1.4, '#ffd890');
   }
-  // 大门挂上旗，停车场来了几辆车
-  for (const [z, c] of [
-    [-4, '#2f6fb0'],
-    [0, '#e6b03c'],
-    [4, '#5d4580'],
-  ] as const)
-    flag(scene, ARCH_X + 9, 8.9, z, c, root);
-  for (const [x, z, c] of [
-    [56, -40, '#c8372d'],
-    [68, -40, '#e8e4da'],
-    [74, -40, '#2f6fb0'],
-    [65, -50, '#e2b33c'],
-    [77, -50, '#3f4a52'],
-  ] as const)
-    car(ctx, x, z, Math.PI + 0.02, c, false);
+  boug(ctx, CX1 + 0.5, 2.2, CZ0 + 3, 10, 1);
+  boug(ctx, CX1 + 0.5, 2.2, CZ1 - 3, 10, 1);
+  boug(ctx, CX1 + 0.5, 3.6, (CZ0 + CZ1) / 2, 6, 0.8);
+  sign(g, 'PALM OASIS RACQUET CLUB', 12, 0.8, CX1 + 0.12, 3.6, (CZ0 + CZ1) / 2, Math.PI / 2, PAL.stucco, PAL.navy, 26);
+  sign(g, 'PRO SHOP', 3, 0.5, CX1 + 0.12, 3, CZ0 + 4.4, Math.PI / 2, PAL.navy, PAL.champ, 18);
+  // 露台餐桌和伞
+  for (const [x, z] of [
+    [-33, -31],
+    [-29, -31],
+    [-33, -24],
+    [-29, -24],
+    [-33, -17],
+    [-29, -17],
+  ] as const) {
+    ctx.solid.box(x, 0, z, 0.1, 0.75, 0.1, '#2a2f36');
+    ctx.solid.box(x, 0.75, z, 1.2, 0.06, 1.2, '#f4efe4');
+    for (const s of [-1, 1]) ctx.solid.box(x, 0, z + s * 0.75, 0.42, 0.45, 0.42, '#e8e2d4');
+    umbrella(ctx, x, z, '#f4efe4', PAL.navy, 2.6, 1.5);
+  }
+  // 露台上空的串灯，夜里和窗一起亮
+  for (let k = 0; k < 6; k++)
+    for (let x = TERRACE.x0 + 0.5; x < TERRACE.x1; x += 2.5)
+      lit.box(x, 3.2 + Math.sin(x * 1.3 + k) * 0.15, TERRACE.z0 + 2 + k * 3.6, 0.12, 0.12, 0.12, '#ffe6a0');
+  litMesh(lit, g, ctx.scene);
+};
+
+/** 会所掉档：一半窗户又钉上木板，灯不亮 */
+const clubhouseWorn: Build = (ctx) => {
+  for (let z = CZ0 + 2; z < CZ1 - 1; z += 3.2) {
+    const boarded = ctx.rand() < 0.5;
+    ctx.solid.box(CX1 + 0.12, 0.1, z + 1.4, 0.06, 2.5, 1.7, boarded ? jit(ctx, '#a8875a', 0.06) : '#5a6e78');
+  }
+  for (let k = 0; k < 3; k++) sandPile(ctx, CX1 + sr(ctx, 1, 5), 0, sr(ctx, CZ0, CZ1), sr(ctx, 1, 2));
+};
+
+/** 夜里亮的窗和串灯：MeshBasic，跟着灯的亮度变 */
+function litMesh(lit: VoxelBatcher, g: THREE.Object3D, scene: THREE.Object3D): void {
+  if (!lit.boxCount) return;
+  const m = lit.build(scene, false, false);
+  const mat = new THREE.MeshBasicMaterial({ vertexColors: true, color: '#8a8270' });
+  m.material = mat;
+  const off = new THREE.Color('#8a8270');
+  const on = new THREE.Color('#ffffff');
+  lampFns.push((v) => mat.color.copy(off).lerp(on, v));
+  g.add(m);
 }
+let lampFns: ((v: number) => void)[] = [];
 
-/* ---------------- 广场 ---------------- */
+/* ---------------- 棕榈喷泉（plaza） ---------------- */
 
-const PLAZA_PALMS = [
-  [44, -19],
-  [52, -19],
-  [64, -19],
-  [76, -12],
-  [76, 0],
-  [76, 11],
-  [48, 22],
-  [60, 24],
-  [72, 22],
+const RING = Array.from({ length: 8 }, (_, k) => {
+  const an = (k / 8) * Math.PI * 2;
+  return [FOUNTAIN.x + Math.cos(an) * 9, FOUNTAIN.z + Math.sin(an) * 9] as const;
+});
+
+const fountainWater =
+  (col: readonly string[]): Build =>
+  (ctx, g, root) => {
+    const { x, z } = FOUNTAIN;
+    for (let i = -4; i < 4; i++)
+      for (let j = -4; j < 4; j++)
+        if (Math.hypot(i + 0.5, j + 0.5) < 4)
+          ctx.flat.box(x + i + 0.5, 0.06, z + j + 0.5, 1, 0.3, 1, jit(ctx, pickc(ctx, col), 0.03));
+    if (col === WATER) {
+      // 顶上冒水：一小柱水上下跳
+      const jet = new THREE.Mesh(
+        new THREE.BoxGeometry(0.3, 1, 0.3),
+        new THREE.MeshLambertMaterial({ color: '#cfeaf4' }),
+      );
+      jet.position.set(x, 3, z);
+      g.add(jet);
+      onTick(root, (now) => {
+        jet.scale.y = 0.8 + Math.sin(now * 5) * 0.25;
+        jet.position.y = 2.56 + jet.scale.y / 2;
+      });
+    }
+  };
+const WATER = ['#4fa8c8', '#5ab4d2', '#46a0c0'];
+const MURKY = ['#6f8a5a', '#748f5e', '#68825a'];
+
+const plazaDry: Build = all(palms(RING, 'dead'), (ctx) => {
+  for (let k = 0; k < 6; k++)
+    sandPile(ctx, FOUNTAIN.x + sr(ctx, -10, 10), 0.05, FOUNTAIN.z + sr(ctx, -10, 10), sr(ctx, 1, 2.4));
+  for (let k = 0; k < 4; k++) tumbleweed(ctx, FOUNTAIN.x + sr(ctx, -11, 11), 0.05, FOUNTAIN.z + sr(ctx, -11, 11));
+});
+
+const plazaOpen: Build = all(fountainWater(WATER), palms(RING, 'ok'), lawn('plaza'), (ctx) => {
+  for (let k = 0; k < 6; k++) {
+    const an = (k / 6) * Math.PI * 2 + 0.3;
+    boug(ctx, FOUNTAIN.x + Math.cos(an) * 6.5, 0.4, FOUNTAIN.z + Math.sin(an) * 6.5, 6, 0.7);
+  }
+});
+
+const plazaWorn: Build = all(fountainWater(MURKY), palms(RING, 'ok'), (ctx) => {
+  for (let k = 0; k < 3; k++)
+    sandPile(ctx, FOUNTAIN.x + sr(ctx, -10, 10), 0.05, FOUNTAIN.z + sr(ctx, -10, 10), sr(ctx, 1, 2));
+});
+
+/* ---------------- 匹克球（stadium_3） ---------------- */
+
+const PB_FRAMES = [F_PB1, F_PB2];
+
+/** 一片匹克球场：蓝色场面、白线、矮网 */
+const pickleCourt =
+  (fr: CourtFrame, faded: boolean): Build =>
+  (ctx, g) => {
+    const y = fr.oy - 0.07;
+    const col = faded ? '#8a9aa6' : PAL.pickle[0];
+    for (let i = 0; i < 4; i++)
+      for (let j = 0; j < 2; j++)
+        ctx.flat.box(
+          fr.ox - 6.705 + 3.3525 * (i + 0.5),
+          y,
+          fr.oz - 3.05 + 3.05 * (j + 0.5),
+          3.3525,
+          0.07,
+          3.05,
+          jit(ctx, col, 0.03),
+        );
+    const L = (x0: number, z0: number, x1: number, z1: number) =>
+      ctx.flat.box(
+        fr.ox + (x0 + x1) / 2,
+        y + 0.075,
+        fr.oz + (z0 + z1) / 2,
+        Math.max(0.08, Math.abs(x1 - x0)),
+        0.01,
+        Math.max(0.08, Math.abs(z1 - z0)),
+        '#f6f4ee',
+      );
+    L(-6.705, -3.05, -6.705, 3.05);
+    L(6.705, -3.05, 6.705, 3.05);
+    L(-6.705, -3.05, 6.705, -3.05);
+    L(-6.705, 3.05, 6.705, 3.05);
+    L(-2.13, -3.05, -2.13, 3.05);
+    L(2.13, -3.05, 2.13, 3.05);
+    L(-6.705, 0, -2.13, 0);
+    L(2.13, 0, 6.705, 0);
+    // 矮网：两根柱子和半透明网面
+    for (const s of [-1, 1]) ctx.solid.box(fr.ox, 0, fr.oz + s * 3.4, 0.1, 0.9, 0.1, '#2a332d');
+    const m = new THREE.Mesh(
+      new THREE.BoxGeometry(0.03, faded ? 0.5 : 0.8, 6.8),
+      new THREE.MeshLambertMaterial({ color: '#1c201d', transparent: true, opacity: 0.5, depthWrite: false }),
+    );
+    m.position.set(fr.ox, 0.1 + (faded ? 0.25 : 0.4), fr.oz);
+    g.add(m);
+  };
+
+const pickleBase =
+  (col: readonly string[]): Build =>
+  (ctx) =>
+    tile(ctx.flat, ctx, PICKLE, col, 0.06, 1);
+
+const pickleBuried: Build = all(pickleBase(PAL.sand), (ctx) => {
+  for (let k = 0; k < 16; k++)
+    sandPile(ctx, sr(ctx, PICKLE.x0, PICKLE.x1), 0.06, sr(ctx, PICKLE.z0, PICKLE.z1), sr(ctx, 1.4, 3));
+  for (let k = 0; k < 3; k++) tumbleweed(ctx, sr(ctx, PICKLE.x0, PICKLE.x1), 0.06, sr(ctx, PICKLE.z0, PICKLE.z1));
+});
+const pickleDug: Build = all(pickleBase(['#b9b0a0', '#aea595', '#c2b9a8']), (ctx) => {
+  for (let k = 0; k < 4; k++)
+    sandPile(ctx, sr(ctx, PICKLE.x0, PICKLE.x1), 0.06, sr(ctx, PICKLE.z0, PICKLE.z1), sr(ctx, 0.8, 1.6));
+});
+const pickleOpen: Build = all(
+  pickleBase(PAL.dkGreen),
+  ...PB_FRAMES.map((f) => pickleCourt(f, false)),
+  lawn('stadium_3'),
+);
+const pickleWorn: Build = all(
+  pickleBase(['#7f8c80', '#76847a']),
+  ...PB_FRAMES.map((f) => pickleCourt(f, true)),
+  (ctx) => {
+    for (let k = 0; k < 6; k++)
+      sandPile(ctx, sr(ctx, PICKLE.x0, PICKLE.x1), 0.08, sr(ctx, PICKLE.z0, PICKLE.z1), sr(ctx, 0.8, 1.8));
+  },
+);
+
+/* ---------------- 泳池（stadium_2） ---------------- */
+
+const POOL_PALMS = [
+  [-60, -0.5],
+  [-40, -0.5],
+  [-60, 17],
+  [-40, 17],
+  [-51, 17.5],
 ] as const;
 
-function plazaDry(ctx: BuildContext, g: THREE.Object3D, root: THREE.Object3D): void {
-  const P = PLAZA;
-  // 餐饮棚的棚顶：西半边还在，东半边滑下来斜靠在地上
-  for (let x = P.x0 + 1; x < P.x1; x += 2) {
-    const fallen = x > (P.x0 + P.x1) / 2;
-    ctx.solid.box(x, fallen ? 1.6 : 3.4, P.z1 - 3, 2, 0.15, 5.6, jit(ctx, '#9a8a72', 0.05), 0, fallen ? 0.42 : 0);
-  }
-  // 喷泉里积了沙、长了草
-  sandPile(ctx, FOUNTAIN.x - 2, 0.06, FOUNTAIN.z + 1.5, 1.6);
-  sandPile(ctx, FOUNTAIN.x + 2.2, 0.06, FOUNTAIN.z - 1.8, 1.2);
-  for (let k = 0; k < 8; k++) sandPile(ctx, sr(ctx, P.x0, P.x1), 0.06, sr(ctx, P.z0, P.z1), sr(ctx, 1, 2.2));
-  // 翻倒的桌椅
-  for (let k = 0; k < 5; k++)
-    ctx.solid.box(sr(ctx, P.x0 + 2, P.x0 + 12), 0.06, sr(ctx, 10, 14), 1, 0.7, 1, '#7d8084', sr(ctx, 0, 3), 1.4);
-  palms(PLAZA_PALMS, (i) => (i % 3 === 1 ? 'snap' : 'dead'))(ctx, g, root);
-}
+const poolWater =
+  (col: readonly string[]): Build =>
+  (ctx) => {
+    for (let x = POOL.x0; x < POOL.x1; x++)
+      for (let z = POOL.z0; z < POOL.z1; z++)
+        ctx.flat.box(
+          x + 0.5,
+          0.05,
+          z + 0.5,
+          1,
+          0.12,
+          1,
+          jit(ctx, ctx.rand() < 0.15 && col === WATER ? '#7fd4ee' : pickc(ctx, col), 0.03),
+        );
+  };
 
-function plazaOpen(ctx: BuildContext, scene: THREE.Object3D, root: THREE.Object3D): void {
-  const P = PLAZA;
-  // 水：喷泉池和长水池
-  const water = new VoxelBatcher();
-  water.box(FOUNTAIN.x, 0.1, FOUNTAIN.z, FOUNTAIN.r * 1.8, 0.4, FOUNTAIN.r * 1.8, '#3f98c2');
-  water.box(70, 0.12, -4, 2.8, 0.4, 17.2, '#3a90bb');
-  water.build(scene, false, true, { emissive: new THREE.Color('#164a63'), emissiveIntensity: 0.25 });
-  // 水柱：一节节往上，越上越细，跳动
-  const jetMat = new THREE.MeshLambertMaterial({
-    color: '#d8f2ff',
-    transparent: true,
-    opacity: 0.85,
-    emissive: '#6fb6d6',
-  });
-  const jet = new THREE.Group();
-  jet.position.set(FOUNTAIN.x, 3.1, FOUNTAIN.z);
-  for (let k = 0; k < 4; k++) {
-    const m = new THREE.Mesh(new THREE.BoxGeometry(0.7 - k * 0.12, 0.9, 0.7 - k * 0.12), jetMat);
-    m.position.y = 0.45 + k * 0.9;
-    jet.add(m);
+const poolRuined: Build = all(palms(POOL_PALMS, 'dead'), (ctx) => {
+  for (let k = 0; k < 8; k++)
+    sandPile(ctx, sr(ctx, POOL.x0, POOL.x1), 0.05, sr(ctx, POOL.z0, POOL.z1), sr(ctx, 0.8, 2));
+  for (let k = 0; k < 12; k++) {
+    const x = sr(ctx, POOL.x0, POOL.x1);
+    const z = sr(ctx, POOL.z0, POOL.z1);
+    ctx.flat.box(x, 0.06, z, sr(ctx, 1, 2.6), 0.004, 0.08, '#4a4e48', sr(ctx, 0, 3));
   }
-  scene.add(jet);
-  onTick(root, (now) => {
-    if (!jet.parent?.visible) return;
-    jet.scale.y = 1 + Math.sin(now * 5) * 0.12 + Math.sin(now * 11.3) * 0.05;
-  });
-  // 餐饮棚：白顶
-  for (let x = P.x0 + 1; x < P.x1; x += 2) ctx.solid.box(x, 3.4, P.z1 - 3, 2, 0.15, 5.6, jit(ctx, '#f2ede0', 0.02));
-  // 售卖亭开了：彩色遮阳篷
-  for (const [x, c] of [
-    [P.x0 + 6, '#d6362f'],
-    [P.x1 - 4, '#2fa3a8'],
+  // 翻倒的躺椅
+  for (const x of [-56, -50]) ctx.solid.box(x, 0, 0.6, 0.7, 0.3, 1.9, '#b8b0a2', 0.6, 0, 1.2);
+  tumbleweed(ctx, -45, 0.05, 15);
+});
+
+const poolOpen: Build = all(poolWater(WATER), palms(POOL_PALMS, 'ok'), lawn('stadium_2'), (ctx) => {
+  for (const x of [-56, -53, -50, -47]) {
+    ctx.solid.box(x, 0, 0.6, 0.7, 0.3, 1.9, '#f6f2e8');
+    ctx.solid.box(x, 0.3, -0.15, 0.7, 0.4, 0.4, '#f6f2e8', 0, -0.5);
+    umbrella(ctx, x + 0.9, 0.2, '#f4efe4', PAL.champ, 2.2, 0.9);
+  }
+  // 小木屋（cabana）
+  for (const [x, z] of [
+    [-59, 15.5],
+    [-55, 15.5],
   ] as const) {
-    ctx.solid.box(x, 2.6, P.z1 - 3.4, 4.2, 0.2, 1.4, c, 0, 0.35);
-    ctx.solid.box(x, 0.9, P.z1 - 3.06, 3.2, 1.3, 0.06, '#ffd98a');
+    for (const [u, v] of [
+      [1, 1],
+      [1, -1],
+      [-1, 1],
+      [-1, -1],
+    ] as const)
+      ctx.solid.box(x + u * 1.3, 0, z + v * 1, 0.1, 2.4, 0.1, '#e8e2d4');
+    ctx.solid.box(x, 2.4, z, 2.9, 0.14, 2.3, '#f4efe4');
+    ctx.solid.box(x, 2.54, z, 2.4, 0.14, 1.8, PAL.navy);
+    ctx.solid.box(x, 0, z, 2.2, 0.4, 1.6, '#e8e2d4');
   }
-  // 桌子和伞
-  for (const [x, z, c] of [
-    [P.x0 + 3, -14, '#d6362f'],
-    [P.x0 + 9, -14, '#2fa3a8'],
-    [P.x1 - 9, -14, '#e6b03c'],
-    [P.x1 - 3, -14, '#d6362f'],
-    [P.x0 + 3, 1, '#e6b03c'],
-    [P.x0 + 10, 12, '#2fa3a8'],
-  ] as const) {
-    ctx.solid.box(x, 0, z, 1.2, 0.75, 1.2, '#e8e4da');
-    ctx.solid.box(x, 0, z, 0.1, 2.4, 0.1, '#5a5a5a');
-    ctx.solid.box(x, 2.3, z, 2.8, 0.22, 2.8, c);
-  }
-  lawn('plaza')(ctx, scene, root);
-  palms(PLAZA_PALMS, 'ok')(ctx, scene, root);
-}
+});
 
-/* ---------------- 三座球场 ---------------- */
+const poolWorn: Build = all(poolWater(MURKY), palms(POOL_PALMS, 'ok'), (ctx) => {
+  for (let k = 0; k < 4; k++) sandPile(ctx, sr(ctx, POOL.x0 - 3, POOL.x1 + 3), 0.05, sr(ctx, -1, 1), sr(ctx, 0.8, 1.6));
+});
 
-/** Stadium 1 塌了的东南角：一堆碎石和钢筋 */
-function s1Rubble(ctx: BuildContext, g: THREE.Object3D, root: THREE.Object3D): void {
-  for (let k = 0; k < 90; k++) {
-    const x = sr(ctx, S1.cx + 13, S1.cx + S1.hx);
-    const z = sr(ctx, S1.cz + 9, S1.cz + S1.hz);
+/* ---------------- 中心球场（stadium_1） ---------------- */
+
+/** 东北角的看台塌了一截：碎块堆在场边 */
+const s1Rubble: Build = (ctx) => {
+  const { cx, cz } = STAD;
+  for (let k = 0; k < 40; k++)
     ctx.solid.box(
-      x,
-      0,
-      z,
-      sr(ctx, 0.6, 2.2),
-      sr(ctx, 0.3, 1.6),
-      sr(ctx, 0.6, 2.2),
-      jit(ctx, (k % 4 === 0 ? PAL.seatHiFaded[0] : PAL.concrete[k % 3]) as string, 0.08),
+      cx + sr(ctx, 10, 19),
+      sr(ctx, 0, 1.2),
+      cz - sr(ctx, 8, 14),
+      sr(ctx, 0.6, 1.8),
+      sr(ctx, 0.4, 0.9),
+      sr(ctx, 0.6, 1.4),
+      jit(ctx, pickc(ctx, PAL.stand), 0.08),
       sr(ctx, 0, 3),
-      sr(ctx, -0.3, 0.3),
+      sr(ctx, -0.4, 0.4),
     );
-  }
-  for (let k = 0; k < 16; k++)
-    ctx.solid.box(
-      sr(ctx, S1.cx + 15, S1.cx + S1.hx),
-      0.4,
-      sr(ctx, S1.cz + 11, S1.cz + S1.hz),
-      0.08,
-      sr(ctx, 1, 2.6),
-      0.08,
-      '#6b4a34',
-      0,
-      sr(ctx, -0.6, 0.6),
-      sr(ctx, -0.6, 0.6),
-    );
-  sanded(F_S1, 12)(ctx, g, root);
-  // 翻倒的裁判椅
-  const p = F_S1.w({ x: 0, z: -7.4 });
-  ctx.solid.box(p.x, 0.07, p.z, 0.8, 0.8, 2.2, '#3a4048', 0, Math.PI / 2);
-}
+  for (let k = 0; k < 6; k++) sandPile(ctx, cx + sr(ctx, -16, 16), 0.06, cz + sr(ctx, -8, 8), sr(ctx, 1.4, 3));
+};
 
-function s1Restored(ctx: BuildContext, scene: THREE.Object3D, root: THREE.Object3D): void {
-  const gapOr = (s: Seg) => s1Gap(s);
-  // 新座位盖住旧的；塌掉的一角连台阶一起补上
-  stands(ctx, S1_SPEC, {
-    risers: false,
-    seat: s1Seat(true),
-    skip: (s, r) => gapOr(s) || s1Collapsed(s, r),
-    grow: 0.06,
-  });
-  stands(ctx, S1_SPEC, { risers: true, seat: s1Seat(true), skip: (s, r) => gapOr(s) || !s1Collapsed(s, r) });
-  const top = S1_BOWL.rows * S1_BOWL.rise;
-  facade(ctx, S1_SPEC, top + 1.4, (s) => gapOr(s) || !s1Collapsed(s, 9));
-  // 场边换成深紫色
-  ctx.flat.box(S1.cx, 0, S1.cz, S1_BOWL.ix * 2 + 1, 0.05, S1_BOWL.iz * 2 + 1, '#4b3a6b');
-  fresh(F_S1)(ctx, scene, root);
-  // 东南角的灯塔立回去
-  ctx.solid.box(30, 0, 24, 0.6, 13, 0.6, '#7d8084');
-  ctx.solid.box(30, 13, 24, 2.8, 1.6, 0.6, '#5d6064', Math.atan2(-30, -24));
-  const s = S1.cz + S1_BOWL.iz + S1_BOWL.rows + 0.4;
-  sign(scene, 'STADIUM 1', 7, 0.9, S1.cx, top + 0.6, s + 0.68, 0, '#1f3a5a', '#f2e6c8', 26);
-  // 碗顶一圈旗
-  const cols = ['#2f6fb0', '#e6b03c', '#5d4580', '#d6362f'];
-  const rim = S1_SPEC.segs(S1_BOWL.rows * S1_BOWL.rowD + 0.4).filter((q) => q.i % 9 === 4 && !s1Gap(q));
-  for (const [i, q] of rim.entries()) {
-    ctx.solid.box(q.x, top + 1.4, q.z, 0.12, 3.2, 0.12, '#9a9ea2');
-    flag(scene, q.x, top + 4.5, q.z, cols[i % cols.length] as string, root);
-  }
-  lawn('stadium_1')(ctx, scene, root);
-}
+const s1Restored: Build = (ctx, g) => {
+  const { cx, cz } = STAD;
+  sign(g, 'PALM OASIS INVITATIONAL', 14, 0.75, cx, 0.55, cz - 9.12, 0, PAL.navy, PAL.champ, 26);
+  // 北看台上的遮阳布、蓝色座位条、西头的大屏
+  ctx.solid.box(cx, 9.5, cz - 14.5, 38, 0.12, 8.4, '#f4efe4', 0, -0.12);
+  for (let r = 0; r < 8; r += 2)
+    ctx.solid.box(cx, 0.55 * (r + 1) + 0.01, cz - 9.6 - r * 0.95, 37.5, 0.06, 0.5, PAL.navy);
+  ctx.solid.box(cx - 19.5, 5.5, cz, 0.4, 3.2, 6.4, '#14223a');
+  ctx.solid.box(cx - 19.28, 5.8, cz, 0.04, 2.6, 5.8, '#2f7a49');
+};
 
-function s3Buried(ctx: BuildContext): void {
-  // 沙子把坑填得快平了，上面还有几道沙丘
-  ctx.flat.box(
-    S3.cx,
-    -S3.depth,
-    S3.cz,
-    2 * (S3.hx - 2) + 0.2,
-    S3.depth - 0.25,
-    2 * (S3.hz - 2) + 0.2,
-    jit(ctx, PAL.sand[1], 0.02),
-  );
-  for (let x = S3.cx - S3.hx + 3; x < S3.cx + S3.hx - 3; x += 3)
-    for (let z = S3.cz - S3.hz + 3; z < S3.cz + S3.hz - 3; z += 3)
-      if (ctx.rand() < 0.55)
-        ctx.flat.box(x + 1.5, -0.25, z + 1.5, 3.1, sr(ctx, 0.1, 0.5), 3.1, jit(ctx, PAL.sand[0], 0.02));
-  for (let k = 0; k < 3; k++) tumbleweed(ctx, sr(ctx, S3.cx - 14, S3.cx + 14), 0, sr(ctx, S3.cz - 9, S3.cz + 9));
-}
-
-function s3Open(ctx: BuildContext, scene: THREE.Object3D, root: THREE.Object3D): void {
-  fresh(F_S3)(ctx, scene, root);
-  for (const sp of S3_SPECS) stands(ctx, sp, { risers: false, seat: () => '#c9cdd1', grow: 0.04 });
-  lawn('stadium_3')(ctx, scene, root);
-}
-
-function s2Open(ctx: BuildContext, scene: THREE.Object3D, root: THREE.Object3D): void {
-  fresh(F_S2)(ctx, scene, root);
-  ctx.flat.box(S2.cx, 0, S2.cz, 42, 0.05, 27.2, '#4b3a6b');
-  for (const sp of [S2_SPEC_N, S2_SPEC_S]) stands(ctx, sp, { risers: false, seat: s2Seat(true), grow: 0.06 });
-  lawn('stadium_2')(ctx, scene, root);
-}
+/* ---------------- 各设施的层 ---------------- */
 
 export function createFacilityOverlays(stage: Stage): FacilityOverlays {
+  lampFns = (stage.scene.userData.tdLamps ??= []) as ((v: number) => void)[];
   const L = (seed: number, b: Build) => layer(stage.scene, seed, b);
+  const hardOk = (fr: CourtFrame) => all(courtFace(fr, 'hard'), courtNet(fr, 'new'), windscreen(fr), courtside(fr));
+  const clayOk = (fr: CourtFrame) => all(courtFace(fr, 'clay'), courtNet(fr, 'new'), windscreen(fr), courtside(fr));
+  const wornCourt = (fr: CourtFrame, kind: CourtKind) =>
+    all(courtFace(fr, kind, true), courtNet(fr, 'sag'), sanded(fr, 4));
   const layers: Record<string, THREE.Group> = {
-    'outer_1.sanded': L(0x1f01, all(worn(F_O1), sanded(F_O1, 14), downedNet(F_O1))),
-    'outer_1.swept': L(0x1f02, all(worn(F_O1), downedNet(F_O1))),
-    'outer_1.playable': L(0x1f03, all(worn(F_O1), patched(F_O1), lawn('outer_1'), benches(F_O1))),
-    'outer_1.resurfaced': L(0x1f04, all(fresh(F_O1), lawn('outer_1'), benches(F_O1))),
+    'outer_1.sanded': L(0x1f01, all(ruinCourt(F_O1, 'hard'), sanded(F_O1, 14))),
+    'outer_1.swept': L(0x1f02, ruinCourt(F_O1, 'hard')),
+    'outer_1.playable': L(
+      0x1f03,
+      all(courtFace(F_O1, 'hard', true), courtNet(F_O1, 'new'), lawn('outer_1'), courtside(F_O1)),
+    ),
+    'outer_1.resurfaced': L(0x1f04, all(hardOk(F_O1), lawn('outer_1'), misters)),
+    'outer_1.worn': L(0x1f15, wornCourt(F_O1, 'hard')),
     'outer_23.ruined': L(
       0x1f05,
-      all(worn(F_O2), worn(F_O3), sanded(F_O2, 10), sanded(F_O3, 12), downedNet(F_O2), downedNet(F_O3)),
+      all(ruinCourt(F_O2, 'clay'), ruinCourt(F_O3, 'clay'), sanded(F_O2, 10), sanded(F_O3, 12)),
     ),
-    'outer_23.playable': L(
-      0x1f06,
-      all(fresh(F_O2), fresh(F_O3), lawn('outer_23'), benches(F_O2), benches(F_O3), shadeSails),
-    ),
+    'outer_23.playable': L(0x1f06, all(clayOk(F_O2), clayOk(F_O3), lawn('outer_23'))),
+    'outer_23.worn': L(0x1f16, all(wornCourt(F_O2, 'clay'), wornCourt(F_O3, 'clay'))),
     'practice.ruined': L(
       0x1f07,
-      all(worn(F_P1), worn(F_P2), sanded(F_P1, 8), sanded(F_P2, 8), downedNet(F_P1), downedNet(F_P2)),
+      all(ruinCourt(F_P1, 'hard'), ruinCourt(F_P2, 'hard'), sanded(F_P1, 8), sanded(F_P2, 8)),
     ),
-    'practice.open': L(0x1f08, all(fresh(F_P1), fresh(F_P2), lawn('practice'), ballBaskets)),
+    'practice.open': L(0x1f08, all(hardOk(F_P1), hardOk(F_P2), lawn('practice'), academy)),
+    'practice.worn': L(0x1f17, all(wornCourt(F_P1, 'hard'), wornCourt(F_P2, 'hard'))),
     'clubhouse.ruined': L(0x1f09, clubhouseRuined),
     'clubhouse.open': L(0x1f0a, all(clubhouseOpen, lawn('clubhouse'))),
+    'clubhouse.worn': L(0x1f18, clubhouseWorn),
     'plaza.dry': L(0x1f0b, plazaDry),
     'plaza.open': L(0x1f0c, plazaOpen),
-    'stadium_3.buried': L(0x1f0d, s3Buried),
-    'stadium_3.dug': L(0x1f13, all(worn(F_S3), sanded(F_S3, 4))),
-    'stadium_3.open': L(0x1f0e, s3Open),
-    'stadium_2.ruined': L(0x1f0f, all(worn(F_S2), sanded(F_S2, 10), downedNet(F_S2))),
-    'stadium_2.open': L(0x1f10, s2Open),
-    'stadium_1.ruined': L(0x1f11, all(worn(F_S1, true), s1Rubble)),
-    'stadium_1.cleared': L(0x1f14, worn(F_S1, true)),
-    'stadium_1.restored': L(0x1f12, s1Restored),
+    'plaza.worn': L(0x1f19, plazaWorn),
+    'stadium_3.buried': L(0x1f0d, pickleBuried),
+    'stadium_3.dug': L(0x1f13, pickleDug),
+    'stadium_3.open': L(0x1f0e, pickleOpen),
+    'stadium_3.worn': L(0x1f1a, pickleWorn),
+    'stadium_2.ruined': L(0x1f0f, poolRuined),
+    'stadium_2.open': L(0x1f10, poolOpen),
+    'stadium_2.worn': L(0x1f1b, poolWorn),
+    'stadium_1.ruined': L(0x1f11, all(ruinCourt(F_S1, 'hard'), s1Rubble)),
+    'stadium_1.cleared': L(0x1f14, all(courtFace(F_S1, 'hard', true), courtNet(F_S1, 'sag'))),
+    'stadium_1.restored': L(0x1f12, all(hardOk(F_S1), lawn('stadium_1'), s1Restored)),
+    'stadium_1.worn': L(0x1f1c, wornCourt(F_S1, 'hard')),
   };
   // 新东西加在最后：碎屑层用自己的种子，不影响上面各层的画面
   const wear = createWear(stage);

@@ -3,6 +3,7 @@ import {
   type CameraFocus,
   type ChoreoContext,
   contactPt,
+  createDaylight,
   createRain,
   type PeopleWorld,
   Person,
@@ -279,6 +280,8 @@ export function createGameScene(stage: Stage, content0: ContentBundle, site: Sit
   const ctx: ChoreoContext = { sched, groundY: site.groundY };
   const overlays = site.createOverlays(stage);
   const rain = createRain(stage, site.rain);
+  // 一天的光：画出来的天空和山，灯光跟着游戏时钟走（参考图 Palm Oasis）
+  const daylight = createDaylight(stage);
   const sky = site.createSky(stage);
   const rnd = mulberry32(0x9a3e);
   const mk = (o: PersonOptions) => new Person(o, world);
@@ -724,6 +727,7 @@ export function createGameScene(stage: Stage, content0: ContentBundle, site: Sit
       marker.rotation.y += dt * 2;
       marker.position.y = 2.75 + Math.sin(sched.now * 3) * 0.08;
       rain.update(sdt, 0, 0);
+      daylight.update(time % 1440, rain.amount());
       // 风力：大风天最大，春天风季次之（ambient 里风滚草和扬沙跟着变）
       const wind = s.weather === 'wind' ? 1 : s.season === 'spring' ? 0.55 : 0.25;
       if (sdt > 0) {
@@ -739,7 +743,7 @@ export function createGameScene(stage: Stage, content0: ContentBundle, site: Sit
     focus() {
       if (!focusAnchor || sched.now > focusUntil) return null;
       const p = STANDS[focusAnchor];
-      return p ? { x: p.x, z: p.z, zoom: 0.62 } : null;
+      return p ? { x: p.x, z: p.z, zoom: 1.2 } : null;
     },
   };
 }

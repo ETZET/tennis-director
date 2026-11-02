@@ -7,6 +7,8 @@ export interface LightingDef {
   /** 雾：岛下很深处的云渐渐融进天色（正交相机按视线方向的深度算） */
   fog?: { near: number; far: number };
   hemi: { sky: string; ground: string; intensity: number };
+  /** 投阴影（默认开）。Indian Wells 照参考图不投阴影，层次靠方块明暗 */
+  shadows?: boolean;
   sun: {
     color: string;
     intensity: number;
@@ -31,9 +33,9 @@ export interface Stage {
 }
 
 export function createStage(container: HTMLElement, L: LightingDef): Stage {
-  const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
+  const renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true, powerPreference: 'high-performance' });
   useLegacyColor(renderer);
-  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.enabled = L.shadows !== false;
   renderer.shadowMap.type = THREE.BasicShadowMap;
   renderer.setClearColor(new THREE.Color(L.sky));
   container.appendChild(renderer.domElement);
@@ -44,7 +46,7 @@ export function createStage(container: HTMLElement, L: LightingDef): Stage {
   scene.add(hemi);
   const sun = new THREE.DirectionalLight(L.sun.color, L.sun.intensity * LIGHT_UNIT);
   sun.position.set(...L.sun.position);
-  sun.castShadow = true;
+  sun.castShadow = L.shadows !== false;
   sun.shadow.mapSize.set(L.sun.shadowMapSize, L.sun.shadowMapSize);
   const e = L.sun.shadowExtent;
   Object.assign(sun.shadow.camera, {

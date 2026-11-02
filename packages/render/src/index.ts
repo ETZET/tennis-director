@@ -26,6 +26,7 @@ export * from './voxel/batcher';
 export * from './voxel/text';
 export * from './world/build-context';
 export * from './world/color';
+export * from './world/daylight';
 export * from './world/frame';
 export * from './world/site';
 export * from './world/stage';

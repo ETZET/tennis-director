@@ -10,35 +10,35 @@ stats:
 anchors:
   entrance: 大门
   parking: 停车场
-  plaza: 广场
+  plaza: 棕榈喷泉
   clubhouse: 会所
-  stadium_1: Stadium 1
-  stadium_2: Stadium 2
-  stadium_3: Stadium 3
-  practice: 练习场
-  outer_1: 外场 1
-  outer_23: 外场 2–3
+  stadium_1: 中心球场
+  stadium_2: 泳池
+  stadium_3: 匹克球场
+  practice: 青训场
+  outer_1: 会员场
+  outer_23: 红土场
 
 facilities:
-  outer_1: { sanded: 外场 1 · 被沙埋了, swept: 外场 1 · 扫出来了, playable: 外场 1 · 能打了, resurfaced: 外场 1 · 新铺的, worn: 外场 1 · 停用（线被沙盖住了） }
-  outer_23: { ruined: 外场 2–3 · 围网倒了, playable: 外场 2–3 · 修好了, worn: 外场 2–3 · 停用（又积沙了） }
-  practice: { ruined: 练习场 · 废弃, open: 练习场 · 开放, worn: 练习场 · 停用（又积沙了） }
+  outer_1: { sanded: 会员场 · 被沙埋了, swept: 会员场 · 扫出来了, playable: 会员场 · 能打了, resurfaced: 会员场 · 新铺的, worn: 会员场 · 停用（线被沙盖住了） }
+  outer_23: { ruined: 红土场 · 围网倒了, playable: 红土场 · 修好了, worn: 红土场 · 停用（又积沙了） }
+  practice: { ruined: 青训场 · 废弃, open: 青训场 · 开放, worn: 青训场 · 停用（又积沙了） }
   clubhouse: { ruined: 会所 · 屋顶漏了, open: 会所 · 前台开张, worn: 会所 · 前台关门（又漏又跳闸） }
-  plaza: { dry: 广场 · 喷泉干了, open: 广场 · 喷泉又有水了, worn: 广场 · 停了（喷泉堵死） }
-  stadium_3: { buried: Stadium 3 · 被沙填满, dug: Stadium 3 · 挖出来了, open: Stadium 3 · 开放, worn: Stadium 3 · 停用（又灌了沙） }
-  stadium_2: { ruined: Stadium 2 · 破败, open: Stadium 2 · 开放, worn: Stadium 2 · 停用（座位全是沙） }
-  stadium_1: { ruined: Stadium 1 · 东南角塌了, cleared: Stadium 1 · 清理干净, restored: Stadium 1 · 重建完成, worn: Stadium 1 · 停用（办不了比赛） }
+  plaza: { dry: 棕榈喷泉 · 干了、棕榈枯了, open: 棕榈喷泉 · 又有水了, worn: 棕榈喷泉 · 停了（喷泉堵死） }
+  stadium_3: { buried: 匹克球场 · 被沙埋了, dug: 匹克球场 · 挖出来了, open: 匹克球场 · 开放, worn: 匹克球场 · 停用（又灌了沙） }
+  stadium_2: { ruined: 泳池 · 空池子、满地沙, open: 泳池 · 放满水了, worn: 泳池 · 停用（水绿了） }
+  stadium_1: { ruined: 中心球场 · 东北角看台塌了, cleared: 中心球场 · 清理干净, restored: 中心球场 · 重建完成, worn: 中心球场 · 停用（办不了比赛） }
 
 endings:
   exhibition:
     title: 表演赛办成了
-    body: 十年来第一次，Stadium 1 的看台上坐满了人。Indian Wells 又活过来了。
+    body: 十年来第一次，中心球场的看台上坐满了人。Palm Oasis 又活过来了。
   deadline:
     title: 期限到了
     body: 投资方给的十六周到了，表演赛还没办成。修复停了，大门又锁上了。
   bankrupt:
     title: 钱花光了
-    body: 园区发不出工资，投资方叫停了修复。大门又锁上了。
+    body: 俱乐部发不出工资，投资方叫停了修复。大门又锁上了。
 
 events:
   iw_investor_check:
@@ -60,37 +60,37 @@ events:
       B: 卖掉，先换点钱
   iw_first_players:
     title: 第一批客人
-    body: 两位从 Palm Desert 来的退休老人站在外场 1 门口，问能不能打一场。
+    body: 两位从 Palm Desert 来的退休老人站在会员场门口，问能不能打一场。
     options:
       A: 头一周免费
       B: 照价收
   iw_sandstorm:
     title: 起风了
-    body: 风卷着沙往外场里灌，Dale 在对讲机里喊：要不要现在去把场地盖上？
+    body: 风卷着沙往球场里灌，Dale 在对讲机里喊：要不要现在去把场地盖上？
     options:
       A: 我亲自去盖
       B: 等风停了再说
   iw_reporter:
     title: The Desert Sun 来了
-    body: 一位记者听说有人在修这座废弃的园区，想来写一篇报道。
+    body: 一位记者听说有人在修这座废弃的俱乐部，想来写一篇报道。
     options:
       A: 亲自带他转两个小时，请他吃午饭
       B: 发一段声明
   iw_sponsor:
     title: 银行的横幅
-    body: 本地一家银行看到 Stadium 3 开了，想在看台上挂一块大横幅，出价不低。
+    body: 本地一家银行看到匹克球场开了，想在围网上挂一圈横幅，出价不低。
     options:
       A: 收下
       B: 婉拒
   iw_dale_story:
     title: 最后一届比赛
-    body: Stadium 2 修好的那天晚上，Dale 说起园区关门前的最后一届比赛，他那年坐在裁判椅上。
+    body: 泳池放满水的那天晚上，Dale 坐在池边说起俱乐部关门前的最后一届比赛，他那年坐在裁判椅上。
     options:
       A: 表演赛那天请你坐裁判椅
       B: 你先歇几天
   iw_dale_nudge:
     title: "“咱俩站了一天了”"
-    body: Dale 在会所门口找到你："两个人，一整座园子，咱俩干站了一天了。还有能动手的活。下一件修复交给我，还是我去镇上给咱们攒点人气？"
+    body: Dale 在会所门口找到你："两个人，一整座俱乐部，咱俩干站了一天了。还有能动手的活。下一件修复交给我，还是我去镇上给咱们攒点人气？"
     options:
       A: 交给 Dale 去干下一件修复（开工时扣材料费）
       B: 让 Dale 去镇上上一堂免费体验课
@@ -109,7 +109,7 @@ events:
       B: 付利息，再拖两周
   iw_loan_final:
     title: 展期到了
-    body: 信用社直接从账上扣钱，最多 $3000。镇上都传开了：园区欠过钱，账上越空，名声越难听。
+    body: 信用社直接从账上扣钱，最多 $3000。镇上都传开了：俱乐部欠过钱，账上越空，名声越难听。
     options:
       A: 还钱
   iw_investor_call:
@@ -120,7 +120,7 @@ events:
       B: 保证赶上（来看时修好 5 处）
   iw_rival_club:
     title: La Quinta 来下战书
-    body: La Quinta 网球俱乐部的主教练来到外场 2–3："你们的会员老跟我的会员说这儿又活过来了。那就比一场，这个周末，俱乐部对抗赛。"
+    body: La Quinta 网球俱乐部的主教练来到红土场："你们的会员老跟我的会员说这儿又活过来了。那就比一场，这个周末，俱乐部对抗赛。"
     options:
       A: 接下挑战，在这儿办
       B: 现在没空
@@ -153,14 +153,14 @@ events:
       C: 这次不招
   iw_hiring_day_3:
     title: 第三个招聘日
-    body: 园区有点名气了，来的人水平也高了：一个前台好手，一位老教练。
+    body: 俱乐部有点名气了，来的人水平也高了：一个前台好手，一位老教练。
     options:
       A: 招 Lily（前台好手）
       B: 招 Walt（老教练）
       C: 这次不招
   iw_hiring_day_3b:
     title: 第三个招聘日
-    body: 园区有点名气了：一个在巡回赛上穿过线的人，一个受过伤的天才少年。
+    body: 俱乐部有点名气了：一个在巡回赛上穿过线的人，一个受过伤的天才少年。
     options:
       A: 招 Teodora（穿线师）
       B: 招 Luca（球员）
@@ -174,22 +174,22 @@ events:
       C: 这次不招
   iw_hiring_day_4b:
     title: 第四个招聘日
-    body: 当年的场地主管听说园区要活过来，自己找上门；还有一个当过球童的本地孩子。
+    body: 当年的场地主管听说俱乐部要活过来，自己找上门；还有一个当过球童的本地孩子。
     options:
       A: 招 Ray（老场地主管）
       B: 招 Mateo（球童）
       C: 这次不招
 
 log:
-  started: 你来到了废弃的 Indian Wells Tennis Garden。
-  first_court: 外场 1 换上了新网：十年来第一块能打的场地
+  started: 你来到了废弃的 Palm Oasis 网球俱乐部。
+  first_court: 会员场换上了新网：十年来第一块能打的场地
   ball_machine: 发球机修好了，学院的课更扎实了
   loan_declined: 你没借信用社的钱
   loan_paid: 信用社的贷款还清了
   clubhouse_open: 会所前台开张了，可以开招聘日了
-  stadium_3_open: Stadium 3 又能用了
-  stadium_2_open: Stadium 2 开放了
-  stadium_1_open: Stadium 1 重建完成，可以办表演赛了
+  stadium_3_open: 匹克球场开放了
+  stadium_2_open: 泳池放满水了
+  stadium_1_open: 中心球场重建完成，可以办表演赛了
   sand_covered: 场地盖住了，沙没灌进来
   exhibition_flop: 表演赛冷场了：看台上稀稀拉拉，一周后再试一次
   no_hire: 这次没招人，活还是那几个人干
@@ -197,62 +197,62 @@ log:
   tournament_lost: 你的球员这站输了，不过长了见识
 
 posts:
-  o1_rental: { title: "外场 1 · 看场", note: "每天 8–15 点，附近的人来打球" }
-  o1_lesson: { title: "外场 1 · 下午的课", note: "工作日 15–19 点" }
-  o1_upkeep: { title: "外场 1 · 维护", note: "随时可以干；没人管就变旧" }
-  o23_rental: { title: "外场 2–3 · 看场", note: "每天 8–17 点，两块场地" }
-  o23_clinic: { title: "外场 2–3 · 成人班", note: "周一到周四 17–20 点" }
-  o23_upkeep: { title: "外场 2–3 · 维护", note: "随时可以干；没人管就变旧" }
-  pr_academy: { title: "练习场 · 青少年学院", note: "工作日 14–18 点" }
-  pr_weekend: { title: "练习场 · 周末开放", note: "周末 8–13 点" }
-  pr_upkeep: { title: "练习场 · 维护", note: "随时可以干；没人管就变旧" }
+  o1_rental: { title: "会员场 · 看场", note: "每天 8–15 点，附近的人来打球" }
+  o1_lesson: { title: "会员场 · 下午的课", note: "工作日 15–19 点" }
+  o1_upkeep: { title: "会员场 · 维护", note: "随时可以干；没人管就变旧" }
+  o23_rental: { title: "红土场 · 看场", note: "每天 8–17 点，两块场地" }
+  o23_clinic: { title: "红土场 · 成人班", note: "周一到周四 17–20 点" }
+  o23_upkeep: { title: "红土场 · 维护", note: "随时可以干；没人管就变旧" }
+  pr_academy: { title: "青训场 · 青少年学院", note: "工作日 14–18 点" }
+  pr_weekend: { title: "青训场 · 周末开放", note: "周末 8–13 点" }
+  pr_upkeep: { title: "青训场 · 维护", note: "随时可以干；没人管就变旧" }
   ch_desk: { title: "会所 · 前台", note: "每天 8–18 点，办卡、指路、接电话" }
-  pz_food: { title: "广场 · 午餐摊", note: "每天 11–14 点" }
-  pz_evening: { title: "广场 · 周末晚上", note: "周四到周日 17–20 点" }
-  pz_upkeep: { title: "广场 · 维护", note: "清喷泉、扫沙" }
-  st3_league: { title: "Stadium 3 · 周末联赛", note: "周末 9–17 点" }
-  st3_upkeep: { title: "Stadium 3 · 维护", note: "下沉的场地最容易积沙" }
-  st2_events: { title: "Stadium 2 · 赛事日", note: "周五到周日 10–18 点" }
-  st2_pro: { title: "Stadium 2 · 高水平训练", note: "工作日 8–12 点" }
-  st2_upkeep: { title: "Stadium 2 · 维护", note: "随时可以干；没人管就变旧" }
-  st1_upkeep: { title: "Stadium 1 · 维护", note: "表演赛之前不能再坏" }
+  pz_food: { title: "棕榈喷泉 · 午餐摊", note: "每天 11–14 点" }
+  pz_evening: { title: "棕榈喷泉 · 周末晚上", note: "周四到周日 17–20 点" }
+  pz_upkeep: { title: "棕榈喷泉 · 维护", note: "清喷泉、扫沙" }
+  st3_league: { title: "匹克球场 · 周末联赛", note: "周末 9–17 点" }
+  st3_upkeep: { title: "匹克球场 · 维护", note: "围在沙地边上，最容易积沙" }
+  st2_events: { title: "泳池 · 小木屋服务", note: "周五到周日 10–18 点" }
+  st2_pro: { title: "泳池 · 水中健身课", note: "工作日 8–12 点" }
+  st2_upkeep: { title: "泳池 · 维护", note: "随时可以干；没人管水就绿了" }
+  st1_upkeep: { title: "中心球场 · 维护", note: "表演赛之前不能再坏" }
   ch_stringing: { title: "会所 · 穿线台", note: "每天 9–17 点，只有穿线师能坐" }
-  pr_fitness: { title: "练习场 · 体能课", note: "工作日 8–11 点，只有体能师能带" }
-  st3_ballkids: { title: "Stadium 3 · 球童", note: "周末联赛 9–17 点，只有球童能干" }
-  pr_training: { title: "练习场 · 自己练球", note: "只有球员能用；随时可以练，球技慢慢涨" }
-  o23_training: { title: "外场 2–3 · 自己练球", note: "练习场修好之前的去处，涨得慢一点" }
+  pr_fitness: { title: "青训场 · 体能课", note: "工作日 8–11 点，只有体能师能带" }
+  st3_ballkids: { title: "匹克球场 · 球童", note: "周末联赛 9–17 点，只有球童能干" }
+  pr_training: { title: "青训场 · 自己练球", note: "只有球员能用；随时可以练，球技慢慢涨" }
+  o23_training: { title: "红土场 · 自己练球", note: "青训场修好之前的去处，涨得慢一点" }
 orders:
-  o1_sweep: { title: "扫外场 1 的沙", note: "不花钱，两个人一个上午" }
-  o1_net: { title: "给外场 1 换网", note: "$120，一个人一小时", locked: "先把沙扫掉" }
-  o1_resurface: { title: "外场 1 重新铺面", note: "$1100，三个人一整天", locked: "外场 1 能打以后" }
-  o1_tidy: { title: "外场 1 又积沙了", note: "扫一扫、补补线" }
-  o23_repair: { title: "修外场 2–3", note: "扶起围网、换两张网", locked: "先把外场 1 救回来" }
-  o23_tidy: { title: "外场 2–3 又积沙了", note: "扫一扫" }
-  pr_repair: { title: "修练习场", note: "两块场地，围网倒了一半", locked: "先修好外场 2–3" }
-  pr_ball_machine: { title: "修发球机", note: "学院的课从此扎实一截", locked: "练习场开放、开局留下了发球机" }
-  pr_tidy: { title: "练习场又积沙了", note: "扫一扫" }
-  ch_repair: { title: "修会所", note: "补屋顶、换窗、通水电", locked: "先把外场 1 救回来" }
+  o1_sweep: { title: "扫会员场的沙", note: "不花钱，两个人一个上午" }
+  o1_net: { title: "给会员场换网", note: "$120，一个人一小时", locked: "先把沙扫掉" }
+  o1_resurface: { title: "会员场重新铺面", note: "$1100，三个人一整天", locked: "会员场能打以后" }
+  o1_tidy: { title: "会员场又积沙了", note: "扫一扫、补补线" }
+  o23_repair: { title: "修红土场", note: "扶起围网、耙平红土、换两张网", locked: "先把会员场救回来" }
+  o23_tidy: { title: "红土场又积沙了", note: "扫一扫" }
+  pr_repair: { title: "修青训场", note: "两块场地，围网倒了一半", locked: "先修好红土场" }
+  pr_ball_machine: { title: "修发球机", note: "学院的课从此扎实一截", locked: "青训场开放、开局留下了发球机" }
+  pr_tidy: { title: "青训场又积沙了", note: "扫一扫" }
+  ch_repair: { title: "修会所", note: "补屋顶、换窗、通水电", locked: "先把会员场救回来" }
   ch_fix: { title: "会所又漏了", note: "屋顶、空调、水管" }
   flyers: { title: "去镇上发传单", note: "一周一次" }
-  pz_repair: { title: "修广场", note: "通喷泉、架回餐饮棚", locked: "先修好会所" }
+  pz_repair: { title: "修棕榈喷泉", note: "通喷泉、补种棕榈", locked: "先修好会所" }
   pz_tidy: { title: "喷泉又堵了", note: "清一清" }
-  st3_dig: { title: "把 Stadium 3 挖出来", note: "五个人干好几天", locked: "先修好练习场和会所" }
-  st3_court: { title: "Stadium 3 铺场地", note: "挖出来以后的第二步", locked: "先把沙挖出来" }
-  st3_tidy: { title: "Stadium 3 又积沙了", note: "扫一扫" }
-  st2_repair: { title: "修 Stadium 2", note: "换座位、补遮阳布、铺场地", locked: "先让 Stadium 3 开放" }
-  st2_tidy: { title: "Stadium 2 又积沙了", note: "扫一扫" }
-  o1_reopen: { title: "重开外场 1", note: "掉档了：扫出线、换网，$30" }
-  o1_refinish: { title: "外场 1 补面", note: "新面掉档了：补面、划线，$150" }
-  o23_reopen: { title: "重开外场 2–3", note: "掉档了：扶围网、扫沙，$75" }
-  pr_reopen: { title: "重开练习场", note: "掉档了：两块场地重新划线，$60" }
+  st3_dig: { title: "把匹克球场挖出来", note: "五个人干好几天", locked: "先修好青训场和会所" }
+  st3_court: { title: "匹克球场铺场地", note: "挖出来以后的第二步", locked: "先把沙挖出来" }
+  st3_tidy: { title: "匹克球场又积沙了", note: "扫一扫" }
+  st2_repair: { title: "修泳池", note: "补池壁、换水泵、放水", locked: "先让匹克球场开放" }
+  st2_tidy: { title: "泳池又进沙了", note: "捞一捞" }
+  o1_reopen: { title: "重开会员场", note: "掉档了：扫出线、换网，$30" }
+  o1_refinish: { title: "会员场补面", note: "新面掉档了：补面、划线，$150" }
+  o23_reopen: { title: "重开红土场", note: "掉档了：扶围网、扫沙，$75" }
+  pr_reopen: { title: "重开青训场", note: "掉档了：两块场地重新划线，$60" }
   ch_reopen: { title: "重开会所前台", note: "掉档了：补屋顶、修电路，$125" }
-  pz_reopen: { title: "重开广场", note: "掉档了：通喷泉、补帆布，$125" }
-  st3_reopen: { title: "重开 Stadium 3", note: "掉档了：再挖一层沙，$150" }
-  st2_reopen: { title: "重开 Stadium 2", note: "掉档了：清座位、换遮阳布，$250" }
-  st1_reopen: { title: "重开 Stadium 1", note: "掉档了：修大屏、清看台，$450" }
-  st1_clear: { title: "清理 Stadium 1", note: "搬走塌下来的东南角", locked: "先让 Stadium 2 开放" }
-  st1_rebuild: { title: "重建 Stadium 1", note: "整局最大的一笔", locked: "先清理 Stadium 1" }
-  st1_exhibition: { title: "办表演赛", note: "声望 50 以上，一群人张罗一整天", locked: "Stadium 1 重建完成、声望 50 以上" }
+  pz_reopen: { title: "重开棕榈喷泉", note: "掉档了：通喷泉、修水泵，$125" }
+  st3_reopen: { title: "重开匹克球场", note: "掉档了：再挖一层沙，$150" }
+  st2_reopen: { title: "重开泳池", note: "掉档了：换水、洗池子，$250" }
+  st1_reopen: { title: "重开中心球场", note: "掉档了：修大屏、清看台，$450" }
+  st1_clear: { title: "清理中心球场", note: "搬走塌下来的东北角看台", locked: "先让泳池开放" }
+  st1_rebuild: { title: "重建 中心球场", note: "整局最大的一笔", locked: "先清理 中心球场" }
+  st1_exhibition: { title: "办表演赛", note: "声望 50 以上，一群人张罗一整天", locked: "中心球场重建完成、声望 50 以上" }
   pl_tournament: { title: "出去打一站比赛", note: "只有球员能去，一周一次；球技越高越可能赢" }
 
 seasons:
@@ -275,7 +275,7 @@ bios:
   rosa_ortiz: 在 Coachella 的椰枣园边长大，给 La Quinta 的高尔夫球场修了十二年草坪；风沙要来，她总是先知道。
   ben_kim: UC Riverside 的学生，在 Palm Desert 的咖啡店打工，记得每个熟客点什么；早上精神最好。
   jess_park: 在一所小大学打了四年校队，毕业后在 Palm Desert 教孩子打球，一直想有一块自己的场地。
-  gus_moreno: 园区关门前，这里的硬地是他一块块铺的；裁员那天以后，他再没进过网球场。
+  gus_moreno: 俱乐部关门前，这里的硬地是他一块块铺的；裁员那天以后，他再没进过网球场。
   kofi_mensah: 在 Accra 长大，给一所大学的田径队当了八年体能教练，天亮之前就到场。
   amara_okafor: 生在 Lagos，拿网球奖学金来美国打了四年大学比赛；排名在五百开外，想再拼一次。
   lily_chen: 在父母开在 Palm Springs 的餐馆里长大，后来在度假酒店管前台；晚上客人越多，她越来劲。
@@ -284,7 +284,7 @@ bios:
   luca_ferreira: 十六岁进过青少年排名前二十，十九岁手腕伤了、也打怕了；现在二十三岁，想重新喜欢上网球。
   nadia_volkov: 前职业球员，肩伤动过手术以后退役；她的名字还能卖出票。
   marco_ruiz: 在 Indio 长大，每年春天在音乐节的搭台队上夜班，什么活都干过一点。
-  ray_delgado: 九十年代这里办大赛时的场地主管，退休后就住在 Indian Wells；园区的每根水管他都记得，膝盖却不行了。
+  ray_delgado: 九十年代这里办大赛时的场地主管，退休后就住在 Indian Wells；俱乐部的每根水管他都记得，膝盖却不行了。
   mateo_salgado: 十六岁，Coachella 人，前两年在大赛上当过球童；一放学就骑车过来。
 
 # 特质：名字和一句说明（数值在 traits.yaml）
@@ -308,11 +308,11 @@ traits:
   old_injury: { name: 老伤, note: 维护 −8，球技 −10 }
   mentor: { name: 带徒弟, note: 教学 +6，士气慢慢涨 }
   stringer: { name: 穿线师, note: 能坐会所的穿线台 }
-  trainer: { name: 体能师, note: 能带练习场的体能课 }
-  ball_kid: { name: 球童, note: 能在 Stadium 3 的联赛当球童 }
+  trainer: { name: 体能师, note: 能带青训场的体能课 }
+  ball_kid: { name: 球童, note: 能在匹克球场的联赛当球童 }
 
 who:
-  investors: { name: 投资方, role: 出钱修复园区的人 }
+  investors: { name: 投资方, role: 出钱修复俱乐部的人 }
   applicants: { name: 应聘者, role: 看到告示来的人 }
   retirees: { name: 两位退休老人, role: 从 Palm Desert 来 }
   reporter: { name: The Desert Sun, role: 本地报纸的记者 }
@@ -334,14 +334,14 @@ ui:
     members: 会员
     courtsOpen: 开放场地
     salary: 你的薪水
-    details: 园区报告
+    details: 俱乐部报告
     paused: 已暂停
     notYet: 还没有
     failZone: 低于 40 是 F 级
     qualityChart: 本局项目质量
     headCoach: 主教练
     vacant: 空缺
-    wire: 园区快讯
+    wire: 俱乐部快讯
     rotateLeft: 向左转（Q）
     rotateRight: 向右转（E）
     pause: 暂停（空格）
@@ -387,10 +387,10 @@ ui:
   restore: "复原（共 {total} 处）"
   restore_in: "复原/{total}·还剩 {days} 天"
   restore_today: "复原/{total}·今天到期"
-  club: { name: Indian Wells 网球园区, badge: IW }
+  club: { name: Palm Oasis 网球俱乐部, badge: PO }
   cash: 现金
   you: 你
-  closed: 园区已关门过夜
+  closed: 俱乐部已关门过夜
   left: "还剩 {time}"
   decided: 已决定
   hint:
@@ -408,11 +408,11 @@ ui:
   activity: "{title} · 还剩 {time}"
   end:
     again: 再来一局
-    won: 园区复活了
+    won: 俱乐部复活了
     lost: 游戏结束
   skill: { teach: 教学, upkeep: 维护, service: 服务, play: 球技 }
   fac:
-    { outer_1: 外场 1, outer_23: 外场 2–3, practice: 练习场, clubhouse: 会所, plaza: 广场, stadium_3: Stadium 3, stadium_2: Stadium 2, stadium_1: Stadium 1 }
+    { outer_1: 会员场, outer_23: 红土场, practice: 青训场, clubhouse: 会所, plaza: 棕榈喷泉, stadium_3: 匹克球场, stadium_2: 泳池, stadium_1: 中心球场}
   condition: 状况
   nobody: 没人
   errand_log: "{name}去{place}待了 {time}"

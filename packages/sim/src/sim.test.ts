@@ -71,15 +71,15 @@ describe('开局', () => {
 });
 
 describe('走路和指派', () => {
-  it('导航图上的最短路：两两之间都有一条边，分钟数按画面里的步道换算；穿过 Stadium 1 去南边的外场更近', () => {
-    expect(shortestRoute(W(), 'entrance', 'plaza')).toEqual({ route: ['plaza'], minutes: 13 });
-    expect(shortestRoute(W(), 'entrance', 'outer_1')).toEqual({ route: ['stadium_1', 'outer_1'], minutes: 45 });
-    expect(shortestRoute(W(), 'clubhouse', 'outer_1')?.minutes).toBe(57);
+  it('导航图上的最短路：两两之间都有一条边，分钟数按画面里的步道换算（Palm Oasis，ADR 0018）', () => {
+    expect(shortestRoute(W(), 'entrance', 'plaza')).toEqual({ route: ['plaza'], minutes: 25 });
+    expect(shortestRoute(W(), 'entrance', 'outer_1')).toEqual({ route: ['outer_1'], minutes: 56 });
+    expect(shortestRoute(W(), 'clubhouse', 'outer_1')?.minutes).toBe(43);
   });
 
-  it('把总监拖到外场 1 的扫沙工单上：走 45 分钟，到了才开始干', () => {
+  it('把总监拖到会员场的扫沙工单上：走 56 分钟，到了才开始干', () => {
     const s = quiet(fresh());
-    const r = advance(s, CONTENT, [assign('director', 'o1_sweep')], 44);
+    const r = advance(s, CONTENT, [assign('director', 'o1_sweep')], 55);
     expect(r.accepted).toHaveLength(1);
     expect(s.people.director?.walk?.to).toBe('outer_1');
     expect(s.orders.o1_sweep).toBeUndefined();

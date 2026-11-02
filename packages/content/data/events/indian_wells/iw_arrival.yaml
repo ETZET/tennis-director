@@ -10,7 +10,7 @@ location: entrance
 who: dale
 options:
   A:
-    # 留着：练习场修好以后可以花点钱把它修好（工单 pr_ball_machine），学院的课更扎实
+    # 留着：青训场修好以后可以花点钱把它修好（工单 pr_ball_machine），学院的课更扎实
     effects:
       - { flag: ball_machine_kept, set: true }
       - { person: dale, add: { morale: 5 } }

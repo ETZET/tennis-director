@@ -1,4 +1,4 @@
-# Stadium 3 · 周末联赛：周六周日 9–17 点，本地球队来下沉场地打比赛，看台上有人看。
+# 匹克球场 · 周末联赛：周六周日 9–17 点，本地的匹克球队来打联赛，场边坐满了人。
 id: st3_league
 act: indian_wells
 at: stadium_3
@@ -11,4 +11,4 @@ effects:
   - { stat: cash, add: "round(14 * (0.6 + worker.skill / 100) * (1 + stat.reputation / 120))" }
   - { stat: reputation, add: 0.04 }
 wear: 1
-performance: match
+performance: pickleball
