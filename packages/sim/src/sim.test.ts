@@ -425,7 +425,12 @@ describe('事件卡', () => {
 
 describe('人物的作用（docs/design/people.md）', () => {
   const hire = (s: GameState, ...ids: string[]) =>
-    run({ s, w: W(), events: [] }, { kind: 'debug', what: 'hire' }, null, ids.map((id) => ({ hire: id })));
+    run(
+      { s, w: W(), events: [] },
+      { kind: 'debug', what: 'hire' },
+      null,
+      ids.map((id) => ({ hire: id })),
+    );
 
   it('特质的加成只在条件下生效：沙漠长大的 Rosa 大风天维护更快；双语一直 +10', () => {
     const s = quiet(fresh());
