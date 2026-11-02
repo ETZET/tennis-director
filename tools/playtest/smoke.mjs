@@ -63,7 +63,10 @@ try {
   const w = await get('wait/180');
   check(w.waited.minutes > 0, `/wait/180 走了 ${w.waited.minutes} 分钟，stop=${w.waited.stop}`);
   s = await get('state');
-  check(s.people.every((p) => p.state === 'working' || p.state === 'walking' || p.state === 'idle'), '员工状态读得出');
+  check(
+    s.people.every((p) => p.state === 'working' || p.state === 'walking' || p.state === 'idle'),
+    '员工状态读得出',
+  );
   const shot = await get('shot/smoke');
   check(shot.path && existsSync(shot.path), `截图 ${shot.path}`);
   // 外网字体加载失败（离线容器）不算
