@@ -10,8 +10,9 @@ import type { EventCardData, HudActions, HudSnapshot, SeasonInfo } from './types
 import './hud.css';
 
 /**
- * 「场边转播」HUD（Interface Directions 方向 B）：
- * 左上记分牌、右上状态条（点开看明细）、下三分之一事件卡、底部滚动的俱乐部快讯带着视角控制。
+ * HUD（参考图 Palm Oasis，2026-11-02；布局沿用 Interface Directions 方向 B）：
+ * 左上标题卡（徽章、园区名、时钟和天气小牌）、右上俱乐部报告（点开看明细）、下三分之一事件卡、
+ * 底部滚动的俱乐部快讯带着视角控制。
  */
 
 const WX: Record<SeasonInfo['weather'], string> = {
@@ -21,29 +22,63 @@ const WX: Record<SeasonInfo['weather'], string> = {
   wind: 'M3 8h11a3 3 0 1 0-3-3M3 12h16a3 3 0 1 1-3 3M3 16h8',
 };
 
-function SeasonRow({ s, status }: { s?: SeasonInfo | undefined; status?: string | null | undefined }) {
-  if (!s && !status) return null;
+/** 徽章：像素棕榈（参考图 Palm Oasis） */
+const Crest = () => (
+  <span class="td-crest" aria-hidden="true">
+    <svg viewBox="0 0 10 10" shape-rendering="crispEdges" aria-hidden="true">
+      <rect x="4" y="3" width="2" height="7" fill="#d8c08a" />
+      <rect x="1" y="1" width="3" height="1" fill="#7fbf6a" />
+      <rect x="6" y="1" width="3" height="1" fill="#7fbf6a" />
+      <rect x="2" y="2" width="6" height="1" fill="#7fbf6a" />
+      <rect x="0" y="2" width="1" height="2" fill="#7fbf6a" />
+      <rect x="9" y="2" width="1" height="2" fill="#7fbf6a" />
+      <rect x="3" y="0" width="4" height="1" fill="#7fbf6a" />
+    </svg>
+  </span>
+);
+
+/** 标题卡下面的一排小牌：时钟、季节天气、本周服务率、此刻状况 */
+function Chips2({
+  club,
+  paused,
+  status,
+  s,
+}: {
+  club: HudSnapshot['club'];
+  paused: boolean;
+  status?: string | null | undefined;
+  s?: SeasonInfo | undefined;
+}) {
   const none = s?.service === null;
   const pct = Math.max(0, Math.min(100, s?.service ?? 0));
   return (
-    <span class="td-bug-status" aria-live="polite">
+    <div class="td-bug-status" aria-live="polite">
+      <span class={`td-chip td-chip-clock${paused ? ' td-paused' : ''}`} title={paused ? STR.paused : undefined}>
+        {paused ? (
+          <>
+            <span class="td-pause-mark" aria-hidden="true" />
+            <span class="td-sr">{STR.paused}</span>
+          </>
+        ) : null}
+        {club.clock}
+      </span>
       {s ? (
         <>
-          <span class="td-season" title={s.weatherLabel}>
+          <span class="td-chip td-season" title={s.weatherLabel}>
             <svg
-              width="15"
-              height="15"
+              width="13"
+              height="13"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
-              stroke-width="2"
+              stroke-width="2.4"
               aria-hidden="true"
             >
               <path d={WX[s.weather]} />
             </svg>
             {s.label}
           </span>
-          <span class="td-energy" title={s.serviceLabel}>
+          <span class="td-chip td-energy" title={s.serviceLabel}>
             <span class="td-energy-bar" aria-hidden="true">
               <i style={{ width: `${pct}%` }} class={!none && pct < 50 ? 'td-low' : ''} />
             </span>
@@ -52,8 +87,8 @@ function SeasonRow({ s, status }: { s?: SeasonInfo | undefined; status?: string 
           </span>
         </>
       ) : null}
-      {status ? <span class="td-where">{status}</span> : null}
-    </span>
+      {status ? <span class="td-chip td-where">{status}</span> : null}
+    </div>
   );
 }
 
@@ -70,20 +105,11 @@ function ScoreBug({
 }) {
   return (
     <header class="td-bug">
-      <SeasonRow s={season} status={status} />
-      <span class="td-bug-badge" aria-hidden="true">
-        {club.badge}
-      </span>
-      <h1 class="td-bug-name">{club.name}</h1>
-      <span class={`td-bug-clock${paused ? ' td-paused' : ''}`} title={paused ? STR.paused : undefined}>
-        {paused ? (
-          <>
-            <span class="td-pause-mark" aria-hidden="true" />
-            <span class="td-sr">{STR.paused}</span>
-          </>
-        ) : null}
-        {club.clock}
-      </span>
+      <Crest />
+      <div class="td-bug-col">
+        <h1 class="td-bug-name">{club.name}</h1>
+        <Chips2 club={club} paused={paused} status={status} s={season} />
+      </div>
     </header>
   );
 }
@@ -422,8 +448,11 @@ function ClubWire({ s, actions }: { s: HudSnapshot; actions: HudActions }) {
 export function Hud({ s, actions }: { s: HudSnapshot; actions: HudActions }) {
   return (
     <div class="td-hud">
-      <ScoreBug club={s.club} paused={s.controls.paused} status={s.status} season={s.season} />
-      <StatStrip s={s} />
+      {/* 左上标题卡、右上俱乐部报告（手机上上下叠着） */}
+      <div class="td-top">
+        <ScoreBug club={s.club} paused={s.controls.paused} status={s.status} season={s.season} />
+        <StatStrip s={s} />
+      </div>
       {s.card ? <EventCard c={s.card} actions={actions} /> : null}
       {/* 卡开着的时候先拍板，员工条让开 */}
       {s.staff && !s.card ? <StaffBar staff={s.staff} hint={s.hint} actions={actions} /> : null}

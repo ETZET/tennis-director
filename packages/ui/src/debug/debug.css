@@ -3,15 +3,15 @@
 .tdd button,.tdd input,.tdd select{font:inherit;color:inherit;background:#1d2a40;border:1px solid #33445f;padding:3px 6px}
 .tdd button{cursor:pointer}
 .tdd button:hover{background:#2a3b58}
-.tdd :focus-visible{outline:2px solid #d7ff3c;outline-offset:1px}
+.tdd :focus-visible{outline:2px solid #d8c08a;outline-offset:1px}
 .tdd-head{position:sticky;top:0;display:flex;gap:8px;align-items:center;padding:8px 10px;background:#0a101c;border-bottom:1px solid #33445f}
-.tdd-head b{color:#d7ff3c}
+.tdd-head b{color:#d8c08a}
 .tdd-head span{flex:1;color:#a9b6c7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tdd-x{border:0 !important;background:none !important;font-size:16px !important;line-height:1}
 .tdd-meta{padding:6px 10px;color:#a9b6c7}
 .tdd-notes{margin:0 10px 6px;padding:6px 8px 6px 20px;background:#3a1d1d;color:#ffb3a3}
 .tdd-sec{border-top:1px solid #22314a;padding:0 10px}
-.tdd-sec summary{cursor:pointer;padding:7px 0;color:#d7ff3c;font-weight:700}
+.tdd-sec summary{cursor:pointer;padding:7px 0;color:#d8c08a;font-weight:700}
 .tdd-row{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 8px}
 .tdd-row input,.tdd-row select{flex:1;min-width:0}
 .tdd-table{width:100%;border-collapse:collapse;margin-bottom:8px}
