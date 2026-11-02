@@ -48,10 +48,14 @@ export {
   coachPresent,
   conditionFactor,
   facilityTotals,
+  hasDemand,
   hiredWith,
   isStaff,
   num,
+  qualityTarget,
+  servicePass,
   serviceRate,
+  test as testCond,
   wagesWeek,
 } from './vars';
 export { shortestRoute } from './walk';

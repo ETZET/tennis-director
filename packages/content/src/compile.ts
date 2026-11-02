@@ -64,10 +64,20 @@ export const COMPUTED_VARS = [
   'worker.skill',
   /** 在职、能指派的人数（含总监） */
   'staff',
-  /** 状态和开局不一样的设施有几处（修好了几处，ADR 0015） */
+  /** 修好了几处设施：状态和开局不一样、而且给园区加分（扫完沙这种中间状态不算，ADR 0015） */
   'restored',
   /** 本周到现在的服务率 0..1（有需求的岗位分钟里，有人在岗的比例） */
   'service_rate',
+  /** 这一周（或者上一周）有没有需求：0 或 1。没有需求的一周，服务率无从谈起（GM-1） */
+  'service_demand',
+  /** 周结算里声望服务项的及格线（rules.week.service_pass） */
+  'service_pass',
+  /** 修好、能打的场地数，不管今天下不下雨（会员上限按这个算） */
+  'courts_built',
+  /** 在职的人里闲得最久的那个，连续闲了几个营业日（没岗位没工单、没在走路办事；720 营业分钟 = 1 天） */
+  'idle_days',
+  /** 离上一张卡打开过了几天（任何来源的卡；导演在长时间没卡时用） */
+  'quiet_days',
 ] as const;
 /** 设施状况变量：condition.<设施 id> = 0..100 */
 export const CONDITION_VAR = /^condition\.([a-z][a-z0-9_]*)$/;
@@ -313,6 +323,10 @@ export function compileContent(files: Record<string, string>): CompileResult {
         if (!anchors.has(e.at)) err(file, `${w}: unknown anchor '${e.at}'`);
         minutes(e.for);
       }
+      if ('task' in e) {
+        if (!people.has(e.who)) err(file, `${w}: unknown person '${e.who}'`);
+        if (!b.orders.some((o) => o.id === e.task)) err(file, `${w}: unknown order '${e.task}'`);
+      }
       if ('log' in e) needText(file, e.log);
       if ('endAct' in e) {
         needText(file, `endings.${e.ending}.title`);
@@ -434,6 +448,36 @@ export function compileContent(files: Record<string, string>): CompileResult {
   for (const f of b.facilities) {
     if (!anchors.has(f.anchor)) err('facilities.yaml', `${f.id}: unknown anchor '${f.anchor}'`);
     for (const st of Object.keys(f.states)) needText('facilities.yaml', `facilities.${f.id}.${st}`);
+    // 掉档（准则 6）：drops_to 指向同一设施的另一个状态；顺着掉下去不能绕回来；
+    // 掉到的状态要有一张工单能把它修回来（不然掉一次就永远关着）
+    for (const [st, x] of Object.entries(f.states)) {
+      if (!x.drops_to) continue;
+      if (!(x.drops_to in f.states)) err('facilities.yaml', `${f.id}.${st}: drops_to unknown state '${x.drops_to}'`);
+      else if (x.drops_to === st) err('facilities.yaml', `${f.id}.${st}: drops_to itself`);
+      if (!x.decay_day) warn('facilities.yaml', `${f.id}.${st}: has drops_to but no decay_day, so it never drops`);
+      const seen = new Set([st]);
+      for (let cur: string | undefined = x.drops_to; cur; cur = f.states[cur]?.drops_to) {
+        if (seen.has(cur)) {
+          err('facilities.yaml', `${f.id}.${st}: drops_to loops back to '${cur}'`);
+          break;
+        }
+        seen.add(cur);
+      }
+      const mentions = (c: Cond | undefined, state: string): boolean =>
+        !!c &&
+        ('all' in c
+          ? c.all.some((y) => mentions(y, state))
+          : 'any' in c
+            ? c.any.some((y) => mentions(y, state))
+            : 'facility' in c && c.facility === f.id && c.is === state);
+      const back = b.orders.some(
+        (o) =>
+          mentions(o.when, x.drops_to as string) &&
+          [...o.effects, ...o.onSuccess].some((e) => 'facility' in e && e.facility === f.id && e.set !== x.drops_to),
+      );
+      if (x.drops_to in f.states && !back)
+        err('facilities.yaml', `${f.id}.${st}: no order brings '${f.id}' back from '${x.drops_to}'`);
+    }
   }
   for (const d of b.directors) {
     const file = `directors/${d.id}.yaml`;
@@ -496,8 +540,21 @@ export function compileContent(files: Record<string, string>): CompileResult {
     for (const k of Object.keys(a.weather))
       if (!a.seasons.some((s) => s.id === k)) err(file, `weather: unknown season '${k}'`);
     if (!directors.has(a.director_config)) err(file, `director_config: unknown director '${a.director_config}'`);
-    for (const k of ['quality_target', 'member_drift', 'reputation_drift'] as const)
-      checkExpr(file, a.rules[k], `rules.${k}`);
+    for (const k of ['member_drift', 'reputation_drift'] as const) checkExpr(file, a.rules[k], `rules.${k}`);
+    if (typeof a.rules.quality_target === 'string') checkExpr(file, a.rules.quality_target, 'rules.quality_target');
+    else
+      for (const [t, v] of Object.entries(a.rules.quality_target)) {
+        checkExpr(file, v, `rules.quality_target.${t}`);
+        needText(file, `ui.terms.${t}`);
+      }
+    if (a.rules.week) {
+      for (const [t, v] of Object.entries(a.rules.week.reputation)) {
+        checkExpr(file, v, `rules.week.reputation.${t}`);
+        needText(file, `ui.terms.${t}`);
+      }
+      checkExpr(file, a.rules.week.members, 'rules.week.members');
+      checkExpr(file, a.rules.week.member_cap, 'rules.week.member_cap');
+    }
     for (const [k, v] of Object.entries(a.rules.derived)) {
       if (!stats.has(k)) err(file, `rules.derived: unknown stat '${k}'`);
       checkExpr(file, v, `rules.derived.${k}`);

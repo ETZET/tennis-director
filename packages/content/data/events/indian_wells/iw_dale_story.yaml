@@ -14,6 +14,8 @@ options:
     effects:
       - { person: dale, add: { morale: 25 } }
       - { flag: dale_umpire, set: true }
+      # 听过他那十年的故事（iw_dale_ten_years）：他在裁判椅上讲给观众听，报道也写了
+      - { stat: reputation, add: 3, if: { flag: dale_heard } }
   B:
     # 让他歇几天：他这几个月太累了
     effects:

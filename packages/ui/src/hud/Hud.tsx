@@ -23,6 +23,7 @@ const WX: Record<SeasonInfo['weather'], string> = {
 
 function SeasonRow({ s, status }: { s?: SeasonInfo | undefined; status?: string | null | undefined }) {
   if (!s && !status) return null;
+  const none = s?.service === null;
   const pct = Math.max(0, Math.min(100, s?.service ?? 0));
   return (
     <span class="td-bug-status" aria-live="polite">
@@ -44,10 +45,10 @@ function SeasonRow({ s, status }: { s?: SeasonInfo | undefined; status?: string 
           </span>
           <span class="td-energy" title={s.serviceLabel}>
             <span class="td-energy-bar" aria-hidden="true">
-              <i style={{ width: `${pct}%` }} class={pct < 50 ? 'td-low' : ''} />
+              <i style={{ width: `${pct}%` }} class={!none && pct < 50 ? 'td-low' : ''} />
             </span>
             <span class="td-sr">{s.serviceLabel}</span>
-            {Math.round(pct)}%
+            {none ? '—' : `${Math.round(pct)}%`}
           </span>
         </>
       ) : null}

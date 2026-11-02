@@ -12,7 +12,7 @@
  *   GET /state            玩家眼前的一切：时钟、季节/天气/本周服务率、状态条、卡片（选项、提示、倒计时）、快讯、
  *                         员工条（谁在干什么）、场景里的岗位和工单标记、地点清单和说明面板（开着时）、结局；
  *                         day / restored（修好几处/共几处）/ daysLeft（离第 112 天期限）
- *   GET /report           点开状态条后的明细和"来龙去脉"
+ *   GET /report           点开状态条后的明细和"来龙去脉"；/report/keep 让明细留着，好用 /shot 截图
  *   GET /answer/1|2|3     按一个选项
  *   GET /pick/<person|none>   在员工条上点一个人（拿起来）；none 放下
  *   GET /tap/<target>     点一块地点牌（target 是锚点 id，ADR 0013）：拿着人时只有一项能接就派过去，否则打开地点清单；
@@ -236,7 +236,7 @@ const STATE = () => {
   };
 };
 
-async function report() {
+async function report(keep = false) {
   const strip = await page.$('.td-strip');
   const wasOpen = !!(await page.$('.td-details'));
   if (!wasOpen) await strip?.click();
@@ -254,7 +254,8 @@ async function report() {
       story: [...d.querySelectorAll('.td-story li')].map((x) => x.textContent.trim().replace(/\s+/g, ' ')),
     };
   });
-  if (!wasOpen) await strip?.click();
+  // /report/keep：明细留着不关，接着 /shot 能截到它（再 /report 一次或点状态条关上）
+  if (!wasOpen && !keep) await strip?.click();
   return r;
 }
 
@@ -268,7 +269,7 @@ const api = createServer(async (q, r) => {
   try {
     const [, cmd, a] = (q.url ?? '/').split('?')[0].split('/');
     if (cmd === 'state') return send(200, await page.evaluate(STATE));
-    if (cmd === 'report') return send(200, await report());
+    if (cmd === 'report') return send(200, await report(a === 'keep'));
     if (cmd === 'answer') {
       const k = Number(a);
       if (![1, 2, 3].includes(k)) return send(400, { error: 'answer 1, 2 or 3' });

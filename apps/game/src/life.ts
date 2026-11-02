@@ -9,6 +9,8 @@ import * as THREE from 'three';
  *   修好一块场地，那块场地上就开始有人打球（ADR 0015：修好就是解锁，画面也活过来）。
  * - 路人在修好的地方之间走来走去，会员越多人越多。
  * - 风沙：刮风天和春天的风季，沙子贴着地面吹过去。
+ * - 等着的客人：有需求的岗位到了时段，有人在岗就有一位客人在跟他办事；没人在岗，客人就在那儿干等、摊手
+ *   （和 HUD 上"有 N 处客人在等"是同一件事，只是画在场景里）。
  *
  * 只读模拟状态。谁在不在场按"哪天、哪个两小时段、哪块场地"算一个固定的值，同一时段里不会忽有忽无。
  */
@@ -43,6 +45,8 @@ export interface LifeDeps {
   rally: (a: Person, b: Person, o?: { speed?: number; miss?: number }) => { stop(): void };
   /** 这块场地正被活动演出占着 */
   busy: (anchor: string) => boolean;
+  /** 此刻有需求的岗位（按地点合并）：有没有人在接待、没接待的有几处 */
+  waiting?: (s: GameState) => readonly { anchor: string; served: boolean; unserved: number }[];
 }
 
 export interface Life {
@@ -157,6 +161,74 @@ export function createLife(d: LifeDeps): Life {
     });
   }
 
+  /* ---------- 等着的客人 ---------- */
+  const guests = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((k) => ({
+    p: d.person(COURTS.length * 2 + 4 + k),
+    slot: '',
+    next: 0,
+    mood: 'wait' as 'wait' | 'served',
+  }));
+  function syncGuests(s: GameState): void {
+    const want: { key: string; at: XZ; face: XZ; mood: 'wait' | 'served' }[] = [];
+    const members = s.stats.members ?? 0;
+    for (const x of d.waiting?.(s) ?? []) {
+      const st = site.stands[x.anchor];
+      if (!st) continue;
+      const fr = site.courts[x.anchor]?.[0];
+      const c = fr ? { x: fr.ox, z: fr.oz } : (site.anchors[x.anchor] ?? st);
+      const L = Math.hypot(c.x - st.x, c.z - st.z) || 1;
+      const ux = (c.x - st.x) / L;
+      const uz = (c.z - st.z) / L;
+      // 有人接待：一位客人站在员工跟前；没人接待：几位客人隔几步排着（会员越多人越多）
+      if (x.served)
+        want.push({ key: `${x.anchor}:s`, at: { x: st.x - uz * 1.6, z: st.z + ux * 1.6 }, face: st, mood: 'served' });
+      const n = x.unserved ? Math.min(3, x.unserved + (members >= 15 ? 1 : 0) + (members >= 40 ? 1 : 0)) : 0;
+      for (let k = 0; k < n; k++) {
+        const side = (k - (n - 1) / 2) * 1.2;
+        want.push({
+          key: `${x.anchor}:w${k}`,
+          at: { x: st.x - ux * 2.6 - uz * (side + 2.4), z: st.z - uz * 2.6 + ux * (side + 2.4) },
+          face: st,
+          mood: 'wait',
+        });
+      }
+    }
+    const keys = new Set(want.map((x) => x.key));
+    for (const g of guests)
+      if (g.slot && !keys.has(g.slot)) {
+        g.slot = '';
+        g.p.clearMoves();
+        g.p.root.visible = false;
+      }
+    for (const x of want) {
+      if (guests.some((g) => g.slot === x.key)) continue;
+      const g = guests.find((q) => !q.slot);
+      if (!g) break;
+      g.slot = x.key;
+      g.mood = x.mood;
+      g.next = 0;
+      g.p.clearMoves();
+      g.p.pos.x = x.at.x;
+      g.p.pos.z = x.at.z;
+      g.p.base = 'relaxed';
+      g.p.lock = null;
+      g.p.seatY = null;
+      g.p.idleFace = Math.atan2(x.face.x - x.at.x, x.face.z - x.at.z);
+      g.p.yaw = g.p.idleFace;
+      g.p.root.visible = true;
+    }
+  }
+  function animGuests(): void {
+    const now = d.sched.now;
+    for (const g of guests) {
+      if (!g.slot || now < g.next) continue;
+      g.next = now + 2 + d.rnd() * 2.5;
+      const pool =
+        g.mood === 'served' ? (['talk', 'hand', 'point'] as const) : (['shrug', 'facepalm', 'shrug', 'hand'] as const);
+      g.p.gesture(pool[Math.floor(d.rnd() * pool.length)] ?? 'shrug', now, 1.4);
+    }
+  }
+
   /* ---------- 风沙：贴着地面吹过去的沙粒 ---------- */
   const leafGeo = new THREE.BoxGeometry(0.3, 0.06, 0.3);
   const leaves: { m: THREE.Mesh; vy: number; ph: number; life: number; ground: number }[] = [];
@@ -223,7 +295,9 @@ export function createLife(d: LifeDeps): Life {
           else if (!want && playing[i]) stopCourt(i);
         });
         syncWalkers(s);
+        syncGuests(s);
       }
+      if (dt > 0) animGuests();
       updateLeaves(s, dt);
     },
     reset() {
@@ -234,6 +308,11 @@ export function createLife(d: LifeDeps): Life {
         w.on = false;
         w.p.clearMoves();
         w.p.root.visible = false;
+      }
+      for (const g of guests) {
+        g.slot = '';
+        g.p.clearMoves();
+        g.p.root.visible = false;
       }
       check = 0;
     },

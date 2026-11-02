@@ -2,16 +2,17 @@ import { minutes } from '@td/content';
 import { directorDraw, expireCards, openScheduled } from './cards';
 import { type Ctx, run, setStat } from './effects';
 import { weightedPick } from './rng';
-import { closeLedger, decayDay, overnight, staffSystem } from './staff';
+import { closeLedger, decayDay, gradeDrop, overnight, staffSystem } from './staff';
 import { at, dayOf, minuteOfDay, weekdayOf } from './state';
-import { facilityTotals, makeEnv, num, serviceRate, test, wagesWeek } from './vars';
+import { num, qualityTarget, test } from './vars';
 import { walkSystem } from './walk';
+import { bookDay, settleWeek } from './week';
 import type { World } from './world';
 
 /**
  * 每个 tick 按固定顺序执行的系统，每个只负责一件事（ADR 0012）：
  * 日历 → 员工走路 → 岗位和工单 → 活动 → 质量 → 事件 → 导演。
- * 收盘时：今天的岗位账 → 衰减 → 经济 → 周结算。
+ * 收盘时：今天的岗位账 → 衰减 → 经济（按天记账）→（周日）周结算（一条因果日志）→ 掉档。
  */
 
 /* ---------------- 活动 ---------------- */
@@ -57,7 +58,7 @@ const QUALITY_STEP = 10;
 function qualitySystem(ctx: Ctx): void {
   const { s, w } = ctx;
   if (minuteOfDay(s.t) % QUALITY_STEP !== 0) return;
-  const target = num(s, w, w.act.rules.quality_target);
+  const target = qualityTarget(s, w).total;
   const q = s.stats.quality ?? 0;
   const k = 1 - (1 - w.act.rules.quality_rate / OPEN_MINUTES(w)) ** QUALITY_STEP;
   setStat(ctx, 'quality', q + (target - q) * k);
@@ -88,34 +89,24 @@ function closeDay(ctx: Ctx): void {
   const day = dayOf(s.t);
   closeLedger(ctx);
   decayDay(ctx, w.act.seasons.find((x) => x.id === s.season)?.decay ?? 1);
-  const env = makeEnv(s, w);
-  const fac = facilityTotals(s, w);
-  const income = Math.round(
-    ((s.stats.members ?? 0) * w.act.rules.dues_week + fac.income - fac.upkeep - wagesWeek(s, w)) / 7,
-  );
-  const members = Math.round(Number(w.expr(w.act.rules.member_drift).eval(env)));
-  let rep = Number(w.expr(w.act.rules.reputation_drift).eval(env));
-  // 在职人员的特质：士气漂移、声望漂移
+  // 钱按天记账、老写法的每日漂移（week.ts，GM-1：不每天各写一条日志）
+  bookDay(ctx, day);
+  // 在职人员的特质：士气漂移；声望漂移记在本周的账上，周日一起结算（准则 6：声望不实时漂移）
   for (const p of Object.values(s.people)) {
     if (!p.hired) continue;
     for (const t of w.people.get(p.id)?.traits ?? []) {
       const tr = w.traits.get(t);
       if (!tr) continue;
       p.morale = Math.max(0, Math.min(100, p.morale + tr.morale_drift));
-      rep += tr.reputation_drift;
+      s.week.traitRep += tr.reputation_drift;
     }
     p.fatigue = Math.max(0, p.fatigue - 10);
   }
-  const effects = [
-    { stat: 'cash', add: income },
-    { stat: 'members', add: members },
-    { stat: 'reputation', add: Math.round(rep * 10) / 10 },
-  ];
-  run(ctx, { kind: 'day', day }, null, effects);
-  // 周日收盘：会员和声望按这一周的平均服务率结算过了（member_drift 里），本周清零
+  // 周日收盘：会员和声望按这一周的服务率结算，写成一条周结算日志，本周清零（week.ts）
   const sunday = weekdayOf(s.t) === 6;
-  const rate = serviceRate(s);
-  if (sunday) s.week = { demand: 0, served: 0, last: rate };
+  if (sunday) settleWeek(ctx, day);
+  // 周日收盘：会员声望结算完了，再看哪处设施没撑住、掉一档（准则 6，ADR 0017）
+  if (sunday) gradeDrop(ctx);
   recomputeDerived(ctx);
   if (sunday) {
     // 拆成几项的派生量：这一周每项变了多少（界面说明董事会信心为什么变）
@@ -127,7 +118,7 @@ function closeDay(ctx: Ctx): void {
       terms[stat] = { total: s.stats[stat] ?? 0, delta };
     }
     s.termsWeek = structuredClone(s.terms ?? {});
-    ctx.events.push({ type: 'weekSettled', serviceRate: rate, terms });
+    ctx.events.push({ type: 'weekSettled', serviceRate: s.week.last, terms });
   }
   ctx.events.push({ type: 'dayEnded', day });
   const lose = w.act.rules.lose_if;

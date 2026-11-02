@@ -7,7 +7,7 @@ work: 12h
 cost: 2000
 crew: 3
 once: true
-when: { all: [{ facility: plaza, is: dry }, { facility: clubhouse, is: open }] }
+when: { all: [{ facility: plaza, is: dry }, { any: [{ facility: clubhouse, is: open }, { facility: clubhouse, is: worn }] }] }
 restore: 80
 effects:
   - { facility: plaza, set: open }

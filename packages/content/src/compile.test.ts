@@ -118,6 +118,18 @@ describe('内容编译', () => {
     expect(msgs(compileContent(f))).toMatch(/unknown variable 'hired.stringr'/);
   });
 
+  it('掉档（准则 6）：drops_to 指向不存在的状态、绕圈、掉下去没有工单修得回来，都报错', () => {
+    const f = files();
+    f['facilities.yaml'] = (f['facilities.yaml'] as string)
+      .replace('decay_day: 4, drops_to: worn }', 'decay_day: 4, drops_to: rubble }')
+      .replace('    worn: { upkeep_week: 25 }', '    worn: { upkeep_week: 25, drops_to: open }');
+    delete f['orders/st2_reopen.yaml'];
+    const m = msgs(compileContent(f));
+    expect(m).toMatch(/practice\.open: drops_to unknown state 'rubble'/);
+    expect(m).toMatch(/stadium_3\.open: drops_to loops back/);
+    expect(m).toMatch(/stadium_2\.open: no order brings 'stadium_2' back from 'worn'/);
+  });
+
   it('文件名必须和 id 一致', () => {
     const f = files();
     f['events/indian_wells/iw_spons.yaml'] = f['events/indian_wells/iw_sponsor.yaml'] as string;

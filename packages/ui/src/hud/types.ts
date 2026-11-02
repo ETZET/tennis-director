@@ -153,8 +153,8 @@ export interface SeasonInfo {
   label: string;
   weather: 'sun' | 'cloud' | 'rain' | 'wind';
   weatherLabel: string;
-  /** 本周服务率 0..100（有客人的时候有人在岗的比例） */
-  service: number;
+  /** 本周服务率 0..100（有客人的时候有人在岗的比例）；null = 还没有客人，服务率无从谈起 */
+  service: number | null;
   serviceLabel: string;
 }
 

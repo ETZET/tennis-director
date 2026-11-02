@@ -7,7 +7,7 @@ work: 24h
 cost: 300
 crew: 5
 once: true
-when: { all: [{ facility: stadium_3, is: buried }, { facility: practice, is: open }, { facility: clubhouse, is: open }] }
+when: { all: [{ facility: stadium_3, is: buried }, { any: [{ facility: practice, is: open }, { facility: practice, is: worn }] }, { any: [{ facility: clubhouse, is: open }, { facility: clubhouse, is: worn }] }] }
 restore: 40
 effects:
   - { facility: stadium_3, set: dug }

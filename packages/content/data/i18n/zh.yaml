@@ -20,14 +20,14 @@ anchors:
   outer_23: 外场 2–3
 
 facilities:
-  outer_1: { sanded: 外场 1 · 被沙埋了, swept: 外场 1 · 扫出来了, playable: 外场 1 · 能打了, resurfaced: 外场 1 · 新铺的 }
-  outer_23: { ruined: 外场 2–3 · 围网倒了, playable: 外场 2–3 · 修好了 }
-  practice: { ruined: 练习场 · 废弃, open: 练习场 · 开放 }
-  clubhouse: { ruined: 会所 · 屋顶漏了, open: 会所 · 前台开张 }
-  plaza: { dry: 广场 · 喷泉干了, open: 广场 · 喷泉又有水了 }
-  stadium_3: { buried: Stadium 3 · 被沙填满, dug: Stadium 3 · 挖出来了, open: Stadium 3 · 开放 }
-  stadium_2: { ruined: Stadium 2 · 破败, open: Stadium 2 · 开放 }
-  stadium_1: { ruined: Stadium 1 · 东南角塌了, cleared: Stadium 1 · 清理干净, restored: Stadium 1 · 重建完成 }
+  outer_1: { sanded: 外场 1 · 被沙埋了, swept: 外场 1 · 扫出来了, playable: 外场 1 · 能打了, resurfaced: 外场 1 · 新铺的, worn: 外场 1 · 停用（线被沙盖住了） }
+  outer_23: { ruined: 外场 2–3 · 围网倒了, playable: 外场 2–3 · 修好了, worn: 外场 2–3 · 停用（又积沙了） }
+  practice: { ruined: 练习场 · 废弃, open: 练习场 · 开放, worn: 练习场 · 停用（又积沙了） }
+  clubhouse: { ruined: 会所 · 屋顶漏了, open: 会所 · 前台开张, worn: 会所 · 前台关门（又漏又跳闸） }
+  plaza: { dry: 广场 · 喷泉干了, open: 广场 · 喷泉又有水了, worn: 广场 · 停了（喷泉堵死） }
+  stadium_3: { buried: Stadium 3 · 被沙填满, dug: Stadium 3 · 挖出来了, open: Stadium 3 · 开放, worn: Stadium 3 · 停用（又灌了沙） }
+  stadium_2: { ruined: Stadium 2 · 破败, open: Stadium 2 · 开放, worn: Stadium 2 · 停用（座位全是沙） }
+  stadium_1: { ruined: Stadium 1 · 东南角塌了, cleared: Stadium 1 · 清理干净, restored: Stadium 1 · 重建完成, worn: Stadium 1 · 停用（办不了比赛） }
 
 endings:
   exhibition:
@@ -88,6 +88,48 @@ events:
     options:
       A: 表演赛那天请你坐裁判椅
       B: 你先歇几天
+  iw_dale_nudge:
+    title: "“咱俩站了一天了”"
+    body: Dale 在会所门口找到你："两个人，一整座园子，咱俩干站了一天了。还有能动手的活。下一件修复交给我，还是我去镇上给咱们攒点人气？"
+    options:
+      A: 交给 Dale 去干下一件修复（开工时扣材料费）
+      B: 让 Dale 去镇上上一堂免费体验课
+      C: 我自己有安排
+  iw_credit_union:
+    title: 信用社来电
+    body: Coachella Valley 信用社的信贷员停在大门口："这礼拜挺清闲？我们现在可以先借你 $2500，四周后还 $3000。"
+    options:
+      A: 借
+      B: 不欠债，谢谢
+  iw_loan_due:
+    title: 贷款到期
+    body: 信用社来收那 $3000 了。现在先付 $400 利息，可以再宽限两周。
+    options:
+      A: 一次还清
+      B: 付利息，再拖两周
+  iw_loan_final:
+    title: 展期到了
+    body: 信用社直接从账上扣钱，最多 $3000。镇上都传开了：园区欠过钱，账上越空，名声越难听。
+    options:
+      A: 还钱
+  iw_investor_call:
+    title: 投资方来电
+    body: "“这个礼拜没什么动静，修好的地方也比我们预想的少。”投资方在电话里问，“要再加点钱，还是第 13 周我们来看的时候你能赶上？”"
+    options:
+      A: 请他们追加 $1500
+      B: 保证赶上（来看时修好 5 处）
+  iw_rival_club:
+    title: La Quinta 来下战书
+    body: La Quinta 网球俱乐部的主教练来到外场 2–3："你们的会员老跟我的会员说这儿又活过来了。那就比一场，这个周末，俱乐部对抗赛。"
+    options:
+      A: 接下挑战，在这儿办
+      B: 现在没空
+  iw_dale_ten_years:
+    title: 十年
+    body: 清闲的一个礼拜，Dale 把你叫进会所后面的办公室："你从来没问过我为什么留下来。十年，一个人守着这片沙子。"他拉出第二把椅子。
+    options:
+      A: 坐下来听他说
+      B: 改天吧，活还多
   iw_hiring_day_1:
     title: 第一个招聘日
     body: 会所门口贴了告示，来了两个人。招了就每周付工资。
@@ -142,6 +184,8 @@ log:
   started: 你来到了废弃的 Indian Wells Tennis Garden。
   first_court: 外场 1 换上了新网：十年来第一块能打的场地
   ball_machine: 发球机修好了，学院的课更扎实了
+  loan_declined: 你没借信用社的钱
+  loan_paid: 信用社的贷款还清了
   clubhouse_open: 会所前台开张了，可以开招聘日了
   stadium_3_open: Stadium 3 又能用了
   stadium_2_open: Stadium 2 开放了
@@ -197,6 +241,15 @@ orders:
   st3_tidy: { title: "Stadium 3 又积沙了", note: "扫一扫" }
   st2_repair: { title: "修 Stadium 2", note: "换座位、补遮阳布、铺场地", locked: "先让 Stadium 3 开放" }
   st2_tidy: { title: "Stadium 2 又积沙了", note: "扫一扫" }
+  o1_reopen: { title: "重开外场 1", note: "掉档了：扫出线、换网，$30" }
+  o1_refinish: { title: "外场 1 补面", note: "新面掉档了：补面、划线，$150" }
+  o23_reopen: { title: "重开外场 2–3", note: "掉档了：扶围网、扫沙，$75" }
+  pr_reopen: { title: "重开练习场", note: "掉档了：两块场地重新划线，$60" }
+  ch_reopen: { title: "重开会所前台", note: "掉档了：补屋顶、修电路，$125" }
+  pz_reopen: { title: "重开广场", note: "掉档了：通喷泉、补帆布，$125" }
+  st3_reopen: { title: "重开 Stadium 3", note: "掉档了：再挖一层沙，$150" }
+  st2_reopen: { title: "重开 Stadium 2", note: "掉档了：清座位、换遮阳布，$250" }
+  st1_reopen: { title: "重开 Stadium 1", note: "掉档了：修大屏、清看台，$450" }
   st1_clear: { title: "清理 Stadium 1", note: "搬走塌下来的东南角", locked: "先让 Stadium 2 开放" }
   st1_rebuild: { title: "重建 Stadium 1", note: "整局最大的一笔", locked: "先清理 Stadium 1" }
   st1_exhibition: { title: "办表演赛", note: "声望 50 以上，一群人张罗一整天", locked: "Stadium 1 重建完成、声望 50 以上" }
@@ -264,6 +317,8 @@ who:
   retirees: { name: 两位退休老人, role: 从 Palm Desert 来 }
   reporter: { name: The Desert Sun, role: 本地报纸的记者 }
   sponsor: { name: 沙漠储蓄银行, role: 本地的银行 }
+  lender: { name: Coachella Valley 信用社, role: 信贷员 }
+  rival_coach: { name: La Quinta 网球俱乐部, role: 他们的主教练 }
 roles:
   director: 总监
   coach: 主教练
@@ -314,6 +369,7 @@ ui:
   days: { "0": 一, "1": 二, "2": 三, "3": 四, "4": 五, "5": 六, "6": 日 }
   chip:
     errand: "{name}离岗 {time}"
+    task: "{name}去做：{what}"
     wage: "周薪 ${n}"
     hire: "{name} 上任"
     fire: "{name} 离开"
@@ -327,6 +383,7 @@ ui:
     cash: "现金 ${n}"
     members: "会员 {n}"
     service: "本周服务率 {n}%"
+    service_none: 还没有客人
   restore: "复原（共 {total} 处）"
   restore_in: "复原/{total}·还剩 {days} 天"
   restore_today: "复原/{total}·今天到期"
@@ -359,16 +416,42 @@ ui:
   condition: 状况
   nobody: 没人
   errand_log: "{name}去{place}待了 {time}"
+  # 周结算（GM-1）：一周一条，讲清楚服务率、及格线、缺人最多的岗位、钱，以及声望、会员、质量为什么变
+  settle:
+    because: "第 {n} 周结算：服务率 {rate}%，及格线 {pass}%"
+    missed: "；缺人最多的是“{post}”，空了 {time}"
+    none: "第 {n} 周结算：还没有开放的岗位，没有客人（服务和口碑都不算）"
+    part: "{what}（{parts}）"
+    capped: "场地只撑得起 {cap} 人，多的不续了"
+    full: "场地只撑得起 {cap} 人，还有 {n} 人想来"
+    target: "向 {n} 靠近：{parts}"
+    money: { dues: 会费, income: 设施收入, upkeep: 维护费, wages: 工资 }
+  # 拆成几项的量（质量的目标、周结算的声望）每一项的名字
+  terms:
+    base: 底子
+    facilities: 设施
+    courts: 开着的场地
+    service: 服务
+    coach: 主教练
+    gear: 器材
+    quality: 质量
+    restored: 修复
+    traits: 员工特质
+  task_log: "{name}闲下来就去做{what}"
   because:
     post: "{name}在“{post}”干了 {n} 圈"
     order: "{names}做完了“{order}”"
+    wear: "{place}状况只剩 {n}，周日收盘时没撑住"
     worked: （成了）
     failed: （没成）
   wire:
     grew: "总监的{skill}能力到 {n} 了"
     interrupted: "{name}被叫离“{post}”，这一圈白干了"
-    week: "本周结算 · 服务率 {n}%"
-    worn: "{place}状况跌到 {n}：没人维护就会掉档"
+    week: "第 {n} 周结算 · {rate} · {what}"
+    week_rate: "服务率 {n}%"
+    week_none: 还没有客人
+    worn: "{place}状况跌到 {n}：周日收盘时低于 {limit} 就掉档，岗位停开"
+    dropping: "{place}状况 {n}，明天（周日）收盘前不维护就掉档"
   status:
     empty: "{n} 个岗位有客人在等，没人管"
     covered: 此刻有客人的地方都有人
@@ -377,13 +460,15 @@ ui:
     next: "下一班 {time} · {what}"
     hint: "点一个地点牌，把{name}派过去 · 派上的班会被记住"
     idle: "在{place}闲着"
+    idle_next: "闲着 · ⚒ {what}"
     waiting: "{what} · 等客人"
     walking: "去{what} · {time}"
     errand: "在{place}办事 · {time}"
   place:
     rain: 下雨，户外的这一项今天关门
-    condition_low: "状况 {n} · 已经掉档，派人维护才能救回来"
-    condition: "状况 {n} · 低于 30 会掉档"
+    condition_low: "状况 {n} · 质量减半；周日收盘低于 {limit} 就掉档"
+    condition: "状况 {n} · 周日收盘低于 {limit} 会掉档"
+    worn: "已掉档 · 这里的岗位停了，做“重开”工单才回来"
     owner: "{name}的班 · {hours} 点自己来"
     income: 有收入
     pick: "把{name}派到{place}哪一项？"

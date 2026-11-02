@@ -47,6 +47,7 @@ import {
   S2,
   S3,
 } from './layout';
+import { createWear } from './wear';
 
 /**
  * 设施状态的画面（ADR 0015：修好就是解锁，画面也跟着复原）。
@@ -58,6 +59,8 @@ import {
 
 export interface FacilityOverlays {
   set(facility: string, state: string): void;
+  /** 状况往下掉时的积沙、杂草、垃圾（wear.ts，ART-8 原型）：0 干净，1 快掉档，再往上已经掉档 */
+  wear(facility: string, amount: number): void;
 }
 
 /** ctx 往这一层的批次里加盒子；g 是这一层（网、招牌、旗这些单独的网格加在这里）；root 是整个场景（登记动画用） */
@@ -531,10 +534,13 @@ export function createFacilityOverlays(stage: Stage): FacilityOverlays {
     'stadium_1.cleared': L(0x1f14, worn(F_S1, true)),
     'stadium_1.restored': L(0x1f12, s1Restored),
   };
+  // 新东西加在最后：碎屑层用自己的种子，不影响上面各层的画面
+  const wear = createWear(stage);
   return {
     set(facility, state) {
       for (const [key, g] of Object.entries(layers))
         if (key.startsWith(`${facility}.`)) g.visible = key === `${facility}.${state}`;
     },
+    wear: (facility, amount) => wear.set(facility, amount),
   };
 }

@@ -52,11 +52,11 @@ default: { then: B }    # 倒计时到了按哪个选项处理；extra 里可以
 
 ### 效果
 
-改状态量（`add` / `set`）、设标记、改设施状态、`schedule` 安排后续卡（`in: 1d`）、`activity` 开始活动、`hire` / `fire`、改人的 `skill` `upkeep` `service` `morale` `fatigue`、`errand` 把某人叫去办事、`condition` 改设施状况（`add`）、`log` 写一行快讯、`endAct` 结束这一局。每个效果都可以带 `if` 和 `chance`。
+改状态量（`add` / `set`）、设标记、改设施状态、`schedule` 安排后续卡（`in: 1d`）、`activity` 开始活动、`hire` / `fire`、改人的 `skill` `upkeep` `service` `morale` `fatigue`、`errand` 把某人叫去办事、`task` + `who` 把一张工单记给某人（他闲下来就自己走过去开工，材料费开工时扣）、`condition` 改设施状况（`add`）、`log` 写一行快讯、`endAct` 结束这一局。每个效果都可以带 `if` 和 `chance`。
 
 ### 表达式
 
-数值可以写成表达式，例如 `round(2 + stat.reputation / 15 + rand() * 3)`。能用的变量：`stat.<id>`、`flag.<id>`、`facility.<id>`、`person.<id>.skill|upkeep|service|morale|fatigue`、`coach.skill|attention|morale|present|hired`、`director.at`、`condition.<设施>`、`service_rate`、`staff`、`restored`（修好了几处设施）、`courts_open`、`facility_quality`、`wages_week`、`open_cards`、`day`、`hour`、`pressure`；岗位效果里还有 `worker.skill`（在岗这个人对应那项能力）。函数：`min max clamp round floor ceil abs rand`。拼错的变量名在编译时就报错。
+数值可以写成表达式，例如 `round(2 + stat.reputation / 15 + rand() * 3)`。能用的变量：`stat.<id>`、`flag.<id>`、`facility.<id>`、`person.<id>.skill|upkeep|service|morale|fatigue`、`coach.skill|attention|morale|present|hired`、`director.at`、`condition.<设施>`、`service_rate`、`staff`、`restored`（修好了几处设施：换到给园区加分的状态才算，扫完沙这种中间状态不算）、`idle_days`（在职的人里闲得最久的那个连续闲了几个营业日）、`quiet_days`（离上一张卡打开过了几天）、`courts_open`、`facility_quality`、`wages_week`、`open_cards`、`day`、`hour`、`pressure`；岗位效果里还有 `worker.skill`（在岗这个人对应那项能力）。函数：`min max clamp round floor ceil abs rand`。拼错的变量名在编译时就报错。
 
 ## 岗位和工单（ADR 0012）
 

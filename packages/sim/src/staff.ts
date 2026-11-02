@@ -436,6 +436,7 @@ function postSystem(ctx: Ctx, jobs: Map<string, string[]>): void {
     if (demand) {
       s.week.demand += 1;
       if (busy) s.week.served += 1;
+      else s.week.missed[post.id] = (s.week.missed[post.id] ?? 0) + 1;
     }
     if (!busy) {
       // 时段过了、条件没了、人走了：这一圈作废（被拉走的情况已经在 leaveJob 里结算过）
@@ -527,9 +528,20 @@ function errandSystem(ctx: Ctx): void {
   }
 }
 
+/** 每个营业分钟：在职的人手上没活（没岗位没工单、没在走路、没在办事）就记一分钟"闲着"，有活就清零 */
+function idleSystem(ctx: Ctx): void {
+  const { s, w } = ctx;
+  for (const id of staffIds(s, w)) {
+    const p = s.people[id] as PersonState;
+    if (!p.job && !p.walk && !p.errand) p.idleMin = (p.idleMin ?? 0) + 1;
+    else if (p.idleMin) p.idleMin = 0;
+  }
+}
+
 export function staffSystem(ctx: Ctx): void {
   errandSystem(ctx);
   routineSystem(ctx);
+  idleSystem(ctx);
   const jobs = jobIndex(ctx.s);
   postSystem(ctx, jobs);
   orderSystem(ctx, jobs);
@@ -544,6 +556,24 @@ export function decayDay(ctx: Ctx, seasonDecay: number): void {
     const d = w.facilities.get(id)?.states[state]?.decay_day ?? 0;
     if (!d) continue;
     s.condition[id] = clamp((s.condition[id] ?? 100) - d * seasonDecay, 0, 100);
+  }
+}
+
+/**
+ * 周日收盘：掉档（准则 6"先出画面信号，再掉档"）。状况低于 grade_drop_below、当前状态写了 drops_to 的设施掉一档，
+ * 一周最多掉一档。掉到的状态（停用）没有场地、岗位不开，要做重开工单才回来。
+ * 放在会员和声望结算之后：掉档这一周先少了岗位收入，下一个周日才按少了的场地数结算会员。
+ */
+export function gradeDrop(ctx: Ctx): void {
+  const { s, w } = ctx;
+  const limit = w.act.rules.grade_drop_below;
+  if (!limit) return;
+  for (const [id, state] of Object.entries(s.facilities)) {
+    const to = w.facilities.get(id)?.states[state]?.drops_to;
+    const c = s.condition[id] ?? 100;
+    if (!to || c >= limit) continue;
+    run(ctx, { kind: 'wear', facility: id, condition: Math.round(c) }, null, [{ facility: id, set: to }]);
+    ctx.events.push({ type: 'facilityWorn', facility: id, from: state, to, condition: c });
   }
 }
 

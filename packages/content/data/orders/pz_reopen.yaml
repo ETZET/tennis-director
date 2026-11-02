@@ -1,0 +1,14 @@
+# 广场停了：喷泉堵死、餐饮棚的帆布被风撕了。
+# 掉档以后才冒出来（准则 6）；比当初修复便宜得多，但要钱、要人、要时间，这段时间岗位都不开。
+id: pz_reopen
+act: indian_wells
+at: plaza
+skill: upkeep
+work: 4h
+cost: 125
+crew: 2
+when: { facility: plaza, is: worn }
+restore: 50
+effects:
+  - { facility: plaza, set: open }
+performance: workday

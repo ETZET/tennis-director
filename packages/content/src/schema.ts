@@ -100,6 +100,8 @@ export const effect = z.union([
   z.strictObject({ ...gate, endAct: z.enum(['won', 'lost']), ending: id }),
   /** 把某人从手上的岗位叫走，到 at 去办一件事，办 for 这么久（拉走持续岗位照样丢掉这一圈） */
   z.strictObject({ ...gate, errand: id, at: id, for: duration }),
+  /** 把一张工单记给某人：他闲下来（手上的班结束、工单做完）就自己走过去开工，材料费照常在开工时扣 */
+  z.strictObject({ ...gate, task: id, who: id }),
 ]);
 export type Effect = z.infer<typeof effect>;
 
@@ -192,6 +194,11 @@ export const facilityState = z.strictObject({
   upkeep_week: z.number().default(0),
   /** 没人维护时每天掉多少状况（0..100）；岗位每圈的 wear 另算 */
   decay_day: z.number().min(0).default(0),
+  /**
+   * 掉档（准则 6）：周日收盘时状况低于幕规则 grade_drop_below，就掉到这个状态（同一设施里的另一个状态）。
+   * 掉到的状态通常是"停用"：没有场地、岗位不开，要做一张修复工单才回得来。不写就不会掉档（废墟、已经是最低档）。
+   */
+  drops_to: id.optional(),
 });
 export const facility = z.strictObject({ id, anchor: id, states: z.record(id, facilityState) });
 export type Facility = z.infer<typeof facility>;
@@ -355,12 +362,29 @@ export const act = z.strictObject({
   director_config: id,
   /** 每天收盘时结算的规则（表达式） */
   rules: z.strictObject({
-    quality_target: z.string(),
+    /**
+     * 质量的目标：一个表达式，或者拆成几项（值 = 各项之和，文案在 ui.terms.<名字>）。
+     * 拆开写，周结算才能讲清楚质量为什么涨、为什么掉（GM-1）。
+     */
+    quality_target: z.union([z.string(), z.record(id, z.string())]),
     /** 每天向目标靠近的比例 0..1 */
     quality_rate: z.number().min(0).max(1),
-    /** 每天会员变化（可以用 rand） */
-    member_drift: z.string(),
-    reputation_drift: z.string(),
+    /** 每天收盘的会员、声望变化（老写法；Indian Wells 用下面的 week） */
+    member_drift: z.string().default('0'),
+    reputation_drift: z.string().default('0'),
+    /**
+     * 周日收盘的周结算（准则 6）。表达式里 service_rate 是这一周的服务率，service_demand 是这一周有没有需求（0/1）。
+     * reputation：拆成几项（文案在 ui.terms.<名字>）；members：该来多少人；member_cap：场地撑得起多少人（超出的不续）；
+     * service_pass：声望服务项的及格线（表达式里是 service_pass，界面讲给玩家）。
+     */
+    week: z
+      .strictObject({
+        reputation: z.record(id, z.string()),
+        members: z.string(),
+        member_cap: z.string().optional(),
+        service_pass: z.number().min(0).max(1).default(0.5),
+      })
+      .optional(),
     /** 每个会员每周的会费 */
     dues_week: z.number(),
     /** 每天收盘和开局时重算的派生状态量，例如董事会信心 */
@@ -377,6 +401,11 @@ export const act = z.strictObject({
     /** 总监每干完一圈岗位或一张工单，那项能力涨多少（上限 director_skill_cap） */
     director_growth: z.number().min(0).default(0.3),
     director_skill_cap: z.number().min(0).max(100).default(80),
+    /**
+     * 掉档阈值（准则 6"先出画面信号，再掉档"）：周日收盘时，状况低于它、而且当前状态写了 drops_to 的设施掉一档。
+     * 0 = 不掉档。
+     */
+    grade_drop_below: z.number().min(0).max(100).default(0),
   }),
   /** 每天固定开的活动（例如下午的青少年课） */
   daily: z.array(z.strictObject({ hour: z.number(), activity: id, if: cond.optional() })).default([]),

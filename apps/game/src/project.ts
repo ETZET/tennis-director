@@ -8,6 +8,7 @@ import {
   type Effect,
   facilityTotals,
   type GameState,
+  hasDemand,
   minuteOfDay,
   minutes,
   num,
@@ -20,10 +21,12 @@ import {
   postStatus,
   type SimEvent,
   type SkillKind,
+  servicePass,
   serviceRate,
   shortestRoute,
   speedOf,
   staffIds,
+  testCond,
   wagesWeek,
   weekdayOf,
   working,
@@ -82,20 +85,56 @@ export class Projector {
     const T = this.text;
     for (const e of events) {
       if (e.type === 'dayEnded') {
-        // 设施状况跌破 30 提醒一次（第二轮试玩 S3：状况悄悄掉到 0 没人发现）
+        // 设施状况跌破 30 提醒一次（第二轮试玩 S3：状况悄悄掉到 0 没人发现）；周六收盘再提醒一次"明天掉档"。
+        // 只提醒会变旧、会掉档的设施：废墟和停用的设施不会再往下掉，也不挂提醒（GM-1：废墟天天刷屏）
+        const w = worldOf(s, this.content);
+        const limit = w.act.rules.grade_drop_below;
+        const saturday = e.day % 7 === 6;
         for (const [f, c] of Object.entries(s.condition)) {
-          if (!(f in s.facilities)) continue;
+          const st = w.facilities.get(f)?.states[s.facilities[f] ?? ''];
+          if (!st?.decay_day) {
+            this.worn.delete(f);
+            continue;
+          }
+          const place = T.tr(`ui.fac.${f}`, f);
+          const n = Math.round(c);
           if (c >= 40) this.worn.delete(f);
           else if (c < 30 && !this.worn.has(f)) {
             this.worn.add(f);
-            this.push(s.t, T.fmt('ui.wire.worn', { place: T.tr(`ui.fac.${f}`, f), n: Math.round(c) }), true);
+            if (!(saturday && st.drops_to && c < limit + st.decay_day))
+              this.push(s.t, T.fmt('ui.wire.worn', { place, n, limit }), true);
           }
+          // 明天收盘就要掉：按一天的衰减估一下，够不着阈值的才提醒
+          if (saturday && st.drops_to && limit && c < limit + st.decay_day)
+            this.push(s.t, T.fmt('ui.wire.dropping', { place, n }), true);
         }
       } else if (e.type === 'cardOpened') this.push(s.t, T.cardTitle(e.card), false);
-      else if (e.type === 'log') {
+      else if (e.type === 'log' && e.entry.cause.kind === 'week') {
+        // 周结算一周一条（GM-1）：服务率 + 这一周动了哪些数；细节（为什么）在"我们怎么走到这一步"里
+        const c = e.entry.cause;
+        const what = e.entry.effects
+          .map((x) => (x.kind === 'stat' ? T.effect(x) : null))
+          .filter((x): x is string => !!x)
+          .join(' · ');
+        const rate = c.demand ? c.served / c.demand : 0;
+        const hot =
+          (c.demand > 0 && rate < c.pass) ||
+          e.entry.effects.some((x) => x.kind === 'stat' && x.stat !== 'cash' && x.stat !== 'quality' && x.delta < 0);
+        this.push(
+          s.t,
+          T.fmt('ui.wire.week', {
+            n: c.week,
+            rate: c.demand ? T.fmt('ui.wire.week_rate', { n: Math.round(rate * 100) }) : T.tr('ui.wire.week_none'),
+            what,
+          }),
+          hot,
+        );
+      } else if (e.type === 'log') {
         const so = T.so(e.entry);
         if (!so || e.entry.cause.kind === 'start') continue;
-        const hot = e.entry.effects.some((x) => x.kind === 'fire' || x.kind === 'hire' || x.kind === 'end');
+        const hot =
+          e.entry.cause.kind === 'wear' ||
+          e.entry.effects.some((x) => x.kind === 'fire' || x.kind === 'hire' || x.kind === 'end');
         this.push(s.t, so, hot);
       } else if (e.type === 'activityStarted') {
         this.push(s.t, T.tr(`activities.${e.activity}.title`), false);
@@ -109,8 +148,6 @@ export class Projector {
           T.fmt('ui.wire.interrupted', { name: T.personName(e.person), post: T.tr(`posts.${e.post}.title`) }),
           true,
         );
-      } else if (e.type === 'weekSettled') {
-        this.push(s.t, T.fmt('ui.wire.week', { n: Math.round(e.serviceRate * 100) }), e.serviceRate < 0.5);
       }
     }
   }
@@ -166,12 +203,13 @@ export class Projector {
     const cash = s.stats.cash ?? 0;
     const coach = s.headCoach;
 
+    const low = hasDemand(s) && serviceRate(s) < servicePass(w);
     const details: StatRow[] = [
       { label: T.tr('stats.reputation'), value: String(Math.round(s.stats.reputation ?? 0)) },
       {
         label: T.tr('stats.service'),
-        value: `${Math.round(serviceRate(s) * 100)}%`,
-        ...(serviceRate(s) < 0.5 ? { tone: 'bad' as const } : {}),
+        value: hasDemand(s) ? `${Math.round(serviceRate(s) * 100)}%` : '—',
+        ...(low ? { tone: 'bad' as const } : {}),
       },
       { label: T.tr('stats.restoration'), value: `${Math.round(s.stats.restoration ?? 0)}/${w.facilities.size}` },
       { label: T.tr('ui.details.courts'), value: `${fac.courts}/${totalCourts}` },
@@ -179,10 +217,14 @@ export class Projector {
       ...Object.entries(s.facilities).map(([id, st]) => {
         const [name, state] = T.tr(`facilities.${id}.${st}`).split(' · ');
         const c = Math.round(s.condition[id] ?? 100);
+        // 红色只给会掉档的低状况和已经停用的；废墟本来就是这样，不算坏消息
+        const def = w.facilities.get(id);
+        const decays = !!def?.states[st]?.decay_day;
+        const worn = !decays && !!def && Object.values(def.states).some((x) => x.drops_to === st);
         return {
           label: name ?? id,
           value: `${state ?? st} · ${c}`,
-          ...(c < 30 ? { tone: 'bad' as const } : {}),
+          ...((decays && c < 30) || worn ? { tone: 'bad' as const } : {}),
         };
       }),
     ];
@@ -304,10 +346,12 @@ export class Projector {
         tone: (s.stats.cash ?? 0) < 0 ? 'loss' : 'info',
       },
       { text: T.fmt('ui.ctx.members', { n: Math.round(s.stats.members ?? 0) }) },
-      {
-        text: T.fmt('ui.ctx.service', { n: Math.round(serviceRate(s) * 100) }),
-        tone: serviceRate(s) < 0.5 ? 'loss' : 'info',
-      },
+      hasDemand(s)
+        ? {
+            text: T.fmt('ui.ctx.service', { n: Math.round(serviceRate(s) * 100) }),
+            tone: serviceRate(s) < servicePass(worldOf(s, this.content)) ? 'loss' : 'info',
+          }
+        : { text: T.tr('ui.ctx.service_none'), tone: 'info' },
     ];
   }
 
@@ -315,13 +359,13 @@ export class Projector {
   private season(s: GameState): SeasonInfo {
     const T = this.text;
     const week = Math.floor(Math.floor(s.t / 1440) / 7) + 1;
-    const service = Math.round(serviceRate(s) * 100);
+    const service = hasDemand(s) ? Math.round(serviceRate(s) * 100) : null;
     return {
       label: `${T.tr(`seasons.${s.season}`, '')} · ${T.fmt('ui.week', { n: week })}`,
       weather: s.weather,
       weatherLabel: T.tr(`ui.weather.${s.weather}`),
       service,
-      serviceLabel: T.fmt('ui.ctx.service', { n: service }),
+      serviceLabel: service === null ? T.tr('ui.ctx.service_none') : T.fmt('ui.ctx.service', { n: service }),
     };
   }
 
@@ -343,6 +387,30 @@ export class Projector {
     let h = 0;
     for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
     return { name, initials, color: id === DIRECTOR ? '#62e08c' : (COLORS[h % COLORS.length] as string) };
+  }
+
+  /**
+   * 此刻能开工、又没人在做的工单（钱够、人数没满）：修复类（做完换设施状态）在前，便宜的在前。
+   * 员工条和地点牌的"下一步"提示用（只读状态，不改任何东西）。
+   */
+  readyOrders(s: GameState): Order[] {
+    const w = worldOf(s, this.content);
+    const repair = (o: Order) => o.effects.some((e) => 'facility' in e && 'set' in e);
+    return [...w.orders.values()]
+      .filter((o) => {
+        const st = orderStatus(s, w, o);
+        return st.visible && st.blocked === null && st.crew.length === 0;
+      })
+      .sort((a, b) => Number(repair(b)) - Number(repair(a)) || a.cost - b.cost || a.id.localeCompare(b.id));
+  }
+
+  /** 有没有在职的人手上没活（没岗位没工单、没在走路、没在办事） */
+  anyIdle(s: GameState): boolean {
+    const w = worldOf(s, this.content);
+    return staffIds(s, w).some((id) => {
+      const p = s.people[id];
+      return !!p && !p.job && !p.walk && !p.errand;
+    });
   }
 
   /** 岗位或工单的名字 */
@@ -375,10 +443,14 @@ export class Projector {
       };
     // 闲着或在等客人：有下一班就说下一班几点（ADR 0014：到点他自己会去）
     const next = this.nextShift(s, id);
-    if (!p.job)
-      return next
-        ? { text: T.fmt('ui.staff.next', next), state: 'waiting' }
+    if (!p.job) {
+      if (next) return { text: T.fmt('ui.staff.next', next), state: 'waiting' };
+      // 闲着、手边又有能开工的活：员工条上直接说下一步是什么（e7：放置对照里没人告诉你下一步）
+      const ready = this.readyOrders(s).find((o) => canAssign(s, w, id, o.id) === null);
+      return ready
+        ? { text: T.fmt('ui.staff.idle_next', { what: this.targetTitle(ready.id) }), state: 'idle' }
         : { text: T.fmt('ui.staff.idle', { place: T.anchor(p.at) }), state: 'idle' };
+    }
     const post = w.posts.get(p.job);
     if (post) {
       const st = postStatus(s, w, post);
@@ -592,6 +664,8 @@ export class Projector {
     fit: 'none' | 'fit' | 'nofit';
     /** 这儿的设施状况低于 30 时的值（地点牌上挂红色 !） */
     worn: number | null;
+    /** 有人闲着、"下一步"的活就在这儿：工单格亮起来（e7 的轻提示） */
+    ready: boolean;
   } | null {
     const { s } = session;
     const w = worldOf(s, this.content);
@@ -636,8 +710,20 @@ export class Projector {
       posts: pp,
       orders: { n: orders.length, skills: [...new Set(orders.map((o) => o.skill))], progress: best, crew },
       fit,
-      worn: this.wornAt(s, anchor),
+      worn: this.lowAt(s, anchor),
+      // 只亮"下一步"那一处（修复优先、便宜的优先），不把所有能干的活都点亮
+      ready: !picked && this.anyIdle(s) && this.readyOrders(s)[0]?.at === anchor,
     };
+  }
+
+  /** 这个地点的设施掉过档、正停用着（准则 6）：状态是别的状态的 drops_to，自己不再变旧 */
+  wornAt(s: GameState, anchor: string): boolean {
+    const w = worldOf(s, this.content);
+    const f = w.facilityAt.get(anchor);
+    const st = f ? s.facilities[f] : undefined;
+    const def = f ? w.facilities.get(f) : undefined;
+    if (!def || !st || def.states[st]?.decay_day) return false;
+    return Object.values(def.states).some((x) => x.drops_to === st);
   }
 
   /** 这个地点的设施状况（没有设施、或者设施还废着不会再变旧时为 null：废墟上不挂"快撑不住了"） */
@@ -648,7 +734,7 @@ export class Projector {
     if (!w.facilities.get(f)?.states[s.facilities[f] ?? '']?.decay_day) return null;
     return Math.round(s.condition[f] ?? 100);
   }
-  private wornAt(s: GameState, anchor: string): number | null {
+  private lowAt(s: GameState, anchor: string): number | null {
     const c = this.conditionAt(s, anchor);
     return c !== null && c < 30 ? c : null;
   }
@@ -798,10 +884,15 @@ export class Projector {
         ? {
             condition: {
               value: cond,
-              label: T.fmt(cond < 30 ? 'ui.place.condition_low' : 'ui.place.condition', { n: cond }),
+              label: T.fmt(cond < 30 ? 'ui.place.condition_low' : 'ui.place.condition', {
+                n: cond,
+                limit: w.act.rules.grade_drop_below,
+              }),
             },
           }
-        : {}),
+        : this.wornAt(s, anchor)
+          ? { condition: { value: 0, label: T.tr('ui.place.worn') } }
+          : {}),
       ...(picked ? { prompt: T.fmt('ui.place.pick', { name: T.personName(picked), place: T.anchor(anchor) }) } : {}),
       rows: rows.map(({ rank: _, ...r }) => r),
       empty: T.tr('ui.place.empty'),
@@ -867,13 +958,22 @@ export class Projector {
           tone: 'time',
         });
       if (opt) {
-        chips.push(...effectChips(T, opt.effects, 1, this.content.people));
+        // 只讲此刻会生效的效果（带 if 的效果按现在的状态筛一遍，例如 Dale 只会接下一件修复）
+        const live = (effs: readonly Effect[]) => effs.filter((e) => !e.if || testCond(s, w, e.if));
+        const { people, orders } = this.content;
+        chips.push(...effectChips(T, live(opt.effects), 1, people, orders));
         chips.push(...this.flagChips(s, opt.effects, 1));
         if (st.chance !== null) {
           chips.push({ text: T.fmt('ui.chip.chance', { p: Math.round(st.chance * 100) }), tone: 'risk' });
-          chips.push(...effectChips(T, opt.onSuccess, st.chance), ...this.flagChips(s, opt.onSuccess, st.chance));
+          chips.push(
+            ...effectChips(T, live(opt.onSuccess), st.chance, people, orders),
+            ...this.flagChips(s, opt.onSuccess, st.chance),
+          );
           // 没成会怎样也要写出来（第二轮试玩 S6：抗议失败扣声望，卡上没提示）
-          chips.push(...effectChips(T, opt.onFail, 1 - st.chance), ...this.flagChips(s, opt.onFail, 1 - st.chance));
+          chips.push(
+            ...effectChips(T, live(opt.onFail), 1 - st.chance, people, orders),
+            ...this.flagChips(s, opt.onFail, 1 - st.chance),
+          );
         }
       }
       const then = opt ? thenLine(T, [...opt.effects, ...opt.onSuccess]) : undefined;

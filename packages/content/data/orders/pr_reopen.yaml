@@ -1,0 +1,14 @@
+# 练习场停用了：两块场地都被沙子吃掉了线。
+# 掉档以后才冒出来（准则 6）；比当初修复便宜得多，但要钱、要人、要时间，这段时间岗位都不开。
+id: pr_reopen
+act: indian_wells
+at: practice
+skill: upkeep
+work: 3h
+cost: 60
+crew: 2
+when: { facility: practice, is: worn }
+restore: 50
+effects:
+  - { facility: practice, set: open }
+performance: workday

@@ -1,3 +1,6 @@
+// 色彩设置必须在任何 THREE.Color 创建之前求值（ART-6），所以单独放在最前面
+import './world/color';
+
 export * as activities from './activities';
 export * from './ambient/car';
 export * from './ambient/crow';
@@ -22,6 +25,7 @@ export * as indianWells from './scenes/indian-wells';
 export * from './voxel/batcher';
 export * from './voxel/text';
 export * from './world/build-context';
+export * from './world/color';
 export * from './world/frame';
 export * from './world/site';
 export * from './world/stage';

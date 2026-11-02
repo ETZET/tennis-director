@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { LIGHT_UNIT, useLegacyColor } from './color';
 
 /** 场景的光照和天色。每个场景各有一套（Hollow Creek 是阴天）。 */
 export interface LightingDef {
@@ -31,6 +32,7 @@ export interface Stage {
 
 export function createStage(container: HTMLElement, L: LightingDef): Stage {
   const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
+  useLegacyColor(renderer);
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.BasicShadowMap;
   renderer.setClearColor(new THREE.Color(L.sky));
@@ -38,9 +40,9 @@ export function createStage(container: HTMLElement, L: LightingDef): Stage {
   const scene = new THREE.Scene();
   if (L.fog) scene.fog = new THREE.Fog(new THREE.Color(L.sky), L.fog.near, L.fog.far);
   const cam = new THREE.OrthographicCamera(-1, 1, 1, -1, 1, 700);
-  const hemi = new THREE.HemisphereLight(L.hemi.sky, L.hemi.ground, L.hemi.intensity);
+  const hemi = new THREE.HemisphereLight(L.hemi.sky, L.hemi.ground, L.hemi.intensity * LIGHT_UNIT);
   scene.add(hemi);
-  const sun = new THREE.DirectionalLight(L.sun.color, L.sun.intensity);
+  const sun = new THREE.DirectionalLight(L.sun.color, L.sun.intensity * LIGHT_UNIT);
   sun.position.set(...L.sun.position);
   sun.castShadow = true;
   sun.shadow.mapSize.set(L.sun.shadowMapSize, L.sun.shadowMapSize);

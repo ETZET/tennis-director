@@ -32,6 +32,7 @@ export function openCard(ctx: Ctx, cardId: string, cause: number | null): OpenCa
   };
   s.cards.open.push(o);
   s.cards.shown[cardId] = (s.cards.shown[cardId] ?? 0) + 1;
+  s.cards.lastOpened = s.t;
   // 一张卡打开以后，导演至少隔一段时间才抽下一张（日历和后果卡照常按点来）
   s.cards.nextDraw = Math.max(s.cards.nextDraw, s.t + minutes(w.director.gap));
   ctx.events.push({ type: 'cardOpened', uid: o.uid, card: cardId, pause: c.pause });

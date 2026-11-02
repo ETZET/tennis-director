@@ -32,10 +32,16 @@ export interface Site {
   readonly grounds: Readonly<Record<string, CourtFrame>>;
   /** 建静态场景 */
   build(stage: Stage): void;
-  /** 设施状态的画面层 */
-  createOverlays(stage: Stage): { set(facility: string, state: string): void };
-  /** 天空和远景的动画（没有就什么也不做） */
-  createSky(stage: Stage): { update(dt: number, now: number, rain: number): void };
+  /**
+   * 设施状态的画面层。wear（可选）：状况往下掉时的画面信号，amount 0 干净、1 快掉档、再往上已经掉档
+   * （准则 6"先出画面信号，再掉档"；状况怎么换算成 amount 由游戏决定）
+   */
+  createOverlays(stage: Stage): {
+    set(facility: string, state: string): void;
+    wear?(facility: string, amount: number): void;
+  };
+  /** 天空和远景的动画（没有就什么也不做）；wind 0 无风 .. 1 大风（可选，默认 0.3） */
+  createSky(stage: Stage): { update(dt: number, now: number, rain: number, wind?: number): void };
 }
 
 /** 折线上走过比例 u（0..1）处的点。 */

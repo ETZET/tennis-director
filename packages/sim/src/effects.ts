@@ -154,6 +154,12 @@ export function applyEffects(ctx: Ctx, effects: readonly Effect[], entryId: numb
     } else if ('errand' in e) {
       const m = minutes(e.for);
       if (sendErrand(ctx, e.errand, e.at, m)) out.push({ kind: 'errand', person: e.errand, at: e.at, minutes: m });
+    } else if ('task' in e) {
+      // 把一张工单记给某人（ADR 0014 的 resume）：他手上的班或活结束、闲下来时，习惯系统让他自己走过去开工
+      const p = s.people[e.who];
+      if (!p?.hired || p.job === e.task) continue;
+      p.resume = e.task;
+      out.push({ kind: 'task', person: e.who, order: e.task });
     }
   }
 }

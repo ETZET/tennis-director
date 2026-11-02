@@ -26,7 +26,11 @@ export interface Text {
   duration(min: number): string;
 }
 
-const signed = (n: number) => (n > 0 ? `+${Math.round(n * 10) / 10}` : `${Math.round(n * 10) / 10}`);
+// 负号用 −（和现金的 −$150 一致）
+const signed = (n: number) => {
+  const r = Math.round(n * 10) / 10 || 0;
+  return r > 0 ? `+${r}` : r < 0 ? `−${-r}` : '0';
+};
 
 export function createText(content: ContentBundle, lang: Lang): Text {
   const table = content.i18n[lang] ?? content.i18n.en ?? {};
@@ -37,6 +41,8 @@ export function createText(content: ContentBundle, lang: Lang): Text {
   const personName = (id: string) => table[`people.${id}`] ?? people.get(id) ?? id;
   const cardTitle = (card: string) => tr(`events.${card}.title`, card);
   const option = (card: string, key: string) => tr(`events.${card}.options.${key}`, key);
+  const fmt = (key: string, vars: Record<string, string | number>) =>
+    tr(key).replace(/\{(\w+)\}/g, (_, k: string) => String(vars[k] ?? `{${k}}`));
 
   const duration = (min: number) => {
     const m = Math.max(0, Math.round(min));
@@ -72,6 +78,10 @@ export function createText(content: ContentBundle, lang: Lang): Text {
           .replace('{name}', personName(e.person))
           .replace('{place}', tr(`anchors.${e.at}`, e.at))
           .replace('{time}', duration(e.minutes));
+      case 'task':
+        return tr('ui.task_log')
+          .replace('{name}', personName(e.person))
+          .replace('{what}', tr(`orders.${e.order}.title`, e.order));
       case 'condition': {
         if (Math.abs(e.delta) < 1) return null;
         return `${tr(`ui.fac.${e.facility}`, e.facility)} ${tr('ui.condition')} ${signed(e.delta)}`;
@@ -120,6 +130,27 @@ export function createText(content: ContentBundle, lang: Lang): Text {
             .replace('{order}', tr(`orders.${c.order}.title`, c.order)) + r
         );
       }
+      case 'week': {
+        // 周结算（GM-1）：服务率、及格线、缺人最多的岗位
+        if (!c.demand) return fmt('ui.settle.none', { n: c.week });
+        const base = fmt('ui.settle.because', {
+          n: c.week,
+          rate: Math.round((c.served / c.demand) * 100),
+          pass: Math.round(c.pass * 100),
+        });
+        if (!c.missed) return base;
+        return (
+          base +
+          fmt('ui.settle.missed', {
+            post: tr(`posts.${c.missed.post}.title`, c.missed.post),
+            time: duration(c.missed.minutes),
+          })
+        );
+      }
+      case 'wear':
+        return tr('ui.because.wear')
+          .replace('{place}', tr(`ui.fac.${c.facility}`, c.facility))
+          .replace('{n}', String(c.condition));
       case 'debug':
         return zh ? `调试：${c.what}` : `debug: ${c.what}`;
       default:
@@ -127,7 +158,66 @@ export function createText(content: ContentBundle, lang: Lang): Text {
     }
   };
 
+  /** 周结算的"所以"：钱、声望、会员、质量各一句，每句带上为什么（各项、上限、目标） */
+  const settled = (e: CausalEntry): string | null => {
+    const c = e.cause;
+    if (c.kind !== 'week') return null;
+    const sep = zh ? '、' : ', ';
+    const money = (n: number) => `${n < 0 ? '−' : '+'}$${Math.abs(Math.round(n))}`;
+    const get = (stat: string) =>
+      e.effects.find((x): x is Extract<EffectRecord, { kind: 'stat' }> => x.kind === 'stat' && x.stat === stat);
+    const part = (rec: EffectRecord, why: string[]) => {
+      const what = effect(rec) ?? '';
+      return why.length ? fmt('ui.settle.part', { what, parts: why.join(sep) }) : what;
+    };
+    const out: string[] = [];
+    const cash = get('cash');
+    if (cash) {
+      const why = (['wages', 'upkeep', 'dues', 'income'] as const)
+        .filter((k) => c.money[k])
+        .map(
+          (k) => `${tr(`ui.settle.money.${k}`)} ${money(k === 'wages' || k === 'upkeep' ? -c.money[k] : c.money[k])}`,
+        );
+      out.push(part(cash, why));
+    }
+    const rep = get('reputation');
+    if (rep)
+      out.push(
+        part(
+          rep,
+          Object.entries(c.rep)
+            .filter(([, v]) => v)
+            .map(([k, v]) => `${tr(`ui.terms.${k}`, k)} ${signed(v)}`),
+        ),
+      );
+    const members = get('members');
+    if (members) {
+      // 撞了上限：多的人不续了（变少），或者还有人想来却进不来（变多但没那么多）
+      const cap = c.members.cap ?? 0;
+      const why =
+        c.members.cap === null || members.delta >= c.members.gain
+          ? []
+          : members.delta < 0
+            ? [fmt('ui.settle.capped', { cap })]
+            : [fmt('ui.settle.full', { cap, n: Math.round(c.members.gain - members.delta) })];
+      out.push(part(members, why));
+    }
+    const q = get('quality');
+    if (q) {
+      const terms = Object.entries(c.quality.terms)
+        .filter(([, v]) => v)
+        .sort(([, a], [, b]) => Math.abs(b) - Math.abs(a))
+        .slice(0, 4)
+        .map(([k, v]) => `${tr(`ui.terms.${k}`, k)} ${signed(v)}`);
+      out.push(
+        part(q, [fmt('ui.settle.target', { n: Math.round(c.quality.target * 10) / 10, parts: terms.join(sep) })]),
+      );
+    }
+    return out.length ? out.join(zh ? '；' : '; ') : null;
+  };
+
   const so = (e: CausalEntry): string | null => {
+    if (e.cause.kind === 'week') return settled(e);
     const parts = e.effects.map(effect).filter((x): x is string => !!x);
     return parts.length ? parts.join(zh ? '，' : ', ') : null;
   };
@@ -140,9 +230,6 @@ export function createText(content: ContentBundle, lang: Lang): Text {
     return `${h % 12 || 12}:${mm} ${h >= 12 ? 'PM' : 'AM'}`;
   };
   const day = (t: number) => (zh ? `第 ${Math.floor(t / 1440) + 1} 天` : `Day ${Math.floor(t / 1440) + 1}`);
-
-  const fmt = (key: string, vars: Record<string, string | number>) =>
-    tr(key).replace(/\{(\w+)\}/g, (_, k: string) => String(vars[k] ?? `{${k}}`));
 
   return {
     lang,
@@ -172,5 +259,7 @@ export function entryTone(e: CausalEntry): 'bad' | 'good' | undefined {
     }
     if (x.kind === 'end') return x.result === 'won' ? 'good' : 'bad';
   }
+  // 掉档（准则 6）是坏消息
+  if (e.cause.kind === 'wear') return 'bad';
   return bad > good ? 'bad' : good > bad ? 'good' : undefined;
 }

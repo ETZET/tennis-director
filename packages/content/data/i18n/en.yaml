@@ -20,14 +20,14 @@ anchors:
   outer_23: Outer courts 2–3
 
 facilities:
-  outer_1: { sanded: Court 1 · buried in sand, swept: Court 1 · swept, playable: Court 1 · playable, resurfaced: Court 1 · resurfaced }
-  outer_23: { ruined: Courts 2–3 · fences down, playable: Courts 2–3 · repaired }
-  practice: { ruined: Practice courts · abandoned, open: Practice courts · open }
-  clubhouse: { ruined: Clubhouse · leaking roof, open: Clubhouse · front desk open }
-  plaza: { dry: Plaza · fountain dry, open: Plaza · fountain running }
-  stadium_3: { buried: Stadium 3 · filled with sand, dug: Stadium 3 · dug out, open: Stadium 3 · open }
-  stadium_2: { ruined: Stadium 2 · run down, open: Stadium 2 · open }
-  stadium_1: { ruined: Stadium 1 · southeast corner collapsed, cleared: Stadium 1 · cleared, restored: Stadium 1 · rebuilt }
+  outer_1: { sanded: Court 1 · buried in sand, swept: Court 1 · swept, playable: Court 1 · playable, resurfaced: Court 1 · resurfaced, worn: Court 1 · closed (lines under sand) }
+  outer_23: { ruined: Courts 2–3 · fences down, playable: Courts 2–3 · repaired, worn: Courts 2–3 · closed (sanded over) }
+  practice: { ruined: Practice courts · abandoned, open: Practice courts · open, worn: Practice courts · closed (sanded over) }
+  clubhouse: { ruined: Clubhouse · leaking roof, open: Clubhouse · front desk open, worn: Clubhouse · front desk closed (leaks, no power) }
+  plaza: { dry: Plaza · fountain dry, open: Plaza · fountain running, worn: Plaza · closed (fountain clogged) }
+  stadium_3: { buried: Stadium 3 · filled with sand, dug: Stadium 3 · dug out, open: Stadium 3 · open, worn: Stadium 3 · closed (sand again) }
+  stadium_2: { ruined: Stadium 2 · run down, open: Stadium 2 · open, worn: Stadium 2 · closed (sand on every seat) }
+  stadium_1: { ruined: Stadium 1 · southeast corner collapsed, cleared: Stadium 1 · cleared, restored: Stadium 1 · rebuilt, worn: Stadium 1 · closed (can't host a match) }
 
 endings:
   exhibition:
@@ -88,6 +88,48 @@ events:
     options:
       A: You'll umpire the exhibition
       B: Take a few days off first
+  iw_dale_nudge:
+    title: '"We''ve been standing around"'
+    body: Dale finds you by the clubhouse. "Two of us, a whole garden, and we've been standing around for a day. There's still work we can start. Want me to take the next repair, or shall I go drum up some interest in town?"
+    options:
+      A: Dale takes the next repair (materials paid when he starts)
+      B: Dale runs a free taster lesson in town
+      C: I've got a plan
+  iw_credit_union:
+    title: The credit union calls
+    body: A loan officer from the Coachella Valley Credit Union stops at the gate. "Quiet week? We can float you $2500 now. Four weeks, $3000 back."
+    options:
+      A: Take the loan
+      B: No debts, thanks
+  iw_loan_due:
+    title: The loan is due
+    body: The credit union is back for its $3000. They'll give you two more weeks if you pay $400 interest now.
+    options:
+      A: Pay it all back
+      B: Two more weeks, pay the interest
+  iw_loan_final:
+    title: The extension is over
+    body: The credit union takes what it can of the $3000 straight from the account. Word gets around town that the garden owed money; the emptier the account, the worse it sounds.
+    options:
+      A: Pay up
+  iw_investor_call:
+    title: The investors call
+    body: '"A quiet week, and we count fewer places fixed than we hoped by now." The investors are on the phone. "Do you need more money, or will you catch up by our visit in week 13?"'
+    options:
+      A: Ask for $1500 more
+      B: Promise we'll catch up (5 places by the visit)
+  iw_rival_club:
+    title: A challenge from La Quinta
+    body: The head coach of the La Quinta Racquet Club turns up at Courts 2–3. "Your members keep telling mine this place is back. Prove it. Club match, this weekend."
+    options:
+      A: Take the challenge and host it
+      B: Not now, we're busy
+  iw_dale_ten_years:
+    title: Ten years
+    body: A quiet week. Dale calls you into his office behind the clubhouse. "You never asked why I stayed. Ten years, alone with the sand." He pulls out a second chair.
+    options:
+      A: Sit down and listen
+      B: Another time, there's work to do
   iw_hiring_day_1:
     title: The first hiring day
     body: You put a notice on the clubhouse door and two people came. Anyone you hire is paid weekly.
@@ -142,6 +184,8 @@ log:
   started: You arrive at the abandoned Indian Wells Tennis Garden.
   first_court: "Court 1 has a new net: the first playable court in ten years"
   ball_machine: The ball machine works again; academy lessons are better
+  loan_declined: You turned down the credit union's loan
+  loan_paid: The credit union loan is paid off
   clubhouse_open: The clubhouse front desk is open; hiring days can start
   stadium_3_open: Stadium 3 is usable again
   stadium_2_open: Stadium 2 is open
@@ -197,6 +241,15 @@ orders:
   st3_tidy: { title: "Sand in Stadium 3 again", note: "Sweep" }
   st2_repair: { title: "Repair Stadium 2", note: "Seats, shade sails, court", locked: "Open Stadium 3 first" }
   st2_tidy: { title: "Sand in Stadium 2 again", note: "Sweep" }
+  o1_reopen: { title: "Reopen Court 1", note: "It lost its grade: dig out the lines, new net, $30" }
+  o1_refinish: { title: "Patch Court 1's new surface", note: "The new surface lost its grade: patch and re-line, $150" }
+  o23_reopen: { title: "Reopen Courts 2–3", note: "It lost its grade: fences up, sweep, $75" }
+  pr_reopen: { title: "Reopen the practice courts", note: "It lost its grade: re-line both courts, $60" }
+  ch_reopen: { title: "Reopen the front desk", note: "It lost its grade: roof and wiring, $125" }
+  pz_reopen: { title: "Reopen the plaza", note: "It lost its grade: unclog the fountain, patch the tent, $125" }
+  st3_reopen: { title: "Reopen Stadium 3", note: "It lost its grade: dig out another layer of sand, $150" }
+  st2_reopen: { title: "Reopen Stadium 2", note: "It lost its grade: clear the seats, new shade sails, $250" }
+  st1_reopen: { title: "Reopen Stadium 1", note: "It lost its grade: fix the big screen, clear the stands, $450" }
   st1_clear: { title: "Clear Stadium 1", note: "Haul away the collapsed southeast corner", locked: "Open Stadium 2 first" }
   st1_rebuild: { title: "Rebuild Stadium 1", note: "The biggest job of the game", locked: "Clear Stadium 1 first" }
   st1_exhibition: { title: "Hold the exhibition", note: "Reputation 50+, a crew for a whole day", locked: "Stadium 1 rebuilt and reputation 50+" }
@@ -264,6 +317,8 @@ who:
   retirees: { name: Two retirees, role: From Palm Desert }
   reporter: { name: The Desert Sun, role: Local newspaper reporter }
   sponsor: { name: Desert Savings Bank, role: A local bank }
+  lender: { name: Coachella Valley Credit Union, role: A loan officer }
+  rival_coach: { name: La Quinta Racquet Club, role: Their head coach }
 roles:
   director: Director
   coach: Head coach
@@ -314,6 +369,7 @@ ui:
   days: { "0": Mon, "1": Tue, "2": Wed, "3": Thu, "4": Fri, "5": Sat, "6": Sun }
   chip:
     errand: "{name} away {time}"
+    task: "{name} → {what}"
     wage: "${n}/week"
     hire: "{name} joins"
     fire: "{name} leaves"
@@ -327,6 +383,7 @@ ui:
     cash: "Cash ${n}"
     members: "Members {n}"
     service: "Service this week {n}%"
+    service_none: No customers yet
   restore: "Restored (of {total})"
   restore_in: "Restored/{total} · {days}d left"
   restore_today: "Restored/{total} · due today"
@@ -368,16 +425,43 @@ ui:
   condition: condition
   nobody: nobody
   errand_log: "{name} spent {time} at {place}"
+  # Weekly settlement (GM-1): one line a week with the service rate, the pass mark, the post most left empty, money,
+  # and why reputation, members and quality moved
+  settle:
+    because: "week {n} settled: service {rate}%, pass mark {pass}%"
+    missed: "; “{post}” was left empty the most ({time})"
+    none: "week {n} settled with no post open yet (no customers: service and word of mouth don't count)"
+    part: "{what} ({parts})"
+    capped: "the courts only hold {cap}; the rest didn't renew"
+    full: "the courts only hold {cap}; {n} more wanted to join"
+    target: "heading for {n}: {parts}"
+    money: { dues: dues, income: facilities, upkeep: upkeep, wages: wages }
+  # Names of the parts of split quantities (the quality target, the weekly reputation)
+  terms:
+    base: base
+    facilities: facilities
+    courts: open courts
+    service: service
+    coach: head coach
+    gear: equipment
+    quality: quality
+    restored: repairs
+    traits: staff traits
+  task_log: "{name} will take on {what} when free"
   because:
     post: "{name} worked {n} rounds on “{post}”"
     order: "{names} finished “{order}”"
+    wear: "{place} was down to condition {n} at Sunday close"
     worked: " (it worked)"
     failed: " (it didn't work)"
   wire:
     grew: "The director's {skill} reached {n}"
     interrupted: "{name} was pulled off “{post}”; that round was lost"
-    week: "Week settled · service {n}%"
-    worn: "{place} condition down to {n}: it will lose its grade without upkeep"
+    week: "Week {n} settled · {rate} · {what}"
+    week_rate: "service {n}%"
+    week_none: no customers yet
+    worn: "{place} condition down to {n}: below {limit} at Sunday close it loses a grade and its jobs stop"
+    dropping: "{place} condition {n}: without upkeep it loses a grade at close tomorrow (Sunday)"
   status:
     empty: "{n} posts have customers waiting and nobody there"
     covered: Every busy spot has someone right now
@@ -386,13 +470,15 @@ ui:
     next: "Next shift {time} · {what}"
     hint: "Tap a place to send {name} there · they remember shifts"
     idle: "Idle at {place}"
+    idle_next: "Free · ⚒ {what}"
     waiting: "{what} · waiting for customers"
     walking: "To {what} · {time}"
     errand: "Away at {place} · {time}"
   place:
     rain: Closed today — it is raining
-    condition_low: "Condition {n} · already lost a grade; upkeep brings it back"
-    condition: "Condition {n} · drops a grade below 30"
+    condition_low: "Condition {n} · counts half for quality; below {limit} on Sunday it loses a grade"
+    condition: "Condition {n} · loses a grade if below {limit} at Sunday close"
+    worn: "Lost a grade · jobs here are stopped until someone does the Reopen job"
     owner: "{name}'s shift · comes at {hours}"
     income: Earns money
     pick: "Send {name} to which job at {place}?"

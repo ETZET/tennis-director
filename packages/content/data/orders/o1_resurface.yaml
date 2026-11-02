@@ -12,4 +12,6 @@ restore: 100
 effects:
   - { facility: outer_1, set: resurfaced }
   - { stat: reputation, add: 2 }
+  # 记下来：以后新面掉了档，可以花小钱补面（o1_refinish），不用再铺一次
+  - { flag: o1_resurfaced, set: true }
 performance: workday

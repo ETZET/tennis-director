@@ -73,7 +73,10 @@ export function leaveJob(ctx: WalkCtx, id: string): void {
     if (st && st.progress > 0) {
       const post = w.posts.get(job);
       // 有需求的岗位：这一圈已经计入的服务分钟退回去
-      if (post?.hours) s.week.served = Math.max(0, s.week.served - st.progress);
+      if (post?.hours) {
+        s.week.served = Math.max(0, s.week.served - st.progress);
+        s.week.missed[job] = (s.week.missed[job] ?? 0) + st.progress;
+      }
       ctx.events.push({ type: 'postInterrupted', post: job, person: id, lost: st.progress });
     }
     delete s.posts[job];

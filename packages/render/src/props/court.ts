@@ -202,6 +202,8 @@ export function pen(
     opacity: 0.08,
     side: THREE.DoubleSide,
     depthWrite: false,
+    // r150 起透明 + 双面默认分两遍画（先背面后正面）；r128 是一遍，绘制调用也少一半
+    forceSinglePass: true,
   });
   const sides = [
     { ax: 'x', k: -fr.hz, a: -fr.hx, b: fr.hx, ry: 0, id: 'S' },

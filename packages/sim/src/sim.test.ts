@@ -6,8 +6,8 @@ import { run } from './effects';
 import { advance, newGame, replay, stateHash, step } from './game';
 import { fromSave, SaveError, toSave } from './save';
 import { canAssign, orderLead, orderStatus, postStatus, workSkill } from './staff';
-import { at, dayOf, type GameState, minuteOfDay, SAVE_VERSION } from './state';
-import { facilityTotals, makeEnv, serviceRate, test } from './vars';
+import { at, type CausalEntry, dayOf, type GameState, minuteOfDay, SAVE_VERSION, weekdayOf } from './state';
+import { facilityTotals, hasDemand, makeEnv, num, qualityTarget, serviceRate, test } from './vars';
 import { shortestRoute } from './walk';
 import { worldFor } from './world';
 
@@ -196,6 +196,97 @@ describe('岗位', () => {
   });
 });
 
+/** 跑到下一个周日收盘，返回这一次的周结算日志 */
+function toSettlement(s: GameState): CausalEntry & { cause: { kind: 'week' } } {
+  const n = s.log.length;
+  until(s, (x) => x.log.slice(n).some((e) => e.cause.kind === 'week'), 8 * 1440);
+  return s.log.slice(n).find((e) => e.cause.kind === 'week') as CausalEntry & { cause: { kind: 'week' } };
+}
+const statDelta = (e: CausalEntry, stat: string) =>
+  e.effects.find((x) => x.kind === 'stat' && x.stat === stat) as { delta: number } | undefined;
+
+describe('周结算（GM-1：放着不管时数字的变化要讲得清）', () => {
+  it('还没有开放的岗位：服务率是 0、不是凭空的 50%；周结算不算服务项和质量项（不倒扣）', () => {
+    const s = quiet(fresh(37));
+    expect(serviceRate(s)).toBe(0);
+    expect(hasDemand(s)).toBe(false);
+    expect(s.stats.service).toBe(0);
+    const rep = s.stats.reputation ?? 0;
+    const e = toSettlement(s);
+    expect(e.cause).toMatchObject({ week: 1, demand: 0, served: 0, pass: 0.5, missed: null });
+    expect(e.cause.rep).toMatchObject({ service: 0, quality: 0 });
+    // 只剩修复项（开局什么都没修好：0）
+    expect(s.stats.reputation).toBe(rep + (e.cause.rep.restored ?? 0));
+    expect(s.week).toMatchObject({ demand: 0, lastDemand: 0, last: 0 });
+  });
+
+  it('工资和会费按天记进现金但不各写一条日志；周结算合成一条"本周工资 −$150"', () => {
+    const s = quiet(fresh(37));
+    const n = s.log.length;
+    const e = toSettlement(s);
+    expect(s.log.slice(n).filter((x) => x.cause.kind === 'day')).toEqual([]);
+    expect(e.cause.money).toEqual({ dues: 0, income: 0, upkeep: 0, wages: 150 });
+    expect(statDelta(e, 'cash')?.delta).toBe(-150);
+    expect(s.stats.cash).toBeCloseTo(3000 - 150, 6);
+  });
+
+  it('质量的目标拆成几项，加起来就是目标；周结算讲这一周质量走了多少、在向哪个目标靠近', () => {
+    const s = quiet(fresh(37));
+    const q = qualityTarget(s, W());
+    expect(Object.values(q.terms).reduce((a, b) => a + b, 0)).toBeCloseTo(q.total);
+    expect(q.terms.service).toBe(0);
+    const q0 = s.stats.quality ?? 0;
+    const e = toSettlement(s);
+    expect(e.cause.quality.target).toBeCloseTo(qualityTarget(s, W()).total, 0);
+    expect(statDelta(e, 'quality')?.delta).toBeCloseTo((s.stats.quality ?? 0) - q0, 1);
+  });
+
+  it('有客人没人管：服务率 0 低于及格线，声望服务项 −1；周结算点名缺人最多的岗位', () => {
+    const s = quiet(court1(fresh(9)));
+    const e = toSettlement(s);
+    expect(e.cause.demand).toBeGreaterThan(0);
+    expect(e.cause.served).toBe(0);
+    expect(e.cause.rep.service).toBe(-1);
+    // 外场 1 看场 8–15 点每天 7 小时，比下午的课（工作日 15–19 点）空得多
+    expect(e.cause.missed).toMatchObject({ post: 'o1_rental' });
+    expect(s.week.lastDemand).toBe(e.cause.demand);
+  });
+
+  it('下雨的周日不会让会员退会：会员上限按修好的场地算，不按今天开着的', () => {
+    const s = quiet(court1(fresh(9)));
+    s.facilities.outer_23 = 'playable';
+    s.facilities.clubhouse = 'open';
+    s.stats.members = 40; // 上限 3 块场 × 12 + 会所 15 = 51
+    until(s, (x) => weekdayOf(x.t) === 6 && minuteOfDay(x.t) >= 19 * 60);
+    s.weather = 'rain';
+    expect(facilityTotals(s, W()).courts).toBe(0);
+    const e = toSettlement(s);
+    expect(e.cause.members.cap).toBe(51);
+    expect(s.stats.members ?? 0).toBeGreaterThanOrEqual(40);
+  });
+
+  it('超过上限的会员周末不续了：周结算写明场地撑得起多少人', () => {
+    const s = quiet(court1(fresh(9)));
+    s.stats.members = 30; // 上限 1 块场 × 12
+    const e = toSettlement(s);
+    expect(e.cause.members.cap).toBe(12);
+    expect(statDelta(e, 'members')?.delta).toBe(-18);
+    expect(s.stats.members).toBe(12);
+  });
+
+  it('员工特质的声望不每天漂：记在本周的账上，周日一起结算并写进周结算', () => {
+    const s = quiet(court1(fresh(9)));
+    const star = Object.values(s.people).find((p) => W().people.get(p.id)?.traits.includes('star'));
+    expect(star).toBeDefined();
+    (star as { hired: boolean }).hired = true;
+    const rep = s.stats.reputation ?? 0;
+    until(s, (x) => dayOf(x.t) === 3);
+    expect(s.stats.reputation).toBe(rep);
+    const e = toSettlement(s);
+    expect(e.cause.rep.traits ?? 0).toBeGreaterThan(0);
+  });
+});
+
 describe('工单', () => {
   it('换网：第一个人到场时扣材料费；拉走进度保留；做满了设施变好、状况加上去', () => {
     const s = quiet(court1(fresh()));
@@ -313,6 +404,75 @@ describe('衰减（准则 6）', () => {
     expect(facilityTotals(s, W()).quality).toBe(q0 - 2.5);
     s.condition.outer_1 = 35;
     expect(orderStatus(s, W(), W().orders.get('o1_tidy') as never).visible).toBe(true);
+  });
+
+  it('掉档：周日收盘时状况低于 15 掉一档，岗位停开，冒出重开工单；做完回到原来那档', () => {
+    const s = quiet(court1(fresh()));
+    const w = W();
+    s.facilities.outer_23 = 'playable';
+    s.condition.outer_23 = 30; // 一天掉 5：周日收盘时 30 − 7×5 < 15
+    s.condition.outer_1 = 100; // 外场 1 一周掉 35，还在 15 以上：不掉
+    const vis = (o: string) => orderStatus(s, w, w.orders.get(o) as never).visible;
+    // 周一到周六收盘都不掉，哪怕已经低于 15
+    until(s, (x) => dayOf(x.t) === 7);
+    expect(s.condition.outer_23).toBeLessThan(15);
+    expect(s.facilities.outer_23).toBe('playable');
+    const r = advance(s, CONTENT, [], 12 * 60);
+    expect(dayOf(s.t)).toBe(8);
+    expect(s.facilities.outer_23).toBe('worn');
+    expect(s.facilities.outer_1).toBe('playable');
+    expect(r.events).toContainEqual(
+      expect.objectContaining({ type: 'facilityWorn', facility: 'outer_23', from: 'playable', to: 'worn' }),
+    );
+    const entry = s.log.find((e) => e.cause.kind === 'wear');
+    expect(entry?.cause).toMatchObject({ kind: 'wear', facility: 'outer_23' });
+    expect(entry?.effects).toContainEqual({ kind: 'facility', facility: 'outer_23', state: 'worn' });
+    // 停用：岗位不开、不算场地、不再变旧；清理工单换成重开工单
+    for (const p of ['o23_rental', 'o23_clinic', 'o23_upkeep'])
+      expect(postStatus(s, w, w.posts.get(p) as never).exists).toBe(false);
+    expect(facilityTotals(s, w).courts).toBe(1);
+    expect(vis('o23_tidy')).toBe(false);
+    expect(vis('o23_reopen')).toBe(true);
+    const c = s.condition.outer_23 as number;
+    until(s, (x) => dayOf(x.t) === 9);
+    expect(s.condition.outer_23).toBe(c);
+    // 修复主线不倒退：停用的外场 2–3 照样算练习场的前提
+    expect(vis('pr_repair')).toBe(true);
+    // 重开：扣材料费，做完回到"修好了"，状况 +50
+    for (const id of ['director', 'dale']) (s.people[id] as { at: string }).at = 'outer_23';
+    const cash = s.stats.cash as number;
+    advance(s, CONTENT, [assign('director', 'o23_reopen'), assign('dale', 'o23_reopen')], 0);
+    expect(until(s, (x) => x.facilities.outer_23 === 'playable', 600)).toBe(true);
+    expect(s.stats.cash).toBe(cash - 75);
+    expect(s.condition.outer_23).toBeCloseTo(c + 50);
+  });
+
+  it('掉档一周最多一档：新铺的外场 1 先掉回旧场地（可以补面），再一周才停用；废墟不掉档', () => {
+    const s = quiet(fresh());
+    const w = W();
+    s.facilities.outer_1 = 'resurfaced';
+    s.flags.o1_resurfaced = true;
+    s.condition.outer_1 = 5;
+    s.condition.outer_23 = 0; // 还是废墟
+    until(s, (x) => dayOf(x.t) === 8);
+    expect(s.facilities.outer_1).toBe('playable');
+    expect(orderStatus(s, w, w.orders.get('o1_refinish') as never).visible).toBe(true);
+    expect(orderStatus(s, w, w.orders.get('o1_resurface') as never).visible).toBe(true);
+    s.orderLog.done.o1_resurface = 1;
+    expect(orderStatus(s, w, w.orders.get('o1_resurface') as never).visible).toBe(false);
+    until(s, (x) => dayOf(x.t) === 15);
+    expect(s.facilities.outer_1).toBe('worn');
+    expect(s.facilities.outer_23).toBe('ruined');
+  });
+
+  it('幕规则 grade_drop_below 为 0 时不掉档', () => {
+    const c = structuredClone(CONTENT) as ContentBundle & { version: string };
+    (c.acts[0] as { rules: { grade_drop_below: number } }).rules.grade_drop_below = 0;
+    c.version += '+nodrop';
+    const s = quiet(court1(newGame(c, { seed: 1 })));
+    s.condition.outer_1 = 0;
+    until(s, (x) => dayOf(x.t) === 8, 20000, c);
+    expect(s.facilities.outer_1).toBe('playable');
   });
 
   it('维护岗位每圈修复，修多少看维护能力', () => {
@@ -588,6 +748,79 @@ describe('条件', () => {
     expect(test(s, w, { expr: 'stat.members == 0 && facility.stadium_1 == "ruined" && restored == 0' })).toBe(true);
     s.facilities.outer_1 = 'playable';
     expect(test(s, w, { expr: 'restored == 1' })).toBe(true);
+  });
+
+  it('修好了几处只算给园区加分的状态：扫完沙、挖完沙、清完碎石还不算（e7：扫完沙 HUD 就写"复原 1/8"）', () => {
+    const s = fresh();
+    const w = W();
+    s.facilities.outer_1 = 'swept';
+    s.facilities.stadium_3 = 'dug';
+    s.facilities.stadium_1 = 'cleared';
+    expect(num(s, w, 'restored')).toBe(0);
+    s.facilities.stadium_3 = 'open';
+    expect(num(s, w, 'restored')).toBe(1);
+  });
+});
+
+describe('停滞和闲着（e7）', () => {
+  it('idle_days：在职的人里闲得最久的那个连续闲了几个营业日；派上活就清零', () => {
+    const s = quiet(fresh());
+    const w = W();
+    expect(num(s, w, 'idle_days')).toBe(0);
+    advance(s, CONTENT, [], 360);
+    expect(num(s, w, 'idle_days')).toBeCloseTo(0.5, 5);
+    advance(s, CONTENT, [assign('director', 'o1_sweep')], 1);
+    // Dale 还闲着
+    expect(num(s, w, 'idle_days')).toBeCloseTo(361 / 720, 5);
+    advance(s, CONTENT, [assign('dale', 'o1_sweep')], 1);
+    expect(num(s, w, 'idle_days')).toBe(0);
+  });
+
+  it('quiet_days：离上一张卡打开过了几天（任何来源）', () => {
+    const s = fresh();
+    const w = W();
+    advance(s, CONTENT, [], 1);
+    expect(s.cards.lastOpened).toBe(s.t - 1);
+    s.cards.nextDraw = Number.POSITIVE_INFINITY;
+    s.cards.scheduled = [];
+    until(s, (x) => dayOf(x.t) === 4);
+    expect(num(s, w, 'quiet_days')).toBeGreaterThanOrEqual(2.5);
+    open(s, 'iw_reporter');
+    expect(num(s, w, 'quiet_days')).toBeLessThan(0.01);
+  });
+
+  it('开局的发球机卡放着不管一天就按"留着"处理，不会一直开着把导演堵住', () => {
+    const s = fresh();
+    advance(s, CONTENT, [], 1);
+    expect(s.cards.open.map((o) => o.card)).toEqual(['iw_arrival']);
+    expect(until(s, (x) => !x.cards.open.some((o) => o.card === 'iw_arrival'), 2000)).toBe(true);
+    expect(s.flags.ball_machine_kept).toBe(true);
+    expect(s.log.some((e) => e.cause.kind === 'default' && e.cause.card === 'iw_arrival')).toBe(true);
+  });
+
+  it('task 效果：把下一件修复交给 Dale，他闲着就自己走过去开工，材料费开工时扣', () => {
+    const s = quiet(fresh());
+    s.facilities.outer_1 = 'swept';
+    const uid = open(s, 'iw_dale_nudge');
+    expect(advance(s, CONTENT, [{ type: 'chooseOption', uid, option: 'A' }], 0).accepted).toHaveLength(1);
+    expect(s.people.dale?.resume).toBe('o1_net');
+    // 习惯系统每 10 分钟看一次
+    expect(until(s, (x) => x.people.dale?.job === 'o1_net', 20)).toBe(true);
+    expect(until(s, (x) => x.facilities.outer_1 === 'playable', 600)).toBe(true);
+    expect(s.stats.cash).toBe(3000 - 120);
+    expect(s.log.some((e) => e.effects.some((r) => r.kind === 'task' && r.order === 'o1_net'))).toBe(true);
+  });
+
+  it('Dale 来找你：有人闲了一天半、手边有开局的修复才来；不处理就什么都不动（准则 6）', () => {
+    const s = fresh();
+    const w = W();
+    advance(s, CONTENT, [assign('director', 'o1_sweep'), assign('dale', 'o1_sweep')], 0);
+    expect(until(s, (x) => x.cards.open.some((o) => o.card === 'iw_dale_nudge'), 6 * 1440)).toBe(true);
+    expect(num(s, w, 'idle_days')).toBeGreaterThanOrEqual(1.5);
+    expect(s.facilities.outer_1).toBe('swept');
+    expect(until(s, (x) => !x.cards.open.some((o) => o.card === 'iw_dale_nudge'), 1440)).toBe(true);
+    expect(s.facilities.outer_1).toBe('swept');
+    expect(s.people.dale?.resume ?? null).toBeNull();
   });
 });
 

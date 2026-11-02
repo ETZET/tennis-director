@@ -10,7 +10,7 @@ once: true
 when:
   all:
     - { facility: outer_23, is: ruined }
-    - { any: [{ facility: outer_1, is: playable }, { facility: outer_1, is: resurfaced }] }
+    - { any: [{ facility: outer_1, is: playable }, { facility: outer_1, is: resurfaced }, { facility: outer_1, is: worn }] }
 restore: 80
 effects:
   - { facility: outer_23, set: playable }

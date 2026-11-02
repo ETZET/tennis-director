@@ -23,11 +23,28 @@ import {
 
 const SECONDS_PER_MINUTE = 1 / PACE.minutesPerSecond;
 const IDLE_SECONDS_PER_MINUTE = SECONDS_PER_MINUTE / PACE.idleSpeedup;
+/** 放置对照（试玩桥 GM-1 的做法）：开局把总监和 Dale 派去扫外场 1 的沙，之后再也不碰，卡全部走默认 */
+function idleOnceBot(): Bot {
+  let sent = false;
+  return {
+    name: 'idle_once',
+    decide: () => {
+      if (sent) return [];
+      sent = true;
+      return [
+        { type: 'assign', person: 'director', target: 'o1_sweep' },
+        { type: 'assign', person: 'dale', target: 'o1_sweep' },
+      ];
+    },
+  };
+}
+
 const BOTS: Record<string, (seed: number) => Bot> = {
   greedy: () => greedyBot(),
   random: (seed) => randomBot(seed * 7919),
   cautious: () => cautiousBot(),
   idle: () => idleBot(),
+  idle_once: () => idleOnceBot(),
 };
 
 export interface GameTrace {
@@ -45,6 +62,10 @@ export interface GameTrace {
   longIdles: number;
   maxOpen: number;
   cardsSeen: string[];
+  /** 每张卡打开的时刻（游戏分钟，含日历和后果卡） */
+  cardTimes: number[];
+  /** 这一局结束的时刻 */
+  endT: number;
   picks: { card: string; option: OptionKey | null; by: 'player' | 'default' }[];
 }
 
@@ -63,6 +84,8 @@ export function traceGame(content: ContentBundle, botName: string, seed: number)
     longIdles: 0,
     maxOpen: 0,
     cardsSeen: [],
+    cardTimes: [],
+    endT: 0,
     picks: [],
   };
   let idle = 0;
@@ -78,7 +101,10 @@ export function traceGame(content: ContentBundle, botName: string, seed: number)
     const t0 = s.t;
     const r = advance(s, content, cmds, 1);
     for (const e of r.events) {
-      if (e.type === 'cardOpened' && !tr.cardsSeen.includes(e.card)) tr.cardsSeen.push(e.card);
+      if (e.type === 'cardOpened') {
+        tr.cardTimes.push(s.t);
+        if (!tr.cardsSeen.includes(e.card)) tr.cardsSeen.push(e.card);
+      }
       if (e.type === 'cardResolved') {
         tr.picks.push({ card: e.card, option: e.option, by: e.by });
         if (e.by === 'player') tr.decisions++;
@@ -97,6 +123,7 @@ export function traceGame(content: ContentBundle, botName: string, seed: number)
     }
   }
   flushIdle();
+  tr.endT = s.t;
   tr.ending = s.outcome?.ending ?? null;
   return tr;
 }
@@ -141,6 +168,16 @@ export function dominatedOptions(content: ContentBundle): { card: string; option
   return out;
 }
 
+/** 两张卡之间（以及开局到第一张、最后一张到局终）最长隔了几天；只看第 2 天到第 111 天这段，开局和期限卡不算空档的端点 */
+export function maxCardGapDays(t: GameTrace): number {
+  const from = 1440; // 第 2 天 0 点
+  const to = Math.min(t.endT, 111 * 1440);
+  const xs = [from, ...t.cardTimes.filter((x) => x > from && x < to), to];
+  let g = 0;
+  for (let i = 1; i < xs.length; i++) g = Math.max(g, ((xs[i] as number) - (xs[i - 1] as number)) / 1440);
+  return g;
+}
+
 const pct = (n: number) => `${Math.round(n * 1000) / 10}%`;
 const avg = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
 
@@ -163,6 +200,24 @@ export function playabilityReport(content: ContentBundle, games: number): string
       )} s | ${avg(t.map((x) => x.longIdles)).toFixed(1)} | ${Math.max(...t.map((x) => x.maxOpen))} |`,
     );
   }
+  lines.push('', '## 卡的节奏（游戏天）', '');
+  lines.push('| 打法 | 每局卡数 | 第 15–100 天的卡 | 最长无卡空档（中位 / 平均 / 最大） | ≥ 10 天的空档局占比 |');
+  lines.push('| --- | --- | --- | --- | --- |');
+  for (const b of bots) {
+    const t = traces[b] ?? [];
+    const gaps = t.map(maxCardGapDays).sort((x, y) => x - y);
+    const mid = t.map((x) => x.cardTimes.filter((c) => c >= 14 * 1440 && c < 100 * 1440).length);
+    lines.push(
+      `| ${b} | ${avg(t.map((x) => x.cardTimes.length)).toFixed(1)} | ${avg(mid).toFixed(1)} | ${(gaps[Math.floor(gaps.length / 2)] ?? 0).toFixed(1)} / ${avg(gaps).toFixed(1)} / ${(gaps[gaps.length - 1] ?? 0).toFixed(1)} | ${pct(gaps.filter((g) => g >= 10).length / Math.max(1, t.length))} |`,
+    );
+  }
+  lines.push('', '## 每张卡的出现率（出现过的局占比）', '');
+  const ids = [...new Set(content.cards.map((c) => c.id))].sort();
+  lines.push(`| 卡 | ${bots.join(' | ')} |`, `| --- |${bots.map(() => ' --- |').join('')}`);
+  for (const id of ids)
+    lines.push(
+      `| ${id} | ${bots.map((b) => pct((traces[b] ?? []).filter((x) => x.cardsSeen.includes(id)).length / Math.max(1, games))).join(' | ')} |`,
+    );
   lines.push('', '## 结局', '');
   for (const b of bots) {
     const n: Record<string, number> = {};

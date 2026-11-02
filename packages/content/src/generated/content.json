@@ -1,5 +1,5 @@
 {
- "version": "9cbb2e98",
+ "version": "3171144d",
  "stats": [
   {
    "id": "cash",
@@ -71,7 +71,8 @@
      "quality": 5,
      "income_week": 0,
      "upkeep_week": 15,
-     "decay_day": 5
+     "decay_day": 5,
+     "drops_to": "worn"
     },
     "resurfaced": {
      "courts": 1,
@@ -79,7 +80,16 @@
      "quality": 10,
      "income_week": 0,
      "upkeep_week": 20,
-     "decay_day": 3
+     "decay_day": 3,
+     "drops_to": "playable"
+    },
+    "worn": {
+     "courts": 0,
+     "rain_ok": false,
+     "quality": 0,
+     "income_week": 0,
+     "upkeep_week": 5,
+     "decay_day": 0
     }
    }
   },
@@ -101,7 +111,16 @@
      "quality": 9,
      "income_week": 0,
      "upkeep_week": 30,
-     "decay_day": 5
+     "decay_day": 5,
+     "drops_to": "worn"
+    },
+    "worn": {
+     "courts": 0,
+     "rain_ok": false,
+     "quality": 0,
+     "income_week": 0,
+     "upkeep_week": 10,
+     "decay_day": 0
     }
    }
   },
@@ -123,7 +142,16 @@
      "quality": 7,
      "income_week": 0,
      "upkeep_week": 30,
-     "decay_day": 4
+     "decay_day": 4,
+     "drops_to": "worn"
+    },
+    "worn": {
+     "courts": 0,
+     "rain_ok": false,
+     "quality": 0,
+     "income_week": 0,
+     "upkeep_week": 10,
+     "decay_day": 0
     }
    }
   },
@@ -145,7 +173,16 @@
      "quality": 8,
      "income_week": 0,
      "upkeep_week": 60,
-     "decay_day": 1.5
+     "decay_day": 1.5,
+     "drops_to": "worn"
+    },
+    "worn": {
+     "courts": 0,
+     "rain_ok": false,
+     "quality": 0,
+     "income_week": 0,
+     "upkeep_week": 20,
+     "decay_day": 0
     }
    }
   },
@@ -167,7 +204,16 @@
      "quality": 6,
      "income_week": 0,
      "upkeep_week": 50,
-     "decay_day": 2.5
+     "decay_day": 2.5,
+     "drops_to": "worn"
+    },
+    "worn": {
+     "courts": 0,
+     "rain_ok": false,
+     "quality": 0,
+     "income_week": 0,
+     "upkeep_week": 15,
+     "decay_day": 0
     }
    }
   },
@@ -197,7 +243,16 @@
      "quality": 8,
      "income_week": 0,
      "upkeep_week": 80,
-     "decay_day": 4
+     "decay_day": 4,
+     "drops_to": "worn"
+    },
+    "worn": {
+     "courts": 0,
+     "rain_ok": false,
+     "quality": 0,
+     "income_week": 0,
+     "upkeep_week": 25,
+     "decay_day": 0
     }
    }
   },
@@ -219,7 +274,16 @@
      "quality": 12,
      "income_week": 0,
      "upkeep_week": 140,
-     "decay_day": 3
+     "decay_day": 3,
+     "drops_to": "worn"
+    },
+    "worn": {
+     "courts": 0,
+     "rain_ok": false,
+     "quality": 0,
+     "income_week": 0,
+     "upkeep_week": 45,
+     "decay_day": 0
     }
    }
   },
@@ -249,7 +313,16 @@
      "quality": 20,
      "income_week": 0,
      "upkeep_week": 300,
-     "decay_day": 2
+     "decay_day": 2,
+     "drops_to": "worn"
+    },
+    "worn": {
+     "courts": 0,
+     "rain_ok": false,
+     "quality": 0,
+     "income_week": 0,
+     "upkeep_week": 100,
+     "decay_day": 0
     }
    }
   }
@@ -1503,6 +1576,30 @@
    "onFail": []
   },
   {
+   "id": "ch_reopen",
+   "act": "indian_wells",
+   "at": "clubhouse",
+   "skill": "upkeep",
+   "work": "4h",
+   "cost": 125,
+   "when": {
+    "facility": "clubhouse",
+    "is": "worn"
+   },
+   "crew": 2,
+   "once": false,
+   "restore": 50,
+   "effects": [
+    {
+     "facility": "clubhouse",
+     "set": "open"
+    }
+   ],
+   "onSuccess": [],
+   "onFail": [],
+   "performance": "workday"
+  },
+  {
    "id": "ch_repair",
    "act": "indian_wells",
    "at": "clubhouse",
@@ -1524,6 +1621,10 @@
        {
         "facility": "outer_1",
         "is": "resurfaced"
+       },
+       {
+        "facility": "outer_1",
+        "is": "worn"
        }
       ]
      }
@@ -1601,6 +1702,61 @@
    "onFail": []
   },
   {
+   "id": "o1_refinish",
+   "act": "indian_wells",
+   "at": "outer_1",
+   "skill": "upkeep",
+   "work": "4h",
+   "cost": 150,
+   "when": {
+    "all": [
+     {
+      "facility": "outer_1",
+      "is": "playable"
+     },
+     {
+      "flag": "o1_resurfaced"
+     }
+    ]
+   },
+   "crew": 2,
+   "once": false,
+   "restore": 60,
+   "effects": [
+    {
+     "facility": "outer_1",
+     "set": "resurfaced"
+    }
+   ],
+   "onSuccess": [],
+   "onFail": [],
+   "performance": "workday"
+  },
+  {
+   "id": "o1_reopen",
+   "act": "indian_wells",
+   "at": "outer_1",
+   "skill": "upkeep",
+   "work": "2h",
+   "cost": 30,
+   "when": {
+    "facility": "outer_1",
+    "is": "worn"
+   },
+   "crew": 2,
+   "once": false,
+   "restore": 50,
+   "effects": [
+    {
+     "facility": "outer_1",
+     "set": "playable"
+    }
+   ],
+   "onSuccess": [],
+   "onFail": [],
+   "performance": "workday"
+  },
+  {
    "id": "o1_resurface",
    "act": "indian_wells",
    "at": "outer_1",
@@ -1622,6 +1778,10 @@
     {
      "stat": "reputation",
      "add": 2
+    },
+    {
+     "flag": "o1_resurfaced",
+     "set": true
     }
    ],
    "onSuccess": [],
@@ -1686,6 +1846,30 @@
    "onFail": []
   },
   {
+   "id": "o23_reopen",
+   "act": "indian_wells",
+   "at": "outer_23",
+   "skill": "upkeep",
+   "work": "3h",
+   "cost": 75,
+   "when": {
+    "facility": "outer_23",
+    "is": "worn"
+   },
+   "crew": 2,
+   "once": false,
+   "restore": 50,
+   "effects": [
+    {
+     "facility": "outer_23",
+     "set": "playable"
+    }
+   ],
+   "onSuccess": [],
+   "onFail": [],
+   "performance": "workday"
+  },
+  {
    "id": "o23_repair",
    "act": "indian_wells",
    "at": "outer_23",
@@ -1707,6 +1891,10 @@
        {
         "facility": "outer_1",
         "is": "resurfaced"
+       },
+       {
+        "facility": "outer_1",
+        "is": "worn"
        }
       ]
      }
@@ -1845,6 +2033,30 @@
    "onFail": []
   },
   {
+   "id": "pr_reopen",
+   "act": "indian_wells",
+   "at": "practice",
+   "skill": "upkeep",
+   "work": "3h",
+   "cost": 60,
+   "when": {
+    "facility": "practice",
+    "is": "worn"
+   },
+   "crew": 2,
+   "once": false,
+   "restore": 50,
+   "effects": [
+    {
+     "facility": "practice",
+     "set": "open"
+    }
+   ],
+   "onSuccess": [],
+   "onFail": [],
+   "performance": "workday"
+  },
+  {
    "id": "pr_repair",
    "act": "indian_wells",
    "at": "practice",
@@ -1858,8 +2070,16 @@
       "is": "ruined"
      },
      {
-      "facility": "outer_23",
-      "is": "playable"
+      "any": [
+       {
+        "facility": "outer_23",
+        "is": "playable"
+       },
+       {
+        "facility": "outer_23",
+        "is": "worn"
+       }
+      ]
      }
     ]
    },
@@ -1906,6 +2126,30 @@
    "onFail": []
   },
   {
+   "id": "pz_reopen",
+   "act": "indian_wells",
+   "at": "plaza",
+   "skill": "upkeep",
+   "work": "4h",
+   "cost": 125,
+   "when": {
+    "facility": "plaza",
+    "is": "worn"
+   },
+   "crew": 2,
+   "once": false,
+   "restore": 50,
+   "effects": [
+    {
+     "facility": "plaza",
+     "set": "open"
+    }
+   ],
+   "onSuccess": [],
+   "onFail": [],
+   "performance": "workday"
+  },
+  {
    "id": "pz_repair",
    "act": "indian_wells",
    "at": "plaza",
@@ -1919,8 +2163,16 @@
       "is": "dry"
      },
      {
-      "facility": "clubhouse",
-      "is": "open"
+      "any": [
+       {
+        "facility": "clubhouse",
+        "is": "open"
+       },
+       {
+        "facility": "clubhouse",
+        "is": "worn"
+       }
+      ]
      }
     ]
    },
@@ -1980,8 +2232,16 @@
       "is": "ruined"
      },
      {
-      "facility": "stadium_2",
-      "is": "open"
+      "any": [
+       {
+        "facility": "stadium_2",
+        "is": "open"
+       },
+       {
+        "facility": "stadium_2",
+        "is": "worn"
+       }
+      ]
      }
     ]
    },
@@ -2082,6 +2342,54 @@
    "performance": "contractor"
   },
   {
+   "id": "st1_reopen",
+   "act": "indian_wells",
+   "at": "stadium_1",
+   "skill": "upkeep",
+   "work": "8h",
+   "cost": 450,
+   "when": {
+    "facility": "stadium_1",
+    "is": "worn"
+   },
+   "crew": 4,
+   "once": false,
+   "restore": 50,
+   "effects": [
+    {
+     "facility": "stadium_1",
+     "set": "restored"
+    }
+   ],
+   "onSuccess": [],
+   "onFail": [],
+   "performance": "workday"
+  },
+  {
+   "id": "st2_reopen",
+   "act": "indian_wells",
+   "at": "stadium_2",
+   "skill": "upkeep",
+   "work": "6h",
+   "cost": 250,
+   "when": {
+    "facility": "stadium_2",
+    "is": "worn"
+   },
+   "crew": 3,
+   "once": false,
+   "restore": 50,
+   "effects": [
+    {
+     "facility": "stadium_2",
+     "set": "open"
+    }
+   ],
+   "onSuccess": [],
+   "onFail": [],
+   "performance": "workday"
+  },
+  {
    "id": "st2_repair",
    "act": "indian_wells",
    "at": "stadium_2",
@@ -2095,8 +2403,16 @@
       "is": "ruined"
      },
      {
-      "facility": "stadium_3",
-      "is": "open"
+      "any": [
+       {
+        "facility": "stadium_3",
+        "is": "open"
+       },
+       {
+        "facility": "stadium_3",
+        "is": "worn"
+       }
+      ]
      }
     ]
    },
@@ -2190,12 +2506,28 @@
       "is": "buried"
      },
      {
-      "facility": "practice",
-      "is": "open"
+      "any": [
+       {
+        "facility": "practice",
+        "is": "open"
+       },
+       {
+        "facility": "practice",
+        "is": "worn"
+       }
+      ]
      },
      {
-      "facility": "clubhouse",
-      "is": "open"
+      "any": [
+       {
+        "facility": "clubhouse",
+        "is": "open"
+       },
+       {
+        "facility": "clubhouse",
+        "is": "worn"
+       }
+      ]
      }
     ]
    },
@@ -2206,6 +2538,30 @@
     {
      "facility": "stadium_3",
      "set": "dug"
+    }
+   ],
+   "onSuccess": [],
+   "onFail": [],
+   "performance": "workday"
+  },
+  {
+   "id": "st3_reopen",
+   "act": "indian_wells",
+   "at": "stadium_3",
+   "skill": "upkeep",
+   "work": "5h",
+   "cost": 150,
+   "when": {
+    "facility": "stadium_3",
+    "is": "worn"
+   },
+   "crew": 3,
+   "once": false,
+   "restore": 50,
+   "effects": [
+    {
+     "facility": "stadium_3",
+     "set": "open"
     }
    ],
    "onSuccess": [],
@@ -2544,10 +2900,27 @@
    ],
    "director_config": "steady",
    "rules": {
-    "quality_target": "10 + facility_quality + courts_open * 2 + stat.service * 0.2 + coach.skill * 0.15 * coach.attention + (flag.ball_machine ? 4 : 0)",
+    "quality_target": {
+     "base": "10",
+     "facilities": "facility_quality",
+     "courts": "courts_open * 2",
+     "service": "stat.service * 0.2",
+     "coach": "coach.skill * 0.15 * coach.attention",
+     "gear": "flag.ball_machine ? 4 : 0"
+    },
     "quality_rate": 0.15,
-    "member_drift": "weekday == 6 ? min(max(0, round(courts_open * service_rate + (stat.quality - 30) / 12 + stat.reputation / 30)), courts_open * 12 + (facility.clubhouse == \"open\" ? 15 : 0) - stat.members) : 0",
-    "reputation_drift": "weekday == 6 ? (service_rate - 0.5) * 2 + (stat.quality - 50) / 25 + restored * 0.15 : 0",
+    "member_drift": "0",
+    "reputation_drift": "0",
+    "week": {
+     "reputation": {
+      "service": "service_demand * (service_rate - service_pass) * 2",
+      "quality": "service_demand * (stat.quality - 50) / 25",
+      "restored": "restored * 0.15"
+     },
+     "members": "max(0, round(courts_built * service_rate + service_demand * ((stat.quality - 30) / 12 + stat.reputation / 30)))",
+     "member_cap": "courts_built * 12 + (facility.clubhouse == \"open\" ? 15 : 0)",
+     "service_pass": 0.5
+    },
     "dues_week": 12,
     "derived": {
      "service": "round(service_rate * 100)",
@@ -2562,7 +2935,8 @@
      "ending": "bankrupt"
     },
     "director_growth": 0.3,
-    "director_skill_cap": 80
+    "director_skill_cap": 80,
+    "grade_drop_below": 15
    },
    "daily": [],
    "seasons": [
@@ -2611,6 +2985,7 @@
    "source": "milestone",
    "tone": "neutral",
    "weight": 1,
+   "countdown": "1d",
    "pause": true,
    "location": "entrance",
    "who": "dale",
@@ -2647,6 +3022,269 @@
      "onSuccess": [],
      "onFail": []
     }
+   },
+   "default": {
+    "then": "A",
+    "extra": []
+   }
+  },
+  {
+   "id": "iw_credit_union",
+   "act": "indian_wells",
+   "source": "threshold",
+   "tone": "relief",
+   "when": {
+    "all": [
+     {
+      "expr": "quiet_days >= 7"
+     },
+     {
+      "stat": "cash",
+      "lt": 1500
+     },
+     {
+      "day": {
+       "gte": 20,
+       "lte": 90
+      }
+     }
+    ]
+   },
+   "weight": 1,
+   "once": true,
+   "countdown": "1d",
+   "pause": false,
+   "location": "entrance",
+   "who": "lender",
+   "options": {
+    "A": {
+     "effects": [
+      {
+       "stat": "cash",
+       "add": 2500
+      },
+      {
+       "flag": "loan_taken",
+       "set": true
+      },
+      {
+       "schedule": "iw_loan_due",
+       "in": "28d"
+      }
+     ],
+     "onSuccess": [],
+     "onFail": []
+    },
+    "B": {
+     "effects": [
+      {
+       "log": "log.loan_declined"
+      }
+     ],
+     "onSuccess": [],
+     "onFail": []
+    }
+   },
+   "default": {
+    "then": "B",
+    "extra": []
+   }
+  },
+  {
+   "id": "iw_dale_nudge",
+   "act": "indian_wells",
+   "source": "threshold",
+   "tone": "neutral",
+   "when": {
+    "all": [
+     {
+      "expr": "idle_days >= 1.5"
+     },
+     {
+      "any": [
+       {
+        "facility": "outer_1",
+        "is": "sanded"
+       },
+       {
+        "facility": "outer_1",
+        "is": "swept"
+       },
+       {
+        "all": [
+         {
+          "facility": "outer_23",
+          "is": "ruined"
+         },
+         {
+          "any": [
+           {
+            "facility": "outer_1",
+            "is": "playable"
+           },
+           {
+            "facility": "outer_1",
+            "is": "resurfaced"
+           }
+          ]
+         },
+         {
+          "stat": "cash",
+          "gte": 900
+         }
+        ]
+       },
+       {
+        "all": [
+         {
+          "facility": "clubhouse",
+          "is": "ruined"
+         },
+         {
+          "not": {
+           "facility": "outer_23",
+           "is": "ruined"
+          }
+         },
+         {
+          "stat": "cash",
+          "gte": 1800
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   },
+   "weight": 1,
+   "cooldown": "10d",
+   "once": false,
+   "max_shown": 3,
+   "countdown": "6h",
+   "pause": false,
+   "location": "clubhouse",
+   "who": "dale",
+   "options": {
+    "A": {
+     "effects": [
+      {
+       "if": {
+        "facility": "outer_1",
+        "is": "sanded"
+       },
+       "task": "o1_sweep",
+       "who": "dale"
+      },
+      {
+       "if": {
+        "facility": "outer_1",
+        "is": "swept"
+       },
+       "task": "o1_net",
+       "who": "dale"
+      },
+      {
+       "if": {
+        "all": [
+         {
+          "facility": "outer_23",
+          "is": "ruined"
+         },
+         {
+          "any": [
+           {
+            "facility": "outer_1",
+            "is": "playable"
+           },
+           {
+            "facility": "outer_1",
+            "is": "resurfaced"
+           }
+          ]
+         },
+         {
+          "stat": "cash",
+          "gte": 900
+         }
+        ]
+       },
+       "task": "o23_repair",
+       "who": "dale"
+      },
+      {
+       "if": {
+        "all": [
+         {
+          "facility": "clubhouse",
+          "is": "ruined"
+         },
+         {
+          "not": {
+           "facility": "outer_23",
+           "is": "ruined"
+          }
+         },
+         {
+          "stat": "cash",
+          "gte": 1800
+         }
+        ]
+       },
+       "task": "ch_repair",
+       "who": "dale"
+      },
+      {
+       "person": "dale",
+       "add": {
+        "morale": 3
+       }
+      }
+     ],
+     "onSuccess": [],
+     "onFail": []
+    },
+    "B": {
+     "effects": [
+      {
+       "errand": "dale",
+       "at": "entrance",
+       "for": "3h"
+      },
+      {
+       "stat": "reputation",
+       "add": 1
+      },
+      {
+       "chance": 0.5,
+       "stat": "members",
+       "add": 1
+      },
+      {
+       "person": "dale",
+       "add": {
+        "fatigue": 10
+       }
+      }
+     ],
+     "onSuccess": [],
+     "onFail": []
+    },
+    "C": {
+     "effects": [
+      {
+       "person": "dale",
+       "add": {
+        "morale": -3
+       }
+      }
+     ],
+     "onSuccess": [],
+     "onFail": []
+    }
+   },
+   "default": {
+    "then": "C",
+    "extra": []
    }
   },
   {
@@ -2676,6 +3314,13 @@
       {
        "flag": "dale_umpire",
        "set": true
+      },
+      {
+       "if": {
+        "flag": "dale_heard"
+       },
+       "stat": "reputation",
+       "add": 3
       }
      ],
      "onSuccess": [],
@@ -2688,6 +3333,69 @@
        "add": {
         "morale": 10,
         "fatigue": -40
+       }
+      }
+     ],
+     "onSuccess": [],
+     "onFail": []
+    }
+   },
+   "default": {
+    "then": "B",
+    "extra": []
+   }
+  },
+  {
+   "id": "iw_dale_ten_years",
+   "act": "indian_wells",
+   "source": "threshold",
+   "tone": "neutral",
+   "when": {
+    "all": [
+     {
+      "expr": "quiet_days >= 7"
+     },
+     {
+      "day": {
+       "gte": 40,
+       "lte": 100
+      }
+     }
+    ]
+   },
+   "weight": 1,
+   "once": true,
+   "countdown": "8h",
+   "pause": false,
+   "location": "clubhouse",
+   "who": "dale",
+   "options": {
+    "A": {
+     "errand": {
+      "at": "clubhouse",
+      "for": "2h"
+     },
+     "effects": [
+      {
+       "person": "dale",
+       "add": {
+        "morale": 12
+       }
+      },
+      {
+       "flag": "dale_heard",
+       "set": true
+      }
+     ],
+     "onSuccess": [],
+     "onFail": []
+    },
+    "B": {
+     "effects": [
+      {
+       "person": "dale",
+       "add": {
+        "morale": -4
        }
       }
      ],
@@ -3414,6 +4122,72 @@
    }
   },
   {
+   "id": "iw_investor_call",
+   "act": "indian_wells",
+   "source": "threshold",
+   "tone": "crisis",
+   "when": {
+    "all": [
+     {
+      "expr": "quiet_days >= 7"
+     },
+     {
+      "day": {
+       "gte": 30,
+       "lte": 80
+      }
+     },
+     {
+      "expr": "restored < (day - 20) / 14"
+     }
+    ]
+   },
+   "weight": 1,
+   "once": true,
+   "countdown": "1d",
+   "pause": false,
+   "location": "entrance",
+   "who": "investors",
+   "options": {
+    "A": {
+     "effects": [
+      {
+       "stat": "cash",
+       "add": 1500
+      },
+      {
+       "stat": "reputation",
+       "add": -2
+      },
+      {
+       "flag": "investors_worried",
+       "set": true
+      }
+     ],
+     "onSuccess": [],
+     "onFail": []
+    },
+    "B": {
+     "effects": [
+      {
+       "stat": "reputation",
+       "add": 1
+      },
+      {
+       "flag": "investors_promised",
+       "set": true
+      }
+     ],
+     "onSuccess": [],
+     "onFail": []
+    }
+   },
+   "default": {
+    "then": "B",
+    "extra": []
+   }
+  },
+  {
    "id": "iw_investor_check",
    "act": "indian_wells",
    "source": "calendar",
@@ -3433,6 +4207,34 @@
       {
        "stat": "reputation",
        "add": "restored * 1.5"
+      },
+      {
+       "if": {
+        "all": [
+         {
+          "flag": "investors_promised"
+         },
+         {
+          "expr": "restored >= 5"
+         }
+        ]
+       },
+       "stat": "reputation",
+       "add": 3
+      },
+      {
+       "if": {
+        "all": [
+         {
+          "flag": "investors_promised"
+         },
+         {
+          "expr": "restored < 5"
+         }
+        ]
+       },
+       "stat": "reputation",
+       "add": -4
       }
      ],
      "onSuccess": [],
@@ -3443,6 +4245,41 @@
       {
        "stat": "reputation",
        "add": -2
+      },
+      {
+       "if": {
+        "all": [
+         {
+          "flag": "investors_promised"
+         },
+         {
+          "expr": "restored >= 5"
+         }
+        ]
+       },
+       "stat": "reputation",
+       "add": 3
+      },
+      {
+       "if": {
+        "all": [
+         {
+          "flag": "investors_promised"
+         },
+         {
+          "expr": "restored < 5"
+         }
+        ]
+       },
+       "stat": "reputation",
+       "add": -4
+      },
+      {
+       "if": {
+        "flag": "investors_worried"
+       },
+       "stat": "reputation",
+       "add": -3
       }
      ],
      "onSuccess": [],
@@ -3451,6 +4288,83 @@
    },
    "default": {
     "then": "B",
+    "extra": []
+   }
+  },
+  {
+   "id": "iw_loan_due",
+   "act": "indian_wells",
+   "source": "consequence",
+   "tone": "crisis",
+   "weight": 1,
+   "countdown": "1d",
+   "pause": true,
+   "location": "entrance",
+   "who": "lender",
+   "options": {
+    "A": {
+     "cost": 3000,
+     "effects": [
+      {
+       "flag": "loan_taken",
+       "set": false
+      },
+      {
+       "log": "log.loan_paid"
+      }
+     ],
+     "onSuccess": [],
+     "onFail": []
+    },
+    "B": {
+     "cost": 400,
+     "effects": [
+      {
+       "schedule": "iw_loan_final",
+       "in": "14d"
+      }
+     ],
+     "onSuccess": [],
+     "onFail": []
+    }
+   },
+   "default": {
+    "then": "B",
+    "extra": []
+   }
+  },
+  {
+   "id": "iw_loan_final",
+   "act": "indian_wells",
+   "source": "consequence",
+   "tone": "crisis",
+   "weight": 1,
+   "countdown": "1h",
+   "pause": true,
+   "location": "entrance",
+   "who": "lender",
+   "options": {
+    "A": {
+     "effects": [
+      {
+       "stat": "reputation",
+       "add": "-2 - max(0, 2000 - stat.cash) / 500"
+      },
+      {
+       "stat": "cash",
+       "add": "-min(3000, max(0, stat.cash + 1000))"
+      },
+      {
+       "flag": "loan_taken",
+       "set": false
+      }
+     ],
+     "onSuccess": [],
+     "onFail": []
+    }
+   },
+   "default": {
+    "then": "A",
     "extra": []
    }
   },
@@ -3493,6 +4407,73 @@
       {
        "stat": "reputation",
        "add": 2
+      }
+     ],
+     "onSuccess": [],
+     "onFail": []
+    }
+   },
+   "default": {
+    "then": "B",
+    "extra": []
+   }
+  },
+  {
+   "id": "iw_rival_club",
+   "act": "indian_wells",
+   "source": "threshold",
+   "tone": "crisis",
+   "when": {
+    "all": [
+     {
+      "expr": "quiet_days >= 7"
+     },
+     {
+      "day": {
+       "gte": 45,
+       "lte": 105
+      }
+     },
+     {
+      "expr": "courts_open >= 3"
+     },
+     {
+      "stat": "members",
+      "gte": 10
+     }
+    ]
+   },
+   "weight": 1,
+   "once": true,
+   "countdown": "1d",
+   "pause": false,
+   "location": "outer_23",
+   "who": "rival_coach",
+   "options": {
+    "A": {
+     "errand": {
+      "at": "outer_23",
+      "for": "3h"
+     },
+     "cost": 150,
+     "effects": [
+      {
+       "stat": "reputation",
+       "add": 4
+      },
+      {
+       "stat": "members",
+       "add": 3
+      }
+     ],
+     "onSuccess": [],
+     "onFail": []
+    },
+    "B": {
+     "effects": [
+      {
+       "stat": "members",
+       "add": -4
       }
      ],
      "onSuccess": [],
@@ -3654,22 +4635,30 @@
    "facilities.outer_1.swept": "Court 1 · swept",
    "facilities.outer_1.playable": "Court 1 · playable",
    "facilities.outer_1.resurfaced": "Court 1 · resurfaced",
+   "facilities.outer_1.worn": "Court 1 · closed (lines under sand)",
    "facilities.outer_23.ruined": "Courts 2–3 · fences down",
    "facilities.outer_23.playable": "Courts 2–3 · repaired",
+   "facilities.outer_23.worn": "Courts 2–3 · closed (sanded over)",
    "facilities.practice.ruined": "Practice courts · abandoned",
    "facilities.practice.open": "Practice courts · open",
+   "facilities.practice.worn": "Practice courts · closed (sanded over)",
    "facilities.clubhouse.ruined": "Clubhouse · leaking roof",
    "facilities.clubhouse.open": "Clubhouse · front desk open",
+   "facilities.clubhouse.worn": "Clubhouse · front desk closed (leaks",
    "facilities.plaza.dry": "Plaza · fountain dry",
    "facilities.plaza.open": "Plaza · fountain running",
+   "facilities.plaza.worn": "Plaza · closed (fountain clogged)",
    "facilities.stadium_3.buried": "Stadium 3 · filled with sand",
    "facilities.stadium_3.dug": "Stadium 3 · dug out",
    "facilities.stadium_3.open": "Stadium 3 · open",
+   "facilities.stadium_3.worn": "Stadium 3 · closed (sand again)",
    "facilities.stadium_2.ruined": "Stadium 2 · run down",
    "facilities.stadium_2.open": "Stadium 2 · open",
+   "facilities.stadium_2.worn": "Stadium 2 · closed (sand on every seat)",
    "facilities.stadium_1.ruined": "Stadium 1 · southeast corner collapsed",
    "facilities.stadium_1.cleared": "Stadium 1 · cleared",
    "facilities.stadium_1.restored": "Stadium 1 · rebuilt",
+   "facilities.stadium_1.worn": "Stadium 1 · closed (can't host a match)",
    "endings.exhibition.title": "The exhibition happened",
    "endings.exhibition.body": "For the first time in ten years, the stands of Stadium 1 were full. Indian Wells is alive again.",
    "endings.deadline.title": "Time's up",
@@ -3707,6 +4696,34 @@
    "events.iw_dale_story.body": "The night Stadium 2 reopens, Dale talks about the last tournament before the garden closed. He was in the umpire's chair that year.",
    "events.iw_dale_story.options.A": "You'll umpire the exhibition",
    "events.iw_dale_story.options.B": "Take a few days off first",
+   "events.iw_dale_nudge.title": "\"We've been standing around\"",
+   "events.iw_dale_nudge.body": "Dale finds you by the clubhouse. \"Two of us, a whole garden, and we've been standing around for a day. There's still work we can start. Want me to take the next repair, or shall I go drum up some interest in town?\"",
+   "events.iw_dale_nudge.options.A": "Dale takes the next repair (materials paid when he starts)",
+   "events.iw_dale_nudge.options.B": "Dale runs a free taster lesson in town",
+   "events.iw_dale_nudge.options.C": "I've got a plan",
+   "events.iw_credit_union.title": "The credit union calls",
+   "events.iw_credit_union.body": "A loan officer from the Coachella Valley Credit Union stops at the gate. \"Quiet week? We can float you $2500 now. Four weeks, $3000 back.\"",
+   "events.iw_credit_union.options.A": "Take the loan",
+   "events.iw_credit_union.options.B": "No debts, thanks",
+   "events.iw_loan_due.title": "The loan is due",
+   "events.iw_loan_due.body": "The credit union is back for its $3000. They'll give you two more weeks if you pay $400 interest now.",
+   "events.iw_loan_due.options.A": "Pay it all back",
+   "events.iw_loan_due.options.B": "Two more weeks, pay the interest",
+   "events.iw_loan_final.title": "The extension is over",
+   "events.iw_loan_final.body": "The credit union takes what it can of the $3000 straight from the account. Word gets around town that the garden owed money; the emptier the account, the worse it sounds.",
+   "events.iw_loan_final.options.A": "Pay up",
+   "events.iw_investor_call.title": "The investors call",
+   "events.iw_investor_call.body": "\"A quiet week, and we count fewer places fixed than we hoped by now.\" The investors are on the phone. \"Do you need more money, or will you catch up by our visit in week 13?\"",
+   "events.iw_investor_call.options.A": "Ask for $1500 more",
+   "events.iw_investor_call.options.B": "Promise we'll catch up (5 places by the visit)",
+   "events.iw_rival_club.title": "A challenge from La Quinta",
+   "events.iw_rival_club.body": "The head coach of the La Quinta Racquet Club turns up at Courts 2–3. \"Your members keep telling mine this place is back. Prove it. Club match, this weekend.\"",
+   "events.iw_rival_club.options.A": "Take the challenge and host it",
+   "events.iw_rival_club.options.B": "Not now, we're busy",
+   "events.iw_dale_ten_years.title": "Ten years",
+   "events.iw_dale_ten_years.body": "A quiet week. Dale calls you into his office behind the clubhouse. \"You never asked why I stayed. Ten years, alone with the sand.\" He pulls out a second chair.",
+   "events.iw_dale_ten_years.options.A": "Sit down and listen",
+   "events.iw_dale_ten_years.options.B": "Another time, there's work to do",
    "events.iw_hiring_day_1.title": "The first hiring day",
    "events.iw_hiring_day_1.body": "You put a notice on the clubhouse door and two people came. Anyone you hire is paid weekly.",
    "events.iw_hiring_day_1.options.A": "Hire Rosa (grounds crew)",
@@ -3745,6 +4762,8 @@
    "log.started": "You arrive at the abandoned Indian Wells Tennis Garden.",
    "log.first_court": "Court 1 has a new net: the first playable court in ten years",
    "log.ball_machine": "The ball machine works again; academy lessons are better",
+   "log.loan_declined": "You turned down the credit union's loan",
+   "log.loan_paid": "The credit union loan is paid off",
    "log.clubhouse_open": "The clubhouse front desk is open; hiring days can start",
    "log.stadium_3_open": "Stadium 3 is usable again",
    "log.stadium_2_open": "Stadium 2 is open",
@@ -3850,6 +4869,24 @@
    "orders.st2_repair.locked": "Open Stadium 3 first",
    "orders.st2_tidy.title": "Sand in Stadium 2 again",
    "orders.st2_tidy.note": "Sweep",
+   "orders.o1_reopen.title": "Reopen Court 1",
+   "orders.o1_reopen.note": "It lost its grade: dig out the lines, new net, $30",
+   "orders.o1_refinish.title": "Patch Court 1's new surface",
+   "orders.o1_refinish.note": "The new surface lost its grade: patch and re-line, $150",
+   "orders.o23_reopen.title": "Reopen Courts 2–3",
+   "orders.o23_reopen.note": "It lost its grade: fences up, sweep, $75",
+   "orders.pr_reopen.title": "Reopen the practice courts",
+   "orders.pr_reopen.note": "It lost its grade: re-line both courts, $60",
+   "orders.ch_reopen.title": "Reopen the front desk",
+   "orders.ch_reopen.note": "It lost its grade: roof and wiring, $125",
+   "orders.pz_reopen.title": "Reopen the plaza",
+   "orders.pz_reopen.note": "It lost its grade: unclog the fountain, patch the tent, $125",
+   "orders.st3_reopen.title": "Reopen Stadium 3",
+   "orders.st3_reopen.note": "It lost its grade: dig out another layer of sand, $150",
+   "orders.st2_reopen.title": "Reopen Stadium 2",
+   "orders.st2_reopen.note": "It lost its grade: clear the seats, new shade sails, $250",
+   "orders.st1_reopen.title": "Reopen Stadium 1",
+   "orders.st1_reopen.note": "It lost its grade: fix the big screen, clear the stands, $450",
    "orders.st1_clear.title": "Clear Stadium 1",
    "orders.st1_clear.note": "Haul away the collapsed southeast corner",
    "orders.st1_clear.locked": "Open Stadium 2 first",
@@ -3936,6 +4973,10 @@
    "who.reporter.role": "Local newspaper reporter",
    "who.sponsor.name": "Desert Savings Bank",
    "who.sponsor.role": "A local bank",
+   "who.lender.name": "Coachella Valley Credit Union",
+   "who.lender.role": "A loan officer",
+   "who.rival_coach.name": "La Quinta Racquet Club",
+   "who.rival_coach.role": "Their head coach",
    "roles.director": "Director",
    "roles.coach": "Head coach",
    "roles.junior": "Junior player",
@@ -3993,6 +5034,7 @@
    "ui.days.5": "Sat",
    "ui.days.6": "Sun",
    "ui.chip.errand": "{name} away {time}",
+   "ui.chip.task": "{name} → {what}",
    "ui.chip.wage": "${n}/week",
    "ui.chip.hire": "{name} joins",
    "ui.chip.fire": "{name} leaves",
@@ -4010,6 +5052,7 @@
    "ui.ctx.cash": "Cash ${n}",
    "ui.ctx.members": "Members {n}",
    "ui.ctx.service": "Service this week {n}%",
+   "ui.ctx.service_none": "No customers yet",
    "ui.restore": "Restored (of {total})",
    "ui.restore_in": "Restored/{total} · {days}d left",
    "ui.restore_today": "Restored/{total} · due today",
@@ -4049,26 +5092,53 @@
    "ui.condition": "condition",
    "ui.nobody": "nobody",
    "ui.errand_log": "{name} spent {time} at {place}",
+   "ui.settle.because": "week {n} settled: service {rate}%, pass mark {pass}%",
+   "ui.settle.missed": "; “{post}” was left empty the most ({time})",
+   "ui.settle.none": "week {n} settled with no post open yet (no customers: service and word of mouth don't count)",
+   "ui.settle.part": "{what} ({parts})",
+   "ui.settle.capped": "the courts only hold {cap}; the rest didn't renew",
+   "ui.settle.full": "the courts only hold {cap}; {n} more wanted to join",
+   "ui.settle.target": "heading for {n}: {parts}",
+   "ui.settle.money.dues": "dues",
+   "ui.settle.money.income": "facilities",
+   "ui.settle.money.upkeep": "upkeep",
+   "ui.settle.money.wages": "wages",
+   "ui.terms.base": "base",
+   "ui.terms.facilities": "facilities",
+   "ui.terms.courts": "open courts",
+   "ui.terms.service": "service",
+   "ui.terms.coach": "head coach",
+   "ui.terms.gear": "equipment",
+   "ui.terms.quality": "quality",
+   "ui.terms.restored": "repairs",
+   "ui.terms.traits": "staff traits",
+   "ui.task_log": "{name} will take on {what} when free",
    "ui.because.post": "{name} worked {n} rounds on “{post}”",
    "ui.because.order": "{names} finished “{order}”",
+   "ui.because.wear": "{place} was down to condition {n} at Sunday close",
    "ui.because.worked": " (it worked)",
    "ui.because.failed": " (it didn't work)",
    "ui.wire.grew": "The director's {skill} reached {n}",
    "ui.wire.interrupted": "{name} was pulled off “{post}”; that round was lost",
-   "ui.wire.week": "Week settled · service {n}%",
-   "ui.wire.worn": "{place} condition down to {n}: it will lose its grade without upkeep",
+   "ui.wire.week": "Week {n} settled · {rate} · {what}",
+   "ui.wire.week_rate": "service {n}%",
+   "ui.wire.week_none": "no customers yet",
+   "ui.wire.worn": "{place} condition down to {n}: below {limit} at Sunday close it loses a grade and its jobs stop",
+   "ui.wire.dropping": "{place} condition {n}: without upkeep it loses a grade at close tomorrow (Sunday)",
    "ui.status.empty": "{n} posts have customers waiting and nobody there",
    "ui.status.covered": "Every busy spot has someone right now",
    "ui.status.quiet": "No customers waiting right now",
    "ui.staff.next": "Next shift {time} · {what}",
    "ui.staff.hint": "Tap a place to send {name} there · they remember shifts",
    "ui.staff.idle": "Idle at {place}",
+   "ui.staff.idle_next": "Free · ⚒ {what}",
    "ui.staff.waiting": "{what} · waiting for customers",
    "ui.staff.walking": "To {what} · {time}",
    "ui.staff.errand": "Away at {place} · {time}",
    "ui.place.rain": "Closed today — it is raining",
-   "ui.place.condition_low": "Condition {n} · already lost a grade; upkeep brings it back",
-   "ui.place.condition": "Condition {n} · drops a grade below 30",
+   "ui.place.condition_low": "Condition {n} · counts half for quality; below {limit} on Sunday it loses a grade",
+   "ui.place.condition": "Condition {n} · loses a grade if below {limit} at Sunday close",
+   "ui.place.worn": "Lost a grade · jobs here are stopped until someone does the Reopen job",
    "ui.place.owner": "{name}'s shift · comes at {hours}",
    "ui.place.income": "Earns money",
    "ui.place.pick": "Send {name} to which job at {place}?",
@@ -4130,22 +5200,30 @@
    "facilities.outer_1.swept": "外场 1 · 扫出来了",
    "facilities.outer_1.playable": "外场 1 · 能打了",
    "facilities.outer_1.resurfaced": "外场 1 · 新铺的",
+   "facilities.outer_1.worn": "外场 1 · 停用（线被沙盖住了）",
    "facilities.outer_23.ruined": "外场 2–3 · 围网倒了",
    "facilities.outer_23.playable": "外场 2–3 · 修好了",
+   "facilities.outer_23.worn": "外场 2–3 · 停用（又积沙了）",
    "facilities.practice.ruined": "练习场 · 废弃",
    "facilities.practice.open": "练习场 · 开放",
+   "facilities.practice.worn": "练习场 · 停用（又积沙了）",
    "facilities.clubhouse.ruined": "会所 · 屋顶漏了",
    "facilities.clubhouse.open": "会所 · 前台开张",
+   "facilities.clubhouse.worn": "会所 · 前台关门（又漏又跳闸）",
    "facilities.plaza.dry": "广场 · 喷泉干了",
    "facilities.plaza.open": "广场 · 喷泉又有水了",
+   "facilities.plaza.worn": "广场 · 停了（喷泉堵死）",
    "facilities.stadium_3.buried": "Stadium 3 · 被沙填满",
    "facilities.stadium_3.dug": "Stadium 3 · 挖出来了",
    "facilities.stadium_3.open": "Stadium 3 · 开放",
+   "facilities.stadium_3.worn": "Stadium 3 · 停用（又灌了沙）",
    "facilities.stadium_2.ruined": "Stadium 2 · 破败",
    "facilities.stadium_2.open": "Stadium 2 · 开放",
+   "facilities.stadium_2.worn": "Stadium 2 · 停用（座位全是沙）",
    "facilities.stadium_1.ruined": "Stadium 1 · 东南角塌了",
    "facilities.stadium_1.cleared": "Stadium 1 · 清理干净",
    "facilities.stadium_1.restored": "Stadium 1 · 重建完成",
+   "facilities.stadium_1.worn": "Stadium 1 · 停用（办不了比赛）",
    "endings.exhibition.title": "表演赛办成了",
    "endings.exhibition.body": "十年来第一次，Stadium 1 的看台上坐满了人。Indian Wells 又活过来了。",
    "endings.deadline.title": "期限到了",
@@ -4183,6 +5261,34 @@
    "events.iw_dale_story.body": "Stadium 2 修好的那天晚上，Dale 说起园区关门前的最后一届比赛，他那年坐在裁判椅上。",
    "events.iw_dale_story.options.A": "表演赛那天请你坐裁判椅",
    "events.iw_dale_story.options.B": "你先歇几天",
+   "events.iw_dale_nudge.title": "“咱俩站了一天了”",
+   "events.iw_dale_nudge.body": "Dale 在会所门口找到你：\"两个人，一整座园子，咱俩干站了一天了。还有能动手的活。下一件修复交给我，还是我去镇上给咱们攒点人气？\"",
+   "events.iw_dale_nudge.options.A": "交给 Dale 去干下一件修复（开工时扣材料费）",
+   "events.iw_dale_nudge.options.B": "让 Dale 去镇上上一堂免费体验课",
+   "events.iw_dale_nudge.options.C": "我自己有安排",
+   "events.iw_credit_union.title": "信用社来电",
+   "events.iw_credit_union.body": "Coachella Valley 信用社的信贷员停在大门口：\"这礼拜挺清闲？我们现在可以先借你 $2500，四周后还 $3000。\"",
+   "events.iw_credit_union.options.A": "借",
+   "events.iw_credit_union.options.B": "不欠债，谢谢",
+   "events.iw_loan_due.title": "贷款到期",
+   "events.iw_loan_due.body": "信用社来收那 $3000 了。现在先付 $400 利息，可以再宽限两周。",
+   "events.iw_loan_due.options.A": "一次还清",
+   "events.iw_loan_due.options.B": "付利息，再拖两周",
+   "events.iw_loan_final.title": "展期到了",
+   "events.iw_loan_final.body": "信用社直接从账上扣钱，最多 $3000。镇上都传开了：园区欠过钱，账上越空，名声越难听。",
+   "events.iw_loan_final.options.A": "还钱",
+   "events.iw_investor_call.title": "投资方来电",
+   "events.iw_investor_call.body": "“这个礼拜没什么动静，修好的地方也比我们预想的少。”投资方在电话里问，“要再加点钱，还是第 13 周我们来看的时候你能赶上？”",
+   "events.iw_investor_call.options.A": "请他们追加 $1500",
+   "events.iw_investor_call.options.B": "保证赶上（来看时修好 5 处）",
+   "events.iw_rival_club.title": "La Quinta 来下战书",
+   "events.iw_rival_club.body": "La Quinta 网球俱乐部的主教练来到外场 2–3：\"你们的会员老跟我的会员说这儿又活过来了。那就比一场，这个周末，俱乐部对抗赛。\"",
+   "events.iw_rival_club.options.A": "接下挑战，在这儿办",
+   "events.iw_rival_club.options.B": "现在没空",
+   "events.iw_dale_ten_years.title": "十年",
+   "events.iw_dale_ten_years.body": "清闲的一个礼拜，Dale 把你叫进会所后面的办公室：\"你从来没问过我为什么留下来。十年，一个人守着这片沙子。\"他拉出第二把椅子。",
+   "events.iw_dale_ten_years.options.A": "坐下来听他说",
+   "events.iw_dale_ten_years.options.B": "改天吧，活还多",
    "events.iw_hiring_day_1.title": "第一个招聘日",
    "events.iw_hiring_day_1.body": "会所门口贴了告示，来了两个人。招了就每周付工资。",
    "events.iw_hiring_day_1.options.A": "招 Rosa（维护工）",
@@ -4221,6 +5327,8 @@
    "log.started": "你来到了废弃的 Indian Wells Tennis Garden。",
    "log.first_court": "外场 1 换上了新网：十年来第一块能打的场地",
    "log.ball_machine": "发球机修好了，学院的课更扎实了",
+   "log.loan_declined": "你没借信用社的钱",
+   "log.loan_paid": "信用社的贷款还清了",
    "log.clubhouse_open": "会所前台开张了，可以开招聘日了",
    "log.stadium_3_open": "Stadium 3 又能用了",
    "log.stadium_2_open": "Stadium 2 开放了",
@@ -4326,6 +5434,24 @@
    "orders.st2_repair.locked": "先让 Stadium 3 开放",
    "orders.st2_tidy.title": "Stadium 2 又积沙了",
    "orders.st2_tidy.note": "扫一扫",
+   "orders.o1_reopen.title": "重开外场 1",
+   "orders.o1_reopen.note": "掉档了：扫出线、换网，$30",
+   "orders.o1_refinish.title": "外场 1 补面",
+   "orders.o1_refinish.note": "新面掉档了：补面、划线，$150",
+   "orders.o23_reopen.title": "重开外场 2–3",
+   "orders.o23_reopen.note": "掉档了：扶围网、扫沙，$75",
+   "orders.pr_reopen.title": "重开练习场",
+   "orders.pr_reopen.note": "掉档了：两块场地重新划线，$60",
+   "orders.ch_reopen.title": "重开会所前台",
+   "orders.ch_reopen.note": "掉档了：补屋顶、修电路，$125",
+   "orders.pz_reopen.title": "重开广场",
+   "orders.pz_reopen.note": "掉档了：通喷泉、补帆布，$125",
+   "orders.st3_reopen.title": "重开 Stadium 3",
+   "orders.st3_reopen.note": "掉档了：再挖一层沙，$150",
+   "orders.st2_reopen.title": "重开 Stadium 2",
+   "orders.st2_reopen.note": "掉档了：清座位、换遮阳布，$250",
+   "orders.st1_reopen.title": "重开 Stadium 1",
+   "orders.st1_reopen.note": "掉档了：修大屏、清看台，$450",
    "orders.st1_clear.title": "清理 Stadium 1",
    "orders.st1_clear.note": "搬走塌下来的东南角",
    "orders.st1_clear.locked": "先让 Stadium 2 开放",
@@ -4412,6 +5538,10 @@
    "who.reporter.role": "本地报纸的记者",
    "who.sponsor.name": "沙漠储蓄银行",
    "who.sponsor.role": "本地的银行",
+   "who.lender.name": "Coachella Valley 信用社",
+   "who.lender.role": "信贷员",
+   "who.rival_coach.name": "La Quinta 网球俱乐部",
+   "who.rival_coach.role": "他们的主教练",
    "roles.director": "总监",
    "roles.coach": "主教练",
    "roles.junior": "青少年球员",
@@ -4469,6 +5599,7 @@
    "ui.days.5": "六",
    "ui.days.6": "日",
    "ui.chip.errand": "{name}离岗 {time}",
+   "ui.chip.task": "{name}去做：{what}",
    "ui.chip.wage": "周薪 ${n}",
    "ui.chip.hire": "{name} 上任",
    "ui.chip.fire": "{name} 离开",
@@ -4486,6 +5617,7 @@
    "ui.ctx.cash": "现金 ${n}",
    "ui.ctx.members": "会员 {n}",
    "ui.ctx.service": "本周服务率 {n}%",
+   "ui.ctx.service_none": "还没有客人",
    "ui.restore": "复原（共 {total} 处）",
    "ui.restore_in": "复原/{total}·还剩 {days} 天",
    "ui.restore_today": "复原/{total}·今天到期",
@@ -4525,26 +5657,53 @@
    "ui.condition": "状况",
    "ui.nobody": "没人",
    "ui.errand_log": "{name}去{place}待了 {time}",
+   "ui.settle.because": "第 {n} 周结算：服务率 {rate}%，及格线 {pass}%",
+   "ui.settle.missed": "；缺人最多的是“{post}”，空了 {time}",
+   "ui.settle.none": "第 {n} 周结算：还没有开放的岗位，没有客人（服务和口碑都不算）",
+   "ui.settle.part": "{what}（{parts}）",
+   "ui.settle.capped": "场地只撑得起 {cap} 人，多的不续了",
+   "ui.settle.full": "场地只撑得起 {cap} 人，还有 {n} 人想来",
+   "ui.settle.target": "向 {n} 靠近：{parts}",
+   "ui.settle.money.dues": "会费",
+   "ui.settle.money.income": "设施收入",
+   "ui.settle.money.upkeep": "维护费",
+   "ui.settle.money.wages": "工资",
+   "ui.terms.base": "底子",
+   "ui.terms.facilities": "设施",
+   "ui.terms.courts": "开着的场地",
+   "ui.terms.service": "服务",
+   "ui.terms.coach": "主教练",
+   "ui.terms.gear": "器材",
+   "ui.terms.quality": "质量",
+   "ui.terms.restored": "修复",
+   "ui.terms.traits": "员工特质",
+   "ui.task_log": "{name}闲下来就去做{what}",
    "ui.because.post": "{name}在“{post}”干了 {n} 圈",
    "ui.because.order": "{names}做完了“{order}”",
+   "ui.because.wear": "{place}状况只剩 {n}，周日收盘时没撑住",
    "ui.because.worked": "（成了）",
    "ui.because.failed": "（没成）",
    "ui.wire.grew": "总监的{skill}能力到 {n} 了",
    "ui.wire.interrupted": "{name}被叫离“{post}”，这一圈白干了",
-   "ui.wire.week": "本周结算 · 服务率 {n}%",
-   "ui.wire.worn": "{place}状况跌到 {n}：没人维护就会掉档",
+   "ui.wire.week": "第 {n} 周结算 · {rate} · {what}",
+   "ui.wire.week_rate": "服务率 {n}%",
+   "ui.wire.week_none": "还没有客人",
+   "ui.wire.worn": "{place}状况跌到 {n}：周日收盘时低于 {limit} 就掉档，岗位停开",
+   "ui.wire.dropping": "{place}状况 {n}，明天（周日）收盘前不维护就掉档",
    "ui.status.empty": "{n} 个岗位有客人在等，没人管",
    "ui.status.covered": "此刻有客人的地方都有人",
    "ui.status.quiet": "此刻没有岗位有客人",
    "ui.staff.next": "下一班 {time} · {what}",
    "ui.staff.hint": "点一个地点牌，把{name}派过去 · 派上的班会被记住",
    "ui.staff.idle": "在{place}闲着",
+   "ui.staff.idle_next": "闲着 · ⚒ {what}",
    "ui.staff.waiting": "{what} · 等客人",
    "ui.staff.walking": "去{what} · {time}",
    "ui.staff.errand": "在{place}办事 · {time}",
    "ui.place.rain": "下雨，户外的这一项今天关门",
-   "ui.place.condition_low": "状况 {n} · 已经掉档，派人维护才能救回来",
-   "ui.place.condition": "状况 {n} · 低于 30 会掉档",
+   "ui.place.condition_low": "状况 {n} · 质量减半；周日收盘低于 {limit} 就掉档",
+   "ui.place.condition": "状况 {n} · 周日收盘低于 {limit} 会掉档",
+   "ui.place.worn": "已掉档 · 这里的岗位停了，做“重开”工单才回来",
    "ui.place.owner": "{name}的班 · {hours} 点自己来",
    "ui.place.income": "有收入",
    "ui.place.pick": "把{name}派到{place}哪一项？",
