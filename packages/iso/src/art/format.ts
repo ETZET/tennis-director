@@ -102,7 +102,7 @@ export interface ArtAnim {
  * - 摔倒：fallFace、fallBack（躺在地上那一帧）
  */
 export interface PersonSheet {
-  /** 体型：adult 约 8×14，kid 约 6×10 */
+  /** 体型：adult 约 8×14，kid 约 7×10 */
   readonly body: 'adult' | 'kid';
   readonly anims: Readonly<Record<string, Readonly<Record<Facing, ArtAnim>>>>;
 }

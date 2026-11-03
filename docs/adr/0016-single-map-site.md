@@ -34,3 +34,9 @@
 - Hollow Creek 的渲染场景代码留着（sandbox 和以后的参考），但游戏不再用它。
 - 平衡报告改成 `docs/balance/indian-wells.md`；`balance.test.ts` 的区间：贪心型通关 ≥ 60%，从不招人的谨慎型 ≤ 20%，
   随机型 ≤ 20%，放置不管的对照组 0%，贪心型平均 70 天以上才通关。
+
+## 修订（2026-11-03，ADR 0019）
+
+`Site` 搬到 `packages/iso/src/site/site.ts`，不再有 three 类型：相机预设和范围是 `IsoCameraPose`（`tx`、`tz`、`zoom`、`rot`），
+`build`、`createOverlays`、`createSky` 接 `IsoWorld`；灯光和雨天光照从接口里去掉（由 `core/daylight.ts` 统一处理），加了起始天色 `sky`，
+`createOverlays` 多了可选的 `wear`（状况下降的画面信号）。地图在 `site/indian-wells/`（Palm Oasis，ADR 0018），灰盒和 Hollow Creek 场景已删。

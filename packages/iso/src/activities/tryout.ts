@@ -1,7 +1,5 @@
 import { clamp, type XYZ, type XZ } from '@td/shared';
-import { textArt } from '../art/font';
-import { bakeArt } from '../core/art';
-import { applyMat, type BakedArt, Custom } from '../core/graph';
+import { labelPlane } from '../fx/sprites';
 import type { Ball } from '../motion/ball';
 import type { Person } from '../people/person';
 import { away, chase, fly, intoNet, shot, sideOf, through } from './choreo';
@@ -10,54 +8,6 @@ import { basket, table } from './props';
 import { type Act, BR, EAST, fwd, NORTH, rgt, WEST } from './runtime';
 
 type Applicant = Person & { talent?: number; scores?: number[] };
-
-/**
- * 写字的立牌（旧版 labelPlane 的像素版）：竖直的一块底色面朝 +z，字是烘焙的像素字，
- * 按整数倍放大到放得下为止；牌子在屏幕上小到放不下字时只画底色。背面朝镜头时也只画底色。
- */
-function labelBoard(text: string, w: number, h: number, bg: string, fg: string): Custom {
-  const art = textArt(text, { color: fg });
-  let baked: BakedArt | undefined;
-  const hw = w / 2;
-  const hh = h / 2;
-  return new Custom(
-    (r, self) => {
-      const m = self.matrixWorld;
-      const pts = (
-        [
-          [-hw, -hh],
-          [hw, -hh],
-          [hw, hh],
-          [-hw, hh],
-        ] as const
-      ).map(([x, y]) => {
-        const v = { x, y, z: 0 };
-        applyMat(m, v);
-        return [v.x, v.y, v.z] as const;
-      });
-      const c = { x: 0, y: 0, z: 0 };
-      applyMat(m, c);
-      const lit = self.lit ?? r.litAt(c.x, c.z);
-      r.wpoly(pts, r.col(bg, 1, lit));
-      // 正面法线 = 局部 +z 轴的世界方向
-      if (!art || !r.vis(m[6] as number, m[8] as number)) return;
-      if (baked === undefined) {
-        // 字的锚点挪到中心，对准牌子中心
-        const b = bakeArt(art);
-        baked = { ...b, ox: Math.floor(b.w / 2), oy: Math.floor(b.h / 2) };
-      }
-      const [x0] = r.P(...(pts[0] as [number, number, number]));
-      const [x1] = r.P(...(pts[1] as [number, number, number]));
-      const room = Math.abs(x1 - x0) * 0.92;
-      const k = Math.min(r.spriteScale, Math.floor(room / baked.w));
-      if (k < 1) return;
-      const t = { x: 0, y: 0, z: 0.01 };
-      applyMat(m, t);
-      r.art(baked, t.x, t.y, t.z, { scale: k, lit });
-    },
-    { x0: -hw, x1: hw, y0: -hh, y1: hh, z0: 0, z1: 0.02 },
-  );
-}
 
 /**
  * 选拔试训：报名的孩子排队上场，每人打两球，评委举牌打分。偶尔出现天才，全场起立；
@@ -72,7 +22,7 @@ export function tryout(a: Act) {
     maple: ['#7c2232', '#e6b03c'],
     hollow: ['#c9a874', '#3a2a1a'],
   }[a.venue] as [string, string];
-  const banner = a.own(labelBoard(a.t(`tryoutBanner.${a.venue}`), 4.4, 0.6, BN[0], BN[1]));
+  const banner = a.own(labelPlane(a.t(`tryoutBanner.${a.venue}`), 4.4, 0.6, BN[0], BN[1], 22));
   banner.position.set(-6.8, 0.42, -5.08);
   if (a.rain || a.heat) {
     vb.box(-6.8, 0, -6.6, 0.08, 2.6, 0.08, '#d8d4cc');
@@ -81,7 +31,7 @@ export function tryout(a: Act) {
   }
   vb.box(3.7, 0.012, 4.9, 3.0, 0.02, 2.2, '#5fbf6a');
   vb.box(5.0, 0, 5.8, 0.06, 1.8, 0.06, '#e8e2d0');
-  const fl = a.own(labelBoard(a.t('accepted'), 0.9, 0.5, '#5fbf6a', '#0f2a14'));
+  const fl = a.own(labelPlane(a.t('accepted'), 0.9, 0.5, '#5fbf6a', '#0f2a14', 22));
   fl.position.set(5.46, 1.5, 5.8);
 
   const cast = a.opts.cast;

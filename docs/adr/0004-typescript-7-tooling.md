@@ -18,3 +18,7 @@
 ## 后果
 
 - 等 TypeScript 7 的 API 稳定后，可以重新评估 typescript-eslint 的类型感知规则。
+
+## 修订（2026-11-03，ADR 0019）
+
+`packages/render` 已删除；画面包是 `packages/iso`，和应用一样关闭 `noUncheckedIndexedAccess`（沿用 `tsconfig.base.json`），纯逻辑包照旧打开。工具选择不变。

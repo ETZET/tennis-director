@@ -29,3 +29,9 @@
 
 - 画面与原型不再相同。M0-2 的原型对比结论停在提交 498030d（四个角度差异像素 0.0000%）；之后的画面回归以 `tools/screenshot/baselines` 为准。
 - 场景的边界同时就是导航和放置的边界，M1 的导航图和锚点只需要在岛内定义。
+
+## 修订（2026-11-03，ADR 0019）
+
+画面换成 2.5D 等距像素后，浮空岛保留，画法换了：岛是一块像素地台（`createIsoWorld` 的 `slab`，Indian Wells 是 `site/indian-wells/ground.ts` 的 `SLAB`），
+地面贴图只覆盖地台，地台侧面由 `IsoView` 画成土层，外面是背景的荒原和群山。`ISLAND`、`onIsland`、`UNDERSIDE`、`ambient/sky.ts` 随 `packages/render` 删掉；
+云、鸟、风滚草在 `site/<地图>/sky.ts`。动画库的小岛（`activities/diorama.ts`）是同样的小地台。上面关于 Hollow Creek 小溪、东侧公路、相机 0.26 的条目只是历史。
