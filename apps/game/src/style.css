@@ -26,7 +26,7 @@ body{background:var(--sky);color:var(--navy);font-family:var(--f-text);overflow:
 /* 地点牌：只是名字（ADR 0012 起不再点地点走过去）。总监在这儿是绿色，正走去的地方亮黄，有事的地方带一个感叹号 */
 .pl,.act,.you{position:absolute;left:0;top:0;white-space:nowrap}
 .pl{pointer-events:none;height:24px;padding:0 9px;border:0;display:flex;align-items:center;gap:6px;background:var(--panel);color:var(--paper);font:700 12px/1 var(--f-cond);letter-spacing:.06em;text-transform:uppercase;box-shadow:2px 2px 0 rgba(0,0,0,.3)}
-.pl::after{content:"";position:absolute;left:50%;top:100%;width:2px;height:var(--stem,34px);margin-left:-1px;background:var(--navy);opacity:.55;pointer-events:none}
+.pl::after{content:"";position:absolute;left:calc(50% + var(--sx,0px));top:100%;width:2px;height:var(--stem,0px);margin-left:-1px;background:var(--paper);opacity:.85;box-shadow:0 0 0 1px rgba(20,34,58,.45);pointer-events:none;transform-origin:50% 0;transform:rotate(var(--rot,0deg))}
 .pl:hover{background:var(--navy);outline:2px solid var(--optic)}
 .pl:focus-visible{outline:2px solid var(--optic);outline-offset:2px}
 .pl-here{background:var(--green)}
@@ -63,7 +63,7 @@ body{background:var(--sky);color:var(--navy);font-family:var(--f-text);overflow:
 /* 地点牌（ADR 0013）：一个地点一块，岗位格 + 工单格；拿着人时描黄或变暗（tg-fit / tg-nofit） */
 .hub{position:absolute;left:0;top:0;white-space:nowrap;pointer-events:auto;cursor:pointer;min-height:36px;padding:3px;border:2px solid var(--paper);display:flex;align-items:center;gap:4px;background:var(--panel);color:var(--paper);font:700 12px/1 var(--f-cond);box-shadow:2px 2px 0 rgba(0,0,0,.3);touch-action:manipulation}
 .hub::before{content:"";position:absolute;inset:-6px}
-.hub::after{content:"";position:absolute;left:50%;top:100%;width:2px;height:var(--stem,6px);margin-left:-1px;background:var(--paper);opacity:.7;pointer-events:none}
+.hub::after{content:"";position:absolute;left:calc(50% + var(--sx,0px));top:100%;width:2px;height:var(--stem,0px);margin-left:-1px;background:var(--paper);opacity:.7;pointer-events:none;transform-origin:50% 0;transform:rotate(var(--rot,0deg))}
 .hub b{padding:0 4px 0 3px;font:800 12px/1 var(--f-cond);letter-spacing:.04em}
 .hub-need{border-color:#ff8a6b;animation:tg-pulse 1.4s ease-in-out infinite}
 .hub-open{outline:3px solid var(--optic)}
@@ -102,3 +102,16 @@ body{background:var(--sky);color:var(--navy);font-family:var(--f-text);overflow:
 .hub,.pl{font-family:var(--f-label);font-weight:400}
 .hub b,.pl{letter-spacing:.06em;font-weight:400;font-family:var(--f-label)}
 .hub{border-width:2px;border-color:rgba(243,236,220,.85)}
+
+/* 挤在一起让不开的地点牌缩成小圆点（labels.ts，QA P1-2）：名字在 aria-label 里，点开还是那块牌子；点击范围 44 px */
+#labels .lbl-dot,#labels.compact .hub.lbl-dot{width:16px;height:16px;min-height:0;min-width:0;padding:0;gap:0;font-size:0;border-radius:50%;border-width:2px;overflow:visible;box-shadow:0 0 0 1px var(--navy),2px 2px 0 rgba(0,0,0,.3)}
+#labels .lbl-dot>*{display:none}
+#labels .lbl-dot::before{content:"";position:absolute;inset:-14px}
+#labels .lbl-dot::after,#labels .pl.pl-dot::after{display:none}
+#labels .hub.lbl-dot.hub-need{background:#ff8a6b}
+/* 指的地方在屏幕外：贴边的牌子带个小箭头指过去 */
+#labels .lbl-off-l::after,#labels .lbl-off-r::after,#labels .lbl-off-u::after,#labels .lbl-off-d::after{content:"";position:absolute;width:0;height:0;margin:0;background:none;box-shadow:none;opacity:1;transform:none;border:6px solid transparent}
+#labels .lbl-off-l::after{left:-13px;top:50%;margin-top:-6px;border-right-color:var(--paper)}
+#labels .lbl-off-r::after{left:auto;right:-13px;top:50%;margin-top:-6px;border-left-color:var(--paper)}
+#labels .lbl-off-u::after{left:50%;top:-13px;margin-left:-6px;border-bottom-color:var(--paper)}
+#labels .lbl-off-d::after{left:50%;top:auto;bottom:-13px;margin-left:-6px;border-top-color:var(--paper)}

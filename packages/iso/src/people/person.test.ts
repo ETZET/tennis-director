@@ -76,6 +76,30 @@ describe('Person 动作队列', () => {
     expect(p.root.parent).toBe(w.scene);
   });
 
+  it('每帧被拉向插值点：零头距离不让人回头（QA P1-1）', () => {
+    const w = world();
+    const p = new Person({ name: 'a', x: 0, z: 0, ...LOOK }, w);
+    const dt = 1 / 60;
+    let t = 0;
+    let x = 0;
+    for (let i = 0; i < 120; i++) {
+      // 目标沿 +x 匀速走；偶尔目标停一帧、或者往回抖 1 厘米（插值点的零头）
+      x += i % 7 === 3 ? -0.01 : i % 5 === 0 ? 0 : 0.02;
+      p.clearMoves();
+      p.go(x, 0.003 * Math.sin(i), Math.max(1.2, Math.abs(x - p.pos.x) / dt));
+      p.update(dt, (t += dt));
+      if (i > 0) expect(Math.abs(p.moveYaw - Math.PI / 2)).toBeLessThan(0.3);
+    }
+    expect(Math.abs(p.yaw - Math.PI / 2)).toBeLessThan(0.3);
+    // 真要往回走的时候照样转身
+    for (let i = 0; i < 60; i++) {
+      p.clearMoves();
+      p.go(x - 3, 0, 2);
+      p.update(dt, (t += dt));
+    }
+    expect(Math.sin(p.yaw)).toBeLessThan(-0.95);
+  });
+
   it('挂点和手里的东西跟着人走', () => {
     const w = world();
     const p = new Person({ name: 'b', x: 2, z: 1, racket: '#333', ...LOOK }, w);

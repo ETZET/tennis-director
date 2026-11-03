@@ -17,6 +17,7 @@ import './hud.css';
 
 const WX: Record<SeasonInfo['weather'], string> = {
   sun: 'M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10zM12 1v3M12 20v3M1 12h3M20 12h3M4 4l2 2M18 18l2 2M4 20l2-2M18 6l2-2',
+  night: 'M15 3a9 9 0 1 0 6 15.5A7.5 7.5 0 0 1 15 3z',
   cloud: 'M7 18h10a4 4 0 0 0 0-8 6 6 0 0 0-11.5 1.5A3.3 3.3 0 0 0 7 18z',
   rain: 'M7 14h10a4 4 0 0 0 0-8 6 6 0 0 0-11.5 1.5A3.3 3.3 0 0 0 7 14zM8 17l-1 3M12 17l-1 3M16 17l-1 3',
   wind: 'M3 8h11a3 3 0 1 0-3-3M3 12h16a3 3 0 1 1-3 3M3 16h8',
@@ -87,7 +88,11 @@ function Chips2({
           </span>
         </>
       ) : null}
-      {status ? <span class="td-chip td-where">{status}</span> : null}
+      {status ? (
+        <span class="td-chip td-where" title={status}>
+          {status}
+        </span>
+      ) : null}
     </div>
   );
 }

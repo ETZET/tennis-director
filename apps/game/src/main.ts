@@ -62,6 +62,10 @@ function begin(s: Session): void {
   projector = new Projector(content, text);
   scene.sync(s.s);
   camera.reset();
+  // 开场镜头对准总监（开局他站在大门口，默认视角里在屏幕外；QA P2-3）：总监落在画面中间偏右
+  const d = s.s.people[DIRECTOR];
+  const at = d && !d.walk ? site.stands[d.at] : null;
+  if (at) camera.setPose({ ...HOME, tx: at.x - 22, tz: at.z - 8 });
   draw();
 }
 
@@ -167,9 +171,52 @@ const ground = (a: string, dy: number) => () => {
   const p = site.stands[a] ?? { x: 0, z: 0 };
   return { x: p.x, y: site.groundY(p.x, p.z) + dy, z: p.z };
 };
+/**
+ * 地点牌指的点（QA P2-4）：站位是人站的地方（几处球场的站位都挤在中间的十字路口，牌子会叠在别的场地上、
+ * 盖住站着的人），所以牌子指向地点本身——有球场的地方指场地远端的边（中心正上方那一段），
+ * 引线不穿过场上的人；其他地方指地点中心。
+ */
+const footprint = (a: string): { x: number; z: number }[][] => {
+  const frs = site.courts[a];
+  if (frs?.length)
+    return frs.map((f) =>
+      [
+        [-1, -1],
+        [1, -1],
+        [1, 1],
+        [-1, 1],
+      ].map(([i, j]) => {
+        const p = f.w({ x: (i as number) * f.hx, z: (j as number) * f.hz });
+        return { x: p.x, z: p.z };
+      }),
+    );
+  const c = site.anchors[a] ?? site.stands[a] ?? { x: 0, z: 0 };
+  return [[c]];
+};
+const placePoint = (a: string) => {
+  const polys = footprint(a);
+  const c = site.anchors[a] ?? site.stands[a] ?? { x: 0, z: 0 };
+  return (): { x: number; y: number } => {
+    const cq = camera.project(c.x, site.groundY(c.x, c.z), c.z);
+    let best: { x: number; y: number } | null = null;
+    let topV: { x: number; y: number } | null = null;
+    for (const poly of polys) {
+      const pts = poly.map((p) => camera.project(p.x, site.groundY(p.x, p.z) + 0.1, p.z));
+      if (pts.length === 1) return pts[0] as { x: number; y: number };
+      // 竖线 x = 中心的屏幕 x 和这块场地的边相交，取最上面的交点
+      for (let i = 0; i < pts.length; i++) {
+        const u = pts[i] as { x: number; y: number };
+        const v = pts[(i + 1) % pts.length] as { x: number; y: number };
+        if (!topV || u.y < topV.y) topV = u;
+        if ((u.x - cq.x) * (v.x - cq.x) > 0 || u.x === v.x) continue;
+        const y = u.y + ((cq.x - u.x) / (v.x - u.x)) * (v.y - u.y);
+        if (!best || y < best.y) best = { x: cq.x, y };
+      }
+    }
+    return best ?? topV ?? cq;
+  };
+};
 const director = () => session.s.people[DIRECTOR];
-/** 站着的人头顶离地多少 CSS 像素（人物精灵约 14 素材像素高，再留几像素） */
-const headPx = () => 6 + 17 * stage.view.proj.spriteScale * stage.view.PS;
 /** 拉远看整座岛时（手机默认视角），只给总监所在、正要去、有事的地方挂名字；其余缩成小圆点 */
 const placeFlags = (a: string) => {
   const s = session.s;
@@ -182,10 +229,29 @@ const placeFlags = (a: string) => {
   });
   return { here, dest, card, dot: labels.compact && !here && !dest && !card };
 };
+/** 牌子的摆放优先级：打开的、要去的、有事的、能接手里这个人的先摆，其余让位（QA P1-2） */
+const placePrio = (a: string, base: number) => () => {
+  const f = placeFlags(a);
+  const h = hubOf(a);
+  return (
+    base +
+    (session.place === a ? 60 : 0) +
+    (f.card ? 40 : 0) +
+    (f.dest ? 30 : 0) +
+    (f.here ? 20 : 0) +
+    (h?.fit === 'fit' ? 25 : 0) +
+    (h?.posts.some((p) => p.need) ? 6 : 0) +
+    (h?.ready ? 4 : 0)
+  );
+};
 for (const a of content.acts[0]?.anchors ?? []) {
   const placeLabel = labels.add({
     get: ground(a, 0.2),
-    lift: () => (placeFlags(a).dot ? 10 : 34),
+    screen: placePoint(a),
+    lift: () => (placeFlags(a).dot ? 8 : 18),
+    prio: placePrio(a, 0),
+    crowded: 'dot',
+    keepOnScreen: true,
     // 缩成小圆点的地方如果立着地点牌，圆点就不画了（地点牌本身能点）
     // 立着地点牌的地方，名字和状态（总监在这儿、正要去、有卡）都画在地点牌上（一个地点只有一块牌）
     text: () => (hubOf(a) ? null : text.anchor(a)),
@@ -200,6 +266,9 @@ for (const a of content.acts[0]?.anchors ?? []) {
     // 活动牌挂在场地中央（地点牌在门口），两块牌子不叠在一起
     get: center ? () => ({ x: center.x, y: site.groundY(center.x, center.z) + 0.2, z: center.z }) : ground(a, 0.2),
     lift: 20,
+    prio: () => -10,
+    crowded: 'hide',
+    stem: false,
     cls: () => 'act',
     text: () => {
       const s = session.s;
@@ -226,10 +295,13 @@ function addHubs(c: ContentBundle): void {
   for (const a of c.acts[0]?.anchors ?? []) {
     const m = labels.add(
       {
-        // 牌子立在站位上方、高过站在那儿的人的头顶（像素人按精灵档位放大，不随米数变）
+        // 牌子指向地点本身（球场远端的边、地点中心），不压在站位上的人头上（QA P2-4）
         get: ground(a, 0),
-        lift: headPx,
+        screen: placePoint(a),
+        lift: 18,
         keepOnScreen: true,
+        prio: placePrio(a, 10),
+        crowded: 'dot',
         text: () => (hubOf(a) ? text.anchor(a) : null),
         html: () => {
           const h = hubOf(a);
@@ -294,6 +366,8 @@ labels.add({
   get: () => scene.directorHead(),
   // 头顶还有个像素菱形（scene.ts），牌子再高一点
   lift: () => 12 + 3 * Math.max(1, stage.view.proj.spriteScale),
+  prio: () => 1000,
+  stem: false,
   cls: () => 'you',
   text: () => (director()?.walk ? text.tr('ui.you') : null),
 });

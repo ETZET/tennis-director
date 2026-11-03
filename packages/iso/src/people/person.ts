@@ -96,6 +96,9 @@ export class Person {
   yaw: number;
   idleFace: number | null = null;
   moveYaw: number;
+  /** 最近的位移（衰减累加），走向按它算 */
+  private mvx = 0;
+  private mvz = 0;
   watch: Person | null = null;
   base: PoseName;
   seatY: number | null;
@@ -396,6 +399,8 @@ export class Person {
 
   update(dt: number, now: number): void {
     let moved = 0;
+    let mvx = 0;
+    let mvz = 0;
     let guard = 0;
     const dn = this.down;
     if (dn) {
@@ -443,8 +448,9 @@ export class Person {
       const dz = k.z - this.pos.z;
       const d = Math.hypot(dx, dz);
       const step = k.speed * this.speedK * dt;
-      if (d > 0.001) this.moveYaw = Math.atan2(dx, dz);
       if (d <= step || d < 1e-6) {
+        mvx += dx;
+        mvz += dz;
         this.pos.x = k.x;
         this.pos.z = k.z;
         moved += d;
@@ -454,9 +460,17 @@ export class Person {
       }
       this.pos.x += (dx / d) * step;
       this.pos.z += (dz / d) * step;
+      mvx += (dx / d) * step;
+      mvz += (dz / d) * step;
       moved += step;
       break;
     }
+    // 走向按最近约 0.15 秒真实位移的平均：每帧被拉向一个插值点的人（游戏里的员工）剩下的零头可能朝任何方向，
+    // 按单帧的零头转身会走着走着突然回头（QA P1-1）；真要掉头时平均方向很快跟上
+    const keep = dt > 0 ? Math.exp(-dt / 0.15) : 1;
+    this.mvx = this.mvx * keep + mvx;
+    this.mvz = this.mvz * keep + mvz;
+    if (Math.hypot(this.mvx, this.mvz) > 0.004) this.moveYaw = Math.atan2(this.mvx, this.mvz);
     if (dt > 0) this.speedNow = lerp(this.speedNow, moved / dt, 1 - Math.exp(-dt * 12));
     const k = this.task;
     const moving = k?.k === 'go';

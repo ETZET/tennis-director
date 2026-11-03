@@ -151,7 +151,8 @@ export interface PlaceSheetData {
 /** 季节、天气、本周服务率 */
 export interface SeasonInfo {
   label: string;
-  weather: 'sun' | 'cloud' | 'rain' | 'wind';
+  /** night：晴天但天已经黑了（画月亮，不画太阳） */
+  weather: 'sun' | 'night' | 'cloud' | 'rain' | 'wind';
   weatherLabel: string;
   /** 本周服务率 0..100（有客人的时候有人在岗的比例）；null = 还没有客人，服务率无从谈起 */
   service: number | null;
