@@ -187,8 +187,8 @@ export class Node {
 
   /** 换父节点但保持世界变换不变（three 的 attach）。 */
   attach(n: Node): this {
-    this.updateMatrixWorld();
-    n.updateMatrixWorld();
+    this.updateWorldChain();
+    n.updateWorldChain();
     const rel = new Float64Array(12);
     mul(rel, invert(this.matrixWorld), n.matrixWorld);
     // 只还原位置和绕 y 的转角（演出里够用）
@@ -220,6 +220,13 @@ export class Node {
     for (const c of this.children) c.updateMatrixWorld(false);
   }
 
+  /** 只重算祖先链和自己（不碰子节点）：取世界坐标时用，避免每次都重算整棵子树。 */
+  updateWorldChain(): void {
+    const chain: Node[] = [];
+    for (let p: Node | null = this; p; p = p.parent) chain.push(p);
+    for (let i = chain.length - 1; i >= 0; i--) (chain[i] as Node).updateSelf();
+  }
+
   private updateSelf(): void {
     compose(this.local, this.position, this.rotation, this.scale);
     if (this.parent) mul(this.matrixWorld, this.parent.matrixWorld, this.local);
@@ -227,24 +234,24 @@ export class Node {
   }
 
   getWorldPosition(out = new V3()): V3 {
-    this.updateMatrixWorld();
+    this.updateWorldChain();
     return out.set(this.matrixWorld[9] as number, this.matrixWorld[10] as number, this.matrixWorld[11] as number);
   }
 
   /** 世界朝向（绕 y 的转角）。 */
   getWorldYaw(): number {
-    this.updateMatrixWorld();
+    this.updateWorldChain();
     return Math.atan2(this.matrixWorld[6] as number, this.matrixWorld[8] as number);
   }
 
   localToWorld<T extends { x: number; y: number; z: number }>(v: T): T {
-    this.updateMatrixWorld();
+    this.updateWorldChain();
     applyMat(this.matrixWorld, v);
     return v;
   }
 
   worldToLocal<T extends { x: number; y: number; z: number }>(v: T): T {
-    this.updateMatrixWorld();
+    this.updateWorldChain();
     applyMat(invert(this.matrixWorld), v);
     return v;
   }
