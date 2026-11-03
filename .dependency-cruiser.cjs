@@ -12,7 +12,7 @@ module.exports = {
       comment: '模拟核心不能依赖画面、界面、three.js、Preact。它要能在命令行里无头跑。',
       severity: 'error',
       from: { path: '^packages/sim/' },
-      to: { path: ['^packages/(render|ui)/', 'node_modules/(three|preact|@preact)/'] },
+      to: { path: ['^packages/(render|iso|ui)/', 'node_modules/(three|preact|@preact)/'] },
     },
     {
       name: 'shared-is-leaf',
@@ -29,6 +29,20 @@ module.exports = {
       to: { path: '^packages/ui/' },
     },
     {
+      name: 'iso-not-ui',
+      comment: '等距画面层不直接引用界面层，也不依赖 three 和 Preact（ADR 0019）。',
+      severity: 'error',
+      from: { path: '^packages/iso/' },
+      to: { path: ['^packages/(ui|render)/', 'node_modules/(three|preact|@preact)/'] },
+    },
+    {
+      name: 'ui-not-iso',
+      comment: '界面层不直接引用画面层。',
+      severity: 'error',
+      from: { path: '^packages/ui/' },
+      to: { path: '^packages/iso/' },
+    },
+    {
       name: 'ui-not-render',
       comment: '界面层不直接引用画面层。',
       severity: 'error',
@@ -39,7 +53,7 @@ module.exports = {
       name: 'content-only-via-sim',
       comment: '内容数据只由模拟核心读取。',
       severity: 'error',
-      from: { path: '^packages/(render|ui|shared)/' },
+      from: { path: '^packages/(render|iso|ui|shared)/' },
       to: { path: '^packages/content/' },
     },
     {

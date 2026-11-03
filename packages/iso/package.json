@@ -1,0 +1,16 @@
+{
+  "name": "@td/iso",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "2.5D 等距像素画面：Canvas 2D 软件光栅、轻量场景图、像素素材（ADR 0019）",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@td/shared": "workspace:*"
+  }
+}
