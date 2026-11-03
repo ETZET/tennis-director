@@ -407,6 +407,8 @@ export function passer(a: Act): void {
     }
   } else p = a.person({ x: x0, z, umb: true });
   p.userData.passer = true;
+  // 路人自己从边上走过，不走入场
+  a.inPlace(p);
   const spd = kind === 'old' ? 0.8 : 1.25;
   p.go(lerp(x0, x1, 0.45), z, spd);
   p.call(() => {

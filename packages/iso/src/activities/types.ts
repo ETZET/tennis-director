@@ -112,6 +112,12 @@ export interface StartOptions {
   params?: Readonly<Record<string, ParamValue>>;
   cast?: ActivityCast;
   seed?: number;
+  /**
+   * 入场路线：给一个目标点（世界坐标），返回从场外某点走到它的折线（世界坐标，最后一点是目标），
+   * 拿不到就返回 null。游戏用步道和最近的门拼出来；不给的话，从离相机最远的那条边外 6–10 米走进来。
+   * 生成的人物沿它走进来，收场时原路走出去。
+   */
+  entry?: { from: (p: { x: number; z: number }) => { x: number; z: number }[] | null };
   /** 动画库小岛才有的东西：路人、教练头顶的星级、围网上的乌鸦位置 */
   extras?: {
     passers?: boolean;
@@ -123,8 +129,18 @@ export interface StartOptions {
 
 export interface ActivityHandle {
   readonly id: string;
-  /** 停下并清理：生成的人物和道具删掉，借来的人物还回去 */
-  stop(): void;
-  /** 一轮演完、需要从头再来时为 true（比赛打完一盘后） */
+  /**
+   * 停下。默认马上清理：生成的人物和道具删掉，借来的人物在原地还回去（不瞬移回原位）。
+   * graceful：收场——生成的人物不再演，沿入场路线原路走出去后像素溶解（最多 8 秒），道具溶解，
+   * 借来的人物马上在原地还回去；全部清理完 done 才为 true。
+   */
+  stop(opts?: { graceful?: boolean }): void;
+  /** 实时改变量（劳动日的 crewN、progress）；注册表里有的变量照样收回范围，不认识的键原样收下 */
+  setParams(p: Readonly<Record<string, ParamValue>>): void;
+  /** 一轮演完、需要从头再来时为 true（比赛打完一盘后）；清理完也为 true */
   readonly finished: boolean;
+  /** 停下后一切都清理干净了（graceful 要等人走完） */
+  readonly done: boolean;
+  /** 要等的人都到位、演出开始了 */
+  readonly ready: boolean;
 }
