@@ -139,24 +139,24 @@ export function flipArt(b: BakedArt): BakedArt {
 const nightCache = new WeakMap<BakedArt, Map<number, Uint32Array>>();
 
 /**
- * 夜色换算后的像素（按夜色和受光量化后缓存）。自发光像素不换算。
- * n、lit 应当已经量化（n 按 1/16，lit 按 1/4），否则缓存会膨胀。
+ * 夜色换算后的像素（按夜色、受光和暖色系数量化后缓存）。自发光像素不换算。
+ * n、lit 应当已经量化（n 按 1/64，lit 按 1/4），否则缓存会膨胀；warm 是暖色系数（雨天往 0 走）。
  */
-export function nightArt(b: BakedArt, n: number, lit: number): Uint32Array {
+export function nightArt(b: BakedArt, n: number, lit: number, warm = 1): Uint32Array {
   if (n <= 0) return b.px;
   let m = nightCache.get(b);
   if (!m) {
     m = new Map();
     nightCache.set(b, m);
   }
-  const key = Math.round(n * 64) * 1000 + Math.round(lit * 100);
+  const key = Math.round(n * 64) * 100000 + Math.round(lit * 100) * 100 + Math.round(warm * 20);
   let px = m.get(key);
   if (!px) {
     if (m.size > 48) m.clear();
     px = new Uint32Array(b.px.length);
     for (let i = 0; i < px.length; i++) {
       const v = b.px[i] as number;
-      px[i] = v === 0 ? 0 : b.emissive?.[i] ? v : nightP(v, n, lit);
+      px[i] = v === 0 ? 0 : b.emissive?.[i] ? v : nightP(v, n, lit, warm);
     }
     m.set(key, px);
   }

@@ -627,7 +627,7 @@ export class Raster implements DrawContext {
     const s = Math.max(1, Math.round(o.scale ?? this.proj.spriteScale));
     const n = this.pal.night;
     const lit = n > 0 ? (o.lit ?? this.litFn(x, z)) : 0;
-    const px = nightArt(img, n, Math.round(lit * 4) / 4);
+    const px = nightArt(img, n, Math.round(lit * 4) / 4, this.pal.warm);
     const pr = this.proj;
     const ax = Math.round(pr.sx(x, z));
     const ay = Math.round(pr.sy(x, y, z));

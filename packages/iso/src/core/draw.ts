@@ -293,10 +293,18 @@ export class SceneDrawer {
     for (const i of order) list.push(L[i] as Drw);
   }
 
-  /** 按排好的顺序画（collect 之后调用） */
-  draw(r: Raster): void {
-    this.drawn = 0;
-    for (const o of this.list) {
+  /** collect 之后待画的节点数 */
+  get size(): number {
+    return this.list.length;
+  }
+
+  /** 按排好的顺序画（collect 之后调用）；from..to 只画其中一段（IsoView 分几帧烘焙静态层时用） */
+  draw(r: Raster, from = 0, to = this.list.length): void {
+    if (from === 0) this.drawn = 0;
+    const list = this.list;
+    const end = Math.min(to, list.length);
+    for (let i = from; i < end; i++) {
+      const o = list[i] as Drw;
       const nd = o.node;
       const lit = nd.lit ?? (r.night > 0 ? r.litFn(o.wx, o.wz) : 0);
       r.zcur = o.d;
