@@ -39,3 +39,10 @@
 - 新活动 = `registry.ts` 里加一条 + `activities/<id>.ts` + 文案；`activities.test.ts` 会在无 WebGL 的环境里把每个活动在每种场地、每种天气下跑一遍，确认不出错、停下后清理干净、借来的人物还回去。
 - 内容里新加一种 performance，要在 `perform.ts` 里配上演出，否则 `perform.test.ts` 不过。
 - 游戏的相机比动画库远，漫画字放大 2.4 倍；以后有了贴近镜头，再调。
+
+## 修订（2026-11-03，ADR 0019）
+
+动画库从 `packages/render` 搬到 `packages/iso/src/activities/`，公共接口不变：`startActivity(env, id, { area, bounds?, conditions, params?, cast?, seed?, extras? })`，
+注册表、文字、`perform.ts` 映射照旧。变化：`ActivityEnv.scene` 是 iso 场景图的 `Node`；演出里的方块是 `Box`，粒子、漫画字、球是 iso 版（像素画，没有画布贴图以外的 DOM）；
+人物是像素精灵，"真实阴影"换成地上的影子；`activities.test.ts` 照样在 node 里跑。小岛是 `buildDiorama(world, meta, conditions, seed)`，画进一个 `IsoWorld`，
+sandbox 里每张卡一个 `IsoWorld`。上面提到的 three.js、`Math.random`/UUID、Hollow Creek 截图基准都已不适用。

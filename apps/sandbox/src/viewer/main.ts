@@ -1,0 +1,369 @@
+import {
+  activities,
+  createDaylight,
+  createIsoWorld,
+  createRain,
+  INDIAN_WELLS,
+  INDIAN_WELLS_WORLD,
+  type IsoCameraPose,
+  indianWells,
+  type PeopleWorld,
+  Person,
+  setPeopleView,
+} from '@td/iso';
+import { clamp, mulberry32 } from '@td/shared';
+
+/**
+ * 场景查看器（sandbox）：Palm Oasis（Indian Wells）的等距像素场景。
+ * 设施状态（全部荒废 / 全部复原 / 一个个换档）、昼夜和时间、雨、风、磨损、Q/E 旋转、缩放、锚点牌、路人。
+ * 全部状态都能写进 URL，截图可以脚本化，例如：
+ *   ?lv=fresh&t=1260&rain=1&wind=80&rot=1&zoom=5.2&labels=1&walkers=8&wear=60&ui=0
+ *   ?fac=stadium_1:cleared,plaza:open   （逐个设施指定）
+ * 只读画面，不碰模拟。
+ */
+
+const site = INDIAN_WELLS;
+const { FACILITIES, FACILITY_STATES, INITIAL_STATES, RESTORED_STATES } = indianWells;
+type Facility = (typeof FACILITIES)[number];
+
+/** 每个设施能取的状态（顺序就是"点一下换下一档"的顺序；来自 state.ts） */
+const STATES = FACILITY_STATES;
+/** 开发工具的中文名（设施名同 i18n facilities.*） */
+const FAC_NAMES: Record<Facility, string> = {
+  stadium_1: '中心球场',
+  practice: '青训场',
+  outer_1: '会员场',
+  outer_23: '红土场',
+  clubhouse: '会所',
+  plaza: '棕榈喷泉',
+  stadium_3: '匹克球场',
+  stadium_2: '泳池',
+};
+const STATE_NAMES: Record<string, string> = {
+  ruined: '荒废',
+  cleared: '清理干净',
+  restored: '重建完成',
+  worn: '停用（掉档）',
+  open: '开放',
+  sanded: '被沙埋了',
+  swept: '扫出来了',
+  playable: '能打了',
+  resurfaced: '新铺的',
+  dry: '干了',
+  buried: '被沙埋了',
+  dug: '挖出来了',
+};
+const ANCHOR_NAMES: Record<string, string> = {
+  entrance: '大门',
+  parking: '停车场',
+  plaza: '喷泉广场',
+  clubhouse: '会所',
+  stadium_1: '中心球场',
+  stadium_2: '泳池',
+  stadium_3: '匹克球场',
+  practice: '青训场',
+  outer_1: '会员场',
+  outer_23: '红土场',
+};
+
+const $ = <E extends HTMLElement = HTMLElement>(id: string): E => {
+  const el = document.getElementById(id);
+  if (!el) throw new Error(`#${id} missing`);
+  return el as E;
+};
+
+/* ---------------- 状态（URL 参数） ---------------- */
+const q = new URLSearchParams(location.search);
+const num = (k: string, d: number) => {
+  const v = q.get(k);
+  return v !== null && v !== '' && Number.isFinite(Number(v)) ? Number(v) : d;
+};
+const portrait = window.innerWidth < 700;
+const startPose: IsoCameraPose = portrait ? site.camera.portrait : site.camera.overview;
+const ST = {
+  states: { ...INITIAL_STATES } as Record<Facility, string>,
+  /** 一天中的分钟 */
+  minute: q.get('night') === '1' ? 21 * 60 : 12 * 60,
+  rain: q.get('rain') === '1',
+  /** 风 0..1 */
+  wind: clamp(num('wind', 30) / 100, 0, 1),
+  /** 磨损 0..1.5（全部设施） */
+  wear: clamp(num('wear', 0) / 100, 0, 1.5),
+  labels: q.get('labels') === '1',
+};
+if (q.get('lv') === 'fresh' || q.get('lv') === 'restored') Object.assign(ST.states, RESTORED_STATES);
+for (const pair of (q.get('fac') ?? '').split(',')) {
+  const [f, s] = pair.split(':');
+  if (f && s && (FACILITIES as readonly string[]).includes(f) && STATES[f as Facility].includes(s))
+    ST.states[f as Facility] = s;
+}
+if (q.has('t')) ST.minute = clamp(num('t', ST.minute), 0, 1439);
+if (q.get('ui') === '0') document.body.classList.add('noui');
+
+/* ---------------- 世界 ---------------- */
+const world = createIsoWorld($('world'), {
+  ...INDIAN_WELLS_WORLD,
+  pose: {
+    tx: num('tx', startPose.tx),
+    tz: num('tz', startPose.tz),
+    zoom: num('zoom', startPose.zoom),
+    rot: (Math.round(num('rot', 0)) & 3) as 0 | 1 | 2 | 3,
+  },
+});
+const L = site.camera.limits;
+world.camera.limits = { zoom: [L.zoom[0], L.zoom[1]], tx: [L.tx[0], L.tx[1]], tz: [L.tz[0], L.tz[1]] };
+world.camera.home = { ...startPose };
+site.build(world);
+const overlays = site.createOverlays(world);
+const sky = site.createSky(world);
+const daylight = createDaylight(world);
+const rain = createRain(world);
+const people: PeopleWorld = { scene: world.scene, groundY: site.groundY, people: [] };
+
+function applyStates(): void {
+  for (const f of FACILITIES) overlays.set(f, ST.states[f]);
+  overlays.flush?.();
+  applyWear();
+  paintFacs();
+  syncUrl();
+}
+function applyWear(): void {
+  for (const f of FACILITIES) overlays.wear?.(f, ST.wear);
+}
+
+/* ---------------- 路人：沿步道在随机地点之间走 ---------------- */
+const rand = mulberry32(num('seed', 7));
+const stands = Object.keys(site.stands);
+const pickStand = () => stands[Math.floor(rand() * stands.length)] as string;
+const walkers: { p: Person; at: string }[] = [];
+function sendOn(w: { p: Person; at: string }): void {
+  for (let i = 0; i < 6; i++) {
+    const to = pickStand();
+    if (to === w.at) continue;
+    const line = site.routeLine(w.at, to);
+    if (!line || line.length < 2) continue;
+    w.p.wait(0.5 + rand() * 2).path(line, 1.3 + rand() * 0.5);
+    w.at = to;
+    return;
+  }
+}
+function spawnWalkers(n: number): void {
+  for (let i = 0; i < n; i++) {
+    const at = pickStand();
+    const s = site.stands[at] as { x: number; z: number };
+    const look = activities.look(rand, site.venue, false);
+    const p = new Person({ ...look, name: `walker${walkers.length}`, x: s.x, z: s.z }, people);
+    const w = { p, at };
+    walkers.push(w);
+    // 一开始散在路上：先走一段
+    sendOn(w);
+  }
+  syncUrl();
+}
+function clearWalkers(): void {
+  for (const { p } of walkers) {
+    p.removed = true;
+    p.clearMoves();
+    p.root.parent?.remove(p.root);
+    const i = people.people.indexOf(p);
+    if (i >= 0) people.people.splice(i, 1);
+  }
+  walkers.length = 0;
+  syncUrl();
+}
+
+/* ---------------- 锚点牌（DOM，跟着镜头投影） ---------------- */
+const labelsEl = $('labels');
+const labelEls = Object.entries(site.anchors).map(([id, p]) => {
+  const d = document.createElement('div');
+  d.className = 'lbl';
+  d.textContent = ANCHOR_NAMES[id] ?? id;
+  const s = document.createElement('small');
+  s.textContent = id;
+  d.append(s);
+  labelsEl.append(d);
+  return { d, p };
+});
+function placeLabels(): void {
+  labelsEl.hidden = !ST.labels;
+  if (!ST.labels) return;
+  for (const { d, p } of labelEls) {
+    const s = world.camera.project(p.x, site.groundY(p.x, p.z) + 1.5, p.z);
+    d.style.left = `${Math.round(s.x)}px`;
+    d.style.top = `${Math.round(s.y)}px`;
+  }
+}
+
+/* ---------------- 控件 ---------------- */
+const facsEl = $('facs');
+const facBtns = new Map<Facility, HTMLButtonElement>();
+for (const f of FACILITIES) {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.addEventListener('click', () => {
+    const list = STATES[f];
+    ST.states[f] = list[(list.indexOf(ST.states[f]) + 1) % list.length] as string;
+    applyStates();
+  });
+  facsEl.append(b);
+  facBtns.set(f, b);
+}
+function paintFacs(): void {
+  for (const [f, b] of facBtns) {
+    b.textContent = '';
+    const n = document.createElement('b');
+    n.textContent = FAC_NAMES[f];
+    const s = document.createElement('span');
+    s.textContent = `${STATE_NAMES[ST.states[f]] ?? ST.states[f]} · ${ST.states[f]}`;
+    b.append(n, s);
+  }
+}
+$('bRuin').addEventListener('click', () => {
+  Object.assign(ST.states, INITIAL_STATES);
+  applyStates();
+});
+$('bFresh').addEventListener('click', () => {
+  Object.assign(ST.states, RESTORED_STATES);
+  applyStates();
+});
+const timeEl = $<HTMLInputElement>('time');
+const timeV = $('timeV');
+const hhmm = (m: number) =>
+  `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(Math.round(m % 60)).padStart(2, '0')}`;
+const isNight = () => ST.minute < 6 * 60 || ST.minute >= 19 * 60;
+const bNight = $('bNight');
+function paintTime(): void {
+  timeEl.value = String(ST.minute);
+  timeV.textContent = hhmm(ST.minute);
+  bNight.textContent = isNight() ? '昼' : '夜';
+  bNight.setAttribute('aria-pressed', String(isNight()));
+  syncUrl();
+}
+timeEl.addEventListener('input', () => {
+  ST.minute = Number(timeEl.value);
+  paintTime();
+});
+bNight.addEventListener('click', () => {
+  ST.minute = isNight() ? 12 * 60 : 21 * 60;
+  paintTime();
+});
+const bRain = $('bRain');
+function paintRain(): void {
+  bRain.setAttribute('aria-pressed', String(ST.rain));
+  if (ST.rain) rain.start();
+  else rain.stop();
+  syncUrl();
+}
+bRain.addEventListener('click', () => {
+  ST.rain = !ST.rain;
+  paintRain();
+});
+const windEl = $<HTMLInputElement>('wind');
+const windV = $('windV');
+windEl.value = String(Math.round(ST.wind * 100));
+windV.textContent = `${windEl.value}%`;
+windEl.addEventListener('input', () => {
+  ST.wind = Number(windEl.value) / 100;
+  windV.textContent = `${windEl.value}%`;
+  syncUrl();
+});
+const wearEl = $<HTMLInputElement>('wear');
+const wearV = $('wearV');
+wearEl.value = String(Math.round(ST.wear * 100));
+wearV.textContent = `${wearEl.value}%`;
+wearEl.addEventListener('input', () => {
+  ST.wear = Number(wearEl.value) / 100;
+  wearV.textContent = `${wearEl.value}%`;
+  applyWear();
+  syncUrl();
+});
+const bLabels = $('bLabels');
+const paintLabels = () => bLabels.setAttribute('aria-pressed', String(ST.labels));
+bLabels.addEventListener('click', () => {
+  ST.labels = !ST.labels;
+  paintLabels();
+  syncUrl();
+});
+const moreEl = $('more');
+const bMore = $('bMore');
+bMore.addEventListener('click', () => {
+  moreEl.hidden = !moreEl.hidden;
+  bMore.setAttribute('aria-expanded', String(!moreEl.hidden));
+});
+$('bQ').addEventListener('click', () => world.camera.rotate(1));
+$('bE').addEventListener('click', () => world.camera.rotate(-1));
+$('bIn').addEventListener('click', () => world.camera.zoomIn());
+$('bOut').addEventListener('click', () => world.camera.zoomOut());
+$('bHome').addEventListener('click', () => world.camera.reset());
+$('bWalk').addEventListener('click', () => spawnWalkers(4));
+$('bClear').addEventListener('click', clearWalkers);
+window.addEventListener('keydown', (e) => {
+  if ((e.target as HTMLElement | null)?.closest?.('input')) return;
+  if (e.key === 'q' || e.key === 'Q') world.camera.rotate(1);
+  else if (e.key === 'e' || e.key === 'E') world.camera.rotate(-1);
+  else if (e.key === '+' || e.key === '=') world.camera.zoomIn();
+  else if (e.key === '-') world.camera.zoomOut();
+});
+
+/* ---------------- URL：当前状态写回地址栏（截图脚本照抄） ---------------- */
+const urlEl = $('url');
+let urlTimer = 0;
+function syncUrl(): void {
+  clearTimeout(urlTimer);
+  urlTimer = window.setTimeout(() => {
+    const p = new URLSearchParams();
+    const fac = FACILITIES.filter((f) => ST.states[f] !== INITIAL_STATES[f]).map((f) => `${f}:${ST.states[f]}`);
+    if (fac.length) p.set('fac', fac.join(','));
+    p.set('t', String(ST.minute));
+    if (ST.rain) p.set('rain', '1');
+    p.set('wind', String(Math.round(ST.wind * 100)));
+    if (ST.wear) p.set('wear', String(Math.round(ST.wear * 100)));
+    const t = world.camera.target;
+    p.set('rot', String(t.rot));
+    p.set('zoom', String(t.zoom));
+    p.set('tx', t.tx.toFixed(1));
+    p.set('tz', t.tz.toFixed(1));
+    if (ST.labels) p.set('labels', '1');
+    if (walkers.length) p.set('walkers', String(walkers.length));
+    const s = `?${p.toString().replace(/%3A/g, ':').replace(/%2C/g, ',')}`;
+    history.replaceState(null, '', s);
+    urlEl.textContent = s;
+  }, 200);
+}
+// 镜头动了也写回（拖动、缩放、转）
+world.view.canvas.addEventListener('pointerup', syncUrl);
+world.view.canvas.addEventListener('wheel', syncUrl);
+for (const id of ['bQ', 'bE', 'bIn', 'bOut', 'bHome']) $(id).addEventListener('click', syncUrl);
+
+/* ---------------- 起步 ---------------- */
+applyStates();
+paintTime();
+paintRain();
+paintLabels();
+spawnWalkers(Math.round(clamp(num('walkers', 0), 0, 60)));
+// 截图：雨一开始就是满的（不等淡入）
+if (ST.rain) rain.update(30, world.camera.target.tx, world.camera.target.tz);
+
+let last = performance.now();
+let now = 0;
+function frame(ts: number): void {
+  requestAnimationFrame(frame);
+  const dt = clamp((ts - last) / 1000, 0, 0.05);
+  last = ts;
+  now += dt;
+  // 先定镜头，再按镜头的转角和缩放更新人物
+  world.camera.update(dt, null);
+  const pr = world.view.proj;
+  setPeopleView(pr.ang, pr.k, pr.spriteScale);
+  for (const w of walkers) if (!w.p.busy()) sendOn(w);
+  for (const p of [...people.people]) p.update(dt, now);
+  const r = rain.amount();
+  sky.update(dt, now, r, ST.wind);
+  rain.update(dt, world.camera.target.tx, world.camera.target.tz);
+  daylight.update(ST.minute, r);
+  world.render(dt, now);
+  placeLabels();
+}
+requestAnimationFrame(frame);
+// 调试：控制台里摸世界
+(window as unknown as { __viewer: unknown }).__viewer = { world, overlays, ST, walkers };

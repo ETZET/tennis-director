@@ -1,12 +1,21 @@
-import { activities, type PeopleWorld, Scheduler, useLegacyColor } from '@td/render';
+import {
+  activities,
+  createIsoWorld,
+  daylightAt,
+  type IsoCameraPose,
+  type IsoWorld,
+  type PeopleWorld,
+  Scheduler,
+  setPeopleView,
+} from '@td/iso';
 import { clamp, mulberry32 } from '@td/shared';
-import * as THREE from 'three';
 import { CATEGORY_INFO, effectsFor, SCENE_NOTES, VENUE_NAMES, WEATHER_NAMES } from './effects';
 
 /**
  * 活动动画库（sandbox）：总览按分类排开，每张卡是一座正在演的小岛；点开进入大舞台，
- * 调全局条件和本活动变量，看当前效果。演出全部来自 @td/render 的 activities（游戏用的同一套）。
- * 一个渲染器、一张全屏画布，每张卡画在自己的矩形里（剪裁）。始终按屏幕原生像素渲染。
+ * 调全局条件和本活动变量，看当前效果。演出全部来自 @td/iso 的 activities（游戏用的同一套）。
+ * 每张卡（和舞台）各有一个 IsoWorld（Canvas 2D 等距像素画面），只推进和绘制看得见的卡。
+ * 小岛的地面画进 IsoWorld 的地面贴图、换不掉，所以重建一座小岛就是重建一个 IsoWorld。
  */
 
 const { ACTIVITY_META, buildDiorama, startActivity, resolveParams, textFor, textAt, CATEGORIES, WEATHERS, VENUES } =
@@ -48,38 +57,85 @@ const CAT_COL: Record<activities.Category, string> = {
 };
 
 /* ---------------- 一张卡 = 一座小岛 + 一个活动 ---------------- */
+/** 天气 → 光照：雨天、阴天压暗（daylight 的 rain 参数），中午的光 */
+const WX_DIM: Record<Conditions['weather'], number> = { sun: 0, cloud: 0.35, rain: 0.8, wind: 0.1, heat: 0 };
+/** 地台厚度（米）：总览的小卡片用薄地台，舞台上厚一点（游戏里的大地图是 7） */
+const SLAB_CARD = 1.5;
+const SLAB_STAGE = 3;
+/** 地台侧面算进取景的最大高度（米）：厚地台只露出上面一截 */
+const SLAB_SHOW = 2.5;
+
 let seedN = 1;
 class Card {
   readonly vars: Record<string, ParamValue>;
-  view = { yaw: 0, pitch: 0, zoom: 1 };
   dirty = true;
-  scene: THREE.Scene | null = null;
-  sky = new THREE.Color('#a9d0e3');
-  readonly cam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 900);
+  /** 当前画在哪个元素里（总览的卡片或舞台），换了就重建 */
+  host: HTMLElement | null = null;
   el: HTMLElement | null = null;
   noteEl: HTMLElement | null = null;
+  world: IsoWorld | null = null;
+  /** 舞台上用户调过的镜头：重建时保留 */
+  private pose: IsoCameraPose | null = null;
   private sched = new Scheduler();
-  private world: PeopleWorld | null = null;
+  private people: PeopleWorld | null = null;
   private dio: activities.Diorama | null = null;
   private run: activities.ActivityRun | null = null;
   private now = 0;
   constructor(readonly meta: Meta) {
     this.vars = resolveParams(meta);
   }
-  build(): void {
+  /** 把画面挪到另一个元素（舞台 / 卡片）；null = 拆掉 */
+  attach(host: HTMLElement | null): void {
+    if (host === this.host) return;
     this.dispose();
+    this.pose = null;
+    this.host = host;
+    this.dirty = true;
+  }
+  build(): void {
+    const keep = this.world ? { ...this.world.camera.target } : this.pose;
+    this.dispose();
+    const host = this.host;
+    if (!host) return;
     const seed = seedN++;
-    const dio = buildDiorama(this.meta, ST.C, seed);
+    const { W, D } = this.meta.size;
+    const island = { x0: -W / 2, x1: W / 2, z0: -D / 2, z1: D / 2 };
+    const stage = host === sview;
+    const slabDepth = stage ? SLAB_STAGE : SLAB_CARD;
+    const world = createIsoWorld(host, { sky: '#a9d0e3', bounds: island, slab: island, slabDepth });
+    // 画布垫在标题、按钮下面
+    host.prepend(world.view.canvas);
+    if (!stage) {
+      // 总览：画布不吃指针，点卡片进舞台、上下滑动滚页面
+      world.camera.enabled = false;
+      world.view.canvas.style.pointerEvents = 'none';
+    }
+    const dio = buildDiorama(world, this.meta, ST.C, seed);
+    world.view.invalidate();
+    host.style.background = dio.sky;
+    world.view.setLight(daylightAt(12 * 60 + 30, WX_DIM[ST.C.weather]));
+    // 取景：等距下小岛横向占 (W + D)·k，纵向 (W + D)·k/2 加地台侧面和人的高度
+    const vw = this.meta.view ?? {};
+    const BW = world.view.BW;
+    const BH = world.view.BH;
+    const fitK = Math.min(
+      (BW * 0.94) / (W + D),
+      (BH * 0.92) / ((W + D) / 2 + (Math.min(SLAB_SHOW, slabDepth) + 2.6) * 1.225),
+    );
+    const k = clamp(fitK * (vw.zoom ?? 1), 2, 15.6);
+    const home: IsoCameraPose = { tx: 0.6, tz: 0.6, zoom: k, rot: 0 };
+    world.camera.limits = { zoom: [Math.min(2, k), 15.6], tx: [-W / 2, W / 2], tz: [-D / 2, D / 2] };
+    world.camera.home = home;
+    world.camera.setPose(stage && keep ? keep : home);
+    this.world = world;
     this.dio = dio;
-    this.scene = dio.scene;
-    this.sky = dio.sky;
     this.sched = new Scheduler();
-    this.world = { scene: dio.scene, groundY: dio.groundY, people: [] };
+    this.people = { scene: dio.scene, groundY: dio.groundY, people: [] };
     this.run = startActivity(
       {
         scene: dio.scene,
         sched: this.sched,
-        world: this.world,
+        world: this.people,
         groundY: dio.groundY,
         lang: LANG,
         rand: mulberry32(seed * 7919),
@@ -98,44 +154,47 @@ class Card {
     this.dirty = false;
   }
   dispose(): void {
+    if (this.world) this.pose = { ...this.world.camera.target };
     this.run?.stop();
     this.dio?.dispose();
+    this.world?.dispose();
     this.run = null;
     this.dio = null;
-    this.scene = null;
+    this.world = null;
+    this.people = null;
   }
-  update(dt: number): void {
+  /** 推进 dt（演出时间，暂停时 0），rdt 是真实时间（镜头缓动） */
+  frame(dt: number, rdt: number): void {
     if (this.dirty || this.run?.finished) this.build();
-    if (!this.world || !this.dio) return;
+    const w = this.world;
+    if (!w || !this.people || !this.dio) return;
+    // 先定镜头，再按镜头的转角和缩放更新人物（朝向、挂点）
+    w.camera.update(rdt, null);
+    const pr = w.view.proj;
+    setPeopleView(pr.ang, pr.k, pr.spriteScale);
     this.now += dt;
     this.sched.advance(dt);
-    for (const p of [...this.world.people]) p.update(dt, this.sched.now);
+    for (const p of [...this.people.people]) p.update(dt, this.sched.now);
     this.dio.update(dt);
-  }
-  /** 正交相机取景：stage 模式用拖动和缩放 */
-  fit(aspect: number, stage: boolean): void {
-    const { W, D } = this.meta.size;
-    const R = Math.hypot(W, D) / 2;
-    const v = this.view;
-    const vw = this.meta.view ?? {};
-    // 竖屏手机：岛宽占满屏幕宽
-    const zoom = (stage ? v.zoom : 1) * (vw.zoom ?? 1);
-    const vh = Math.max(R * 1.22, (R * 1.72) / aspect) / zoom;
-    const c = this.cam;
-    c.left = (-vh * aspect) / 2;
-    c.right = (vh * aspect) / 2;
-    c.top = vh / 2;
-    c.bottom = -vh / 2;
-    const yaw = (vw.yaw ?? 0.7) + (stage ? v.yaw : REDUCED ? 0 : Math.sin(this.now * 0.12) * 0.08);
-    const pitch = clamp((vw.pitch ?? 0.6) + (stage ? v.pitch : 0), 0.28, 1.35);
+    w.render(rdt, this.now);
+    // 画面震动（ACE、天才出现）：挪画布
     const sh = this.run?.shake ?? 0;
-    const sx = sh > 0 ? (Math.random() * 2 - 1) * sh * 0.4 : 0;
-    const sz = sh > 0 ? (Math.random() * 2 - 1) * sh * 0.4 : 0;
-    const Dd = 260;
-    const cp = Math.cos(pitch);
-    c.position.set(sx + Dd * cp * Math.sin(yaw), 0.2 + Dd * Math.sin(pitch), sz + Dd * cp * Math.cos(yaw));
-    c.lookAt(sx, 0.2, sz);
-    c.updateProjectionMatrix();
+    const cv = w.view.canvas;
+    if (sh > 0 && !REDUCED) {
+      const a = sh * 6;
+      cv.style.transform = `translate(${Math.round((Math.random() * 2 - 1) * a)}px,${Math.round((Math.random() * 2 - 1) * a)}px)`;
+    } else if (cv.style.transform) cv.style.transform = '';
+  }
+  rotate(steps: number): void {
+    this.world?.camera.rotate(steps);
+  }
+  zoom(dir: 1 | -1): void {
+    if (dir > 0) this.world?.camera.zoomIn();
+    else this.world?.camera.zoomOut();
+  }
+  resetView(): void {
+    const c = this.world?.camera;
+    if (c) c.setPose({ ...c.home, rot: c.target.rot }, false);
   }
 }
 
@@ -406,67 +465,23 @@ bSpeed.addEventListener('click', () => {
 $('bReplay').addEventListener('click', () => {
   if (ST.focus) ST.focus.dirty = true;
 });
-$('bView').addEventListener('click', () => {
-  if (ST.focus) ST.focus.view = { yaw: 0, pitch: 0, zoom: 1 };
-});
+$('bView').addEventListener('click', () => ST.focus?.resetView());
+$('bRot').addEventListener('click', () => ST.focus?.rotate(1));
+$('bIn').addEventListener('click', () => ST.focus?.zoom(1));
+$('bOut').addEventListener('click', () => ST.focus?.zoom(-1));
 window.addEventListener('keydown', (e) => {
   const t = e.target as HTMLElement | null;
   if (t?.closest?.('button,input,a')) return;
-  if (e.key === ' ' && ST.focus) {
+  if (!ST.focus) return;
+  if (e.key === ' ') {
     e.preventDefault();
     setPaused(!ST.paused);
-  }
+  } else if (e.key === 'q' || e.key === 'Q') ST.focus.rotate(1);
+  else if (e.key === 'e' || e.key === 'E') ST.focus.rotate(-1);
 });
 
-/* ---------------- 舞台相机：拖动旋转、双指 / 滚轮缩放（指针事件） ---------------- */
+/* ---------------- 舞台：拖动平移、双指 / 滚轮缩放由 IsoWorld 的镜头处理（画布上的指针事件） ---------------- */
 const sview = $('sview');
-{
-  const ptr = new Map<number, { x: number; y: number }>();
-  let pinch: { d: number; z: number } | null = null;
-  sview.addEventListener('pointerdown', (e) => {
-    if ((e.target as HTMLElement).closest('button')) return;
-    sview.setPointerCapture(e.pointerId);
-    ptr.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    sview.classList.add('drag');
-    if (ptr.size === 2 && ST.focus) {
-      const [p, q] = [...ptr.values()] as [{ x: number; y: number }, { x: number; y: number }];
-      pinch = { d: Math.hypot(p.x - q.x, p.y - q.y), z: ST.focus.view.zoom };
-    }
-  });
-  sview.addEventListener('pointermove', (e) => {
-    const p = ptr.get(e.pointerId);
-    if (!p || !ST.focus) return;
-    const dx = e.clientX - p.x;
-    const dy = e.clientY - p.y;
-    p.x = e.clientX;
-    p.y = e.clientY;
-    const v = ST.focus.view;
-    if (ptr.size === 2 && pinch) {
-      const [a, b] = [...ptr.values()] as [{ x: number; y: number }, { x: number; y: number }];
-      v.zoom = clamp((pinch.z * Math.hypot(a.x - b.x, a.y - b.y)) / pinch.d, 0.6, 3);
-      return;
-    }
-    v.yaw -= dx * 0.008;
-    v.pitch = clamp(v.pitch + dy * 0.005, -0.3, 0.7);
-  });
-  const end = (e: PointerEvent) => {
-    ptr.delete(e.pointerId);
-    if (ptr.size < 2) pinch = null;
-    if (!ptr.size) sview.classList.remove('drag');
-  };
-  sview.addEventListener('pointerup', end);
-  sview.addEventListener('pointercancel', end);
-  sview.addEventListener(
-    'wheel',
-    (e) => {
-      if (!ST.focus) return;
-      e.preventDefault();
-      const v = ST.focus.view;
-      v.zoom = clamp(v.zoom * Math.exp(-e.deltaY * 0.0013), 0.6, 3);
-    },
-    { passive: false },
-  );
-}
 
 /* ---------------- 路由 ---------------- */
 const ovEl = $('overview');
@@ -485,81 +500,33 @@ function route(): void {
     ovEl.hidden = false;
     stageEl.hidden = true;
   }
-  // 只留当前看得见的卡的场景，其余释放
-  for (const x of CARDS) if (c && x !== c) x.dispose();
+  // 舞台上只留当前活动的画面；回到总览时每张卡画回自己的卡片里（看得见时才建）
+  for (const x of CARDS) x.attach(c ? (x === c ? sview : null) : x.el);
 }
 window.addEventListener('hashchange', route);
 
 /* ---------------- 渲染 ---------------- */
-const canvas = $<HTMLCanvasElement>('gl');
-const renderer = new THREE.WebGLRenderer({
-  canvas,
-  antialias: false,
-  alpha: true,
-  powerPreference: 'high-performance',
-});
-useLegacyColor(renderer);
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.BasicShadowMap;
-renderer.setClearColor(0x000000, 0);
-function resize(): void {
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-  renderer.setSize(window.innerWidth, window.innerHeight);
-}
-window.addEventListener('resize', resize);
-resize();
-
 const barEl = $('bar');
-function draw(c: Card, r: DOMRect, stage: boolean, clipTop: number): void {
-  if (!c.scene) return;
-  const W = window.innerWidth;
-  const H = window.innerHeight;
-  const x0 = Math.max(r.left, 0);
-  const x1 = Math.min(r.right, W);
-  const y0 = Math.max(r.top, clipTop);
-  const y1 = Math.min(r.bottom, H);
-  if (x1 - x0 < 2 || y1 - y0 < 2) return;
-  c.fit(r.width / r.height, stage);
-  const cam = c.cam;
-  const { left: L, right: R, top: Tp, bottom: B } = cam;
-  cam.left = L + ((R - L) * (x0 - r.left)) / r.width;
-  cam.right = L + ((R - L) * (x1 - r.left)) / r.width;
-  cam.top = Tp - ((Tp - B) * (y0 - r.top)) / r.height;
-  cam.bottom = Tp - ((Tp - B) * (y1 - r.top)) / r.height;
-  cam.updateProjectionMatrix();
-  renderer.setViewport(x0, H - y1, x1 - x0, y1 - y0);
-  renderer.setScissor(x0, H - y1, x1 - x0, y1 - y0);
-  renderer.setClearColor(c.sky, 1);
-  renderer.render(c.scene, cam);
-}
-
 let last = performance.now();
 function frame(ts: number): void {
   requestAnimationFrame(frame);
   const rdt = clamp((ts - last) / 1000, 0, 0.05);
   last = ts;
-  renderer.setScissorTest(false);
-  renderer.setClearColor(0x000000, 0);
-  renderer.clear();
-  renderer.setScissorTest(true);
-  const clipTop = Math.max(barEl.getBoundingClientRect().bottom, condsEl.getBoundingClientRect().bottom);
   if (ST.focus) {
-    const c = ST.focus;
-    c.update(ST.paused ? 0 : rdt * ST.speed);
-    draw(c, sview.getBoundingClientRect(), true, 0);
-  } else {
-    for (const c of CARDS) {
-      if (!c.el) continue;
-      const r = c.el.getBoundingClientRect();
-      if (r.bottom < clipTop || r.top > window.innerHeight) continue;
-      c.update(rdt);
-      draw(c, r, false, clipTop);
-    }
+    ST.focus.frame(ST.paused ? 0 : rdt * ST.speed, rdt);
+    return;
+  }
+  const clipTop = Math.max(barEl.getBoundingClientRect().bottom, condsEl.getBoundingClientRect().bottom);
+  for (const c of CARDS) {
+    if (!c.el) continue;
+    const r = c.el.getBoundingClientRect();
+    if (r.bottom < clipTop || r.top > window.innerHeight) continue;
+    c.frame(rdt, rdt);
   }
 }
 
 paintSummary();
 route();
 requestAnimationFrame(frame);
-// 调试：控制台里看各卡
+// 调试 / 截图：控制台里看各卡
 (window as unknown as { __cards: Card[] }).__cards = CARDS;

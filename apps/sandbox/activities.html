@@ -9,7 +9,6 @@
 <link rel="stylesheet" href="./src/activities/style.css">
 </head>
 <body>
-<canvas id="gl" aria-hidden="true"></canvas>
 <div id="app">
   <header class="bar" id="bar">
     <a class="brand" href="#" aria-label="回到总览">
@@ -29,7 +28,7 @@
 
   <main id="overview" class="scroll">
     <div class="wrap">
-      <p class="intro">每张卡是一个可复用的"原子活动"。顶部的条件实时影响所有活动；点开任一张进入大舞台，调这个活动自己的变量。游戏用同一套演出（<code>@td/render</code> 的 <code>activities</code>）。</p>
+      <p class="intro">每张卡是一个可复用的"原子活动"。顶部的条件实时影响所有活动；点开任一张进入大舞台，调这个活动自己的变量。游戏用同一套演出（<code>@td/iso</code> 的 <code>activities</code>）。</p>
       <div id="cats"></div>
     </div>
   </main>
@@ -41,9 +40,12 @@
         <button type="button" id="bPause" aria-pressed="false" title="暂停 / 继续">❚❚</button>
         <button type="button" id="bSpeed" title="速度">1×</button>
         <button type="button" id="bReplay" title="重播">↺</button>
-        <button type="button" id="bView" title="重置视角">⌖</button>
+        <button type="button" id="bOut" title="缩小" aria-label="缩小">−</button>
+        <button type="button" id="bIn" title="放大" aria-label="放大">+</button>
+        <button type="button" id="bRot" title="转 90°（Q / E）" aria-label="转 90°">⟲</button>
+        <button type="button" id="bView" title="重置视角" aria-label="重置视角">⌖</button>
       </div>
-      <div class="hint">拖动旋转 · 双指或滚轮缩放</div>
+      <div class="hint">拖动平移 · 双指或滚轮缩放 · ⟲ 转 90°</div>
     </div>
     <div class="sheet" id="sheet">
       <nav class="acts" id="side" aria-label="活动列表"></nav>

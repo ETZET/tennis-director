@@ -362,7 +362,8 @@ export class Projector {
     const service = hasDemand(s) ? Math.round(serviceRate(s) * 100) : null;
     return {
       label: `${T.tr(`seasons.${s.season}`, '')} · ${T.fmt('ui.week', { n: week })}`,
-      weather: s.weather,
+      // 晴天入夜（画面 18:15 起转黄昏，18:45 以后天黑）画月亮，不画太阳（QA P3）
+      weather: s.weather === 'sun' && (s.t % 1440 >= 18.75 * 60 || s.t % 1440 < 6 * 60) ? 'night' : s.weather,
       weatherLabel: T.tr(`ui.weather.${s.weather}`),
       service,
       serviceLabel: service === null ? T.tr('ui.ctx.service_none') : T.fmt('ui.ctx.service', { n: service }),

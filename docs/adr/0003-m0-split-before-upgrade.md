@@ -27,3 +27,8 @@
 
 - M0-2 的闸口是确定的：`pnpm screenshot --against prototype`。
 - M0-3 改动画面时，先更新基准图并在提交里附上前后对比。
+
+## 修订（2026-11-03）
+
+ADR 0019 取代了这里 three.js 相关的部分：画面换成 Canvas 2D 软件光栅，three、`packages/render` 和 Hollow Creek 场景都已删除，不再升级 three.js。
+"场景构建顺序就是画面"的规则保留，现在适用于 `packages/iso/src/site/<地图>/` 的 `build.ts` 和 `ground.ts`。

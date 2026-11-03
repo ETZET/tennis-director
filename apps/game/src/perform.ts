@@ -1,6 +1,13 @@
-import { activities, type CourtFrame, type PeopleWorld, type Person, type Scheduler, type Site } from '@td/render';
+import {
+  activities,
+  type CourtFrame,
+  type Node,
+  type PeopleWorld,
+  type Person,
+  type Scheduler,
+  type Site,
+} from '@td/iso';
 import { clamp } from '@td/shared';
-import type * as THREE from 'three';
 
 /**
  * 模拟的活动演出名（content 里的 performance）→ 活动动画库（ADR 0010）。
@@ -81,7 +88,7 @@ export function conditionsFrom(input: PerformInput, venue: activities.Venue): ac
 }
 
 export interface PerformerEnv {
-  scene: THREE.Object3D;
+  scene: Node;
   sched: Scheduler;
   world: PeopleWorld;
   lang: activities.Lang;

@@ -1,18 +1,18 @@
 # 网球总监 · 技术架构文档 v0.2
 
-Oct 29, 2026 · @Enting · 2026-11-01 按现在的代码重写（v0.2：单地图、招人排人循环、Site 接口）
+Oct 29, 2026 · @Enting · 2026-11-01 按现在的代码重写（v0.2：单地图、招人排人循环、Site 接口）· 2026-11-03 画面换成 2.5D 等距像素（ADR 0019）
 
 ## 概述
 
-网球总监是一个 TypeScript monorepo：核心是一套不依赖画面的模拟引擎，画面（three.js）和界面（Preact）都只是它的订阅者；地图、设施、岗位、工单、事件卡、人物、文案全部是数据文件。加一张卡、调一个数不用碰代码；加一张地图只需要一个实现 `Site` 接口的场景模块和一份地图数据。
+网球总监是一个 TypeScript monorepo：核心是一套不依赖画面的模拟引擎，画面（`@td/iso`，Canvas 2D 等距像素）和界面（Preact）都只是它的订阅者；地图、设施、岗位、工单、事件卡、人物、文案全部是数据文件。加一张卡、调一个数不用碰代码；加一张地图只需要一个实现 `Site` 接口的场景模块和一份地图数据。
 
 玩法以 [玩法设计文档 v0.3](game-design.md) 为准，测试以 [测试文档 v0.2](testing.md) 为准，具体决策在 `docs/adr/`。本文只讲怎么实现、怎么组织工程，不重复玩法规则。和 ADR 冲突时以 ADR 为准。
 
-### 现状（2026-11-01）
+### 现状（2026-11-03）
 
-- 整局只有一张地图：废弃的 Indian Wells Tennis Garden（ADR 0016）。画面是灰盒，精细场景待做。
+- 整局只有一张地图：Indian Wells 的 Palm Oasis Racquet Club，开局荒了十年（ADR 0016、0018）。
 - 核心玩法是"招人 + 把人拖到地点上的岗位和工单"（ADR 0012–0015）。事件卡是偶发的点缀。
-- 最早的四个单文件原型（Hollow Creek、Maple Ridge、Palm Oasis、活动动画库）里，Hollow Creek 和活动动画库已经拆进工程。Hollow Creek 的场景代码留在 `packages/render/src/scenes/hollow-creek/`，游戏已经不用它。Palm Oasis 是 Indian Wells 精细场景的画风参考，还没进工程。
+- 画面是 `packages/iso`：Canvas 2D 软件光栅的 2.5D 等距像素（ADR 0019），照美术样片 `docs/art/style-demos/isometric-2.5d/` 做。原来的 three.js 体素包 `packages/render` 和 Hollow Creek 场景已经删掉，仓库里不再有 three。
 
 ### 本文范围
 
@@ -23,28 +23,28 @@ Oct 29, 2026 · @Enting · 2026-11-01 按现在的代码重写（v0.2：单地�
 
 六条原则。代码评审时如果某个改动违反其中一条，需要先写一条 ADR 说明理由。
 
-1. **模拟和表现分离。** 模拟核心不引用 three.js，也不碰 DOM。同一套模拟可以在浏览器里跑，也可以在命令行里无头跑几百局做平衡。
+1. **模拟和表现分离。** 模拟核心不引用画面包，也不碰 DOM。同一套模拟可以在浏览器里跑，也可以在命令行里无头跑几百局做平衡。
 2. **结果先于演出。** 岗位转一圈的收益、工单的进度、表演赛的成败都由模拟算出，动画只负责演。动画永远不决定数值，否则存档、回放和测试都会失效。
 3. **内容就是数据。** 地图、设施、岗位、工单、事件卡、人物、特质、文案都是 YAML，经过 schema 校验。策划改数据不需要改代码。
 4. **确定性。** 固定步长（1 游戏分钟）加种子随机数，加上玩家命令日志，就能完整复现一局。这是调试、回放、平衡测试和存档校验的基础。
-5. **按名字引用，不按坐标。** 模拟只知道"外场 1""会所""大门"这些锚点名字和步行分钟数；锚点在三维空间的哪里、路怎么走，由 `Site` 决定。改布局不影响事件和存档。
-6. **状态是纯数据。** 游戏状态只包含可以序列化的普通对象，不放类实例、函数或 three.js 对象。存档就是把状态写下来。
+5. **按名字引用，不按坐标。** 模拟只知道"外场 1""会所""大门"这些锚点名字和步行分钟数；锚点在世界坐标的哪里、路怎么走，由 `Site` 决定。改布局不影响事件和存档。
+6. **状态是纯数据。** 游戏状态只包含可以序列化的普通对象，不放类实例、函数或场景图节点。存档就是把状态写下来。
 
 ## 技术选型
 
-继续用原型已经验证过的 three.js，只补上工程化需要的部分，不引入完整游戏引擎。经营模拟的复杂度在规则和内容，不在渲染。
+画面是自己写的 Canvas 2D 软件光栅（ADR 0019），不用 WebGL、不引入游戏引擎。经营模拟的复杂度在规则和内容，不在渲染。
 
 | 领域 | 选择 | 现状 |
 | --- | --- | --- |
 | 语言 | TypeScript 7，strict | 用着 |
 | 构建与开发服务器 | Vite 8；内容插件做热更新和校验 | 用着 |
 | 包管理 | pnpm 10 workspaces；Node 22 | 用着 |
-| 3D 渲染 | three.js，npm 锁定版本 | **还是 r128**；升级到当前版本是待办（backlog ART-6） |
+| 画面 | `@td/iso`：Canvas 2D 软件光栅的 2.5D 等距像素，轻量场景图，字符画素材 | 用着；不依赖任何渲染库 |
 | 界面 | Preact（HUD、事件卡、员工条、地点清单、调试面板），读模拟快照 | 用着；没有用 signals，每 0.2 秒和每次事件重绘一次快照 |
 | 数据格式 | YAML 写，构建时编译成 JSON（`src/generated/content.json`） | 用着 |
 | 数据校验 | Zod 4 | 用着 |
 | 规范 | Biome（格式和规范）、dependency-cruiser（分层） | 用着 |
-| 测试 | Vitest；Playwright（无头 Chromium，用于试玩桥和截图） | 用着；画面回归随 Hollow Creek 删掉了，待重建 |
+| 测试 | Vitest；Playwright（无头 Chromium，用于试玩桥和截图） | 用着；画面回归随 ADR 0019 全部重拍，待重建 |
 | 存档 | IndexedDB 自动存档，加导出 JSON | 用着 |
 | 本地化 | 键值文案表（zh 默认，en 用 `?lang=en`） | 用着 |
 | 部署 | 静态托管；现在用 claude.ai 预览页 | 正式托管待定 |
@@ -53,7 +53,7 @@ Oct 29, 2026 · @Enting · 2026-11-01 按现在的代码重写（v0.2：单地�
 
 ## 分层和目录
 
-依赖方向只能往下：`apps` → `render` / `ui` → `sim` → `shared`；`content` 只由 `sim`（和 `apps` 的开发插件）读取；`render` 和 `ui` 互不引用。`pnpm check:deps` 在 CI 里强制。
+依赖方向只能往下：`apps` → `iso` / `ui` → `sim` → `shared`；`content` 只由 `sim`（和 `apps` 的开发插件）读取；`iso` 和 `ui` 互不引用，也不依赖 three。`pnpm check:deps` 在 CI 里强制。
 
 ```text
 tennis-director/
@@ -61,12 +61,12 @@ tennis-director/
 │  ├─ shared/    种子随机数（mulberry32）、表达式语言、数学工具、哈希
 │  ├─ content/   YAML 内容（data/）、schema、编译器、Vite 热更新插件、生成的 JSON
 │  ├─ sim/       模拟核心：状态、命令、系统、岗位和工单、走路、事件引擎、导演、存档迁移、机器人
-│  ├─ render/    three.js：voxel/ world/（场地坐标系、Site 接口、舞台）props/ people/ motion/ choreo/
-│  │             fx/ ambient/ camera/ activities/（活动动画库）scenes/（indian-wells、hollow-creek）
+│  ├─ iso/       2.5D 等距像素：core/（场景图、光栅、投影、画面、镜头、昼夜）art/（字符画素材）
+│  │             site/（Site 接口、indian-wells/）people/ motion/ choreo/ fx/ ambient/ activities/（活动动画库）
 │  └─ ui/        Preact：hud/（转播 HUD、事件卡、快讯）staff/（员工条、地点清单、说明面板）debug/
 ├─ apps/
 │  ├─ game/      正式游戏：把模拟、画面、界面接起来
-│  ├─ sandbox/   活动动画库的查看页
+│  ├─ sandbox/   场景查看器（index.html）和活动动画库（activities.html）
 │  └─ sim-cli/   命令行：确定性闸口、机器人平衡报告、可玩性报告
 ├─ tools/playtest/   试玩桥（无头 Chromium + HTTP）和评审说明
 ├─ docs/         design/（四份设计文档）adr/ balance/ content-guide.md
@@ -143,43 +143,53 @@ tennis-director/
 
 贪心型、谨慎型（不招人）、随机型、放置型，用来跑平衡和确定性闸口。机器人用自己的随机数，不碰游戏的随机流。
 
-## 表现层（`packages/render`）
+## 表现层（`packages/iso`）
 
 表现层把模拟状态画出来、把领域事件演出来。它只读状态；游戏 app 里唯一能影响模拟的方式是发命令。
+接口契约（`IsoWorld`、`IsoCamera`、`Site`、`Person`、素材格式）见 [iso-architecture.md](iso-architecture.md)，决策见 ADR 0019。
 
-### Site 接口（ADR 0016）
+### 画法
 
-一张地图在画面这一侧要提供的东西都在 `world/site.ts` 的 `Site` 接口里：
+- **2:1 等距，Q/E 转 90°**：静止时只停在 4 个角，缩放是离散档位（`ZOOM_STEPS`，`zoom` 就是每米缓冲像素 `k`）。
+- **软件光栅**：画进一张低分辨率缓冲（`Uint32Array`），再放大到画布（`image-rendering: pixelated`）。
+- **分层**：背景（天空、群山）→ 静态层（地面贴图 + 建筑、看台、围网、树，按转角、缩放、昼夜档缓存，设施状态变了重烘）→
+  动态层（人、球、道具、粒子，每帧画，用深度缓冲被前面的建筑挡住）→ DOM 叠层（地点牌）。
+- **轻量场景图**（`core/graph.ts`）：照 three Object3D 的子集写（`Node`、`Group`、`Box`、`Sprite`、`Custom`），所以活动库和人物的演出代码基本原样保留。
+- **素材是字符画**（`art/`）：人物、道具、图标、像素字、小动物都是文本，字母是换色槽位，运行时按外观烘焙并缓存（`bakeArt`）。不放图片文件。
+- **昼夜和天气**：`createDaylight` 按游戏分钟给天色、夜色和灯光强度；夜里的灯光池烘进地面贴图；雨丝在 `ambient/rain.ts`。
+- 核心（场景图、光栅、投影、素材烘焙、地面贴图）不碰 DOM，能在 node 里测；只有 `view.ts`、`camera.ts`、`world.ts` 碰画布和指针。
+
+### Site 接口（ADR 0016、0019）
+
+一张地图在画面这一侧要提供的东西都在 `site/site.ts` 的 `Site` 接口里：
 
 - 锚点中心、站位、两个地点之间的步道折线（`routeLine`）。
 - 每个地点上的球场框（`courts`）和空地（`grounds`）。
-- 地面高度、园区范围。
-- 灯光、雨天光照、相机预设和范围、活动动画库的场地风格（`venue`）。
-- 建静态场景（`build`）、设施状态的画面层（`createOverlays`）、天空和远景（`createSky`）。
+- 地面高度、园区范围、起始天色。
+- 相机预设和范围（`IsoCameraPose`）、活动动画库的场地风格（`venue`）。
+- 建静态场景（`build`）、设施状态的画面层（`createOverlays`，带可选的磨损 `wear`）、天空和远景（`createSky`），都接 `IsoWorld`。
 
-`apps/game` 只认这个接口，不引用某张具体的地图。灰盒和以后的精细场景实现同一个接口，替换时游戏代码不动。
+`apps/game` 只认这个接口（加上 `createIsoWorld` 用的地台范围），不引用地图内部的模块。
 
-### Indian Wells 场景（`scenes/indian-wells/`）
+### Indian Wells 场景（`site/indian-wells/`）
 
-- `layout.ts`：布局常量、球场框、锚点和站位、步道路网（环绕 Stadium 1 的环路加各地点的支路）、最短路、步行分钟数。
-- `build.ts`：静态场景（灰盒）：沙地、群山、步道、停车场、大门、会所、广场、三座球场的看台、练习场和外场。
-- `overlays.ts`：每个"设施 · 状态"一层，按模拟里设施的状态只显示那一层。开局的破败（积沙、倒网、碎石）也是一层。
-
-### 体素和道具
-
-- **程序化建模。**体素批处理器（`voxel/batcher.ts`）逐个加盒子、合并成一个网格；静态和动态分开，数量多的东西用 `InstancedMesh`。
-- **所有细节从同一条种子随机流取数，构建顺序就是画面**：不要调换 `build.ts` 里的步骤，新东西加在最后（CLAUDE.md）。
-- **场地坐标系**（`world/frame.ts`）：每块场地一个旋转的局部坐标系，原点在球网中心。道具（`props/court.ts`：场地、线、网、围网）都在场地坐标系里画。
+- `layout.ts`：布局常量、球场框、锚点和站位、步道路网、最短路、步行分钟数。
+- `ground.ts`：地面贴图（场地、步道、沙地、草坪）、浮空岛范围 `SLAB`；`build.ts`：静态节点（围墙、看台、会所、泳池、棕榈、网和围网、灯杆……）。
+- `state.ts`：设施状态 → 画面档位（荒废、清理过、复原、掉档）；`overlays.ts`：设施状态一变就按新状态表重建地面和节点，每段有自己的种子随机流，结果确定。
+- `wear.ts`：状况往下掉时长出的积沙、杂草和垃圾（准则 6"先出画面信号，再掉档"）；`sky.ts`：云、鸟、风滚草。
+- **场地坐标系**（`world/frame.ts`）：每块场地一个旋转的局部坐标系，原点在球网中心。
 
 ### 人物和演出
 
-- 人物是体素小人加程序化动画（`people/`）：走、跑、挥拍、坐、打电话、比划；外观在 `apps/game/src/scene.ts` 的 `LOOKS` 里按人物 id 配。
-- **活动动画库**（`activities/`，ADR 0010）：上课、试训、比赛、清理、烧烤会、拔河等，由原子动作和时间轴（`choreo/`）编排，输入是场地框、条件和参数，可以借用游戏里现成的人物，演完还回去。
+- 人物是约 8×14 像素的精灵（`people/`，小孩约 7×10）：两个朝向，左向由翻转得到，按姿势、击球分段、手势、走路相位取帧；外观按 `PersonOptions` 给槽位换色，在 `apps/game/src/scene.ts` 的 `LOOKS` 里按人物 id 配。
+  画面每帧调 `setPeopleView(ang, k, spriteScale)`，人物据此选朝向、换算挂点。
+- **活动动画库**（`activities/`，ADR 0010）：上课、试训、比赛、清理、烧烤会、拔河等，由原子动作和时间轴（`choreo/`）编排，输入是场地框、条件和参数，可以借用游戏里现成的人物，演完还回去。API 和搬家前一样。
 - 游戏里，模拟的 performance 名字通过 `apps/game/src/perform.ts` 映射到活动库；有人在岗位或工单上干活，就在那个地点的第一块球场上演。
 
 ### 相机
 
-正交相机，拖动旋转、平移，滚轮和双指缩放（`camera/orbit.ts`）；参数由 `Site` 的相机预设提供。卡打开或设施修好时，相机目标点移过去几秒（玩家 5 秒没操作才接管）。
+`IsoCamera`（`core/camera.ts`）：拖动平移、双指和滚轮按档位缩放、Q/E 旋转，`project` / `unproject` 给 DOM 叠层和拖放落点用；参数由 `Site` 的相机预设提供。
+卡打开或设施修好时，相机目标点移过去几秒（玩家 5 秒没操作才接管）；`occludedBottomPx` 让目标点落在没被 HUD 挡住的那部分屏幕中间。
 
 ## 游戏 app 和界面
 
@@ -236,13 +246,13 @@ tennis-director/
 | --- | --- | --- |
 | 一张事件卡 | `events/indian_wells/<id>.yaml` + 文案 | 不用 |
 | 一个岗位或工单 | `posts/` 或 `orders/` + 文案（工单可加 `locked` 预告） | 不用；要演出的话用已有的 performance 名字 |
-| 一个设施状态（例如再修一级） | `facilities.yaml` + 修复工单 + 画面层（`overlays.ts`） | 画面层要写 |
+| 一个设施状态（例如再修一级） | `facilities.yaml` + 修复工单 + 画面档位（`site/<map>/state.ts`、`build.ts`） | 画面层要写 |
 | 一个候选人、一个特质 | `people/`、`traits.yaml` | 不用（长相在 `scene.ts` 的 `LOOKS` 里加一条） |
 | 一个状态量 | `stats.yaml` 注册；要上 HUD 改 `project.ts` | 上 HUD 要写 |
 | 一种导演风格 | `directors/` | 不用 |
 | 一种新效果或条件 | `content` 的 schema 和编译器校验 + `sim/effects.ts` 或 `vars.ts`；`COMPUTED_VARS` 两边一致 | 是 |
-| 一种新活动演出 | `render/activities/` 写演出 + `apps/game/src/perform.ts` 映射 | 是 |
-| 一张新地图 | `render/scenes/<map>/` 实现 `Site` + 一份地图 YAML 和内容 | 只写场景 |
+| 一种新活动演出 | `iso/src/activities/` 写演出 + `apps/game/src/perform.ts` 映射 | 是 |
+| 一张新地图 | `iso/src/site/<map>/` 实现 `Site` + 一份地图 YAML 和内容 | 只写场景 |
 
 ## 工程实践
 
@@ -255,18 +265,17 @@ tennis-director/
 
 | 风险 | 后果 | 应对 |
 | --- | --- | --- |
-| 动画逻辑里偷偷改数值 | 存档、回放、测试全部失效 | 分层规则禁止 render 写状态；确定性测试；待补"有无画面一致"测试 |
+| 动画逻辑里偷偷改数值 | 存档、回放、测试全部失效 | 分层规则禁止 iso 写状态；确定性测试；待补"有无画面一致"测试 |
 | 画面步道和内容导航图对不上 | 人走的路和花的时间不一致 | `game.test.ts` 检查两边相差不超过 1 分钟 |
-| 精细场景替换灰盒时破坏 `Site` 约定 | 地点牌、演出、走位错位 | 精细场景复用 `layout.ts` 的锚点、站位和球场框；组装测试兜底；重建画面回归 |
-| three.js 从 r128 升级 | 色彩管理、光照单位变了，画面偏色偏暗 | 单独一步做，对照截图调光照 |
-| 地图变大（Indian Wells 约 210 × 150 米）后手机性能 | 帧率低、发热 | 灰盒和精细场景都要量绘制调用和帧率；画质档位 |
+| 改场景时破坏 `Site` 约定 | 地点牌、演出、走位错位 | 复用 `layout.ts` 的锚点、站位和球场框；组装测试兜底；重建画面回归 |
+| CPU 光栅在低端安卓上慢 | 帧率低、发热 | 静态层缓存，每帧只画动态物件；看 `IsoView.stats`；必要时降缓冲分辨率 |
+| 设施状态一变就重烘静态层 | 换档那一帧卡一下（约 100 ms） | 同一轮的多个 `set` 合并成一次重建；旋转、缩放途中不缓存 |
 | 存档格式变动 | 测试玩家的存档失效 | 每次改格式都写迁移函数 |
 | 多个协作者（含子 agent）同时改 i18n 和内容 | 合并冲突 | 按轨道分任务（backlog）；界面任务只加 `ui.*` 键 |
 
 ## 待定事项
 
 - [ ] 正式部署在哪（GitHub Pages、Cloudflare Pages、itch.io），PR 预览怎么出。
-- [ ] three.js 升级到哪个版本、什么时候升（建议精细场景开工前）。
 - [ ] 是否需要云存档或账号：需要的话要加后端，目前是纯前端。
 - [ ] 是否要求跨浏览器结果一致（回放分享、云存档时必须保证）。
 - [ ] 内容层的 `act` 是否改名成 `site`（等第二张地图时再说）。

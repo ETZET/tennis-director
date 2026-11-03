@@ -1,8 +1,7 @@
-import { createStage, indianWells, OrbitCamera, type Site } from '@td/render';
+import { createIsoWorld, type IsoCameraPose, indianWells, type Site, setPeopleView } from '@td/iso';
 import { clamp } from '@td/shared';
 import { CONTENT, type ContentBundle, canAssign, DIRECTOR, type SimEvent, worldOf } from '@td/sim';
 import { type HudActions, mountHud, setHudStrings } from '@td/ui';
-import type * as THREE from 'three';
 import { createDebug } from './debug';
 import { GameLabels } from './labels';
 import { clearAutosave, downloadSave, readAutosave, writeAutosave } from './persist';
@@ -12,7 +11,7 @@ import { Session } from './session';
 import { createText, type Lang } from './text';
 
 /**
- * 正式游戏入口：模拟（@td/sim）+ 画面（@td/render）+ 界面（@td/ui）。
+ * 正式游戏入口：模拟（@td/sim）+ 画面（@td/iso，2.5D 等距像素，ADR 0019）+ 界面（@td/ui）。
  *
  *   真实时间 → Session.frame() → advance() → 领域事件
  *                                       ├→ Projector（HUD 快照、快讯）
@@ -38,27 +37,21 @@ applyHudStrings();
 /* ---------- 舞台：整局只有一张地图（Indian Wells，2026-11-01） ---------- */
 const site: Site = indianWells.INDIAN_WELLS;
 const container = $('stage');
-const stage = createStage(container, site.lighting);
+const HOME: IsoCameraPose =
+  container.clientWidth / Math.max(1, container.clientHeight) < 0.8 ? site.camera.portrait : site.camera.overview;
+// 拖动平移、双指和滚轮缩放由 IsoWorld 绑在画布上；窗口大小变了它自己 resize
+const stage = createIsoWorld(container, { ...indianWells.INDIAN_WELLS_WORLD, pose: HOME });
+const camera = stage.camera;
+camera.limits = {
+  zoom: [...site.camera.limits.zoom],
+  tx: [...site.camera.limits.tx],
+  tz: [...site.camera.limits.tz],
+};
+camera.home = { ...HOME };
+camera.setPose(HOME);
 site.build(stage);
 const scene = createGameScene(stage, content, site);
-const HOME =
-  container.clientWidth / Math.max(1, container.clientHeight) < 0.8 ? site.camera.portrait : site.camera.overview;
-const camera = new OrbitCamera(stage, HOME, site.camera.limits);
-window.addEventListener('resize', () => camera.resize());
-camera.resize();
-camera.bindPointer(stage.renderer.domElement);
-
-// 朝相机那一侧的围网隐藏，场地不像隔着一层玻璃
-const fenceBays: { m: THREE.Object3D; nx: number; nz: number }[] = [];
-stage.scene.traverse((o) => {
-  const n = o.userData.fenceNormal as { x: number; z: number } | undefined;
-  if (n) fenceBays.push({ m: o, nx: n.x, nz: n.z });
-});
-function cutAwayNearFences() {
-  const dx = Math.sin(camera.smooth.yaw);
-  const dz = Math.cos(camera.smooth.yaw);
-  for (const b of fenceBays) b.m.visible = b.nx * dx + b.nz * dz < 0.3;
-}
+// 等距画面里围网是低矮的像素栅栏，不用再按镜头方向隐藏近处的围网（旧 three 版的 cutAwayNearFences 去掉了）
 
 /* ---------- 一局 ---------- */
 let session: Session;
@@ -69,6 +62,10 @@ function begin(s: Session): void {
   projector = new Projector(content, text);
   scene.sync(s.s);
   camera.reset();
+  // 开场镜头对准总监（开局他站在大门口，默认视角里在屏幕外；QA P2-3）：总监落在画面中间偏右
+  const d = s.s.people[DIRECTOR];
+  const at = d && !d.walk ? site.stands[d.at] : null;
+  if (at) camera.setPose({ ...HOME, tx: at.x - 22, tz: at.z - 8 });
   draw();
 }
 
@@ -165,7 +162,7 @@ function answer(key: 1 | 2 | 3): void {
 const draw = () => ui.update(projector.snapshot(session));
 
 /* ---------- 地点牌、岗位和工单的标记 ---------- */
-const labels = new GameLabels($('labels'), stage.cam);
+const labels = new GameLabels($('labels'), camera);
 labels.occluders = () =>
   [...document.querySelectorAll('.td-bug,.td-strip-wrap,.td-card,.td-wire,.td-bug-status,.td-staff,.td-sheet')].map(
     (el) => el.getBoundingClientRect(),
@@ -173,6 +170,51 @@ labels.occluders = () =>
 const ground = (a: string, dy: number) => () => {
   const p = site.stands[a] ?? { x: 0, z: 0 };
   return { x: p.x, y: site.groundY(p.x, p.z) + dy, z: p.z };
+};
+/**
+ * 地点牌指的点（QA P2-4）：站位是人站的地方（几处球场的站位都挤在中间的十字路口，牌子会叠在别的场地上、
+ * 盖住站着的人），所以牌子指向地点本身——有球场的地方指场地远端的边（中心正上方那一段），
+ * 引线不穿过场上的人；其他地方指地点中心。
+ */
+const footprint = (a: string): { x: number; z: number }[][] => {
+  const frs = site.courts[a];
+  if (frs?.length)
+    return frs.map((f) =>
+      [
+        [-1, -1],
+        [1, -1],
+        [1, 1],
+        [-1, 1],
+      ].map(([i, j]) => {
+        const p = f.w({ x: (i as number) * f.hx, z: (j as number) * f.hz });
+        return { x: p.x, z: p.z };
+      }),
+    );
+  const c = site.anchors[a] ?? site.stands[a] ?? { x: 0, z: 0 };
+  return [[c]];
+};
+const placePoint = (a: string) => {
+  const polys = footprint(a);
+  const c = site.anchors[a] ?? site.stands[a] ?? { x: 0, z: 0 };
+  return (): { x: number; y: number } => {
+    const cq = camera.project(c.x, site.groundY(c.x, c.z), c.z);
+    let best: { x: number; y: number } | null = null;
+    let topV: { x: number; y: number } | null = null;
+    for (const poly of polys) {
+      const pts = poly.map((p) => camera.project(p.x, site.groundY(p.x, p.z) + 0.1, p.z));
+      if (pts.length === 1) return pts[0] as { x: number; y: number };
+      // 竖线 x = 中心的屏幕 x 和这块场地的边相交，取最上面的交点
+      for (let i = 0; i < pts.length; i++) {
+        const u = pts[i] as { x: number; y: number };
+        const v = pts[(i + 1) % pts.length] as { x: number; y: number };
+        if (!topV || u.y < topV.y) topV = u;
+        if ((u.x - cq.x) * (v.x - cq.x) > 0 || u.x === v.x) continue;
+        const y = u.y + ((cq.x - u.x) / (v.x - u.x)) * (v.y - u.y);
+        if (!best || y < best.y) best = { x: cq.x, y };
+      }
+    }
+    return best ?? topV ?? cq;
+  };
 };
 const director = () => session.s.people[DIRECTOR];
 /** 拉远看整座岛时（手机默认视角），只给总监所在、正要去、有事的地方挂名字；其余缩成小圆点 */
@@ -187,10 +229,29 @@ const placeFlags = (a: string) => {
   });
   return { here, dest, card, dot: labels.compact && !here && !dest && !card };
 };
+/** 牌子的摆放优先级：打开的、要去的、有事的、能接手里这个人的先摆，其余让位（QA P1-2） */
+const placePrio = (a: string, base: number) => () => {
+  const f = placeFlags(a);
+  const h = hubOf(a);
+  return (
+    base +
+    (session.place === a ? 60 : 0) +
+    (f.card ? 40 : 0) +
+    (f.dest ? 30 : 0) +
+    (f.here ? 20 : 0) +
+    (h?.fit === 'fit' ? 25 : 0) +
+    (h?.posts.some((p) => p.need) ? 6 : 0) +
+    (h?.ready ? 4 : 0)
+  );
+};
 for (const a of content.acts[0]?.anchors ?? []) {
   const placeLabel = labels.add({
     get: ground(a, 0.2),
-    lift: () => (placeFlags(a).dot ? 10 : 34),
+    screen: placePoint(a),
+    lift: () => (placeFlags(a).dot ? 8 : 18),
+    prio: placePrio(a, 0),
+    crowded: 'dot',
+    keepOnScreen: true,
     // 缩成小圆点的地方如果立着地点牌，圆点就不画了（地点牌本身能点）
     // 立着地点牌的地方，名字和状态（总监在这儿、正要去、有卡）都画在地点牌上（一个地点只有一块牌）
     text: () => (hubOf(a) ? null : text.anchor(a)),
@@ -205,6 +266,9 @@ for (const a of content.acts[0]?.anchors ?? []) {
     // 活动牌挂在场地中央（地点牌在门口），两块牌子不叠在一起
     get: center ? () => ({ x: center.x, y: site.groundY(center.x, center.z) + 0.2, z: center.z }) : ground(a, 0.2),
     lift: 20,
+    prio: () => -10,
+    crowded: 'hide',
+    stem: false,
     cls: () => 'act',
     text: () => {
       const s = session.s;
@@ -231,9 +295,13 @@ function addHubs(c: ContentBundle): void {
   for (const a of c.acts[0]?.anchors ?? []) {
     const m = labels.add(
       {
-        get: ground(a, 1.2),
-        lift: 6,
+        // 牌子指向地点本身（球场远端的边、地点中心），不压在站位上的人头上（QA P2-4）
+        get: ground(a, 0),
+        screen: placePoint(a),
+        lift: 18,
         keepOnScreen: true,
+        prio: placePrio(a, 10),
+        crowded: 'dot',
         text: () => (hubOf(a) ? text.anchor(a) : null),
         html: () => {
           const h = hubOf(a);
@@ -296,7 +364,10 @@ addHubs(content);
 // 总监走在路上时头顶挂个"你"
 labels.add({
   get: () => scene.directorHead(),
-  lift: 0,
+  // 头顶还有个像素菱形（scene.ts），牌子再高一点
+  lift: () => 12 + 3 * Math.max(1, stage.view.proj.spriteScale),
+  prio: () => 1000,
+  stem: false,
   cls: () => 'you',
   text: () => (director()?.walk ? text.tr('ui.you') : null),
 });
@@ -367,14 +438,17 @@ function frame(ts: number) {
   const dt = clamp((ts - last) / 1000, 0, 0.05);
   last = ts;
   pump(session.frame(dt));
-  scene.update(session.s, session.time, dt, session.paused);
-  camera.update(dt, scene.focus());
-  stage.renderer.render(stage.scene, stage.cam);
-  cutAwayNearFences();
   const card = document.querySelector('.td-card');
-  camera.occludedBottomPx = card ? container.clientHeight - card.getBoundingClientRect().top : 0;
-  const pxPerM = container.clientHeight / (stage.cam.top - stage.cam.bottom);
-  labels.compact = pxPerM < 4;
+  const occ = card ? Math.max(0, container.clientHeight - card.getBoundingClientRect().top) : 0;
+  if (occ !== camera.occludedBottomPx) camera.occludedBottomPx = occ;
+  camera.update(dt, scene.focus());
+  // 人物取帧要知道镜头转角和精灵档位（people/view.ts），先于人物更新
+  const pr = stage.view.proj;
+  setPeopleView(pr.ang, pr.k, pr.spriteScale);
+  scene.update(session.s, session.time, dt, session.paused);
+  stage.render(dt, scene.showNow());
+  // 拉远看整座岛时地点牌缩成小圆点（旧版按 4 CSS 像素每米；等距默认 k = 3 时约 3 px/m）
+  labels.compact = camera.pxPerM < 3.5;
   hubCache.clear();
   labels.place(container.clientWidth, container.clientHeight);
   uiT += dt;
@@ -467,6 +541,10 @@ declare global {
       session: () => Session;
       setContent: (c: ContentBundle) => void;
       resync: () => void;
+      /** 镜头（截图、试玩时对准某处、转角、缩放） */
+      camera: () => typeof camera;
+      /** 等距画面（试玩、截图时查场景图） */
+      world: () => typeof stage;
       fastForward: (max: number) => { minutes: number; stop: string };
       answer: (key: 1 | 2 | 3) => void;
       /** 把人派到岗位或工单上（null 叫他停下来）；返回 null，或者为什么没成 */
@@ -497,6 +575,8 @@ window.__td = {
   session: () => session,
   setContent,
   resync: () => scene.sync(session.s),
+  camera: () => camera,
+  world: () => stage,
   fastForward,
   answer,
   assign: (person, target) => {

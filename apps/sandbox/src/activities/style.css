@@ -26,8 +26,8 @@ button{font:inherit;color:inherit;cursor:pointer}
 [hidden]{display:none!important}
 code{font:600 .92em var(--cond);background:rgba(15,31,58,.08);padding:0 4px}
 
-/* 一张固定在最底下的画布：画廊里每张卡、舞台都画在它上面对应的区域（剪裁），文字和面板盖在上面 */
-#gl{position:fixed;inset:0;z-index:0;pointer-events:none;display:block}
+/* 每张卡和舞台各有一张 IsoWorld 画布（Canvas 2D 像素画面，垫在标题和按钮下面） */
+canvas.td-iso{z-index:0}
 #app{position:fixed;inset:0;z-index:1;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px)}
 .scroll{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch}
 
@@ -74,8 +74,8 @@ input.plain::-moz-range-track{background:rgba(255,255,255,.25)}
 .cat-h p{margin:2px 0 0;color:#3d4c63;flex-basis:100%;font-size:13.5px}
 .cards{display:grid;grid-template-columns:minmax(0,1fr);gap:12px}
 .card{display:flex;flex-direction:column;text-decoration:none;color:var(--white);min-width:0;box-shadow:0 4px 12px rgba(15,31,58,.25)}
-.card .view{position:relative;aspect-ratio:4/3;width:100%}
-.card .chip{position:absolute;left:0;top:0;font:800 11px/1 var(--cond);letter-spacing:.12em;text-transform:uppercase;background:var(--cc);color:var(--navy);padding:6px 8px}
+.card .view{position:relative;aspect-ratio:4/3;width:100%;overflow:hidden;background:#a9d0e3}
+.card .chip{position:absolute;z-index:1;left:0;top:0;font:800 11px/1 var(--cond);letter-spacing:.12em;text-transform:uppercase;background:var(--cc);color:var(--navy);padding:6px 8px}
 .card .meta{background:var(--navy);padding:10px 12px 12px;display:grid;gap:6px;border-top:3px solid var(--cc)}
 .card h3{margin:0;display:flex;justify-content:space-between;align-items:baseline;gap:8px;font:700 21px/1.1 var(--cond);letter-spacing:.02em}
 .card h3 small{font:600 10px/1 var(--text);letter-spacing:.1em;text-transform:uppercase;color:var(--dim);white-space:nowrap}
@@ -88,15 +88,15 @@ input.plain::-moz-range-track{background:rgba(255,255,255,.25)}
 
 /* ---------- 舞台：手机上舞台在上、面板在下面滚动 ---------- */
 .stage{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
-.sview{flex:none;position:relative;height:clamp(240px,46vh,520px);touch-action:none;cursor:grab;border-bottom:3px solid var(--cc)}
+.sview{flex:none;position:relative;overflow:hidden;height:clamp(240px,46vh,520px);touch-action:none;cursor:grab;border-bottom:3px solid var(--cc)}
 .sview.drag{cursor:grabbing}
-.ttl{position:absolute;left:0;top:0;display:flex;flex-direction:column;align-items:flex-start;pointer-events:none}
+.ttl{position:absolute;z-index:1;left:0;top:0;display:flex;flex-direction:column;align-items:flex-start;pointer-events:none}
 .ttl span{font:800 11px/1 var(--cond);letter-spacing:.12em;text-transform:uppercase;background:var(--cc);color:var(--navy);padding:5px 8px}
 .ttl b{font:700 22px/1 var(--cond);background:var(--navy);color:var(--white);padding:7px 10px;letter-spacing:.03em}
-.play{position:absolute;right:8px;bottom:8px;display:flex;gap:4px}
+.play{position:absolute;z-index:1;right:8px;bottom:8px;display:flex;gap:4px}
 .play button{width:var(--tap);height:var(--tap);border:0;background:rgba(15,31,58,.88);color:var(--white);font:700 15px/1 var(--cond);box-shadow:0 2px 6px rgba(15,31,58,.3)}
 .play button[aria-pressed="true"]{background:var(--optic);color:var(--navy)}
-.hint{position:absolute;left:8px;bottom:8px;font:500 12px/1.2 var(--text);color:var(--white);background:rgba(15,31,58,.7);padding:5px 8px;pointer-events:none;max-width:45%}
+.hint{position:absolute;z-index:1;left:8px;bottom:8px;font:500 12px/1.2 var(--text);color:var(--white);background:rgba(15,31,58,.7);padding:5px 8px;pointer-events:none;max-width:45%}
 .sheet{flex:1 1 auto;min-height:0;overflow-y:auto;background:var(--navy);color:var(--white);-webkit-overflow-scrolling:touch;padding-bottom:env(safe-area-inset-bottom,0px)}
 .acts{display:flex;gap:2px;overflow-x:auto;padding:6px 8px;background:var(--panel);border-bottom:1px solid var(--line);scrollbar-width:none;position:sticky;top:0;z-index:1}
 .acts::-webkit-scrollbar{display:none}
@@ -119,6 +119,8 @@ input.plain::-moz-range-track{background:rgba(255,255,255,.25)}
 .fx li.scene{color:var(--white)}
 .fx li.scene::before{background:var(--cc)}
 
+/* 手机上按钮占满底边，提示让开 */
+@media (max-width:639px){.hint{display:none}}
 /* ---------- 平板：两列卡片 ---------- */
 @media (min-width:640px){
   .cards{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}

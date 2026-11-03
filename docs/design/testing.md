@@ -39,7 +39,7 @@ Oct 29, 2026 · @Enting · 2026-11-01 按 Indian Wells 版本和现有测试重�
 
 1. `pnpm typecheck`：所有工作区的类型检查（TypeScript 7）。
 2. `pnpm lint`：Biome 格式和规范（行宽 120、单引号、尾逗号、import 排序）。
-3. `pnpm check:deps`：分层规则（dependency-cruiser）。sim 不能依赖 render、ui、three.js、Preact；shared 是最底层；render 和 ui 互不引用。
+3. `pnpm check:deps`：分层规则（dependency-cruiser）。sim 不能依赖 iso、ui、three.js、Preact；shared 是最底层；iso 和 ui 互不引用，iso 不依赖 three 和 Preact。
 4. `pnpm test`：全部 Vitest 测试，包括平衡区间。
 5. `pnpm build`：游戏和 sandbox 都能构建。
 
@@ -82,9 +82,11 @@ Oct 29, 2026 · @Enting · 2026-11-01 按 Indian Wells 版本和现有测试重�
 | --- | --- |
 | `packages/shared/src/expr.test.ts` | 表达式语言：运算、变量、函数、`rand()` 用种子流、编译时报错 |
 | `packages/shared/src/rng.test.ts` | 种子随机数：同种子同序列、和原型逐位一致 |
-| `packages/render/src/activities/activities.test.ts` | 活动动画库：注册表完整、变量合法、两种语言的文案；无 WebGL 演完借来的人原样还回去 |
-| `packages/render/src/choreo/scheduler.test.ts`、`motion/ballistics.test.ts` | 演出时间轴、球的飞行和弹跳 |
-| `packages/render/src/scenes/hollow-creek/layout.test.ts` | Hollow Creek 布局（场景代码保留作参考，游戏已不用） |
+| `packages/iso/src/activities/activities.test.ts` | 活动动画库：注册表完整、变量合法、两种语言的文案；在 node 里演完，借来的人原样还回去 |
+| `packages/iso/src/choreo/scheduler.test.ts`、`motion/ballistics.test.ts`、`motion/ball.test.ts` | 演出时间轴、球的飞行和弹跳 |
+| `packages/iso/src/core/core.test.ts` | 场景图、投影、光栅、素材烘焙 |
+| `packages/iso/src/people/person.test.ts`、`people/art.test.ts` | 人物取帧和挂点；真精灵表每个姿势、击球分段、手势都取得到帧 |
+| `packages/iso/src/art/font/font.test.ts`、`art/props/props.test.ts`、`fx/fx.test.ts` | 像素字、道具素材、粒子和漫画字 |
 | `packages/ui/src/hud/format.test.ts` | HUD 数字格式 |
 
 ## 组装测试（`apps/game`）

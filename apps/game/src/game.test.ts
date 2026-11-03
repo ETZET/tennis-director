@@ -1,4 +1,4 @@
-import { indianWells } from '@td/render';
+import { indianWells } from '@td/iso';
 import { advance, CONTENT, newGame, randomBot } from '@td/sim';
 import { describe, expect, it } from 'vitest';
 import { Projector } from './project';

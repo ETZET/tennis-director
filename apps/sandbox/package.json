@@ -11,13 +11,9 @@
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
-    "@td/render": "workspace:*",
+    "@td/iso": "workspace:*",
     "@td/shared": "workspace:*",
     "@td/ui": "workspace:*",
-    "preact": "10.29.8",
-    "three": "0.187.0"
-  },
-  "devDependencies": {
-    "@types/three": "0.187.0"
+    "preact": "10.29.8"
   }
 }

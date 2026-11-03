@@ -1,19 +1,19 @@
 import {
   BallPool,
-  type CameraFocus,
   type ChoreoContext,
+  Custom,
   contactPt,
   createDaylight,
   createRain,
+  type DrawContext,
+  type IsoWorld,
   type PeopleWorld,
   Person,
   type PersonOptions,
   type PoseName,
-  pointAlong,
   Scheduler,
   type Site,
-  type Stage,
-} from '@td/render';
+} from '@td/iso';
 import { clamp, lerp, mulberry32, type XZ } from '@td/shared';
 import {
   type ContentBundle,
@@ -23,15 +23,14 @@ import {
   isStaff,
   postStatus,
   type SimEvent,
-  type Walk,
   type World,
   working,
   worldOf,
 } from '@td/sim';
-import * as THREE from 'three';
 import { idlePlan } from './idle';
 import { createLife } from './life';
 import { type PerformInput, perform, planPerformance } from './perform';
+import { walkHeading, walkPoint } from './walkpath';
 
 /**
  * 游戏画面里的"活"的部分：员工（总监也是）沿路线走、站在岗位上干活、设施状态、活动演出、天气。
@@ -221,25 +220,6 @@ const SHIRTS = [
 const HAIRS = ['#2a1d16', '#6a4a30', '#a7742f', '#d9d3c6', '#3b2a1e', '#9a9a96'];
 const STYLES = ['short', 'pony', 'curly', 'visor', 'bald', 'long', 'cap'] as const;
 
-/** 导航图上一段路要走几分钟 */
-const edgeMinutes = (w: World, a: string, b: string): number => w.nav.get(a)?.find(([n]) => n === b)?.[1] ?? 1;
-
-/** 走在路上的人此刻在画面上的哪儿：按导航图每段的分钟数，在画面路径上插值 */
-function walkPoint(site: Site, w: World, walk: Walk, time: number): XZ {
-  let prev = walk.from;
-  let t0 = walk.start;
-  for (const n of walk.route) {
-    const m = edgeMinutes(w, prev, n);
-    if (time <= t0 + m || n === walk.route[walk.route.length - 1]) {
-      const pts = site.routeLine(prev, n) ?? [site.stands[prev] ?? { x: 0, z: 0 }, site.stands[n] ?? { x: 0, z: 0 }];
-      return pointAlong(pts, clamp((time - t0) / Math.max(1, m), 0, 1));
-    }
-    prev = n;
-    t0 += m;
-  }
-  return site.stands[walk.to] ?? { x: 0, z: 0 };
-}
-
 /** 这个地点现在有几块能打的场地（设施状态里的 courts） */
 export function courtsAt(w: World, s: GameState, anchor: string): number {
   const f = w.facilityAt.get(anchor);
@@ -258,6 +238,39 @@ interface Perf {
   stop(): void;
 }
 
+/** 卡片发生的地方：镜头跟过去（zoom 是相对倍数，等距镜头只用 x、z） */
+export interface CameraFocus {
+  x: number;
+  z: number;
+  zoom?: number;
+}
+
+/** 总监头顶的小菱形（像素画：1 亮绿、2 深绿、0 描边），每行从中心往两边对称 */
+const MARKER_ROWS = ['...0...', '..010..', '.01110.', '0111220', '.02220.', '..020..', '...0...'];
+const MARKER_COL: Record<string, string> = { '0': '#1d3a2a', '1': '#62e08c', '2': '#38a860' };
+/** 总监头顶的标记：一个上下浮动的像素菱形（夜里也亮，像个图标） */
+function directorMarker(): Custom {
+  return new Custom(
+    (r: DrawContext, self: Custom) => {
+      const m = self.matrixWorld;
+      const [sx, sy0] = r.P(m[9] as number, m[10] as number, m[11] as number);
+      let sy = sy0;
+      const n = r.spriteScale;
+      const h = MARKER_ROWS.length;
+      // 挂在头顶挂点上，再往上留 3 个素材像素，上下浮动 1 像素
+      sy -= (3 + Math.round(Math.sin(r.t * 3) + 1)) * n;
+      for (let j = 0; j < h; j++) {
+        const row = MARKER_ROWS[j] as string;
+        for (let i = 0; i < row.length; i++) {
+          const c = MARKER_COL[row[i] as string];
+          if (c) r.rect(Math.round(sx) + (i - 3) * n, Math.round(sy) + (j - h) * n, n, n, r.em(c));
+        }
+      }
+    },
+    { x0: -0.2, x1: 0.2, y0: 0, y1: 0.4, z0: -0.2, z1: 0.2 },
+  );
+}
+
 export interface GameScene {
   /** 每帧调用：time 是带零头的游戏分钟，dt 是真实秒数，paused 时演出也停 */
   update(s: GameState, time: number, dt: number, paused: boolean): void;
@@ -272,14 +285,19 @@ export interface GameScene {
   readonly showNow: () => number;
 }
 
-export function createGameScene(stage: Stage, content0: ContentBundle, site: Site): GameScene {
+export function createGameScene(stage: IsoWorld, content0: ContentBundle, site: Site): GameScene {
   let content = content0;
   const sched = new Scheduler();
   const world: PeopleWorld = { scene: stage.scene, groundY: site.groundY, people: [] };
   const pool = new BallPool(stage.scene, site.groundY);
   const ctx: ChoreoContext = { sched, groundY: site.groundY };
   const overlays = site.createOverlays(stage);
-  const rain = createRain(stage, site.rain);
+  const rain = createRain(
+    stage,
+    undefined,
+    260,
+    (x, z) => x > site.bounds.x0 && x < site.bounds.x1 && z > site.bounds.z0 && z < site.bounds.z1,
+  );
   // 一天的光：画出来的天空和山，灯光跟着游戏时钟走（参考图 Palm Oasis）
   const daylight = createDaylight(stage);
   const sky = site.createSky(stage);
@@ -304,12 +322,9 @@ export function createGameScene(stage: Stage, content0: ContentBundle, site: Sit
     shoes: '#3a2a20',
     clipboard: true,
   });
-  const marker = new THREE.Mesh(
-    new THREE.OctahedronGeometry(0.26, 0),
-    new THREE.MeshBasicMaterial({ color: '#62e08c' }),
-  );
-  marker.position.y = 2.75;
-  you.root.add(marker);
+  const marker = directorMarker();
+  marker.renderOrder = 5;
+  you.headTop.add(marker);
 
   /** 环境动画自己的时钟（暂停时停；暂停中游戏时间跳了就补一段） */
   let ambT = 0;
@@ -411,8 +426,13 @@ export function createGameScene(stage: Stage, content0: ContentBundle, site: Sit
     });
   }
 
+  /** 雨量直接到位（不淡入）：读档、快进以后不该先晴几秒再下（QA P2-7） */
+  const snapRain = () => rain.update(60, 0, 0);
   function sync(s: GameState): void {
     state = s;
+    if (s.weather === 'rain') rain.start();
+    else rain.stop();
+    snapRain();
     for (const p of running.values()) p.stop();
     running.clear();
     releaseCoach();
@@ -424,10 +444,15 @@ export function createGameScene(stage: Stage, content0: ContentBundle, site: Sit
     jobShows.clear();
     idleSince.clear();
     lastTime = null;
+    const count = new Map<string, number>();
     for (const [id, p] of Object.entries(s.people)) {
       const who = staffPerson(id);
       if (!who || !p.hired) continue;
-      const at = STANDS[p.at] ?? home;
+      const st = STANDS[p.at] ?? home;
+      // 和 placeStaff 一样：没有球场的地点不站在站位正中（站位贴着门柱、柱子），同一处的人错开
+      const k = count.get(p.at) ?? 0;
+      count.set(p.at, k + 1);
+      const at = site.courts[p.at]?.length && !p.job ? st : workSpot(p.at, st, k);
       who.clearMoves();
       who.pos.x = at.x;
       who.pos.z = at.z;
@@ -436,16 +461,58 @@ export function createGameScene(stage: Stage, content0: ContentBundle, site: Sit
 
   /* ---------- 员工：每个人按岗位站好，走在路上的沿画面路径走（ADR 0012） ---------- */
   const staffPerson = (id: string): Person | null => (id === DIRECTOR ? you : (cast.get(id) ?? null));
-  /** 同一个地点站着几个人：按顺序错开一点，不叠在一起 */
+  /**
+   * 同一个地点站着几个人：按顺序错开（QA P2-6：以前都挤在站位上，有的站进了柱子里）。
+   * 站位本身常常贴着楼、柱子、门柱（会所的露台柱、大门的门柱），所以第一个人也不站在站位正中，
+   * 而是往南（默认镜头这边、楼外面）挪一点，几个人前后左右错开 1.4 米以上。
+   */
   const SPREAD = [
-    { x: 0, z: 0 },
-    { x: 1.3, z: 0.6 },
-    { x: -1.3, z: 0.6 },
-    { x: 0.6, z: -1.2 },
-    { x: -0.6, z: -1.2 },
-    { x: 2.4, z: -0.4 },
-    { x: -2.4, z: -0.4 },
+    { x: -1.2, z: 1.6 },
+    { x: 0.2, z: 2.8 },
+    { x: -1.6, z: 3.4 },
+    { x: -0.6, z: 4.4 },
+    { x: 1.4, z: 4.0 },
+    { x: -2.8, z: 4.6 },
+    { x: 0.8, z: 5.6 },
   ];
+  /** 场上干活的人：在底线外沿着底线错开（x 是离网远近，z 是沿底线） */
+  const COURT_SPREAD = [
+    { x: 0, z: 0 },
+    { x: 1.4, z: 2.4 },
+    { x: -0.2, z: 4.6 },
+    { x: 1.4, z: -2.4 },
+    { x: 1.2, z: 6.8 },
+    { x: -0.4, z: -4.4 },
+    { x: -0.4, z: 8.8 },
+  ];
+  /**
+   * 第 k 个在这个地点干活（或闲着溜达的中心）的人站哪儿（只是画面）：
+   * 有球场的地点站在离站位最近的那块场地里、靠站位那头的底线外（围网里面的空地，不站在围网后面，
+   * 也不和清场演出的垃圾箱叠在一起）；其他地点在站位旁边错开。
+   */
+  function workSpot(at: string, base: XZ, k: number): XZ {
+    const frs = site.courts[at];
+    if (frs?.length) {
+      let f = frs[0] as (typeof frs)[number];
+      for (const g of frs)
+        if (Math.hypot(g.ox - base.x, g.oz - base.z) < Math.hypot(f.ox - base.x, f.oz - base.z)) f = g;
+      const l = f.l(base);
+      const sx = l.x >= 0 ? 1 : -1;
+      const sz = l.z >= 0 ? 1 : -1;
+      // 底线外那一条（清场演出的垃圾箱在 (±9.2, -4.6) 附近，球员站位在底线以内）
+      const bx = sx * 12.6;
+      const bz = l.z * 0.2;
+      const o = COURT_SPREAD[k % COURT_SPREAD.length] as XZ;
+      let x = clamp(bx + sx * o.x, -(f.hx - 1.2), f.hx - 1.2);
+      // 不站在网上
+      if (Math.abs(x) < 1.4) x = sx * 1.4;
+      const z = clamp(bz - sz * o.z, -(f.hz - 1), f.hz - 1);
+      const p = f.w({ x, z });
+      return { x: p.x, z: p.z };
+    }
+    const o = SPREAD[k % SPREAD.length] as XZ;
+    return { x: base.x + o.x, z: base.z + o.z };
+  }
   function placeStaff(s: GameState, w: World, time: number, sdt: number): void {
     const count = new Map<string, number>();
     for (const id of Object.keys(s.people).sort((a, b) =>
@@ -472,22 +539,36 @@ export function createGameScene(stage: Stage, content0: ContentBundle, site: Sit
       const idle = !p.walk && !p.errand && (!p.job || offHours);
       if (!idle) idleSince.set(id, time);
       const plan = idle
-        ? idlePlan(id, time, time - (idleSince.get(id) ?? time), base, !!who.phone, offHours ? 3.5 : 6, center)
+        ? idlePlan(
+            id,
+            time,
+            time - (idleSince.get(id) ?? time),
+            site.courts[p.at]?.length ? base : workSpot(p.at, base, 0),
+            !!who.phone,
+            offHours ? 3.5 : 6,
+            center,
+          )
         : null;
+      // 走在路上：面朝路线这一段的走向（不按追插值点剩下的零头转身，QA P1-1）
+      const heading = p.walk ? walkHeading(site, w, p.walk, time) : null;
       if (p.walk) target = walkPoint(site, w, p.walk, time);
       else if (plan) target = { x: plan.x, z: plan.z };
-      else {
-        const o = SPREAD[k % SPREAD.length] as XZ;
-        target = { x: base.x + o.x, z: base.z + o.z };
-      }
+      else target = workSpot(p.at, base, k);
       const dist = Math.hypot(target.x - who.pos.x, target.z - who.pos.z);
       who.clearMoves();
+      if (p.walk && heading != null) who.idleFace = heading;
       if (sdt > 0 && dist > 0.01)
-        who.go(target.x, target.z, plan ? Math.min(2.6, Math.max(0.9, dist / sdt)) : Math.max(1.2, dist / sdt));
+        who.go(
+          target.x,
+          target.z,
+          plan ? Math.min(2.6, Math.max(0.9, dist / sdt)) : Math.max(1.2, dist / sdt),
+          heading != null ? { face: heading } : {},
+        );
       else if (jumped) {
         // 暂停时游戏时间跳了（试玩桥、调试快进）：直接站到该在的地方
         who.pos.x = target.x;
         who.pos.z = target.z;
+        if (heading != null) who.yaw = heading;
       }
       if (!p.walk) {
         // 站着的时候面朝地点的中心（球场、喷泉、会所）；闲着时东张西望
@@ -602,7 +683,7 @@ export function createGameScene(stage: Stage, content0: ContentBundle, site: Sit
 
   /* ---------- 园区的日常：来打球的会员、路人、风沙（准则 6） ---------- */
   const life = createLife({
-    stage,
+    world: stage,
     site,
     courtsAt: (s, a) => courtsAt(worldOf(s, content), s, a),
     sched,
@@ -697,6 +778,12 @@ export function createGameScene(stage: Stage, content0: ContentBundle, site: Sit
       state = s;
       const sdt = paused ? 0 : dt;
       jumped = paused && lastTime !== null && Math.abs(time - lastTime) > 0.5;
+      // 时间跳了（快进、调试跳天）：天气按此刻的模拟状态直接到位
+      if (jumped || (lastTime !== null && Math.abs(time - lastTime) > 30)) {
+        if (s.weather === 'rain') rain.start();
+        else rain.stop();
+        snapRain();
+      }
       lastTime = time;
       sched.advance(sdt);
 
@@ -724,8 +811,6 @@ export function createGameScene(stage: Stage, content0: ContentBundle, site: Sit
 
       for (const p of world.people) p.update(sdt, sched.now);
       pool.update(sched.now);
-      marker.rotation.y += dt * 2;
-      marker.position.y = 2.75 + Math.sin(sched.now * 3) * 0.08;
       rain.update(sdt, 0, 0);
       daylight.update(time % 1440, rain.amount());
       // 风力：大风天最大，春天风季次之（ambient 里风滚草和扬沙跟着变）
@@ -739,7 +824,10 @@ export function createGameScene(stage: Stage, content0: ContentBundle, site: Sit
           sky.update(0.1, ambT, rain.amount(), wind);
         }
     },
-    directorHead: () => ({ x: you.pos.x, y: you.root.position.y + 3.3, z: you.pos.z }),
+    directorHead: () => {
+      const p = you.headTop.getWorldPosition();
+      return { x: p.x, y: p.y, z: p.z };
+    },
     focus() {
       if (!focusAnchor || sched.now > focusUntil) return null;
       const p = STANDS[focusAnchor];
