@@ -1,8 +1,8 @@
 /**
  * 分层规则（技术文档「协作规范：分层由工具强制」）。
  *
- * 依赖方向只能往下：apps → render / ui → sim → shared。
- * content 只由 sim 读取；render 和 ui 互不直接引用，只通过模拟快照和命令沟通。
+ * 依赖方向只能往下：apps → iso / ui → sim → shared。
+ * content 只由 sim 读取；iso 和 ui 互不直接引用，只通过模拟快照和命令沟通。
  */
 /** @type {import('dependency-cruiser').IConfiguration} */
 module.exports = {
@@ -12,7 +12,7 @@ module.exports = {
       comment: '模拟核心不能依赖画面、界面、three.js、Preact。它要能在命令行里无头跑。',
       severity: 'error',
       from: { path: '^packages/sim/' },
-      to: { path: ['^packages/(render|iso|ui)/', 'node_modules/(three|preact|@preact)/'] },
+      to: { path: ['^packages/(iso|ui)/', 'node_modules/(three|preact|@preact)/'] },
     },
     {
       name: 'shared-is-leaf',
@@ -22,18 +22,11 @@ module.exports = {
       to: { path: '^packages/(?!shared/)' },
     },
     {
-      name: 'render-not-ui',
-      comment: '画面层不直接引用界面层。',
-      severity: 'error',
-      from: { path: '^packages/render/' },
-      to: { path: '^packages/ui/' },
-    },
-    {
       name: 'iso-not-ui',
       comment: '等距画面层不直接引用界面层，也不依赖 three 和 Preact（ADR 0019）。',
       severity: 'error',
       from: { path: '^packages/iso/' },
-      to: { path: ['^packages/(ui|render)/', 'node_modules/(three|preact|@preact)/'] },
+      to: { path: ['^packages/ui/', 'node_modules/(three|preact|@preact)/'] },
     },
     {
       name: 'ui-not-iso',
@@ -43,17 +36,10 @@ module.exports = {
       to: { path: '^packages/iso/' },
     },
     {
-      name: 'ui-not-render',
-      comment: '界面层不直接引用画面层。',
-      severity: 'error',
-      from: { path: '^packages/ui/' },
-      to: { path: '^packages/render/' },
-    },
-    {
       name: 'content-only-via-sim',
       comment: '内容数据只由模拟核心读取。',
       severity: 'error',
-      from: { path: '^packages/(render|iso|ui|shared)/' },
+      from: { path: '^packages/(iso|ui|shared)/' },
       to: { path: '^packages/content/' },
     },
     {
@@ -65,7 +51,7 @@ module.exports = {
     },
     {
       name: 'no-unresolvable',
-      comment: '引用了 package.json 里没声明的包（pnpm 的包边界会让它解析失败），例如在 sim 里 import @td/render。',
+      comment: '引用了 package.json 里没声明的包（pnpm 的包边界会让它解析失败），例如在 sim 里 import @td/iso。',
       severity: 'error',
       from: {},
       to: { couldNotResolve: true, dependencyTypesNot: ['type-only'] },

@@ -1,6 +1,6 @@
 /**
  * 界面层（Preact）：HUD、事件卡、俱乐部快讯。
- * 只读状态快照、只发命令；不直接引用 @td/render。
+ * 只读状态快照、只发命令；不直接引用 @td/iso。
  */
 
 export { type DebugHandle, DebugPanel, mountDebug } from './debug/DebugPanel';

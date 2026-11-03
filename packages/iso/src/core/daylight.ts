@@ -1,5 +1,5 @@
 /**
- * 一天的光（从 packages/render/src/world/daylight.ts 的关键帧搬来）：按游戏分钟给天空、群山、地平线的颜色，
+ * 一天的光（从旧的 three.js 版 daylight 关键帧搬来）：按游戏分钟给天空、群山、地平线的颜色，
  * 太阳 / 月亮，星星，调色板夜色（0 白天 .. 1 深夜）和灯光强度。只读时间和雨量，不碰模拟。
  * `daylightAt` 是纯函数；`createDaylight` 把结果交给 IsoView（它自己按档位决定什么时候重画）。
  */
