@@ -354,7 +354,7 @@ const View={cur:null,ang:0,angT:0,rotFrom:0,rotStart:-1,zoom:1,panX:0,panY:0,tra
  setNight(n){this.fade();night=n;this.build();},
  rotate(d){this.rotFrom=this.ang;this.angT+=d*Math.PI/2;this.rotStart=performance.now();},
  fade(){if(buf&&!matchMedia('(prefers-reduced-motion: reduce)').matches){this.prev=buf.slice();this.trans=performance.now();}},
- frame(now){const dt=Math.min(0.05,(now-this.last)/1000);this.last=now;T+=dt;
+ frame(now){const dt=Math.max(0,Math.min(0.05,(now-this.last)/1000));this.last=now;T+=dt;
   if(this.rotStart>=0){const u=Math.min(1,(now-this.rotStart)/450);const e=u<.5?4*u*u*u:1-Math.pow(-2*u+2,3)/2;this.ang=this.rotFrom+(this.angT-this.rotFrom)*e;if(u>=1){this.ang=this.angT;this.rotStart=-1;}}
   setM(this.ang);this.fit();
   if(buf){drawBackdrop();drawPad();for(const g of GROUND)g();drawShadows();drawSorted(S);for(const f of OVER)f();
