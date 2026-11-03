@@ -1,12 +1,12 @@
 import type { Rand } from '@td/shared';
-import type * as THREE from 'three';
+import type { Node } from '../core/graph';
 import type { Scheduler } from '../choreo/scheduler';
 import type { PeopleWorld, Person } from '../people/person';
 import type { CourtFrame } from '../world/frame';
 
 /**
  * 活动动画库（ADR 0010）的公共类型。
- * 这一份只有类型，不碰 three.js 的运行时，注册表和测试可以直接引用。
+ * 这一份只有类型，不碰画布，注册表和测试可以直接引用。
  */
 
 export type Weather = 'sun' | 'cloud' | 'rain' | 'wind' | 'heat';
@@ -83,7 +83,7 @@ export interface ActivityMeta {
 /** 演出要用的外部环境：场景、时间轴、人物世界、地面高度。 */
 export interface ActivityEnv {
   /** 活动的东西挂在这里（世界坐标） */
-  readonly scene: THREE.Object3D;
+  readonly scene: Node;
   /** 演出时间轴（暂停、变速都在这里） */
   readonly sched: Scheduler;
   /** 人物列表（宿主每帧 update 它们）和世界坐标的地面高度 */
