@@ -390,6 +390,8 @@ export interface DrawContext {
   ): void;
   cyl(x: number, z: number, r: number, y0: number, y1: number, hex: string, o?: { lit?: number; top?: string }): void;
   pix(x: number, y: number, c: number): void;
+  /** 压暗一个像素（影子）：f 是亮度倍率 */
+  darken(x: number, y: number, f: number): void;
   rect(x: number, y: number, w: number, h: number, c: number): void;
   line(x0: number, y0: number, x1: number, y1: number, c: number, w?: number): void;
   ell(cx: number, cy: number, rx: number, ry: number, c: number): void;

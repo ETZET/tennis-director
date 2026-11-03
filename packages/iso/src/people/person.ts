@@ -3,7 +3,7 @@ import type { Facing, PersonSheet, PixelArt, SlotColors } from '../art/format';
 import { ADULT, BODY_OVERLAYS, HAIR_OVERLAYS, KID, KID_BODY_OVERLAYS, KID_HAIR_OVERLAYS } from '../art/people';
 import { HELD, HELD_SLOTS } from '../art/props/held';
 import { bakeArt } from '../core/art';
-import { type BakedArt, Group, Node, Sprite, V3 } from '../core/graph';
+import { type BakedArt, Custom, type DrawContext, Group, Node, Sprite, V3 } from '../core/graph';
 import { type FramePick, pickFrame, strokeKey } from './frames';
 import { CAP_STYLES, personSlots } from './looks';
 import { type GestureName, type PoseName, STROKES, type StrokeName } from './poses';
@@ -201,6 +201,27 @@ export class Person {
     root.add(this.body);
     this.body.add(this.legL, this.legR, this.upper);
     this.upper.add(this.head, this.armL, this.armR);
+
+    // 脚下的影子：一小块压暗的椭圆，贴着地面（跳起来时留在地上）
+    const shadow = new Custom(
+      (r: DrawContext, self: Custom) => {
+        const w = self.getWorldPosition();
+        const gy = this.world.groundY(w.x, w.z);
+        const [sx, sy] = r.P(w.x, gy, w.z);
+        const s = r.spriteScale * (this.sheet === KID ? 0.75 : 1);
+        const rx = 3.5 * s;
+        const ry = 1.5 * s;
+        for (let y = Math.floor(sy - ry); y <= Math.ceil(sy + ry); y++)
+          for (let x = Math.floor(sx - rx); x <= Math.ceil(sx + rx); x++) {
+            const dx = (x + 0.5 - sx) / rx;
+            const dy = (y + 0.5 - sy) / ry;
+            if (dx * dx + dy * dy <= 1) r.darken(x, y, 0.72);
+          }
+      },
+      { x0: -0.3, x1: 0.3, y0: 0, y1: 0.05, z0: -0.3, z1: 0.3 },
+    );
+    shadow.renderOrder = -0.05;
+    root.add(shadow);
 
     this.sprite = new Sprite();
     this.body.add(this.sprite);
