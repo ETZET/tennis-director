@@ -35,6 +35,13 @@ export interface Site {
   routeLine(a: string, b: string): XZ[] | null;
   /** 地点 → 那儿的球场（演出、路人打球、员工朝向用）；一个地点可以有几块场地 */
   readonly courts: Readonly<Record<string, readonly CourtFrame[]>>;
+  /**
+   * 按设施修成的变体给这个地点的球场（可选；wave1-contract.md「变体」）。变体改了场地的画法
+   * （比如一块场子从两片匹克球改成四片），演出就得用画出来的那几块。
+   * variant 为 null 或不认识的变体、不分叉的地点 = 和 courts[anchor] 一样；不认识的地点返回空表。
+   * 没提供这个方法的地图一律用 courts。
+   */
+  courtsFor?(anchor: string, variant: string | null): readonly CourtFrame[];
   /** 地点 → 不是球场的空地（烧烤会之类的演出） */
   readonly grounds: Readonly<Record<string, CourtFrame>>;
   /** 地面贴图 + 静态节点；同一条种子随机流，顺序就是画面 */
