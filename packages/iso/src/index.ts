@@ -4,9 +4,9 @@
 export * as activities from './activities';
 export * from './ambient';
 export * from './art/creatures';
-export type { Facing, PixelArt, PersonSheet, SlotColors } from './art/format';
-export { ICON_ART, type IconName } from './art/icons';
 export { textArt } from './art/font';
+export type { Facing, PersonSheet, PixelArt, SlotColors } from './art/format';
+export { ICON_ART, type IconName } from './art/icons';
 export * from './choreo/scheduler';
 export * from './choreo/shots';
 export * from './core';

@@ -4,7 +4,7 @@
  * 颜色打包成 Uint32（ABGR，小端，和 ImageData 一致）；0 = 透明。
  */
 
-export const clamp = (v: number, a: number, b: number): number => (v < a ? a : v > b ? b : v);
+export const clamp = (v: number, a: number, b: number): number => (v < a ? a : Math.min(v, b));
 
 const BAY = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5].map((v) => (v + 0.5) / 16);
 /** 4×4 Bayer 阈值 0..1 */

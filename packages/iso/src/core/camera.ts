@@ -27,7 +27,7 @@ export const ZOOM_STEPS: readonly number[] = [2, 3, 4, 5.2, 7.8, 11.7, 15.6];
 const ROT_DUR = 0.45;
 const HALF_PI = Math.PI / 2;
 
-const clamp = (v: number, a: number, b: number) => (v < a ? a : v > b ? b : v);
+const clamp = (v: number, a: number, b: number) => (v < a ? a : Math.min(v, b));
 
 export class IsoCamera {
   readonly target: IsoCameraPose;

@@ -588,7 +588,7 @@ export class Raster implements DrawContext {
     const k = this.proj.k;
     const a = this.P(x, y0, z);
     const b = this.P(x, y1, z);
-    const rx = r * k * 1.4142;
+    const rx = r * k * Math.SQRT2;
     const ry = rx * 0.5;
     const c1 = this.col(hex, 0.92, lit);
     const c2 = this.col(hex, 0.76, lit);

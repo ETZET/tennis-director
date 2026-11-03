@@ -1,6 +1,6 @@
 import type { Rand } from '@td/shared';
-import type { Node } from '../core/graph';
 import type { Scheduler } from '../choreo/scheduler';
+import type { Node } from '../core/graph';
 import type { PeopleWorld, Person } from '../people/person';
 import type { CourtFrame } from '../world/frame';
 
