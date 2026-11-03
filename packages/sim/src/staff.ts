@@ -4,7 +4,7 @@ import { applyEffects, type Ctx, run, setStat } from './effects';
 import { rand } from './rng';
 import { DIRECTOR, type EffectRecord, type GameState, minuteOfDay, type PersonState, weekdayOf } from './state';
 import { isStaff, num, test } from './vars';
-import { leaveJob, walkTo } from './walk';
+import { haltWalk, leaveJob, walkTo } from './walk';
 import type { World } from './world';
 
 /**
@@ -242,6 +242,8 @@ export function assign(ctx: Ctx, person: string, target: string | null, learn = 
   leaveJob(ctx, person);
   const p = s.people[person] as PersonState;
   if (target === null) {
+    // 叫停：走在路上的人不再去原来的地方，走到脚下这段路近的那头站住（walk.ts haltWalk）
+    haltWalk(ctx, person);
     ctx.events.push({ type: 'assigned', person, target: null });
     return true;
   }
