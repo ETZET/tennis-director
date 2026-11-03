@@ -14,6 +14,7 @@ import {
   facility,
   minutes,
   OPTION_KEYS,
+  type Order,
   order,
   PERSON_KINDS,
   person,
@@ -78,9 +79,15 @@ export const COMPUTED_VARS = [
   'idle_days',
   /** 离上一张卡打开过了几天（任何来源的卡；导演在长时间没卡时用） */
   'quiet_days',
+  /** 星级 0..5（LG-10）：已经达到的最高星，不往回掉 */
+  'stars',
+  /** 奖杯数（LG-10）：效果 { trophy: n } 加 */
+  'trophies',
 ] as const;
 /** 设施状况变量：condition.<设施 id> = 0..100 */
 export const CONDITION_VAR = /^condition\.([a-z][a-z0-9_]*)$/;
+/** 变体变量：variant.<设施 id> = 修成（或者正在修成）的变体 id，没选过是 ''（LG-14） */
+export const VARIANT_VAR = /^variant\.([a-z][a-z0-9_]*)$/;
 /** 在职人数变量：hired.<作用或特质> = 在职的人里作用是它、或者带着这个特质的有几个 */
 export const HIRED_VAR = /^hired\.([a-z][a-z0-9_]*)$/;
 export const PERSON_ATTRS = ['skill', 'upkeep', 'service', 'play', 'morale', 'fatigue', 'talent', 'hired'] as const;
@@ -224,8 +231,14 @@ export function compileContent(files: Record<string, string>): CompileResult {
     walkEffects(a.effects, (e) => {
       if ('flag' in e) flagWrites.add(e.flag);
     });
+  const orderEffects = (o: Order): (readonly Effect[])[] => [
+    o.effects,
+    o.onSuccess,
+    o.onFail,
+    ...Object.values(o.variants ?? {}).map((v) => v.effects ?? []),
+  ];
   for (const a of [...b.posts, ...b.orders])
-    for (const effs of [a.effects, 'onSuccess' in a ? a.onSuccess : [], 'onFail' in a ? a.onFail : []])
+    for (const effs of 'onSuccess' in a ? orderEffects(a) : [a.effects])
       walkEffects(effs, (e) => {
         if ('flag' in e) flagWrites.add(e.flag);
       });
@@ -235,6 +248,8 @@ export function compileContent(files: Record<string, string>): CompileResult {
     if ((COMPUTED_VARS as readonly string[]).includes(p)) return true;
     const cv = CONDITION_VAR.exec(p);
     if (cv) return facilities.has(cv[1] as string);
+    const vv = VARIANT_VAR.exec(p);
+    if (vv) return !!facilities.get(vv[1] as string)?.variants;
     const hv = HIRED_VAR.exec(p);
     if (hv) return (PERSON_KINDS as readonly string[]).includes(hv[1] as string) || traits.has(hv[1] as string);
     const [head, a, attr] = p.split('.');
@@ -275,6 +290,18 @@ export function compileContent(files: Record<string, string>): CompileResult {
       const f = facilities.get(c.facility);
       if (!f) err(file, `${where}: unknown facility '${c.facility}'`);
       else if (!(c.is in f.states)) err(file, `${where}: facility '${c.facility}' has no state '${c.is}'`);
+    }
+    if ('variant' in c) {
+      const f = facilities.get(c.variant);
+      if (!f) err(file, `${where}: unknown facility '${c.variant}'`);
+      else if (!f.variants) err(file, `${where}: facility '${c.variant}' has no variants`);
+      else if (c.is !== 'none' && !(c.is in f.variants))
+        err(file, `${where}: facility '${c.variant}' has no variant '${c.is}'`);
+    }
+    if ('upgrade' in c) {
+      const f = facilities.get(c.upgrade);
+      if (!f) err(file, `${where}: unknown facility '${c.upgrade}'`);
+      else if (!(c.has in (f.upgrades ?? {}))) err(file, `${where}: facility '${c.upgrade}' has no upgrade '${c.has}'`);
     }
     if ('assigned' in c) {
       if (!people.has(c.assigned)) err(file, `${where}: unknown person '${c.assigned}'`);
@@ -426,7 +453,31 @@ export function compileContent(files: Record<string, string>): CompileResult {
       checkEffects(file, o.onSuccess, 'onSuccess', true);
       checkEffects(file, o.onFail, 'onFail', true);
       if (o.restore && !b.facilities.some((f) => f.anchor === o.at)) err(file, 'restore: no facility at this anchor');
-      if (!o.effects.length && !o.onSuccess.length && !o.restore) warn(file, 'order has no effects');
+      if (!o.effects.length && !o.onSuccess.length && !o.restore && !o.upgrade && !o.remodel && !o.variants)
+        warn(file, 'order has no effects');
+      // 修复变体、升级、改造（LG-14）：都落在这个地点的设施上
+      const kinds = [o.variants, o.upgrade, o.remodel].filter((x) => x !== undefined).length;
+      if (kinds > 1) err(file, 'an order is at most one of: variants, upgrade, remodel');
+      const fac = b.facilities.find((f) => f.anchor === o.at);
+      if (kinds && !fac) err(file, 'variants/upgrade/remodel: no facility at this anchor');
+      if (o.variants && fac) {
+        if (!Object.keys(o.variants).length) err(file, 'variants: list at least one variant');
+        for (const [v, x] of Object.entries(o.variants)) {
+          if (!fac.variants || !(v in fac.variants)) err(file, `variants: facility '${fac.id}' has no variant '${v}'`);
+          if (x.work) minutes(x.work);
+          checkEffects(file, x.effects ?? [], `variants.${v}.effects`, true);
+        }
+      }
+      if (o.upgrade && fac && !(o.upgrade in (fac.upgrades ?? {})))
+        err(file, `upgrade: facility '${fac.id}' has no upgrade '${o.upgrade}'`);
+      if (o.remodel && fac && !(o.remodel in (fac.variants ?? {})))
+        err(file, `remodel: facility '${fac.id}' has no variant '${o.remodel}'`);
+      if (o.closed_for) {
+        minutes(o.closed_for);
+        if (!o.remodel) warn(file, 'closed_for only matters on a remodel order');
+      }
+      for (const [k, v] of Object.entries(o.worker ?? {}))
+        if (v !== undefined && (v < 0 || v > 100)) err(file, `worker.${k}: ${v} is outside 0..100`);
     }
   }
   for (const p of b.people) {
@@ -447,6 +498,24 @@ export function compileContent(files: Record<string, string>): CompileResult {
   for (const s of b.stats) needText('stats.yaml', `stats.${s.id}`);
   for (const f of b.facilities) {
     if (!anchors.has(f.anchor)) err('facilities.yaml', `${f.id}: unknown anchor '${f.anchor}'`);
+    // 变体和升级（LG-14）：覆盖和加成只能落在已有的状态上；文案 variants.<设施>.<变体>、upgrades.<设施>.<升级>
+    for (const [v, x] of Object.entries(f.variants ?? {})) {
+      needText('facilities.yaml', `variants.${f.id}.${v}`);
+      for (const [st, o] of Object.entries(x.states ?? {})) {
+        if (!(st in f.states)) err('facilities.yaml', `${f.id}.variants.${v}: unknown state '${st}'`);
+        if (o.drops_to && !(o.drops_to in f.states))
+          err('facilities.yaml', `${f.id}.variants.${v}.${st}: drops_to unknown state '${o.drops_to}'`);
+      }
+    }
+    for (const [u, x] of Object.entries(f.upgrades ?? {})) {
+      needText('facilities.yaml', `upgrades.${f.id}.${u}`);
+      if (x.variant && !(x.variant in (f.variants ?? {})))
+        err('facilities.yaml', `${f.id}.upgrades.${u}: no variant '${x.variant}'`);
+      for (const st of Object.keys(x.states ?? {}))
+        if (!(st in f.states)) err('facilities.yaml', `${f.id}.upgrades.${u}: unknown state '${st}'`);
+      if (!b.orders.some((o) => o.upgrade === u && o.at === f.anchor))
+        warn('facilities.yaml', `${f.id}.upgrades.${u}: no order installs it`);
+    }
     for (const st of Object.keys(f.states)) needText('facilities.yaml', `facilities.${f.id}.${st}`);
     // 掉档（准则 6）：drops_to 指向同一设施的另一个状态；顺着掉下去不能绕回来；
     // 掉到的状态要有一张工单能把它修回来（不然掉一次就永远关着）
@@ -568,6 +637,15 @@ export function compileContent(files: Record<string, string>): CompileResult {
       }
     }
     checkExpr(file, a.rules.vote_odds, 'rules.vote_odds');
+    // 星级（LG-10）：每一星一张清单，每条一个条件
+    for (const [i, lv] of (a.stars ?? []).entries()) {
+      if (!Object.keys(lv.requires).length) err(file, `stars[${i}]: requires needs at least one item`);
+      for (const [k, c] of Object.entries(lv.requires)) {
+        checkCond(file, c, `stars[${i}].requires.${k}`);
+        needText(file, `stars.items.${k}`);
+      }
+      for (const k of lv.opens) needText(file, `stars.opens.${k}`);
+    }
     if (a.rules.lose_if) {
       checkCond(file, a.rules.lose_if.when, 'rules.lose_if');
       needText(file, `endings.${a.rules.lose_if.ending}.title`);
@@ -595,7 +673,7 @@ export function compileContent(files: Record<string, string>): CompileResult {
   }
   for (const a of b.activities) scheduleTargets(a.effects);
   for (const a of b.posts) scheduleTargets(a.effects);
-  for (const a of b.orders) for (const effs of [a.effects, a.onSuccess, a.onFail]) scheduleTargets(effs);
+  for (const a of b.orders) for (const effs of orderEffects(a)) scheduleTargets(effs);
   for (const c of b.cards)
     if (!reachable.has(c.id)) warn(`events/${c.act}/${c.id}.yaml`, `card '${c.id}' is never scheduled by anything`);
 

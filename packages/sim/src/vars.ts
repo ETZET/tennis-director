@@ -1,4 +1,4 @@
-import type { Cond } from '@td/content';
+import type { Cond, FacilityState } from '@td/content';
 import { type ExprEnv, evalBool, evalNumber, type Value } from '@td/shared';
 import { rand } from './rng';
 import { DIRECTOR, dayOf, type GameState, minuteOfDay, type PersonAttr, weekdayOf } from './state';
@@ -84,6 +84,32 @@ export function hiredWith(s: GameState, w: World, tag: string): number {
   return n;
 }
 
+/**
+ * 设施此刻这一档的数值（LG-14）：基础状态，换上变体的覆盖，再加上装上的升级。
+ * 没有变体和升级的设施直接返回内容里的那一档（不新建对象）。
+ */
+export function stateDef(s: GameState, w: World, id: string): FacilityState | undefined {
+  const f = w.facilities.get(id);
+  const st = s.facilities[id] ?? '';
+  const base = f?.states[st];
+  if (!f || !base) return undefined;
+  const v = s.variants?.[id];
+  const over = v ? f.variants?.[v]?.states?.[st] : undefined;
+  const ups = s.upgrades?.[id];
+  if (!over && !ups?.length) return base;
+  const d: FacilityState = over ? { ...base, ...over } : { ...base };
+  for (const u of ups ?? []) {
+    const add = f.upgrades?.[u]?.states?.[st];
+    if (!add) continue;
+    for (const k of ['courts', 'quality', 'income_week', 'upkeep_week', 'decay_day'] as const) d[k] += add[k] ?? 0;
+  }
+  d.decay_day = Math.max(0, d.decay_day);
+  return d;
+}
+
+/** 这处设施在改造、停用着（LG-14）：没有场地、岗位和工单不开、质量和收入不算，维护费照付 */
+export const remodeling = (s: GameState, id: string): boolean => !!s.remodels?.[id];
+
 /** 设施合计。下雨天只有能挡雨的（rain_ok）场地算开放、有场地收入。 */
 export function facilityTotals(s: GameState, w: World) {
   let courts = 0;
@@ -92,9 +118,13 @@ export function facilityTotals(s: GameState, w: World) {
   let income = 0;
   let upkeep = 0;
   const rain = s.weather === 'rain';
-  for (const [id, state] of Object.entries(s.facilities)) {
-    const f = w.facilities.get(id)?.states[state];
+  for (const id of Object.keys(s.facilities)) {
+    const f = stateDef(s, w, id);
     if (!f) continue;
+    if (remodeling(s, id)) {
+      upkeep += f.upkeep_week;
+      continue;
+    }
     const usable = !rain || f.rain_ok;
     courts += usable ? f.courts : 0;
     built += f.courts;
@@ -181,7 +211,7 @@ export function makeEnv(s: GameState, w: World, extra: Record<string, Value> = {
           // 修好 = 换到了一个给园区加分的状态（扫完沙、挖完沙、清完碎石这些中间状态还不算）
           let n = 0;
           for (const [id, st] of Object.entries(s.facilities))
-            if (st !== w.act.facilities[id] && (w.facilities.get(id)?.states[st]?.quality ?? 0) > 0) n++;
+            if (st !== w.act.facilities[id] && (stateDef(s, w, id)?.quality ?? 0) > 0) n++;
           return n;
         }
         case 'idle_days': {
@@ -190,6 +220,12 @@ export function makeEnv(s: GameState, w: World, extra: Record<string, Value> = {
           for (const id of Object.keys(s.people)) if (isStaff(s, w, id)) m = Math.max(m, s.people[id]?.idleMin ?? 0);
           return m / 720;
         }
+        case 'stars':
+          return s.stars ?? 0;
+        case 'trophies':
+          return s.trophies ?? 0;
+        case 'variant':
+          return s.variants?.[rest] ?? '';
         case 'quiet_days':
           return (s.t - (s.cards.lastOpened ?? 0)) / 1440;
         case 'wages_week':
@@ -228,6 +264,8 @@ export function test(s: GameState, w: World, c: Cond | undefined): boolean {
   }
   if ('flag' in c) return (s.flags[c.flag] ?? false) === (c.is ?? true);
   if ('facility' in c) return s.facilities[c.facility] === c.is;
+  if ('variant' in c) return (s.variants?.[c.variant] ?? 'none') === c.is;
+  if ('upgrade' in c) return !!s.upgrades?.[c.upgrade]?.includes(c.has);
   if ('assigned' in c) {
     const p = s.people[c.assigned];
     return !!p?.job && !p.walk && (c.at === undefined || p.at === c.at);

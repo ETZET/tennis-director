@@ -18,6 +18,7 @@ export {
   formatIssues,
   HIRED_VAR,
   PERSON_ATTRS,
+  VARIANT_VAR,
   WORKER,
 } from './compile';
 export * from './schema';

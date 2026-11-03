@@ -137,6 +137,20 @@ export const MIGRATIONS: Record<number, Migration> = {
     state.version = 7;
     return { ...save, version: 7, state };
   },
+  // 7 → 8（修复变体、升级改造、牌匾，LG-14；星级和奖杯，LG-10）：旧档没有选过变体、没有升级和牌匾，从 0 星 0 奖杯开始
+  // （星级在下一次检查时按清单补上，不会因为迁移掉星）
+  7: (save) => {
+    const state = { ...(save.state as Record<string, unknown>) };
+    state.variants ??= {};
+    state.upgrades ??= {};
+    state.remodels ??= {};
+    state.picks ??= {};
+    state.plaque ??= [];
+    state.stars ??= 0;
+    state.trophies ??= 0;
+    state.version = 8;
+    return { ...save, version: 8, state };
+  },
 };
 
 export class SaveError extends Error {}

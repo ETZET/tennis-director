@@ -29,6 +29,10 @@ export interface BotSummary {
   /** 没有结局就跑到天数上限的局（卡死） */
   stuck: number;
   msPerGame: number;
+  /** 修复变体（LG-14）：'设施.变体' → 局数（GM-13：看有没有被压制的变体） */
+  variants: Record<string, number>;
+  /** 星级（LG-10）：平均几星、平均奖杯、★n 第一次升上来的天数（中位，没升上来的局不算）和升上来的局数 */
+  stars: { avg: number; trophies: number; day: Record<number, { median: number; games: number }> };
 }
 
 export interface Report {
@@ -78,7 +82,10 @@ export function botReport(
       avg: { quality: 0, members: 0, reputation: 0, cash: 0, restoration: 0 },
       stuck: 0,
       msPerGame: 0,
+      variants: {},
+      stars: { avg: 0, trophies: 0, day: {} },
     };
+    const starDays: Record<number, number[]> = {};
     for (let i = 0; i < o.games; i++) {
       const seed = (o.seed0 ?? 1) + i;
       const r = runGame(content, BOTS[name](seed), seed, { act, director, maxDays: 120 });
@@ -90,6 +97,16 @@ export function botReport(
       sum.avgDays += r.days / o.games;
       for (const k of Object.keys(sum.avg)) sum.avg[k] = (sum.avg[k] ?? 0) + (r.state.stats[k] ?? 0) / o.games;
       for (const c of Object.keys(r.state.cards.shown)) if (c in cardGames) cardGames[c] = (cardGames[c] ?? 0) + 1;
+      for (const [f, v] of Object.entries(r.state.variants ?? {}))
+        sum.variants[`${f}.${v}`] = (sum.variants[`${f}.${v}`] ?? 0) + 1;
+      sum.stars.avg += (r.state.stars ?? 0) / o.games;
+      sum.stars.trophies += (r.state.trophies ?? 0) / o.games;
+      for (const e of r.state.log)
+        if (e.cause.kind === 'star') (starDays[e.cause.stars] ??= []).push(Math.floor(e.t / 1440) + 1);
+    }
+    for (const [n, days] of Object.entries(starDays)) {
+      const d = [...days].sort((a, b) => a - b);
+      sum.stars.day[Number(n)] = { median: d[Math.floor((d.length - 1) / 2)] ?? 0, games: d.length };
     }
     sum.winRate = sum.wins / o.games;
     sum.msPerGame = (performance.now() - t0) / o.games;
@@ -129,6 +146,30 @@ export function reportMarkdown(r: Report): string {
         .map(([k, v]) => `${k} ${pct(v / b.games)}`)
         .join('，')}`,
     );
+  // 修复变体和星级（LG-14、LG-10）：内容里写了才有这两节
+  if (r.bots.some((b) => Object.keys(b.variants).length)) {
+    lines.push('', '## 修复变体（局数比例）', '');
+    for (const b of r.bots)
+      lines.push(
+        `- ${b.bot}：${
+          Object.entries(b.variants)
+            .sort(([a], [c]) => a.localeCompare(c))
+            .map(([k, v]) => `${k} ${pct(v / b.games)}`)
+            .join('，') || '—'
+        }`,
+      );
+  }
+  if (r.bots.some((b) => Object.keys(b.stars.day).length)) {
+    lines.push('', '## 星级', '');
+    for (const b of r.bots)
+      lines.push(
+        `- ${b.bot}：平均 ${b.stars.avg.toFixed(2)} 星、${b.stars.trophies.toFixed(2)} 座奖杯；${
+          Object.entries(b.stars.day)
+            .map(([n, x]) => `★${n} 中位第 ${x.median} 天（${pct(x.games / b.games)} 的局升上来）`)
+            .join('，') || '没有升星'
+        }`,
+      );
+  }
   lines.push('', '## 卡出现的局数比例', '');
   lines.push('| 卡 | 出现比例 |', '| --- | --- |');
   for (const [c, v] of Object.entries(r.cardRate).sort((a, b) => a[1] - b[1])) lines.push(`| ${c} | ${pct(v)} |`);

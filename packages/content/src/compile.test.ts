@@ -2,7 +2,8 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { compileContent } from './compile';
+import { parse, stringify } from 'yaml';
+import { compileContent, VARIANT_VAR } from './compile';
 import { CONTENT } from './index';
 import { minutes } from './schema';
 
@@ -19,6 +20,14 @@ const files = (): Record<string, string> => {
   walk(DATA);
   return out;
 };
+// biome-ignore lint/suspicious/noExplicitAny: test fixtures poke at parsed YAML of any shape
+type Yaml = any;
+/** 读一个 YAML 文件、改一下、写回去（不靠字符串替换，内容改了格式也不怕） */
+function editYaml(f: Record<string, string>, file: string, fn: (y: Yaml) => void): void {
+  const y = parse(f[file] as string);
+  fn(y);
+  f[file] = stringify(y);
+}
 const msgs = (r: ReturnType<typeof compileContent>, kind: 'errors' | 'warnings' = 'errors') =>
   r[kind].map((e) => `${e.file}: ${e.message}`).join('\n');
 
@@ -128,6 +137,129 @@ describe('内容编译', () => {
     expect(m).toMatch(/practice\.open: drops_to unknown state 'rubble'/);
     expect(m).toMatch(/stadium_3\.open: drops_to loops back/);
     expect(m).toMatch(/stadium_2\.open: no order brings 'stadium_2' back from 'worn'/);
+  });
+
+  /**
+   * 修复变体、升级、改造（LG-14）和星级、内赛（LG-10）的一份最小示例：红土场 clay / hard、只给 clay 的升级（维护 ≥ 75）、
+   * 改成硬地的改造、只在硬地开的岗位、两星的清单（第二星带橡皮筋）、月度内赛（奖杯 +1）。
+   */
+  const buildFiles = (): Record<string, string> => {
+    const f = files();
+    const edit = (file: string, fn: (y: Yaml) => void) => editYaml(f, file, fn);
+    edit('facilities.yaml', (y) => {
+      const o23 = y.find((x: { id: string }) => x.id === 'outer_23');
+      o23.variants = { clay: {}, hard: { states: { playable: { decay_day: 2, quality: 12 } } } };
+      o23.upgrades = { tournament_clay: { variant: 'clay', states: { playable: { quality: 3 } } } };
+    });
+    edit('orders/o23_repair.yaml', (y) => {
+      y.variants = { clay: {}, hard: { cost: 1200, work: '14h', effects: [{ stat: 'reputation', add: 1 }] } };
+    });
+    const order = (id: string, extra: Record<string, unknown>) => {
+      f[`orders/${id}.yaml`] = stringify({
+        id,
+        act: 'indian_wells',
+        at: 'outer_23',
+        skill: 'upkeep',
+        work: '2h',
+        cost: 100,
+        when: { facility: 'outer_23', is: 'playable' },
+        ...extra,
+      });
+    };
+    order('o23_pro', { upgrade: 'tournament_clay', worker: { upkeep: 75 } });
+    order('o23_remodel', { remodel: 'hard', closed_for: '7d' });
+    order('cup', {
+      at: 'outer_1',
+      skill: 'service',
+      cooldown: '28d',
+      when: { expr: 'stars >= 1' },
+      effects: [{ trophy: 1 }, { flag: 'hosted_cup', set: true }],
+    });
+    f['posts/o23_hard_league.yaml'] = stringify({
+      id: 'o23_hard_league',
+      act: 'indian_wells',
+      at: 'outer_23',
+      skill: 'service',
+      cycle: '1h',
+      hours: [8, 17],
+      when: {
+        all: [
+          { facility: 'outer_23', is: 'playable' },
+          { variant: 'outer_23', is: 'hard' },
+        ],
+      },
+      effects: [{ stat: 'cash', add: 'variant.outer_23 == "hard" ? 6 : 0' }],
+    });
+    edit('acts/indian_wells.yaml', (y) => {
+      y.stars = [
+        { requires: { members_5: { stat: 'members', gte: 5 } }, opens: ['internal_cup'] },
+        {
+          requires: {
+            hosted_cup: { flag: 'hosted_cup' },
+            trophy_1: { expr: 'trophies >= 1 && stars >= 1' },
+            members_20: { expr: 'stat.members >= (day >= 78 ? 16 : 20)' },
+          },
+          opens: ['regional'],
+        },
+      ];
+    });
+    for (const l of ['en', 'zh'])
+      edit(`i18n/${l}.yaml`, (y) => {
+        y.variants = { outer_23: { clay: 'Clay', hard: 'Hard' } };
+        y.upgrades = { outer_23: { tournament_clay: 'Tournament clay' } };
+        y.stars = {
+          items: { members_5: '5 members', hosted_cup: 'Host a cup', trophy_1: '1 trophy', members_20: '20 members' },
+          opens: { internal_cup: 'Monthly cup', regional: 'Regionals' },
+        };
+        for (const id of ['o23_pro', 'o23_remodel', 'cup']) y.orders[id] = { title: id, note: id };
+        y.posts.o23_hard_league = { title: 'League', note: 'League' };
+      });
+    return f;
+  };
+
+  it('修复变体、升级、改造、星级、内赛的示例能编译', () => {
+    const r = compileContent(buildFiles());
+    expect(msgs(r)).toBe('');
+    const o = r.bundle?.orders.find((x) => x.id === 'o23_repair');
+    expect(Object.keys(o?.variants ?? {})).toEqual(['clay', 'hard']);
+    expect(r.bundle?.acts[0]?.stars?.[1]?.opens).toEqual(['regional']);
+    expect(VARIANT_VAR.test('variant.outer_23')).toBe(true);
+  });
+
+  it('变体、升级、改造、星级写错都报错', () => {
+    const f = buildFiles();
+    const edit = (file: string, fn: (y: Yaml) => void) => editYaml(f, file, fn);
+    edit('orders/o23_repair.yaml', (y) => {
+      y.variants.grass = {};
+    });
+    edit('orders/o23_pro.yaml', (y) => {
+      y.upgrade = 'gold_clay';
+    });
+    edit('orders/o23_remodel.yaml', (y) => {
+      y.remodel = 'grass';
+      y.upgrade = 'tournament_clay';
+    });
+    edit('posts/o23_hard_league.yaml', (y) => {
+      y.when.all[1] = { variant: 'outer_23', is: 'carpet' };
+      y.effects[0].add = 'variant.outer_1 == "x" ? 1 : 0';
+    });
+    edit('facilities.yaml', (y) => {
+      y.find((x: { id: string }) => x.id === 'outer_23').variants.hard.states.paved = { quality: 1 };
+    });
+    edit('acts/indian_wells.yaml', (y) => {
+      y.stars[0].requires.members_5 = { upgrade: 'outer_23', has: 'nope' };
+      y.stars[1].opens.push('sponsor');
+    });
+    const m = msgs(compileContent(f));
+    expect(m).toMatch(/variants: facility 'outer_23' has no variant 'grass'/);
+    expect(m).toMatch(/upgrade: facility 'outer_23' has no upgrade 'gold_clay'/);
+    expect(m).toMatch(/at most one of: variants, upgrade, remodel/);
+    expect(m).toMatch(/remodel: facility 'outer_23' has no variant 'grass'/);
+    expect(m).toMatch(/facility 'outer_23' has no variant 'carpet'/);
+    expect(m).toMatch(/unknown variable 'variant.outer_1'/);
+    expect(m).toMatch(/outer_23.variants.hard: unknown state 'paved'/);
+    expect(m).toMatch(/facility 'outer_23' has no upgrade 'nope'/);
+    expect(m).toMatch(/missing text 'stars.opens.sponsor'/);
   });
 
   it('文件名必须和 id 一致', () => {

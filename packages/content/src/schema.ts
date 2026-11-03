@@ -20,6 +20,8 @@ export type Cond =
   | { stat: string; lt?: number; lte?: number; gt?: number; gte?: number; eq?: number }
   | { flag: string; is?: boolean | number | string }
   | { facility: string; is: string }
+  | { variant: string; is: string }
+  | { upgrade: string; has: string }
   | { assigned: string; at?: string }
   | { day: { gte?: number; lte?: number } }
   | { hour: { gte?: number; lte?: number } }
@@ -46,6 +48,10 @@ export const cond: z.ZodType<Cond> = z.lazy(() =>
     }),
     z.strictObject({ flag: id, is: z.union([z.boolean(), z.number(), z.string()]).optional() }),
     z.strictObject({ facility: id, is: id }),
+    /** 设施修成了哪个变体（LG-14）；is: none 表示还没选（没修、或者修的工单没有变体） */
+    z.strictObject({ variant: id, is: id }),
+    /** 设施装上了这个升级（LG-14） */
+    z.strictObject({ upgrade: id, has: id }),
     /** 这个人正在干活（站在岗位或工单上）；带 at 时还要求在那个地点 */
     z.strictObject({ assigned: id, at: id.optional() }),
     z.strictObject({ day: z.strictObject({ gte: z.number().optional(), lte: z.number().optional() }) }),
@@ -102,6 +108,8 @@ export const effect = z.union([
   z.strictObject({ ...gate, errand: id, at: id, for: duration }),
   /** 把一张工单记给某人：他闲下来（手上的班结束、工单做完）就自己走过去开工，材料费照常在开工时扣 */
   z.strictObject({ ...gate, task: id, who: id }),
+  /** 奖杯 +n（LG-10：办成一次主办赛事、或者在外出赛事里赢下来）；变量 trophies */
+  z.strictObject({ ...gate, trophy: z.number().int().min(1) }),
 ]);
 export type Effect = z.infer<typeof effect>;
 
@@ -200,7 +208,41 @@ export const facilityState = z.strictObject({
    */
   drops_to: id.optional(),
 });
-export const facility = z.strictObject({ id, anchor: id, states: z.record(id, facilityState) });
+export type FacilityState = z.infer<typeof facilityState>;
+/** 变体对某个状态的覆盖（LG-14）：写了的字段替换基础状态里的值 */
+export const facilityStateOverride = z.strictObject({
+  courts: z.number().optional(),
+  rain_ok: z.boolean().optional(),
+  quality: z.number().optional(),
+  income_week: z.number().optional(),
+  upkeep_week: z.number().optional(),
+  decay_day: z.number().min(0).optional(),
+  drops_to: id.optional(),
+});
+export type FacilityStateOverride = z.infer<typeof facilityStateOverride>;
+/** 升级对某个状态的加成（LG-14）：数值字段加在（变体覆盖过的）状态上 */
+export const facilityStateAdd = z.strictObject({
+  courts: z.number().optional(),
+  quality: z.number().optional(),
+  income_week: z.number().optional(),
+  upkeep_week: z.number().optional(),
+  decay_day: z.number().optional(),
+});
+export type FacilityStateAdd = z.infer<typeof facilityStateAdd>;
+export const facility = z.strictObject({
+  id,
+  anchor: id,
+  states: z.record(id, facilityState),
+  /**
+   * 修复分叉（LG-14）：变体 id → 对各状态的覆盖。第一个是默认变体（机器人、没指明变体的指派用它）。
+   * 不写变体的设施照旧"修回原样"。
+   */
+  variants: z.record(id, z.strictObject({ states: z.record(id, facilityStateOverride).optional() })).optional(),
+  /** 升级（LG-14）：升级 id → 只给哪个变体（不写 = 都行）、对各状态的加成 */
+  upgrades: z
+    .record(id, z.strictObject({ variant: id.optional(), states: z.record(id, facilityStateAdd).optional() }))
+    .optional(),
+});
 export type Facility = z.infer<typeof facility>;
 
 /**
@@ -339,6 +381,39 @@ export const order = z.strictObject({
   /** 只收这些人：作用（kind）或特质 id，命中一个就行；不写谁都能干 */
   only: z.array(id).min(1).optional(),
   performance: id.optional(),
+  /**
+   * 能力门槛（LG-14）：只有这项能力（底子，不算特质）≥ N 的人能干，例如 { upkeep: 75 }。canAssign 给 'skill'。
+   */
+  worker: z
+    .strictObject({
+      teach: z.number().optional(),
+      upkeep: z.number().optional(),
+      service: z.number().optional(),
+      play: z.number().optional(),
+    })
+    .optional(),
+  /**
+   * 修复变体（LG-14）：这张工单修这个地点的设施，可以修成哪几个变体（设施 variants 里的 id）。
+   * 每个变体可以另写材料费、工作量和追加的效果（加在 effects 后面）。第一个人到场、扣材料费时锁定变体。
+   */
+  variants: z
+    .record(
+      id,
+      z.strictObject({
+        cost: z.number().min(0).optional(),
+        work: duration.optional(),
+        effects: z.array(effect).optional(),
+      }),
+    )
+    .optional(),
+  /** 升级工单（LG-14）：做完给这个地点的设施装上这个升级（设施 upgrades 里的 id）；装过了就不再出现 */
+  upgrade: id.optional(),
+  /**
+   * 改造工单（LG-14）：做完以后这个地点的设施停用 closed_for 这么久，然后换成这个变体。
+   * 已经是这个变体、还没选过变体、或者正在改造时不出现。
+   */
+  remodel: id.optional(),
+  closed_for: duration.optional(),
 });
 export type Order = z.infer<typeof order>;
 
@@ -407,6 +482,14 @@ export const act = z.strictObject({
      */
     grade_drop_below: z.number().min(0).max(100).default(0),
   }),
+  /**
+   * 星级（LG-10，ADR 0020）：第 i 项是升到 ★(i+1) 的清单。requires 的每一条是一个条件（文案在 stars.items.<条 id>），
+   * 全部满足就升星（只往上，不往回掉）；opens 是升上来开出的机制（文案在 stars.opens.<键>，内容里用 stars >= N 去开）。
+   */
+  stars: z
+    .array(z.strictObject({ requires: z.record(id, cond), opens: z.array(id).default([]) }))
+    .max(5)
+    .optional(),
   /** 每天固定开的活动（例如下午的青少年课） */
   daily: z.array(z.strictObject({ hour: z.number(), activity: id, if: cond.optional() })).default([]),
   /** 季节：从第几天开始（第一个从第 1 天开始）；decay 是这一季设施衰减的倍数（初秋落叶多） */

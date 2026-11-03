@@ -3,6 +3,7 @@ import { directorDraw, expireCards, openScheduled } from './cards';
 import { type Ctx, run, setStat } from './effects';
 import { weightedPick } from './rng';
 import { closeLedger, decayDay, gradeDrop, overnight, staffSystem } from './staff';
+import { checkStars } from './stars';
 import { at, dayOf, minuteOfDay, weekdayOf } from './state';
 import { num, qualityTarget, test } from './vars';
 import { walkSystem } from './walk';
@@ -11,7 +12,7 @@ import type { World } from './world';
 
 /**
  * 每个 tick 按固定顺序执行的系统，每个只负责一件事（ADR 0012）：
- * 日历 → 员工走路 → 岗位和工单 → 活动 → 质量 → 事件 → 导演。
+ * 日历 → 员工走路 → 改造期满 → 岗位和工单 → 活动 → 质量 → 星级 → 事件 → 导演。
  * 收盘时：今天的岗位账 → 衰减 → 经济（按天记账）→（周日）周结算（一条因果日志）→ 掉档。
  */
 
@@ -108,6 +109,8 @@ function closeDay(ctx: Ctx): void {
   // 周日收盘：会员声望结算完了，再看哪处设施没撑住、掉一档（准则 6，ADR 0017）
   if (sunday) gradeDrop(ctx);
   recomputeDerived(ctx);
+  // 周结算以后会员和声望变了：看一眼星级（LG-10）
+  checkStars(ctx);
   if (sunday) {
     // 拆成几项的派生量：这一周每项变了多少（界面说明董事会信心为什么变）
     const terms: Record<string, { total: number; delta: Record<string, number> }> = {};
@@ -178,6 +181,7 @@ export function tick(ctx: Ctx): void {
   staffSystem(ctx); // 岗位转圈、工单推进、办事
   activitySystem(ctx); // 活动开始、结算
   qualitySystem(ctx); // 项目质量
+  if (minuteOfDay(s.t) % 10 === 0) checkStars(ctx); // 星级（LG-10）：每 10 分钟看一眼下一星的清单
   expireCards(ctx); // 事件：倒计时到了执行默认后果
   directorDraw(ctx); // 导演：要不要发新卡
   s.t += 1;

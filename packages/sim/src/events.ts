@@ -1,5 +1,5 @@
 import type { OptionKey, SkillKind } from '@td/content';
-import type { CausalEntry } from './state';
+import type { CausalEntry, PlaqueRow } from './state';
 
 /**
  * 领域事件：模拟每一步发出来，画面和界面订阅它们来演出、提示。
@@ -32,6 +32,17 @@ export type SimEvent =
   | { type: 'orderCancelled'; order: string }
   /** 设施掉了一档（周日收盘，状况低于 grade_drop_below）：画面换层、快讯、岗位停开 */
   | { type: 'facilityWorn'; facility: string; from: string; to: string; condition: number }
+  /** 修复变体锁定：第一个人到场、扣了材料费（LG-14） */
+  | { type: 'variant_locked'; facility: string; variant: string; order: string }
+  /** 升级装上了（LG-14） */
+  | { type: 'upgrade_done'; facility: string; upgrade: string; order: string }
+  /** 改造：工单做完、设施停用到 until；期满换成新变体 */
+  | { type: 'remodel_started'; facility: string; variant: string; until: number }
+  | { type: 'remodel_done'; facility: string; variant: string }
+  /** 大门牌匾多了一行（修好一处设施） */
+  | ({ type: 'plaque_added' } & PlaqueRow)
+  /** 升星（LG-10）：画面转到大门，快讯列出开了什么 */
+  | { type: 'star_up'; stars: number; opens: string[] }
   | { type: 'errandStarted'; person: string; at: string; minutes: number }
   | { type: 'errandFinished'; person: string }
   | { type: 'log'; entry: CausalEntry }

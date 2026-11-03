@@ -17,8 +17,11 @@ import { type World, worldFor } from './world';
 
 export type Command =
   | { type: 'chooseOption'; uid: number; option: OptionKey }
-  /** 把一个人（总监也算）拖到岗位或工单上；target 为 null 表示叫他停下来（ADR 0012） */
-  | { type: 'assign'; person: string; target: string | null }
+  /**
+   * 把一个人（总监也算）拖到岗位或工单上；target 为 null 表示叫他停下来（ADR 0012）。
+   * variant：拖到变体工单的哪一行（LG-14）；还没开工时改选变体，开了工只能是锁定的那个。
+   */
+  | { type: 'assign'; person: string; target: string | null; variant?: string }
   | { type: 'debugSetStat'; stat: string; value: number }
   | { type: 'debugSetFlag'; flag: string; value: boolean | number | string }
   | { type: 'debugForceCard'; card: string }
@@ -56,6 +59,13 @@ export function newGame(content: ContentBundle, o: NewGameOptions): GameState {
     orders: {},
     orderLog: { cooldowns: {}, done: {} },
     condition: Object.fromEntries(content.facilities.map((f) => [f.id, a.condition[f.id] ?? 100])),
+    variants: {},
+    upgrades: {},
+    remodels: {},
+    picks: {},
+    plaque: [],
+    stars: 0,
+    trophies: 0,
     // 开局没有"上周"：服务率无从谈起，算 0，周结算的服务项不算（GM-1）
     week: {
       demand: 0,
@@ -114,7 +124,7 @@ function applyCommand(ctx: Ctx, cmd: Command): boolean {
     case 'chooseOption':
       return resolveCard(ctx, cmd.uid, cmd.option, 'player');
     case 'assign':
-      return assign(ctx, cmd.person, cmd.target, true);
+      return assign(ctx, cmd.person, cmd.target, true, cmd.variant);
     case 'debugSetStat':
       setStat(ctx, cmd.stat, cmd.value);
       run(ctx, { kind: 'debug', what: `set ${cmd.stat} = ${cmd.value}` }, null, []);
