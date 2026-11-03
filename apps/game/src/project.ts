@@ -28,6 +28,7 @@ import {
   staffIds,
   testCond,
   wagesWeek,
+  walkEta,
   weekdayOf,
   working,
   workSkill,
@@ -177,14 +178,11 @@ export class Projector {
     return last ? at(last.day, last.hour) : null;
   }
 
-  /** 某人走到某处还要几分钟（正在路上就从这一段的终点算起） */
+  /** 某人走到某处还要几分钟（和模拟改派时的走法一致：路上可以半路掉头，见 walkEta） */
   walkMinutes(s: GameState, person: string, to: string): number {
     const w = worldOf(s, this.content);
-    const p = s.people[person];
-    if (!p) return 0;
-    const from = p.walk ? p.walk.to : p.at;
-    const rest = p.walk ? p.walk.end - s.t : 0;
-    return Math.round(rest + (shortestRoute(w, from, to)?.minutes ?? 0));
+    if (!s.people[person]) return 0;
+    return Math.round(walkEta(s, w, person, to) ?? 0);
   }
 
   /**

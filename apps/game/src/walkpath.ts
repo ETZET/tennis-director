@@ -12,7 +12,12 @@ const edgeMinutes = (w: World, a: string, b: string): number => w.nav.get(a)?.fi
 
 /** 这一段路在画面上的折线 */
 function segLine(site: Site, a: string, b: string): XZ[] {
-  return site.routeLine(a, b) ?? [site.stands[a] ?? { x: 0, z: 0 }, site.stands[b] ?? { x: 0, z: 0 }];
+  // 两个方向总用同一条折线（按名字排序取，再按需要倒过来）：最短路有并列时 routeLine(a,b) 和 routeLine(b,a)
+  // 可能不是互为反向，半路掉头的人就会跳一下
+  const flip = a > b;
+  const [p, q] = flip ? [b, a] : [a, b];
+  const line = site.routeLine(p, q) ?? [site.stands[p] ?? { x: 0, z: 0 }, site.stands[q] ?? { x: 0, z: 0 }];
+  return flip ? [...line].reverse() : line;
 }
 
 /** 此刻在哪一段、走了这一段的几成 */
