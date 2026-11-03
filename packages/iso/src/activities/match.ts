@@ -187,6 +187,10 @@ export function match(a: Act) {
       bd.position.set(x, 0.35, -7.86);
     }
   }
+  // 观众陆续坐满（不等他们开演）：一个个像素溶解着出现
+  fans.forEach((f, i) => {
+    a.appear(f.g, 0.4 + (i * 7) / Math.max(1, fans.length));
+  });
   let kids: Person[] | null = null;
   let press: Person[] | null = null;
   let flags: Box[] | null = null;
@@ -213,7 +217,7 @@ export function match(a: Act) {
         shoes: '#f3f1ea',
       });
       k.idleFace = (z as number) > 0 ? NORTH : SOUTH;
-      return k;
+      return a.extra(k);
     });
   }
   if (tier === 4) {
@@ -237,7 +241,7 @@ export function match(a: Act) {
       });
       p.idleFace = y as number;
       p.give('R', mkCamera());
-      return p;
+      return a.extra(p);
     });
     for (let x = -14; x <= 14; x += 7) vb.box(x, 0, -14.6, 0.08, 5.6, 0.08, '#e8e2d0');
     flags = [-14, -7, 0, 7, 14].map((x, i) => {

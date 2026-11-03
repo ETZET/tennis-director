@@ -4,7 +4,15 @@
  */
 import type { Box, Custom, Mat, Node, Sprite } from './graph';
 import { HV } from './proj';
-import { faceF, type Raster } from './raster';
+import { faceF, type Raster, ZTEST } from './raster';
+
+/**
+ * 精灵深度测试的滞回（米）：上一帧没被挡住的精灵在 zeps 之外再多 SPRITE_ZHYST 米容差，才会变成剪影；
+ * 变成剪影以后按原来的 zeps，要真走出来才变回来。精灵只有脚下一个深度，贴着墙面、围网平行走时
+ * 深度差正好在 zeps 附近，以前每帧在剪影和正常之间来回闪（QA：Dale 从会所去 outer_1）。
+ * 真站在楼后面（超过 zeps + SPRITE_ZHYST）的人照样被挡住。
+ */
+export const SPRITE_ZHYST = 0.3;
 
 /** 一个排好序待画的节点 */
 interface Drw {
@@ -293,18 +301,35 @@ export class SceneDrawer {
     for (const i of order) list.push(L[i] as Drw);
   }
 
-  /** 按排好的顺序画（collect 之后调用） */
-  draw(r: Raster): void {
-    this.drawn = 0;
-    for (const o of this.list) {
+  /** collect 之后待画的节点数 */
+  get size(): number {
+    return this.list.length;
+  }
+
+  /** 按排好的顺序画（collect 之后调用）；from..to 只画其中一段（IsoView 分几帧烘焙静态层时用） */
+  draw(r: Raster, from = 0, to = this.list.length): void {
+    if (from === 0) this.drawn = 0;
+    const list = this.list;
+    const end = Math.min(to, list.length);
+    for (let i = from; i < end; i++) {
+      const o = list[i] as Drw;
       const nd = o.node;
       const lit = nd.lit ?? (r.night > 0 ? r.litFn(o.wx, o.wz) : 0);
       r.zcur = o.d;
       if (nd.kind === 'box') this.drawBox(r, nd as Box, lit);
       else if (nd.kind === 'sprite') {
         const s = nd as Sprite;
-        if (s.frame)
-          r.art(s.frame, o.wx, o.wy, o.wz, { flipX: s.flipX, lit, opacity: s.opacity, depth: o.d, xray: s.xray });
+        if (s.frame) {
+          const hid = r.art(s.frame, o.wx, o.wy, o.wz, {
+            flipX: s.flipX,
+            lit,
+            opacity: s.opacity,
+            depth: o.d,
+            xray: s.xray,
+            zbias: s.zhide ? 0 : SPRITE_ZHYST,
+          });
+          if (r.zmode === ZTEST) s.zhide = hid > 0;
+        }
       } else (nd as Custom).draw(r, nd as Custom);
       this.drawn++;
     }

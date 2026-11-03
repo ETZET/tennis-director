@@ -13,6 +13,7 @@ import {
   type PoseName,
   Scheduler,
   type Site,
+  type Sprite,
 } from '@td/iso';
 import { clamp, lerp, mulberry32, type XZ } from '@td/shared';
 import {
@@ -21,6 +22,7 @@ import {
   DIRECTOR,
   type GameState,
   isStaff,
+  orderStatus,
   postStatus,
   type SimEvent,
   type World,
@@ -29,8 +31,8 @@ import {
 } from '@td/sim';
 import { idlePlan } from './idle';
 import { createLife } from './life';
-import { type PerformInput, perform, planPerformance } from './perform';
-import { walkHeading, walkPoint } from './walkpath';
+import { entryFor, type Performance, type PerformInput, perform, planPerformance } from './perform';
+import { joinPoint, walkHeading, walkPoint, walkRate } from './walkpath';
 
 /**
  * 游戏画面里的"活"的部分：员工（总监也是）沿路线走、站在岗位上干活、设施状态、活动演出、天气。
@@ -235,15 +237,21 @@ export function courtsAt(w: World, s: GameState, anchor: string): number {
 export const wearOf = (condition: number): number => clamp((70 - condition) / 40, 0, 1.75);
 
 interface Perf {
-  stop(): void;
+  /** graceful：收场（人走开、东西慢慢收走）；读档、热重载时立刻清掉 */
+  stop(graceful?: boolean): void;
+  setParams?(p: Readonly<Record<string, number>>): void;
 }
 
-/** 卡片发生的地方：镜头跟过去（zoom 是相对倍数，等距镜头只用 x、z） */
+/** 卡片发生的地方：镜头慢慢移过去（不改缩放）；seq 每来一次新的焦点加一，玩家拖动画面后就不再跟 */
 export interface CameraFocus {
   x: number;
   z: number;
-  zoom?: number;
+  seq: number;
 }
+
+/** 画面里员工走路的速度（米 / 真实秒）：从站位走到岗位上的位子、赶上路线；离得远就小跑 */
+export const STAFF_WALK = 2.6;
+export const STAFF_RUN = 4.4;
 
 /** 总监头顶的小菱形（像素画：1 亮绿、2 深绿、0 描边），每行从中心往两边对称 */
 const MARKER_ROWS = ['...0...', '..010..', '.01110.', '0111220', '.02220.', '..020..', '...0...'];
@@ -380,8 +388,7 @@ export function createGameScene(stage: IsoWorld, content0: ContentBundle, site: 
   /* ---------- 演出：模拟的 performance 名字 → 活动动画库（perform.ts，ADR 0010） ---------- */
   let state: GameState | null = null;
   const headCoach = () => (state?.headCoach ? (cast.get(state.headCoach) ?? null) : null);
-  const performInput = (): PerformInput => {
-    const coachId = state?.headCoach;
+  const performInput = (coachId = state?.headCoach): PerformInput => {
     return {
       weather: rain.amount() > 0.3 ? 'rain' : state?.weather === 'wind' ? 'wind' : 'sun',
       fatigue: 25,
@@ -393,37 +400,59 @@ export function createGameScene(stage: IsoWorld, content0: ContentBundle, site: 
   const running = new Map<number, Perf>();
   /** 被演出借走的员工：这段时间不按岗位摆 */
   const borrowed = new Set<Person>();
-  function releaseCoach(): void {
-    for (const p of borrowed) {
-      p.clearMoves();
-      p.base = 'relaxed';
-      p.lock = null;
-      p.seatY = null;
-    }
-    borrowed.clear();
+  /** 演出把人还回来：就在他站的地方，之后由 placeStaff 按走路速度走回岗位（不瞬移） */
+  function giveBack(p: Person): void {
+    if (!borrowed.delete(p)) return;
+    p.clearMoves();
+    p.base = BASE0(p);
+    p.lock = null;
+    p.seatY = null;
   }
-  function startActivity(uid: number, performance: string, anchor: string): void {
-    running.get(uid)?.stop();
+  /**
+   * 开演：coach 和 crew 是借来的现成人物（主教练、岗位上已经到场的员工），没借到的由演出自己生成，
+   * 生成的人沿步道从地点外面走进来（entry）。
+   */
+  function startActivity(
+    uid: number,
+    performance: string,
+    anchor: string,
+    who: { coach: Person | null; crew: readonly Person[]; coachId?: string | null } = {
+      coach: null,
+      crew: [],
+    },
+    params: Readonly<Record<string, number>> = {},
+  ): void {
+    running.get(uid)?.stop(true);
     running.delete(uid);
     const plan = planPerformance(performance, anchor, site);
     if (!plan) return;
     const lang = document.documentElement.lang.startsWith('zh') ? 'zh' : 'en';
-    const coach = plan.cast.startsWith('coach') ? headCoach() : null;
-    if (coach) borrowed.add(coach);
-    const p = perform(
+    const lent = [who.coach, ...who.crew].filter((p): p is Person => !!p && !borrowed.has(p));
+    for (const p of lent) borrowed.add(p);
+    const coach = who.coach && lent.includes(who.coach) ? who.coach : null;
+    const crew = who.crew.filter((p) => lent.includes(p));
+    const p: Performance = perform(
       { scene: stage.scene, sched, world, lang, site },
       performance,
-      performInput(),
-      { coach, juniors: [] },
+      performInput(who.coachId ?? undefined),
+      { coach, juniors: crew },
       uid,
       anchor,
+      { entry: entryFor(site, anchor), params },
     );
     running.set(uid, {
-      stop() {
-        p.stop();
-        if (coach && borrowed.has(coach)) releaseCoach();
+      stop(graceful = false) {
+        p.stop(graceful);
+        for (const q of lent) giveBack(q);
       },
+      setParams: (x) => p.setParams(x),
     });
+  }
+  /** 卡片的活动（模拟的 activities）：借主教练 */
+  function startCardActivity(uid: number, performance: string, anchor: string): void {
+    const plan = planPerformance(performance, anchor, site);
+    const coach = plan?.cast.startsWith('coach') ? headCoach() : null;
+    startActivity(uid, performance, anchor, { coach, crew: [] });
   }
 
   /** 雨量直接到位（不淡入）：读档、快进以后不该先晴几秒再下（QA P2-7） */
@@ -435,28 +464,21 @@ export function createGameScene(stage: IsoWorld, content0: ContentBundle, site: 
     snapRain();
     for (const p of running.values()) p.stop();
     running.clear();
-    releaseCoach();
+    for (const p of [...borrowed]) giveBack(p);
     for (const [f, st] of Object.entries(s.facilities)) overlays.set(f, st);
     life.reset();
     const w = worldOf(s, content);
     for (const a of s.activities)
-      if (a.started && s.t < a.end) startActivity(a.uid, w.activities.get(a.id)?.performance ?? '', a.anchor);
+      if (a.started && s.t < a.end) startCardActivity(a.uid, w.activities.get(a.id)?.performance ?? '', a.anchor);
     jobShows.clear();
     idleSince.clear();
+    slots.clear();
+    motion.clear();
+    for (const who of fades.keys()) setAlpha(who, 1);
+    fades.clear();
     lastTime = null;
-    const count = new Map<string, number>();
-    for (const [id, p] of Object.entries(s.people)) {
-      const who = staffPerson(id);
-      if (!who || !p.hired) continue;
-      const st = STANDS[p.at] ?? home;
-      // 和 placeStaff 一样：没有球场的地点不站在站位正中（站位贴着门柱、柱子），同一处的人错开
-      const k = count.get(p.at) ?? 0;
-      count.set(p.at, k + 1);
-      const at = site.courts[p.at]?.length && !p.job ? st : workSpot(p.at, st, k);
-      who.clearMoves();
-      who.pos.x = at.x;
-      who.pos.z = at.z;
-    }
+    // 读档、新开局：所有人直接站到该在的地方（下一帧 placeStaff 按 snap 处理）
+    snapNext = true;
   }
 
   /* ---------- 员工：每个人按岗位站好，走在路上的沿画面路径走（ADR 0012） ---------- */
@@ -513,70 +535,271 @@ export function createGameScene(stage: IsoWorld, content0: ContentBundle, site: 
     const o = SPREAD[k % SPREAD.length] as XZ;
     return { x: base.x + o.x, z: base.z + o.z };
   }
-  function placeStaff(s: GameState, w: World, time: number, sdt: number): void {
-    const count = new Map<string, number>();
+  /**
+   * 每个人在一个地点上的位子（第几个）：先来的先占，一直留到他离开这个地点；走了位子空出来，后来的人补最小的空位。
+   * 这样有人到了、走了，别人不会被挤着换位子（以前按名字排序，总监永远占 0 号，一来就把 Dale 挤开 2.8 米）。
+   */
+  const slots = new Map<string, { at: string; k: number }>();
+  function slotOf(id: string, at: string): number {
+    const mine = slots.get(id);
+    if (mine?.at === at) return mine.k;
+    const used = new Set<number>();
+    for (const [o, x] of slots) if (o !== id && x.at === at) used.add(x.k);
+    let k = 0;
+    while (used.has(k)) k++;
+    slots.set(id, { at, k });
+    return k;
+  }
+  /**
+   * 画面上的走法（只是画面）：lead 是先要走完的一段折线（新招的人从停车场走进来、辞退的人走出去），
+   * exit 表示走完就藏起来；prev 是上一帧的目标点，用来估计目标移动的速度（追路线上的人用）。
+   */
+  interface Motion {
+    lead: XZ[];
+    exit: boolean;
+    prev: XZ | null;
+    /** 上一帧的模拟路线（起点、终点、出发时间；改道、到了都会换） */
+    walk: string | null;
+  }
+  const motion = new Map<string, Motion>();
+  const motionOf = (id: string): Motion => {
+    let m = motion.get(id);
+    if (!m) motion.set(id, (m = { lead: [], exit: false, prev: null, walk: null }));
+    return m;
+  };
+  /** 读档、新开局、夜里跳到第二天：下一帧所有人直接站到该在的地方 */
+  let snapNext = false;
+  /** 从 a 沿步道走到 b 的折线（不认识的地点：直线） */
+  const route = (a: string, b: string): XZ[] => site.routeLine(a, b) ?? [STANDS[a] ?? home, STANDS[b] ?? home];
+  /** 闲着溜达的人离场地围网至少多远（米；两头的围网再多留 1 米，站在底线后面） */
+  const FENCE_GAP = 2.8;
+  /** 停车场（没有的地图用大门） */
+  const LOT = STANDS.parking ? 'parking' : 'entrance';
+  /**
+   * 闲着溜达的点留在场地的围网里面、离围网至少 FENCE_GAP 米，也不过网（QA：outer_1 的站位贴着围网，
+   * 溜达时人在围网两边来回，被挡住的剪影一秒闪四次）。围网有 3 米高，离得太近时人在被挡住和不被挡住之间来回，
+   * 所以留得比 1 米宽。连续的夹取，路线不跳。
+   */
+  function insideCourt(at: string, pt: XZ, side: XZ): XZ {
+    const frs = site.courts[at];
+    if (!frs?.length) return pt;
+    let f = frs[0] as (typeof frs)[number];
+    for (const g of frs) if (Math.hypot(g.ox - side.x, g.oz - side.z) < Math.hypot(f.ox - side.x, f.oz - side.z)) f = g;
+    const l = f.l(pt);
+    const sx = f.l(side).x >= 0 ? 1 : -1;
+    const x = sx * clamp(sx * l.x, 1.4, f.hx - FENCE_GAP - 1);
+    const z = clamp(l.z, -(f.hz - FENCE_GAP), f.hz - FENCE_GAP);
+    const w = f.w({ x, z });
+    return { x: w.x, z: w.z };
+  }
+  /** 沿 lead 往前走：走到这一点就换下一点；返回此刻要去的点（走完了返回 null） */
+  function leadStep(m: Motion, who: Person): XZ | null {
+    while (m.lead.length) {
+      const q = m.lead[0] as XZ;
+      if (Math.hypot(q.x - who.pos.x, q.z - who.pos.z) > 0.15) return q;
+      m.lead.shift();
+    }
+    return null;
+  }
+  const leadLeft = (m: Motion, who: Person): number => {
+    let d = 0;
+    let a: XZ = who.pos;
+    for (const q of m.lead) {
+      d += Math.hypot(q.x - a.x, q.z - a.z);
+      a = q;
+    }
+    return d;
+  };
+  /**
+   * 员工的像素溶解（只是画面）：新招的人在停车场溶解出现、辞退的人走到停车场溶解掉，和背景会员一样（life.ts），
+   * 不再整个人一下子冒出来、消失。身体、发型、覆盖物、手里的东西一起溶解。
+   */
+  const fades = new Map<Person, { a: number; b: number; t: number; d: number }>();
+  /** 溶解一次要多久（秒，真实时间；和 life.ts 一样） */
+  const FADE = 0.6;
+  function setAlpha(who: Person, a: number): void {
+    who.root.traverse((n) => {
+      if (n.kind === 'sprite') (n as Sprite).opacity = a;
+    });
+  }
+  /** 从此刻的不透明度溶解到 to（已经在往 to 溶解就不重来） */
+  function fadeTo(who: Person, to: number): void {
+    const f = fades.get(who);
+    if (f?.b === to) return;
+    const from = f ? f.a + (f.b - f.a) * Math.min(1, f.t / Math.max(1e-6, f.d)) : who.root.visible ? 1 : 0;
+    fades.set(who, { a: from, b: to, t: 0, d: FADE * Math.abs(to - from) });
+    setAlpha(who, from);
+  }
+  /** 立刻到位（读档、跳时间） */
+  function fadeNow(who: Person, to: number): void {
+    fades.delete(who);
+    setAlpha(who, to);
+  }
+  function tickFades(dt: number): void {
+    for (const [who, f] of fades) {
+      f.t += dt;
+      if (f.t < f.d) {
+        setAlpha(who, f.a + (f.b - f.a) * (f.t / f.d));
+        continue;
+      }
+      fades.delete(who);
+      if (f.b <= 0) {
+        // 溶解完了：藏起来，不透明度还原（下次招回来从 0 溶解出现）
+        who.root.visible = false;
+        setAlpha(who, 1);
+      } else setAlpha(who, f.b);
+    }
+  }
+  /** 游戏分钟 / 真实秒（按最近几帧估；刚出发汇合路线时把走路速度换成米/游戏分钟） */
+  let gmps = 6;
+  /**
+   * 汇合路线时比路线上的插值点快几倍（插值点 1× 时已经比小跑快；站位旁边的闲逛点常在出发方向的后面，
+   * 慢了要追一秒多，QA：开走时落后 4~5 米）
+   */
+  const JOIN_K = 2.2;
+  function placeStaff(s: GameState, w: World, time: number, sdt: number, snap: boolean): void {
     for (const id of Object.keys(s.people).sort((a, b) =>
       a === DIRECTOR ? -1 : b === DIRECTOR ? 1 : a.localeCompare(b),
     )) {
       const p = s.people[id];
       const who = staffPerson(id);
       if (!p || !who) continue;
+      const m = motionOf(id);
       if (!isStaff(s, w, id)) {
+        slots.delete(id);
+        idleSince.delete(id);
+        // 辞退了：沿步道走回停车场再消失（读档、跳时间时直接藏起来）
+        if (who.root.visible && !snap && !borrowed.has(who)) {
+          if (!m.exit) {
+            m.exit = true;
+            m.lead = route(p.at, LOT);
+            if (who.phone) who.phone.visible = false;
+            who.base = BASE0(who);
+            who.seatY = null;
+            who.writing = false;
+            idleAct.delete(id);
+            busyT.delete(id);
+          }
+          const q = leadStep(m, who);
+          who.clearMoves();
+          if (q) {
+            if (sdt > 0) who.go(q.x, q.z, leadLeft(m, who) > 14 ? STAFF_RUN : STAFF_WALK);
+            continue;
+          }
+          // 走到停车场了：原地溶解掉（溶解完 tickFades 把人藏起来）
+          fadeTo(who, 0);
+          continue;
+        }
+        if (fades.has(who)) fadeNow(who, 1);
         who.root.visible = false;
+        m.exit = false;
+        m.lead = [];
+        m.prev = null;
         continue;
       }
-      if (borrowed.has(who)) continue;
-      who.root.visible = true;
-      let target: XZ;
-      const k = p.walk ? 0 : (count.get(p.at) ?? 0);
-      if (!p.walk) count.set(p.at, k + 1);
+      if (borrowed.has(who)) {
+        m.prev = null;
+        continue;
+      }
+      if (m.exit) {
+        // 走到一半又被招回来：接着按岗位走（溶解了一半的溶解回来）
+        m.exit = false;
+        m.lead = [];
+        if (fades.has(who)) fadeTo(who, 1);
+      }
+      if (snap && fades.has(who)) fadeNow(who, 1);
+      if (!who.root.visible) {
+        who.root.visible = true;
+        // 新招的人在停车场溶解出现，沿步道走进来，走到他该在的地方（读档、跳时间时直接站好）
+        if (snap) fadeNow(who, 1);
+        else {
+          fades.set(who, { a: 0, b: 1, t: 0, d: FADE });
+          setAlpha(who, 0);
+          const line = route(LOT, p.walk ? p.walk.from : p.at);
+          const start = line[0] ?? home;
+          who.clearMoves();
+          who.pos.x = start.x;
+          who.pos.z = start.z;
+          m.lead = line.slice(1);
+        }
+      }
+      if (p.walk) slots.delete(id);
+      const k = p.walk ? 0 : slotOf(id, p.at);
       const base = STANDS[p.at] ?? home;
       const fr = site.courts[p.at]?.[0];
       const center = fr ? { x: fr.ox, z: fr.oz } : (site.anchors[p.at] ?? null);
-      // 闲着（没派活，或者岗位还没到时段）：在站位附近溜达、看手机、坐下（idle.ts，只是画面）
+      // 闲着（没派活，或者岗位还没到时段、条件没了）：在站位附近溜达、看手机、坐下（idle.ts，只是画面）
       const post = p.job ? w.posts.get(p.job) : undefined;
-      const offHours = !!post && !p.walk && !p.errand && !postStatus(s, w, post).inHours;
+      const pst = post ? postStatus(s, w, post) : null;
+      const offHours = !!pst && !p.walk && !p.errand && (!pst.inHours || !pst.exists);
       const idle = !p.walk && !p.errand && (!p.job || offHours);
       if (!idle) idleSince.set(id, time);
-      const plan = idle
+      const court = !!site.courts[p.at]?.length;
+      const plan0 = idle
         ? idlePlan(
             id,
             time,
             time - (idleSince.get(id) ?? time),
-            site.courts[p.at]?.length ? base : workSpot(p.at, base, 0),
+            court ? insideCourt(p.at, base, base) : workSpot(p.at, base, k),
             !!who.phone,
             offHours ? 3.5 : 6,
             center,
           )
         : null;
+      const plan = plan0 && court ? { ...plan0, ...insideCourt(p.at, plan0, base) } : plan0;
       // 走在路上：面朝路线这一段的走向（不按追插值点剩下的零头转身，QA P1-1）
       const heading = p.walk ? walkHeading(site, w, p.walk, time) : null;
+      let target: XZ;
       if (p.walk) target = walkPoint(site, w, p.walk, time);
       else if (plan) target = { x: plan.x, z: plan.z };
       else target = workSpot(p.at, base, k);
-      const dist = Math.hypot(target.x - who.pos.x, target.z - who.pos.z);
+      if (p.walk) m.lead = [];
+      // 目标这一帧沿路线挪了多远：只在上一帧也走在同一条路上时才算（刚出发、刚到时目标是跳过去的，不能拿来定速度）
+      const wk = p.walk ? `${p.walk.from}>${p.walk.to}@${p.walk.start}` : null;
+      const step = wk && m.prev && m.walk === wk ? Math.hypot(target.x - m.prev.x, target.z - m.prev.z) : 0;
+      m.prev = target;
+      m.walk = wk;
       who.clearMoves();
-      if (p.walk && heading != null) who.idleFace = heading;
-      if (sdt > 0 && dist > 0.01)
-        who.go(
-          target.x,
-          target.z,
-          plan ? Math.min(2.6, Math.max(0.9, dist / sdt)) : Math.max(1.2, dist / sdt),
-          heading != null ? { face: heading } : {},
-        );
-      else if (jumped) {
-        // 暂停时游戏时间跳了（试玩桥、调试快进）：直接站到该在的地方
+      if (snap) {
+        // 跳时间（读档、暂停时快进、夜里黑屏的时候）：直接站到该在的地方
+        m.lead = [];
         who.pos.x = target.x;
         who.pos.z = target.z;
         if (heading != null) who.yaw = heading;
+      } else if (sdt > 0) {
+        const lead = leadStep(m, who);
+        if (lead) {
+          // 先走完进场的那段路（远就小跑）
+          who.go(lead.x, lead.z, leadLeft(m, who) > 14 ? STAFF_RUN : STAFF_WALK);
+        } else {
+          const dist = Math.hypot(target.x - who.pos.x, target.z - who.pos.z);
+          if (p.walk && step > 0 && dist <= Math.max(0.35, step * 1.5)) {
+            // 跟得上：正好走在模拟的路线上
+            if (dist > 0.01) who.go(target.x, target.z, dist / sdt, heading != null ? { face: heading } : {});
+          } else if (p.walk && dist > 0.01) {
+            // 刚出发（人站在站位旁边，离路线起点几米）、演出刚还回来、走进场刚走完：不在插值点后面追，
+            // 斜着走上路线，在插值点前面汇合（walkpath.joinPoint），汇合了就按上面那一支正好跟着走
+            const line = walkRate(site, w, p.walk, time) * gmps;
+            const v = Math.max(dist > 3 ? STAFF_RUN : STAFF_WALK, line * JOIN_K);
+            const j = joinPoint(site, w, p.walk, time, who.pos, v / Math.max(0.1, gmps));
+            const dj = Math.hypot(j.x - who.pos.x, j.z - who.pos.z);
+            if (dj > 0.01) who.go(j.x, j.z, Math.min(v, dj / sdt));
+          } else if (dist > 0.01) {
+            // 跟不上（刚到、演出刚还回来、刚换了位子）：按走路速度走过去
+            const v = dist > 8 ? STAFF_RUN : STAFF_WALK;
+            who.go(target.x, target.z, Math.min(v, dist / sdt));
+          }
+        }
       }
+      if (p.walk && heading != null && !m.lead.length) who.idleFace = heading;
       if (!p.walk) {
         // 站着的时候面朝地点的中心（球场、喷泉、会所）；闲着时东张西望
         who.idleFace = plan?.face ?? (center ? Math.atan2(center.x - who.pos.x, center.z - who.pos.z) : null);
-        if (jumped && who.idleFace != null) who.yaw = who.idleFace;
+        if (snap && who.idleFace != null) who.yaw = who.idleFace;
       }
       actIdle(id, who, plan);
-      if (!plan && working(s, w, id)) actWork(id, who, post?.skill ?? (p.job ? w.orders.get(p.job)?.skill : undefined));
+      if (!plan && working(s, w, id) && (!pst || pst.exists))
+        actWork(id, who, post?.skill ?? (p.job ? w.orders.get(p.job)?.skill : undefined));
       else if (busyT.has(id)) {
         busyT.delete(id);
         who.writing = false;
@@ -636,27 +859,42 @@ export function createGameScene(stage: IsoWorld, content0: ContentBundle, site: 
     who.gesture(pool[Math.floor(rnd() * pool.length)] ?? 'talk', sched.now, 1.4);
   }
 
-  /* ---------- 岗位和工单的演出：有人在干就演，停了就收（演出只读状态） ---------- */
-  const jobShows = new Map<string, number>();
+  /* ---------- 岗位和工单的演出：有人到场了才演，没人在干了就收场（演出只读状态） ---------- */
+  /** 正在演的岗位、工单：演出 uid，借去演的员工 */
+  const jobShows = new Map<string, { uid: number; cast: string[] }>();
   let nextShowUid = -1;
   function syncJobShows(s: GameState, w: World): void {
-    const want = new Map<string, { performance: string; at: string }>();
+    const want = new Map<string, { performance: string; at: string; here: string[]; progress: number }>();
+    /** 已经走到、在干这件事的人（模拟的 working）：主教练排前面 */
+    const arrived = (job: string) =>
+      Object.values(s.people)
+        .filter((p) => p.hired && p.job === job && working(s, w, p.id))
+        .map((p) => p.id)
+        .sort((a, b) => (a === s.headCoach ? -1 : b === s.headCoach ? 1 : a.localeCompare(b)));
     for (const post of w.posts.values()) {
       if (!post.performance) continue;
-      const id = Object.values(s.people).find((p) => p.hired && p.job === post.id)?.id;
-      if (!id || !working(s, w, id)) continue;
-      if (!(post.hours ? isOn(s, post) : true)) continue;
-      want.set(post.id, { performance: post.performance, at: post.at });
+      const st = postStatus(s, w, post);
+      // 岗位的条件没了（例如设施坏了）、不在时段里：马上收场
+      if (!st.exists || (st.demand && !st.inHours)) continue;
+      const here = arrived(post.id);
+      if (!here.length) continue;
+      want.set(post.id, { performance: post.performance, at: post.at, here, progress: st.progress });
     }
     for (const o of w.orders.values()) {
       if (!o.performance || !s.orders[o.id]) continue;
-      if (!Object.values(s.people).some((p) => p.hired && p.job === o.id && working(s, w, p.id))) continue;
-      want.set(o.id, { performance: o.performance, at: o.at });
+      const here = arrived(o.id);
+      if (!here.length) continue;
+      want.set(o.id, { performance: o.performance, at: o.at, here, progress: orderStatus(s, w, o).progress });
     }
-    for (const [id, uid] of jobShows) {
-      if (want.has(id)) continue;
-      running.get(uid)?.stop();
-      running.delete(uid);
+    for (const [id, show] of jobShows) {
+      const x = want.get(id);
+      // 借去演的人还在干这件事：接着演，只更新到场人数和进度
+      if (x && show.cast.every((c) => x.here.includes(c))) {
+        running.get(show.uid)?.setParams?.({ crewN: x.here.length, progress: clamp(x.progress, 0, 1) });
+        continue;
+      }
+      running.get(show.uid)?.stop(true);
+      running.delete(show.uid);
       jobShows.delete(id);
     }
     for (const [id, x] of want) {
@@ -664,22 +902,32 @@ export function createGameScene(stage: IsoWorld, content0: ContentBundle, site: 
       const plan = planPerformance(x.performance, x.at, site);
       // 只在有场地的地点上演；会所、广场的活由人站在那儿比划
       if (!plan) continue;
-      // 要借主教练的演出：只有主教练本人在干这件事时才演
-      if (plan.cast.startsWith('coach')) {
-        const coachJob = s.headCoach ? s.people[s.headCoach]?.job : null;
-        if (coachJob !== id) continue;
-      }
       if ([...jobShows.keys()].some((k) => (w.posts.get(k)?.at ?? w.orders.get(k)?.at) === x.at)) continue;
+      // 借到场的人：要教练的演出，到场的第一个人当教练；清场的演出，到场的人都下场干活
+      const free = x.here.filter((pid) => {
+        const q = staffPerson(pid);
+        return !!q && !borrowed.has(q) && q.root.visible;
+      });
+      const wantsCoach = plan.cast.startsWith('coach');
+      if (wantsCoach && !free.length) continue;
+      const coachId = wantsCoach ? (free[0] as string) : null;
+      const crewIds = plan.activity === 'cleanup' ? free : [];
+      const cast = [...(coachId ? [coachId] : []), ...crewIds];
       const uid = nextShowUid--;
-      jobShows.set(id, uid);
-      startActivity(uid, x.performance, x.at);
+      jobShows.set(id, { uid, cast });
+      startActivity(
+        uid,
+        x.performance,
+        x.at,
+        {
+          coach: coachId ? staffPerson(coachId) : null,
+          crew: crewIds.map((c) => staffPerson(c)).filter((q): q is Person => !!q),
+          coachId,
+        },
+        { crewN: x.here.length, progress: clamp(x.progress, 0, 1) },
+      );
     }
   }
-  const isOn = (s: GameState, post: { hours?: [number, number] | undefined; days?: number[] | undefined }) => {
-    const h = (s.t % 1440) / 60;
-    const wd = (Math.floor(s.t / 1440) % 7) as number;
-    return (!post.days || post.days.includes(wd)) && !!post.hours && h >= post.hours[0] && h < post.hours[1];
-  };
 
   /* ---------- 园区的日常：来打球的会员、路人、风沙（准则 6） ---------- */
   const life = createLife({
@@ -734,6 +982,12 @@ export function createGameScene(stage: IsoWorld, content0: ContentBundle, site: 
   /* ---------- 卡片的镜头 ---------- */
   let focusAnchor: string | null = null;
   let focusUntil = 0;
+  let focusSeq = 0;
+  const focusOn = (at: string, secs: number) => {
+    focusAnchor = at;
+    focusUntil = sched.now + secs;
+    focusSeq++;
+  };
 
   return {
     showNow: () => sched.now,
@@ -745,9 +999,9 @@ export function createGameScene(stage: IsoWorld, content0: ContentBundle, site: 
       state = s;
       const w = worldOf(s, content);
       for (const e of events) {
-        if (e.type === 'activityStarted') startActivity(e.uid, e.performance, e.anchor);
+        if (e.type === 'activityStarted') startCardActivity(e.uid, e.performance, e.anchor);
         else if (e.type === 'activityFinished') {
-          running.get(e.uid)?.stop();
+          running.get(e.uid)?.stop(true);
           running.delete(e.uid);
         } else if (e.type === 'log') {
           for (const x of e.entry.effects)
@@ -755,18 +1009,12 @@ export function createGameScene(stage: IsoWorld, content0: ContentBundle, site: 
               overlays.set(x.facility, x.state);
               // 修好了：镜头过去看一眼（ADR 0015：修好就是解锁，画面也跟着复原）
               const at = w.facilities.get(x.facility)?.anchor;
-              if (at) {
-                focusAnchor = at;
-                focusUntil = sched.now + 4;
-              }
+              if (at) focusOn(at, 4);
             }
         } else if (e.type === 'cardOpened') {
           const c = w.cards.get(e.card);
           const loc = c?.stage?.anchor ?? c?.location;
-          if (loc) {
-            focusAnchor = loc;
-            focusUntil = sched.now + 6;
-          }
+          if (loc) focusOn(loc, 6);
         } else if (e.type === 'weather') {
           // 天气由模拟决定：雨天下雨，其他天放晴
           if (e.weather === 'rain') rain.start();
@@ -778,18 +1026,28 @@ export function createGameScene(stage: IsoWorld, content0: ContentBundle, site: 
       state = s;
       const sdt = paused ? 0 : dt;
       jumped = paused && lastTime !== null && Math.abs(time - lastTime) > 0.5;
+      // 走着走着时间跳了一大段（夜里跳到第二天早上：main.ts 先黑屏再调这里）：人直接站到位
+      const leap = lastTime !== null && Math.abs(time - lastTime) > 30;
+      const snap = jumped || leap || snapNext;
+      snapNext = false;
       // 时间跳了（快进、调试跳天）：天气按此刻的模拟状态直接到位
-      if (jumped || (lastTime !== null && Math.abs(time - lastTime) > 30)) {
+      if (jumped || leap) {
         if (s.weather === 'rain') rain.start();
         else rain.stop();
         snapRain();
       }
+      // 游戏分钟 / 真实秒：按最近几帧平滑（倍速、没事时加速都会变）
+      if (sdt > 0 && lastTime !== null && !snap) {
+        const g = (time - lastTime) / sdt;
+        if (g > 0 && g < 200) gmps += (g - gmps) * 0.2;
+      }
       lastTime = time;
       sched.advance(sdt);
+      tickFades(sdt);
 
       const w = worldOf(s, content);
       syncJobShows(s, w);
-      placeStaff(s, w, time, sdt);
+      placeStaff(s, w, time, sdt, snap);
 
       // 主教练：总监不在场时专注度低（有的教练爱看手机）
       const coachId = s.headCoach;
@@ -830,8 +1088,8 @@ export function createGameScene(stage: IsoWorld, content0: ContentBundle, site: 
     },
     focus() {
       if (!focusAnchor || sched.now > focusUntil) return null;
-      const p = STANDS[focusAnchor];
-      return p ? { x: p.x, z: p.z, zoom: 1.2 } : null;
+      const p = site.anchors[focusAnchor] ?? STANDS[focusAnchor];
+      return p ? { x: p.x, z: p.z, seq: focusSeq } : null;
     },
   };
 }

@@ -136,29 +136,48 @@ export class GroundPainter {
   }
 
   private lit(): Float32Array {
-    if (this.LIT && this.litVer === this.lampVersion) return this.LIT;
+    while (!this.litStep(Number.POSITIVE_INFINITY));
+    return this.LIT as Float32Array;
+  }
+
+  /** 正在算的灯光图对应的版本、算到第几盏 */
+  private litBuild = -1;
+  private litNext = 0;
+
+  /** 分几次算灯光图（每次最多 count 盏灯）；灯光图是最新的就返回 true */
+  litStep(count: number): boolean {
+    if (this.LIT && this.litVer === this.lampVersion) return true;
     const { TS, TW, TH } = this;
-    const LIT = this.LIT ?? new Float32Array(TW * TH);
-    LIT.fill(0);
-    for (const l of this.lamps) {
+    if (this.litBuild !== this.lampVersion || !this.LIT) {
+      this.LIT ??= new Float32Array(TW * TH);
+      this.LIT.fill(0);
+      this.litBuild = this.lampVersion;
+      this.litNext = 0;
+    }
+    const LIT = this.LIT;
+    const end = Math.min(this.lamps.length, this.litNext + count);
+    for (let li = this.litNext; li < end; li++) {
+      const l = this.lamps[li] as Lamp;
       const i0 = Math.max(0, Math.floor((l.x - l.r - this.x0) / TS));
       const i1 = Math.min(TW - 1, Math.ceil((l.x + l.r - this.x0) / TS));
       const j0 = Math.max(0, Math.floor((l.z - l.r - this.z0) / TS));
       const j1 = Math.min(TH - 1, Math.ceil((l.z + l.r - this.z0) / TS));
+      const r2 = l.r * l.r;
       for (let j = j0; j <= j1; j++) {
-        const z = this.z0 + (j + 0.5) * TS;
+        const dz = this.z0 + (j + 0.5) * TS - l.z;
         for (let i = i0; i <= i1; i++) {
-          const x = this.x0 + (i + 0.5) * TS;
-          const d = Math.hypot(x - l.x, z - l.z);
-          if (d >= l.r) continue;
-          const f = 1 - d / l.r;
+          const dx = this.x0 + (i + 0.5) * TS - l.x;
+          const d2 = dx * dx + dz * dz;
+          if (d2 >= r2) continue;
+          const f = 1 - Math.sqrt(d2) / l.r;
           LIT[j * TW + i] = (LIT[j * TW + i] as number) + f * f * l.i * 1.6;
         }
       }
     }
-    this.LIT = LIT;
+    this.litNext = end;
+    if (end < this.lamps.length) return false;
     this.litVer = this.lampVersion;
-    return LIT;
+    return true;
   }
 
   /** 该处受灯光的程度（灯光强度 amt 0..1 乘上去，量化成 4 档） */
@@ -171,34 +190,48 @@ export class GroundPainter {
     return Math.min(1, Math.floor(Math.min(s, 1) * 4) / 4);
   }
 
-  /** 当前夜色 n、灯光 amt 下的贴图（白天直接返回 tex） */
-  texFor(n: number, amt: number): Uint32Array {
+  /** 当前夜色 n、灯光 amt、暖色 warm 下的贴图（白天直接返回 tex；只缓存一份） */
+  texFor(n: number, amt: number, warm = 1): Uint32Array {
     if (n <= 0) return this.tex;
-    const key = `${n}|${amt}|${this.version}|${this.lampVersion}`;
+    const key = `${n}|${amt}|${warm}|${this.version}|${this.lampVersion}`;
     if (key === this.nightKey && this.nightBuf) return this.nightBuf;
-    const { TW, TH, tex } = this;
-    const N = this.nightBuf ?? new Uint32Array(TW * TH);
-    for (let i = 0; i < N.length; i++) {
-      const v = tex[i] as number;
-      N[i] = v ? nightP(v, n, 0) : 0;
-    }
-    if (amt > 0 && this.lamps.length) {
-      const LIT = this.lit();
-      for (let j = 0; j < TH; j++)
-        for (let i = 0; i < TW; i++) {
-          const p = j * TW + i;
-          const L = (LIT[p] as number) * amt;
-          if (L <= 0.02) continue;
-          const q = Math.min(1, Math.floor(Math.min(L, 1) * 4 + bay(i >> 1, j >> 1)) / 4);
-          if (q <= 0) continue;
-          const v = tex[p] as number;
-          if (!v) continue;
-          const w = pk((v & 255) * 1.02 + 8, ((v >>> 8) & 255) * 0.98 + 4, ((v >>> 16) & 255) * 0.88);
-          N[p] = mixP(N[p] as number, w, q * 0.92 * n);
-        }
-    }
+    const N = this.nightBuf ?? new Uint32Array(this.TW * this.TH);
+    this.nightRows(N, n, amt, warm, 0, this.TH);
     this.nightBuf = N;
     this.nightKey = key;
     return N;
+  }
+
+  /**
+   * 把夜间贴图的第 j0..j1-1 行算进 out（IsoView 分几帧慢慢烘下一档夜色时用）。
+   * 灯光池：受光 L 抖成 4 档，往暖白靠 q * 0.92 * n。
+   */
+  nightRows(out: Uint32Array, n: number, amt: number, warm: number, j0: number, j1: number): void {
+    const { TW, tex } = this;
+    const lamps = amt > 0 && this.lamps.length > 0;
+    const LIT = lamps ? this.lit() : null;
+    for (let j = j0; j < j1; j++) {
+      const row = j * TW;
+      for (let i = 0; i < TW; i++) {
+        const p = row + i;
+        const v = tex[p] as number;
+        if (!v) {
+          out[p] = 0;
+          continue;
+        }
+        let c = nightP(v, n, 0, warm);
+        if (LIT) {
+          const L = (LIT[p] as number) * amt;
+          if (L > 0.02) {
+            const q = Math.min(1, Math.floor(Math.min(L, 1) * 4 + bay(i >> 1, j >> 1)) / 4);
+            if (q > 0) {
+              const w = pk((v & 255) * 1.02 + 8, ((v >>> 8) & 255) * 0.98 + 4, ((v >>> 16) & 255) * 0.88);
+              c = mixP(c, w, q * 0.92 * n);
+            }
+          }
+        }
+        out[p] = c;
+      }
+    }
   }
 }

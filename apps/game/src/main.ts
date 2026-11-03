@@ -309,7 +309,7 @@ function addHubs(c: ContentBundle): void {
           const posts = h.posts
             .map(
               (p) =>
-                `<span class="hb-p${p.need ? ' hb-need' : ''}${p.on ? ' hb-on' : ''}${p.soon ? ' hb-soon' : ''}" style="--p:${Math.round(p.progress * 100)}%${p.color ? `;--c:${p.color}` : ''}">${esc(p.initials)}</span>`,
+                `<span class="hb-p${p.need ? ' hb-need' : ''}${p.on ? ' hb-on' : ''}${p.soon ? ' hb-soon' : ''}${p.coming ? ' hb-coming' : ''}" style="--p:${Math.round(p.progress * 100)}%${p.color ? `;--c:${p.color}` : ''}">${esc(p.initials)}</span>`,
             )
             .join('');
           const o = h.orders;
@@ -420,6 +420,34 @@ window.addEventListener('keydown', (e) => {
   }
 });
 
+/* ---------- 卡片的镜头：新卡来了，镜头慢慢移到它发生的地方；玩家一拖画面就不再跟 ---------- */
+let focusSeq = -1;
+container.addEventListener('pointerdown', () => camera.setFollow(false));
+function followFocus(): { x: number; z: number } | null {
+  const f = scene.focus();
+  if (!f) {
+    if (camera.following) camera.setFollow(false);
+    return null;
+  }
+  if (f.seq !== focusSeq) {
+    focusSeq = f.seq;
+    camera.setFollow(true);
+  }
+  return camera.following ? f : null;
+}
+
+/*
+ * ---------- 夜里跳到第二天早上：黑一下屏再亮（只是画面，模拟照常） ----------
+ * 关门以后模拟一步跳到第二天开门（走到一半的人直接到、天一下子亮了）。画面先停在晚上那一帧淡出到黑，
+ * 黑着的时候把人、天色、天气一次摆好，再淡入；淡出的这一段模拟不往前走。
+ */
+const NIGHT_FADE = 0.6;
+const nightEl = document.createElement('div');
+nightEl.id = 'night';
+$('labels').after(nightEl);
+let night: { phase: 'out' | 'in'; t: number } | null = null;
+const NIGHT_GAP = 120;
+
 /* ---------- 主循环 ---------- */
 let saveT = 0;
 function pump(events: readonly SimEvent[]): void {
@@ -437,15 +465,29 @@ function frame(ts: number) {
   requestAnimationFrame(frame);
   const dt = clamp((ts - last) / 1000, 0, 0.05);
   last = ts;
-  pump(session.frame(dt));
+  const t0 = session.s.t;
+  // 正在黑屏淡出：画面停在晚上，模拟也先不走
+  if (night?.phase !== 'out') pump(session.frame(dt));
+  if (!night && session.s.t - t0 > NIGHT_GAP) night = { phase: 'out', t: 0 };
+  if (night) {
+    night.t += dt;
+    if (night.phase === 'out' && night.t >= NIGHT_FADE) night = { phase: 'in', t: 0 };
+    const u = clamp(night.t / NIGHT_FADE, 0, 1);
+    nightEl.style.opacity = String(night.phase === 'out' ? u : 1 - u);
+    if (night.phase === 'in' && u >= 1) {
+      night = null;
+      nightEl.style.opacity = '0';
+    }
+  }
   const card = document.querySelector('.td-card');
   const occ = card ? Math.max(0, container.clientHeight - card.getBoundingClientRect().top) : 0;
   if (occ !== camera.occludedBottomPx) camera.occludedBottomPx = occ;
-  camera.update(dt, scene.focus());
+  camera.update(dt, followFocus());
   // 人物取帧要知道镜头转角和精灵档位（people/view.ts），先于人物更新
   const pr = stage.view.proj;
   setPeopleView(pr.ang, pr.k, pr.spriteScale);
-  scene.update(session.s, session.time, dt, session.paused);
+  // 淡出的时候不更新场景（停在晚上那一帧）；黑透了再一次摆到第二天早上
+  if (night?.phase !== 'out') scene.update(session.s, session.time, dt, session.paused);
   stage.render(dt, scene.showNow());
   // 拉远看整座岛时地点牌缩成小圆点（旧版按 4 CSS 像素每米；等距默认 k = 3 时约 3 px/m）
   labels.compact = camera.pxPerM < 3.5;

@@ -43,7 +43,10 @@ export function PlaceSheet({ p, actions }: { p: PlaceSheetData; actions: HudActi
                   <span class="td-row-icon" aria-hidden="true">
                     {r.locked ? '🔒' : r.kind === 'order' ? '⚒' : r.faces.length ? '' : '+'}
                     {r.kind === 'post' && r.faces[0] ? (
-                      <span class="td-row-face" style={{ background: r.faces[0].color }}>
+                      <span
+                        class={`td-row-face${r.faces[0].coming ? ' td-face-coming' : ''}`}
+                        style={{ background: r.faces[0].color }}
+                      >
                         {r.faces[0].initials}
                       </span>
                     ) : null}
@@ -64,7 +67,11 @@ export function PlaceSheet({ p, actions }: { p: PlaceSheetData; actions: HudActi
                   {r.kind === 'order' && r.faces.length ? (
                     <span class="td-row-crew" aria-hidden="true">
                       {r.faces.map((f, i) => (
-                        <span key={i} class="td-row-face" style={{ background: f.color }}>
+                        <span
+                          key={i}
+                          class={`td-row-face${f.coming ? ' td-face-coming' : ''}`}
+                          style={{ background: f.color }}
+                        >
                           {f.initials}
                         </span>
                       ))}

@@ -615,19 +615,29 @@ export class Raster implements DrawContext {
   /**
    * 在世界点画一张烘焙像素图：锚点像素对准投影点，按 spriteScale 放大；夜色按 lit 换算，自发光像素不压暗。
    * opacity < 1 时按 Bayer 阈值溶解像素。
+   * zbias：这一张图额外的深度容差（米，加在 zeps 上；精灵的遮挡滞回用，见 Draw）。
+   * 返回被挡住（没画或画成剪影）的像素数，深度测试关着时为 0。
    */
   art(
     a: BakedArt,
     x: number,
     y: number,
     z: number,
-    o: { flipX?: boolean; scale?: number; lit?: number; opacity?: number; depth?: number; xray?: boolean } = {},
-  ): void {
+    o: {
+      flipX?: boolean;
+      scale?: number;
+      lit?: number;
+      opacity?: number;
+      depth?: number;
+      xray?: boolean;
+      zbias?: number;
+    } = {},
+  ): number {
     const img = o.flipX ? flipArt(a) : a;
     const s = Math.max(1, Math.round(o.scale ?? this.proj.spriteScale));
     const n = this.pal.night;
     const lit = n > 0 ? (o.lit ?? this.litFn(x, z)) : 0;
-    const px = nightArt(img, n, Math.round(lit * 4) / 4);
+    const px = nightArt(img, n, Math.round(lit * 4) / 4, this.pal.warm);
     const pr = this.proj;
     const ax = Math.round(pr.sx(x, z));
     const ay = Math.round(pr.sy(x, y, z));
@@ -641,7 +651,8 @@ export class Raster implements DrawContext {
     const buf = this.buf;
     const zb = this.depth;
     const mode = zb ? this.zmode : ZNONE;
-    const eps = this.zeps;
+    const eps = this.zeps + (o.zbias ?? 0);
+    let hid = 0;
     for (let j = 0; j < h; j++) {
       const by0 = top + j * s;
       if (by0 + s <= 0 || by0 >= H) continue;
@@ -655,20 +666,34 @@ export class Raster implements DrawContext {
           for (let p = 0; p < s; p++) {
             const xx = bx0 + p;
             if (xx < 0 || xx >= W) continue;
-            if (op < 1 && bay(xx, yy) >= op) continue;
             const ii = yy * W + xx;
+            // 溶解掉的像素照样做深度测试、计入遮挡数（精灵的遮挡滞回不随溶解变）
+            const gone = op < 1 && bay(xx, yy) >= op;
             if (mode === ZTEST) {
-              if (d + eps < ((zb as Float32Array)[ii] as number)) {
-                // 被挡住：剪影（隔一个像素画一个深色点）
-                if (o.xray && ((xx + yy) & 1) === 0) buf[ii] = XRAY;
+              const zz = zb as Float32Array;
+              if (d + eps < (zz[ii] as number)) {
+                hid++;
+                // 被挡住：剪影（隔一个像素画一个深色点）。只在成片挡住的地方画：左右两边都没挡住的像素
+                // 是铁丝网的网眼线、细杆，人本来就从网眼里看得见，再涂剪影色会随人每挪一个像素闪成一片
+                // 紫色花纹（QA：贴着围网走时剪影闪）
+                if (
+                  !gone &&
+                  o.xray &&
+                  ((xx + yy) & 1) === 0 &&
+                  ((xx > 0 && d + eps < (zz[ii - 1] as number)) || (xx + 1 < W && d + eps < (zz[ii + 1] as number)))
+                )
+                  buf[ii] = XRAY;
                 continue;
               }
-            } else if (mode === ZWRITE) (zb as Float32Array)[ii] = d;
+            }
+            if (gone) continue;
+            if (mode === ZWRITE) (zb as Float32Array)[ii] = d;
             buf[ii] = v;
           }
         }
       }
     }
+    return hid;
   }
 }
 

@@ -115,3 +115,7 @@ body{background:var(--sky);color:var(--navy);font-family:var(--f-text);overflow:
 #labels .lbl-off-r::after{left:auto;right:-13px;top:50%;margin-top:-6px;border-left-color:var(--paper)}
 #labels .lbl-off-u::after{left:50%;top:-13px;margin-left:-6px;border-bottom-color:var(--paper)}
 #labels .lbl-off-d::after{left:50%;top:auto;bottom:-13px;margin-left:-6px;border-top-color:var(--paper)}
+/* 已经派了、人还在路上：头像变淡、虚线描边（和员工条的 td-face-coming 一样） */
+.hb-coming{opacity:.55;outline:2px dashed var(--paper);outline-offset:-2px;filter:saturate(.5)}
+/* 夜里跳到第二天：黑一下屏（main.ts 控制透明度），盖住场景和地点牌，不盖 HUD */
+#night{position:fixed;inset:0;z-index:3;pointer-events:none;background:#0a0e1a;opacity:0}

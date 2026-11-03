@@ -6,7 +6,8 @@
 
 export const clamp = (v: number, a: number, b: number): number => (v < a ? a : Math.min(v, b));
 
-const BAY = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5].map((v) => (v + 0.5) / 16);
+/** 4×4 Bayer 阈值表（下标 (y & 3) << 2 | (x & 3)） */
+export const BAY: readonly number[] = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5].map((v) => (v + 0.5) / 16);
 /** 4×4 Bayer 阈值 0..1 */
 export const bay = (x: number, y: number): number => BAY[((y & 3) << 2) | (x & 3)] as number;
 
@@ -51,30 +52,74 @@ export function nightRGB(r: number, g: number, b: number, L: number): [number, n
   ];
 }
 
-/** 打包色按夜色 n（0..1）和受光 lit 换算 */
-export function nightP(v: number, n: number, lit: number): number {
+/**
+ * 黄昏 / 清晨的暖色程度（夜色 n 的函数）：白天、深夜都是 0，n≈0.3（日落、日出）最暖。
+ * 夜色一条轴同时管"金色时刻 → 日落 → 蓝调 → 夜"，早晚走同一条路，静态层按夜色档烘焙就够了。
+ */
+export const warmth = (n: number): number => (n <= 0 || n >= 0.62 ? 0 : Math.sin((Math.PI * n) / 0.62));
+
+/**
+ * 夜色换算的系数（每个通道 c' = c * m + a），按夜色 n、受光 lit、暖色系数 w（雨天 0）算。
+ * 夜色换算对颜色是仿射的：先暖色调（乘），再往样片的 nightRGB 靠 n。
+ */
+function gradeK(n: number, lit: number, w: number, out: Float64Array): void {
+  const h = warmth(n) * w;
+  const wr = 1 + 0.08 * h;
+  const wg = 1 - 0.02 * h;
+  const wb = 1 - 0.15 * h;
+  const L = lit;
+  const nm = 1 - n;
+  out[0] = wr * (nm + n * (0.22 + 0.78 * L));
+  out[1] = n * (10 * (1 - L) + 14 * L);
+  out[2] = wg * (nm + n * (0.27 + 0.66 * L));
+  out[3] = n * (12 * (1 - L) + 6 * L);
+  out[4] = wb * (nm + n * (0.48 + 0.44 * L));
+  out[5] = n * 34 * (1 - L);
+}
+
+const GK = new Float64Array(6);
+let gkN = -1;
+let gkL = -1;
+let gkW = -1;
+
+/** 打包色按夜色 n（0..1）、受光 lit、暖色系数 warm（0..1，雨天压掉）换算 */
+export function nightP(v: number, n: number, lit: number, warm = 1): number {
   if (n <= 0) return v;
-  const r = v & 255;
-  const g = (v >>> 8) & 255;
-  const b = (v >>> 16) & 255;
-  const c = nightRGB(r, g, b, lit);
-  return pk(r + (c[0] - r) * n, g + (c[1] - g) * n, b + (c[2] - b) * n);
+  if (n !== gkN || lit !== gkL || warm !== gkW) {
+    gradeK(n, lit, warm, GK);
+    gkN = n;
+    gkL = lit;
+    gkW = warm;
+  }
+  return pk(
+    (v & 255) * (GK[0] as number) + (GK[1] as number),
+    ((v >>> 8) & 255) * (GK[2] as number) + (GK[3] as number),
+    ((v >>> 16) & 255) * (GK[4] as number) + (GK[5] as number),
+  );
 }
 
 /**
- * 调色板：当前夜色下 hex → 打包色的换算和缓存。夜色变了缓存清空。
+ * 调色板：当前夜色下 hex → 打包色的换算和缓存。夜色、暖色变了缓存清空。
  */
 export class Palette {
   private n = 0;
+  private w = 1;
   private cache = new Map<string, number>();
+  private readonly k = new Float64Array(6);
 
   get night(): number {
     return this.n;
   }
 
-  setNight(n: number): void {
-    if (n === this.n) return;
+  /** 暖色系数（1 晴天，雨天往 0 走） */
+  get warm(): number {
+    return this.w;
+  }
+
+  setNight(n: number, warm = this.w): void {
+    if (n === this.n && warm === this.w) return;
     this.n = n;
+    this.w = warm;
     this.cache.clear();
   }
 
@@ -88,10 +133,11 @@ export class Palette {
     let g = c[1] * f;
     let b = c[2] * f;
     if (this.n > 0) {
-      const q = nightRGB(r, g, b, lit);
-      r += (q[0] - r) * this.n;
-      g += (q[1] - g) * this.n;
-      b += (q[2] - b) * this.n;
+      const k = this.k;
+      gradeK(this.n, lit, this.w, k);
+      r = r * (k[0] as number) + (k[1] as number);
+      g = g * (k[2] as number) + (k[3] as number);
+      b = b * (k[4] as number) + (k[5] as number);
     }
     v = pk(r, g, b);
     this.cache.set(key, v);

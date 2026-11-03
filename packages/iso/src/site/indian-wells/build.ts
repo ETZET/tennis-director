@@ -37,8 +37,12 @@ export interface BuildOut {
 type Bounds = { x0: number; x1: number; z0: number; z1: number; y0: number; y1: number };
 type Draw = (r: DrawContext) => void;
 
-/** 夜里算不算"天黑了"（亮灯、发光窗户） */
-const dark = (r: DrawContext) => r.night > 0.45;
+/**
+ * 夜里算不算"天黑了"（亮灯、发光窗户）。门槛每个节点错开一点（夜色 0.38~0.58，按节点深度 zcur 取哈希，只影响画面）：
+ * 黄昏时灯和窗户一盏盏亮起来，天亮时一盏盏灭，不是同一帧全亮全灭。
+ */
+const dark = (r: DrawContext) =>
+  r.night > 0.38 + 0.2 * hash(Math.round(((r as { zcur?: number }).zcur ?? 0) * 4), 5, 41);
 
 export function buildStatics(fac: Facilities, wx: Weather): BuildOut {
   const out: BuildOut = { statics: [], dynamic: [], casts: [], lamps: [] };

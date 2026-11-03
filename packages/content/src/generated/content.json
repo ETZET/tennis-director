@@ -1,5 +1,5 @@
 {
- "version": "e614d5e3",
+ "version": "b5f5c891",
  "stats": [
   {
    "id": "cash",
@@ -5149,6 +5149,9 @@
    "ui.place.order_new": "{cost}{time} · not started",
    "ui.place.order_on": "{names} working · {p}%",
    "ui.place.order_paused": "Paused · {p}%",
+   "ui.place.order_wait": "{p}% · waiting for crew",
+   "ui.place.coming": "On the way: {list}",
+   "ui.place.coming_one": "{name} {time}",
    "ui.why.person": "Can't be assigned",
    "ui.why.busy": "Away on an errand",
    "ui.why.target": "No such post",
@@ -5167,6 +5170,7 @@
    "ui.sheet.crew": "Up to {n} people",
    "ui.sheet.post_on": "{name} is on it · {time} left this round",
    "ui.sheet.post_wait": "{name} is here, waiting for customers",
+   "ui.sheet.post_coming": "{name} is on the way · {time}",
    "ui.sheet.post_empty_now": "Nobody · customers waiting",
    "ui.sheet.post_empty": "Nobody",
    "ui.sheet.order_on": "{names} working · {p}%",
@@ -5175,7 +5179,8 @@
    "ui.sheet.walk": "{time} walk",
    "ui.sheet.here": "Right here",
    "ui.sheet.leaves": "leaves “{what}”",
-   "ui.sheet.speed": "Working at {n}%"
+   "ui.sheet.speed": "Working at {n}%",
+   "ui.sheet.you_coming": "On the way · {time}"
   },
   "zh": {
    "stats.cash": "现金",
@@ -5714,6 +5719,9 @@
    "ui.place.order_new": "{cost}{time} · 还没开工",
    "ui.place.order_on": "{names}在干 · {p}%",
    "ui.place.order_paused": "停工 · {p}%",
+   "ui.place.order_wait": "{p}% · 等人到场",
+   "ui.place.coming": "在路上：{list}",
+   "ui.place.coming_one": "{name} {time}",
    "ui.why.person": "不能指派",
    "ui.why.busy": "正在办事，叫不回来",
    "ui.why.target": "没有这个岗位",
@@ -5732,6 +5740,7 @@
    "ui.sheet.crew": "最多 {n} 人一起",
    "ui.sheet.post_on": "{name}在干 · 这一圈还要 {time}",
    "ui.sheet.post_wait": "{name}在这儿，等客人来",
+   "ui.sheet.post_coming": "{name}在路上 · 还要 {time}",
    "ui.sheet.post_empty_now": "没人 · 有客人在等",
    "ui.sheet.post_empty": "没人",
    "ui.sheet.order_on": "{names}在干 · {p}%",
@@ -5740,7 +5749,8 @@
    "ui.sheet.walk": "走过去 {time}",
    "ui.sheet.here": "就在这儿",
    "ui.sheet.leaves": "会放下“{what}”",
-   "ui.sheet.speed": "干活速度 {n}%"
+   "ui.sheet.speed": "干活速度 {n}%",
+   "ui.sheet.you_coming": "在路上 · 还要 {time}"
   }
  }
 }

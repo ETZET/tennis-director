@@ -11,6 +11,28 @@ export const HV = 1.225;
 /** 精灵档位的基准：1 档时 14 像素高的人正好 1.8 米 */
 export const K1 = 14 / 1.8;
 
+/**
+ * 某个缩放（k）该用的精灵档位：n 档和 n+1 档的分界在 K1 * sqrt(n(n+1))（两档 k 的几何中点），
+ * 所以 7.8 → 1 档、15.6 → 2 档、23.4 → 3 档，11 以下都是 1 档。
+ * 档位跟着镜头的目标档位走（IsoCamera 设 Projection.sprite），不跟着缓动中的 k 走。
+ */
+export function spriteScaleFor(k: number): number {
+  let n = 1;
+  while (k >= K1 * Math.sqrt(n * (n + 1))) n++;
+  return n;
+}
+
+/** 双指缩放时换档的回差：要越过分界这么多倍才换，手指抖动不会来回跳 */
+export const SPRITE_HYST = 1.08;
+
+/** 双指缩放中：在当前档位 cur 的基础上带回差地取档位 */
+export function spriteScaleHyst(k: number, cur: number): number {
+  let n = Math.max(1, Math.round(cur));
+  while (k >= K1 * Math.sqrt(n * (n + 1)) * SPRITE_HYST) n++;
+  while (n > 1 && k < (K1 * Math.sqrt(n * (n - 1))) / SPRITE_HYST) n--;
+  return n;
+}
+
 export class Projection {
   /** 旋转中心（世界米），固定不随平移变：静态层缓存靠它在平移时只需要挪像素 */
   cx = 0;
@@ -18,6 +40,8 @@ export class Projection {
   ang = 0;
   /** 每米多少缓冲像素 */
   k = 4;
+  /** 定住的精灵档位（IsoCamera 按目标档位设）；0 = 按当前 k 算 */
+  sprite = 0;
   /** 旋转中心投影到的缓冲像素（整数） */
   ox = 0;
   oy = 0;
@@ -42,6 +66,7 @@ export class Projection {
     this.cx = o.cx;
     this.cz = o.cz;
     this.k = o.k;
+    this.sprite = o.sprite;
     this.ox = o.ox;
     this.oy = o.oy;
     this.ang = o.ang;
@@ -53,7 +78,7 @@ export class Projection {
   }
 
   get spriteScale(): number {
-    return Math.max(1, Math.round(this.k / K1));
+    return this.sprite > 0 ? this.sprite : spriteScaleFor(this.k);
   }
 
   /** 世界 → 缓冲像素 */

@@ -3,8 +3,8 @@ import type { PixelArt } from '../art/format';
 import { bakeArt, DARK, flipArt, nightArt } from './art';
 import { ph } from './color';
 import { daylightAt } from './daylight';
-import { SceneDrawer } from './draw';
-import { Box, Group, V3 } from './graph';
+import { SceneDrawer, SPRITE_ZHYST } from './draw';
+import { Box, Group, Sprite, V3 } from './graph';
 import { GroundPainter } from './ground';
 import { Projection } from './proj';
 import { Raster, ZTEST, ZWRITE } from './raster';
@@ -153,6 +153,39 @@ describe('素材烘焙', () => {
 });
 
 describe('光栅和深度', () => {
+  it('精灵的遮挡有滞回：深度差在容差带里时保持上一帧的样子，真站到后面才变剪影', () => {
+    const W = 120;
+    const H = 120;
+    const buf = new Uint32Array(W * H);
+    const depth = new Float32Array(W * H);
+    const r = new Raster(buf, W, H);
+    r.setTarget(buf, depth, W, H);
+    r.proj.k = 8;
+    r.proj.ox = 60;
+    r.proj.oy = 80;
+    r.proj.setAngle(0);
+    const sp = new Sprite(bakeArt(ART));
+    const g = new Group();
+    g.add(sp);
+    const sd = new SceneDrawer();
+    r.zmode = ZTEST;
+    const d0 = r.proj.depth(0, 0);
+    const frame = (gap: number) => {
+      depth.fill(d0 + gap);
+      sd.collect(r, g);
+      sd.draw(r);
+      return sp.zhide;
+    };
+    const band = r.zeps + SPRITE_ZHYST / 2;
+    // 看得见的人在带里一直看得见
+    expect(frame(band)).toBe(false);
+    expect(frame(band)).toBe(false);
+    // 真站到后面：变剪影；退回带里还是剪影；走出来才变回来
+    expect(frame(r.zeps + SPRITE_ZHYST + 0.1)).toBe(true);
+    expect(frame(band)).toBe(true);
+    expect(frame(r.zeps - 0.1)).toBe(false);
+  });
+
   it('静态方块写深度，后面的精灵被挡住、前面的画出来', () => {
     const W = 200;
     const H = 200;

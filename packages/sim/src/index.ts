@@ -58,7 +58,7 @@ export {
   test as testCond,
   wagesWeek,
 } from './vars';
-export { shortestRoute } from './walk';
+export { shortestRoute, walkEta } from './walk';
 export { type World, worldFor } from './world';
 
 export const SIM_VERSION = 2;

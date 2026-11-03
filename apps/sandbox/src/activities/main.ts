@@ -148,6 +148,8 @@ class Card {
         params: this.vars,
         seed,
         extras: { passers: true, badges: true, perches: dio.perches },
+        // 小岛外是天空：入场从岛的远边（北边，-z）进来，不从岛外的半空走过来
+        entry: { from: (p) => [{ x: clamp(p.x, -W / 2 + 0.5, W / 2 - 0.5), z: -D / 2 + 0.4 }, p] },
       },
     );
     this.now = 0;

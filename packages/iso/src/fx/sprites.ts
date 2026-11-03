@@ -1,6 +1,7 @@
 import type { XYZ } from '@td/shared';
 import { textArt } from '../art/font';
 import { applyMat, type BakedArt, Box, Custom, type DrawContext, Group, type Mat, type Node, V3 } from '../core/graph';
+import { HV, K1 } from '../core/proj';
 import { type IconName, INK, iconArt, packHex } from './icons';
 
 /**
@@ -469,13 +470,13 @@ export interface SpriteOptions {
   follow?: Node | null;
   /** 不跟节点时的位置（图层父节点的局部坐标） */
   pos?: XYZ | null;
-  /** 在目标上方多高（米） */
+  /** 在目标上方多高（米，按人物素材比例换成像素：屏幕上的间距跟精灵档位走，不跟缩放走） */
   off?: number;
-  /** 一边存在一边往上飘多高（米） */
+  /** 一边存在一边往上飘多高（同上） */
   rise?: number;
   /** 出现时弹一下 */
   pop?: boolean;
-  /** 绕目标转圈的半径（眩晕星星） */
+  /** 绕目标转圈的半径（眩晕星星，同上） */
   orbit?: number;
   ph?: number;
 }
@@ -485,12 +486,17 @@ interface SpriteRec {
   art: BakedArt;
   mult: number;
   t0: number;
+  /** 出现了多久（update 算，画的时候用） */
+  age: number;
   dur: number;
   follow: Node | null;
+  /** 在目标上方多少素材像素 */
   off: number;
   pos: XYZ | null;
+  /** 往上飘多少素材像素 */
   rise: number;
   pop: boolean;
+  /** 转圈半径（素材像素） */
   orbit: number;
   ph: number;
   /** 这一帧要不要画（快消失时闪烁） */
@@ -508,6 +514,13 @@ export interface PopOptions {
 const _v = new V3();
 /** 漫画字排在最前面画 */
 const TOP = 1000;
+/**
+ * 偏移（off、rise、orbit，选项里按米给）换成素材像素：按人物素材的比例，1.8 米 = 14 像素。
+ * 画的时候再乘精灵档位、按当前 k 换回米，所以头顶的间距在屏幕上只跟精灵档位走，跟 k 无关。
+ */
+const PX_PER_M = K1;
+/** 出现时弹起的高度（素材像素） */
+const POP_PX = 1;
 
 /** 一组漫画字和表情，挂在某个父节点下（活动的场地坐标系）。 */
 export class SpriteLayer {
@@ -516,35 +529,49 @@ export class SpriteLayer {
 
   constructor(
     private readonly parent: Node,
-    /** 旧版的整体放大（相机远近）；像素版的字按精灵档位放大，这个只放大偏移量 */
+    /** 旧版的整体放大（相机远近）；像素版的字和偏移都按精灵档位放大，这个只留着兼容 */
     readonly scale = 1,
   ) {}
 
   spr(info: SpriteTex, o: SpriteOptions = {}): void {
-    const k = Math.sqrt(this.scale);
     const rec: SpriteRec = {
       node: new Custom((r: DrawContext, self: Custom) => {
         if (!rec.show) return;
         const m = self.matrixWorld;
-        r.art(rec.art, m[9] as number, m[10] as number, m[11] as number, { scale: r.spriteScale * rec.mult });
+        // 节点停在目标点上；偏移按素材像素 × 精灵档位换成当前 k 下的米，屏幕上的间距不随缩放变
+        const s = r.spriteScale;
+        const age = rec.age;
+        let up = rec.off + rec.rise * Math.min(1, age / Math.max(0.3, Math.min(rec.dur, 3)));
+        // 出现时往上弹一下
+        if (rec.pop && age < 0.22) up += Math.sin((age / 0.22) * Math.PI) * POP_PX;
+        let x = m[9] as number;
+        let z = m[11] as number;
+        if (rec.orbit) {
+          const rad = (rec.orbit * s) / r.k;
+          x += Math.cos(rec.ph + age * 7) * rad;
+          z += Math.sin(rec.ph + age * 7) * rad;
+        }
+        r.art(rec.art, x, (m[10] as number) + (up * s) / (r.k * HV), z, { scale: s * rec.mult });
       }),
       art: info.art,
       mult: (o.h ?? 0.6) >= 1 ? 2 : 1,
       t0: this.now,
+      age: 0,
       dur: o.dur ?? 1.4,
       follow: o.follow ?? null,
-      off: (o.off ?? 0.45) * k,
+      off: (o.off ?? 0.45) * PX_PER_M,
       pos: o.pos ? { ...o.pos } : null,
-      rise: (o.rise ?? 0.7) * k,
+      rise: (o.rise ?? 0.7) * PX_PER_M,
       pop: o.pop !== false,
-      orbit: (o.orbit ?? 0) * k,
+      orbit: (o.orbit ?? 0) * PX_PER_M,
       ph: o.ph ?? 0,
       show: false,
     };
     rec.node.renderOrder = TOP;
     rec.node.lit = 1;
     rec.node.visible = false;
-    rec.node.bounds = { x0: -0.1, x1: 0.1, y0: 0, y1: 0.4, z0: -0.1, z1: 0.1 };
+    // 偏移在画的时候才加：远景（k 小）时同样的像素合更多米，包围盒往上留够
+    rec.node.bounds = { x0: -0.5, x1: 0.5, y0: 0, y1: 5, z0: -0.5, z1: 0.5 };
     this.parent.add(rec.node);
     this.recs.push(rec);
   }
@@ -632,16 +659,8 @@ export class SpriteLayer {
         p = _v;
       }
       if (!p) continue;
-      let x = p.x;
-      let y = p.y + r.off + r.rise * Math.min(1, age / Math.max(0.3, Math.min(r.dur, 3)));
-      let z = p.z;
-      if (r.orbit) {
-        x += Math.cos(r.ph + age * 7) * r.orbit;
-        z += Math.sin(r.ph + age * 7) * r.orbit;
-      }
-      // 出现时往上弹一下
-      if (r.pop && age < 0.22) y += Math.sin((age / 0.22) * Math.PI) * 0.12;
-      r.node.position.set(x, y, z);
+      r.age = age;
+      r.node.position.set(p.x, p.y, p.z);
       r.node.visible = true;
       // 快消失时闪烁（像素画面不做半透明）
       const left = r.dur - age;

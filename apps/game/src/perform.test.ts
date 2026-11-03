@@ -1,7 +1,7 @@
 import { activities, Group, indianWells, type PeopleWorld, Person, Scheduler } from '@td/iso';
 import { CONTENT } from '@td/sim';
 import { describe, expect, it } from 'vitest';
-import { areaFrame, conditionsFrom, PERFORMANCE_PLANS, perform, planPerformance } from './perform';
+import { areaFrame, conditionsFrom, entryFor, PERFORMANCE_PLANS, perform, planPerformance } from './perform';
 
 // @td/iso 的活动只建场景图，不碰 DOM：不用给 document 替身（没有画布时漫画字退回方块字）
 
@@ -101,13 +101,64 @@ describe('performance → 活动动画库', () => {
         sched.advance(0.05);
         for (const q of [...world.people]) q.update(0.05, sched.now);
       }
+      // 借来的人在原地还回去（不瞬移回原位；之后由游戏画面走回岗位）
+      // 演出里借来的人用场地的局部坐标
+      const fr = areaFrame(site, plan?.area ?? 'court', anchor);
+      const lent = coach.root.parent === scene ? null : coach.pos;
+      const stood = lent && fr ? fr.w({ x: lent.x, z: lent.z }) : { x: coach.pos.x, z: coach.pos.z };
       p.stop();
       expect(world.people, name).toEqual([coach, ...kids]);
       expect(
         scene.children.filter((c) => !world.people.some((q) => q.root === c)),
         name,
       ).toHaveLength(0);
-      expect(coach.pos.x, name).toBeCloseTo(at.x);
+      expect(coach.pos.x, name).toBeCloseTo(stood.x);
+      expect(coach.pos.z, name).toBeCloseTo(stood.z);
     }
+  });
+
+  it('入场路线：沿步道从地点外面走到落脚点，最多走 24 米', () => {
+    for (const a of ['outer_1', 'practice', 'plaza', 'stadium_1', 'entrance']) {
+      const mark = site.anchors[a] as { x: number; z: number };
+      const pl = entryFor(site, a).from(mark);
+      expect(pl, a).not.toBeNull();
+      const line = pl as { x: number; z: number }[];
+      expect(line[line.length - 1], a).toEqual(mark);
+      // 起点到站位的那一段沿步道，长度不超过 24 米
+      let d = 0;
+      for (let i = 1; i < line.length - 1; i++)
+        d += Math.hypot(
+          (line[i] as { x: number }).x - (line[i - 1] as { x: number }).x,
+          (line[i] as { z: number }).z - (line[i - 1] as { z: number }).z,
+        );
+      expect(d, a).toBeLessThanOrEqual(24.01);
+      expect(d, a).toBeGreaterThan(1);
+    }
+  });
+
+  it('收场（graceful）：生成的人走出去，最后场景清干净', () => {
+    const scene = new Group();
+    const sched = new Scheduler();
+    const world: PeopleWorld = { scene, groundY: site.groundY, people: [] };
+    const p = perform(
+      { scene, sched, world, lang: 'en', site },
+      'workday',
+      { weather: 'sun', fatigue: 20, coachSkill: 0 },
+      { coach: null, juniors: [] },
+      3,
+      'outer_1',
+      { entry: entryFor(site, 'outer_1'), params: { crewN: 1, progress: 0.2 } },
+    );
+    for (let t = 0; t < 15; t += 0.05) {
+      sched.advance(0.05);
+      for (const q of [...world.people]) q.update(0.05, sched.now);
+    }
+    p.setParams({ crewN: 2, progress: 0.6 });
+    p.stop(true);
+    for (let t = 0; t < 12; t += 0.05) {
+      sched.advance(0.05);
+      for (const q of [...world.people]) q.update(0.05, sched.now);
+    }
+    expect(world.people).toHaveLength(0);
   });
 });

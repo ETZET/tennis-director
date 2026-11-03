@@ -107,8 +107,10 @@ export interface TargetSheetData {
     color: string;
     /** "教学 40 · 走过去 12 分钟" */
     fit: string;
-    /** 已经在这儿干活 */
+    /** 已经派到这儿（here） */
     here?: boolean;
+    /** 派到这儿了，但还在路上 */
+    coming?: boolean;
     /** 不能派的原因 */
     disabled?: string;
   }[];
@@ -126,8 +128,8 @@ export interface PlaceRow {
   /** 此刻缺人（有客人在等） */
   need?: boolean;
   progress?: number;
-  /** 谁在这儿干 */
-  faces: { initials: string; color: string }[];
+  /** 谁派到这儿了（coming：还在路上） */
+  faces: { initials: string; color: string; coming?: boolean }[];
   /** 手上拿着人时：这个人去了怎样；blocked 是派不过去的原因；best 是这个人最拿手的能力 */
   fit?: { text: string; blocked?: boolean; here?: boolean; best?: boolean };
   /** 换来什么、花什么（最多三个，先代价后收益） */

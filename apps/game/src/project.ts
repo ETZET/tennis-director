@@ -28,6 +28,7 @@ import {
   staffIds,
   testCond,
   wagesWeek,
+  walkEta,
   weekdayOf,
   working,
   workSkill,
@@ -177,14 +178,60 @@ export class Projector {
     return last ? at(last.day, last.hour) : null;
   }
 
-  /** 某人走到某处还要几分钟（正在路上就从这一段的终点算起） */
+  /** 某人走到某处还要几分钟（和模拟改派时的走法一致：路上可以半路掉头，见 walkEta） */
   walkMinutes(s: GameState, person: string, to: string): number {
     const w = worldOf(s, this.content);
-    const p = s.people[person];
-    if (!p) return 0;
-    const from = p.walk ? p.walk.to : p.at;
-    const rest = p.walk ? p.walk.end - s.t : 0;
-    return Math.round(rest + (shortestRoute(w, from, to)?.minutes ?? 0));
+    if (!s.people[person]) return 0;
+    return Math.round(walkEta(s, w, person, to) ?? 0);
+  }
+
+  /**
+   * 派到某处的人分成两拨：已经到场在干的（和模拟的 working() 一致），和还在路上（或先办着别的事）的，带几分钟后到。
+   * 界面上只把到场的人说成"在干/在这儿"，路上的说"在路上 · N 分钟"。
+   */
+  private split(
+    s: GameState,
+    ids: readonly string[],
+    at: string,
+  ): { here: string[]; coming: { id: string; eta: number }[] } {
+    const w = worldOf(s, this.content);
+    const here: string[] = [];
+    const coming: { id: string; eta: number }[] = [];
+    for (const id of ids) {
+      if (working(s, w, id)) {
+        here.push(id);
+        continue;
+      }
+      const p = s.people[id];
+      let eta = this.walkMinutes(s, id, at);
+      if (p?.errand) {
+        const left =
+          p.errand.until === null ? (p.walk ? p.walk.end - s.t : 0) + p.errand.minutes : p.errand.until - s.t;
+        eta = left + (shortestRoute(w, p.errand.at, at)?.minutes ?? 0);
+      }
+      coming.push({ id, eta: Math.max(1, Math.round(eta)) });
+    }
+    return { here, coming };
+  }
+
+  /** "在路上：Dale 22 分钟、总监 35 分钟" */
+  private comingLine(coming: readonly { id: string; eta: number }[]): string {
+    const T = this.text;
+    const list = coming
+      .map((c) => T.fmt('ui.place.coming_one', { name: T.personName(c.id), time: T.duration(c.eta) }))
+      .join(T.lang === 'zh' ? '、' : ', ');
+    return T.fmt('ui.place.coming', { list });
+  }
+
+  /** 工单的一行状态：到场的人在干几成；没人到场就是"等人到场"；路上的人跟在后面 */
+  private orderLine(s: GameState, o: Order, crew: readonly string[], progress: number): string {
+    const T = this.text;
+    const { here, coming } = this.split(s, crew, o.at);
+    const p = Math.round(progress * 100);
+    const head = here.length
+      ? T.fmt('ui.place.order_on', { names: here.map((x) => T.personName(x)).join(T.lang === 'zh' ? '、' : ', '), p })
+      : T.fmt('ui.place.order_wait', { p });
+    return coming.length ? `${head} · ${this.comingLine(coming)}` : head;
   }
 
   snapshot(session: Session): HudSnapshot {
@@ -368,6 +415,12 @@ export class Projector {
       service,
       serviceLabel: service === null ? T.tr('ui.ctx.service_none') : T.fmt('ui.ctx.service', { n: service }),
     };
+  }
+
+  /** 派到活上的人的头像：还没到场的标上 coming */
+  private faceAt(s: GameState, id: string): { initials: string; color: string; coming?: boolean } {
+    const f = this.face(id);
+    return working(s, worldOf(s, this.content), id) ? f : { ...f, coming: true };
   }
 
   /** 头像：名字的首字母（中文名取第一个字）和一个固定的颜色 */
@@ -579,7 +632,12 @@ export class Projector {
               name: T.personName(st.person),
               time: T.duration((1 - st.progress) * st.cycle),
             })
-          : T.fmt('ui.sheet.post_wait', { name: T.personName(st.person) })
+          : working(s, w, st.person)
+            ? T.fmt('ui.sheet.post_wait', { name: T.personName(st.person) })
+            : T.fmt('ui.sheet.post_coming', {
+                name: T.personName(st.person),
+                time: T.duration(this.split(s, [st.person], post.at).coming[0]?.eta ?? 0),
+              })
         : st.demand && st.inHours
           ? T.tr('ui.sheet.post_empty_now')
           : T.tr('ui.sheet.post_empty');
@@ -589,10 +647,7 @@ export class Projector {
       chips = this.orderChips(s, o);
       progress = st.progress;
       status = st.crew.length
-        ? T.fmt('ui.sheet.order_on', {
-            names: st.crew.map((x) => T.personName(x)).join(T.lang === 'zh' ? '、' : ', '),
-            p: Math.round(st.progress * 100),
-          })
+        ? this.orderLine(s, o, st.crew, st.progress)
         : st.started
           ? T.fmt('ui.sheet.order_paused', { p: Math.round(st.progress * 100) })
           : T.tr('ui.sheet.order_new');
@@ -612,14 +667,17 @@ export class Projector {
         ]
           .filter(Boolean)
           .join(' · ');
+        const coming = here && !working(s, w, id);
         return {
           id,
           ...this.face(id),
-          fit:
-            here && p && working(s, w, id)
+          fit: coming
+            ? T.fmt('ui.sheet.you_coming', { time: T.duration(this.split(s, [id], def.at).coming[0]?.eta ?? 0) })
+            : here && p
               ? T.fmt('ui.sheet.speed', { n: Math.round(speedOf(workSkill(s, w, id, skill)) * 100) })
               : fit,
           ...(here ? { here: true } : {}),
+          ...(coming ? { coming: true } : {}),
           ...(block && block !== 'same' ? { disabled: T.tr(`ui.why.${block}`) } : {}),
         };
       });
@@ -660,7 +718,16 @@ export class Projector {
     session: Session,
     anchor: string,
   ): {
-    posts: { initials: string; color: string; progress: number; need: boolean; on: boolean; soon: boolean }[];
+    /** coming：岗位上的人还在路上 */
+    posts: {
+      initials: string;
+      color: string;
+      coming: boolean;
+      progress: number;
+      need: boolean;
+      on: boolean;
+      soon: boolean;
+    }[];
     orders: { n: number; skills: SkillKind[]; progress: number | null; crew: number };
     fit: 'none' | 'fit' | 'nofit';
     /** 这儿的设施状况低于 30 时的值（地点牌上挂红色 !） */
@@ -676,6 +743,8 @@ export class Projector {
       .map((p) => {
         const st = postStatus(s, w, p);
         const face = st.person ? this.face(st.person) : null;
+        // 还在路上的人：头像变淡（牌上的颜色带透明度），到了才是实心的
+        const coming = !!st.person && !working(s, w, st.person);
         // 两小时内就要开门、还没人管的班：地点牌上提前露出来（第二轮试玩 S8：没人告诉你泳池 11 点要人）
         const h = minuteOfDay(s.t) / 60;
         const owned = Object.values(s.people).some((x) => x.hired && x.routine?.includes(p.id));
@@ -683,7 +752,8 @@ export class Projector {
           !st.person && !owned && p.hours && !st.inHours && p.hours[0] > h && p.hours[0] - h <= 2 ? p.hours[0] : null;
         return {
           initials: face?.initials ?? (soon !== null ? `${soon}` : '+'),
-          color: face?.color ?? '',
+          color: face ? (coming ? `${face.color}66` : face.color) : '',
+          coming,
           progress: st.progress,
           need: st.demand && st.inHours && !st.person,
           on: st.active,
@@ -699,7 +769,8 @@ export class Projector {
     for (const o of orders) {
       const st = orderStatus(s, w, o);
       if (st.started) best = Math.max(best ?? 0, st.progress);
-      crew += st.crew.length;
+      // 牌上的工单格只在有人到场开工时亮（路上的人不算）
+      crew += st.crew.filter((x) => working(s, w, x)).length;
     }
     const picked = session.picked;
     const fit = !picked
@@ -755,7 +826,6 @@ export class Projector {
     const w = worldOf(s, this.content);
     const { posts, orders } = this.placeTargets(session, anchor);
     const picked = session.picked;
-    const names = (ids: readonly string[]) => ids.map((x) => T.personName(x)).join(T.lang === 'zh' ? '、' : ', ');
     const fitOf = (id: string, at: string, skill: SkillKind): PlaceRow['fit'] => {
       if (!picked) return undefined;
       const p = s.people[picked];
@@ -796,7 +866,9 @@ export class Projector {
       const line = st.person
         ? st.active
           ? T.fmt('ui.place.on', { name: T.personName(st.person), p: Math.round(st.progress * 100) })
-          : T.fmt('ui.place.wait', { name: T.personName(st.person) })
+          : working(s, w, st.person)
+            ? T.fmt('ui.place.wait', { name: T.personName(st.person) })
+            : this.comingLine(this.split(s, [st.person], p.at).coming)
         : owner && p.hours
           ? T.fmt('ui.place.owner', { name: T.personName(owner), hours: `${p.hours[0]}–${p.hours[1]}` })
           : need
@@ -813,7 +885,7 @@ export class Projector {
         line,
         ...(need ? { need: true } : {}),
         ...(st.active ? { progress: st.progress } : {}),
-        faces: st.person ? [this.face(st.person)] : [],
+        faces: st.person ? [this.faceAt(s, st.person)] : [],
         chips: payoff(this.postChips(p)),
         ...(fit ? { fit } : {}),
         // 状况低于 30 时维护岗位排到最前（第二轮试玩 S3）
@@ -823,7 +895,7 @@ export class Projector {
     for (const o of orders) {
       const st = orderStatus(s, w, o);
       const line = st.crew.length
-        ? T.fmt('ui.place.order_on', { names: names(st.crew), p: Math.round(st.progress * 100) })
+        ? this.orderLine(s, o, st.crew, st.progress)
         : st.started
           ? T.fmt('ui.place.order_paused', { p: Math.round(st.progress * 100) })
           : T.fmt('ui.place.order_new', {
@@ -838,7 +910,7 @@ export class Projector {
         title: this.targetTitle(o.id),
         line,
         ...(st.started ? { progress: st.progress } : {}),
-        faces: st.crew.map((x) => this.face(x)),
+        faces: st.crew.map((x) => this.faceAt(s, x)),
         chips: payoff(this.orderChips(s, o)),
         ...(fit ? { fit } : {}),
         rank: st.crew.length ? 1 : st.started ? 1.5 : 4,

@@ -13,7 +13,7 @@ import {
   working,
 } from './staff';
 import { DIRECTOR, type GameState, minuteOfDay, weekdayOf } from './state';
-import { shortestRoute } from './walk';
+import { walkEta } from './walk';
 import { type World, worldFor } from './world';
 
 /**
@@ -222,7 +222,7 @@ function staffCommands(s: GameState, w: World, st: StaffStyle): Command[] {
       const def = w.posts.get(o.target) ?? w.orders.get(o.target);
       if (def && !eligible(w, id, def)) continue;
       const fit = 0.4 + skillOf(pp, o.skill) / 80;
-      const walk = shortestRoute(w, pp.walk?.to ?? pp.at, o.at)?.minutes ?? 60;
+      const walk = walkEta(s, w, id, o.at) ?? 60;
       let score = o.value * fit - walk / 30;
       if (id === DIRECTOR && coachTeaching && coach && o.at === coach.at) score += 6;
       if (o.target === cur) score += 2;

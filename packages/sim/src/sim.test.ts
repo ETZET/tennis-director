@@ -8,7 +8,7 @@ import { fromSave, SaveError, toSave } from './save';
 import { canAssign, orderLead, orderStatus, postStatus, workSkill } from './staff';
 import { at, type CausalEntry, dayOf, type GameState, minuteOfDay, SAVE_VERSION, weekdayOf } from './state';
 import { facilityTotals, hasDemand, makeEnv, num, qualityTarget, serviceRate, test } from './vars';
-import { shortestRoute } from './walk';
+import { shortestRoute, walkEta } from './walk';
 import { worldFor } from './world';
 
 const W = () => worldFor(CONTENT, 'indian_wells');
@@ -86,6 +86,73 @@ describe('走路和指派', () => {
     advance(s, CONTENT, [], 2);
     expect(s.people.director?.at).toBe('outer_1');
     expect(s.orders.o1_sweep?.progress).toBeGreaterThan(0);
+  });
+
+  it('走在半路改派：哪头近从哪头改道，不先走完整段（12 分钟时改派回大门 → 掉头，12 分钟到）', () => {
+    const s = quiet(fresh());
+    advance(s, CONTENT, [assign('director', 'o1_sweep')], 12);
+    const t = s.t;
+    const r = advance(s, CONTENT, [assign('director', 'flyers')], 0);
+    expect(r.accepted).toHaveLength(1);
+    // 掉头：这一段从 outer_1 往 entrance，出发时间往前推，此刻正好在原来那一点（离大门 12 分钟）
+    expect(s.people.director?.walk).toMatchObject({
+      from: 'outer_1',
+      to: 'entrance',
+      route: ['entrance'],
+      end: t + 12,
+    });
+    expect(s.people.director?.walk?.start).toBe(t - (56 - 12));
+    advance(s, CONTENT, [], 12);
+    expect(s.people.director).toMatchObject({ at: 'entrance', walk: null, job: 'flyers' });
+  });
+
+  it('走在半路改派：往前近就接着往前（44 分钟时改派回大门以外的地方，经过终点更近）', () => {
+    const s = quiet(fresh());
+    advance(s, CONTENT, [assign('director', 'o1_sweep')], 44);
+    const w = W();
+    const t = s.t;
+    // 总监现在离 outer_1 还有 12 分钟、离大门 44 分钟；去哪儿都按两头里近的算
+    const best = (n: string) =>
+      Math.min(
+        12 + (shortestRoute(w, 'outer_1', n)?.minutes ?? 1e9),
+        44 + (shortestRoute(w, 'entrance', n)?.minutes ?? 1e9),
+      );
+    expect(walkEta(s, w, 'director', 'outer_1')).toBe(12);
+    expect(walkEta(s, w, 'director', 'entrance')).toBe(44);
+    expect(walkEta(s, w, 'director', 'clubhouse')).toBe(best('clubhouse'));
+    advance(s, CONTENT, [assign('director', 'flyers')], 0);
+    expect(s.people.director?.walk).toMatchObject({ from: 'outer_1', route: ['entrance'], start: t - 12, end: t + 44 });
+  });
+
+  it('叫停走在路上的人：走到脚下这段路近的那一头站住，不再去原来的地方', () => {
+    const s = quiet(fresh());
+    advance(s, CONTENT, [assign('director', 'o1_sweep')], 12);
+    let t = s.t;
+    advance(s, CONTENT, [assign('director', null)], 0);
+    expect(s.people.director).toMatchObject({ job: null, walk: { to: 'entrance', end: t + 12 } });
+    advance(s, CONTENT, [], 12);
+    expect(s.people.director).toMatchObject({ at: 'entrance', walk: null, job: null });
+    expect(s.orders.o1_sweep).toBeUndefined();
+
+    const s2 = quiet(fresh());
+    advance(s2, CONTENT, [assign('director', 'o1_sweep')], 40);
+    t = s2.t;
+    advance(s2, CONTENT, [assign('director', null)], 0);
+    expect(s2.people.director).toMatchObject({ job: null, walk: { from: 'entrance', to: 'outer_1', end: t + 16 } });
+    advance(s2, CONTENT, [], 16);
+    expect(s2.people.director).toMatchObject({ at: 'outer_1', walk: null, job: null });
+    expect(s2.orders.o1_sweep).toBeUndefined();
+  });
+
+  it('半路掉头的走法能存档往返，接着跑结果一样', () => {
+    const s = fresh(5);
+    advance(s, CONTENT, [assign('director', 'o1_sweep')], 12);
+    advance(s, CONTENT, [assign('director', 'flyers')], 3);
+    expect(s.people.director?.walk?.from).toBe('outer_1');
+    const { save } = fromSave(JSON.parse(JSON.stringify(toSave(s, []))), CONTENT.version);
+    advance(s, CONTENT, [], 60);
+    advance(save.state, CONTENT, [], 60);
+    expect(stateHash(save.state)).toBe(stateHash(s));
   });
 
   it('不能指派的：没招的人、还没修好的设施上的岗位、钱不够的工单', () => {
@@ -701,7 +768,7 @@ describe('时间', () => {
   });
 
   it('换季：冬天从第 36 天开始；天气按季节的权重抽', () => {
-    const s = quiet(fresh(5));
+    const s = fresh(5);
     const seen = new Set<string>();
     until(
       s,

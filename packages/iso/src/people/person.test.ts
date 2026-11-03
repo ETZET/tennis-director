@@ -125,6 +125,15 @@ describe('Person 动作队列', () => {
     p.update(0.016, 0.016);
   });
 
+  it('0.9 以下都是小孩精灵表，0.9 起是大人（球童 0.85、试训小孩 0.82–0.95）', () => {
+    const sheet = (scale: number) => new Person({ name: 'k', x: 0, z: 0, scale, ...LOOK }, world()).sheet.body;
+    expect(sheet(0.85)).toBe('kid');
+    expect(sheet(0.82)).toBe('kid');
+    expect(sheet(0.89)).toBe('kid');
+    expect(sheet(0.9)).toBe(sheet(1));
+    expect(sheet(0.95)).toBe(sheet(1));
+  });
+
   it('精灵帧随状态变：站、走、跑、击球、手势、摔倒', () => {
     const p = new Person({ name: 'c', x: 0, z: 0, base: 'ready', ...LOOK }, world());
     const dt = 1 / 60;

@@ -77,6 +77,9 @@
 .td-row-bar{display:block;height:4px;background:rgba(255,255,255,.15)}
 .td-row-bar i{display:block;height:100%;background:var(--td-optic,#d8c08a)}
 .td-row-crew{display:flex;gap:2px}
+/* 派到这儿、还在路上的人：头像淡下去、虚线圈、角上一个箭头（到了才是实心的） */
+.td-face-coming{position:relative;opacity:.55;outline:2px dashed #fff;outline-offset:-2px;filter:saturate(.5)}
+.td-face-coming::after{content:"→";position:absolute;right:-4px;bottom:-4px;min-width:14px;height:14px;display:flex;align-items:center;justify-content:center;background:#ffc04a;color:#14223a;font:800 10px/1 sans-serif;border-radius:50%}
 .td-row-go{flex:0 0 auto;min-width:40px;min-height:34px;display:flex;align-items:center;justify-content:center;font:800 18px/1 var(--td-cond,sans-serif);color:#dfe6ef}
 .td-row-fit .td-row-go{min-width:60px;background:var(--td-optic,#d8c08a);color:var(--td-navy,#14223a);font-size:13px;letter-spacing:.06em}
 .td-place-wrap .td-sheet-scrim{bottom:calc(104px + env(safe-area-inset-bottom,0px))}

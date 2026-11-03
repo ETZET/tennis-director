@@ -37,6 +37,8 @@ export class CapMark extends Group {
   }
 }
 
+/** 节点缩放低于这个值就用小孩精灵表（精灵本身不随节点缩放） */
+export const KID_SCALE = 0.9;
 /** 挂点往镜头方向挪一点，手里的东西排在身体前面画 */
 const HAND_TO_CAM = 0.12;
 /** 跑动时不摆臂的基础姿势（像素版里只影响取帧，保留给演出读） */
@@ -153,7 +155,8 @@ export class Person {
   ) {
     this.o = o;
     this.name = o.name;
-    this.sheet = o.scale != null && o.scale < 0.8 ? KID : ADULT;
+    // 精灵不随节点缩放：0.9 以下一律用小孩精灵表，0.9–1 就是大人（没有中间尺寸）
+    this.sheet = o.scale != null && o.scale < KID_SCALE ? KID : ADULT;
     this.slots = personSlots(o);
     const root = new Group();
     root.name = o.name;

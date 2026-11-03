@@ -7,7 +7,7 @@ import {
   type Scheduler,
   type Site,
 } from '@td/iso';
-import { clamp } from '@td/shared';
+import { clamp, type XZ } from '@td/shared';
 
 /**
  * 模拟的活动演出名（content 里的 performance）→ 活动动画库（ADR 0010）。
@@ -96,25 +96,90 @@ export interface PerformerEnv {
 }
 
 export interface Performance {
-  stop(): void;
+  /** graceful：收场（人走开、东西慢慢收走）；false 立刻清掉（热重载、读档重建时） */
+  stop(graceful?: boolean): void;
+  /** 演出途中改变量（到场人数 crewN、工单进度 progress） */
+  setParams(p: Readonly<Record<string, ParamValue>>): void;
+}
+
+/** 演出生成的人从哪儿走进来：给一个落脚点，返回从场外沿步道走到它的折线（null = 原地出现） */
+export interface PerformEntry {
+  from(p: XZ): XZ[] | null;
+}
+
+/**
+ * 地点的入场路线：从园区入口沿步道走到这个地点的站位，只取最后一小段（最多 tail 米），再走到落脚点。
+ * 纯函数（node 里能测）。
+ */
+export function entryFor(site: Site, anchor: string, tail = 24): PerformEntry {
+  const line = site.routeLine(anchor === 'entrance' ? 'parking' : 'entrance', anchor);
+  return {
+    from(p) {
+      if (!line || line.length < 2) return null;
+      // 从站位往回数，走满 tail 米为止
+      const out: XZ[] = [line[line.length - 1] as XZ];
+      let left = tail;
+      for (let i = line.length - 2; i >= 0 && left > 0; i--) {
+        const a = line[i] as XZ;
+        const b = out[0] as XZ;
+        const d = Math.hypot(a.x - b.x, a.z - b.z);
+        if (d <= left) {
+          out.unshift(a);
+          left -= d;
+        } else {
+          const f = left / d;
+          out.unshift({ x: b.x + (a.x - b.x) * f, z: b.z + (a.z - b.z) * f });
+          left = 0;
+        }
+      }
+      out.push({ x: p.x, z: p.z });
+      return out;
+    },
+  };
+}
+
+/** 借来的人（cast）：主教练、球员；crew 是岗位或工单上已经到场的员工，按演出需要顶替生成的人 */
+export interface PerformCast {
+  coach: Person | null;
+  juniors: readonly Person[];
+}
+
+export interface PerformExtra {
+  /** 演出生成的人从哪儿走进来 */
+  entry?: PerformEntry;
+  /** 额外变量（到场人数 crewN、工单进度 progress） */
+  params?: Readonly<Record<string, ParamValue>>;
 }
 
 /**
  * 开演一个模拟的活动。不认识的演出名、地点上没有场地，什么也不演（返回空的 stop）。
- * coach / juniors 是游戏里现成的人物，按演出需要借用，演完还回去。
+ * coach / juniors 是游戏里现成的人物，按演出需要借用，演完在原地还回去（之后由画面自己走回岗位）。
  */
 export function perform(
   env: PerformerEnv,
   performance: string,
   input: PerformInput,
-  cast: { coach: Person | null; juniors: readonly Person[] },
+  cast: PerformCast,
   seed: number,
   anchor: string,
+  extra: PerformExtra = {},
 ): Performance {
   const plan = planPerformance(performance, anchor, env.site);
   const area = plan && areaFrame(env.site, plan.area, anchor);
-  if (!plan || !area) return { stop() {} };
+  if (!plan || !area) return { stop() {}, setParams() {} };
   const use = plan.cast;
+  const opts: activities.StartOptions = {
+    area,
+    conditions: conditionsFrom(input, env.site.venue),
+    // 计划里的变量优先（crew 是清场的施工队种类，不被人数覆盖）
+    params: { ...extra.params, ...plan.params },
+    seed,
+    cast: {
+      coach: use === 'coach' || use === 'coach+juniors' ? cast.coach : null,
+      players: use === 'juniors' || use === 'coach+juniors' ? cast.juniors : castPlayers(plan) ? cast.juniors : [],
+    },
+    ...(extra.entry ? { entry: extra.entry } : {}),
+  };
   const run = activities.startActivity(
     {
       scene: env.scene,
@@ -126,16 +191,13 @@ export function perform(
       spriteScale: 2.4,
     },
     plan.activity,
-    {
-      area,
-      conditions: conditionsFrom(input, env.site.venue),
-      params: plan.params,
-      seed,
-      cast: {
-        coach: use === 'coach' || use === 'coach+juniors' ? cast.coach : null,
-        players: use === 'juniors' || use === 'coach+juniors' ? cast.juniors : [],
-      },
-    },
+    opts,
   );
-  return { stop: () => run.stop() };
+  return {
+    stop: (graceful = false) => (graceful ? run.stop({ graceful: true }) : run.stop()),
+    setParams: (p) => run.setParams({ ...p, ...plan.params }),
+  };
 }
+
+/** 不借教练的演出里，哪些可以让到场的员工顶替生成的人（清场：员工就是干活的人） */
+const castPlayers = (plan: PerformPlan): boolean => plan.activity === 'cleanup';

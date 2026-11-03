@@ -1,5 +1,5 @@
 import { clamp, hdist, lerp, mulberry32, pick, type Rand, range, type XYZ, type XZ } from '@td/shared';
-import { Box, Group, type Node, V3 } from '../core/graph';
+import { Box, Group, type Node, type Sprite, V3 } from '../core/graph';
 import type { IconName } from '../fx/icons';
 import { Particles } from '../fx/particles';
 import { SpriteLayer } from '../fx/sprites';
@@ -25,7 +25,58 @@ import type { ActivityEnv, ActivityMeta, Conditions, Lang, ParamValue, StartOpti
 
 export interface Runner {
   update?(dt: number): void;
+  /** 宿主用 setParams 改了变量（P 已经更新），changed 是这次改的键 */
+  params?(changed: readonly string[]): void;
 }
+
+/** 入场：走到站位之前记下的样子，到了再还原 */
+interface Pose {
+  lock: number | null;
+  yaw: number;
+  base: PoseName;
+  seatY: number | null;
+  idleFace: number | null;
+  watch: Person | null;
+}
+
+interface Entry {
+  /** 起点（局部坐标）；借来的人物没有起点，从原地走过去 */
+  start: XZ | null;
+  mark: XZ;
+  settled: boolean;
+  arrived: boolean;
+  /** 等不等他：开演要等所有 gate 的人到位 */
+  gate: boolean;
+  pose: Pose | null;
+}
+
+/** 像素溶解（出场、入场）：精灵改不透明度，方块和自绘节点按阈值逐个藏起来 */
+interface Fade {
+  items: { n: Node; thr: number; op: number }[];
+  t0: number;
+  dur: number;
+  /** -1 淡出、+1 淡入 */
+  dir: 1 | -1;
+  onEnd?: () => void;
+}
+
+const isIn = (n: Node, root: Node): boolean => {
+  for (let q: Node | null = n; q; q = q.parent) if (q === root) return true;
+  return false;
+};
+
+/** 入场走路的速度（米/秒） */
+const ENTRY_SPEED = 2.3;
+/** 最多等多久就开演（秒） */
+const ENTRY_MAX = 20;
+/** 收场：最多等多久，没走到的原地溶解 */
+const LEAVE_MAX = 8;
+const FADE_DUR = 0.6;
+/** 不耗随机流的伪随机（入场路线的抖动只决定画面） */
+const hash01 = (i: number): number => {
+  const v = Math.sin(i * 12.9898 + 78.233) * 43758.5453;
+  return v - Math.floor(v);
+};
 
 interface Tween {
   o: Node;
@@ -145,6 +196,12 @@ export class Act {
   readonly puddles: { x: number; z: number; w: number; d: number }[] = [];
   alive = true;
   finished = false;
+  /** 所有要等的人都到位了（或者等太久了）：之前排的计时、每帧逻辑这才开始 */
+  ready = false;
+  /** 正在收场（graceful stop）：人往外走、道具溶解 */
+  leaving = false;
+  /** 一切都清理干净了 */
+  done = false;
   /** 画面震动（动画库的相机读它） */
   shake = 0;
   runner: Runner | undefined;
@@ -155,6 +212,15 @@ export class Act {
   private flyers: Flyer[] = [];
   private ups: ((dt: number, now: number) => unknown)[] = [];
   private fxT = 0;
+  private readonly entries = new Map<Person, Entry>();
+  /** 开演前排的计时：开演时按原来的延迟重新排 */
+  private held: { d: number; fn: (t: number) => void }[] = [];
+  private readonly t0: number;
+  private fades: Fade[] = [];
+  private readonly fading = new Set<Person>();
+  private leaveT0 = 0;
+  /** setup 跑完了（之后生成的人马上放到起点） */
+  private staged = false;
   /** 活动组世界矩阵的逆（lp 用） */
   private readonly inv: Float64Array;
   private last: number;
@@ -191,6 +257,7 @@ export class Act {
     this.fx = new Particles(g, this.rand, { groundY: gy, wind: () => this.drift() });
     this.spr = new SpriteLayer(g, env.spriteScale ?? 1);
     this.last = env.sched.now;
+    this.t0 = env.sched.now;
   }
 
   /* ---------------- 条件 ---------------- */
@@ -255,6 +322,12 @@ export class Act {
 
   /** d 秒后执行；活动停下后不再执行 */
   at(d: number, fn: (t: number) => void): void {
+    if (!this.alive) return;
+    if (!this.ready) {
+      // 人还没到位：先记着，开演时再排（演出的节奏从开演算起）
+      this.held.push({ d, fn });
+      return;
+    }
     this.env.sched.at(this.now + Math.max(0, d), (t) => {
       if (!this.alive) return;
       fn(t);
@@ -278,7 +351,205 @@ export class Act {
       if (!o.base || o.base === 'relaxed') p.base = 'umbrella';
     }
     this.spawned.push(p);
+    if (this.alive) this.enter(p, { x: o.x, z: o.z }, true);
     return p;
+  }
+
+  /* ---------------- 入场 ---------------- */
+
+  /**
+   * 入场路线（局部坐标，起点在场外，终点是 mark）：宿主给了 entry 就用它（世界坐标的折线），
+   * 否则从离相机最远的那条边外 6–10 米走进来。
+   */
+  entryPath(mark: XZ, i = this.entries.size): XZ[] {
+    const fr = this.fr;
+    const from = this.opts.entry?.from;
+    if (from) {
+      const w = fr.w(mark);
+      const pl = from({ x: w.x, z: w.z });
+      if (pl?.length) {
+        const loc = pl.map((q) => {
+          const l = fr.l(q);
+          return { x: l.x, z: l.z };
+        });
+        const last = loc[loc.length - 1] as XZ;
+        if (hdist(last, mark) > 0.05) loc.push({ x: mark.x, z: mark.z });
+        if (loc.length >= 2) return loc;
+      }
+    }
+    // 四条边向外的法线在世界里的 z 分量（北是 -z，相机在南边看）：取最小的那条
+    const b = this.b;
+    const edges = [
+      { nz: -fr.s, ax: 'x' as const, sgn: 1, e: b.x1 },
+      { nz: fr.s, ax: 'x' as const, sgn: -1, e: b.x0 },
+      { nz: fr.c, ax: 'z' as const, sgn: 1, e: b.z1 },
+      { nz: -fr.c, ax: 'z' as const, sgn: -1, e: b.z0 },
+    ];
+    let E = edges[0] as (typeof edges)[number];
+    for (const q of edges) if (q.nz < E.nz - 1e-6) E = q;
+    const d = 6 + 4 * hash01(i + 1);
+    const j = (hash01(i + 101) - 0.5) * 3;
+    const pt = (out: number, lat: number): XZ =>
+      E.ax === 'x' ? { x: E.e + E.sgn * out, z: mark.z + lat } : { x: mark.x + lat, z: E.e + E.sgn * out };
+    const pts: XZ[] = [pt(d, j)];
+    const markOut = E.sgn * ((E.ax === 'x' ? mark.x : mark.z) - E.e);
+    if (markOut < 0) pts.push(pt(0.3, j * 0.2));
+    pts.push({ x: mark.x, z: mark.z });
+    return pts;
+  }
+
+  /**
+   * 让一个人走到站位：生成的人物从场外走进来（start），借来的人物从原地走过去。
+   * 走路的动作排在最前面，演出代码之后排的动作都在到位之后做。
+   */
+  private enter(p: Person, mark: XZ, fromOff: boolean): void {
+    let start: XZ | null = null;
+    if (fromOff) {
+      const pts = this.entryPath(mark);
+      start = pts[0] as XZ;
+      p.path(pts.slice(1), ENTRY_SPEED);
+      // 开演后才生成的人：马上放到起点（不等下一帧，免得在站位上闪一帧）；
+      // setup 里生成的人在 startActivity 结束前统一放过去（setup 还要读站位）
+      if (this.staged) {
+        p.pos.set(start.x, 0, start.z);
+        p.update(0, this.now);
+      }
+      // 在起点像素溶解着出现（起点在岛边、不在场外时也不会凭空冒出来）
+      this.fade(p.root, 1);
+    } else p.go(mark.x, mark.z, ENTRY_SPEED);
+    p.call(() => this.arrive(p));
+    this.entries.set(p, {
+      start,
+      mark: { x: mark.x, z: mark.z },
+      settled: false,
+      arrived: false,
+      gate: !this.ready,
+      pose: null,
+    });
+  }
+
+  /** 这个人原地开演，不走入场（路人：自己从边上走过） */
+  inPlace(p: Person): Person {
+    const e = this.entries.get(p);
+    if (e && !e.settled) {
+      this.entries.delete(p);
+      p.clearMoves();
+      p.pos.set(e.mark.x, 0, e.mark.z);
+      p.update(0, this.now);
+      for (const f of this.fades) if (f.items.length && f.items.some((it) => isIn(it.n, p.root))) this.applyFade(f, 1);
+      this.fades = this.fades.filter((f) => !f.items.some((it) => isIn(it.n, p.root)));
+    }
+    return p;
+  }
+
+  /** 开演不等这个人（观众、记者）：他照样走进来，但比赛不等他 */
+  extra(p: Person): Person {
+    const e = this.entries.get(p);
+    if (e) e.gate = false;
+    return p;
+  }
+
+  /** 这个人到位了吗（没有入场的人算到位） */
+  arrived(p: Person): boolean {
+    return this.entries.get(p)?.arrived ?? true;
+  }
+
+  /** 记下演出代码给他摆的样子，换成走路的样子，放到起点 */
+  private settle(p: Person, e: Entry): void {
+    if (e.settled) return;
+    e.settled = true;
+    e.pose = { lock: p.lock, yaw: p.yaw, base: p.base, seatY: p.seatY, idleFace: p.idleFace, watch: p.watch };
+    if (e.start) {
+      p.pos.set(e.start.x, 0, e.start.z);
+      p.update(0, this.now);
+    }
+    p.lock = null;
+    p.seatY = null;
+    p.idleFace = null;
+    p.watch = null;
+    if (p.base !== 'umbrella') p.base = 'relaxed';
+  }
+
+  /** 走到了：还原演出代码摆的样子 */
+  private arrive(p: Person): void {
+    const e = this.entries.get(p);
+    if (!e || e.arrived) return;
+    if (!e.settled) this.settle(p, e);
+    e.arrived = true;
+    const q = e.pose;
+    if (!q) return;
+    p.lock = q.lock;
+    p.yaw = q.lock ?? q.yaw;
+    p.moveYaw = p.yaw;
+    p.base = q.base;
+    p.seatY = q.seatY;
+    p.idleFace = q.idleFace;
+    p.watch = q.watch;
+  }
+
+  /** 把刚生成、还没放到起点的人放过去；开演条件到了就开演 */
+  settleAll(): void {
+    this.staged = true;
+    for (const [p, e] of this.entries) if (!e.settled) this.settle(p, e);
+    if (this.ready || !this.alive) return;
+    let all = true;
+    for (const [p, e] of this.entries) if (e.gate && !e.arrived && !p.removed) all = false;
+    if (all || this.now - this.t0 > ENTRY_MAX) this.begin();
+  }
+
+  /** 开演：之前排的计时按原来的延迟重新排 */
+  private begin(): void {
+    this.ready = true;
+    this.last = this.now;
+    const h = this.held;
+    this.held = [];
+    for (const { d, fn } of h) this.at(d, fn);
+  }
+
+  /** 节点先藏起来，delay 秒后像素溶解着出现（观众陆续坐满） */
+  appear(n: Node, delay: number): void {
+    n.visible = false;
+    this.env.sched.at(this.now + Math.max(0, delay), () => {
+      if (this.done || this.leaving || !n.parent) return;
+      n.visible = true;
+      this.fade(n, 1);
+    });
+  }
+
+  private fade(root: Node, dir: 1 | -1, onEnd?: () => void): void {
+    const items: Fade['items'] = [];
+    let i = 0;
+    const walk = (n: Node) => {
+      if (!n.visible) return;
+      if (n.kind === 'sprite') items.push({ n, thr: 0, op: (n as Sprite).opacity });
+      else if (n.kind === 'box' || n.kind === 'custom') items.push({ n, thr: hash01(i++ * 7 + 3), op: 1 });
+      for (const c of n.children) walk(c);
+    };
+    walk(root);
+    const f: Fade = { items, t0: this.now, dur: FADE_DUR, dir, onEnd };
+    this.fades.push(f);
+    this.applyFade(f, dir > 0 ? 0 : 1);
+  }
+
+  private applyFade(f: Fade, k: number): void {
+    for (const it of f.items) {
+      if (it.n.kind === 'sprite') (it.n as Sprite).opacity = it.op * k;
+      else it.n.visible = it.thr < k || k >= 1;
+    }
+  }
+
+  private updFades(): void {
+    if (!this.fades.length) return;
+    const left: Fade[] = [];
+    const ended: Fade[] = [];
+    for (const f of this.fades) {
+      const u = clamp((this.now - f.t0) / f.dur, 0, 1);
+      this.applyFade(f, f.dir > 0 ? u : 1 - u);
+      if (u >= 1) ended.push(f);
+      else left.push(f);
+    }
+    this.fades = left;
+    for (const f of ended) f.onEnd?.();
   }
 
   /** 随机样子的人物 */
@@ -312,8 +583,11 @@ export class Act {
       visible: p.root.visible,
     });
     p.resetAction();
+    // 不瞬移：换到局部坐标后从原地走到站位（演出等他走到）
+    const l = this.fr.l({ x: p.pos.x, z: p.pos.z });
     p.rehome(this.lw);
-    p.pos.set(at.x, 0, at.z);
+    p.pos.set(l.x, 0, l.z);
+    p.yaw = p.yaw - this.fr.a;
     p.lock = at.lock ?? null;
     p.yaw = at.yaw ?? at.lock ?? 0;
     p.moveYaw = p.yaw;
@@ -323,6 +597,7 @@ export class Act {
     p.watch = null;
     p.root.visible = true;
     p.slideBounds = this.b;
+    this.enter(p, at, false);
     return p;
   }
 
@@ -354,6 +629,8 @@ export class Act {
     if (i >= 0) L.splice(i, 1);
     const j = this.spawned.indexOf(p);
     if (j >= 0) this.spawned.splice(j, 1);
+    this.entries.delete(p);
+    this.fading.delete(p);
   }
 
   /** 场上所有还在的人物 */
@@ -512,7 +789,7 @@ export class Act {
   /** 时间轴自己排的 tick：每次 advance 跑一次 */
   startTicking(): void {
     const tick = () => {
-      if (!this.alive) return;
+      if (this.done || (!this.alive && !this.leaving)) return;
       const dt = this.now - this.last;
       this.last = this.now;
       this.update(dt);
@@ -523,8 +800,16 @@ export class Act {
 
   update(dt: number): void {
     const now = this.now;
-    this.runner?.update?.(dt);
-    if (this.ups.length) this.ups = this.ups.filter((u) => u(dt, now) !== true);
+    this.updFades();
+    if (this.leaving) {
+      this.updLeave();
+      return;
+    }
+    this.settleAll();
+    if (this.ready) {
+      this.runner?.update?.(dt);
+      if (this.ups.length) this.ups = this.ups.filter((u) => u(dt, now) !== true);
+    }
     this.updFlyers(dt);
     this.updTweens();
     for (const c of this.crows) {
@@ -643,31 +928,101 @@ export class Act {
 
   /* ---------------- 收尾 ---------------- */
 
-  stop(): void {
-    if (!this.alive) return;
-    this.alive = false;
-    for (const p of [...this.spawned]) this.remove(p);
-    for (const s of this.saved) {
-      const p = s.p;
-      p.resetAction();
-      p.rehome(s.world);
-      p.pos.set(s.x, 0, s.z);
-      p.yaw = s.yaw;
-      p.moveYaw = s.yaw;
-      p.lock = s.lock;
-      p.base = s.base;
-      p.seatY = s.seatY;
-      p.idleFace = s.idleFace;
-      p.watch = null;
-      p.root.visible = s.visible;
-      p.slideBounds = null;
+  /**
+   * 停下。graceful：生成的人物不再演，沿入场路线原路走出去（走到了或者等了 8 秒就像素溶解），
+   * 道具溶解，借来的人物在原地还回去；全部没了 done 才为 true。
+   * 不带 graceful：马上清理（测试、动画库重开）。两种方式借来的人物都不瞬移回原位。
+   */
+  stop(o: { graceful?: boolean } = {}): void {
+    if (this.done) return;
+    if (!o.graceful) {
+      this.hardStop();
+      return;
     }
+    if (this.leaving) return;
+    this.alive = false;
+    this.leaving = true;
+    this.leaveT0 = this.now;
+    this.held = [];
+    this.entries.clear();
+    this.tweens = [];
+    this.flyers = [];
+    for (const s of this.saved) this.handBack(s);
+    this.saved.length = 0;
+    this.spr.dispose();
+    this.fx.dispose();
+    (this.pool as { dispose?: () => void }).dispose?.();
+    const roots = new Set<Node>(this.spawned.map((p) => p.root));
+    for (const n of [...this.group.children]) if (!roots.has(n)) this.fade(n, -1, () => n.parent?.remove(n));
+    this.spawned.forEach((p, i) => {
+      if (!p.root.visible) {
+        this.remove(p);
+        return;
+      }
+      p.resetAction();
+      p.lock = null;
+      p.seatY = null;
+      p.idleFace = null;
+      p.watch = null;
+      p.base = 'relaxed';
+      const out = this.entryPath({ x: p.pos.x, z: p.pos.z }, i).reverse();
+      p.wait((i % 6) * 0.15);
+      p.path(out.slice(1), ENTRY_SPEED);
+      p.call(() => this.fadeOut(p));
+    });
+  }
+
+  private fadeOut(p: Person): void {
+    if (p.removed || this.fading.has(p)) return;
+    this.fading.add(p);
+    p.clearMoves();
+    this.fade(p.root, -1, () => this.remove(p));
+  }
+
+  private updLeave(): void {
+    if (this.now - this.leaveT0 > LEAVE_MAX) for (const p of [...this.spawned]) this.fadeOut(p);
+    if (this.spawned.length || this.fades.length) return;
+    this.group.parent?.remove(this.group);
+    this.leaving = false;
+    this.done = true;
+    this.finished = true;
+  }
+
+  /** 借来的人物在原地还回去：位置换回世界坐标（不回原位），姿势、道具、状态还原 */
+  private handBack(s: Saved): void {
+    const p = s.p;
+    const w = this.fr.w({ x: p.pos.x, z: p.pos.z });
+    const yaw = this.fr.yaw(p.yaw);
+    p.resetAction();
+    p.rehome(s.world);
+    p.pos.set(w.x, 0, w.z);
+    p.yaw = yaw;
+    p.moveYaw = yaw;
+    p.lock = s.lock;
+    p.base = s.base;
+    p.seatY = s.seatY;
+    p.idleFace = s.idleFace;
+    p.watch = null;
+    p.root.visible = s.visible;
+    p.slideBounds = null;
+  }
+
+  private hardStop(): void {
+    this.alive = false;
+    this.leaving = false;
+    this.held = [];
+    this.entries.clear();
+    this.fades = [];
+    for (const p of [...this.spawned]) this.remove(p);
+    for (const s of this.saved) this.handBack(s);
     this.saved.length = 0;
     this.spr.dispose();
     this.fx.dispose();
     // 像素版没有 GPU 资源要释放：球池有 dispose 就调（把球从场景图里摘掉），其余随组一起摘
     (this.pool as { dispose?: () => void }).dispose?.();
     this.group.parent?.remove(this.group);
+    this.done = true;
+    this.finished = true;
   }
 
   /** 把道具批次挂进活动的组（setup 之后调用一次） */
