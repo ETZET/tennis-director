@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Palm Oasis 建筑图鉴</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&family=ZCOOL+QingKe+HuangYou&display=swap">
+<style>
+/* 布局：手机竖屏上画面在上、操作条贴在画面底部、清单和说明在下面；宽屏时画面在左、说明栏在右。
+   故意只做一套深色（和游戏里的 Palm Oasis HUD 同一套颜色）。 */
+:root{
+  --ink:#0b1324;        /* 描边、最深 */
+  --navy:#13203a;       /* 页面底 */
+  --panel:#1b2b4a;      /* 面板 */
+  --panel-2:#22365c;    /* 面板高亮 */
+  --champagne:#e3cf9e;  /* 主强调：选中、标题 */
+  --cream:#f4ecd8;      /* 正文 */
+  --muted:#9fb0cc;      /* 次要文字 */
+  --court:#4f8a5e;      /* 已完成 */
+  --clay:#d36b3d;       /* 荒废档 */
+  --f-display:"ZCOOL QingKe HuangYou","PingFang SC","Noto Sans CJK SC","Microsoft YaHei",sans-serif;
+  --f-pixel:"Silkscreen","Courier New",monospace;
+  --f-body:"PingFang SC","Hiragino Sans GB","Noto Sans CJK SC","Microsoft YaHei",system-ui,sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{background:var(--navy);color:var(--cream)}
+body{margin:0;font:14px/1.6 var(--f-body);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:12px 28px}
+.wrap{max-width:1180px;margin:0 auto;display:grid;gap:14px}
+header{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.mark{width:36px;height:36px;background:var(--champagne);color:var(--ink);display:grid;place-items:center;font:700 13px var(--f-pixel);
+  border:2px solid var(--ink);box-shadow:0 3px 0 var(--ink)}
+h1{margin:0;font:400 24px/1.1 var(--f-display);letter-spacing:1px;text-wrap:balance}
+.sub{font:400 11px var(--f-pixel);color:var(--muted);letter-spacing:.5px}
+.sub b{color:var(--champagne);font-weight:700}
+main{display:grid;gap:14px;grid-template-columns:1fr}
+@media (min-width:900px){main{grid-template-columns:minmax(0,1fr) 340px;align-items:start}}
+
+/* 画面 */
+.stage{position:relative;border:3px solid var(--ink);box-shadow:0 4px 0 var(--ink);background:#60b2e6;min-width:0}
+#cv{display:block;width:100%;height:min(64vh,560px,max(320px,100vw));min-height:300px;image-rendering:pixelated;image-rendering:crisp-edges;touch-action:pan-y;cursor:grab}
+.tag{position:absolute;left:10px;top:10px;background:var(--panel);border:2px solid var(--ink);box-shadow:0 2px 0 var(--ink);padding:3px 9px;display:flex;gap:8px;align-items:baseline;max-width:calc(100% - 20px)}
+.tag .n{font:400 18px/1.2 var(--f-display);white-space:nowrap}
+@media (max-width:480px){.tag .e{display:none}}
+.tag .e{font:400 10px var(--f-pixel);color:var(--champagne);letter-spacing:1px}
+.bar{display:flex;flex-wrap:wrap;gap:8px;padding:8px;background:var(--panel);border-top:3px solid var(--ink)}
+.seg{display:flex}
+button{font:700 13px var(--f-body);color:var(--ink);background:var(--cream);border:2px solid var(--ink);box-shadow:0 2px 0 var(--ink);
+  min-height:44px;min-width:44px;padding:0 12px;cursor:pointer;border-radius:0}
+.seg button+button{border-left:0}
+button[aria-pressed="true"]{background:var(--champagne)}
+button:active{transform:translateY(2px);box-shadow:none}
+button:focus-visible{outline:3px solid var(--champagne);outline-offset:2px}
+.seg .lv1[aria-pressed="true"]{background:#e9a07a}
+.spacer{flex:1}
+
+/* 说明栏 */
+aside{display:grid;gap:14px;min-width:0}
+.card{background:var(--panel);border:3px solid var(--ink);box-shadow:0 4px 0 var(--ink);padding:14px;min-width:0}
+.card h2{margin:0 0 2px;font:400 22px/1.2 var(--f-display)}
+.meta{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin:10px 0 12px;font-size:13px}
+.meta dt{font:400 10px/2 var(--f-pixel);color:var(--muted);letter-spacing:.5px}
+.meta dd{margin:0}
+.lvls{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.lvls li{display:grid;grid-template-columns:28px 1fr;gap:8px;padding:8px;border:2px solid transparent;color:var(--muted)}
+.lvls li .k{font:700 12px var(--f-pixel);width:24px;height:24px;display:grid;place-items:center;background:var(--navy);color:var(--muted);border:2px solid var(--ink)}
+.lvls li.on{border-color:var(--champagne);background:var(--panel-2);color:var(--cream)}
+.lvls li.on .k{background:var(--champagne);color:var(--ink)}
+.lvls .t{font-weight:700;color:var(--cream);display:block}
+.list h3{margin:0 0 8px;font:400 11px var(--f-pixel);color:var(--muted);letter-spacing:1px}
+.list ol{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.list a{display:flex;align-items:center;gap:10px;min-height:44px;padding:4px 10px;text-decoration:none;color:var(--cream);background:var(--navy);border:2px solid var(--ink)}
+.list a:focus-visible{outline:3px solid var(--champagne);outline-offset:1px}
+.list a .no{font:700 11px var(--f-pixel);color:var(--champagne);width:22px;font-variant-numeric:tabular-nums}
+.list a .st{margin-left:auto;font:400 10px var(--f-pixel);letter-spacing:.5px}
+.list a.done .st{color:#8fd4a0}
+.list a.todo{color:var(--muted);pointer-events:none}
+.list a.todo .st{color:var(--muted)}
+.list a[aria-current="true"]{background:var(--panel-2);border-color:var(--champagne)}
+.hint{font:400 10px var(--f-pixel);color:var(--muted);letter-spacing:.5px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="mark" aria-hidden="true">PO</div>
+    <div>
+      <h1>Palm Oasis 建筑图鉴</h1>
+      <div class="sub">2.5D 等距 · 第一批 8 栋 · 已画 <b id="count">0</b></div>
+    </div>
+  </header>
+  <main>
+    <section class="stage" aria-label="建筑画面">
+      <canvas id="cv" aria-label="当前建筑的等距像素画"></canvas>
+      <div class="tag"><span class="n" id="tagN"></span><span class="e" id="tagE"></span></div>
+      <div class="bar">
+        <div class="seg" role="group" aria-label="复原阶段">
+          <button id="lv1" class="lv1" data-lv="1">1 荒废</button><button id="lv2" data-lv="2">2 修复中</button><button id="lv3" data-lv="3">3 复原</button>
+        </div>
+        <button id="bn" aria-pressed="false">夜晚</button>
+        <span class="spacer"></span>
+        <button id="bq" aria-label="向左转 90 度">⟲</button><button id="be" aria-label="向右转 90 度">⟳</button>
+      </div>
+    </section>
+    <aside>
+      <div class="card">
+        <h2 id="infoN"></h2>
+        <div class="sub" id="infoE"></div>
+        <dl class="meta">
+          <dt>占地</dt><dd id="infoS"></dd>
+          <dt>用途</dt><dd id="infoU"></dd>
+        </dl>
+        <ol class="lvls" id="lvls"></ol>
+      </div>
+      <nav class="card list" aria-label="建筑清单">
+        <h3>第一批 · 按画的顺序</h3>
+        <ol id="list"></ol>
+      </nav>
+      <div class="hint">键盘：1 / 2 / 3 切阶段 · N 昼夜 · Q / E 旋转；手机上左右滑动画面也能转</div>
+    </aside>
+  </main>
+</div>
+<script src="kit.js"></script>
+<script src="b/grounds-shed.js"></script>
+<script src="b/stringing-hut.js"></script>
+<script src="b/equipment-store.js"></script>
+<script>
+'use strict';
+const PLAN=[
+  ['grounds-shed',20,'场地维护棚'],['stringing-hut',1,'穿线小屋'],['equipment-store',6,'器材仓库和发球机棚'],['players-lounge',2,'球员休息室'],
+  ['gym',5,'健身房'],['pro-shop',16,'球拍专卖店'],['juice-bar',17,'果汁吧'],['scoreboard',10,'记分牌塔']];
+const LVN=['荒废','修复中','全面复原'];
+const byId=Object.fromEntries(BUILDINGS.map(b=>[b.id,b]));
+const $=id=>document.getElementById(id);
+$('count').textContent=BUILDINGS.length;
+$('list').innerHTML=PLAN.map(([id,no,n])=>{const d=byId[id];return `<li><a href="#${id}" class="${d?'done':'todo'}" data-id="${id}" ${d?'':'aria-disabled="true" tabindex="-1"'}><span class="no">${String(no).padStart(2,'0')}</span><span>${n}</span><span class="st">${d?'DONE':'TODO'}</span></a></li>`;}).join('');
+function pick(){const id=location.hash.slice(1);return byId[id]||BUILDINGS[BUILDINGS.length-1];}
+function info(){const b=View.cur;$('tagN').textContent=b.name;$('tagE').textContent=b.en;$('infoN').textContent=b.name;$('infoE').textContent='#'+String(b.no).padStart(2,'0')+' · '+b.en;
+  $('infoS').textContent=b.size;$('infoU').textContent=b.serves;
+  $('lvls').innerHTML=b.levels.map((t,i)=>`<li class="${i+1===level?'on':''}"><span class="k">${i+1}</span><span><span class="t">${LVN[i]}</span>${t}</span></li>`).join('');
+  document.querySelectorAll('#list a').forEach(a=>a.setAttribute('aria-current',a.dataset.id===b.id?'true':'false'));
+  for(const l of[1,2,3])$('lv'+l).setAttribute('aria-pressed',String(l===level));
+  $('bn').setAttribute('aria-pressed',String(night));$('bn').textContent=night?'白天':'夜晚';}
+View.mount($('cv'));View.show(pick());info();
+addEventListener('hashchange',()=>{View.show(pick());info();});
+document.querySelectorAll('[data-lv]').forEach(b=>b.onclick=()=>{View.setLevel(+b.dataset.lv);info();});
+$('bn').onclick=()=>{View.setNight(!night);info();};
+$('bq').onclick=()=>View.rotate(1);$('be').onclick=()=>View.rotate(-1);
+addEventListener('keydown',e=>{const k=e.key.toLowerCase();if('123'.includes(k)&&k){View.setLevel(+k);info();}if(k==='n'){View.setNight(!night);info();}if(k==='q')View.rotate(1);if(k==='e')View.rotate(-1);});
+let sx=null;const cv=$('cv');
+cv.addEventListener('pointerdown',e=>{sx=e.clientX;});
+cv.addEventListener('pointerup',e=>{if(sx!==null&&Math.abs(e.clientX-sx)>40)View.rotate(e.clientX>sx?1:-1);sx=null;});
+cv.addEventListener('pointercancel',()=>{sx=null;});
+new ResizeObserver(()=>View.resize()).observe(cv);
+window.__ready=true;
+</script>
+</body>
+</html>
