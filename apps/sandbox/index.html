@@ -2,29 +2,50 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>网球总监 · Sandbox</title>
-<style>
-  :root { color-scheme: light dark; --bg: #f4f1e8; --ink: #1d1c19; --dim: #6b675c; --card: #fff; --line: #d9d3c3; }
-  @media (prefers-color-scheme: dark) { :root { --bg: #191917; --ink: #e8e2d2; --dim: #a9a596; --card: #232220; --line: #3a3833; } }
-  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 system-ui, sans-serif; }
-  main { max-width: 720px; margin: 0 auto; padding: 32px 16px; }
-  h1 { font-size: 22px; margin: 0 0 4px; }
-  p { color: var(--dim); margin: 0 0 24px; }
-  ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 12px; }
-  a { display: block; padding: 14px 16px; background: var(--card); border: 1px solid var(--line); border-radius: 8px; color: inherit; text-decoration: none; }
-  a:hover { border-color: var(--dim); }
-  a b { display: block; }
-  a span { color: var(--dim); font-size: 13px; }
-</style>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>场景查看器 · Tennis Director</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Semi+Condensed:wght@500;600;700;800&family=Saira:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="./src/viewer/style.css">
 </head>
 <body>
-<main>
-  <h1>网球总监 · Sandbox</h1>
-  <p>场景查看器和活动动画库。美术和动画在这里单独开发，不需要启动完整游戏。</p>
-  <ul>
-    <li><a href="./activities.html"><b>活动动画库 · Activity library</b><span>训练、招生、比赛、团建的原子活动 · 全局条件（疲劳、天气、教练、场地）和每个活动的变量 · 游戏用的同一套演出</span></a></li>
-  </ul>
-</main>
+<div id="world"></div>
+<div id="labels" aria-hidden="true"></div>
+<div id="ui">
+  <header class="top">
+    <div class="brand"><span class="badge">TD</span><span class="t"><b>场景查看器</b><small>Palm Oasis · Indian Wells</small></span></div>
+    <a class="lib" href="./activities.html">活动动画库 →</a>
+  </header>
+  <section class="more" id="more" hidden aria-label="更多设置">
+    <h4>设施状态 <small>点一下换下一档</small></h4>
+    <div class="facs" id="facs"></div>
+    <label class="ctl"><span class="k">时间</span><input type="range" id="time" min="0" max="1439" step="5"><output id="timeV"></output></label>
+    <label class="ctl"><span class="k">风</span><input type="range" id="wind" min="0" max="100" step="5"><output id="windV"></output></label>
+    <label class="ctl"><span class="k">磨损</span><input type="range" id="wear" min="0" max="150" step="5"><output id="wearV"></output></label>
+    <div class="row">
+      <button type="button" id="bWalk">路人 +4</button>
+      <button type="button" id="bClear">清空路人</button>
+      <button type="button" id="bHome">重置镜头</button>
+    </div>
+    <p class="url">截图参数：<code id="url"></code></p>
+  </section>
+  <nav class="dock" aria-label="场景控制">
+    <div class="r">
+      <button type="button" id="bRuin">荒废</button>
+      <button type="button" id="bFresh">复原</button>
+      <button type="button" id="bNight" aria-pressed="false">夜</button>
+      <button type="button" id="bRain" aria-pressed="false">雨</button>
+      <button type="button" id="bMore" aria-expanded="false" aria-controls="more">更多</button>
+    </div>
+    <div class="r">
+      <button type="button" id="bQ" title="转 90°（Q）" aria-label="向左转 90°">⟲ Q</button>
+      <button type="button" id="bE" title="转 90°（E）" aria-label="向右转 90°">E ⟳</button>
+      <button type="button" id="bOut" aria-label="缩小">−</button>
+      <button type="button" id="bIn" aria-label="放大">+</button>
+      <button type="button" id="bLabels" aria-pressed="false">锚点</button>
+    </div>
+  </nav>
+</div>
+<script type="module" src="./src/viewer/main.ts"></script>
 </body>
 </html>

@@ -1,4 +1,4 @@
-import type { activities } from '@td/render';
+import type { activities } from '@td/iso';
 
 /**
  * 动画库的说明文字：每个活动在当前条件下的"效果"读数、场地专属桥段、分类介绍。
