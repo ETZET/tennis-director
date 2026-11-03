@@ -4,6 +4,7 @@
 | --- | --- | --- |
 | [game-design.md](game-design.md) | 玩法设计文档 v0.3：玩法准则、核心循环、Indian Wells 地图和修复顺序、节奏、胜负、经济、招人、事件 | [v0.1](https://claude.ai/artifact/L928nnUJivRPVhUzZXnrBi) |
 | [people.md](people.md) | 人物设计：研究（《八十亿分之一》、RimWorld、真实网球圈）、四类作用、特质、招聘日怎么出人、第一版和以后 | — |
+| [research-kairosoft.md](research-kairosoft.md) | 研究：开罗游戏怎么推进（等级主轴、五种解锁钥匙、日历节拍、赛事阶梯、软结局），和对我们的启发 | — |
 | [testing.md](testing.md) | 测试文档 v0.2：测试分层、CI、现有测试、机器人和平衡区间、评审和试玩、验收用例 | [v0.1](https://claude.ai/artifact/Y4gjfnCQmgERrZe9dDYv7s) |
 | [backlog.md](backlog.md) | 待办：按界面、玩法、逻辑、美术拆成可以派给子 agent 的任务，标了能力档位；完成记录 | [Hollow Creek 版](https://claude.ai/artifact/69umTr3eFLkUnDqbbfPUL6) |
 | [architecture.md](architecture.md) | 技术架构文档 v0.2：原则、分层、模拟核心、Site 接口、内容管线、存档、扩展点 | [v0.1](https://claude.ai/artifact/Cy2ae8npLfYgtEwufEtr7s) |
