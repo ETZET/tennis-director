@@ -48,6 +48,20 @@ export interface Site {
     wear?(facility: string, amount: number): void;
     /** 立刻把排着的重建做掉（截图、测试用；没有排队机制的地图可以不提供） */
     flush?(): void;
+    /**
+     * 这处设施修成 / 要修成哪个变体（wave1-contract.md；null 或不认识的变体 = 原来的样子）。
+     * 影响修好以后各档（fresh、worn）的画面；先 variant() 再 set() 状态，同一轮里只重建一次。
+     */
+    variant?(facility: string, variant: string | null): void;
+    /**
+     * 在这处设施现在的样子上叠一层"修成这个变体以后"的半透明预览（Bayer 抖动约 45% + 浅青偏色 + 虚线框）；
+     * null 关掉这处的预览。同一时间只有一处预览，换一处会把上一处关掉。
+     */
+    preview?(facility: string, variant: string | null): void;
+    /** 开 / 关这处设施的升级（画在变体上面；设施没修好、或升级和变体对不上时不画） */
+    upgrade?(facility: string, upgrade: string, on: boolean): void;
+    /** 大门的牌匾：一行一处修好的设施（设施、带头人、第几天）；空表 = 没有牌匾 */
+    plaque?(rows: readonly { facility: string; leader: string; day: number }[]): void;
   };
   /** 天空和远景的动画（没有就什么也不做）；wind 0 无风 .. 1 大风（可选，默认 0.3） */
   createSky(w: IsoWorld): { update(dt: number, now: number, rain: number, wind?: number): void };

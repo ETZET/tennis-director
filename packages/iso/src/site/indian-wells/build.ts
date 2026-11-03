@@ -6,6 +6,20 @@ import type { Cast } from './ground';
 import { box, cyl, drawText, ellSh, faceF, fq, hipRoof, type Pt, unprojector } from './kit';
 import { F_O1, F_O2, F_O3, F_P1, F_P2, F_PB1, F_PB2, F_S1, FOUNTAIN, GROUNDS, PICKLE, POOL, TERRACE } from './layout';
 import type { Facilities } from './state';
+import {
+  cabanaRow,
+  clubVariant,
+  misters,
+  outer23Extras,
+  plazaVariant,
+  poolIceColors,
+  poolVariant,
+  practiceVariant,
+  proShop,
+  resortLounger,
+  stadium3Variant,
+  videoWall,
+} from './variants';
 
 /**
  * Palm Oasis 的静态场景（照样片 index.html 的 build）：围墙和大门、中心球场看台、会所、露台、泳池和小木屋、
@@ -34,21 +48,48 @@ export interface BuildOut {
   lamps: Lamp[];
 }
 
-type Bounds = { x0: number; x1: number; z0: number; z1: number; y0: number; y1: number };
-type Draw = (r: DrawContext) => void;
+export type Bounds = { x0: number; x1: number; z0: number; z1: number; y0: number; y1: number };
+export type Draw = (r: DrawContext) => void;
+
+/** 变体和升级的画法（variants.ts）要用到的构建工具 */
+export interface Kit {
+  add(b: Bounds, draw: Draw): Custom;
+  addDyn(b: Bounds, draw: Draw): void;
+  cast(c: Cast): void;
+  lampAt(l: Lamp): void;
+  umbrella(x: number, z: number, rad: number, c1: string, c2: string, h?: number): void;
+  lightPole(
+    x: number,
+    z: number,
+    h: number,
+    o?: { on?: boolean; broken?: boolean; lx?: number; lz?: number; r?: number; i?: number },
+  ): void;
+  stringLights(pts: readonly (readonly [number, number])[], on: boolean, y?: number): void;
+  fenceSeg(x0: number, z0: number, x1: number, z1: number, h: number, o?: { c?: string }): void;
+  cone(x: number, z: number): void;
+  readonly wx: Weather;
+}
 
 /**
  * 夜里算不算"天黑了"（亮灯、发光窗户）。门槛每个节点错开一点（夜色 0.38~0.58，按节点深度 zcur 取哈希，只影响画面）：
  * 黄昏时灯和窗户一盏盏亮起来，天亮时一盏盏灭，不是同一帧全亮全灭。
  */
-const dark = (r: DrawContext) =>
+export const dark = (r: DrawContext): boolean =>
   r.night > 0.38 + 0.2 * hash(Math.round(((r as { zcur?: number }).zcur ?? 0) * 4), 5, 41);
 
 export function buildStatics(fac: Facilities, wx: Weather): BuildOut {
   const out: BuildOut = { statics: [], dynamic: [], casts: [], lamps: [] };
-  const mk = (b: Bounds, draw: Draw): Custom => new Custom((r) => draw(r), { ...b });
-  const add = (b: Bounds, draw: Draw) => {
-    out.statics.push(mk(b, draw));
+  /** 正在建哪处设施的东西（节点记在 userData.fac 上，修复预览只取这一处的节点） */
+  let curFac: string | null = null;
+  const mk = (b: Bounds, draw: Draw): Custom => {
+    const n = new Custom((r) => draw(r), { ...b });
+    if (curFac) n.userData.fac = curFac;
+    return n;
+  };
+  const add = (b: Bounds, draw: Draw): Custom => {
+    const n = mk(b, draw);
+    out.statics.push(n);
+    return n;
   };
   const addDyn = (b: Bounds, draw: Draw) => {
     out.dynamic.push(mk(b, draw));
@@ -463,7 +504,10 @@ export function buildStatics(fac: Facilities, wx: Weather): BuildOut {
       );
     });
 
+  const K: Kit = { add, addDyn, cast, lampAt, umbrella, lightPole, stringLights, fenceSeg, cone, wx };
+
   /* ---------------- 中心球场（stadium_1） ---------------- */
+  curFac = 'stadium_1';
   {
     const look = fac.look('stadium_1');
     const cf = look === 'fresh';
@@ -592,6 +636,7 @@ export function buildStatics(fac: Facilities, wx: Weather): BuildOut {
   }
 
   /* ---------------- 青训（practice） ---------------- */
+  curFac = 'practice';
   {
     const look = fac.look('practice');
     const ok = look === 'fresh' || look === 'worn';
@@ -626,7 +671,9 @@ export function buildStatics(fac: Facilities, wx: Weather): BuildOut {
           broken: look === 'ruin' && dx > 0 && dz < 0,
         });
     }
-    if (look === 'fresh') {
+    const pv = ok ? fac.variant('practice') : null;
+    if (pv) practiceVariant(fac, K, pv);
+    else if (look === 'fresh') {
       // 发球机和球筐
       const mx = F_P1.ox + 10.6;
       const mz = F_P1.oz;
@@ -641,9 +688,11 @@ export function buildStatics(fac: Facilities, wx: Weather): BuildOut {
         box(r, bx - 0.5, bx + 0.5, bz - 0.5, bz + 0.5, 0, 0.9, '#3a6fb0', { lit: r.litAt(bx, bz), top: '#d7e64a' }),
       );
     }
+    if (fac.up('practice', 'video_wall')) videoWall(K, look === 'worn');
   }
 
   /* ---------------- 会员双打（outer_1） ---------------- */
+  curFac = 'outer_1';
   {
     const look = fac.look('outer_1');
     const st = fac.state('outer_1');
@@ -717,6 +766,7 @@ export function buildStatics(fac: Facilities, wx: Weather): BuildOut {
   }
 
   /* ---------------- 红土（outer_23） ---------------- */
+  curFac = 'outer_23';
   {
     const look = fac.look('outer_23');
     const ok = look === 'fresh' || look === 'worn';
@@ -745,18 +795,39 @@ export function buildStatics(fac: Facilities, wx: Weather): BuildOut {
           i: 0.9,
         });
     }
+    if (ok) outer23Extras(fac, K);
   }
 
   /* ---------------- 匹克球（stadium_3） ---------------- */
+  curFac = 'stadium_3';
   {
     const look = fac.look('stadium_3');
     const ok = look === 'fresh' || look === 'worn';
-    fenceRect(PICKLE.x0, PICKLE.x1, PICKLE.z0, PICKLE.z1, 2.6, [[PICKLE.x0, 6]], !ok, 99);
-    if (look !== 'ruin') {
-      net(F_PB1, { pick: true, missing: !ok });
-      net(F_PB2, { pick: true, missing: !ok, sag: look === 'worn' });
+    const sv = ok ? fac.variant('stadium_3') : null;
+    if (sv) {
+      // 变体（四片匹克球 / 两片网球场）：围网、网、灯都在 variants.ts
+      fenceRect(
+        PICKLE.x0,
+        PICKLE.x1,
+        PICKLE.z0,
+        PICKLE.z1,
+        sv === 'tennis2' ? 3 : 2.6,
+        [[PICKLE.x0, 6]],
+        false,
+        99,
+        sv === 'tennis2' && look === 'fresh',
+      );
+      stadium3Variant(fac, K, sv);
+    } else {
+      fenceRect(PICKLE.x0, PICKLE.x1, PICKLE.z0, PICKLE.z1, 2.6, [[PICKLE.x0, 6]], !ok, 99);
+      if (look !== 'ruin') {
+        net(F_PB1, { pick: true, missing: !ok });
+        net(F_PB2, { pick: true, missing: !ok, sag: look === 'worn' });
+      }
     }
-    if (look === 'fresh') {
+    if (sv) {
+      // 同上
+    } else if (look === 'fresh') {
       lampAt({ x: 44, z: 6, r: 12, i: 0.8 });
       lightPole(36.2, -2.8, 8, { on: true, r: 5, i: 0.4 });
       lightPole(51.8, 14.8, 8, { on: true, r: 5, i: 0.4 });
@@ -776,6 +847,7 @@ export function buildStatics(fac: Facilities, wx: Weather): BuildOut {
   }
 
   /* ---------------- 会所和露台（clubhouse） ---------------- */
+  curFac = 'clubhouse';
   {
     const look = fac.look('clubhouse');
     const cb = look === 'fresh';
@@ -955,7 +1027,9 @@ export function buildStatics(fac: Facilities, wx: Weather): BuildOut {
         r.wline([-36.8, 3.45, z], [-26.2, 3.45, z], c);
       }
     });
-    if (!ruin) {
+    const cv = ruin ? null : fac.variant('clubhouse');
+    if (cv) clubVariant(fac, K, cv);
+    else if (!ruin) {
       const ucols = [
         ['#ff8a3d', '#ffffff'],
         ['#17a2b8', '#ffffff'],
@@ -997,13 +1071,17 @@ export function buildStatics(fac: Facilities, wx: Weather): BuildOut {
       tumble(-30, -20, 0.7);
       for (let k = 0; k < 3; k++) sandPile(-38.5 + R() * 1.5, -34 + R() * 20, 1.2 + R());
     }
+    if (fac.up('clubhouse', 'pro_shop')) proShop(K, look === 'worn');
   }
 
   /* ---------------- 泳池和小木屋（stadium_2） ---------------- */
+  curFac = 'stadium_2';
   {
     const look = fac.look('stadium_2');
     const pf = look === 'fresh';
     const ok = look === 'fresh' || look === 'worn';
+    /** 变体：resort 度假（躺椅全打伞、彩色浴巾、游泳圈、草棚吧）/ recovery 冷水恢复池（冰桶、毛巾架、计时钟） */
+    const pv = ok ? fac.variant('stadium_2') : null;
     for (let i = 0; i < 3; i++) {
       const x0 = -59 + i * 6.5;
       const x1 = x0 + 4;
@@ -1011,7 +1089,13 @@ export function buildStatics(fac: Facilities, wx: Weather): BuildOut {
       add({ x0, x1, z0: -0.8, z1: 2.4, y0: 0, y1: 3.2 }, (r) => {
         const lit = r.litAt(x0 + 2, 1);
         const c1 = ok ? '#ffffff' : '#bdb3a4';
-        const c2 = ok ? (['#17a2b8', '#ff8a3d', '#3fb37f'][i] as string) : '#8f857a';
+        const c2 = ok
+          ? pv === 'recovery'
+            ? look === 'worn'
+              ? '#6a7f96'
+              : '#2f5d8a'
+            : (['#17a2b8', '#ff8a3d', '#3fb37f'][i] as string)
+          : '#8f857a';
         box(r, x0, x1, -0.8, 2.4, 0, 2.5, c1, {
           lit,
           noTop: true,
@@ -1031,6 +1115,7 @@ export function buildStatics(fac: Facilities, wx: Weather): BuildOut {
       const x = -59 + i * 3.4;
       const z = 15.2;
       if (!ok && i % 2) continue;
+      if (pv === 'recovery') continue;
       const lc = ok ? '#ffffff' : '#a8a092';
       add({ x0: x - 0.4, x1: x + 0.4, z0: z - 1, z1: z + 1, y0: 0, y1: 0.7 }, (r) => {
         const lit = r.litAt(x, z);
@@ -1038,17 +1123,21 @@ export function buildStatics(fac: Facilities, wx: Weather): BuildOut {
         box(r, x - 0.4, x + 0.4, z + 0.4, z + 0.9, 0.3, 0.7, lc, { lit, edge: false });
       });
       if (pf && i % 2 === 0) umbrella(x + 1.7, z + 0.4, 1.3, '#ffcf3a', '#ffffff');
+      if (pv === 'resort') resortLounger(K, x, z, i, look === 'worn');
     }
+    if (pv) poolVariant(fac, K, pv);
     if (ok) lampAt({ x: -50, z: 8, r: 10, i: 0.6 });
     if (!ok) tumble(-47, 7.5, 0.6);
     // 池子：挖下去的坑，只在洞口里看得见（静态）；水面的闪光放动态层
     const pd = ok ? 0.35 : 2.0;
     const { x0, x1, z0, z1 } = POOL;
-    add({ x0, x1, z0, z1, y0: -pd, y1: 0 }, (r) => drawPoolPit(r, look, pd));
-    if (ok) addDyn({ x0, x1, z0, z1, y0: -pd, y1: 0.05 }, (r) => drawPoolShimmer(r, look, pd));
+    add({ x0, x1, z0, z1, y0: -pd, y1: 0 }, (r) => drawPoolPit(r, look, pd, pv));
+    if (ok) addDyn({ x0, x1, z0, z1, y0: -pd, y1: 0.05 }, (r) => drawPoolShimmer(r, look, pd, pv));
+    if (fac.up('stadium_2', 'cabanas')) cabanaRow(K, look === 'worn');
   }
 
   /* ---------------- 棕榈喷泉和球员草坪（plaza） ---------------- */
+  curFac = 'plaza';
   {
     const look = fac.look('plaza');
     const fo = look === 'fresh' || look === 'worn';
@@ -1067,7 +1156,9 @@ export function buildStatics(fac: Facilities, wx: Weather): BuildOut {
       drawFountain(r, look, wx),
     );
     if (fo) lampAt({ x: FOUNTAIN.x, z: FOUNTAIN.z, r: 9, i: 0.75 });
-    if (look === 'fresh') {
+    const zv = fo ? fac.variant('plaza') : null;
+    if (zv) plazaVariant(fac, K, zv);
+    else if (look === 'fresh') {
       for (const a of [0.4, 2, 3.6, 5.2]) {
         const x = FOUNTAIN.x + Math.cos(a) * 11;
         const z = FOUNTAIN.z + Math.sin(a) * 11;
@@ -1108,8 +1199,12 @@ export function buildStatics(fac: Facilities, wx: Weather): BuildOut {
       tumble(FOUNTAIN.x - 6, FOUNTAIN.z + 8, 0.6);
     }
     tree(41.5, 22, 5.5, 2.8, look !== 'fresh');
-    tree(51, 29, 6, 3.2, look === 'ruin');
+    // 遮阳观赛坡占了东南那棵橡树的地方
+    if (zv !== 'shade_lawn') tree(51, 29, 6, 3.2, look === 'ruin');
+    if (fac.up('plaza', 'misters')) misters(K, look === 'worn');
   }
+
+  curFac = null;
 
   /* ---------------- 园区四周的棕榈 ---------------- */
   {
@@ -1503,7 +1598,7 @@ function drawFountain(r: DrawContext, look: string, wx: Weather): void {
 }
 
 /** 池底和池壁：只画从地面洞口里看得见的部分（反投影到地面判断是否在池口里） */
-function drawPoolPit(r: DrawContext, look: string, d: number): void {
+function drawPoolPit(r: DrawContext, look: string, d: number, v: string | null = null): void {
   const ok = look === 'fresh' || look === 'worn';
   const { x0, x1, z0, z1 } = POOL;
   const unP = unprojector(r);
@@ -1520,16 +1615,30 @@ function drawPoolPit(r: DrawContext, look: string, d: number): void {
   if (ok) {
     const murky = look === 'worn';
     const N = dark(r) && !murky;
-    const w1 = murky ? r.col('#5f8a6a', 1, 0) : N ? r.em('#1f9fc4') : r.col('#38b4dc', 1, 0);
-    const w3 = murky ? r.col('#55785a', 1, 0) : N ? r.em('#178ab0') : r.col('#2a9ccc', 1, 0);
-    const ln = murky ? r.col('#4a6a52', 1, 0) : N ? r.em('#16749a') : r.col('#2a7fb0', 1, 0);
-    r.wpoly(flp, 0, (px, py) => {
-      if (!inside(px, py)) return 0;
-      const w = unP(px + 0.5, py + 0.5, -d);
-      if (Math.abs(w[1] - 8) < 0.15 || Math.abs(w[1] - 5.5) < 0.12 || Math.abs(w[1] - 10.5) < 0.12) return ln;
-      const s = Math.sin(w[0] * 1.6) + Math.sin(w[1] * 2.1 + w[0] * 0.5);
-      return s < -1.2 ? w3 : w1;
-    });
+    if (v === 'recovery') {
+      // 冷水恢复池：发白的冰蓝色水、浮着的碎冰、红白浮标的泳道线
+      const ice = poolIceColors(r, murky, N);
+      r.wpoly(flp, 0, (px, py) => {
+        if (!inside(px, py)) return 0;
+        const w = unP(px + 0.5, py + 0.5, -d);
+        const lane = Math.abs(w[1] - 5.5) < 0.14 || Math.abs(w[1] - 8) < 0.14 || Math.abs(w[1] - 10.5) < 0.14;
+        if (lane) return Math.floor(w[0] * 1.4) & 1 ? ice.red : ice.white;
+        if (!murky && hash(Math.floor(w[0] * 2.5), Math.floor(w[1] * 2.5), 71) > 0.93) return ice.chunk;
+        const s = Math.sin(w[0] * 1.6) + Math.sin(w[1] * 2.1 + w[0] * 0.5);
+        return s < -1.2 ? ice.w3 : ice.w1;
+      });
+    } else {
+      const w1 = murky ? r.col('#5f8a6a', 1, 0) : N ? r.em('#1f9fc4') : r.col('#38b4dc', 1, 0);
+      const w3 = murky ? r.col('#55785a', 1, 0) : N ? r.em('#178ab0') : r.col('#2a9ccc', 1, 0);
+      const ln = murky ? r.col('#4a6a52', 1, 0) : N ? r.em('#16749a') : r.col('#2a7fb0', 1, 0);
+      r.wpoly(flp, 0, (px, py) => {
+        if (!inside(px, py)) return 0;
+        const w = unP(px + 0.5, py + 0.5, -d);
+        if (Math.abs(w[1] - 8) < 0.15 || Math.abs(w[1] - 5.5) < 0.12 || Math.abs(w[1] - 10.5) < 0.12) return ln;
+        const s = Math.sin(w[0] * 1.6) + Math.sin(w[1] * 2.1 + w[0] * 0.5);
+        return s < -1.2 ? w3 : w1;
+      });
+    }
   } else {
     const tile = r.col('#a9c7cc', 1, 0);
     const sc = r.col('#7a8f3a', 1, 0);
@@ -1602,11 +1711,12 @@ function drawPoolPit(r: DrawContext, look: string, d: number): void {
 }
 
 /** 池水的闪光（动态）：一些亮色碎点随波纹移动 */
-function drawPoolShimmer(r: DrawContext, look: string, d: number): void {
+function drawPoolShimmer(r: DrawContext, look: string, d: number, v: string | null = null): void {
   if (look !== 'fresh') return;
   const { x0, x1, z0, z1 } = POOL;
   const N = dark(r);
-  const c = N ? r.em('#5fd8ef') : r.col('#7ad6ee', 1, 0);
+  const c =
+    v === 'recovery' ? (N ? r.em('#d8f8ff') : r.col('#ffffff', 1, 0)) : N ? r.em('#5fd8ef') : r.col('#7ad6ee', 1, 0);
   const T = r.t;
   for (let x = x0 + 0.4; x < x1; x += 0.7)
     for (let z = z0 + 0.4; z < z1; z += 0.7) {
