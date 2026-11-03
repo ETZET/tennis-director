@@ -1,7 +1,16 @@
-import { type CourtFrame, EAST, type Person, type Scheduler, type Site, type Stage, WEST } from '@td/render';
+import {
+  type CourtFrame,
+  Custom,
+  type DrawContext,
+  EAST,
+  type IsoWorld,
+  type Person,
+  type Scheduler,
+  type Site,
+  WEST,
+} from '@td/iso';
 import { clamp, type XZ } from '@td/shared';
 import type { GameState } from '@td/sim';
-import * as THREE from 'three';
 
 /**
  * 园区的"日常"（准则 6：玩家不操作时世界照样在动）：
@@ -34,7 +43,7 @@ function hash01(...n: number[]): number {
 }
 
 export interface LifeDeps {
-  stage: Stage;
+  world: IsoWorld;
   site: Site;
   /** 这个地点现在有几块能打的场地（看设施状态） */
   courtsAt: (s: GameState, anchor: string) => number;
@@ -229,19 +238,30 @@ export function createLife(d: LifeDeps): Life {
     }
   }
 
-  /* ---------- 风沙：贴着地面吹过去的沙粒 ---------- */
-  const leafGeo = new THREE.BoxGeometry(0.3, 0.06, 0.3);
-  const leaves: { m: THREE.Mesh; vy: number; ph: number; life: number; ground: number }[] = [];
-  const mats = SAND.map((c) => new THREE.MeshLambertMaterial({ color: c, transparent: true }));
+  /* ---------- 风沙：贴着地面吹过去的沙粒（一粒一个像素点的 Custom 节点） ---------- */
+  const leaves: { m: Custom; c: string; vy: number; ph: number; life: number; ground: number }[] = [];
   let leafT = 0;
   const { x0, x1, z0, z1 } = site.bounds;
+  /** 一粒沙：1×1 缓冲像素（拉近时按精灵档位放大）；快消失时隔帧闪掉（像素版不做半透明） */
+  const grain = (l: { c: string; life: number }) =>
+    new Custom(
+      (r: DrawContext, self: Custom) => {
+        if (l.life < 1.5 && Math.floor(r.t * 12) % 3 === 0) return;
+        const m = self.matrixWorld;
+        const [sx, sy] = r.P(m[9] as number, m[10] as number, m[11] as number);
+        const n = Math.max(1, r.spriteScale);
+        r.rect(Math.round(sx), Math.round(sy), n, n, r.col(l.c));
+      },
+      { x0: -0.15, x1: 0.15, y0: 0, y1: 0.1, z0: -0.15, z1: 0.15 },
+    );
   function spawnLeaf(): void {
     let l = leaves.find((q) => q.life <= 0);
     if (!l) {
       if (leaves.length >= 120) return;
-      const m = new THREE.Mesh(leafGeo, (mats[leaves.length % mats.length] as THREE.MeshLambertMaterial).clone());
-      d.stage.scene.add(m);
-      l = { m, vy: 0, ph: 0, life: 0, ground: 0 };
+      const rec = { c: SAND[leaves.length % SAND.length] as string, vy: 0, ph: 0, life: 0, ground: 0 };
+      const m = grain(rec);
+      d.world.scene.add(m);
+      l = Object.assign(rec, { m });
       leaves.push(l);
     }
     const x = x0 + 4 + d.rnd() * (x1 - x0 - 8);
@@ -252,7 +272,6 @@ export function createLife(d: LifeDeps): Life {
     l.ph = d.rnd() * 6;
     l.life = 9;
     l.m.visible = true;
-    (l.m.material as THREE.MeshLambertMaterial).opacity = 1;
   }
   function updateLeaves(s: GameState, dt: number): void {
     const windy = s.weather === 'wind';
@@ -274,9 +293,7 @@ export function createLife(d: LifeDeps): Life {
         p.y = Math.max(l.ground, p.y - l.vy * dt);
         p.x += (Math.sin(l.ph) * 0.6 + drift) * dt;
         p.z += Math.cos(l.ph * 0.7) * 0.4 * dt;
-        l.m.rotation.set(Math.sin(l.ph) * 0.6, l.ph, Math.cos(l.ph) * 0.4);
       }
-      if (l.life < 1.5) (l.m.material as THREE.MeshLambertMaterial).opacity = Math.max(0, l.life / 1.5);
       if (l.life <= 0) l.m.visible = false;
     }
   }

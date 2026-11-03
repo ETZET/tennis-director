@@ -1,19 +1,9 @@
-import { activities, indianWells, type PeopleWorld, Person, Scheduler } from '@td/render';
+import { activities, Group, indianWells, type PeopleWorld, Person, Scheduler } from '@td/iso';
 import { CONTENT } from '@td/sim';
-import * as THREE from 'three';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { areaFrame, conditionsFrom, PERFORMANCE_PLANS, perform, planPerformance } from './perform';
 
-beforeAll(() => {
-  // 不需要 WebGL：画布换成什么都不画的替身
-  const ctx = new Proxy(
-    {},
-    { get: (_t, k) => (k === 'measureText' ? () => ({ width: 40 }) : () => {}), set: () => true },
-  );
-  (globalThis as { document?: unknown }).document = {
-    createElement: () => ({ width: 1, height: 1, getContext: () => ctx }),
-  };
-});
+// @td/iso 的活动只建场景图，不碰 DOM：不用给 document 替身（没有画布时漫画字退回方块字）
 
 /**
  * 模拟里出现的每个演出名都要对上动画库里的一个活动（ADR 0010）。
@@ -86,7 +76,7 @@ describe('performance → 活动动画库', () => {
   });
 
   it('每个演出在 Indian Wells 上演 20 秒，借来的教练和球员原样还回去', () => {
-    const scene = new THREE.Scene();
+    const scene = new Group();
     const sched = new Scheduler();
     const world: PeopleWorld = { scene, groundY: site.groundY, people: [] };
     const look = { shirt: '#333', shorts: '#222', skin: '#e8b896', hair: '#222', shoes: '#fff' };

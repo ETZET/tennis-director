@@ -1,5 +1,5 @@
 import type { SlotColors } from '../art/format';
-import type { PersonOptions } from './person';
+import type { PersonOptions } from './types';
 
 /** 戴帽子的发型（cap 槽位画帽子颜色） */
 export const CAP_STYLES = new Set(['cap', 'visor']);

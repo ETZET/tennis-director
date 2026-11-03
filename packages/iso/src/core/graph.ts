@@ -303,6 +303,8 @@ export class Sprite extends Node {
   flipX = false;
   /** 不透明度 0..1（像素溶解，不做半透明混合） */
   opacity = 1;
+  /** 被建筑挡住的部分画成棋盘格剪影（人物用，免得走到墙后就看不见） */
+  xray = false;
   constructor(frame: BakedArt | null = null) {
     super();
     this.frame = frame;
@@ -397,5 +399,11 @@ export interface DrawContext {
   ell(cx: number, cy: number, rx: number, ry: number, c: number): void;
   glow(sx: number, sy: number, r: number, rgb: readonly [number, number, number], intensity: number): void;
   /** 在世界点画一张烘焙像素图（锚点对齐，按 spriteScale 放大） */
-  art(a: BakedArt, x: number, y: number, z: number, o?: { flipX?: boolean; scale?: number; lit?: number }): void;
+  art(
+    a: BakedArt,
+    x: number,
+    y: number,
+    z: number,
+    o?: { flipX?: boolean; scale?: number; lit?: number; xray?: boolean },
+  ): void;
 }

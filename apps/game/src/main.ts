@@ -1,8 +1,7 @@
-import { createStage, indianWells, OrbitCamera, type Site } from '@td/render';
+import { createIsoWorld, type IsoCameraPose, indianWells, type Site, setPeopleView } from '@td/iso';
 import { clamp } from '@td/shared';
 import { CONTENT, type ContentBundle, canAssign, DIRECTOR, type SimEvent, worldOf } from '@td/sim';
 import { type HudActions, mountHud, setHudStrings } from '@td/ui';
-import type * as THREE from 'three';
 import { createDebug } from './debug';
 import { GameLabels } from './labels';
 import { clearAutosave, downloadSave, readAutosave, writeAutosave } from './persist';
@@ -12,7 +11,7 @@ import { Session } from './session';
 import { createText, type Lang } from './text';
 
 /**
- * 正式游戏入口：模拟（@td/sim）+ 画面（@td/render）+ 界面（@td/ui）。
+ * 正式游戏入口：模拟（@td/sim）+ 画面（@td/iso，2.5D 等距像素，ADR 0019）+ 界面（@td/ui）。
  *
  *   真实时间 → Session.frame() → advance() → 领域事件
  *                                       ├→ Projector（HUD 快照、快讯）
@@ -38,27 +37,21 @@ applyHudStrings();
 /* ---------- 舞台：整局只有一张地图（Indian Wells，2026-11-01） ---------- */
 const site: Site = indianWells.INDIAN_WELLS;
 const container = $('stage');
-const stage = createStage(container, site.lighting);
+const HOME: IsoCameraPose =
+  container.clientWidth / Math.max(1, container.clientHeight) < 0.8 ? site.camera.portrait : site.camera.overview;
+// 拖动平移、双指和滚轮缩放由 IsoWorld 绑在画布上；窗口大小变了它自己 resize
+const stage = createIsoWorld(container, { ...indianWells.INDIAN_WELLS_WORLD, pose: HOME });
+const camera = stage.camera;
+camera.limits = {
+  zoom: [...site.camera.limits.zoom],
+  tx: [...site.camera.limits.tx],
+  tz: [...site.camera.limits.tz],
+};
+camera.home = { ...HOME };
+camera.setPose(HOME);
 site.build(stage);
 const scene = createGameScene(stage, content, site);
-const HOME =
-  container.clientWidth / Math.max(1, container.clientHeight) < 0.8 ? site.camera.portrait : site.camera.overview;
-const camera = new OrbitCamera(stage, HOME, site.camera.limits);
-window.addEventListener('resize', () => camera.resize());
-camera.resize();
-camera.bindPointer(stage.renderer.domElement);
-
-// 朝相机那一侧的围网隐藏，场地不像隔着一层玻璃
-const fenceBays: { m: THREE.Object3D; nx: number; nz: number }[] = [];
-stage.scene.traverse((o) => {
-  const n = o.userData.fenceNormal as { x: number; z: number } | undefined;
-  if (n) fenceBays.push({ m: o, nx: n.x, nz: n.z });
-});
-function cutAwayNearFences() {
-  const dx = Math.sin(camera.smooth.yaw);
-  const dz = Math.cos(camera.smooth.yaw);
-  for (const b of fenceBays) b.m.visible = b.nx * dx + b.nz * dz < 0.3;
-}
+// 等距画面里围网是低矮的像素栅栏，不用再按镜头方向隐藏近处的围网（旧 three 版的 cutAwayNearFences 去掉了）
 
 /* ---------- 一局 ---------- */
 let session: Session;
@@ -165,7 +158,7 @@ function answer(key: 1 | 2 | 3): void {
 const draw = () => ui.update(projector.snapshot(session));
 
 /* ---------- 地点牌、岗位和工单的标记 ---------- */
-const labels = new GameLabels($('labels'), stage.cam);
+const labels = new GameLabels($('labels'), camera);
 labels.occluders = () =>
   [...document.querySelectorAll('.td-bug,.td-strip-wrap,.td-card,.td-wire,.td-bug-status,.td-staff,.td-sheet')].map(
     (el) => el.getBoundingClientRect(),
@@ -175,6 +168,8 @@ const ground = (a: string, dy: number) => () => {
   return { x: p.x, y: site.groundY(p.x, p.z) + dy, z: p.z };
 };
 const director = () => session.s.people[DIRECTOR];
+/** 站着的人头顶离地多少 CSS 像素（人物精灵约 14 素材像素高，再留几像素） */
+const headPx = () => 6 + 17 * stage.view.proj.spriteScale * stage.view.PS;
 /** 拉远看整座岛时（手机默认视角），只给总监所在、正要去、有事的地方挂名字；其余缩成小圆点 */
 const placeFlags = (a: string) => {
   const s = session.s;
@@ -231,8 +226,9 @@ function addHubs(c: ContentBundle): void {
   for (const a of c.acts[0]?.anchors ?? []) {
     const m = labels.add(
       {
-        get: ground(a, 1.2),
-        lift: 6,
+        // 牌子立在站位上方、高过站在那儿的人的头顶（像素人按精灵档位放大，不随米数变）
+        get: ground(a, 0),
+        lift: headPx,
         keepOnScreen: true,
         text: () => (hubOf(a) ? text.anchor(a) : null),
         html: () => {
@@ -296,7 +292,8 @@ addHubs(content);
 // 总监走在路上时头顶挂个"你"
 labels.add({
   get: () => scene.directorHead(),
-  lift: 0,
+  // 头顶还有个像素菱形（scene.ts），牌子再高一点
+  lift: () => 12 + 3 * Math.max(1, stage.view.proj.spriteScale),
   cls: () => 'you',
   text: () => (director()?.walk ? text.tr('ui.you') : null),
 });
@@ -367,14 +364,17 @@ function frame(ts: number) {
   const dt = clamp((ts - last) / 1000, 0, 0.05);
   last = ts;
   pump(session.frame(dt));
-  scene.update(session.s, session.time, dt, session.paused);
-  camera.update(dt, scene.focus());
-  stage.renderer.render(stage.scene, stage.cam);
-  cutAwayNearFences();
   const card = document.querySelector('.td-card');
-  camera.occludedBottomPx = card ? container.clientHeight - card.getBoundingClientRect().top : 0;
-  const pxPerM = container.clientHeight / (stage.cam.top - stage.cam.bottom);
-  labels.compact = pxPerM < 4;
+  const occ = card ? Math.max(0, container.clientHeight - card.getBoundingClientRect().top) : 0;
+  if (occ !== camera.occludedBottomPx) camera.occludedBottomPx = occ;
+  camera.update(dt, scene.focus());
+  // 人物取帧要知道镜头转角和精灵档位（people/view.ts），先于人物更新
+  const pr = stage.view.proj;
+  setPeopleView(pr.ang, pr.k, pr.spriteScale);
+  scene.update(session.s, session.time, dt, session.paused);
+  stage.render(dt, scene.showNow());
+  // 拉远看整座岛时地点牌缩成小圆点（旧版按 4 CSS 像素每米；等距默认 k = 3 时约 3 px/m）
+  labels.compact = camera.pxPerM < 3.5;
   hubCache.clear();
   labels.place(container.clientWidth, container.clientHeight);
   uiT += dt;
@@ -467,6 +467,10 @@ declare global {
       session: () => Session;
       setContent: (c: ContentBundle) => void;
       resync: () => void;
+      /** 镜头（截图、试玩时对准某处、转角、缩放） */
+      camera: () => typeof camera;
+      /** 等距画面（试玩、截图时查场景图） */
+      world: () => typeof stage;
       fastForward: (max: number) => { minutes: number; stop: string };
       answer: (key: 1 | 2 | 3) => void;
       /** 把人派到岗位或工单上（null 叫他停下来）；返回 null，或者为什么没成 */
@@ -497,6 +501,8 @@ window.__td = {
   session: () => session,
   setContent,
   resync: () => scene.sync(session.s),
+  camera: () => camera,
+  world: () => stage,
   fastForward,
   answer,
   assign: (person, target) => {

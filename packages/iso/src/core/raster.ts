@@ -40,6 +40,9 @@ export interface BoxOpts extends BoxStyle {
   topSh?: (c: number) => Shader | null;
 }
 
+/** 被挡住的人物剪影色 */
+const XRAY = pk(58, 51, 80);
+
 export class Raster implements DrawContext {
   buf: Uint32Array;
   depth: Float32Array | null = null;
@@ -618,7 +621,7 @@ export class Raster implements DrawContext {
     x: number,
     y: number,
     z: number,
-    o: { flipX?: boolean; scale?: number; lit?: number; opacity?: number; depth?: number } = {},
+    o: { flipX?: boolean; scale?: number; lit?: number; opacity?: number; depth?: number; xray?: boolean } = {},
   ): void {
     const img = o.flipX ? flipArt(a) : a;
     const s = Math.max(1, Math.round(o.scale ?? this.proj.spriteScale));
@@ -655,7 +658,11 @@ export class Raster implements DrawContext {
             if (op < 1 && bay(xx, yy) >= op) continue;
             const ii = yy * W + xx;
             if (mode === ZTEST) {
-              if (d + eps < ((zb as Float32Array)[ii] as number)) continue;
+              if (d + eps < ((zb as Float32Array)[ii] as number)) {
+                // 被挡住：剪影（隔一个像素画一个深色点）
+                if (o.xray && ((xx + yy) & 1) === 0) buf[ii] = XRAY;
+                continue;
+              }
             } else if (mode === ZWRITE) (zb as Float32Array)[ii] = d;
             buf[ii] = v;
           }

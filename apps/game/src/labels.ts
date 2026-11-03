@@ -1,9 +1,8 @@
 import type { XYZ } from '@td/shared';
-import * as THREE from 'three';
 
 /**
  * 场景上的 DOM 叠层：地点牌、岗位和工单的标记（拖人上去、点开说明）、总监头顶的"你"、正在进行的活动。
- * 每帧把世界坐标投影到屏幕上；文字变了才改 DOM。
+ * 每帧把世界坐标投影到屏幕上（IsoCamera.project，CSS 像素）；文字变了才改 DOM。
  */
 
 export interface Marker {
@@ -23,15 +22,19 @@ export interface Marker {
   last?: string;
 }
 
+/** 世界点 → 容器里的 CSS 像素（IsoCamera 满足这个接口） */
+export interface LabelProjector {
+  project(x: number, y: number, z: number): { x: number; y: number };
+}
+
 export class GameLabels {
   private readonly items: Marker[] = [];
-  private readonly pv = new THREE.Vector3();
   occluders: () => readonly DOMRect[] = () => [];
   compact = false;
 
   constructor(
     private readonly layer: HTMLElement,
-    private readonly cam: THREE.Camera,
+    private readonly cam: LabelProjector,
   ) {}
 
   add(m: Omit<Marker, 'el'>, onClick?: (el: HTMLElement) => void): Marker {
@@ -72,9 +75,9 @@ export class GameLabels {
       }
       if (m.vars) for (const [k, v] of Object.entries(m.vars())) m.el.style.setProperty(k, v);
       const p = m.get();
-      this.pv.set(p.x, p.y, p.z).project(this.cam);
-      let x = (this.pv.x * 0.5 + 0.5) * W;
-      const y = (-this.pv.y * 0.5 + 0.5) * H;
+      const q = this.cam.project(p.x, p.y, p.z);
+      let x = q.x;
+      const y = q.y;
       let off = x < -100 || x > W + 100 || y < -40 || y > H + 40;
       const base = typeof m.lift === 'function' ? m.lift() : m.lift;
       if (!off) off = occ.some((r) => x + 60 > r.left && x - 60 < r.right && y > r.top && y - base - 24 < r.bottom);

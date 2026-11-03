@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "正式游戏入口：把 sim、render、ui 组装起来",
+  "description": "正式游戏入口：把 sim、iso、ui 组装起来",
   "scripts": {
     "dev": "vite --configLoader runner",
     "build": "vite build --configLoader runner",
@@ -11,15 +11,13 @@
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
-    "@td/render": "workspace:*",
+    "@td/iso": "workspace:*",
     "@td/shared": "workspace:*",
     "@td/sim": "workspace:*",
     "@td/ui": "workspace:*",
-    "preact": "10.29.8",
-    "three": "0.187.0"
+    "preact": "10.29.8"
   },
   "devDependencies": {
-    "@td/content": "workspace:*",
-    "@types/three": "0.187.0"
+    "@td/content": "workspace:*"
   }
 }

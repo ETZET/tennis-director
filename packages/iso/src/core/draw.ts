@@ -303,7 +303,8 @@ export class SceneDrawer {
       if (nd.kind === 'box') this.drawBox(r, nd as Box, lit);
       else if (nd.kind === 'sprite') {
         const s = nd as Sprite;
-        if (s.frame) r.art(s.frame, o.wx, o.wy, o.wz, { flipX: s.flipX, lit, opacity: s.opacity, depth: o.d });
+        if (s.frame)
+          r.art(s.frame, o.wx, o.wy, o.wz, { flipX: s.flipX, lit, opacity: s.opacity, depth: o.d, xray: s.xray });
       } else (nd as Custom).draw(r, nd as Custom);
       this.drawn++;
     }

@@ -43,7 +43,7 @@ export const INDIAN_WELLS: Site = {
     // zoom 就是 k（每米缓冲像素）：3 时围墙差不多铺满桌面（缓冲 720 宽）；
     // 手机竖屏（缓冲 390 宽）"围墙铺满宽度"约 k = 2，默认放大约 1.5 倍到 3，拖动看两边
     overview: { tx: CLUB.x, tz: CLUB.z, zoom: 3, rot: 0 },
-    portrait: { tx: CLUB.x + 2, tz: CLUB.z - 2, zoom: 3, rot: 0 },
+    portrait: { tx: CLUB.x + 4, tz: CLUB.z - 4, zoom: 4, rot: 0 },
     limits: { zoom: [2, 15.6], tx: [SITE.x0 + 10, SITE.x1 - 10], tz: [SITE.z0 + 10, SITE.z1 - 10] },
   },
   venue: 'hollow',

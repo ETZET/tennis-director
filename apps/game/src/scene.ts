@@ -1,10 +1,12 @@
 import {
   BallPool,
-  type CameraFocus,
   type ChoreoContext,
+  Custom,
   contactPt,
   createDaylight,
   createRain,
+  type DrawContext,
+  type IsoWorld,
   type PeopleWorld,
   Person,
   type PersonOptions,
@@ -12,8 +14,7 @@ import {
   pointAlong,
   Scheduler,
   type Site,
-  type Stage,
-} from '@td/render';
+} from '@td/iso';
 import { clamp, lerp, mulberry32, type XZ } from '@td/shared';
 import {
   type ContentBundle,
@@ -28,7 +29,6 @@ import {
   working,
   worldOf,
 } from '@td/sim';
-import * as THREE from 'three';
 import { idlePlan } from './idle';
 import { createLife } from './life';
 import { type PerformInput, perform, planPerformance } from './perform';
@@ -258,6 +258,39 @@ interface Perf {
   stop(): void;
 }
 
+/** 卡片发生的地方：镜头跟过去（zoom 是相对倍数，等距镜头只用 x、z） */
+export interface CameraFocus {
+  x: number;
+  z: number;
+  zoom?: number;
+}
+
+/** 总监头顶的小菱形（像素画：1 亮绿、2 深绿、0 描边），每行从中心往两边对称 */
+const MARKER_ROWS = ['...0...', '..010..', '.01110.', '0111220', '.02220.', '..020..', '...0...'];
+const MARKER_COL: Record<string, string> = { '0': '#1d3a2a', '1': '#62e08c', '2': '#38a860' };
+/** 总监头顶的标记：一个上下浮动的像素菱形（夜里也亮，像个图标） */
+function directorMarker(): Custom {
+  return new Custom(
+    (r: DrawContext, self: Custom) => {
+      const m = self.matrixWorld;
+      const [sx, sy0] = r.P(m[9] as number, m[10] as number, m[11] as number);
+      let sy = sy0;
+      const n = r.spriteScale;
+      const h = MARKER_ROWS.length;
+      // 挂在头顶挂点上，再往上留 3 个素材像素，上下浮动 1 像素
+      sy -= (3 + Math.round(Math.sin(r.t * 3) + 1)) * n;
+      for (let j = 0; j < h; j++) {
+        const row = MARKER_ROWS[j] as string;
+        for (let i = 0; i < row.length; i++) {
+          const c = MARKER_COL[row[i] as string];
+          if (c) r.rect(Math.round(sx) + (i - 3) * n, Math.round(sy) + (j - h) * n, n, n, r.em(c));
+        }
+      }
+    },
+    { x0: -0.2, x1: 0.2, y0: 0, y1: 0.4, z0: -0.2, z1: 0.2 },
+  );
+}
+
 export interface GameScene {
   /** 每帧调用：time 是带零头的游戏分钟，dt 是真实秒数，paused 时演出也停 */
   update(s: GameState, time: number, dt: number, paused: boolean): void;
@@ -272,14 +305,19 @@ export interface GameScene {
   readonly showNow: () => number;
 }
 
-export function createGameScene(stage: Stage, content0: ContentBundle, site: Site): GameScene {
+export function createGameScene(stage: IsoWorld, content0: ContentBundle, site: Site): GameScene {
   let content = content0;
   const sched = new Scheduler();
   const world: PeopleWorld = { scene: stage.scene, groundY: site.groundY, people: [] };
   const pool = new BallPool(stage.scene, site.groundY);
   const ctx: ChoreoContext = { sched, groundY: site.groundY };
   const overlays = site.createOverlays(stage);
-  const rain = createRain(stage, site.rain);
+  const rain = createRain(
+    stage,
+    undefined,
+    260,
+    (x, z) => x > site.bounds.x0 && x < site.bounds.x1 && z > site.bounds.z0 && z < site.bounds.z1,
+  );
   // 一天的光：画出来的天空和山，灯光跟着游戏时钟走（参考图 Palm Oasis）
   const daylight = createDaylight(stage);
   const sky = site.createSky(stage);
@@ -304,12 +342,9 @@ export function createGameScene(stage: Stage, content0: ContentBundle, site: Sit
     shoes: '#3a2a20',
     clipboard: true,
   });
-  const marker = new THREE.Mesh(
-    new THREE.OctahedronGeometry(0.26, 0),
-    new THREE.MeshBasicMaterial({ color: '#62e08c' }),
-  );
-  marker.position.y = 2.75;
-  you.root.add(marker);
+  const marker = directorMarker();
+  marker.renderOrder = 5;
+  you.headTop.add(marker);
 
   /** 环境动画自己的时钟（暂停时停；暂停中游戏时间跳了就补一段） */
   let ambT = 0;
@@ -602,7 +637,7 @@ export function createGameScene(stage: Stage, content0: ContentBundle, site: Sit
 
   /* ---------- 园区的日常：来打球的会员、路人、风沙（准则 6） ---------- */
   const life = createLife({
-    stage,
+    world: stage,
     site,
     courtsAt: (s, a) => courtsAt(worldOf(s, content), s, a),
     sched,
@@ -724,8 +759,6 @@ export function createGameScene(stage: Stage, content0: ContentBundle, site: Sit
 
       for (const p of world.people) p.update(sdt, sched.now);
       pool.update(sched.now);
-      marker.rotation.y += dt * 2;
-      marker.position.y = 2.75 + Math.sin(sched.now * 3) * 0.08;
       rain.update(sdt, 0, 0);
       daylight.update(time % 1440, rain.amount());
       // 风力：大风天最大，春天风季次之（ambient 里风滚草和扬沙跟着变）
@@ -739,7 +772,10 @@ export function createGameScene(stage: Stage, content0: ContentBundle, site: Sit
           sky.update(0.1, ambT, rain.amount(), wind);
         }
     },
-    directorHead: () => ({ x: you.pos.x, y: you.root.position.y + 3.3, z: you.pos.z }),
+    directorHead: () => {
+      const p = you.headTop.getWorldPosition();
+      return { x: p.x, y: p.y, z: p.z };
+    },
     focus() {
       if (!focusAnchor || sched.now > focusUntil) return null;
       const p = STANDS[focusAnchor];
