@@ -230,8 +230,8 @@ const HEAD_F = [
   '............',
   '............',
   '............',
-  '....HHHH....',
-  '...HHHHHh...',
+  '....CCCC....',
+  '...CCCCCc...',
   '...HSSSSh...',
   '...SESSES...',
   '....SSSs....',
@@ -240,8 +240,8 @@ const HEAD_B = [
   '............',
   '............',
   '............',
-  '....HHHH....',
-  '...HHHHHh...',
+  '....CCCC....',
+  '...CCCCCc...',
   '...HHHHHh...',
   '...HHHHHh...',
   '....SSSs....',
@@ -280,8 +280,8 @@ const SITG: Record<Facing, Figure> = {
   front: {
     rows: [
       ...Array(6).fill('............'),
-      '....HHHH....',
-      '...HHHHHh...',
+      '....CCCC....',
+      '...CCCCCc...',
       '...HSSSSh...',
       '...SESSES...',
       '....SSSs....',
@@ -296,8 +296,8 @@ const SITG: Record<Facing, Figure> = {
   back: {
     rows: [
       ...Array(6).fill('............'),
-      '....HHHH....',
-      '...HHHHHh...',
+      '....CCCC....',
+      '...CCCCCc...',
       '...HHHHHh...',
       '...HHHHHh...',
       '....SSSs....',

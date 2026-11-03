@@ -19,8 +19,9 @@ function fig(rows: readonly string[], top: number, head: [number, number], ancho
   return { rows: out, head, anchor };
 }
 
-const HEAD_F = ['.....HHH.....', '....HHHHh....', '....HESEh....', '.....SSs.....'];
-const HEAD_B = ['.....HHH.....', '....HHHHh....', '....HHHHh....', '.....SSs.....'];
+// 头顶两行用帽子槽 C（和成人一样：没戴帽子时运行时把 C 设成发色），第三行是脸：眼睛两边都是皮肤，深色头发也不会糊在一起
+const HEAD_F = ['.....CCC.....', '....CCCCc....', '....SESEs....', '.....SSs.....'];
+const HEAD_B = ['.....CCC.....', '....CCCCc....', '....HHHHh....', '.....SSs.....'];
 const SHIRT = ['.....TTt.....', '.....TTt.....'];
 
 /** 按头（正 / 背）拼出两个朝向。 */

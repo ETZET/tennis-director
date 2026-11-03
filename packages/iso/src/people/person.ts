@@ -596,7 +596,7 @@ export class Person {
     place(this.handL, pts.hand_l, mid, HAND_TO_CAM);
     if (this.racketN) place(this.racketN, pts.racket ?? pts.hand_r, mid, HAND_TO_CAM);
 
-    // 发型（帽子每一帧都叠，手势帧的头顶不画帽子）和覆盖物：素材锚点对准身体帧的 head_top 像素
+    // 发型（帽子每一帧都叠；底身、手势、小孩的头顶两行都用 C 槽位，帽子颜色一致）和覆盖物：素材锚点对准身体帧的 head_top 像素
     const ht = pts.head_top ?? top;
     const hd = (ht[0] - art.ox) * sgn;
     const style = this.o.hairStyle && !(CAP_STYLES.has(this.o.hairStyle) && !this.capOn) ? this.o.hairStyle : 'short';

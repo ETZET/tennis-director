@@ -1,4 +1,4 @@
-import { range } from '@td/shared';
+import { mulberry32, range } from '@td/shared';
 import { DOG, DOG_COATS } from '../art/creatures/dog';
 import type { Node } from '../core/graph';
 import { Critter } from './critter';
@@ -8,7 +8,16 @@ export interface Dog {
   update(dt: number, now: number): void;
 }
 
-const rr = (a: number, b: number) => range(Math.random, a, b);
+/** 由巡游点推出一个种子：同一张地图、同一条路线的狗每次长得一样、走得一样。 */
+function seedOf(waypoints: readonly (readonly [number, number])[]): number {
+  let h = 0x9e3779b1;
+  for (const [x, z] of waypoints) {
+    h = Math.imul(h ^ Math.round(x * 16), 0x85ebca6b);
+    h = Math.imul(h ^ Math.round(z * 16), 0xc2b2ae35);
+    h ^= h >>> 13;
+  }
+  return h >>> 0;
+}
 
 /**
  * 一只沿固定巡游点闲逛的流浪狗：到点后停下嗅地面、摇尾巴，偶尔坐一会儿；
@@ -18,9 +27,14 @@ export function createDog(
   scene: Node,
   groundY: (x: number, z: number) => number,
   waypoints: readonly (readonly [number, number])[],
-  /** 毛色（main 槽位）；不给就从 DOG_COATS 里随机挑一个 */
-  coat: string = DOG_COATS[Math.floor(Math.random() * DOG_COATS.length)] ?? '#8a6440',
+  /** 毛色（main 槽位）；不给就按种子从 DOG_COATS 里挑一个 */
+  coat?: string,
+  /** 随机种子（毛色和闲逛节奏）；不给就由巡游点推出来，结果是确定的 */
+  seed: number = seedOf(waypoints),
 ): Dog {
+  const rand = mulberry32(seed);
+  const rr = (a: number, b: number) => range(rand, a, b);
+  coat ??= DOG_COATS[Math.floor(rand() * DOG_COATS.length)] ?? '#8a6440';
   const g = new Critter(DOG.idle, { main: coat });
   g.name = 'dog';
   scene.add(g);
@@ -48,11 +62,11 @@ export function createDog(
           pos.x = tg[0];
           pos.z = tg[1];
           i = (i + 1) % waypoints.length;
-          const r = Math.random();
+          const r = rand();
           rest = r < 0.55 ? 'sniff' : r < 0.8 ? 'idle' : 'sit';
           wait = rest === 'sit' ? rr(4, 8) : rr(1.5, 4);
           const nx = waypoints[i] ?? first;
-          running = Math.hypot(nx[0] - pos.x, nx[1] - pos.z) > 14 && Math.random() < 0.5;
+          running = Math.hypot(nx[0] - pos.x, nx[1] - pos.z) > 14 && rand() < 0.5;
         } else {
           pos.x += (dx / d) * sp;
           pos.z += (dz / d) * sp;

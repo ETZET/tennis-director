@@ -22,5 +22,14 @@ export function personSlots(o: PersonOptions, capOn = true): SlotColors {
     shoes: o.shoes,
     cap: hasCap ? (o.cap ?? o.hair) : o.hair,
     racket: o.racket ?? o.paddle ?? 'none',
+    eye: eyeFor(o.skin),
   };
+}
+
+/** 眼睛颜色：深肤色上默认的描边色看不清，换成更深的近黑色，保证正面脸上两个眼点读得出来。 */
+function eyeFor(skin: string): string {
+  const n = Number.parseInt(skin.slice(1, 7), 16);
+  if (!Number.isFinite(n)) return '#2a2238';
+  const l = 0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255);
+  return l < 150 ? '#100b16' : '#2a2238';
 }

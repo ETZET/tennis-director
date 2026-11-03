@@ -99,24 +99,55 @@ function mix(a: string, b: string, u: number, dim = 1): string {
 }
 const lerp = (a: number, b: number, u: number) => a + (b - a) * u;
 
-/** 一天中某一分钟的光（关键帧之间线性插值）；rain 0..1 压暗天色、加一点夜色 */
+/** 阴雨天的灰：天空三段、山脊三道（雨越大越往这边靠） */
+const OVERCAST_SKY: readonly [string, string, string] = ['#6e7682', '#8e959e', '#a9aaa6'];
+const OVERCAST_MTN: readonly [string, string, string] = ['#9a96a0', '#86808c', '#74707e'];
+/** 雨量到这儿太阳 / 月亮完全被云遮住 */
+const DISC_GONE = 0.5;
+
+/**
+ * 一天中某一分钟的光（关键帧之间线性插值）。
+ * rain 0..1：天色往阴天灰靠、整体压暗，加一点夜色；太阳 / 月亮随雨量褪进天色，雨量过半就看不见了。
+ */
 export function daylightAt(minute: number, rain = 0): Light {
   const m = ((minute % 1440) + 1440) % 1440;
+  const wet = Math.max(0, Math.min(1, rain));
   let i = 0;
   while (i < KEYS.length - 2 && (KEYS[i + 1] as Key).at <= m) i++;
   const a = KEYS[i] as Key;
   const b = KEYS[i + 1] as Key;
   const u = b.at > a.at ? (m - a.at) / (b.at - a.at) : 0;
-  const dim = 1 - 0.3 * rain;
+  const dim = 1 - 0.35 * wet;
   // 月亮 / 太阳在夜色过半时换
-  const night = Math.min(1, lerp(a.night, b.night, u) + 0.25 * rain);
-  const moon = lerp(a.night, b.night, u) > 0.6;
+  const dark = lerp(a.night, b.night, u);
+  const night = Math.min(1, dark + 0.25 * wet);
+  const moon = dark > 0.6;
+  // 先按时间插值，再往阴天灰靠、压暗（夜里天本来就黑，往灰靠得少，免得下雨反而把夜空提亮）
+  const grey = (x: string, y: string, g: string, k: number) => mix(mix(x, y, u), g, k * (1 - 0.85 * dark), dim);
+  const sky: [string, string, string] = [
+    grey(a.sky[0], b.sky[0], OVERCAST_SKY[0], 0.6 * wet),
+    grey(a.sky[1], b.sky[1], OVERCAST_SKY[1], 0.6 * wet),
+    grey(a.sky[2], b.sky[2], OVERCAST_SKY[2], 0.6 * wet),
+  ];
+  // 太阳 / 月亮：颜色褪向它所在高度的天色；被云完全遮住时挪到地平线下面（IsoView 不画地平线以下的）
+  const fade = Math.min(1, wet / DISC_GONE);
+  const dy = lerp(a.disc[2], b.disc[2], u);
+  const behind = mix(sky[0], sky[1], Math.min(1, dy / 0.6));
+  const disc: [string, number, number] = [
+    mix(mix(a.disc[0], b.disc[0], u), behind, fade * 0.85),
+    lerp(a.disc[1], b.disc[1], u),
+    fade >= 1 ? 9 : dy,
+  ];
   return {
-    sky: [mix(a.sky[0], b.sky[0], u, dim), mix(a.sky[1], b.sky[1], u, dim), mix(a.sky[2], b.sky[2], u, dim)],
-    mtn: [mix(a.mtn[0], b.mtn[0], u, dim), mix(a.mtn[1], b.mtn[1], u, dim), mix(a.mtn[2], b.mtn[2], u, dim)],
+    sky,
+    mtn: [
+      grey(a.mtn[0], b.mtn[0], OVERCAST_MTN[0], 0.3 * wet),
+      grey(a.mtn[1], b.mtn[1], OVERCAST_MTN[1], 0.3 * wet),
+      grey(a.mtn[2], b.mtn[2], OVERCAST_MTN[2], 0.3 * wet),
+    ],
     plain: [mix(a.plain[0], b.plain[0], u, dim), mix(a.plain[1], b.plain[1], u, dim)],
-    star: lerp(a.star, b.star, u) * (1 - rain),
-    disc: [mix(a.disc[0], b.disc[0], u), lerp(a.disc[1], b.disc[1], u), lerp(a.disc[2], b.disc[2], u)],
+    star: lerp(a.star, b.star, u) * (1 - wet),
+    disc,
     moon,
     night,
     lamps: lerp(a.lamps, b.lamps, u),
