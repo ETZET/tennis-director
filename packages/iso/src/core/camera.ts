@@ -2,9 +2,11 @@
  * IsoCamera（取代 OrbitCamera，契约见 docs/design/iso-architecture.md）：平移、离散档位缩放、
  * Q/E 90° 旋转（约 0.45 秒缓动，静止时只停在 4 个等距角）、跟随，指针事件（拖动平移、双指缩放、滚轮）。
  *
- * 位姿里的 zoom 就是 k（每米多少缓冲像素），档位见 ZOOM_STEPS；精灵档位 = max(1, round(k / 7.8))。
+ * 位姿里的 zoom 就是 k（每米多少缓冲像素），档位见 ZOOM_STEPS；精灵档位由目标档位决定（spriteScaleFor），
+ * 缩放动画一开始就换好、途中不变；双指缩放时按当前 k 带回差换档。
  * project / unproject 用 CSS 像素（相对画布左上角）。
  */
+import { spriteScaleFor, spriteScaleHyst } from './proj';
 import type { IsoView } from './view';
 
 export interface IsoCameraPose {
@@ -20,8 +22,12 @@ export interface IsoCameraLimits {
   tz: [number, number];
 }
 
-/** 缩放档位（k，每米缓冲像素）：7.8 时人 1 倍，11.7 起 2 倍 */
-export const ZOOM_STEPS: readonly number[] = [2, 3, 4, 5.2, 7.8, 11.7, 15.6];
+/**
+ * 缩放档位（k，每米缓冲像素）：7.8 时人 1 倍，15.6 时 2 倍，23.4 时 3 倍。
+ * 人相对世界的大小（精灵档位 / k）随放大只减不增：换精灵档位的那一步 k 正好翻同样的倍数，
+ * 所以 7.8 和 15.6 之间不放档位（例如 11.7 配 2 倍会让人在放大时反而变大一截）。
+ */
+export const ZOOM_STEPS: readonly number[] = [2, 3, 4, 5.2, 7.8, 15.6, 23.4];
 
 /** 旋转缓动时长（秒） */
 const ROT_DUR = 0.45;
@@ -42,6 +48,8 @@ export class IsoCamera {
   private rotTo = 0;
   private rotT = -1;
   private pinching = false;
+  /** 当前的精灵档位（交给 Projection.sprite） */
+  private sprite = 0;
   private occluded = 0;
   private updated = false;
 
@@ -207,7 +215,17 @@ export class IsoCamera {
 
   private apply(): void {
     const s = this.smooth;
+    // 精灵档位：平时跟目标档位（缩放动画开始时就换好，途中不变）；双指缩放时跟手指下的 k，带回差
+    this.sprite = this.pinching
+      ? spriteScaleHyst(s.zoom, this.sprite || spriteScaleFor(s.zoom))
+      : spriteScaleFor(this.target.zoom);
     this.view.setPose(s.tx, s.tz, s.zoom, s.ang, !this.moving);
+    this.view.proj.sprite = this.sprite;
+  }
+
+  /** 当前的精灵档位 */
+  get spriteScale(): number {
+    return this.sprite;
   }
 
   private clampTarget(): void {
