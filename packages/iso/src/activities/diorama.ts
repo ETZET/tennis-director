@@ -162,23 +162,7 @@ export function buildDiorama(world: DioramaWorld, meta: ActivityMeta, C: Conditi
   const L = (x0: number, z0: number, x1: number, z1: number, col = S.line, w2 = 0.08) =>
     gline(Math.max(-W / 2, x0), z0, Math.min(W / 2, x1), z1, col, S.gap, w2);
 
-  /* ---- 岛体 ---- */
-  solid.box(0, -2.0, 0, W - 0.2, 1.94, D - 0.2, '#4e4034');
-  for (const [y1, y0, col] of [
-    [-0.06, -0.55, '#7b5a3c'],
-    [-0.55, -1.3, '#665040'],
-    [-1.3, -2.0, '#544438'],
-  ] as const) {
-    const h = y1 - y0;
-    for (let x = -W / 2; x < W / 2 - 1e-3; x += 1) {
-      solid.box(x + 0.5, y0, D / 2 - 0.05, 1, h, 0.12, jit(rand, col, 0.05));
-      solid.box(x + 0.5, y0, -D / 2 + 0.05, 1, h, 0.12, jit(rand, col, 0.05));
-    }
-    for (let z = -D / 2; z < D / 2 - 1e-3; z += 1) {
-      solid.box(W / 2 - 0.05, y0, z + 0.5, 0.12, h, 1, jit(rand, col, 0.05));
-      solid.box(-W / 2 + 0.05, y0, z + 0.5, 0.12, h, 1, jit(rand, col, 0.05));
-    }
-  }
+  /* ---- 草皮（岛体的侧面由 IsoView 的地台画，这里不再建埋在地下的方块） ---- */
   tile(-W / 2, W / 2, -D / 2, D / 2, hot ? ['#8c9150', '#959856', '#868c4c'] : S.grass, 0, 1);
 
   /* ---- 地面 ---- */

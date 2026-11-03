@@ -24,7 +24,7 @@ import { buildIndianWells, createFacilityOverlays, createSky } from './overlays'
 export { SLAB } from './ground';
 export * from './layout';
 export { buildIndianWells, createFacilityOverlays } from './overlays';
-export { FACILITIES, type Facility, INITIAL_STATES, type Look, RESTORED_STATES } from './state';
+export { FACILITIES, FACILITY_STATES, type Facility, INITIAL_STATES, type Look, RESTORED_STATES } from './state';
 
 /** 球员草坪：烧烤会、开放日之类不在球场上的演出（喷泉那一带的景观，归 plaza） */
 const PLAZA_GROUND = new CourtFrame((LAWN.x0 + LAWN.x1) / 2, 0, (LAWN.z0 + LAWN.z1) / 2, 0, 9.5, 8.7);

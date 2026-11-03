@@ -46,6 +46,8 @@ export interface Site {
   createOverlays(w: IsoWorld): {
     set(facility: string, state: string): void;
     wear?(facility: string, amount: number): void;
+    /** 立刻把排着的重建做掉（截图、测试用；没有排队机制的地图可以不提供） */
+    flush?(): void;
   };
   /** 天空和远景的动画（没有就什么也不做）；wind 0 无风 .. 1 大风（可选，默认 0.3） */
   createSky(w: IsoWorld): { update(dt: number, now: number, rain: number, wind?: number): void };

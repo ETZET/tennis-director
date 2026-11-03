@@ -32,6 +32,8 @@ export interface IsoWorldOptions {
   bounds: Rect;
   /** 地台（浮空岛）范围；默认 bounds 外扩 12 米 */
   slab?: Rect;
+  /** 地台厚度（米），默认 7；小岛可以薄一些 */
+  slabDepth?: number;
   /** 初始镜头 */
   pose?: IsoCameraPose;
   /** 每个缓冲像素多少 CSS 像素（默认手机 1、宽屏 2） */
@@ -45,7 +47,7 @@ export function createIsoWorld(container: HTMLElement, o: IsoWorldOptions): IsoW
   const slab = o.slab ?? { x0: b.x0 - 12, x1: b.x1 + 12, z0: b.z0 - 12, z1: b.z1 + 12 };
   if (getComputedStyle(container).position === 'static') container.style.position = 'relative';
   container.style.background = o.sky;
-  const view = new IsoView(container, { slab, pixelSize: o.pixelSize });
+  const view = new IsoView(container, { slab, slabDepth: o.slabDepth, pixelSize: o.pixelSize });
   const pose: IsoCameraPose = o.pose ?? { tx: (b.x0 + b.x1) / 2, tz: (b.z0 + b.z1) / 2, zoom: 4, rot: 0 };
   const camera = new IsoCamera(view, pose, {
     zoom: [2, 15.6],

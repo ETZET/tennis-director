@@ -23,20 +23,11 @@ import { clamp, mulberry32 } from '@td/shared';
  */
 
 const site = INDIAN_WELLS;
-const { FACILITIES, INITIAL_STATES, RESTORED_STATES } = indianWells;
+const { FACILITIES, FACILITY_STATES, INITIAL_STATES, RESTORED_STATES } = indianWells;
 type Facility = (typeof FACILITIES)[number];
 
-/** 每个设施能取的状态（顺序就是"点一下换下一档"的顺序；和 state.ts 的 LOOKS、内容里的 facilities.yaml 一致） */
-const STATES: Record<Facility, readonly string[]> = {
-  stadium_1: ['ruined', 'cleared', 'restored', 'worn'],
-  practice: ['ruined', 'open', 'worn'],
-  outer_1: ['sanded', 'swept', 'playable', 'resurfaced', 'worn'],
-  outer_23: ['ruined', 'playable', 'worn'],
-  clubhouse: ['ruined', 'open', 'worn'],
-  plaza: ['dry', 'open', 'worn'],
-  stadium_3: ['buried', 'dug', 'open', 'worn'],
-  stadium_2: ['ruined', 'open', 'worn'],
-};
+/** 每个设施能取的状态（顺序就是"点一下换下一档"的顺序；来自 state.ts） */
+const STATES = FACILITY_STATES;
 /** 开发工具的中文名（设施名同 i18n facilities.*） */
 const FAC_NAMES: Record<Facility, string> = {
   stadium_1: '中心球场',
@@ -123,7 +114,7 @@ const L = site.camera.limits;
 world.camera.limits = { zoom: [L.zoom[0], L.zoom[1]], tx: [L.tx[0], L.tx[1]], tz: [L.tz[0], L.tz[1]] };
 world.camera.home = { ...startPose };
 site.build(world);
-const overlays = indianWells.createFacilityOverlays(world);
+const overlays = site.createOverlays(world);
 const sky = site.createSky(world);
 const daylight = createDaylight(world);
 const rain = createRain(world);
@@ -131,13 +122,13 @@ const people: PeopleWorld = { scene: world.scene, groundY: site.groundY, people:
 
 function applyStates(): void {
   for (const f of FACILITIES) overlays.set(f, ST.states[f]);
-  overlays.flush();
+  overlays.flush?.();
   applyWear();
   paintFacs();
   syncUrl();
 }
 function applyWear(): void {
-  for (const f of FACILITIES) overlays.wear(f, ST.wear);
+  for (const f of FACILITIES) overlays.wear?.(f, ST.wear);
 }
 
 /* ---------------- 路人：沿步道在随机地点之间走 ---------------- */

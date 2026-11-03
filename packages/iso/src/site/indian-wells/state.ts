@@ -60,6 +60,14 @@ const LOOKS: Readonly<Record<Facility, Readonly<Record<string, Look>>>> = {
   stadium_2: { ruined: 'ruin', open: 'fresh', worn: 'worn' },
 };
 
+/**
+ * 每个设施能取的状态，取自 LOOKS 的键（顺序就是开发工具"点一下换下一档"的顺序：开局 → 修好 → 掉档），
+ * 和内容里的 facilities.yaml 一致。
+ */
+export const FACILITY_STATES: Readonly<Record<Facility, readonly string[]>> = Object.fromEntries(
+  FACILITIES.map((f) => [f, Object.keys(LOOKS[f])]),
+) as unknown as Record<Facility, readonly string[]>;
+
 type Rect = { x0: number; x1: number; z0: number; z1: number };
 
 /** 每处设施修好以后长草的地方（和旧版 overlays.ts 的 LAWNS 一致） */

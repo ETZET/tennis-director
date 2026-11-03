@@ -90,11 +90,11 @@ interface IsoWorld {
   render(dt: number, now: number): void;  // dt 秒，now 演出时间（秒）
   dispose(): void;                  // 拆掉画布和事件
 }
-interface IsoWorldOptions { sky: string; bounds: Rect; slab?: Rect; pose?: IsoCameraPose; pixelSize?: number }
+interface IsoWorldOptions { sky: string; bounds: Rect; slab?: Rect; slabDepth?: number; pose?: IsoCameraPose; pixelSize?: number }
 function createIsoWorld(container: HTMLElement, o: IsoWorldOptions): IsoWorld;
 ```
 
-- `slab` 是地台（浮空岛，ADR 0005）的范围，地面贴图只覆盖它；默认 `bounds` 外扩 12 米。Indian Wells 用 `indianWells.INDIAN_WELLS_WORLD`（含 `SLAB`）。
+- `slab` 是地台（浮空岛，ADR 0005）的范围，地面贴图只覆盖它；默认 `bounds` 外扩 12 米。Indian Wells 用 `indianWells.INDIAN_WELLS_WORLD`（含 `SLAB`）。`slabDepth` 是地台侧面的厚度（米，默认 7），动画库的小岛卡片用薄一些的地台；小岛自己不再建岛体方块，侧面全由 IsoView 画。
 - `bounds` 同时是镜头平移的默认限制。`createIsoWorld` 自己 `bindPointer`、监听 `resize`。
 - `render` 在宿主这一帧没调 `camera.update` 时自己补一次；地面绘制和 `addLamp` 会自动标脏静态层。
 
@@ -150,7 +150,7 @@ interface Site {
   readonly courts: Record<string, readonly CourtFrame[]>;  // 地点 → 球场
   readonly grounds: Record<string, CourtFrame>;            // 地点 → 不是球场的空地
   build(w: IsoWorld): void;                                // 地面贴图 + 静态节点；种子随机流，顺序就是画面
-  createOverlays(w: IsoWorld): { set(facility: string, state: string): void; wear?(facility: string, amount: number): void };
+  createOverlays(w: IsoWorld): { set(facility: string, state: string): void; wear?(facility: string, amount: number): void; flush?(): void };   // flush：立刻做掉排着的重建（截图、测试用）
   createSky(w: IsoWorld): { update(dt: number, now: number, rain: number, wind?: number): void };
 }
 ```

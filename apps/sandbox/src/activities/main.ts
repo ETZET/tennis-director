@@ -1,11 +1,9 @@
 import {
   activities,
-  type Box,
   createIsoWorld,
   daylightAt,
   type IsoCameraPose,
   type IsoWorld,
-  type Node,
   type PeopleWorld,
   Scheduler,
   setPeopleView,
@@ -61,19 +59,11 @@ const CAT_COL: Record<activities.Category, string> = {
 /* ---------------- 一张卡 = 一座小岛 + 一个活动 ---------------- */
 /** 天气 → 光照：雨天、阴天压暗（daylight 的 rain 参数），中午的光 */
 const WX_DIM: Record<Conditions['weather'], number> = { sun: 0, cloud: 0.35, rain: 0.8, wind: 0.1, heat: 0 };
-/** 地台侧面算进取景的高度（米）：只露出上面一截 */
+/** 地台厚度（米）：总览的小卡片用薄地台，舞台上厚一点（游戏里的大地图是 7） */
+const SLAB_CARD = 1.5;
+const SLAB_STAGE = 3;
+/** 地台侧面算进取景的最大高度（米）：厚地台只露出上面一截 */
 const SLAB_SHOW = 2.5;
-
-/**
- * 临时绕开（已报给 iso）：diorama 的"岛体"方块整个在地面以下（顶面 y = -0.06），作为静态节点画在地面贴图上面，
- * 把球场、草地全盖住了；地台侧面 IsoView 已经画了，这里把整个埋在地下的方块藏掉。
- */
-function hideBuried(n: Node): void {
-  for (const c of n.children) {
-    if (c.kind === 'box' && c.position.y + (c as Box).h / 2 < -0.03) c.visible = false;
-    hideBuried(c);
-  }
-}
 
 let seedN = 1;
 class Card {
@@ -111,7 +101,8 @@ class Card {
     const { W, D } = this.meta.size;
     const island = { x0: -W / 2, x1: W / 2, z0: -D / 2, z1: D / 2 };
     const stage = host === sview;
-    const world = createIsoWorld(host, { sky: '#a9d0e3', bounds: island, slab: island });
+    const slabDepth = stage ? SLAB_STAGE : SLAB_CARD;
+    const world = createIsoWorld(host, { sky: '#a9d0e3', bounds: island, slab: island, slabDepth });
     // 画布垫在标题、按钮下面
     host.prepend(world.view.canvas);
     if (!stage) {
@@ -120,7 +111,6 @@ class Card {
       world.view.canvas.style.pointerEvents = 'none';
     }
     const dio = buildDiorama(world, this.meta, ST.C, seed);
-    hideBuried(dio.root);
     world.view.invalidate();
     host.style.background = dio.sky;
     world.view.setLight(daylightAt(12 * 60 + 30, WX_DIM[ST.C.weather]));
@@ -128,7 +118,10 @@ class Card {
     const vw = this.meta.view ?? {};
     const BW = world.view.BW;
     const BH = world.view.BH;
-    const fitK = Math.min((BW * 0.94) / (W + D), (BH * 0.92) / ((W + D) / 2 + (SLAB_SHOW + 2.6) * 1.225));
+    const fitK = Math.min(
+      (BW * 0.94) / (W + D),
+      (BH * 0.92) / ((W + D) / 2 + (Math.min(SLAB_SHOW, slabDepth) + 2.6) * 1.225),
+    );
     const k = clamp(fitK * (vw.zoom ?? 1), 2, 15.6);
     const home: IsoCameraPose = { tx: 0.6, tz: 0.6, zoom: k, rot: 0 };
     world.camera.limits = { zoom: [Math.min(2, k), 15.6], tx: [-W / 2, W / 2], tz: [-D / 2, D / 2] };
