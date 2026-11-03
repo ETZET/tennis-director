@@ -1,8 +1,8 @@
 import { clamp, type XZ } from '@td/shared';
 import { applyMat, Custom, type DrawContext } from '../core/graph';
+import { signBoard } from '../fx/sprites';
 import type { Person } from '../people/person';
 import { away, bounce, chase, fly, shot, through } from './choreo';
-import { labelBoard } from './fair';
 import { DULL, PICKLE_GREEN } from './looks';
 import { line, table } from './props';
 import { type Act, BR, EAST, fwd, NORTH, rgt, SOUTH, WEST } from './runtime';
@@ -58,7 +58,14 @@ export function openday(a: Act) {
     string,
     string,
   ];
-  const s = a.own(labelBoard(a.t(`opendaySign.${a.venue}`), 2.2, 0.5, SB[0], SB[1]));
+  const s = a.own(
+    signBoard(2.2, 0.5, {
+      bg: SB[0],
+      texts: [
+        { text: a.t(`opendaySign.${a.venue}`), color: SB[1], outline: a.venue === 'hollow' ? undefined : '#2a2238' },
+      ],
+    }),
+  );
   s.position.set(-7.6, 0.42, -4.18);
   vb.box(-7.6, 0.78, -4.6, 0.3, 0.03, 0.4, '#f6f3ea');
   vb.box(3.8, 0, -0.1, 0.5, 0.55, 0.5, red);

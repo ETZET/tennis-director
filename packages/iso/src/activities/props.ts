@@ -373,8 +373,12 @@ export function line(
 ): void {
   const along = Math.abs(x1 - x0) >= Math.abs(z1 - z0);
   const len = Math.hypot(x1 - x0, z1 - z0);
+  // 地上画的线是平的：侧面和顶面同色、不画顶边高光，否则 1 像素的深色侧面像一根浮在草上的白条
+  const flat = (b: Box, c: string) => {
+    b.style = { side: c, edge: false };
+  };
   if (!gap) {
-    vb.box((x0 + x1) / 2, yTop - 0.01, (z0 + z1) / 2, along ? len + w : w, 0.01, along ? w : len + w, col);
+    flat(vb.box((x0 + x1) / 2, yTop - 0.01, (z0 + z1) / 2, along ? len + w : w, 0.01, along ? w : len + w, col), col);
     return;
   }
   const n = Math.max(1, Math.round(len));
@@ -382,14 +386,7 @@ export function line(
     if (rand() < gap) continue;
     const t = (i + 0.5) / n;
     const sl = len / n;
-    vb.box(
-      x0 + (x1 - x0) * t,
-      yTop - 0.01,
-      z0 + (z1 - z0) * t,
-      along ? sl : w,
-      0.01,
-      along ? w : sl,
-      jit(rand, col, 0.05),
-    );
+    const c = jit(rand, col, 0.05);
+    flat(vb.box(x0 + (x1 - x0) * t, yTop - 0.01, z0 + (z1 - z0) * t, along ? sl : w, 0.01, along ? w : sl, c), c);
   }
 }

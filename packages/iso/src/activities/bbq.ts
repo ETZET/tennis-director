@@ -1,9 +1,9 @@
 import { clamp, hdist } from '@td/shared';
 import { Group } from '../core/graph';
+import { signBoard } from '../fx/sprites';
 import { part } from '../people/parts';
 import type { Person } from '../people/person';
 import { crowGrab } from './choreo';
-import { labelBoard } from './fair';
 import { canopy, mkPlate, mkSpatula, table, tree } from './props';
 import { type Act, SOUTH } from './runtime';
 
@@ -28,7 +28,9 @@ export function bbq(a: Act) {
   if (a.venue === 'maple') {
     vb.box(0.6, 0, -5.9, 0.08, 1.9, 0.08, '#6a4a2e');
     vb.box(4.2, 0, -5.9, 0.08, 1.9, 0.08, '#6a4a2e');
-    const bn = a.own(labelBoard(a.t('bbqBanner'), 3.6, 0.6, '#7c2232', '#e6b03c'));
+    const bn = a.own(
+      signBoard(3.6, 0.6, { bg: '#7c2232', texts: [{ text: a.t('bbqBanner'), color: '#e6b03c', outline: '#2a2238' }] }),
+    );
     bn.position.set(2.4, 1.55, -5.86);
   }
   for (const [x, z, w] of tables) {

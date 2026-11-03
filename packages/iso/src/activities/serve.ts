@@ -1,8 +1,8 @@
 import { clamp } from '@td/shared';
 import { Group } from '../core/graph';
+import { type SignText, signBoard } from '../fx/sprites';
 import { part } from '../people/parts';
 import { away, bounce, coachHelp, drinkBreak, fly, intoNet, pant } from './choreo';
-import { centredText, type PanelText, panel } from './match';
 import { basket } from './props';
 import { type Act, BR, EAST, fwd, rgt } from './runtime';
 
@@ -48,14 +48,14 @@ export function serve(a: Act) {
   // 测速牌
   vb.box(-3.4, 0, -5.85, 0.1, 1.3, 0.1, '#3a3a36');
   vb.box(-3.4, 1.25, -5.86, 2.05, 0.92, 0.06, '#1a1612');
-  // 旧版是 192×80 的画布贴图；像素版是自发光的底色面加两行像素字（数字和 KM/H）
-  let face: PanelText[] = [];
-  const board = a.own(panel(1.9, 0.8, () => ({ bg: '#120f0c', glow: true, texts: face })));
+  // 自发光的屏：左边大字球速，右下角单位；单位放不下（远景、手机 1 档）就不写，只留数字
+  let face: SignText[] = [];
+  const board = a.own(signBoard(1.9, 0.8, () => ({ bg: '#120f0c', glow: true, texts: face })));
   board.position.set(-3.4, 1.7, -5.8);
   const radar = (v: string | number, col = '#ff5a3a') => {
     face = [
-      { art: centredText(String(v), col), u: -0.25, v: 0.02 },
-      { art: centredText('KM/H', '#d9ec52'), u: 0.55, v: -0.1 },
+      { text: String(v), color: col, u: -0.3, w: 1.2, h: 0.72 },
+      { text: 'KM/H', color: '#d9ec52', u: 0.6, v: -0.2, w: 0.6, h: 0.32 },
     ];
   };
   radar('---', '#5a4a40');

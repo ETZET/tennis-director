@@ -1,7 +1,6 @@
 import { clamp, hdist } from '@td/shared';
-import { textArt } from '../art/font';
-import { bakeArt } from '../core/art';
-import { applyMat, type BakedArt, Box, Custom, Group, type Node } from '../core/graph';
+import { Box, Group, type Node } from '../core/graph';
+import { signBoard } from '../fx/sprites';
 import { part } from '../people/parts';
 import type { Person } from '../people/person';
 import { PICKLE_GREEN } from './looks';
@@ -46,54 +45,6 @@ const BOOTHS: Record<string, Omit<Booth, 'count'>[]> = {
 };
 
 /**
- * 写字的立牌（旧版 labelPlane 的像素版，和 tryout 里的同一画法；以后可以挪进 props）：竖直的一块底色面朝 +z，字是烘焙的像素字，
- * 按整数倍放大到放得下为止；牌子在屏幕上小到放不下字时只画底色。背面朝镜头时也只画底色。
- */
-export function labelBoard(text: string, w: number, h: number, bg: string, fg: string): Custom {
-  const art = textArt(text, { color: fg });
-  let baked: BakedArt | undefined;
-  const hw = w / 2;
-  const hh = h / 2;
-  return new Custom(
-    (r, self) => {
-      const m = self.matrixWorld;
-      const pts = (
-        [
-          [-hw, -hh],
-          [hw, -hh],
-          [hw, hh],
-          [-hw, hh],
-        ] as const
-      ).map(([x, y]) => {
-        const v = { x, y, z: 0 };
-        applyMat(m, v);
-        return [v.x, v.y, v.z] as const;
-      });
-      const c = { x: 0, y: 0, z: 0 };
-      applyMat(m, c);
-      const lit = self.lit ?? r.litAt(c.x, c.z);
-      r.wpoly(pts, r.col(bg, 1, lit));
-      // 正面法线 = 局部 +z 轴的世界方向
-      if (!art || !r.vis(m[6] as number, m[8] as number)) return;
-      if (baked === undefined) {
-        // 字的锚点挪到中心，对准牌子中心
-        const b: BakedArt = bakeArt(art);
-        baked = { ...b, ox: Math.floor(b.w / 2), oy: Math.floor(b.h / 2) };
-      }
-      const [x0] = r.P(...(pts[0] as [number, number, number]));
-      const [x1] = r.P(...(pts[1] as [number, number, number]));
-      const room = Math.abs(x1 - x0) * 0.92;
-      const k = Math.min(r.spriteScale, Math.floor(room / baked.w));
-      if (k < 1) return;
-      const t = { x: 0, y: 0, z: 0.01 };
-      applyMat(m, t);
-      r.art(baked, t.x, t.y, t.z, { scale: k, lit });
-    },
-    { x0: -hw, x1: hw, y0: -hh, y1: hh, z0: 0, z1: 0.02 },
-  );
-}
-
-/**
  * 社团招新会：几个摊位抢学生。网球摊的花式表演成功会吸引围观和报名，失手会被球砸头，大家哈哈大笑。
  * 区域中心为原点，摊位在北边一排（z≈-4），学生在南边闲逛。
  */
@@ -115,10 +66,14 @@ export function fair(a: Act) {
     if (!tn || tier >= 2) canopy(vb, b.x, -4.4, 3.4, 2.2, b.col, b.c2);
     table(vb, b.x, -3.6, 2.6, 0.8, tn && tier === 1 ? '#a8875a' : '#efeae0');
     if (!tn || tier >= 2) {
-      const s = a.own(labelBoard(a.t(b.key), 2.4, 0.55, b.col, '#ffffff'));
+      const s = a.own(
+        signBoard(2.4, 0.55, { bg: b.col, texts: [{ text: a.t(b.key), color: '#ffffff', outline: '#2a2238' }] }),
+      );
       s.position.set(b.x, 2.0, -3.28);
     } else {
-      const s = a.own(labelBoard(a.t('booth.handSign'), 1.5, 0.5, '#c9a874', '#3a2a1a'));
+      const s = a.own(
+        signBoard(1.5, 0.5, { bg: '#c9a874', texts: [{ text: a.t('booth.handSign'), color: '#3a2a1a' }] }),
+      );
       s.position.set(b.x, 1.15, -3.55);
       s.rotation.x = -0.25;
       vb.box(b.x, 0.75, -3.75, 0.08, 0.4, 0.08, '#8a6a45');
@@ -141,7 +96,12 @@ export function fair(a: Act) {
       const u = (k / 12) * Math.PI;
       vb.box(Math.cos(u) * 3.6, Math.sin(u) * 3.4, -2.6, 0.9, 0.9, 0.9, k % 2 ? tn.col : tn.c2);
     }
-    const arch = a.own(labelBoard(a.t('fairArch', { club: a.t(tn.key) }), 3.4, 0.5, tn.col, '#ffffff'));
+    const arch = a.own(
+      signBoard(3.4, 0.5, {
+        bg: tn.col,
+        texts: [{ text: [a.t('fairArch', { club: a.t(tn.key) }), a.t(tn.key)], color: '#ffffff', outline: '#2a2238' }],
+      }),
+    );
     arch.position.set(0, 3.95, -2.1);
     vb.box(2.6, 0, -2.9, 0.6, 1.0, 0.5, '#222');
     vb.box(2.6, 0.3, -2.64, 0.4, 0.4, 0.02, '#555');
@@ -232,7 +192,7 @@ export function fair(a: Act) {
     if (b.demo === 'yoga') d.legHook = (p) => p.legR.rotation.set(-0.5, 0, -1.0);
   }
   // 报名板
-  const board = a.own(labelBoard('', 1.2, 0.9, '#b88a5a', '#000'));
+  const board = a.own(signBoard(1.2, 0.9, { bg: '#b88a5a', texts: [] }));
   board.position.set(1.95, 1.45, -3.3);
   vb.box(1.95, 0, -3.32, 0.06, 1.0, 0.06, '#6a4a2e');
   const boardPos = { x: 1.95, y: 1.45, z: -3.26 };

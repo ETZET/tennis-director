@@ -1,8 +1,6 @@
 import { clamp, lerp, type XYZ } from '@td/shared';
-import { textArt } from '../art/font';
-import type { PixelArt } from '../art/format';
-import { bakeArt } from '../core/art';
-import { applyMat, type BakedArt, Box, Custom, type DrawContext, Group, V3 } from '../core/graph';
+import { Box, Group } from '../core/graph';
+import { type SignText, signBoard } from '../fx/sprites';
 import type { Ball } from '../motion/ball';
 import { part } from '../people/parts';
 import type { Person } from '../people/person';
@@ -13,60 +11,6 @@ import { type Act, BR, EAST, fwd, NORTH, rgt, SOUTH, WEST } from './runtime';
 
 type Player = Person & { team: 0 | 1; home: { x: number; z: number }; net: boolean };
 type FanKind = 'cheer' | 'ooh' | 'clap' | 'wave' | 'sad' | 'stand';
-
-/* ---------------- 牌子（记分牌、广告牌、测速牌） ---------------- */
-
-const TXT = new Map<string, BakedArt | null>();
-
-/** 一行像素字，锚点放在正中（画在牌子的某个点上居中）。按 字+颜色 缓存。 */
-export function centredText(str: string, color: string): BakedArt | null {
-  const key = `${str}\u0000${color}`;
-  const hit = TXT.get(key);
-  if (hit !== undefined) return hit;
-  const art = textArt(str, { color });
-  let out: BakedArt | null = null;
-  if (art) {
-    const w = art.rows[0]?.length ?? 0;
-    const c: PixelArt = { ...art, ox: Math.floor(w / 2), oy: Math.floor(art.rows.length / 2) };
-    out = bakeArt(c);
-  }
-  TXT.set(key, out);
-  return out;
-}
-
-/** 牌子上要画的一行字：局部坐标 (u, v)（米，牌子中心为原点，u 向右、v 向上）。 */
-export interface PanelText {
-  art: BakedArt | null;
-  u: number;
-  v: number;
-}
-
-/**
- * 竖直的牌子：节点局部的 xy 平面（朝 +z，和旧版 PlaneGeometry 一样），一块底色面加几行像素字。
- * 旧版是 CanvasTexture 贴图；像素版字号不随牌子大小变，按精灵档位放大，读起来更清楚。
- * paint 每帧调用，返回底色和要画的字（字的内容可以随时变，例如比分、球速）。
- */
-export function panel(w: number, h: number, paint: () => { bg: string; glow?: boolean; texts: PanelText[] }): Custom {
-  const p = new V3();
-  const at = (self: Custom, u: number, v: number): [number, number, number] => {
-    p.set(u, v, 0);
-    applyMat(self.matrixWorld, p);
-    return [p.x, p.y, p.z];
-  };
-  return new Custom(
-    (r: DrawContext, self: Custom) => {
-      const s = paint();
-      const c = s.glow ? r.em(s.bg) : r.col(s.bg);
-      r.wpoly([at(self, -w / 2, -h / 2), at(self, w / 2, -h / 2), at(self, w / 2, h / 2), at(self, -w / 2, h / 2)], c);
-      for (const t of s.texts) {
-        if (!t.art) continue;
-        const q = at(self, t.u, t.v);
-        r.art(t.art, q[0], q[1], q[2], s.glow ? { lit: 1 } : undefined);
-      }
-    },
-    { x0: -w / 2, x1: w / 2, y0: -h / 2, y1: h / 2, z0: -0.02, z1: 0.02 },
-  );
-}
 
 /** 看台上的观众：一个只有上半身的小方块人，按反应摆手臂。 */
 class Fan {
@@ -239,8 +183,7 @@ export function match(a: Act) {
           : ['#2e86a6', '#c8553d', '#1d3550', '#e6b03c'];
     for (let x = -14; x <= 14; x += 4) {
       const bg = a.pick(cols);
-      const art = centredText(a.t(`boards.${a.venue}`), '#ffffff');
-      const bd = a.own(panel(3.6, 0.5, () => ({ bg, texts: [{ art, u: 0, v: 0 }] })));
+      const bd = a.own(signBoard(3.6, 0.5, { bg, texts: [{ text: a.t(`boards.${a.venue}`), color: '#ffffff' }] }));
       bd.position.set(x, 0.35, -7.86);
     }
   }
@@ -305,12 +248,12 @@ export function match(a: Act) {
     });
   }
 
-  // 记分牌（旧版是 256×128 的画布贴图；像素版是底色面加三行像素字，比分变了才重新烘焙）
+  // 记分牌：上面一行标题，中间比分，下面两队队名；每段字在自己的格子里，放不下就换短的或不写，不会叠在一起
   const bw = tier === 4 ? 4.4 : tier >= 2 ? 3.2 : 1.8;
   const bh = bw / 2;
   const led = tier > 1;
-  let face: PanelText[] = [];
-  const brd = a.own(panel(bw, bh, () => ({ bg: led ? '#0e0c0a' : '#f6f3ea', glow: led, texts: face })));
+  let face: SignText[] = [];
+  const brd = a.own(signBoard(bw, bh, () => ({ bg: led ? '#0e0c0a' : '#f6f3ea', glow: led, texts: face })));
   if (tier === 1) {
     brd.position.set(-4.6, 1.1, -7.3);
     vb.box(-4.6, 0, -7.36, 0.08, 0.7, 0.08, '#6a4a2e');
@@ -328,17 +271,30 @@ export function match(a: Act) {
     ball: null as Ball | null,
     teams: [[], []] as [Player[], Player[]],
   };
-  // 画布坐标 (px, py)（256×128）→ 牌子局部坐标
-  const U = (px: number) => (px / 256 - 0.5) * bw;
-  const V = (py: number) => (0.5 - py / 128) * bh;
+  // 格子：标题占上 30%，比分占中间 40%，队名占下 30%；左右两队各占一半
+  const row = (top: number, hgt: number) => ({ v: bh / 2 - (top + hgt / 2) * bh, h: hgt * bh });
+  const team = (name: string) => [name, name.slice(0, 3)];
   const board = (lbl?: string) => {
+    const title = lbl ? [lbl] : ['TIEBREAK', 'TB'];
     face = [
-      { art: centredText(lbl || 'TIEBREAK', led ? '#d9ec52' : '#3a3a3a'), u: 0, v: V(18) },
-      { art: centredText(String(S.score[0]), led ? '#5fd1ff' : '#2e86a6'), u: U(70), v: V(66) },
-      { art: centredText('-', led ? '#666666' : '#999999'), u: 0, v: V(66) },
-      { art: centredText(String(S.score[1]), led ? '#ff7a5a' : '#c8553d'), u: U(186), v: V(66) },
-      { art: centredText(a.t(`home.${a.venue}`), led ? '#9aa0a3' : '#555555'), u: U(70), v: V(112) },
-      { art: centredText(a.t(`away.${a.venue}`), led ? '#9aa0a3' : '#555555'), u: U(186), v: V(112) },
+      { text: title, color: led ? '#d9ec52' : '#3a3a3a', ...row(0, 0.3), w: bw * 0.96 },
+      { text: String(S.score[0]), color: led ? '#5fd1ff' : '#2e86a6', u: -bw * 0.27, w: bw * 0.4, ...row(0.3, 0.4) },
+      { text: '-', color: led ? '#666666' : '#999999', w: bw * 0.12, ...row(0.3, 0.4) },
+      { text: String(S.score[1]), color: led ? '#ff7a5a' : '#c8553d', u: bw * 0.27, w: bw * 0.4, ...row(0.3, 0.4) },
+      {
+        text: team(a.t(`home.${a.venue}`)),
+        color: led ? '#9aa0a3' : '#555555',
+        u: -bw * 0.25,
+        w: bw * 0.48,
+        ...row(0.7, 0.3),
+      },
+      {
+        text: team(a.t(`away.${a.venue}`)),
+        color: led ? '#9aa0a3' : '#555555',
+        u: bw * 0.25,
+        w: bw * 0.48,
+        ...row(0.7, 0.3),
+      },
     ];
   };
   board();
@@ -484,7 +440,8 @@ export function match(a: Act) {
         a.at(sh.tC - a.now, () => through(a, ball, sh.P2, sh.tC, sh.dir, 4));
         ball.fadeOut(sh.tC + 2);
         a.at(sh.tC - a.now + 0.1, () => {
-          a.pop(a.t('ace'), { x: sh.P2.x, y: 1.6, z: sh.P2.z }, { fg: '#ffd84a', h: 0.95 });
+          // 飘字跟着发球的人（落点在网前，会被主裁判椅挡住）
+          a.pop(a.t('ace'), srv, { fg: '#ffd84a', h: 0.95 });
           a.flash({ x: sh.P2.x, y: 1.2, z: sh.P2.z }, 1.4);
           pointEnd(t, 'ace');
         });

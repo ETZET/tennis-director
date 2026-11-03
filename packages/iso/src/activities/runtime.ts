@@ -427,7 +427,7 @@ export class Act {
   /** 教练头顶的星级（只在动画库里显示） */
   badge(p: Person): void {
     if (!this.opts.extras?.badges) return;
-    this.spr.pop('★'.repeat(this.c), p.headTop, { fg: '#ffd84a', h: 0.3, dur: Number.POSITIVE_INFINITY, rise: 0 });
+    this.spr.badge(p.headTop, this.c);
   }
 
   /* ---------------- 补间和抛飞 ---------------- */
