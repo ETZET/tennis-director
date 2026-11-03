@@ -7,7 +7,7 @@ import type { ArtAnim, Facing, PixelArt } from '../format';
  * - 字符画坐标在一张"网格"里写（成人 12×15，身体在第 3..8 列、第 3..14 行，四周留出伸手的空间）；
  * - 正面（front）：人物的右手在画面左边；背面（back）的手臂层按身体中线左右镜像，而且画在底身下面
  *   （挡在身前的手被身体挡住，举过头、伸到两边的手照样露出来）；
- * - 手臂层里 `1` = 右手（hand_r）、`2` = 左手（hand_l）、`3` = 拍面（racket），合成时换成皮肤 / 球拍色并记下挂点；
+ * - 手臂层里 `1` = 右手（hand_r）、`2` = 左手（hand_l）、`3` = 拍面中心（racket），合成时 1、2 换成皮肤，3 只记挂点不画；
  * - `Q`（球拍）和特效像素（星星、眼泪）不描边：运行时没拍子时把 Q 设成透明，不会留下空描边；
  * - 锚点（ox, oy）= 两脚中间脚底下那一行（描边行）；head_top = 头顶描边那一像素。
  * - 跳起来的帧用 `dy`：像素整体上移，锚点不动。
@@ -53,19 +53,55 @@ export function px(s: string | undefined): [number, number, string][] {
   return out;
 }
 
-/** 球拍：手在 (hx, hy)，往 (dx, dy) 方向伸出去：一格拍柄 + 2×2 拍面；拍面第一格记成拍面挂点。 */
-export function rk(hx: number, hy: number, dx: number, dy: number): string {
-  const cx = hx + dx * 2;
-  const cy = hy + dy * 2;
-  const sx = dx || 1;
-  const sy = dy || -1;
-  return [
-    `${hx + dx},${hy + dy}:Q`,
-    `${cx},${cy}:3`,
-    `${cx + sx},${cy}:Q`,
-    `${cx},${cy + sy}:Q`,
-    `${cx + sx},${cy + sy}:Q`,
-  ].join(' ');
+/** 球拍的选项。 */
+export interface RacketOpts {
+  /** 竖着 / 横着拿时拍面往哪边偏半格（4 宽的拍面没有正中间）：-1 偏左 / 偏上，1 偏右 / 偏下。默认 -1 */
+  readonly side?: -1 | 1;
+}
+
+/**
+ * 球拍的像素（相对手的位置，规范朝向下）：斜着拿是"左上"，直着拿是"朝上"，其余方向由镜像 / 转置得到。
+ * 拍柄两格（第一格通常落在手边的描边上，被描边盖住，深色描边正好当握把）；拍面是 4×4 的斜椭圆 / 圆环，
+ * 中间 2×2 镂空（透出地面＝拍线），挂点 `c` 是镂空里靠手的那一格。
+ * 拍子朝下垂着时用短柄：去掉第二格拍柄，拍面往手这边挪一格，不至于戳到地上。小朋友和成人用同一把拍子（小号的认不出来）。
+ */
+const RK = {
+  diag: {
+    grip: [-1, -1],
+    neck: [-2, -2],
+    head: '-6,-6 -5,-6 -4,-6 -6,-5 -3,-5 -6,-4 -3,-4 -5,-3 -4,-3 -3,-3',
+    c: [-4, -4],
+  },
+  up: { grip: [0, -1], neck: [0, -2], head: '-1,-3 0,-3 -2,-4 1,-4 -2,-5 1,-5 -1,-6 0,-6', c: [0, -4] },
+} as const;
+
+/**
+ * 球拍：手在 (hx, hy)，往 (dx, dy) 方向伸出去（各取 -1、0、1）。返回像素清单：拍子用 `Q`，拍面中心记成 `3`（挂点，不画）。
+ * 合成时拍子只画在空格上、而且让位给描边，所以 Q = 'none' 时不会留洞也不会留杂点。拍子朝下垂着（dy > 0）时自动用短柄。
+ */
+export function rk(hx: number, hy: number, dx: number, dy: number, o: RacketOpts = {}): string {
+  const diag = dx !== 0 && dy !== 0;
+  const t = diag ? RK.diag : RK.up;
+  const short = dy > 0;
+  const s = o.side ?? -1;
+  // 短柄：拍面往手这边挪一格（规范坐标里是 +1）
+  const k = short ? 1 : 0;
+  const map = (a: number, b: number): [number, number] => {
+    if (diag) return [hx + a * -dx, hy + b * -dy];
+    // 规范是朝上、拍面偏左（side = -1）：先按 side 镜像横向，再转到实际方向
+    const u = s < 0 ? a : -a;
+    return dx === 0 ? [hx + u, hy + b * -(dy || -1)] : [hx + b * -dx, hy + u];
+  };
+  const cells: [number, number][] = [[t.grip[0], t.grip[1]]];
+  if (!short) cells.push([t.neck[0], t.neck[1]]);
+  for (const tok of t.head.split(' ')) {
+    const [a, b] = tok.split(',').map(Number) as [number, number];
+    cells.push(diag ? [a + k, b + k] : [a, b + k]);
+  }
+  const out = cells.map(([a, b]) => `${map(a, b).join(',')}:Q`);
+  const c = map(t.c[0] + (diag ? k : 0), t.c[1] + k);
+  out.push(`${c[0]},${c[1]}:3`);
+  return out.join(' ');
 }
 
 /** 合成中间结果：字符网格 + 挂点。 */
@@ -76,14 +112,15 @@ interface Grid {
   oy: number;
 }
 
-const MARK: Record<string, [string, string]> = { '1': ['hand_r', 'S'], '2': ['hand_l', 'S'], '3': ['racket', 'Q'] };
+/** 挂点记号 → 挂点名、落到格子里的字符（'.' = 只记挂点，不画） */
+const MARK: Record<string, [string, string]> = { '1': ['hand_r', 'S'], '2': ['hand_l', 'S'], '3': ['racket', '.'] };
 
 /** 把底身和手臂层合成一张网格（还没描边）。 */
 export function composeGrid(spec: FrameSpec, facing: Facing, width: number): Grid {
   const fig = spec.base[facing];
   const h = fig.rows.length;
   // 四周留够球拍伸出去的空间，最后会裁掉
-  const pad = 4;
+  const pad = 7;
   const W = width + pad * 2;
   const H = h + pad * 2;
   const cells: string[][] = Array.from({ length: H }, () => Array<string>(W).fill('.'));
@@ -93,8 +130,11 @@ export function composeGrid(spec: FrameSpec, facing: Facing, width: number): Gri
   const put = (x: number, y: number, c: string) => {
     const gx = x + pad;
     const gy = y + pad;
-    if (gy < 0 || gy >= H || gx < 0 || gx >= W) return;
-    (cells[gy] as string[])[gx] = c;
+    if (gy < 0 || gy >= H || gx < 0 || gx >= W || c === '.') return;
+    const row = cells[gy] as string[];
+    // 球拍只画在空格上，从不压身体
+    if ((c === 'Q' || c === 'q') && row[gx] !== '.') return;
+    row[gx] = c;
   };
   const layer = (s: string | undefined, mirror: boolean) => {
     for (const [x0, y, c0] of px(s)) {
@@ -141,7 +181,9 @@ export function finishGrid(g: Grid, pal?: Readonly<Record<string, string>>): Pix
   const out = g.cells.map((r) => r.slice());
   for (let y = 0; y < H; y++)
     for (let x = 0; x < W; x++) {
-      if (at(x, y) !== '.') continue;
+      const c0 = at(x, y);
+      // 空格和球拍格都可以描边：贴着身体的拍子像素让位给描边，Q = 'none' 时轮廓不会缺一格
+      if (c0 !== '.' && c0 !== 'Q' && c0 !== 'q') continue;
       const n = [at(x - 1, y), at(x + 1, y), at(x, y - 1), at(x, y + 1)];
       if (n.some((c) => !NO_OUTLINE.has(c as string))) (out[y] as string[])[x] = 'O';
     }
