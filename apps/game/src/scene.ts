@@ -5,6 +5,7 @@ import {
   contactPt,
   createDaylight,
   createRain,
+  createStarSign,
   type DrawContext,
   type IsoWorld,
   type PeopleWorld,
@@ -24,11 +25,14 @@ import {
   isStaff,
   orderStatus,
   postStatus,
+  remodeling,
   type SimEvent,
+  stateDef,
   type World,
   working,
   worldOf,
 } from '@td/sim';
+import { variantSite } from './courts';
 import { idlePlan } from './idle';
 import { createLife } from './life';
 import { entryFor, type Performance, type PerformInput, perform, planPerformance } from './perform';
@@ -226,7 +230,9 @@ const STYLES = ['short', 'pony', 'curly', 'visor', 'bald', 'long', 'cap'] as con
 export function courtsAt(w: World, s: GameState, anchor: string): number {
   const f = w.facilityAt.get(anchor);
   if (!f) return 0;
-  return w.facilities.get(f)?.states[s.facilities[f] ?? '']?.courts ?? 0;
+  // 变体、升级改了场地数的也算上（stateDef）；改造停用期间没有场地
+  if (remodeling(s, f)) return 0;
+  return stateDef(s, w, f)?.courts ?? 0;
 }
 
 /**
@@ -290,16 +296,63 @@ export interface GameScene {
   directorHead(): { x: number; y: number; z: number };
   /** 卡片发生的地方：给相机一个镜头 */
   focus(): CameraFocus | null;
+  /** 地点清单里点了变体行：在设施上叠这个变体修好后的预览；null 关掉（UI-11，只是画面） */
+  preview(facility: string | null, variant: string | null): void;
   readonly showNow: () => number;
 }
 
-export function createGameScene(stage: IsoWorld, content0: ContentBundle, site: Site): GameScene {
+export function createGameScene(stage: IsoWorld, content0: ContentBundle, site0: Site): GameScene {
   let content = content0;
+  let state: GameState | null = null;
+  // 球场按变体换（地图给了 courtsFor 时）：演出、路人、员工站位都读这个 site
+  const site = variantSite(
+    site0,
+    () => state,
+    () => content,
+  );
   const sched = new Scheduler();
   const world: PeopleWorld = { scene: stage.scene, groundY: site.groundY, people: [] };
   const pool = new BallPool(stage.scene, site.groundY);
   const ctx: ChoreoContext = { sched, groundY: site.groundY };
   const overlays = site.createOverlays(stage);
+  /*
+   * 大门星级牌（ART-14）：地图的覆盖层还没给 stars 时，游戏自己立一块（createStarSign 是 @td/iso 的公共构件）。
+   * 变体、升级、牌匾也走覆盖层（wave1-contract.md），覆盖层没提供的就跳过。
+   */
+  const ov = overlays as typeof overlays & { stars?(n: number, animate: boolean): void };
+  const starSign = ov.stars ? null : createStarSign(stage);
+  const setStars = (n: number, animate: boolean) => (ov.stars ? ov.stars(n, animate) : starSign?.set(n, animate));
+  /** 已经交给覆盖层的设施样子（变体 + 升级 + 状态），和模拟状态对不上就重设一次 */
+  const looks = new Map<string, string>();
+  let plaqueN = -1;
+  let starsShown = -1;
+  /** 升星：等镜头转到大门再点亮新星（真实秒，暂停时也走） */
+  let starPending: { n: number; wait: number } | null = null;
+  /** 牌匾上刻的名字：内容里的原名（3×5 小字只排大写字母和数字） */
+  const leaderName = (id: string) => content.people.find((p) => p.id === id)?.name ?? id;
+  function applyLooks(s: GameState, force = false): void {
+    const w = worldOf(s, content);
+    for (const [f, st] of Object.entries(s.facilities)) {
+      const v = s.variants?.[f] ?? null;
+      const ups = s.upgrades?.[f] ?? [];
+      const key = `${v ?? ''}|${ups.join(',')}|${st}`;
+      if (!force && looks.get(f) === key) continue;
+      looks.set(f, key);
+      // 先变体、再升级、最后状态（覆盖层同一轮只重建一次）
+      overlays.variant?.(f, v);
+      for (const u of Object.keys(w.facilities.get(f)?.upgrades ?? {})) overlays.upgrade?.(f, u, ups.includes(u));
+      overlays.set(f, st);
+    }
+    const rows = s.plaque ?? [];
+    if (force || rows.length !== plaqueN) {
+      plaqueN = rows.length;
+      overlays.plaque?.(rows.map((r) => ({ facility: r.facility, leader: leaderName(r.leader), day: r.day })));
+    }
+    if (force || (starsShown !== (s.stars ?? 0) && !starPending)) {
+      starsShown = s.stars ?? 0;
+      setStars(starsShown, false);
+    }
+  }
   const rain = createRain(
     stage,
     undefined,
@@ -386,7 +439,6 @@ export function createGameScene(stage: IsoWorld, content0: ContentBundle, site: 
   }
 
   /* ---------- 演出：模拟的 performance 名字 → 活动动画库（perform.ts，ADR 0010） ---------- */
-  let state: GameState | null = null;
   const headCoach = () => (state?.headCoach ? (cast.get(state.headCoach) ?? null) : null);
   const performInput = (coachId = state?.headCoach): PerformInput => {
     return {
@@ -465,7 +517,8 @@ export function createGameScene(stage: IsoWorld, content0: ContentBundle, site: 
     for (const p of running.values()) p.stop();
     running.clear();
     for (const p of [...borrowed]) giveBack(p);
-    for (const [f, st] of Object.entries(s.facilities)) overlays.set(f, st);
+    starPending = null;
+    applyLooks(s, true);
     life.reset();
     const w = worldOf(s, content);
     for (const a of s.activities)
@@ -983,6 +1036,7 @@ export function createGameScene(stage: IsoWorld, content0: ContentBundle, site: 
   let focusAnchor: string | null = null;
   let focusUntil = 0;
   let focusSeq = 0;
+  let previewOn: string | null = null;
   const focusOn = (at: string, secs: number) => {
     focusAnchor = at;
     focusUntil = sched.now + secs;
@@ -1015,6 +1069,10 @@ export function createGameScene(stage: IsoWorld, content0: ContentBundle, site: 
           const c = w.cards.get(e.card);
           const loc = c?.stage?.anchor ?? c?.location;
           if (loc) focusOn(loc, 6);
+        } else if (e.type === 'star_up') {
+          // 升星是一个时刻（game-design.md）：镜头转到大门，到了再点亮新星
+          focusOn('entrance', 5);
+          starPending = { n: e.stars, wait: 0.9 };
         } else if (e.type === 'weather') {
           // 天气由模拟决定：雨天下雨，其他天放晴
           if (e.weather === 'rain') rain.start();
@@ -1061,6 +1119,17 @@ export function createGameScene(stage: IsoWorld, content0: ContentBundle, site: 
       // 暂停时游戏时间也跳了（试玩桥、调试快进）：路人、风沙这些按一小段时间补上，截图不再定格在同一帧
       const adv = sdt > 0 ? sdt : jumped ? 0.5 : 0;
       life.update(s, adv);
+      // 变体、升级、牌匾、星级：和模拟状态对一下（读档、改造期满、解锁变体都靠这一步跟上）
+      applyLooks(s);
+      if (starPending) {
+        starPending.wait -= dt;
+        if (starPending.wait <= 0) {
+          starsShown = starPending.n;
+          setStars(starPending.n, true);
+          starPending = null;
+        }
+      }
+      starSign?.update(dt, sched.now);
       // 状况看得见（ART-8 原型）：修好的设施状况往下掉，先长沙、草、垃圾，再掉档
       for (const [f, st] of Object.entries(s.facilities)) {
         const decays = (w.facilities.get(f)?.states[st]?.decay_day ?? 0) > 0;
@@ -1085,6 +1154,11 @@ export function createGameScene(stage: IsoWorld, content0: ContentBundle, site: 
     directorHead: () => {
       const p = you.headTop.getWorldPosition();
       return { x: p.x, y: p.y, z: p.z };
+    },
+    preview(facility, variant) {
+      if (facility !== previewOn && previewOn) overlays.preview?.(previewOn, null);
+      previewOn = variant ? facility : null;
+      if (facility) overlays.preview?.(facility, variant);
     },
     focus() {
       if (!focusAnchor || sched.now > focusUntil) return null;

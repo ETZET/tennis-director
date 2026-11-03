@@ -99,3 +99,20 @@
 .td-staff-many .td-tok-text b{font-size:12px}
 .td-staff-many .td-tok-doing{font-size:10px;max-width:60px}
 .td-staff-many .td-sk{width:17px}
+/* 修复变体（UI-11）：工单下面缩进的一行一个变体；点了开预览（青色框），拖人上去按这个变体开工 */
+.td-variants{list-style:none;margin:2px 0 0 22px;padding:0;display:flex;flex-direction:column;gap:3px}
+.td-variant{width:100%;min-height:48px;display:flex;align-items:center;gap:8px;padding:4px 6px 4px 8px;border:0;border-left:3px dashed rgba(255,255,255,.35);background:rgba(255,255,255,.05);color:#fff;text-align:left;cursor:pointer;touch-action:manipulation}
+.td-variant .td-chips{justify-content:flex-start;flex-wrap:wrap}
+.td-variant .td-chip{font-size:11px;padding:2px 4px}
+.td-variant-mark{flex:0 0 18px;font:800 14px/1 var(--td-cond,sans-serif);color:#dfe6ef;text-align:center}
+.td-variant-picked{border-left-style:solid;border-left-color:var(--td-optic,#d8c08a)}
+.td-variant-picked .td-variant-mark{color:var(--td-optic,#d8c08a)}
+.td-variant-locked{border-left-style:solid;border-left-color:#7fe0a0;cursor:default}
+.td-variant-locked .td-variant-mark{color:#7fe0a0}
+.td-variant-on{box-shadow:inset 0 0 0 2px #7fe6e6;background:rgba(127,230,230,.12)}
+.td-variant-on .td-row-go{color:#7fe6e6}
+.td-variant.td-row-fit .td-row-go{min-width:60px;background:var(--td-optic,#d8c08a);color:var(--td-navy,#14223a);font-size:13px;letter-spacing:.06em}
+.td-variant.drop-hover{box-shadow:inset 0 0 0 3px var(--td-optic,#d8c08a);background:rgba(216,192,138,.18)}
+.td-variant .td-row-text>span.td-variant-gives{color:#9be07f}
+.td-variant .td-row-text>span.td-variant-costs{color:#ffb39c}
+.td-variant .td-row-text b{white-space:normal}

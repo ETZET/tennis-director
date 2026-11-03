@@ -27,7 +27,9 @@ import type { GameState } from '@td/sim';
 
 interface Court {
   anchor: string;
-  frame: CourtFrame;
+  /** 这个地点的第几块场地 */
+  k: number;
+  readonly frame: CourtFrame;
 }
 
 const SAND = ['#e2c597', '#d9b98a', '#cfae7e', '#e8d0a6'];
@@ -128,15 +130,23 @@ const tail = (pts: readonly XZ[], max: number): XZ[] => head([...pts].reverse(),
 
 export function createLife(d: LifeDeps): Life {
   const { site } = d;
+  // 一块场地记"哪个地点的第 k 块"；frame 每次现读（site.courts 可能按变体换了一套，见 courts.ts）
   const COURTS: Court[] = Object.entries(site.courts).flatMap(([anchor, frames]) =>
-    frames.map((frame) => ({ anchor, frame })),
+    frames.map((base, k) => ({
+      anchor,
+      k,
+      get frame() {
+        return site.courts[anchor]?.[k] ?? base;
+      },
+    })),
   );
   const SPOTS = Object.keys(site.stands);
   const EXITS = ['entrance', 'parking'].filter((x) => site.stands[x]);
   /** 一个地点上第 k 块场地能不能打 */
   const open = (s: GameState, c: Court) => {
-    const k = (site.courts[c.anchor] ?? []).indexOf(c.frame);
-    return k < d.courtsAt(s, c.anchor) ? 1 : 0;
+    // 这一套里没有第 k 块（换了变体、场地变少）就不打
+    if (!site.courts[c.anchor]?.[c.k]) return 0;
+    return c.k < d.courtsAt(s, c.anchor) ? 1 : 0;
   };
   /** 路人只去开着的地方（有场地能打的、或者设施修好了的），再加大门和停车场 */
   const spotOpen = (s: GameState, a: string) =>

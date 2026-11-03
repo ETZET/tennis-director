@@ -38,7 +38,26 @@
 /* ---------- 状态条 + 明细 ---------- */
 .td-strip-wrap{position:absolute;right:max(24px,env(safe-area-inset-right,0px));top:max(24px,env(safe-area-inset-top,0px));display:flex;flex-direction:column;align-items:stretch}
 .td-strip{display:flex;align-items:stretch;height:56px;padding:0;border:0;background:var(--td-panel);box-shadow:var(--td-shadow);text-align:left}
-.td-strip:hover{background:var(--td-panel-2)}
+.td-strip-main{display:flex;align-items:stretch;flex:1 1 auto;min-width:0;padding:0;border:0;background:transparent;text-align:left}
+.td-strip-main:hover{background:var(--td-panel-2)}
+/* 星级格（UI-8）：自己是一个按钮，点开星级明细 */
+.td-cell-stars{border:0;border-left:1px solid var(--td-line);background:transparent;text-align:left;min-width:44px}
+.td-cell-stars:hover,.td-cell-stars[aria-expanded=true]{background:var(--td-panel-2)}
+.td-stars{display:flex;gap:1px;font-size:16px}
+.td-stars i{font-style:normal}
+.td-star-on{color:#f2c94c}
+.td-star-off{color:var(--td-dim);opacity:.7}
+.td-starsheet{margin-top:6px;background:var(--td-panel-2);box-shadow:var(--td-shadow);padding:14px 16px 12px;display:flex;flex-direction:column;gap:10px;border-top:3px solid #f2c94c}
+.td-stars-count{color:#f2c94c;font:700 13px/1 var(--td-cond)}
+.td-star-items{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.td-star-items li{display:flex;align-items:baseline;gap:8px;font:600 13px/1.3 var(--td-text);color:var(--td-white)}
+.td-star-mark{flex:0 0 14px;color:var(--td-down);font-weight:800}
+.td-star-met .td-star-mark{color:var(--td-good)}
+.td-star-met .td-star-text{color:var(--td-dim)}
+.td-star-val{margin-left:auto;padding-left:8px;white-space:nowrap;font:700 13px/1.3 var(--td-cond);font-variant-numeric:tabular-nums;color:var(--td-optic)}
+.td-star-met .td-star-val{color:var(--td-good)}
+.td-star-opens,.td-star-foot{margin:0;font:600 12px/1.35 var(--td-text);color:var(--td-dim)}
+.td-star-opens{color:var(--td-optic)}
 .td-cell{display:flex;flex-direction:column;justify-content:center;gap:3px;padding:0 16px;border-right:1px solid var(--td-line)}
 .td-cell-q{flex-direction:row;align-items:center;gap:10px}
 .td-cell-col{display:flex;flex-direction:column;gap:3px}
@@ -146,6 +165,10 @@
   .td-strip .td-cell:not(.td-cell-q){overflow:hidden}
   .td-strip .td-cell:not(.td-cell-q) .td-lab{white-space:normal;line-height:1.15;text-wrap:balance}
   .td-chev{padding:0 6px}
+  /* 手机：主按钮里三格、星级格一格，四格一样宽 */
+  .td-strip-main{flex:3 1 0}
+  .td-cell-stars{flex:1 1 0;padding:0 6px}
+  .td-stars{font-size:12px}
   .td-card{bottom:calc(48px + env(safe-area-inset-bottom,0px));width:calc(100% - 24px)}
   .td-card-head{font-size:20px}
   .td-card-text{font-size:14px}

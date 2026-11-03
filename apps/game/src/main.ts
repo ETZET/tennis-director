@@ -2,6 +2,7 @@ import { createIsoWorld, type IsoCameraPose, indianWells, type Site, setPeopleVi
 import { clamp } from '@td/shared';
 import { CONTENT, type ContentBundle, canAssign, DIRECTOR, type SimEvent, worldOf } from '@td/sim';
 import { type HudActions, mountHud, setHudStrings } from '@td/ui';
+import { variantSite } from './courts';
 import { createDebug } from './debug';
 import { GameLabels } from './labels';
 import { clearAutosave, downloadSave, readAutosave, writeAutosave } from './persist';
@@ -104,7 +105,7 @@ const hudActions: HudActions = {
   },
   drop: (person, x, y) => {
     const t = targetAt(x, y);
-    if (t && 'target' in t) assignTo(person, t.target);
+    if (t && 'target' in t) assignTo(person, t.target, t.variant);
     else if (t) tapPlace(t.place, person);
     else {
       session.picked = null;
@@ -121,22 +122,25 @@ const hudActions: HudActions = {
     draw();
   },
   target: (id) => tapTarget(id),
+  variant: (order, v) => tapVariant(order, v),
 };
 /** 屏幕上 (x, y) 那儿是地点清单的哪一行，或者哪块地点牌 */
-function targetAt(x: number, y: number): { target: string } | { place: string } | null {
+function targetAt(x: number, y: number): { target: string; variant?: string } | { place: string } | null {
   for (const el of document.elementsFromPoint(x, y)) {
     const h = el as HTMLElement;
-    const t = h.closest?.<HTMLElement>('[data-target]')?.dataset.target;
-    if (t) return { target: t };
+    const row = h.closest?.<HTMLElement>('[data-target]');
+    const t = row?.dataset.target;
+    // 变体行（UI-11）：落在哪一行就按哪个变体开工
+    if (t) return row?.dataset.variant ? { target: t, variant: row.dataset.variant } : { target: t };
     const a = h.closest?.<HTMLElement>('[data-place]')?.dataset.place;
     if (a) return { place: a };
   }
   return null;
 }
-function assignTo(person: string, target: string): void {
+function assignTo(person: string, target: string, variant?: string): void {
   const w = worldOf(session.s, content);
-  if (canAssign(session.s, w, person, target) === null) {
-    session.assign(person, target);
+  if (canAssign(session.s, w, person, target, variant) === null) {
+    session.assign(person, target, variant);
     pump([]);
   } else {
     // 派不过去（例如钱不够买料）：打开说明，让玩家看到为什么
@@ -159,7 +163,32 @@ function answer(key: 1 | 2 | 3): void {
   if (opt && session.choose(o.uid, opt)) pump([]);
 }
 
-const draw = () => ui.update(projector.snapshot(session));
+const draw = () => {
+  syncPreview();
+  ui.update(projector.snapshot(session));
+};
+
+/**
+ * 变体预览（UI-11）：只在地点清单开着、点了一个变体行时叠在设施上；清单关了、换了地点、工单开工锁定了就收掉。
+ * 只是画面，不进模拟。
+ */
+let previewKey = '';
+function syncPreview(): void {
+  const p = session.preview;
+  const w = worldOf(session.s, content);
+  const o = p ? w.orders.get(p.order) : undefined;
+  const f = o ? (w.facilityAt.get(o.at) ?? null) : null;
+  // 卡开着时地点清单让开（Hud），预览也跟着收起
+  const shown = session.place === o?.at && !session.sheet && !session.s.cards.open.length && !session.s.outcome;
+  const live = !!p && !!o && !!f && shown && !session.s.orders[o.id]?.variant;
+  if (!live) session.preview = null;
+  const key = live && p ? `${f}:${p.variant}` : '';
+  if (key === previewKey) return;
+  const was = previewKey.split(':')[0] || null;
+  previewKey = key;
+  if (live && p) scene.preview(f, p.variant);
+  else if (was) scene.preview(was, null);
+}
 
 /* ---------- 地点牌、岗位和工单的标记 ---------- */
 const labels = new GameLabels($('labels'), camera);
@@ -176,8 +205,14 @@ const ground = (a: string, dy: number) => () => {
  * 盖住站着的人），所以牌子指向地点本身——有球场的地方指场地远端的边（中心正上方那一段），
  * 引线不穿过场上的人；其他地方指地点中心。
  */
+/** 球场按当前变体（courts.ts）：地点牌指向修成以后的那几块场地 */
+const courtSite = variantSite(
+  site,
+  () => session?.s ?? null,
+  () => content,
+);
 const footprint = (a: string): { x: number; z: number }[][] => {
-  const frs = site.courts[a];
+  const frs = courtSite.courts[a];
   if (frs?.length)
     return frs.map((f) =>
       [
@@ -337,7 +372,10 @@ function addHubs(c: ContentBundle): void {
 function tapPlace(a: string, person: string | null = session.picked): void {
   if (person) {
     const fits = projector.placeFits(session, a, person);
-    if (fits.length === 1 && fits[0]) {
+    // 只有一项能接的活就直接派；但还没定变体的修复工单要先在清单里挑一行（UI-11）
+    const o = fits[0] ? worldOf(session.s, content).orders.get(fits[0]) : undefined;
+    const choose = !!o?.variants && !session.s.orders[o.id]?.variant;
+    if (fits.length === 1 && fits[0] && !choose) {
       assignTo(person, fits[0]);
       return;
     }
@@ -350,6 +388,16 @@ function tapPlace(a: string, person: string | null = session.picked): void {
   }
   session.place = a;
   session.sheet = null;
+  draw();
+}
+/** 点地点清单里的变体行：拿着人就按这个变体开工，没拿就开 / 关这个变体的预览 */
+function tapVariant(order: string, variant: string): void {
+  if (session.picked) {
+    assignTo(session.picked, order, variant);
+    return;
+  }
+  const p = session.preview;
+  session.preview = p?.order === order && p.variant === variant ? null : { order, variant };
   draw();
 }
 function tapTarget(id: string): void {
@@ -589,8 +637,10 @@ declare global {
       world: () => typeof stage;
       fastForward: (max: number) => { minutes: number; stop: string };
       answer: (key: 1 | 2 | 3) => void;
-      /** 把人派到岗位或工单上（null 叫他停下来）；返回 null，或者为什么没成 */
-      assign: (person: string, target: string | null) => string | null;
+      /** 把人派到岗位或工单上（null 叫他停下来；variant：变体工单的哪一行）；返回 null，或者为什么没成 */
+      assign: (person: string, target: string | null, variant?: string) => string | null;
+      /** 点地点清单里的变体行（和手指点一样：拿着人就派，没拿就开 / 关预览） */
+      tapVariant: (order: string, variant: string) => void;
       /** 员工条的数据 */
       staff: () => unknown;
       /** 某个岗位或工单的说明（和点开时看到的一样） */
@@ -621,11 +671,11 @@ window.__td = {
   world: () => stage,
   fastForward,
   answer,
-  assign: (person, target) => {
+  assign: (person, target, variant) => {
     const w = worldOf(session.s, content);
-    const why = canAssign(session.s, w, person, target);
+    const why = canAssign(session.s, w, person, target, variant);
     if (why !== null) return `rejected: ${why}`;
-    session.assign(person, target);
+    session.assign(person, target, variant);
     pump([]);
     return null;
   },
@@ -643,6 +693,7 @@ window.__td = {
     })),
   ],
   tap: (t) => ((content.acts[0]?.anchors ?? []).includes(t) ? tapPlace(t) : tapTarget(t)),
+  tapVariant,
   pick: (p) => hudActions.pick?.(p),
   close: () => {
     session.picked = null;

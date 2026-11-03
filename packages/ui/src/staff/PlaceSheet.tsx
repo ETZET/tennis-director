@@ -81,6 +81,7 @@ export function PlaceSheet({ p, actions }: { p: PlaceSheetData; actions: HudActi
                     {r.locked ? '' : r.fit && !r.fit.blocked ? (r.fit.here ? STR.stop : STR.send) : '›'}
                   </span>
                 </button>
+                {r.variants?.length ? <Variants r={r} actions={actions} /> : null}
               </li>
             ))}
           </ul>
@@ -89,5 +90,43 @@ export function PlaceSheet({ p, actions }: { p: PlaceSheetData; actions: HudActi
         )}
       </section>
     </div>
+  );
+}
+
+/**
+ * 修复变体（UI-11）：工单下面一个变体一行（名字、取舍一句话、换来和付出）。
+ * 没拿人时点一行在场景里叠预览、再点关掉；拿着人点它（或把人拖到它上面）就按这个变体开工。
+ * 锁定以后只剩锁定的那一行。不加面板：清单本身就是落点。
+ */
+function Variants({ r, actions }: { r: PlaceSheetData['rows'][number]; actions: HudActions }) {
+  return (
+    <ul class="td-variants">
+      {(r.variants ?? []).map((v) => (
+        <li key={v.id}>
+          <button
+            type="button"
+            data-target={r.id}
+            data-variant={v.id}
+            aria-pressed={v.previewing ? 'true' : 'false'}
+            class={`td-variant${v.picked ? ' td-variant-picked' : ''}${v.locked ? ' td-variant-locked' : ''}${
+              v.previewing ? ' td-variant-on' : ''
+            }${v.fit ? (v.fit.blocked ? ' td-row-blocked' : ' td-row-fit') : ''}`}
+            onClick={() => actions.variant?.(r.id, v.id)}
+          >
+            <span class="td-variant-mark" aria-hidden="true">
+              {v.locked ? '✓' : v.picked ? '●' : '○'}
+            </span>
+            <span class="td-row-text">
+              <b>{v.name}</b>
+              {v.fit ? <span>{v.fit.text}</span> : v.line ? <span>{v.line}</span> : null}
+              {v.gives && !v.fit?.blocked ? <span class="td-variant-gives">＋ {v.gives}</span> : null}
+              {v.costs && !v.fit?.blocked ? <span class="td-variant-costs">－ {v.costs}</span> : null}
+              {v.chips?.length && !v.fit?.blocked ? <Chips chips={v.chips} /> : null}
+            </span>
+            <span class="td-row-go">{v.fit && !v.fit.blocked ? STR.send : v.previewing ? '◉' : '◌'}</span>
+          </button>
+        </li>
+      ))}
+    </ul>
   );
 }

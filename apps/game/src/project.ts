@@ -15,7 +15,9 @@ import {
   type OpenCard,
   type Order,
   optionStatus,
+  orderCost,
   orderStatus,
+  orderWork,
   type Post,
   postExists,
   postStatus,
@@ -26,6 +28,7 @@ import {
   shortestRoute,
   speedOf,
   staffIds,
+  starStatus,
   testCond,
   wagesWeek,
   walkEta,
@@ -44,10 +47,12 @@ import {
   type PlaceSheetData,
   type SeasonInfo,
   type StaffToken,
+  type StarInfo,
   type StatRow,
   type StoryItem,
   type TargetSheetData,
   trend,
+  type VariantRow,
   type WireItem,
 } from '@td/ui';
 import { effectChips, thenLine } from './chips';
@@ -131,14 +136,66 @@ export class Projector {
           hot,
         );
       } else if (e.type === 'log') {
+        // 升星、改造期满由各自的领域事件讲（下面），日志这条不再重复
+        const kind = e.entry.cause.kind;
+        if (kind === 'star' || kind === 'remodel') continue;
         const so = T.so(e.entry);
-        if (!so || e.entry.cause.kind === 'start') continue;
+        if (!so || kind === 'start') continue;
         const hot =
           e.entry.cause.kind === 'wear' ||
           e.entry.effects.some((x) => x.kind === 'fire' || x.kind === 'hire' || x.kind === 'end');
         this.push(s.t, so, hot);
       } else if (e.type === 'activityStarted') {
         this.push(s.t, T.tr(`activities.${e.activity}.title`), false);
+      } else if (e.type === 'star_up') {
+        // 升星是一个时刻（game-design.md）：快讯里说几星、开出了什么
+        const opens = e.opens.map((k) => T.tr(`stars.opens.${k}`, k)).join(T.lang === 'zh' ? '、' : ', ');
+        this.push(
+          s.t,
+          T.fmt('ui.wire.star_up', { n: e.stars, opens: opens ? T.fmt('ui.wire.star_opens', { list: opens }) : '' }),
+          false,
+        );
+      } else if (e.type === 'variant_locked') {
+        this.push(
+          s.t,
+          T.fmt('ui.wire.variant_locked', {
+            place: T.tr(`ui.fac.${e.facility}`, e.facility),
+            variant: this.variantName(e.facility, e.variant),
+          }),
+          false,
+        );
+      } else if (e.type === 'plaque_added') {
+        // 牌匾：谁带的头、第几天；比一个人干快了多少（work − minutes）
+        const faster = e.work - e.minutes;
+        this.push(
+          s.t,
+          T.fmt('ui.wire.plaque', {
+            name: T.personName(e.leader),
+            place: T.tr(`ui.fac.${e.facility}`, e.facility),
+            day: e.day,
+            faster: faster >= 60 ? T.fmt('ui.wire.plaque_faster', { time: T.duration(faster) }) : '',
+          }),
+          false,
+        );
+      } else if (e.type === 'remodel_started') {
+        this.push(
+          s.t,
+          T.fmt('ui.wire.remodel_started', {
+            place: T.tr(`ui.fac.${e.facility}`, e.facility),
+            variant: this.variantName(e.facility, e.variant),
+            time: T.duration(e.until - s.t),
+          }),
+          true,
+        );
+      } else if (e.type === 'remodel_done') {
+        this.push(
+          s.t,
+          T.fmt('ui.wire.remodel_done', {
+            place: T.tr(`ui.fac.${e.facility}`, e.facility),
+            variant: this.variantName(e.facility, e.variant),
+          }),
+          false,
+        );
       } else if (e.type === 'directorGrew') {
         // 总监在长进：让玩家看见（核心玩法决定）
         this.push(s.t, T.fmt('ui.wire.grew', { skill: T.tr(`ui.skill.${e.skill}`), n: e.value }), false);
@@ -151,6 +208,11 @@ export class Projector {
         );
       }
     }
+  }
+
+  /** 变体的名字（文案 variants.<设施>.<变体>，" · " 后面是取舍一句话） */
+  variantName(facility: string, variant: string): string {
+    return this.text.tr(`variants.${facility}.${variant}`, variant).split(' · ')[0] ?? variant;
   }
 
   private push(t: number, text: string, hot: boolean): void {
@@ -298,6 +360,7 @@ export class Projector {
       members: Math.round(s.stats.members ?? 0),
       courts: { open: fac.courts, total: totalCourts },
       board: this.board(s),
+      ...(w.act.stars?.length ? { stars: this.stars(s) } : {}),
       salary: {
         text: `${cash < 0 ? '−' : ''}$${Math.abs(cash) >= 1000 ? `${(Math.abs(cash) / 1000).toFixed(1)}K` : Math.round(Math.abs(cash))}`,
         label: T.tr('ui.cash'),
@@ -334,6 +397,69 @@ export class Projector {
           : this.text.fmt(days === 0 ? 'ui.restore_today' : 'ui.restore_in', { total, days }),
       ...(behind ? { tone: 'bad' as const } : {}),
     };
+  }
+
+  /**
+   * 状态条的星级格（UI-8）：几颗星、下一星还差几项；点开是下一星清单的每一条（只读，数据来自 starStatus）。
+   * 能读出数的条件（会员 ≥ 20、restored >= 3 这种）写上"现在 / 要多少"。
+   */
+  private stars(s: GameState): StarInfo {
+    const T = this.text;
+    const w = worldOf(s, this.content);
+    const st = starStatus(s, w);
+    const next = st.next;
+    const lv = next ? w.act.stars?.[next.level - 1] : undefined;
+    const end = this.deadline(s);
+    const days = end === null ? null : Math.max(0, Math.ceil((end - s.t) / 1440));
+    const restored = Math.round(s.stats.restoration ?? 0);
+    const sep = T.lang === 'zh' ? '、' : ', ';
+    const opens = next?.opens.map((k) => T.tr(`stars.opens.${k}`, k)).join(sep);
+    return {
+      n: st.stars,
+      max: st.max,
+      label: next ? T.fmt('ui.stars.label', { n: next.missing }) : T.tr('ui.stars.full'),
+      title: [
+        next ? T.fmt('ui.stars.title', { n: next.level }) : T.fmt('ui.stars.title_full', { n: st.stars }),
+        T.tr(`stars.names.${next?.level ?? st.stars}`, ''),
+      ]
+        .filter(Boolean)
+        .join(' · '),
+      items: (next?.items ?? []).map((x) => {
+        const value = lv ? this.starValue(s, lv.requires[x.id]) : undefined;
+        return { id: x.id, text: T.tr(`stars.items.${x.id}`, x.id), met: x.met, ...(value ? { value } : {}) };
+      }),
+      ...(opens ? { opens: T.fmt('ui.stars.opens', { list: opens }) } : {}),
+      foot:
+        days === null || s.outcome
+          ? T.fmt('ui.stars.restored', { n: restored, total: w.facilities.size })
+          : T.fmt('ui.stars.foot', { n: restored, total: w.facilities.size, days }),
+    };
+  }
+
+  /** 星级清单一条的"现在 / 要多少"：数值条件和形如 `x >= y` 的表达式读得出；别的不写 */
+  private starValue(s: GameState, c: unknown): string | undefined {
+    const w = worldOf(s, this.content);
+    const r = (n: number) => String(Math.round(n));
+    try {
+      if (!c || typeof c !== 'object') return undefined;
+      const o = c as Record<string, unknown>;
+      if (typeof o.stat === 'string') {
+        const t = [o.gte, o.gt, o.eq, o.lte, o.lt].find((x) => typeof x === 'number') as number | undefined;
+        return t === undefined ? undefined : `${r(s.stats[o.stat] ?? 0)}/${t}`;
+      }
+      if (typeof o.facility === 'string' && typeof o.is === 'string') {
+        const now = s.facilities[o.facility];
+        return now ? this.text.tr(`facilities.${o.facility}.${now}`, now).split(' · ')[1] : undefined;
+      }
+      if (typeof o.expr === 'string') {
+        const m = /^\s*([\w.]+)\s*(>=|>|==)\s*(.+?)\s*$/.exec(o.expr);
+        if (!m) return undefined;
+        return `${r(num(s, w, m[1] as string))}/${r(num(s, w, m[3] as string))}`;
+      }
+    } catch {
+      return undefined;
+    }
+    return undefined;
   }
 
   /**
@@ -596,11 +722,21 @@ export class Projector {
     const w = worldOf(s, this.content);
     const st = orderStatus(s, w, o);
     const chips: Chip[] = [{ text: T.tr(`ui.skill.${o.skill}`), tone: 'info' }];
-    if (o.cost && !st.started) chips.push({ text: T.fmt('ui.chip.cost', { n: o.cost }), tone: 'cost' });
+    // 能力门槛（升级工单）：只有底子够的人能干
+    for (const [k, n] of Object.entries(st.worker ?? {}))
+      chips.push({ text: T.fmt('ui.chip.needs', { skill: T.tr(`ui.skill.${k}`), n: n ?? 0 }), tone: 'risk' });
+    // 材料费、工作量按当前变体算（锁定的 / 拖向的 / 默认的）
+    if (st.cost && !st.started) chips.push({ text: T.fmt('ui.chip.cost', { n: st.cost }), tone: 'cost' });
     chips.push({
-      text: T.fmt('ui.sheet.work', { time: T.duration(minutes(o.work) * (1 - st.progress)) }),
+      text: T.fmt('ui.sheet.work', { time: T.duration(st.work * (1 - st.progress)) }),
       tone: 'time',
     });
+    if (o.remodel)
+      chips.push({ text: T.fmt('ui.chip.closed', { time: T.duration(minutes(o.closed_for ?? '7d')) }), tone: 'loss' });
+    if (o.upgrade) {
+      const f = w.facilityAt.get(o.at) ?? '';
+      chips.push({ text: this.upgradeName(f, o.upgrade), tone: 'gain' });
+    }
     if (o.crew > 1) chips.push({ text: T.fmt('ui.sheet.crew', { n: o.crew }), tone: 'info' });
     if (st.chance !== null)
       chips.push({ text: T.fmt('ui.chip.chance', { p: Math.round(st.chance * 100) }), tone: 'risk' });
@@ -608,6 +744,22 @@ export class Projector {
     if (st.chance !== null) chips.push(...effectChips(T, o.onSuccess, st.chance));
     if (o.restore) chips.push({ text: T.fmt('ui.sheet.restore_done', { n: o.restore }), tone: 'gain' });
     return chips;
+  }
+
+  /** 升级的名字（文案 upgrades.<设施>.<升级>） */
+  upgradeName(facility: string, upgrade: string): string {
+    return this.text.tr(`upgrades.${facility}.${upgrade}`, upgrade).split(' · ')[0] ?? upgrade;
+  }
+
+  /** 派不过去的原因；能力门槛写出要哪项、多少（canAssign 的 'skill'） */
+  private why(block: AssignBlock, target: string): string {
+    const T = this.text;
+    if (block === 'skill') {
+      const o = this.content.orders.find((x) => x.id === target);
+      const [k, n] = Object.entries(o?.worker ?? {})[0] ?? [];
+      if (k) return T.fmt('ui.why.skill_min', { skill: T.tr(`ui.skill.${k}`), n: n ?? 0 });
+    }
+    return T.tr(`ui.why.${block}`);
   }
 
   /** 点了场景里的岗位或工单：它是什么、现在怎样、派谁去会怎样 */
@@ -678,7 +830,7 @@ export class Projector {
               : fit,
           ...(here ? { here: true } : {}),
           ...(coming ? { coming: true } : {}),
-          ...(block && block !== 'same' ? { disabled: T.tr(`ui.why.${block}`) } : {}),
+          ...(block && block !== 'same' ? { disabled: this.why(block, target) } : {}),
         };
       });
     return {
@@ -832,7 +984,7 @@ export class Projector {
       const here = p?.job === id;
       const block = canAssign(s, w, picked, id);
       if (here) return { text: T.tr('ui.sheet.here'), here: true };
-      if (block && block !== 'same') return { text: T.tr(`ui.why.${block}`), blocked: true };
+      if (block && block !== 'same') return { text: this.why(block, id), blocked: true };
       const walk = this.walkMinutes(s, picked, at);
       const lv = (k: SkillKind) => (p ? workSkill(s, w, picked, k) : 0);
       const best = lv(skill) >= Math.max(lv('teach'), lv('upkeep'), lv('service'), lv('play'));
@@ -857,6 +1009,8 @@ export class Projector {
         .slice(0, 3)
         .map((c) => (c.text === income ? { ...c, text: T.tr('ui.place.income') } : c));
     const cond = this.conditionAt(s, anchor);
+    const fac = w.facilityAt.get(anchor);
+    const remodel = fac ? s.remodels?.[fac] : undefined;
     const rows: (PlaceRow & { rank: number })[] = [];
     for (const p of posts) {
       const st = postStatus(s, w, p);
@@ -898,11 +1052,14 @@ export class Projector {
         ? this.orderLine(s, o, st.crew, st.progress)
         : st.started
           ? T.fmt('ui.place.order_paused', { p: Math.round(st.progress * 100) })
-          : T.fmt('ui.place.order_new', {
-              cost: o.cost ? `$${o.cost} · ` : '',
-              time: T.duration(minutes(o.work)),
-            });
+          : st.variants && !picked
+            ? T.tr('ui.variant.hint')
+            : T.fmt('ui.place.order_new', {
+                cost: st.cost ? `$${st.cost} · ` : '',
+                time: T.duration(st.work),
+              });
       const fit = fitOf(o.id, o.at, o.skill);
+      const variants = st.variants ? this.variantRows(session, o) : null;
       rows.push({
         id: o.id,
         kind: 'order',
@@ -911,7 +1068,8 @@ export class Projector {
         line,
         ...(st.started ? { progress: st.progress } : {}),
         faces: st.crew.map((x) => this.faceAt(s, x)),
-        chips: payoff(this.orderChips(s, o)),
+        // 变体工单：换来、付出写在每一个变体行上，工单这一行不再重复
+        ...(variants ? { variants } : { chips: payoff(this.orderChips(s, o)) }),
         ...(fit ? { fit } : {}),
         rank: st.crew.length ? 1 : st.started ? 1.5 : 4,
       });
@@ -953,23 +1111,113 @@ export class Projector {
     return {
       id: anchor,
       title: T.anchor(anchor),
-      ...(cond !== null
+      ...(remodel && fac
         ? {
             condition: {
-              value: cond,
-              label: T.fmt(cond < 30 ? 'ui.place.condition_low' : 'ui.place.condition', {
-                n: cond,
-                limit: w.act.rules.grade_drop_below,
+              value: 0,
+              label: T.fmt('ui.place.remodel', {
+                variant: this.variantName(fac, remodel.variant),
+                time: T.duration(remodel.until - s.t),
               }),
             },
           }
-        : this.wornAt(s, anchor)
-          ? { condition: { value: 0, label: T.tr('ui.place.worn') } }
-          : {}),
+        : cond !== null
+          ? {
+              condition: {
+                value: cond,
+                label: T.fmt(cond < 30 ? 'ui.place.condition_low' : 'ui.place.condition', {
+                  n: cond,
+                  limit: w.act.rules.grade_drop_below,
+                }),
+              },
+            }
+          : this.wornAt(s, anchor)
+            ? { condition: { value: 0, label: T.tr('ui.place.worn') } }
+            : {}),
       ...(picked ? { prompt: T.fmt('ui.place.pick', { name: T.personName(picked), place: T.anchor(anchor) }) } : {}),
       rows: rows.map(({ rank: _, ...r }) => r),
       empty: T.tr('ui.place.empty'),
     };
+  }
+
+  /**
+   * 修复变体的一行一个（UI-11）：名字、取舍一句话、换来（修好以后那一档的数值，各变体不一样的才写）、付出（材料费、工时）。
+   * 锁定以后只留锁定的那一行。拿着人时每一行写这个人按这个变体去会怎样。
+   */
+  private variantRows(session: Session, o: Order): VariantRow[] {
+    const { s } = session;
+    const T = this.text;
+    const w = worldOf(s, this.content);
+    const st = orderStatus(s, w, o);
+    const f = w.facilityAt.get(o.at) ?? '';
+    const def = w.facilities.get(f);
+    const all = st.variants ?? [];
+    const ids = st.locked && st.variant ? [st.variant] : all;
+    // 修好以后到哪一档：工单效果里给这处设施设的状态
+    let to: string | undefined;
+    for (const e of o.effects) if ('facility' in e && 'set' in e && e.facility === f) to = String(e.set);
+    const base = to ? def?.states[to] : undefined;
+    const look = (v: string) => (base && to ? { ...base, ...(def?.variants?.[v]?.states?.[to] ?? {}) } : null);
+    const FIELDS = [
+      ['courts', 'ui.variant.courts', 1],
+      ['quality', 'ui.variant.quality', 1],
+      ['income_week', 'ui.variant.income', 1],
+      ['upkeep_week', 'ui.variant.upkeep', -1],
+      ['decay_day', 'ui.variant.decay', -1],
+    ] as const;
+    const picked = session.picked;
+    return ids.map((v) => {
+      const [name, line] = T.tr(`variants.${f}.${v}`, v).split(' · ');
+      // 换来、付出（内容文案 variant_notes.<设施>.<变体>.gives / costs）；没写就按数值自动出标签
+      const gives = T.tr(`variant_notes.${f}.${v}.gives`, '');
+      const costs = T.tr(`variant_notes.${f}.${v}.costs`, '');
+      const chips: Chip[] = [];
+      const cost = orderCost(s, o, v);
+      if (cost && !st.started) chips.push({ text: T.fmt('ui.chip.cost', { n: cost }), tone: 'cost' });
+      const work = orderWork(s, o, v);
+      if (all.some((x) => orderWork(s, o, x) !== work)) chips.push({ text: T.duration(work), tone: 'time' });
+      const me = look(v);
+      if (me && !gives && !costs)
+        for (const [k, key, dir] of FIELDS) {
+          const vals = all.map((x) => Number(look(x)?.[k] ?? 0));
+          const n = Number(me[k] ?? 0);
+          if (vals.every((x) => x === n)) continue;
+          const best = dir > 0 ? Math.max(...vals) : Math.min(...vals);
+          chips.push({ text: T.fmt(key, { n }), tone: n === best ? 'gain' : 'loss' });
+        }
+      if (me && !gives && !costs && all.some((x) => !!look(x)?.rain_ok !== !!me.rain_ok))
+        chips.push({
+          text: T.tr(me.rain_ok ? 'ui.variant.rain_ok' : 'ui.variant.rain_no'),
+          tone: me.rain_ok ? 'gain' : 'loss',
+        });
+      if (!gives && !costs) chips.push(...effectChips(T, o.variants?.[v]?.effects ?? []));
+      let fit: VariantRow['fit'];
+      if (picked) {
+        const block = canAssign(s, w, picked, o.id, v);
+        if (block && block !== 'same') fit = { text: this.why(block, o.id), blocked: true };
+        else {
+          const walk = this.walkMinutes(s, picked, o.at);
+          fit = {
+            text: [
+              `${T.tr(`ui.skill.${o.skill}`)} ${Math.round(workSkill(s, w, picked, o.skill))}`,
+              walk ? T.fmt('ui.sheet.walk', { time: T.duration(walk) }) : T.tr('ui.sheet.here'),
+            ].join(' · '),
+          };
+        }
+      }
+      const pv = session.preview;
+      return {
+        id: v,
+        name: name ?? v,
+        ...(st.locked ? { line: T.tr('ui.variant.locked') } : line ? { line } : {}),
+        ...(gives ? { gives } : {}),
+        ...(costs ? { costs } : {}),
+        chips,
+        ...(st.locked ? { locked: true } : s.picks?.[o.id] === v ? { picked: true } : {}),
+        ...(pv?.order === o.id && pv.variant === v ? { previewing: true } : {}),
+        ...(fit ? { fit } : {}),
+      };
+    });
   }
 
   /** 岗位名去掉地点前缀（"1 号场 · 青少年课" → "青少年课"）：清单的标题已经是地点了 */

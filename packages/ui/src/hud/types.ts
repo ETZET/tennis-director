@@ -136,6 +136,28 @@ export interface PlaceRow {
   chips?: Chip[];
   /** 还没开出来的工单：line 是怎么开出来（"先把 1 号场的裂缝补好"） */
   locked?: boolean;
+  /** 修复变体（UI-11）：一个变体一行；点一行开预览，把人拖到那一行开工 */
+  variants?: VariantRow[];
+}
+
+/** 修复工单的一个变体（"保留红土"）：名字、取舍一句话、换来和付出 */
+export interface VariantRow {
+  id: string;
+  name: string;
+  /** 取舍一句话（"磨得慢、雨天不能打"） */
+  line?: string;
+  /** 换来什么、付出什么（各一句话） */
+  gives?: string;
+  costs?: string;
+  chips?: Chip[];
+  /** 玩家拖向的那一行（还没开工，可以改） */
+  picked?: boolean;
+  /** 已经锁定（第一个人到场、买了料） */
+  locked?: boolean;
+  /** 场景里正叠着这个变体的预览 */
+  previewing?: boolean;
+  /** 手上拿着人时：派到这一行会怎样；blocked 是派不过去的原因 */
+  fit?: { text: string; blocked?: boolean };
 }
 
 /** 点了场景里的地点牌：这个地点的所有工作（ADR 0013） */
@@ -170,6 +192,24 @@ export interface StoryItem {
   tone?: Tone;
 }
 
+/** 状态条的星级格（UI-8）和点开后的明细（只读） */
+export interface StarInfo {
+  /** 现在几星、最多几星 */
+  n: number;
+  max: number;
+  /** 格子下面的小字（"下一星差 2 项"） */
+  label: string;
+  /** 明细的标题（"升到 ★3 还要"） */
+  title: string;
+  /** 下一星的清单：每条满足没有、现在多少 / 要多少 */
+  items: { id: string; text: string; met: boolean; value?: string }[];
+  /** 升上来开出什么 */
+  opens?: string;
+  /** 明细最下面一行（投资方期限） */
+  foot?: string;
+  tone?: Tone;
+}
+
 export interface HudSnapshot {
   club: { badge: string; name: string; clock: string };
   quality: { value: number; grade: Grade; trend: Trend; history: readonly number[] };
@@ -177,6 +217,8 @@ export interface HudSnapshot {
   courts: { open: number; total: number };
   /** 有它时状态条第三格显示董事会信心（代替开放场地数） */
   board?: { value: number; label: string; tone?: Tone };
+  /** 有它时第三格是星级（UI-8，代替复原进度和董事会信心） */
+  stars?: StarInfo;
   /** 状态条第四格；label 不填就是"你的薪水" */
   salary: { text: string; change?: string; label?: string; tone?: Tone };
   headCoach: { name: string; vacant: boolean };
@@ -217,4 +259,6 @@ export interface HudActions {
   closeSheet?(all?: boolean): void;
   /** 地点清单里点了一行：拿着人就派过去，没拿就打开这一项的说明 */
   target?(id: string): void;
+  /** 地点清单里点了变体行：拿着人就按这个变体派过去，没拿就开 / 关这个变体的预览 */
+  variant?(order: string, variant: string): void;
 }

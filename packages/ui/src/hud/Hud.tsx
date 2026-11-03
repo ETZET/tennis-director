@@ -6,7 +6,7 @@ import { StaffBar } from '../staff/StaffBar';
 import { TargetSheet } from '../staff/TargetSheet';
 import { GRADE_COLOR, sparkPoints } from './format';
 import { STR } from './strings';
-import type { EventCardData, HudActions, HudSnapshot, SeasonInfo } from './types';
+import type { EventCardData, HudActions, HudSnapshot, SeasonInfo, StarInfo } from './types';
 import './hud.css';
 
 /**
@@ -184,44 +184,102 @@ function Spark({ history }: { history: readonly number[] }) {
   );
 }
 
+/** 星级格：几颗星（实心 / 空心）+ 下一星还差几项（UI-8） */
+function StarCell({ st, open, onTap }: { st: StarInfo; open: boolean; onTap: (e: MouseEvent) => void }) {
+  return (
+    <button
+      type="button"
+      class={`td-cell td-cell-stars${st.tone ? ` td-cell-${st.tone}` : ''}`}
+      aria-expanded={open}
+      aria-controls="td-stars"
+      aria-label={`${st.n}/${st.max} ★ · ${st.label}`}
+      onClick={onTap}
+    >
+      <span class="td-num td-stars" aria-hidden="true">
+        {Array.from({ length: st.max }, (_, i) => (
+          <i key={i} class={i < st.n ? 'td-star-on' : 'td-star-off'}>
+            {i < st.n ? '★' : '☆'}
+          </i>
+        ))}
+      </span>
+      <span class="td-lab">{st.label}</span>
+    </button>
+  );
+}
+
+/** 星级明细：下一星清单的每一条，满足没有、现在多少 / 要多少（只读，不放按钮） */
+function StarSheet({ st }: { st: StarInfo }) {
+  return (
+    <section class="td-starsheet" id="td-stars" aria-label={st.title}>
+      <div class="td-details-head">
+        <span>{st.title}</span>
+        <span class="td-stars-count">
+          {st.n}/{st.max} ★
+        </span>
+      </div>
+      {st.items.length ? (
+        <ul class="td-star-items">
+          {st.items.map((x) => (
+            <li key={x.id} class={x.met ? 'td-star-met' : ''}>
+              <span class="td-star-mark" aria-hidden="true">
+                {x.met ? '✓' : '○'}
+              </span>
+              <span class="td-star-text">{x.text}</span>
+              {x.value ? <span class="td-star-val">{x.value}</span> : null}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {st.opens ? <p class="td-star-opens">{st.opens}</p> : null}
+      {st.foot ? <p class="td-star-foot">{st.foot}</p> : null}
+    </section>
+  );
+}
+
 function StatStrip({ s }: { s: HudSnapshot }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState<null | 'details' | 'stars'>(null);
   const g = s.quality.grade;
+  const toggle = (what: 'details' | 'stars') => (e: MouseEvent) => {
+    setOpen(open === what ? null : what);
+    // 鼠标点开后不留键盘焦点框（键盘操作仍然有）
+    if (e.detail > 0) (e.currentTarget as HTMLElement).blur();
+  };
+  const main = {
+    type: 'button' as const,
+    'aria-expanded': open === 'details',
+    'aria-controls': 'td-details',
+    title: STR.details,
+    onClick: toggle('details'),
+  };
   return (
     <div class="td-strip-wrap">
-      <button
-        type="button"
-        class="td-strip"
-        aria-expanded={open}
-        aria-controls="td-details"
-        title={STR.details}
-        onClick={(e) => {
-          setOpen(!open);
-          // 鼠标点开后不留键盘焦点框（键盘操作仍然有）
-          if (e.detail > 0) (e.currentTarget as HTMLElement).blur();
-        }}
-      >
-        <span class="td-cell td-cell-q">
-          <span class="td-grade" style={{ background: GRADE_COLOR[g] }}>
-            {g}
+      {/* 星级格自己是一个按钮（点开星级明细，放在最右）；其余格子点开俱乐部报告 */}
+      <div class="td-strip">
+        <button {...main} class="td-strip-main">
+          <span class="td-cell td-cell-q">
+            <span class="td-grade" style={{ background: GRADE_COLOR[g] }}>
+              {g}
+            </span>
+            <span class="td-cell-col">
+              <span class="td-num">{Math.round(s.quality.value)}</span>
+              <span class="td-lab">{STR.quality}</span>
+            </span>
           </span>
-          <span class="td-cell-col">
-            <span class="td-num">{Math.round(s.quality.value)}</span>
-            <span class="td-lab">{STR.quality}</span>
+          <Cell value={String(s.members)} label={STR.members} />
+          {s.stars ? null : s.board ? (
+            <Cell value={String(s.board.value)} label={s.board.label} tone={s.board.tone} />
+          ) : (
+            <Cell value={`${s.courts.open}/${s.courts.total}`} label={STR.courtsOpen} />
+          )}
+          <Cell value={s.salary.text} label={s.salary.label ?? STR.salary} extra={s.salary.change} />
+          <span class="td-chev" aria-hidden="true">
+            {open === 'details' ? '▴' : '▾'}
           </span>
-        </span>
-        <Cell value={String(s.members)} label={STR.members} />
-        {s.board ? (
-          <Cell value={String(s.board.value)} label={s.board.label} tone={s.board.tone} />
-        ) : (
-          <Cell value={`${s.courts.open}/${s.courts.total}`} label={STR.courtsOpen} />
-        )}
-        <Cell value={s.salary.text} label={s.salary.label ?? STR.salary} extra={s.salary.change} />
-        <span class="td-chev" aria-hidden="true">
-          {open ? '▴' : '▾'}
-        </span>
-      </button>
-      {open ? (
+        </button>
+        {s.stars ? <StarCell st={s.stars} open={open === 'stars'} onTap={toggle('stars')} /> : null}
+      </div>
+      {open === 'stars' && s.stars ? <StarSheet st={s.stars} /> : null}
+      {open === 'details' ? (
         <section class="td-details" id="td-details" aria-label={STR.details}>
           <div class="td-details-head">
             <span>{STR.qualityChart}</span>
