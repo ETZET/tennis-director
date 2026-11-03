@@ -50,6 +50,14 @@ packages/iso/src/
    **深度缓冲**（每像素存 rx+rz 深度，Float32Array）做遮挡：动态物件被前面的建筑挡住时不画。
 4. **叠加层**：漫画字、表情、地点牌在另一张画布或 DOM（游戏的地点牌仍是 DOM，`camera.project` 给 CSS 坐标）。
 
+## 实现备注（wave 1 定下来的）
+
+- `IsoCameraPose.zoom` 就是 `k`（每米缓冲像素）；档位 `ZOOM_STEPS = 2, 3, 4, 5.2, 7.8, 11.7, 15.6`，默认限制 [2, 15.6]。
+- 相机额外有 `enabled`、`zoomAt`、`setPose`、`home`、`moving`；`bindPointer` 返回解绑函数；`world.dispose()` 释放画布和事件。
+- 像素图锚点在像素缝上：人物左右对称于第 `ox-1` 列和第 `ox` 列之间。翻转时 `ox' = w - ox`，挂点 `x' = w - 1 - x`。
+- `world.render` 在游戏没调 `camera.update` 的那一帧自己调一次；地面绘制和 `addLamp` 会自动标脏静态层。
+- 雨只画雨丝（ambient/rain），变暗由 `daylight.update(minute, rain)` 负责。
+
 ## 关键接口
 
 ### IsoWorld（旧 `Stage` 的替身，`core/world.ts`）

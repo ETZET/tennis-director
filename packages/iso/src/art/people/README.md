@@ -1,0 +1,50 @@
+# 人物精灵（ADR 0019）
+
+格式见 `../format.ts`（`PixelArt`、`SLOT`、`PersonSheet`、`FRAME_FALLBACK`）。本目录：
+
+| 文件 | 内容 |
+| --- | --- |
+| `adult.ts` | `ADULT_BASE`：成人的移动、基础姿势、击球分段（字面量字符画） |
+| `gestures.ts` | `ADULT_GESTURES`（手势、摔倒）、`HAIR_OVERLAYS`、`BODY_OVERLAYS` |
+| `kid.ts` | `KID` 精灵表和小孩的叠加图 |
+| `index.ts` | `ADULT = { body: 'adult', anims: { ...ADULT_BASE, ...ADULT_GESTURES } }`，并转出上面这些 |
+
+## 成人帧表（`adult.ts`）
+
+每个名字都有 `front` 和 `back` 两组；除了标了帧数的，都是 1 帧。
+
+- 移动：`idle`（2，0.6 s，第二帧头沉一格＝呼吸）、`walk`（4，0.14 s：迈开 / 并拢 / 换脚迈开 / 并拢）、
+  `run`（4，0.1 s：前倾、大步、摆臂，并拢帧离地 1 格）、`hop`（2：蹲 → 腾空举手）
+- 基础姿势（和 `people/poses.ts` 的 POSES 同名）：`relaxed` `slump` `ready` `pbReady` `seated` `seatPhone` `sitGround`
+  `phoneStand` `director` `carry` `handsKnees` `pull` `umbrella` `kneel` `juggle` `spinball` `yoga` `grill`
+  `crouchBK` `stoop` `set`
+- 击球分段（单帧，运行时按 STROKES 的时刻切）：`fhB fhC fhF` `bhB bhC bhF` `dkB dkC dkF` `fdB fdC fdF`
+  `sR sT sC sF` `tsB tsF` `vB vC`。`sT2`（发球下蹲蓄力）没有单独画，运行时用 `sT`。
+
+## 约定
+
+- **身体**：8×14（含描边）。头 5 行、躯干 3 行（最后一行是 `R` 腰带）、下装 2 行、腿 1 行、鞋 1 行。
+  和 `gestures.ts` 的底身同形同位置，基础姿势和手势之间切换不会跳。
+- **帧尺寸**：每帧裁到包围盒，宽 8～14、高 11～17 不等（手、拍子伸出去时变宽变高）。运行时只按锚点对齐。
+- **锚点** `(ox, oy)`：两脚中间、鞋底下面那一行（描边行）。身体左右对称于第 `ox-1` 列和第 `ox` 列之间，
+  **水平翻转时用 `ox' = 宽 - ox`**（挂点 `x' = 宽 - 1 - x`），这样朝左朝右切换时人不会横跳一格。
+  跳起来的帧（`hop`、`run` 的并拢帧、`sC`）脚离开锚点行，锚点不动。
+- **坐**：`seated`、`seatPhone` 的臀部底在锚点上方 4 格（约 0.5 m），小腿垂到锚点；锚点放在座位前沿下的地面上。
+  旧 three 版 `seatY = 地面 - 0.4` 的约定在像素版里要换算成"锚点 = 座位下的地面"。`sitGround` 臀部直接在地上。
+- **朝向**：`front` 脸朝镜头（画面右下），右手在画面左边；`back` 背朝镜头（画面右上），右手在画面右边。
+  朝左两个方向由运行时水平翻转。
+- **挂点** `pts`：每帧都有 `hand_r`、`hand_l`、`head_top`（头顶描边那一格，头中线偏右一格，和发型叠加图的 `ox` 对齐）；
+  能拿拍子的帧另有 `racket`（拍面 3×3 环的中心）。没有 `racket` 的帧（`seated`、`carry`、`umbrella`、`yoga`……）运行时应把拍子藏起来（Q = 'none'）。
+- **槽位**：`O` 描边、`S` 皮肤、`E` 眼睛、`H` 头发、`C` 帽子、`T` 上衣、`L` 袖子、`R` 腰带（trim）、`B` 下装、`F` 鞋、
+  `Q` 球拍、`W` 白（夹板纸）。小写是暗面（`h t b c s r`），由亮面自动压暗。成人底身不用 `K`（袜子）。
+- **帽子**：头顶两行用 `C`。没戴帽子时运行时把 `C` 设成发色；戴帽子时 `C` = 帽子色（也可以叠 `HAIR_OVERLAYS.cap` 加帽檐）。
+- **球拍**：只用 `Q`，而且只画在空格、或手边的自动描边上，**从不压身体像素**；没拿拍子时 `Q = 'none'` 不会留洞，
+  只有手边可能少一格描边。拍子不描边（拍子颜色本来就深）。
+- **固定色**（`pal`）：`1` 手机壳、`2` 手机屏、`3` 夹板。
+
+## 预览
+
+帧是用一个拼帧脚本（部件 + 自动描边 + 裁剪）生成的，再落成字面量，之后可以直接手改或由像素美术逐张替换。
+检查方法：写一个 node 脚本，`import { ADULT } from './index'`，用 pngjs 按槽位换色画成联系表（×5～×6 最近邻放大，
+多套肤色/发色/上衣/下装，带和不带拍子、帽子），再在沙地 / 草地 / 硬地 / 红土色块上按 1× 和 2× 各画一排，
+用 `npx tsx` 跑。重点看 1×：轮廓清楚、朝向看得出、动作看得出；红点标出挂点位置。

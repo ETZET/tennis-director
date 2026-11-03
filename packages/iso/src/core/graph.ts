@@ -91,15 +91,20 @@ function compose(out: Mat, p: V3, r: Euler, s: V3): void {
   out[11] = p.z;
 }
 
+const MUL_TMP = new Float64Array(12);
+
 function mul(out: Mat, A: Mat, B: Mat): void {
-  const r = new Float64Array(12);
+  const r = MUL_TMP;
   for (let col = 0; col < 4; col++) {
     const b0 = B[col * 3] as number;
     const b1 = B[col * 3 + 1] as number;
     const b2 = B[col * 3 + 2] as number;
     for (let row = 0; row < 3; row++)
       r[col * 3 + row] =
-        (A[row] as number) * b0 + (A[3 + row] as number) * b1 + (A[6 + row] as number) * b2 + (col === 3 ? (A[9 + row] as number) : 0);
+        (A[row] as number) * b0 +
+        (A[3 + row] as number) * b1 +
+        (A[6 + row] as number) * b2 +
+        (col === 3 ? (A[9 + row] as number) : 0);
   }
   out.set(r);
 }
@@ -350,10 +355,32 @@ export interface DrawContext {
   readonly night: number;
   /** 演出时间（秒），给摆动、闪烁用 */
   readonly t: number;
-  wpoly(pts: readonly (readonly [number, number, number])[], c: number, shader?: (x: number, y: number) => number): void;
+  wpoly(
+    pts: readonly (readonly [number, number, number])[],
+    c: number,
+    shader?: (x: number, y: number) => number,
+  ): void;
   wline(a: readonly [number, number, number], b: readonly [number, number, number], c: number, w?: number): void;
-  box(x0: number, x1: number, z0: number, z1: number, y0: number, y1: number, hex: string, o?: BoxStyle & { lit?: number }): void;
-  hipRoof(x0: number, x1: number, z0: number, z1: number, y: number, rise: number, hex: string, o?: { lit?: number }): void;
+  box(
+    x0: number,
+    x1: number,
+    z0: number,
+    z1: number,
+    y0: number,
+    y1: number,
+    hex: string,
+    o?: BoxStyle & { lit?: number },
+  ): void;
+  hipRoof(
+    x0: number,
+    x1: number,
+    z0: number,
+    z1: number,
+    y: number,
+    rise: number,
+    hex: string,
+    o?: { lit?: number },
+  ): void;
   cyl(x: number, z: number, r: number, y0: number, y1: number, hex: string, o?: { lit?: number; top?: string }): void;
   pix(x: number, y: number, c: number): void;
   rect(x: number, y: number, w: number, h: number, c: number): void;
