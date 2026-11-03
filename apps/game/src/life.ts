@@ -7,6 +7,7 @@ import {
   type Person,
   type Scheduler,
   type Site,
+  type Sprite,
   WEST,
 } from '@td/iso';
 import { clamp, type XZ } from '@td/shared';
@@ -153,12 +154,18 @@ export function createLife(d: LifeDeps): Life {
     all.push(b);
     return b;
   };
+  /** 身体、发型、覆盖物、手里的东西一起溶解（只改身体的话头发会一下子冒出来） */
+  function setAlpha(p: Person, a: number): void {
+    p.root.traverse((n) => {
+      if (n.kind === 'sprite') (n as Sprite).opacity = a;
+    });
+  }
   const here = (b: Bg) => ({ x: b.p.pos.x, z: b.p.pos.z });
   function fadeTo(b: Bg, to: number, done: (() => void) | null = null): void {
     const vis = b.p.root.visible;
     const from = vis ? b.p.sprite.opacity : 0;
     b.p.root.visible = true;
-    b.p.sprite.opacity = from;
+    setAlpha(b.p, from);
     b.fade = { a: from, b: to, t: 0, d: FADE * Math.abs(to - from), done };
     if (b.fade.d <= 0) endFade(b);
   }
@@ -166,10 +173,10 @@ export function createLife(d: LifeDeps): Life {
     const f = b.fade;
     if (!f) return;
     b.fade = null;
-    b.p.sprite.opacity = f.b;
+    setAlpha(b.p, f.b);
     if (f.b <= 0) {
       b.p.root.visible = false;
-      b.p.sprite.opacity = 1;
+      setAlpha(b.p, 1);
     }
     f.done?.();
   }
@@ -179,7 +186,7 @@ export function createLife(d: LifeDeps): Life {
       if (!f) continue;
       f.t += dt;
       if (f.t >= f.d) endFade(b);
-      else b.p.sprite.opacity = f.a + (f.b - f.a) * (f.t / f.d);
+      else setAlpha(b.p, f.a + (f.b - f.a) * (f.t / f.d));
     }
   }
   /** 立刻藏起来（只在读档、换内容时用） */
@@ -188,7 +195,7 @@ export function createLife(d: LifeDeps): Life {
     b.fade = null;
     b.p.clearMoves();
     b.p.root.visible = false;
-    b.p.sprite.opacity = 1;
+    setAlpha(b.p, 1);
     b.phase = 'off';
   }
   /** 原地溶解掉（时间跳过去了，来不及走） */

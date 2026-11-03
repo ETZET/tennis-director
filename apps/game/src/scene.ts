@@ -13,6 +13,7 @@ import {
   type PoseName,
   Scheduler,
   type Site,
+  type Sprite,
 } from '@td/iso';
 import { clamp, lerp, mulberry32, type XZ } from '@td/shared';
 import {
@@ -31,7 +32,7 @@ import {
 import { idlePlan } from './idle';
 import { createLife } from './life';
 import { entryFor, type Performance, type PerformInput, perform, planPerformance } from './perform';
-import { walkHeading, walkPoint } from './walkpath';
+import { joinPoint, walkHeading, walkPoint, walkRate } from './walkpath';
 
 /**
  * 游戏画面里的"活"的部分：员工（总监也是）沿路线走、站在岗位上干活、设施状态、活动演出、天气。
@@ -473,6 +474,8 @@ export function createGameScene(stage: IsoWorld, content0: ContentBundle, site: 
     idleSince.clear();
     slots.clear();
     motion.clear();
+    for (const who of fades.keys()) setAlpha(who, 1);
+    fades.clear();
     lastTime = null;
     // 读档、新开局：所有人直接站到该在的地方（下一帧 placeStaff 按 snap 处理）
     snapNext = true;
@@ -607,6 +610,53 @@ export function createGameScene(stage: IsoWorld, content0: ContentBundle, site: 
     }
     return d;
   };
+  /**
+   * 员工的像素溶解（只是画面）：新招的人在停车场溶解出现、辞退的人走到停车场溶解掉，和背景会员一样（life.ts），
+   * 不再整个人一下子冒出来、消失。身体、发型、覆盖物、手里的东西一起溶解。
+   */
+  const fades = new Map<Person, { a: number; b: number; t: number; d: number }>();
+  /** 溶解一次要多久（秒，真实时间；和 life.ts 一样） */
+  const FADE = 0.6;
+  function setAlpha(who: Person, a: number): void {
+    who.root.traverse((n) => {
+      if (n.kind === 'sprite') (n as Sprite).opacity = a;
+    });
+  }
+  /** 从此刻的不透明度溶解到 to（已经在往 to 溶解就不重来） */
+  function fadeTo(who: Person, to: number): void {
+    const f = fades.get(who);
+    if (f?.b === to) return;
+    const from = f ? f.a + (f.b - f.a) * Math.min(1, f.t / Math.max(1e-6, f.d)) : who.root.visible ? 1 : 0;
+    fades.set(who, { a: from, b: to, t: 0, d: FADE * Math.abs(to - from) });
+    setAlpha(who, from);
+  }
+  /** 立刻到位（读档、跳时间） */
+  function fadeNow(who: Person, to: number): void {
+    fades.delete(who);
+    setAlpha(who, to);
+  }
+  function tickFades(dt: number): void {
+    for (const [who, f] of fades) {
+      f.t += dt;
+      if (f.t < f.d) {
+        setAlpha(who, f.a + (f.b - f.a) * (f.t / f.d));
+        continue;
+      }
+      fades.delete(who);
+      if (f.b <= 0) {
+        // 溶解完了：藏起来，不透明度还原（下次招回来从 0 溶解出现）
+        who.root.visible = false;
+        setAlpha(who, 1);
+      } else setAlpha(who, f.b);
+    }
+  }
+  /** 游戏分钟 / 真实秒（按最近几帧估；刚出发汇合路线时把走路速度换成米/游戏分钟） */
+  let gmps = 6;
+  /**
+   * 汇合路线时比路线上的插值点快几倍（插值点 1× 时已经比小跑快；站位旁边的闲逛点常在出发方向的后面，
+   * 慢了要追一秒多，QA：开走时落后 4~5 米）
+   */
+  const JOIN_K = 2.2;
   function placeStaff(s: GameState, w: World, time: number, sdt: number, snap: boolean): void {
     for (const id of Object.keys(s.people).sort((a, b) =>
       a === DIRECTOR ? -1 : b === DIRECTOR ? 1 : a.localeCompare(b),
@@ -636,7 +686,11 @@ export function createGameScene(stage: IsoWorld, content0: ContentBundle, site: 
             if (sdt > 0) who.go(q.x, q.z, leadLeft(m, who) > 14 ? STAFF_RUN : STAFF_WALK);
             continue;
           }
+          // 走到停车场了：原地溶解掉（溶解完 tickFades 把人藏起来）
+          fadeTo(who, 0);
+          continue;
         }
+        if (fades.has(who)) fadeNow(who, 1);
         who.root.visible = false;
         m.exit = false;
         m.lead = [];
@@ -648,14 +702,19 @@ export function createGameScene(stage: IsoWorld, content0: ContentBundle, site: 
         continue;
       }
       if (m.exit) {
-        // 走到一半又被招回来：接着按岗位走
+        // 走到一半又被招回来：接着按岗位走（溶解了一半的溶解回来）
         m.exit = false;
         m.lead = [];
+        if (fades.has(who)) fadeTo(who, 1);
       }
+      if (snap && fades.has(who)) fadeNow(who, 1);
       if (!who.root.visible) {
         who.root.visible = true;
-        // 新招的人从停车场沿步道走进来，走到他该在的地方（读档、跳时间时直接站好）
-        if (!snap) {
+        // 新招的人在停车场溶解出现，沿步道走进来，走到他该在的地方（读档、跳时间时直接站好）
+        if (snap) fadeNow(who, 1);
+        else {
+          fades.set(who, { a: 0, b: 1, t: 0, d: FADE });
+          setAlpha(who, 0);
           const line = route(LOT, p.walk ? p.walk.from : p.at);
           const start = line[0] ?? home;
           who.clearMoves();
@@ -717,9 +776,17 @@ export function createGameScene(stage: IsoWorld, content0: ContentBundle, site: 
           if (p.walk && step > 0 && dist <= Math.max(0.35, step * 1.5)) {
             // 跟得上：正好走在模拟的路线上
             if (dist > 0.01) who.go(target.x, target.z, dist / sdt, heading != null ? { face: heading } : {});
+          } else if (p.walk && dist > 0.01) {
+            // 刚出发（人站在站位旁边，离路线起点几米）、演出刚还回来、走进场刚走完：不在插值点后面追，
+            // 斜着走上路线，在插值点前面汇合（walkpath.joinPoint），汇合了就按上面那一支正好跟着走
+            const line = walkRate(site, w, p.walk, time) * gmps;
+            const v = Math.max(dist > 3 ? STAFF_RUN : STAFF_WALK, line * JOIN_K);
+            const j = joinPoint(site, w, p.walk, time, who.pos, v / Math.max(0.1, gmps));
+            const dj = Math.hypot(j.x - who.pos.x, j.z - who.pos.z);
+            if (dj > 0.01) who.go(j.x, j.z, Math.min(v, dj / sdt));
           } else if (dist > 0.01) {
-            // 跟不上（刚出发、刚到、演出刚还回来、刚换了位子）：按走路速度走过去，目标在动就比它快一些
-            const v = Math.max(dist > 8 ? STAFF_RUN : STAFF_WALK, (step / sdt) * 1.4);
+            // 跟不上（刚到、演出刚还回来、刚换了位子）：按走路速度走过去
+            const v = dist > 8 ? STAFF_RUN : STAFF_WALK;
             who.go(target.x, target.z, Math.min(v, dist / sdt));
           }
         }
@@ -969,8 +1036,14 @@ export function createGameScene(stage: IsoWorld, content0: ContentBundle, site: 
         else rain.stop();
         snapRain();
       }
+      // 游戏分钟 / 真实秒：按最近几帧平滑（倍速、没事时加速都会变）
+      if (sdt > 0 && lastTime !== null && !snap) {
+        const g = (time - lastTime) / sdt;
+        if (g > 0 && g < 200) gmps += (g - gmps) * 0.2;
+      }
       lastTime = time;
       sched.advance(sdt);
+      tickFades(sdt);
 
       const w = worldOf(s, content);
       syncJobShows(s, w);

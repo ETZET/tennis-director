@@ -305,6 +305,11 @@ export class Sprite extends Node {
   opacity = 1;
   /** 被建筑挡住的部分画成棋盘格剪影（人物用，免得走到墙后就看不见） */
   xray = false;
+  /**
+   * 上一次画的时候有没有被挡住（深度测试的滞回，Draw 维护）：没被挡住时多给 Draw.SPRITE_ZHYST 米容差，
+   * 被挡住了按原来的容差，所以贴着墙、围网平行走的人不会每帧在"看得见"和"剪影"之间来回跳。
+   */
+  zhide = false;
   constructor(frame: BakedArt | null = null) {
     super();
     this.frame = frame;
