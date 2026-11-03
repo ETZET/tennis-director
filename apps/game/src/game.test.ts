@@ -190,3 +190,34 @@ describe('衰减和掉档的快讯（准则 6；GM-1：废墟天天刷屏）', (
     expect(proj.placeSheet(session, 'stadium_2').condition).toBeUndefined();
   });
 });
+
+describe('路上的人不算在岗（标签、清单、地点牌和模拟的 working() 一致）', () => {
+  it('派去远处的工单：走路时说"在路上 · N 分钟"、头像标 coming；到了才说"在干"', () => {
+    const s = newGame(CONTENT, { seed: 7 });
+    s.cards.scheduled = [];
+    s.cards.open = [];
+    s.cards.nextDraw = Number.POSITIVE_INFINITY;
+    const session = new Session(CONTENT, s);
+    const proj = new Projector(CONTENT, createText(CONTENT, 'en'));
+    advance(
+      s,
+      CONTENT,
+      [
+        { type: 'assign', person: 'director', target: 'o1_sweep' },
+        { type: 'assign', person: 'dale', target: 'o1_sweep' },
+      ],
+      1,
+    );
+    const row = () => proj.placeSheet(session, 'outer_1').rows.find((r) => r.id === 'o1_sweep');
+    expect(row()?.line).toMatch(/^0% · waiting for crew · On the way: /);
+    expect(row()?.line).not.toMatch(/working/);
+    expect(row()?.faces.every((f) => f.coming)).toBe(true);
+    expect(proj.sheet(session, 'o1_sweep')?.people.every((p) => p.coming && /On the way/.test(p.fit))).toBe(true);
+    expect(proj.hub(session, 'outer_1')?.orders.crew).toBe(0);
+    advance(s, CONTENT, [], 60);
+    expect(s.people.dale?.walk).toBeFalsy();
+    expect(row()?.line).toMatch(/working · \d+%$/);
+    expect(row()?.faces.some((f) => f.coming)).toBe(false);
+    expect(proj.hub(session, 'outer_1')?.orders.crew).toBe(2);
+  });
+});

@@ -40,7 +40,7 @@ export function TargetSheet({ t, actions, back }: { t: Sheet; actions: HudAction
                 disabled={!!p.disabled && !p.here}
                 onClick={() => actions.assign?.(p.id, p.here ? null : t.id)}
               >
-                <span class="td-tok-face" style={{ background: p.color }}>
+                <span class={`td-tok-face${p.coming ? ' td-face-coming' : ''}`} style={{ background: p.color }}>
                   {p.initials}
                 </span>
                 <span class="td-sheet-who">

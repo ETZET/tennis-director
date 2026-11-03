@@ -481,6 +481,9 @@ ui:
     order_new: "{cost}{time} · 还没开工"
     order_on: "{names}在干 · {p}%"
     order_paused: "停工 · {p}%"
+    order_wait: "{p}% · 等人到场"
+    coming: "在路上：{list}"
+    coming_one: "{name} {time}"
   why:
     person: 不能指派
     busy: 正在办事，叫不回来
@@ -501,6 +504,7 @@ ui:
     crew: "最多 {n} 人一起"
     post_on: "{name}在干 · 这一圈还要 {time}"
     post_wait: "{name}在这儿，等客人来"
+    post_coming: "{name}在路上 · 还要 {time}"
     post_empty_now: 没人 · 有客人在等
     post_empty: 没人
     order_on: "{names}在干 · {p}%"
@@ -510,3 +514,4 @@ ui:
     here: 就在这儿
     leaves: "会放下“{what}”"
     speed: "干活速度 {n}%"
+    you_coming: "在路上 · 还要 {time}"

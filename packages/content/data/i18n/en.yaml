@@ -491,6 +491,9 @@ ui:
     order_new: "{cost}{time} · not started"
     order_on: "{names} working · {p}%"
     order_paused: "Paused · {p}%"
+    order_wait: "{p}% · waiting for crew"
+    coming: "On the way: {list}"
+    coming_one: "{name} {time}"
   why:
     person: Can't be assigned
     busy: Away on an errand
@@ -511,6 +514,7 @@ ui:
     crew: "Up to {n} people"
     post_on: "{name} is on it · {time} left this round"
     post_wait: "{name} is here, waiting for customers"
+    post_coming: "{name} is on the way · {time}"
     post_empty_now: Nobody · customers waiting
     post_empty: Nobody
     order_on: "{names} working · {p}%"
@@ -520,3 +524,4 @@ ui:
     here: Right here
     leaves: "leaves “{what}”"
     speed: "Working at {n}%"
+    you_coming: "On the way · {time}"
