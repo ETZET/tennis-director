@@ -250,6 +250,48 @@ describe('活动演出（无画布）', () => {
     H.step(2);
   });
 
+  it('每个生成的人物第一次被看到时就在入场起点（setup 里生成的、开演后生成的都一样）', () => {
+    for (const id of ['cleanup', 'openday', 'match', 'fair'] as const) {
+      const meta = activityMeta(id);
+      if (!meta) throw new Error(id);
+      const { area, bounds } = dioramaArea(meta);
+      const H = host();
+      const gate = { x: 3, z: 30 };
+      const start = area.l(gate);
+      const seen = new Set<Person>();
+      let checked = 0;
+      const sample = () => {
+        for (const p of H.world.people) {
+          if (seen.has(p)) continue;
+          seen.add(p);
+          if (p.userData.passer) continue;
+          checked++;
+          expect(p.pos.x, id).toBeCloseTo(start.x, 6);
+          expect(p.pos.z, id).toBeCloseTo(start.z, 6);
+          expect(p.root.position.x, id).toBeCloseTo(start.x, 6);
+          expect(p.root.position.z, id).toBeCloseTo(start.z, 6);
+        }
+      };
+      const h = startActivity({ scene: H.scene, sched: H.sched, world: H.world, groundY: () => 0 }, id, {
+        area,
+        bounds,
+        conditions: conds(),
+        params: id === 'cleanup' ? { crewN: 1, progress: 0 } : {},
+        entry: { from: (p) => [gate, p] },
+      });
+      sample();
+      for (let i = 0; i < 60 * 20; i++) {
+        if (id === 'cleanup' && i === 400) h.setParams({ crewN: 4 });
+        // 和宿主一样：先推进时间轴（活动在这里生成人），再画面之前取样
+        H.sched.advance(1 / 20);
+        sample();
+        for (const p of [...H.world.people]) p.update(1 / 20, H.sched.now);
+      }
+      expect(checked, id).toBeGreaterThan(1);
+      h.stop();
+    }
+  });
+
   it('收场时没走到的人 8 秒后原地溶解', () => {
     const meta = activityMeta('feed');
     if (!meta) throw new Error('feed');

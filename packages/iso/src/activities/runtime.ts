@@ -42,6 +42,7 @@ interface Pose {
 interface Entry {
   /** 起点（局部坐标）；借来的人物没有起点，从原地走过去 */
   start: XZ | null;
+  mark: XZ;
   settled: boolean;
   arrived: boolean;
   /** 等不等他：开演要等所有 gate 的人到位 */
@@ -58,6 +59,11 @@ interface Fade {
   dir: 1 | -1;
   onEnd?: () => void;
 }
+
+const isIn = (n: Node, root: Node): boolean => {
+  for (let q: Node | null = n; q; q = q.parent) if (q === root) return true;
+  return false;
+};
 
 /** 入场走路的速度（米/秒） */
 const ENTRY_SPEED = 2.3;
@@ -213,6 +219,8 @@ export class Act {
   private fades: Fade[] = [];
   private readonly fading = new Set<Person>();
   private leaveT0 = 0;
+  /** setup 跑完了（之后生成的人马上放到起点） */
+  private staged = false;
   /** 活动组世界矩阵的逆（lp 用） */
   private readonly inv: Float64Array;
   private last: number;
@@ -400,9 +408,24 @@ export class Act {
       const pts = this.entryPath(mark);
       start = pts[0] as XZ;
       p.path(pts.slice(1), ENTRY_SPEED);
+      // 开演后才生成的人：马上放到起点（不等下一帧，免得在站位上闪一帧）；
+      // setup 里生成的人在 startActivity 结束前统一放过去（setup 还要读站位）
+      if (this.staged) {
+        p.pos.set(start.x, 0, start.z);
+        p.update(0, this.now);
+      }
+      // 在起点像素溶解着出现（起点在岛边、不在场外时也不会凭空冒出来）
+      this.fade(p.root, 1);
     } else p.go(mark.x, mark.z, ENTRY_SPEED);
     p.call(() => this.arrive(p));
-    this.entries.set(p, { start, settled: false, arrived: false, gate: !this.ready, pose: null });
+    this.entries.set(p, {
+      start,
+      mark: { x: mark.x, z: mark.z },
+      settled: false,
+      arrived: false,
+      gate: !this.ready,
+      pose: null,
+    });
   }
 
   /** 这个人原地开演，不走入场（路人：自己从边上走过） */
@@ -411,6 +434,10 @@ export class Act {
     if (e && !e.settled) {
       this.entries.delete(p);
       p.clearMoves();
+      p.pos.set(e.mark.x, 0, e.mark.z);
+      p.update(0, this.now);
+      for (const f of this.fades) if (f.items.length && f.items.some((it) => isIn(it.n, p.root))) this.applyFade(f, 1);
+      this.fades = this.fades.filter((f) => !f.items.some((it) => isIn(it.n, p.root)));
     }
     return p;
   }
@@ -432,7 +459,10 @@ export class Act {
     if (e.settled) return;
     e.settled = true;
     e.pose = { lock: p.lock, yaw: p.yaw, base: p.base, seatY: p.seatY, idleFace: p.idleFace, watch: p.watch };
-    if (e.start) p.pos.set(e.start.x, 0, e.start.z);
+    if (e.start) {
+      p.pos.set(e.start.x, 0, e.start.z);
+      p.update(0, this.now);
+    }
     p.lock = null;
     p.seatY = null;
     p.idleFace = null;
@@ -459,6 +489,7 @@ export class Act {
 
   /** 把刚生成、还没放到起点的人放过去；开演条件到了就开演 */
   settleAll(): void {
+    this.staged = true;
     for (const [p, e] of this.entries) if (!e.settled) this.settle(p, e);
     if (this.ready || !this.alive) return;
     let all = true;
