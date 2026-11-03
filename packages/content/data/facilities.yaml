@@ -60,7 +60,7 @@
 - id: stadium_1
   anchor: stadium_1
   states:
-    # 东南角上层看台塌了，场地上全是碎石和沙
+    # 东北角看台塌了，场地上全是碎石和沙
     ruined: { quality: -4 }
     cleared: { quality: -1 }
     restored: { courts: 1, quality: 20, upkeep_week: 300, decay_day: 2, drops_to: worn }

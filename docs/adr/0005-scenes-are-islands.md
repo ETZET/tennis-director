@@ -35,3 +35,7 @@
 画面换成 2.5D 等距像素后，浮空岛保留，画法换了：岛是一块像素地台（`createIsoWorld` 的 `slab`，Indian Wells 是 `site/indian-wells/ground.ts` 的 `SLAB`），
 地面贴图只覆盖地台，地台侧面由 `IsoView` 画成土层，外面是背景的荒原和群山。`ISLAND`、`onIsland`、`UNDERSIDE`、`ambient/sky.ts` 随 `packages/render` 删掉；
 云、鸟、风滚草在 `site/<地图>/sky.ts`。动画库的小岛（`activities/diorama.ts`）是同样的小地台。上面关于 Hollow Creek 小溪、东侧公路、相机 0.26 的条目只是历史。
+
+## 修订提议（2026-11-03，ADR 0021）
+
+地台不再永远是一块方形：ADR 0021（提议）让它在 ★4 第一次长出去，按"基础地台 + 已启用的地"合并后的轮廓画侧面。采纳以后这一条跟着改。
