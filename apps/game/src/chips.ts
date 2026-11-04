@@ -58,7 +58,7 @@ export function effectChips(
       const good = LOWER_IS_BETTER.has(e.stat) ? e.add < 0 : e.add > 0;
       const text = e.stat === 'cash' ? `${e.add > 0 ? '+' : '−'}$${Math.abs(e.add)}` : `${name} ${fmtNum(e.add)}`;
       out.push({ text: text + maybe, tone: e.stat === 'cash' && e.add < 0 ? 'cost' : good ? 'gain' : 'loss' });
-    } else if ('facility' in e) out.push({ text: T.tr(`facilities.${e.facility}.${e.set}`), tone: 'gain' });
+    } else if ('facility' in e) out.push({ text: T.facilityState(e.facility, e.set), tone: 'gain' });
     else if ('hire' in e) {
       const who = hireChips(T, e.hire, people);
       // 有能力和周薪就不再重复"某某上任"（选项文字里已经有名字）
@@ -69,7 +69,7 @@ export function effectChips(
       );
     } else if ('condition' in e && typeof e.add === 'number')
       out.push({
-        text: `${T.tr(`ui.fac.${e.condition}`, e.condition)} ${T.tr('ui.condition')} ${fmtNum(e.add)}`,
+        text: `${T.facility(e.condition)} ${T.tr('ui.condition')} ${fmtNum(e.add)}`,
         tone: e.add > 0 ? 'gain' : 'loss',
       });
     else if ('fire' in e) out.push({ text: T.fmt('ui.chip.fire', { name: T.personName(e.fire) }), tone: 'loss' });

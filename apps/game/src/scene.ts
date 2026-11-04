@@ -357,6 +357,8 @@ export function createGameScene(stage: IsoWorld, content0: ContentBundle, site0:
   let starPending: { n: number; wait: number } | null = null;
   /** 排着还没演的升星（几星）：玩家看不见画面时发生的，等看得见了再演 */
   let starQueued: number | null = null;
+  /** 结局时把星级牌定格过一次 */
+  let starsFinal = false;
   let watching = true;
   /** 真实秒（暂停时也走）：升星镜头的计时 */
   let realNow = 0;
@@ -1248,6 +1250,17 @@ export function createGameScene(stage: IsoWorld, content0: ContentBundle, site0:
       // 变体、升级、牌匾、星级：和模拟状态对一下（读档、改造期满、解锁变体都靠这一步跟上）
       applyLooks(s);
       realNow += dt;
+      // 局已经结束（★5 往往就在结局前一刻升）：结局卡停着画面时间，升星动画走不完会一直停在旧星数上。
+      // 不再等镜头和夜里，也不播动画，牌子直接换成现在的星数（结局画面上不会少一颗）
+      if (!s.outcome) starsFinal = false;
+      else if (!starsFinal || starQueued !== null || starPending) {
+        starsFinal = true;
+        const n = Math.max(s.stars ?? 0, starQueued ?? 0, starPending?.n ?? 0);
+        starQueued = null;
+        starPending = null;
+        starsShown = n;
+        setStars(n, false);
+      }
       if (starQueued !== null && watching && !starPending && realNow >= landUntil) {
         playStar(starQueued);
         starQueued = null;

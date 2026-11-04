@@ -114,7 +114,8 @@ function Beats({ beats, actions }: { beats: NonNullable<SeasonInfo['beats']>; ac
           type="button"
           key={b.id}
           class={`td-chip td-beat${b.live ? ' td-beat-live' : ''}`}
-          title={`${b.label} · ${b.when}`}
+          title={b.full ?? `${b.label} · ${b.when}`}
+          aria-label={b.full ?? `${b.label} · ${b.when}`}
           onClick={(e) => {
             actions?.beat?.(b.place);
             if (e.detail > 0) (e.currentTarget as HTMLElement).blur();
@@ -586,7 +587,7 @@ function ClubWire({ s, actions }: { s: HudSnapshot; actions: HudActions }) {
       <span class="td-wire-tag">{STR.wire}</span>
       <ol class="td-wire-items" aria-label={STR.wire}>
         {s.wire.map((w) => (
-          <li key={w.id} class={w.hot ? 'td-hot' : ''}>
+          <li key={w.id} class={w.hot ? 'td-hot' : ''} title={w.text}>
             <b>{w.time}</b> {w.text}
           </li>
         ))}

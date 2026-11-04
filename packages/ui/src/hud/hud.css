@@ -141,6 +141,8 @@
 .td-wire-tag{flex:none;padding:0 14px;padding-left:max(14px,env(safe-area-inset-left,0px));background:var(--td-green);display:flex;align-items:center;font:800 13px/1 var(--td-cond);letter-spacing:.1em;text-transform:uppercase}
 .td-wire-items{list-style:none;margin:0;padding:0 16px;display:flex;align-items:center;gap:22px;flex:1;min-width:0;overflow:hidden;white-space:nowrap;font:500 14px/1 var(--td-text);color:#dfe5ec;-webkit-mask-image:linear-gradient(90deg,#000 85%,transparent);mask-image:linear-gradient(90deg,#000 85%,transparent)}
 .td-wire-items li{flex:none;animation:td-wire-in .5s ease-out}
+/* 最新的一条放不下时以"…"收尾，不在半个词上被遮罩切掉（完整的在 title 里） */
+.td-wire-items li:first-child{flex:0 1 auto;min-width:0;max-width:100%;overflow:hidden;text-overflow:ellipsis}
 .td-wire-items li b{color:var(--td-optic);font-weight:600;font-variant-numeric:tabular-nums;margin-right:4px}
 .td-wire-items li.td-hot{color:var(--td-white);font-weight:600}
 .td-wire-items li.td-hot b{color:var(--td-down)}
@@ -266,6 +268,9 @@
 /* 接下来的节拍（UI-9）：季节栏下一排两块小牌，点一下镜头转过去；手指命中区上下各扩到 44px */
 .td-beats{display:flex;gap:6px;flex:1 1 100%;min-width:0}
 .td-beat{position:relative;border:0;cursor:pointer;background:var(--td-navy-2);color:var(--td-white);gap:6px;min-width:0;flex:0 1 auto;overflow:hidden;text-overflow:ellipsis}
+/* 两张牌平分一行：一张长名字不会把另一张挤成"Hir…"（手机 390 宽，UI-9） */
+.td-beats .td-beat{flex:0 1 50%;max-width:calc(50% - 3px);justify-content:flex-start}
+.td-beat b{flex:none}
 .td-beat::before{content:"";position:absolute;left:0;right:0;top:-12px;bottom:-12px}
 .td-beat b{color:var(--td-optic);font-weight:700}
 .td-beat span{text-transform:none;font-family:var(--td-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}

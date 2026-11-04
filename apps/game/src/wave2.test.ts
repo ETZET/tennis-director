@@ -159,7 +159,9 @@ describe('season beats (UI-9)', () => {
       expect(beats.length).toBe(2);
       // 第一期 cup（第 6 天周六 9 点）、外出赛 open（第 10 天周三）
       expect(beats[0]?.place).toBe('outer_1');
-      expect(beats[0]?.when).toMatch(lang === 'en' ? /Sat 9/ : /周六 9:00/);
+      expect(beats[0]?.when).toMatch(lang === 'en' ? /Sat 9a/ : /周六9点/);
+      // 完整的说法留在 full 里（长按 / 读屏）
+      expect(beats[0]?.full).toMatch(lang === 'en' ? /Sat 9/ : /周六 9:00/);
       for (const b of beats) expect(`${b.label} ${b.when}`).not.toMatch(raw);
     }
   });
@@ -168,12 +170,13 @@ describe('season beats (UI-9)', () => {
     const { session, s, projector } = setup();
     s.cards.scheduled = [{ card: 'iw_hiring_day_2', at: at(3, 9), cause: null }];
     const beats = projector.snapshot(session).season?.beats ?? [];
-    expect(beats[0]?.label).toBe('Hiring day');
-    expect(beats[0]?.when).toMatch(/Tmrw|Day|Wed|Thu/);
+    expect(beats[0]?.label).toBe('Hiring');
+    expect(beats[0]?.full).toMatch(/^Hiring day · /);
+    expect(beats[0]?.when).toMatch(/Tmrw|D\d|Wed|Thu/);
     // 投资方（第 85 天）在节拍里，赛事都过了以后
     s.t = at(80, 9);
     const late = projector.snapshot(session).season?.beats ?? [];
-    expect(late.map((b) => b.label)).toContain('Investor visit');
+    expect(late.map((b) => b.label)).toContain('Investors');
   });
 });
 
@@ -296,5 +299,90 @@ describe('releases and returns in the news', () => {
     const [ret, rel] = projector.snapshot(session).wire;
     expect(rel?.text).toMatch(/closed · .* is free now/);
     expect(ret?.text).toMatch(/finished .* went back to/);
+  });
+});
+
+describe('gate 2 UI fixes', () => {
+  it('a rain-spoiled event leaves the beats bar', () => {
+    const { session, s, projector } = setup();
+    expect(projector.snapshot(session).season?.beats?.[0]?.id).toMatch(/^tour:cup:/);
+    s.log.push({
+      id: 900,
+      t: s.t,
+      parent: null,
+      effects: [],
+      cause: { kind: 'tournament', tournament: 'cup', result: 'spoiled', goals: {}, repeat: 0, scale: 1 },
+    });
+    const ids = (projector.snapshot(session).season?.beats ?? []).map((b) => b.id);
+    expect(ids.some((x) => x.startsWith('tour:cup:'))).toBe(false);
+  });
+
+  it('news times use the HUD clock (AM/PM in English, 24 h in Chinese)', () => {
+    for (const [lang, want] of [
+      ['en', '8:00 PM'],
+      ['zh', '20:00'],
+    ] as const) {
+      const { session, s, projector } = setup(lang);
+      s.t = at(2, 20);
+      projector.onEvents(s, [{ type: 'cardOpened', card: 'route_s2', uid: 1 } as SimEvent]);
+      expect(projector.snapshot(session).wire[0]?.time).toBe(want);
+    }
+  });
+
+  it('the same line is not repeated in the news on the same day', () => {
+    const { session, s, projector } = setup();
+    const ev = { type: 'cardOpened', card: 'route_s2', uid: 1 } as SimEvent;
+    projector.onEvents(s, [ev]);
+    projector.onEvents(s, [ev]);
+    expect(projector.snapshot(session).wire.length).toBe(1);
+  });
+
+  it('a finished prep phase is not listed again as locked', () => {
+    const { session, s, projector } = setup();
+    session.place = 'stadium_1';
+    s.orderLog.done.prep_service = 1;
+    const rows = projector.snapshot(session).place?.rows ?? [];
+    expect(rows.find((r) => r.id === 'prep_service' && r.locked)).toBeUndefined();
+  });
+
+  it('an away event before its sign-up says when sign-up opens, not the entry rules', () => {
+    for (const lang of ['en', 'zh'] as const) {
+      const { session, projector } = setup(lang);
+      session.place = 'entrance';
+      const row = projector.snapshot(session).place?.rows.find((r) => r.id === 'open_go');
+      expect(row?.locked).toBe(true);
+      expect(row?.line).toMatch(lang === 'en' ? /^Sign-up opens .* · plays / : /开始报名 · .*比赛$/);
+    }
+  });
+
+  it('when time runs out the news says who picked the route', () => {
+    for (const lang of ['en', 'zh'] as const) {
+      const { session, s, projector, text } = setup(lang);
+      const entry = {
+        id: 901,
+        t: s.t,
+        parent: null,
+        effects: [
+          { kind: 'route', slot: 's2', route: 'youth' },
+          { kind: 'stat', stat: 'members', delta: 4 },
+        ],
+        cause: { kind: 'default', card: 'route_s2', option: 'A' },
+      } as GameState['log'][number];
+      projector.onEvents(s, [{ type: 'log', entry }]);
+      const line = projector.snapshot(session).wire[0]?.text ?? '';
+      expect(line).toMatch(lang === 'en' ? /^Dale picked “.+” when time ran out · / : /时间到了，Dale选了“.+”/);
+      expect(text.because(entry)).not.toMatch(/nobody|没人处理/);
+    }
+  });
+
+  it('place names follow the facility variant when a variant key exists', () => {
+    const c = structuredClone(FIX);
+    (c.i18n.en as Record<string, string>)['anchors.outer_23.hard'] = 'Hard courts';
+    const t = createText(c, 'en');
+    const plain = t.anchor('outer_23');
+    t.setVariants({ outer_23: 'hard' });
+    expect(t.anchor('outer_23')).toBe('Hard courts');
+    t.setVariants({ outer_23: 'clay' });
+    expect(t.anchor('outer_23')).toBe(plain);
   });
 });

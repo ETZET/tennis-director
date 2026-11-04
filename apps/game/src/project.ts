@@ -83,6 +83,8 @@ const HISTORY = 48;
 export class Projector {
   private readonly wire: WireItem[] = [];
   private wireId = 0;
+  /** 每条快讯是第几天说的（同一天重复的不再说） */
+  private readonly wireDay = new Map<number, number>();
   private readonly history: number[] = [];
   /** 已经在快讯里提醒过"快撑不住了"的设施（回到 40 以上再清掉） */
   private readonly worn = new Set<string>();
@@ -107,6 +109,7 @@ export class Projector {
   /** 吃掉这一帧的领域事件：攒快讯 */
   onEvents(s: GameState, events: readonly SimEvent[]): void {
     const T = this.text;
+    T.setVariants(s.variants);
     for (const e of events) {
       if (e.type === 'skill_up' || e.type === 'unlock' || e.type === 'settlement' || e.type === 'season_two') {
         this.growthWire(s, e, events);
@@ -124,7 +127,7 @@ export class Projector {
             this.worn.delete(f);
             continue;
           }
-          const place = T.tr(`ui.fac.${f}`, f);
+          const place = T.facility(f);
           const n = Math.round(c);
           if (c >= 40) this.worn.delete(f);
           else if (c < 30 && !this.worn.has(f)) {
@@ -167,12 +170,15 @@ export class Projector {
           this.tournamentWire(s, e.entry);
           continue;
         }
-        const so = T.so(e.entry);
+        // 时间到了由卡上的人替你选：快讯先说是谁选的（"Dale 选了“南场”（时间到了）"），再说效果
+        const pick = T.defaultPick(e.entry);
+        const so0 = T.so(e.entry);
+        const so = pick ? [pick.charAt(0).toUpperCase() + pick.slice(1), so0].filter(Boolean).join(' · ') : so0;
         if (!so || kind === 'start') continue;
         const hot =
           e.entry.cause.kind === 'wear' ||
           e.entry.effects.some((x) => x.kind === 'fire' || x.kind === 'hire' || x.kind === 'end');
-        this.push(s.t, so, hot);
+        this.push(s.t, so, hot, true);
       } else if (e.type === 'activityStarted') {
         this.push(s.t, T.tr(`activities.${e.activity}.title`), false);
       } else if (e.type === 'star_up') {
@@ -187,7 +193,7 @@ export class Projector {
         this.push(
           s.t,
           T.fmt('ui.wire.variant_locked', {
-            place: T.tr(`ui.fac.${e.facility}`, e.facility),
+            place: T.facility(e.facility),
             variant: this.variantName(e.facility, e.variant),
           }),
           false,
@@ -199,7 +205,7 @@ export class Projector {
           s.t,
           T.fmt('ui.wire.plaque', {
             name: T.personName(e.leader),
-            place: T.tr(`ui.fac.${e.facility}`, e.facility),
+            place: T.facility(e.facility),
             day: e.day,
             faster: faster >= 60 ? T.fmt('ui.wire.plaque_faster', { time: T.duration(faster) }) : '',
           }),
@@ -209,7 +215,7 @@ export class Projector {
         this.push(
           s.t,
           T.fmt('ui.wire.remodel_started', {
-            place: T.tr(`ui.fac.${e.facility}`, e.facility),
+            place: T.facility(e.facility),
             variant: this.variantName(e.facility, e.variant),
             time: T.duration(e.until - s.t),
           }),
@@ -219,7 +225,7 @@ export class Projector {
         this.push(
           s.t,
           T.fmt('ui.wire.remodel_done', {
-            place: T.tr(`ui.fac.${e.facility}`, e.facility),
+            place: T.facility(e.facility),
             variant: this.variantName(e.facility, e.variant),
           }),
           false,
@@ -258,7 +264,7 @@ export class Projector {
         // 岗位没了，人放下来闲着：讲清楚为什么（掉档、改造、赛事）
         const w = worldOf(s, this.content);
         const at = w.posts.get(e.post)?.at;
-        const place = e.facility ? T.tr(`ui.fac.${e.facility}`, e.facility) : at ? T.anchor(at) : '';
+        const place = e.facility ? T.facility(e.facility) : at ? T.anchor(at) : '';
         const key =
           e.reason === 'event'
             ? w.eventPosts.has(e.post)
@@ -407,41 +413,54 @@ export class Projector {
     const T = this.text;
     const w = worldOf(s, this.content);
     const out: (BeatItem & { t: number })[] = [];
+    // 牌子上写短名字、短时间（手机 390 宽要放下两张，UI-9）；完整的说法放 full（长按 / 读屏）
+    const beat = (id: string, t: number, label: string, short: string, place: string, live = false) => {
+      const when = live ? T.tr('ui.beat.live') : this.when(s, t);
+      out.push({
+        id,
+        t: live ? s.t : t,
+        label: short || label,
+        when: live ? when : this.beatWhen(s, t),
+        full: `${label} · ${when}`,
+        place,
+        ...(live ? { live: true } : {}),
+      });
+    };
     for (const ts of tournamentStatus(s, w)) {
       if (!this.beatOpen(s, ts)) continue;
       const live = ts.live || (ts.entered && s.t >= ts.start);
-      out.push({
-        id: `tour:${ts.id}:${ts.start}`,
-        t: live ? s.t : ts.start,
-        label: this.tourTitle(s, ts.id),
-        when: live ? T.tr('ui.beat.live') : this.when(s, ts.start),
-        place: ts.at,
-        ...(live ? { live: true } : {}),
-      });
+      beat(
+        `tour:${ts.id}:${ts.start}`,
+        ts.start,
+        this.tourTitle(s, ts.id),
+        T.tr(`ui.beat.short.tours.${ts.id}`, ''),
+        ts.at,
+        live,
+      );
     }
     for (const x of s.cards.scheduled) {
       const c = w.cards.get(x.card);
       if (c?.who !== 'applicants' || x.at <= s.t) continue;
-      out.push({
-        id: `card:${x.card}:${x.at}`,
-        t: x.at,
-        label: T.tr('ui.beat.hiring'),
-        when: this.when(s, x.at),
-        place: c.location ?? c.stage?.anchor ?? 'clubhouse',
-      });
+      beat(
+        `card:${x.card}:${x.at}`,
+        x.at,
+        T.tr('ui.beat.hiring'),
+        T.tr('ui.beat.short.hiring', ''),
+        c.location ?? c.stage?.anchor ?? 'clubhouse',
+      );
     }
     // 日历（投资方、期限）是第一季的；第二季（W4）不再挂出来
     for (const x of (s.ending?.season ?? 1) > 1 ? [] : w.act.calendar) {
       const t = at(x.day, x.hour);
       if (t <= s.t) continue;
       const c = w.cards.get(x.card);
-      out.push({
-        id: `cal:${x.card}:${t}`,
+      beat(
+        `cal:${x.card}:${t}`,
         t,
-        label: T.tr(`ui.beat.cards.${x.card}`, T.cardTitle(x.card)),
-        when: this.when(s, t),
-        place: c?.location ?? c?.stage?.anchor ?? 'entrance',
-      });
+        T.tr(`ui.beat.cards.${x.card}`, T.cardTitle(x.card)),
+        T.tr(`ui.beat.short.cards.${x.card}`, ''),
+        c?.location ?? c?.stage?.anchor ?? 'entrance',
+      );
     }
     return out
       .sort((a, b) => a.t - b.t || a.id.localeCompare(b.id))
@@ -449,12 +468,38 @@ export class Projector {
       .map(({ t: _, ...b }) => b);
   }
 
+  /** 节拍牌上的短时间："8a"、"明天9点"、"Sat 2:30p"、"D69 9a" */
+  private beatWhen(s: GameState, t: number): string {
+    const T = this.text;
+    const m = t % 1440;
+    const h = Math.floor(m / 60);
+    const mm = m % 60 ? `:${String(m % 60).padStart(2, '0')}` : '';
+    const time = T.lang === 'zh' ? (mm ? `${h}${mm}` : `${h}点`) : `${h % 12 || 12}${mm}${h >= 12 ? 'p' : 'a'}`;
+    const d = dayOf(t) - dayOf(s.t);
+    if (d <= 0) return T.fmt('ui.beat.at.today', { time });
+    if (d === 1) return T.fmt('ui.beat.at.tomorrow', { time });
+    if (d < 7) return T.fmt('ui.beat.at.weekday', { d: T.tr(`ui.days.${weekdayOf(t)}`), time });
+    return T.fmt('ui.beat.at.day', { n: dayOf(t), time });
+  }
+
   /** 这一期赛事还算不算一个"接下来的节拍"：参赛条件够或已经报上名；主办没报上名、已经开赛的不算；外出打完的不算 */
   private beatOpen(s: GameState, ts: TournamentStatus): boolean {
     if (!ts.eligible && !ts.entered) return false;
     if (s.t >= ts.end) return false;
+    // 这一期已经结算过（下雨白办、或者办完了）就不再挂出来
+    if (this.settled(s, ts)) return false;
     if (ts.kind === 'host') return ts.entered || s.t < ts.start;
     return (s.tournaments?.[ts.id]?.last ?? -1) < ts.start;
+  }
+
+  /** 这一期赛事在因果日志里已经有结算（spoiled / done）：从报名开放起算 */
+  private settled(s: GameState, ts: TournamentStatus): boolean {
+    for (let i = s.log.length - 1; i >= 0; i--) {
+      const e = s.log[i] as CausalEntry;
+      if (e.t < ts.signup) break;
+      if (e.cause.kind === 'tournament' && e.cause.tournament === ts.id) return true;
+    }
+    return false;
   }
 
   /** 变体的名字（文案 variants.<设施>.<变体>，" · " 后面是取舍一句话） */
@@ -462,9 +507,33 @@ export class Projector {
     return this.text.tr(`variants.${facility}.${variant}`, variant).split(' · ')[0] ?? variant;
   }
 
-  private push(t: number, text: string, hot: boolean): void {
-    this.wire.unshift({ id: this.wireId++, time: this.text.clock(t).replace(/ [AP]M$/, ''), text, hot });
-    if (this.wire.length > 10) this.wire.length = 10;
+  private push(t: number, text: string, hot: boolean, compact = false): void {
+    // 快讯是一行跑马灯：一条里重复的分句只留一个；compact（效果清单）太长时去掉括号里的补充说明
+    const zh = this.text.lang === 'zh';
+    const sep = zh ? /(，| · )/ : /(, | · )/;
+    const seen = new Set<string>();
+    const pieces = text.split(sep).reduce<string[]>((out, x, i, all) => {
+      if (i % 2 === 1) return out;
+      const k = x.trim();
+      if (!k || seen.has(k)) return out;
+      seen.add(k);
+      if (out.length) out.push(all[i - 1] as string);
+      out.push(x);
+      return out;
+    }, []);
+    const joined = pieces.join('').trim();
+    const line = compact ? wireFit(joined, zh) : joined;
+    if (!line) return;
+    // 同一天里刚刚说过的同一句不再说（例如卡的标题和它的结局各说一遍"时间到了"、同一处设施的状况）
+    const day = dayOf(t);
+    if (this.wire.slice(0, 6).some((x) => x.text === line && this.wireDay.get(x.id) === day)) return;
+    const id = this.wireId++;
+    this.wireDay.set(id, day);
+    this.wire.unshift({ id, time: this.text.clock(t), text: line, hot });
+    if (this.wire.length > 10) {
+      for (const x of this.wire.slice(10)) this.wireDay.delete(x.id);
+      this.wire.length = 10;
+    }
   }
 
   /** 玩家现在该看的那张卡：要紧的（会暂停的：董事会、比赛、人事）排最前；同一级里最快过期的在前 */
@@ -548,6 +617,8 @@ export class Projector {
   snapshot(session: Session): HudSnapshot {
     const { s } = session;
     const T = this.text;
+    // 地点名、设施名按设施现在的变体叫（硬地场、二号网球场……）
+    T.setVariants(s.variants);
     const w = worldOf(s, this.content);
     const q = s.stats.quality ?? 0;
     // 第二季开局时钟往回走（W4）：也重新采样
@@ -574,7 +645,7 @@ export class Projector {
       { label: T.tr('ui.details.courts'), value: `${fac.courts}/${totalCourts}` },
       { label: T.tr('ui.details.wages'), value: `$${wagesWeek(s, w)}` },
       ...Object.entries(s.facilities).map(([id, st]) => {
-        const [name, state] = T.tr(`facilities.${id}.${st}`).split(' · ');
+        const [name, state] = T.facilityState(id, st).split(' · ');
         const c = Math.round(s.condition[id] ?? 100);
         // 红色只给会掉档的低状况和已经停用的；废墟本来就是这样，不算坏消息
         const def = w.facilities.get(id);
@@ -597,7 +668,7 @@ export class Projector {
       const tone = entryTone(e);
       story.push({
         id: e.id,
-        time: T.clock(e.t).replace(/ [AP]M$/, ''),
+        time: T.clock(e.t),
         because: T.because(e),
         so,
         ...(tone ? { tone } : {}),
@@ -699,7 +770,7 @@ export class Projector {
       }
       if (typeof o.facility === 'string' && typeof o.is === 'string') {
         const now = s.facilities[o.facility];
-        return now ? this.text.tr(`facilities.${o.facility}.${now}`, now).split(' · ')[1] : undefined;
+        return now ? this.text.facilityState(o.facility, now, now).split(' · ')[1] : undefined;
       }
       if (typeof o.expr === 'string') {
         const m = /^\s*([\w.]+)\s*(>=|>|==)\s*(.+?)\s*$/.exec(o.expr);
@@ -1403,6 +1474,8 @@ export class Projector {
     for (const o of w.orders.values()) {
       if (o.at !== anchor || orderStatus(s, w, o).visible) continue;
       if (o.once && (s.orderLog.done[o.id] ?? 0) > 0) continue;
+      // 分期筹备做完的一期：筹备格里已经打了勾，不再当成"还没开出来"挂一行锁
+      if ((s.orderLog.done[o.id] ?? 0) > 0 && [...w.prep.values()].some((ids) => ids.includes(o.id))) continue;
       if ((s.orderLog.cooldowns[o.id] ?? -1) > s.t) continue;
       // 已经装上的升级、和现在的变体对不上的升级、已经改成的样子：不是"还没开出来"，不再挂一行（改造期满后也按新变体重看）
       if (fac && o.upgrade) {
@@ -1411,7 +1484,14 @@ export class Projector {
         if (only && s.variants?.[fac] && s.variants[fac] !== only) continue;
       }
       if (fac && o.remodel && s.variants?.[fac] === o.remodel) continue;
-      const how = T.tr(`orders.${o.id}.locked`, '');
+      // 赛事的报名工单：条件够了、只是还没到报名的日子（或这一期已经报过 / 打过），写真正的原因和日子
+      const tsl = w.tournamentOf.has(o.id) ? tours.find((x) => x.id === w.tournamentOf.get(o.id)?.id) : undefined;
+      const how =
+        tsl?.eligible && s.t < tsl.signup
+          ? T.fmt('ui.place.tour_signup', { open: this.when(s, tsl.signup), when: this.when(s, tsl.start) })
+          : tsl?.eligible && s.t < tsl.end
+            ? T.tr('ui.place.tour_taken')
+            : T.tr(`orders.${o.id}.locked`, '');
       if (!how) continue;
       rows.push({
         id: o.id,
@@ -2091,7 +2171,7 @@ export class Projector {
             e,
             i + 1,
             T.fmt('ui.ending.recap.variant', {
-              place: T.tr(`ui.fac.${x.facility}`, x.facility),
+              place: T.facility(x.facility),
               variant: this.variantName(x.facility, x.variant),
             }),
           );
@@ -2116,4 +2196,17 @@ export class Projector {
     });
     return { title: T.tr('ui.ending.recap_title'), lines, empty: T.tr('ui.ending.recap_empty') };
   }
+}
+
+/** 快讯一条大约多长就开始收（手机竖屏上第一条大致放得下的长度） */
+const WIRE_MAX_EN = 64;
+const WIRE_MAX_ZH = 30;
+
+/**
+ * 因果日志拼出来的快讯（效果清单）太长时：去掉括号里的补充说明（设施状态名里的"（漏雨、停电）"），
+ * 免得一行跑马灯在括号中间断掉；完整的说法在会所报告里。
+ */
+export function wireFit(text: string, zh: boolean): string {
+  if (text.length <= (zh ? WIRE_MAX_ZH : WIRE_MAX_EN)) return text;
+  return text.replace(/\s*[（(][^（()）]*[)）]/g, '');
 }

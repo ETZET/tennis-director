@@ -226,6 +226,8 @@ export interface BeatItem {
   /** 那一处的锚点 */
   place: string;
   live?: boolean;
+  /** 完整的说法（牌子上的 label / when 是手机上放得下的短写）："月度内赛 · 今天 9:00" */
+  full?: string;
 }
 
 /** 季节、天气、本周服务率 */
