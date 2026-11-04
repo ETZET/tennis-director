@@ -3,6 +3,7 @@ import {
   createDaylight,
   createIsoWorld,
   createRain,
+  createStarSign,
   INDIAN_WELLS,
   INDIAN_WELLS_WORLD,
   type IsoCameraPose,
@@ -19,6 +20,8 @@ import { clamp, mulberry32 } from '@td/shared';
  * 全部状态都能写进 URL，截图可以脚本化，例如：
  *   ?lv=fresh&t=1260&rain=1&wind=80&rot=1&zoom=5.2&labels=1&walkers=8&wear=60&ui=0
  *   ?fac=stadium_1:cleared,plaza:open   （逐个设施指定）
+ *   ?var=outer_23:hard,stadium_3:pickle4&up=outer_23:pro_hard   （修复变体、升级，wave1-contract.md）
+ *   ?pv=stadium_3:tennis2   （修复预览幽灵）  ?plaque=5   （牌匾刻 5 行示例）  ?stars=3&starup=1   （星级牌，升星动画）
  * 只读画面，不碰模拟。
  */
 
@@ -97,6 +100,37 @@ for (const pair of (q.get('fac') ?? '').split(',')) {
   if (f && s && (FACILITIES as readonly string[]).includes(f) && STATES[f as Facility].includes(s))
     ST.states[f as Facility] = s;
 }
+/** 变体、升级、预览、牌匾、星级（只是画面；URL 里没写就不碰，默认画面和以前一样） */
+const W1 = {
+  variants: {} as Record<string, string>,
+  upgrades: {} as Record<string, string[]>,
+  preview: null as [string, string] | null,
+  plaque: clamp(Math.round(num('plaque', 0)), 0, 12),
+  stars: q.has('stars') ? clamp(Math.round(num('stars', 0)), 0, 5) : -1,
+};
+for (const pair of (q.get('var') ?? '').split(',')) {
+  const [f, v] = pair.split(':');
+  if (f && v) W1.variants[f] = v;
+}
+for (const pair of (q.get('up') ?? '').split(',')) {
+  const [f, u] = pair.split(':');
+  if (f && u) (W1.upgrades[f] ??= []).push(u);
+}
+{
+  const [f, v] = (q.get('pv') ?? '').split(':');
+  if (f && v) W1.preview = [f, v];
+}
+/** 牌匾的示例行（名字是 3×5 小字能排的大写字母） */
+const PLAQUE_DEMO = [
+  { facility: 'outer_1', leader: 'MARIA', day: 3 },
+  { facility: 'stadium_3', leader: 'KENJI', day: 9 },
+  { facility: 'clubhouse', leader: 'ROSA', day: 15 },
+  { facility: 'outer_23', leader: 'DEV', day: 22 },
+  { facility: 'plaza', leader: 'TOMMY', day: 31 },
+  { facility: 'practice', leader: 'ANA', day: 40 },
+  { facility: 'stadium_2', leader: 'LUCAS', day: 52 },
+  { facility: 'stadium_1', leader: 'MARIA', day: 66 },
+];
 if (q.has('t')) ST.minute = clamp(num('t', ST.minute), 0, 1439);
 if (q.get('ui') === '0') document.body.classList.add('noui');
 
@@ -120,7 +154,16 @@ const daylight = createDaylight(world);
 const rain = createRain(world);
 const people: PeopleWorld = { scene: world.scene, groundY: site.groundY, people: [] };
 
+const starSign = W1.stars >= 0 ? createStarSign(world) : null;
+function applyW1(): void {
+  for (const f of FACILITIES) {
+    overlays.variant?.(f, W1.variants[f] ?? null);
+    for (const u of indianWells.UPGRADES[f] ?? []) overlays.upgrade?.(f, u.id, W1.upgrades[f]?.includes(u.id) ?? false);
+  }
+  if (W1.plaque) overlays.plaque?.(Array.from({ length: W1.plaque }, (_, i) => PLAQUE_DEMO[i % PLAQUE_DEMO.length]!));
+}
 function applyStates(): void {
+  applyW1();
   for (const f of FACILITIES) overlays.set(f, ST.states[f]);
   overlays.flush?.();
   applyWear();
@@ -325,6 +368,13 @@ function syncUrl(): void {
     p.set('tz', t.tz.toFixed(1));
     if (ST.labels) p.set('labels', '1');
     if (walkers.length) p.set('walkers', String(walkers.length));
+    const vs = Object.entries(W1.variants).map(([f, v]) => `${f}:${v}`);
+    if (vs.length) p.set('var', vs.join(','));
+    const us = Object.entries(W1.upgrades).flatMap(([f, l]) => l.map((u) => `${f}:${u}`));
+    if (us.length) p.set('up', us.join(','));
+    if (W1.preview) p.set('pv', W1.preview.join(':'));
+    if (W1.plaque) p.set('plaque', String(W1.plaque));
+    if (W1.stars >= 0) p.set('stars', String(W1.stars));
     const s = `?${p.toString().replace(/%3A/g, ':').replace(/%2C/g, ',')}`;
     history.replaceState(null, '', s);
     urlEl.textContent = s;
@@ -337,6 +387,17 @@ for (const id of ['bQ', 'bE', 'bIn', 'bOut', 'bHome']) $(id).addEventListener('c
 
 /* ---------------- 起步 ---------------- */
 applyStates();
+if (W1.preview) {
+  overlays.preview?.(W1.preview[0], W1.preview[1]);
+  overlays.flush?.();
+}
+if (starSign) {
+  // starup=1：先立着少一颗星，过一秒升星（截图看升星的那一下）
+  if (q.get('starup') === '1' && W1.stars > 0) {
+    starSign.set(W1.stars - 1, false);
+    setTimeout(() => starSign.set(W1.stars, true), 1000);
+  } else starSign.set(W1.stars, false);
+}
 paintTime();
 paintRain();
 paintLabels();
@@ -366,4 +427,4 @@ function frame(ts: number): void {
 }
 requestAnimationFrame(frame);
 // 调试：控制台里摸世界
-(window as unknown as { __viewer: unknown }).__viewer = { world, overlays, ST, walkers };
+(window as unknown as { __viewer: unknown }).__viewer = { world, overlays, ST, W1, walkers, starSign, applyStates };

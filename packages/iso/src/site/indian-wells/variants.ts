@@ -103,7 +103,7 @@ function bunting(K: Kit, pts: readonly (readonly [number, number])[], y: number,
     z1 = Math.max(z1, p[1]);
   }
   const pal = ['#e2463c', '#f0c53c', '#2f7fd8', '#3fb37f', '#ffffff'].map((c) => fd(c, worn));
-  K.add({ x0: x0 - 0.05, x1: x1 + 0.05, z0: z0 - 0.05, z1: z1 + 0.05, y0: y - 0.8, y1: y + 0.1 }, (r) => {
+  const node = K.add({ x0: x0 - 0.05, x1: x1 + 0.05, z0: z0 - 0.05, z1: z1 + 0.05, y0: y - 0.8, y1: y + 0.1 }, (r) => {
     const wc = r.col('#5a4a40', 1, 0);
     let n = 0;
     for (let i = 0; i + 1 < pts.length; i++) {
@@ -129,6 +129,8 @@ function bunting(K: Kit, pts: readonly (readonly [number, number])[], y: number,
       }
     }
   });
+  // 挂在围网顶上：排在围网后面画（不然被网眼盖住）
+  node.renderOrder = 30;
 }
 
 /** 遮阳帆：三根杆子撑着一块三角布 */
@@ -321,7 +323,8 @@ export function stadium3Variant(fac: Facilities, K: Kit, v: string): void {
       [51.8, 14.8],
     ] as const)
       K.lightPole(x, z, 12, { on: fresh, lx: 44 + (x - 44) * 0.4, lz: 6 + (z - 6) * 0.4, r: 13, i: 0.9 });
-    const top = v === 'tennis2' ? 2.95 : 2.55;
+    // 旗串拉在围网顶上方一点（围网 tennis2 3 米、pickle4 2.6 米），垂下来的最低点刚好贴着网顶
+    const top = (v === 'tennis2' ? 3 : 2.6) + 0.45;
     bunting(
       K,
       [
@@ -950,6 +953,9 @@ export function plazaVariant(fac: Facilities, K: Kit, v: string): void {
   const sz0 = 18.4;
   const sz1 = 31.4;
   for (const s of steps) K.cast({ x0: s.x0, x1: sx1, z0: sz0, z1: sz1, h: s.h });
+  // 草坡看台夜里也有人坐：坡脚两盏矮灯杆，往台阶上打一片暖光（掉档时不亮）
+  K.lightPole(44.2, 18.2, 4.5, { on: fresh, lx: 49, lz: 22, r: 8, i: 0.55 });
+  K.lightPole(44.2, 31.6, 4.5, { on: fresh, lx: 49, lz: 28.5, r: 8, i: 0.55 });
   const blankets = (
     [
       [46.2, 21.5, '#e2463c'],
@@ -1034,28 +1040,43 @@ export function misters(K: Kit, worn: boolean): void {
       pole(r, x, z, h, gc);
       r.wline([x - 0.45, h, z], [x + 0.45, h, z], gc);
       r.wline([x, h, z - 0.45], [x, h, z + 0.45], gc);
+      // 顶上一圈青色的喷嘴环（远看是一个青点，认得出是"喷雾杆"不是路灯）
       const t = r.P(x, h, z);
-      r.pix(t[0], t[1] - 1, r.col('#3fb3d8', 1, lit));
+      const ring = r.col(worn ? '#6a8a90' : '#3fb3d8', 1, lit);
+      const rw = Math.max(1, Math.round(r.k * 0.3));
+      r.rect(Math.round(t[0]) - rw, Math.round(t[1]) - 1, rw * 2 + 1, 2, ring);
     });
     if (worn) continue;
-    K.addDyn({ x0: x - 1.4, x1: x + 1.4, z0: z - 1.4, z1: z + 1.4, y0: 0.8, y1: h }, (r) => {
+    K.addDyn({ x0: x - 1.6, x1: x + 2.1, z0: z - 1.6, z1: z + 1.6, y0: 0, y1: h }, (r) => {
       const lit = r.litAt(x, z);
-      const c = r.col('#ffffff', 1, lit);
-      const c2 = r.col('#dff4ff', 1, lit);
+      // 雾带一点冰蓝（沙地和石砖上纯白看不出来）
+      const c = r.col('#f4feff', 1, lit);
+      const c2 = r.col('#bfe9f6', 1, lit);
       const wind = K.wx.wind;
-      for (let i = 0; i < 28; i++) {
-        const u = (r.t * 0.45 + i * 0.137 + a) % 1;
+      // 喷雾落下来的一圈凉雾（贴地的浅青色抖动圆，慢慢闪动）：默认镜头下看不清雾粒，靠这一圈认出来
+      const g = r.col('#d8f6ff', 1, lit);
+      const ph = Math.floor(r.t * 3);
+      r.wpoly(
+        Array.from({ length: 12 }, (_, i): Pt => {
+          const q = (i / 12) * Math.PI * 2;
+          return [x + Math.cos(q) * 1.5 + wind * 0.5, 0.03, z + Math.sin(q) * 1.5];
+        }),
+        0,
+        (px, py) => (bay(px + ph, py + (ph >> 2)) < 0.28 ? g : 0),
+      );
+      for (let i = 0; i < 44; i++) {
+        const u = (r.t * 0.45 + i * 0.091 + a) % 1;
         const ang = i * 2.39 + a;
-        const rr = 0.35 + u * 1.1;
+        const rr = 0.35 + u * 1.3;
         const px = x + Math.cos(ang) * rr + wind * u * 1.2;
         const pz = z + Math.sin(ang) * rr;
-        const py = h - 0.1 - u * 1.9;
+        const py = h - 0.1 - u * 2.2;
         const p = r.P(px, py, pz);
-        const s = Math.max(1, Math.round(r.k * 0.22 * (0.6 + u)));
+        const s = Math.max(1, Math.round(r.k * 0.28 * (0.6 + u)));
         for (let q = 0; q < s; q++)
           for (let w = 0; w < s; w++)
-            if (bay(Math.round(p[0]) + q, Math.round(p[1]) + w) < (1 - u) * 0.75)
-              r.pix(p[0] + q, p[1] + w, u < 0.4 ? c : c2);
+            if (bay(Math.round(p[0]) + q, Math.round(p[1]) + w) < (1 - u) * 0.9)
+              r.pix(p[0] + q, p[1] + w, u < 0.45 ? c : c2);
       }
     });
   }
@@ -1200,10 +1221,28 @@ export function cabanaRow(K: Kit, worn: boolean): void {
         face: (nx) => {
           if (nx !== 1) return;
           fq(r, 'x', x1, 1, 0, z0 + 0.5, z1 - 0.5, 0, 1.9, r.col(fd(curtains[i] as string, worn), 1, lit));
+          // 夜里门帘后面点着一盏灯：门帘透出暖光
+          if (dark(r) && !worn)
+            fq(
+              r,
+              'x',
+              x1,
+              1,
+              0,
+              z0 + 0.7,
+              z1 - 0.7,
+              0.9,
+              1.7,
+              r.em(mixHex(curtains[i] as string, '#ffe2a0', 0.55), 0.85),
+            );
           fq(r, 'x', x1, 1, 0, z0 + 1.2, z0 + 1.4, 0, 1.9, r.col('#ffffff', 0.9, lit));
         },
       });
       hipRoof(r, x0 - 0.35, x1 + 0.35, z0 - 0.35, z1 + 0.35, 2.2, 1.1, fd('#d8b45a', worn), { lit });
+      if (dark(r) && !worn) {
+        const p = r.P(x1 + 0.2, 1.2, (z0 + z1) / 2);
+        r.glow(p[0], p[1], r.k * 1.6, [90, 60, 20], 0.7);
+      }
     });
   }
   if (!worn) K.lampAt({ x: -59, z: 10, r: 7, i: 0.5 });

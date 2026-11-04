@@ -18,8 +18,8 @@ export interface PlaqueRow {
 
 /** 牌子立在哪儿（面朝东 +x，从大门出去往右手边看） */
 const PX = 61.6;
-const Z0 = 6.8;
-const Z1 = 12.2;
+const Z0 = 6.2;
+const Z1 = 11.4;
 const Y0 = 0.5;
 const Y1 = 4.4;
 /** 最多刻几行（多了只留最近的） */
@@ -63,15 +63,23 @@ export function buildPlaque(rows: readonly PlaqueRow[]): Custom | null {
 }
 
 function drawPlaque(r: DrawContext, list: readonly { c: string; name: string; day: string }[]): void {
-  const lit = dark(r) ? 0.7 : r.litAt(PX, (Z0 + Z1) / 2);
+  const night = dark(r);
+  const lit = night ? 0.7 : r.litAt(PX, (Z0 + Z1) / 2);
   // 两根石柱、一块铜牌、金边
   for (const z of [Z0, Z1])
     box(r, PX - 0.3, PX + 0.3, z - 0.3, z + 0.3, 0, Y1 + 0.3, '#ecd2ac', { lit, top: '#f6e2c2' });
   box(r, PX - 0.12, PX + 0.12, Z0 + 0.3, Z1 - 0.3, Y0, Y1, '#5a3f22', { lit, top: '#d8b45a' });
+  // 夜里：两根石柱顶上各一盏小铜灯，往牌面上打一点暖光（金字跟着亮，天黑了也读得出来）
+  if (night)
+    for (const z of [Z0, Z1]) {
+      const p = r.P(PX, Y1 + 0.55, z);
+      r.glow(p[0], p[1], 3.2 * r.k * 0.55 + 2, [255, 214, 140], 0.85);
+      r.rect(Math.round(p[0]) - 1, Math.round(p[1]) - 1, 2, 2, r.em('#fff1c4'));
+    }
   if (!r.vis(1, 0)) return;
   const xs = PX + 0.15;
-  const gold = r.col('#f0d27a', 1, lit);
-  const rim = r.col('#d8b45a', 1, lit);
+  const gold = night ? r.em('#e8c060', 0.85) : r.col('#f0d27a', 1, lit);
+  const rim = night ? r.em('#c09040', 0.7) : r.col('#d8b45a', 1, lit);
   const zl = Z1 - 0.45;
   const zr = Z0 + 0.45;
   const quad = (za: number, zb: number, ya: number, yb: number, c: number) =>
@@ -93,7 +101,7 @@ function drawPlaque(r: DrawContext, list: readonly { c: string; name: string; da
   const s = Math.floor((lineH * r.k * HV) / 6);
   list.forEach((row, i) => {
     const yb = top - (i + 1) * lineH;
-    const chip = r.col(row.c, 1, lit);
+    const chip = night ? r.em(row.c, 0.7) : r.col(row.c, 1, lit);
     if (s < 1) {
       // 远看：左边一个色块、一道金线
       quad(zl, zl - 0.35, yb + lineH * 0.3, yb + lineH * 0.8, chip);

@@ -19,18 +19,26 @@
  * 免得被身后的围墙挡住一角。
  */
 import { SIGN_PAL, type SignArt, STAR_H, STAR_ON, STAR_SLOTS, STAR_W, signArt } from '../../art/sign';
-import { hash, hx, mixP, pk } from '../../core/color';
+import { bay, hash, hx, mixP, pk } from '../../core/color';
 import { type BakedArt, Custom, type DrawContext, type Node } from '../../core/graph';
 import { Raster } from '../../core/raster';
 
-/** 牌子立在哪儿（门外、南门柱旁边，草坪和南停车场之间的空地上） */
-export const STAR_SIGN_AT = { x: 62.4, z: 14.5 } as const;
+/**
+ * 牌子立在哪儿（门外、南门柱再往南，围墙和南停车场之间的空地上）。
+ * 和牌匾（plaque.ts，z 6.2–11.2）在屏幕上错开：牌子是正对镜头的精灵、默认镜头下有十几米宽，
+ * 放得太近会把牌匾整块盖住；也别往北放（北边车道那排棕榈在默认镜头下正好挡在它前面）。
+ */
+export const STAR_SIGN_AT = { x: 62.6, z: 18.2 } as const;
 
 /** 升星动画多长（秒） */
 export const STAR_UP_SECONDS = 1.6;
 
-/** 画的时候深度往镜头前挪多少米（防止被身后的围墙切掉） */
+/**
+ * 画的时候深度往镜头前挪多少米（防止被身后的围墙切掉）。只在从门外看（围墙的东面朝镜头）时挪；
+ * 从园子里往外看时牌子在墙后面，照实际深度画，墙挡住它的腿，不然牌子会"贴"在墙前面。
+ */
 const DEPTH_BIAS = 3.5;
+const DEPTH_BIAS_INSIDE = 0.3;
 
 interface Baked {
   art: BakedArt;
@@ -131,7 +139,7 @@ export function createStarSign(world: { readonly scene: Node }): StarSign {
     const b = look(showLevel, earned);
 
     const [bx, by] = r.P(SX, 0, SZ);
-    const depth = ras ? ras.proj.depth(SX, SZ) + DEPTH_BIAS : undefined;
+    const depth = ras ? ras.proj.depth(SX, SZ) + (r.vis(1, 0) ? DEPTH_BIAS : DEPTH_BIAS_INSIDE) : undefined;
     if (ras && depth !== undefined) ras.zcur = depth;
     // 落下的一下："咚"地往下一沉再回来
     const bump = a >= 0.18 && a < 0.26 ? s : 0;
@@ -197,16 +205,35 @@ export function createStarSign(world: { readonly scene: Node }): StarSign {
       r.glow(cx, cy, (4 + 6 * f) * s, [255, 246, 200], 0.5 + f * 0.5);
       return;
     }
-    // 2) 闪光、光芒、冲击圈
+    // 2) 闪光、光芒、冲击圈；外加一团大的柔光和一道往上冲的光柱（手机默认镜头下牌子才 57 像素宽，
+    //    特效要比牌子大一圈才看得出"升星了"）
     const fl = 1 - clamp01((a - 0.18) / 0.45);
-    if (fl > 0) r.glow(cx, cy, (10 + 12 * (1 - fl)) * s, [255, 248, 215], fl * 1.1);
-    if (a < 0.5) {
-      const f = ease(clamp01((a - 0.18) / 0.32));
+    if (fl > 0) {
+      r.glow(cx, cy, (10 + 12 * (1 - fl)) * s, [255, 248, 215], fl * 1.1);
+      r.glow(cx, cy, 34 * s, [255, 214, 120], fl * 0.55);
+    }
+    if (a < 0.95) {
+      // 光柱：从星位往上，先窄后宽再淡掉（屏幕空间，正对镜头）
+      const f = clamp01((a - 0.18) / 0.77);
+      const top = cy - (18 + 46 * ease(f)) * s;
+      const hw = Math.max(1, Math.round((1 + 2.5 * Math.sin(f * Math.PI)) * s));
+      const core = r.em('#fffbe6');
+      const edge = r.em('#ffd23c');
+      for (let y = Math.round(top); y < Math.round(cy - 3 * s); y++) {
+        // 越往上越稀（抖动），整体随时间淡掉
+        const u = (cy - y) / (cy - top);
+        const keep = (1 - u * 0.85) * (1 - f * 0.9);
+        if (bay(Math.round(cx), y) > keep) continue;
+        r.rect(Math.round(cx) - hw, y, hw * 2, 1, (y & 1) === 0 ? core : edge);
+      }
+    }
+    if (a < 0.55) {
+      const f = ease(clamp01((a - 0.18) / 0.37));
       const c = r.em('#fff6c8');
       for (let i = 0; i < 8; i++) {
         const ang = (i / 8) * Math.PI * 2 + Math.PI / 8;
-        const r0 = (5 + 4 * f) * s;
-        const r1 = r0 + (i % 2 ? 5 : 9) * s * (1 - f * 0.6);
+        const r0 = (6 + 6 * f) * s;
+        const r1 = r0 + (i % 2 ? 7 : 13) * s * (1 - f * 0.6);
         r.line(
           cx + Math.cos(ang) * r0,
           cy + Math.sin(ang) * r0,
@@ -217,7 +244,7 @@ export function createStarSign(world: { readonly scene: Node }): StarSign {
         );
       }
       // 冲击圈（扁的，像贴在牌面上）
-      const R = (5 + 16 * f) * s;
+      const R = (5 + 26 * f) * s;
       const rc = r.em(f < 0.6 ? '#ffffff' : '#ffd23c');
       const steps = Math.ceil(R * 4);
       for (let i = 0; i < steps; i++) {
@@ -235,12 +262,12 @@ export function createStarSign(world: { readonly scene: Node }): StarSign {
       const ly = Math.round(cy - (STAR_H * k) / 2) - lift;
       blitPx(r, src.art.px, src.art.w, src.art.h, lx, ly, k);
     }
-    // 4) 火花：十四颗往四周飞，边飞边闪
+    // 4) 火花：二十颗往四周飞，边飞边闪
     if (a < 1.25) {
       const f = clamp01((a - 0.18) / 1.0);
-      for (let i = 0; i < 14; i++) {
-        const ang = (i / 14) * Math.PI * 2 + hash(i, 3, 5) * 0.5;
-        const dist = (8 + hash(i, 4, 5) * 20) * ease(f) * s;
+      for (let i = 0; i < 20; i++) {
+        const ang = (i / 20) * Math.PI * 2 + hash(i, 3, 5) * 0.5;
+        const dist = (10 + hash(i, 4, 5) * 30) * ease(f) * s;
         const px = cx + Math.cos(ang) * dist;
         const py = cy + Math.sin(ang) * dist * 0.8 - f * f * 4 * s + f * 6 * s * hash(i, 6, 5);
         const life = 1 - f;

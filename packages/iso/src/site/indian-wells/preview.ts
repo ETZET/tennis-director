@@ -83,10 +83,14 @@ class PatchGround implements GroundLike {
   }
 }
 
-/** 预览的抖动留下多少像素、往哪个颜色偏、偏多少 */
+/**
+ * 预览的抖动留下多少像素、往哪个颜色偏、偏多少。每隔三行偏得更重一点（全息投影的扫描线），
+ * 白天在沙地上也一眼看得出"这是幻影"，不会被当成已经修好。
+ */
 const KEEP = 0.45;
-const TINT = ph('#e8fbff');
-const TINT_F = 0.22;
+const TINT = ph('#9ff0ff');
+const TINT_F = 0.3;
+const SCAN_F = 0.55;
 
 /**
  * 建一个预览幽灵节点。fac 是现在的状态表（含变体、升级），casts 是现在的影子（重画现在的地面用来比对）。
@@ -214,7 +218,7 @@ function drawGhost(
         const v = buf[row + x] as number;
         const o = snap[srow + x] as number;
         if (v === o) continue;
-        buf[row + x] = bay(x, y) < KEEP ? mixP(v, TINT, TINT_F) : o;
+        buf[row + x] = bay(x, y) < KEEP ? mixP(v, TINT, y % 3 === 0 ? SCAN_F : TINT_F) : o;
       }
     }
     drawOutline(r, regions);
@@ -222,9 +226,16 @@ function drawGhost(
   } else drawOutline(r, regions);
 }
 
-/** 沿设施范围描一圈虚线（亮青色，夜里也亮） */
+/**
+ * 沿设施范围描一圈虚线：先一道深青色的实线垫底（沙地、草地上都压得住），上面亮青白的虚线，
+ * 四个角再加一道粗一点的直角框（像取景框）。夜里自发光。
+ */
 function drawOutline(r: DrawContext, regions: readonly Rect[]): void {
-  const dc = r.night > 0.3 ? r.em('#bff4ff') : r.col('#f2feff', 1, 0);
+  const N = r.night > 0.3;
+  const dc = N ? r.em('#bff4ff') : r.col('#f2feff', 1, 0);
+  const under = N ? r.em('#1f7f8c', 0.8) : r.col('#0f5d68', 1, 0);
+  const cc = N ? r.em('#ffffff') : r.col('#ffffff', 1, 0);
+  const w = Math.max(1, Math.round(r.k / 4));
   const dash = 0.9;
   for (const rc of regions) {
     const edges: [number, number, number, number][] = [
@@ -233,14 +244,31 @@ function drawOutline(r: DrawContext, regions: readonly Rect[]): void {
       [rc.x1, rc.z1, rc.x0, rc.z1],
       [rc.x0, rc.z1, rc.x0, rc.z0],
     ];
+    for (const [ax, az, bx, bz] of edges) r.wline([ax, 0.04, az], [bx, 0.04, bz], under, w + 1);
     for (const [ax, az, bx, bz] of edges) {
       const len = Math.hypot(bx - ax, bz - az);
       const n = Math.max(1, Math.floor(len / dash));
       for (let i = 0; i < n; i += 2) {
         const u0 = i / n;
         const u1 = Math.min(1, (i + 1) / n);
-        r.wline([ax + (bx - ax) * u0, 0.04, az + (bz - az) * u0], [ax + (bx - ax) * u1, 0.04, az + (bz - az) * u1], dc);
+        r.wline(
+          [ax + (bx - ax) * u0, 0.04, az + (bz - az) * u0],
+          [ax + (bx - ax) * u1, 0.04, az + (bz - az) * u1],
+          dc,
+          w,
+        );
       }
+    }
+    // 四个角的直角框（每边 1.6 米，范围小的按比例缩）
+    const L = Math.min(1.6, (rc.x1 - rc.x0) / 3, (rc.z1 - rc.z0) / 3);
+    for (const [x, z, sx, sz] of [
+      [rc.x0, rc.z0, 1, 1],
+      [rc.x1, rc.z0, -1, 1],
+      [rc.x1, rc.z1, -1, -1],
+      [rc.x0, rc.z1, 1, -1],
+    ] as const) {
+      r.wline([x, 0.05, z], [x + sx * L, 0.05, z], cc, w + 1);
+      r.wline([x, 0.05, z], [x, 0.05, z + sz * L], cc, w + 1);
     }
   }
 }
