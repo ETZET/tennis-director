@@ -9,7 +9,8 @@ cost: 1000
 crew: 3
 prep: exhibition
 upgrade: night_lights
-when: { expr: "stars >= 3" }
+# 表演赛办成以后不再挂（W4 门试玩：办完了还在卖看台）
+when: { all: [{ expr: "stars >= 3" }, { not: { flag: exhibition_done } }] }
 effects:
   - { flag: prep_lights, set: true }
   - { stat: reputation, add: 1 }

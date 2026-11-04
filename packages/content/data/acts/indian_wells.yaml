@@ -257,38 +257,79 @@ tournaments:
         # 第二届：看台坐满才算
         - { id: full_house, if: "stat.members >= 70", reward: [{ stat: cash, add: 1000 }] }
 # 投资方给了 16 周：第 13 周来看一次进度，第 112 天收盘前还没办成表演赛就停工
+  # 第二季的目标（W4 门试玩 P2）：正式巡回赛。只在第二季开（ending.season），报名费贵、奖金也大；
+  # 四个临时岗位两天都有人才算办得体面（附加目标），第二次起奖励减半。签表、转播是后续的新机制。
+  - id: official_tournament
+    kind: host
+    at: outer_23
+    weeks: [6, 12]
+    days: [5, 6]
+    hours: [9, 17]
+    when:
+      all:
+        - { expr: "ending.season >= 2 && stars >= 5" }
+        - { facility: outer_23, is: playable }
+        - { facility: clubhouse, is: open }
+        - { facility: plaza, is: open }
+    fee: 2500
+    order: official_tournament
+    posts: [t_checkin, t_courtside, t_catering, t_umpire]
+    closes: [o23_rental, o23_clinic]
+    reward:
+      - { stat: cash, add: 5000 }
+      - { stat: reputation, add: 8 }
+      - { trophy: 1 }
+      - { flag: official_tournament_done, set: true }
+    goals:
+      - { id: staffed, if: "event.staffed >= 0.95", reward: [{ stat: members, add: 6 }] }
+      - { id: service, if: "event.service_rate >= 0.85", reward: [{ stat: reputation, add: 3 }] }
+    repeat:
+      scale: 0.5
+      goals:
+        - { id: staffed, if: "event.staffed >= 0.95", reward: [{ stat: members, add: 6 }] }
+        - { id: service, if: "event.service_rate >= 0.85", reward: [{ stat: cash, add: 1500 }] }
 calendar:
   - { day: 85, hour: 10, card: iw_investor_check }
   - { day: 112, hour: 18, card: iw_deadline }
 # 结局方案 A（W4，LG-13，设计文档"结局"）：第 112 天 18 点结算打分，不判输（破产照旧结束、不结算）。
-# 表演赛提前办成时来结局卡 iw_ending：马上结算（每提前一天 +50）还是接着经营到第 112 天。
+# 表演赛提前办成时来结局卡 iw_ending：马上结算（每提前一天 +30）还是接着经营到第 112 天（风季三周外场衰减 ×1.5）。
 # 期限卡 iw_deadline 留在日历上，打分模式下它打不开（那一分钟先结算了），关掉 ending 时照旧判输。
 # 分项（schema 见 wave2-5-contract.md"W4 最终 schema"）：分 = floor(of × per)，文案 ending.items.<项>。
-# 现金只算 $3000 以上的部分（开局就有 $3000），囤钱赢不了；成长解锁每把钥匙 200，带人也看得见。
-# 档的门槛由机器人校准（200 局，docs/balance/indian-wells.md"打分"）：S 线放在 good 的中位（约 12840）附近；
-# good / average / novice 中位 12841 / 12863 / 12574，cautious（到 ★4 没办表演赛，"差一点"的局）7886 落在 C，random 3129、idle 30 是 D。
-# 三档普通玩家机器人到第 92–100 天都把能拿的分拿满（会员、声望顶到上限），分开它们的主要是提前的天数。
+# 档的门槛由机器人校准（200 局，docs/balance/indian-wells.md"结局打分"）：good 多半 S/A、average 多半 A/B、
+# novice 多半 B/C，cautious（到 ★4 没办表演赛）C/D，random、idle 是 D。
 ending:
   mode: score
   day: 112
   hour: 18
   exhibition: { flag: exhibition_done }
   card: iw_ending
+  # 分数要讲"这一季经营得好不好"，不只是"顶没顶到上限"（W4 门评审）：good / average / novice 机器人到第 92–100 天
+  # 会员、声望都顶满，旧分项（会员 ×10、声望 ×10、星级 ×1000）中位只差约 300 分。现在：
+  # - 星级 ×800、表演赛 2000 → 1500：办成没办成还是最大的一笔，但不再是全部。
+  # - pace 表演赛提前几天（ending.exhibition_early，按办成那天算，和什么时候结算无关）×120：越早办成越会经营。
+  # - service 整季服务率（service_season：所有周加上这一周，有人在岗的分钟 / 有需求的分钟）高于 50% 的每一点 ×150：
+  #   排人排得勤不勤，整季都算，不是最后一周。
+  # - early 马上结算的奖励 ×50 → ×30：结局卡上"交账 / 接着经营"的筹码（接着经营还有第 15 周内赛的奖杯、
+  #   解锁、现金和整季服务率在涨，掉档的风险也在）。
+  # - 会员只算到 100 人、声望 ×5、现金只算 $3000–8000 那一段：顶到上限不再白拿分，攒钱不经营也拿不多。
+  # 档和各档机器人的分布见 docs/balance/indian-wells.md"结局打分"。
   score:
-    stars: { of: stars, per: 1000 }
+    stars: { of: stars, per: 800 }
     trophies: { of: trophies, per: 300 }
-    members: { of: stat.members, per: 10 }
-    reputation: { of: stat.reputation, per: 10 }
+    members: { of: "min(stat.members, 100)", per: 5 }
+    reputation: { of: stat.reputation, per: 5 }
     unlocks:
       of: "unlocked.junior_coach + unlocked.night_clay_care + unlocked.member_referrals + unlocked.open_division + unlocked.weekend_camp"
       per: 200
-    exhibition: { of: ending.exhibition, per: 2000 }
-    early: { of: "ending.exhibition * ending.days_early", per: 50 }
-    cash: { of: "max(0, stat.cash - 3000)", per: 0.1 }
+    exhibition: { of: ending.exhibition, per: 1500 }
+    pace: { of: ending.exhibition_early, per: 120 }
+    service: { of: "max(0, round(service_season * 100) - 50)", per: 150 }
+    early: { of: "ending.exhibition * ending.days_early", per: 30 }
+    cash: { of: "min(5000, max(0, stat.cash - 3000))", per: 0.1 }
   grades:
-    - { grade: S, gte: 12800 }
-    - { grade: A, gte: 12200 }
-    - { grade: B, gte: 10500 }
+    - { grade: S, gte: 15500 }
+    - { grade: A, gte: 13800 }
+    - { grade: B, gte: 11800 }
     - { grade: C, gte: 6000 }
     - { grade: D, gte: 0 }
   season2:

@@ -46,8 +46,9 @@ describe('Indian Wells balance band', () => {
     it('a careful player mostly scores in the top two grades', () => {
       expect(share('greedy', [top, second])).toBeGreaterThanOrEqual(0.8);
     });
-    it("a player who never hires doesn't reach the top grade", () => {
-      expect(share('cautious', [top])).toBe(0);
+    it("a player who never hires doesn't reach the top three grades (W4 gate: cautious is C/D)", () => {
+      // 分数讲经营得好不好（整季服务率、表演赛提前几天），不招人的局到 ★4 也只在 C、D
+      expect(share('cautious', grades.slice(0, 3))).toBe(0);
     });
     it('random play rarely reaches the top two grades', () => {
       expect(share('random', [top, second])).toBeLessThanOrEqual(0.2);

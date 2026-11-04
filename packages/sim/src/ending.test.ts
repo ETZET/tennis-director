@@ -247,4 +247,33 @@ describe('W4 ending plan A (score)', () => {
     s.stars = 2;
     expect(scoreOf(s, w).grade).toBe('D');
   });
+  it('quality-of-play vars: season service rate over every week, exhibition days ahead regardless of settling', () => {
+    const c = fixture();
+    const a = c.acts[0];
+    if (!a?.ending) throw new Error('no ending');
+    a.ending.score = {
+      service: { of: 'round(service_season * 100)', per: 1 },
+      pace: { of: 'ending.exhibition_early', per: 1 },
+    };
+    const s = jump(c, 90, 10);
+    const w = worldFor(c, s.act);
+    const pts = () => Object.fromEntries(scoreOf(s, w).items.map((x) => [x.id, x.points]));
+    // 一直没有需求：0，不是凭空的 50%
+    s.week.demand = 0;
+    s.week.served = 0;
+    expect(pts()).toEqual({ service: 0, pace: 0 });
+    // 两个周结算（100 分钟里 80、300 分钟里 120）加上这一周到现在（100 分钟里 100）：300 / 500 = 60%
+    const week = (demand: number, served: number) =>
+      ({ id: s.log.length, t: s.t, parent: null, effects: [], cause: { kind: 'week', demand, served } }) as never;
+    s.log.push(week(100, 80), week(300, 120));
+    s.week.demand = 100;
+    s.week.served = 100;
+    expect(pts().service).toBe(60);
+    // 表演赛第 90 天办成：比第 112 天早 22 天；之后什么时候结算都不变
+    s.stars = 4;
+    exhibition(s, c);
+    expect(pts().pace).toBe(22);
+    s.t = at(100, 10);
+    expect(pts().pace).toBe(22);
+  });
 });

@@ -51,17 +51,19 @@ ending:
   items:
     stars: Stars
     trophies: Trophies
-    members: Members
+    members: Members (up to 100)
     reputation: Reputation
     unlocks: Staff breakthroughs
     exhibition: Exhibition
-    early: Days early
-    cash: Cash above $3000
+    pace: Exhibition, days ahead of day 112
+    service: Season service rate (points above 50%)
+    early: Settled early (days)
+    cash: Cash above $3,000 (up to $5,000 counts)
   grades:
     S: Desert legend
     A: Valley favourite
     B: Back on its feet
-    C: Still breathing
+    C: One step short
     D: Gates barely open
   goals:
     official_tournament: Host an official tournament
@@ -76,7 +78,7 @@ events:
       C: They'll get used to it
   iw_investor_check:
     title: The investors visit
-    body: The investors are at the main gate. Three weeks are left before their deadline.
+    body: "The investors are at the main gate to see how the club is doing. On day 112 they score the season."
     options:
       A: I'll show you around myself
       B: Have a look on your own
@@ -235,10 +237,10 @@ events:
       B: "Academy isle: a bridge to the island academy (now: academy lessons +$2, junior semifinal +10%)"
   iw_ending:
     title: The stands are still full. Hand in the books?
-    body: 'The exhibition is over and the investors are waiting in the front row. "We can score the season today, and finishing early counts in your favour. Or keep running until day 112: more members, more trophies, more time for your people to grow. But the wind season does not wait for anyone."'
+    body: 'The exhibition is over and the investors are waiting in the front row. "We can score the season today, and finishing early counts in your favour. Or keep running until day 112: one more cup, more time for your people to grow. But those weeks go on the service record too, and a slack rota drags it down. The wind season does not wait for anyone."'
     options:
       A: "Settle now: score the season today, with a bonus for every day early"
-      B: "Keep running to day 112: no early bonus, but the club keeps growing (and so do the risks)"
+      B: "Keep running to day 112: no early bonus, more trophies and breakthroughs possible; three weeks of wind season wear the outdoor courts 50% faster (and the season service rate keeps counting)"
 log:
   night_care: The clay is well cared for; it wears 30% slower this week
   dale_swept: Dale left his post for three hours and fixed up the worst place
@@ -334,7 +336,7 @@ orders:
   st1_reopen: { title: "Reopen the Stadium", note: "It lost its grade: fix the big screen, clear the stands, $450" }
   st1_clear: { title: "Clear the Stadium", note: "Haul away the collapsed northeast stands", locked: "Open the pool first" }
   st1_rebuild: { title: "Rebuild the Stadium", note: "The biggest job of the game", locked: "Clear the Stadium first" }
-  st1_exhibition: { title: "Hold the exhibition", note: "Six people for a whole day; the higher the reputation, the better the odds (at most 75% without the build-up)", locked: "★4 and the Stadium rebuilt" }
+  st1_exhibition: { title: "Hold the exhibition", note: "Six people working together (a little over an hour); the higher the reputation, the better the odds (at most 75% without the build-up)", locked: "★4 and the Stadium rebuilt" }
   pl_tournament: { title: "Play a tournament", note: "Players only, once a week; a small event: the better they play, the likelier a win (prize money, no trophy)" }
   o23_pro_clay: { title: "Tournament clay", note: "$400; needs someone with upkeep 75+. Better courts, but fussier", locked: "Clay courts open, kept as clay" }
   o23_night_care: { title: "Night care for the clay", note: "$60, 3 hours; needs someone with upkeep 75+. Water, roll and line the clay under the lights: condition +40, then it wears 30% slower for a week; once a week", locked: "Clay courts open, kept as clay; a grounds crew with upkeep 75+" }
@@ -349,9 +351,10 @@ orders:
   st3_to_tennis2: { title: "Back to two tennis courts", note: "$1400; closed for a week. The old members will be pleased, the league leaves" }
   st3_to_pickle4: { title: "Convert to four pickleball courts", note: "$1000; closed for a week. League money, unhappy old members" }
   cup_monthly: { title: "Sign up for the monthly club cup", note: "$60; Saturday of weeks 3, 7, 11, 15. Check-in and umpire posts that day; two courts closed to rentals and lessons; rain spoils it. A trophy", locked: "★1 and two repaired courts" }
-  regional_open: { title: "Play the regional open", note: "$200; players only, a whole day away; a win brings $800, reputation and a trophy. From ★3 it's doubles: a second player, or a coach who misses a day of lessons", locked: "★2 and a player on staff" }
+  regional_open: { title: "Play the regional open", note: "$200; players only, away from the club on match day; a win brings $800, reputation and a trophy. From ★3 it's doubles: a second player, or a coach who misses a day of lessons", locked: "★2 and a player on staff" }
   junior_regional: { title: "Take juniors to the regional", note: "$80; a coach takes the kids for half a day; a semifinal brings members, reputation and a trophy", locked: "★2, academy courts open, 10 academy lessons this week" }
   invitational: { title: "Host the invitational", note: "$800; four event posts both days of the weekend; rain spoils it. Clay: more reputation; hard courts: more money", locked: "★3; clay courts, clubhouse and Circle of Palms open" }
+  official_tournament: { title: "Host the official tournament", note: "$2500; the season-two goal; four event posts both days of the weekend; $5000 prize money, reputation and a trophy", locked: "Season two, ★5; clay courts, clubhouse and Circle of Palms open" }
   prep_stands: { title: "Exhibition build-up · Stands", note: "$1500; exhibition +8%, +$1500 in tickets if it happens; reputation +2", locked: "From ★3" }
   prep_lights: { title: "Exhibition build-up · Floodlights", note: "$1000; exhibition +4%; once rebuilt, Thu–Sat night sessions; power +$30/week", locked: "From ★3" }
   prep_service: { title: "Exhibition build-up · Ball kids and service", note: "$600; exhibition +10%; members +2", locked: "From ★3" }
@@ -359,7 +362,8 @@ orders:
 
 # Repair variants (GM-13): the name, and what each one gives and costs (variant_notes, for the location list)
 variants:
-  outer_23: { clay: Keep the clay, hard: Rebuild as hard courts }
+  # Names are nouns (the season recap reads "… rebuilt as “Hard courts”"; W4 gate playtest)
+  outer_23: { clay: Clay courts, hard: Hard courts }
   clubhouse: { cafe: Patio café, physio: Physio room }
   stadium_3: { pickle4: Four pickleball courts, tennis2: Two tennis courts }
   practice: { academy: Junior academy, bootcamp: Morning bootcamp }
@@ -418,7 +422,7 @@ stars:
     sponsor: A sponsor slot
     exhibition_prep: The exhibition build-up shows on the Stadium
     exhibition: The exhibition can be held
-    finale: The season's final tally
+    finale: Season scoring (day 112, or settle early)
 
 seasons:
   autumn: Autumn
@@ -510,6 +514,9 @@ tournaments:
     title: The invitational
     goals: { staffed: "All four event posts staffed both days", service: "Service 80%+ both days", full_house: "70+ members" }
     variants: { clay: Clay-court invitational, hard: Hard-court invitational }
+  official_tournament:
+    title: The official tournament
+    goals: { staffed: "All four event posts staffed both days", service: "Service 85%+ both days" }
 # Route choices (GM-14)
 routes:
   s2: { youth: Youth academy, resort: Desert resort }
@@ -548,12 +555,15 @@ ui:
     live: "On now"
     hiring: Hiring day
     cards: { iw_investor_check: Investor visit, iw_deadline: Final reckoning }
+    # Score mode (W4): the day-112 beat is the season settlement, not a deadline
+    settle: Season settlement
     # 季节栏的节拍牌（手机 390 宽要放下两张）：短时间、短名字
     at: { today: "{time}", tomorrow: "Tmrw {time}", weekday: "{d} {time}", day: "D{n} {time}" }
     short:
       hiring: Hiring
-      tours: { cup_monthly: Club cup, regional_open: Regional, junior_regional: Juniors, invitational: Invitational }
+      tours: { cup_monthly: Club cup, regional_open: Regional, junior_regional: Juniors, invitational: Invitational, official_tournament: Official }
       cards: { iw_investor_check: Investors, iw_deadline: Deadline }
+      settle: Settlement
   # Star rating (UI-8): the status strip cell and its checklist
   stars:
     label: "Next ★: {n} to go"
@@ -562,6 +572,7 @@ ui:
     title_full: "The club is at ★{n}"
     opens: "Unlocks: {list}"
     foot: "Restored {n}/{total} · investor deadline in {days} days"
+    foot_score: "Restored {n}/{total} · season scored in {days} days"
     restored: "Restored {n}/{total}"
     sign: A new star on the gate sign
   # Repair options (UI-11): one row per option under a repair job
@@ -735,7 +746,7 @@ ui:
     worn: "{place} condition down to {n}: below {limit} at Sunday close it loses a grade and its jobs stop"
     dropping: "{place} condition {n}: without upkeep it loses a grade at close tomorrow (Sunday)"
     star_up: "★{n}! The club earned a new star on the gate sign{opens}"
-    star_opens: " · unlocks {list}"
+    star_opens: " · new: {list}"
     variant_locked: "{place}: work started as “{variant}” — that choice is locked in"
     plaque: "{name} led the {place} repair (day {day}) · name added to the gate plaque{faster}"
     plaque_faster: " · the crew beat one person by {time}"
@@ -837,6 +848,7 @@ ui:
     restore_done: "Condition +{n} when done"
     wear: "Wear {n}/round"
     work: "{time} left (one person, skill 50)"
+    work_crew: "{n} people together: about {time}"
     crew: "Up to {n} people"
     post_on: "{name} is on it · {time} left this round"
     post_wait: "{name} is here, waiting for customers"
@@ -864,6 +876,7 @@ ui:
     reach_now: "{skill} {n} already → {what}"
   ending:
     topic: Season one · final score
+    decide_topic: Season one · the books
     title: The season is scored
     total: Total
     day: "Day {n}"
@@ -879,10 +892,10 @@ ui:
       early: Days early
       cash: Cash
     verdict:
-      S: "A season people in the desert will talk about for years."
-      A: "The garden is back, and everyone in the valley knows it."
-      B: "Solid work: the club stands on its own feet again."
-      C: "It's open and it's breathing, but only just."
+      S: "An early exhibition and a rota that never went slack: the desert will talk about this season for years."
+      A: "The exhibition came early and the posts were mostly covered: the garden is back, and the valley knows it."
+      B: "The exhibition happened, a little late or with posts left empty at times: the club stands on its own feet again."
+      C: "The club is rebuilt and busy, but the season never got its exhibition night (or the posts stood empty too often)."
       D: "The gates are open, but the season got away from you."
     season2: Start season two
     summary: See summary
@@ -893,16 +906,22 @@ ui:
       star: "Reached ★{n}"
       route: "Chose the road: {route}"
       variant: "{place} rebuilt as “{variant}”"
-      trophy: "Won a trophy at the {title}"
+      variant_kept: "{place} rebuilt, same as before"
+      trophy: "Won a trophy: {title}"
       unlock: "{what} unlocked ({names})"
       exhibition: The exhibition filled the Stadium
       settled: "Scored {total} · grade {grade}"
     goal: "Season {n} · goal: {goal}"
     goal_tbd: the next goal is coming soon
+    # Running estimate in the star sheet (W4 gate): what the season would score right now
+    preview_title: If the season were scored now
+    preview_line: "Estimate · scored on day {day}, in {n} days"
+    preview_line_today: "Estimate · scored today (day {day}) at closing"
+    preview_line_now: Estimate
     settle_now: "Settle now: +{n} early bonus"
     settle_score: "Score if settled now: {total} ({grade})"
     keep: "Keep running to day {day}"
-    keep_risk: "No early bonus; members, cash and trophies keep counting (and so does the risk)"
+    keep_risk: "No early bonus; wind season wears the outdoor courts 50% faster for three weeks; the week-15 cup and staff breakthroughs are still on the table, and the season service rate keeps counting (down as well as up)"
     wire_settled: "Season one settled: {total} points, grade {grade}"
     wire_season_two: "Season two begins · goal: {goal}"
     because_settled: "season one was scored ({total}, grade {grade})"
