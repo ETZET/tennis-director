@@ -110,6 +110,21 @@ export function stateDef(s: GameState, w: World, id: string): FacilityState | un
 /** 这处设施在改造、停用着（LG-14）：没有场地、岗位和工单不开、质量和收入不算，维护费照付 */
 export const remodeling = (s: GameState, id: string): boolean => !!s.remodels?.[id];
 
+/**
+ * "修好了"的唯一说法（变量 restored、HUD 的复原 stat.restoration、星级的"修好 N 处"、牌匾都用它）：
+ * 状态和开局不一样、这一档给园区加分（quality > 0），而且没在改造。扫完沙、挖完沙这些中间状态不算；
+ * 掉档停用（worn，质量 0）不算，重开以后又算；改造停用期间不算，期满又算。
+ */
+export const isRestored = (s: GameState, w: World, id: string): boolean =>
+  s.facilities[id] !== w.act.facilities[id] && !remodeling(s, id) && (stateDef(s, w, id)?.quality ?? 0) > 0;
+
+/** 修好了几处（变量 restored） */
+export function restoredCount(s: GameState, w: World): number {
+  let n = 0;
+  for (const id of Object.keys(s.facilities)) if (isRestored(s, w, id)) n++;
+  return n;
+}
+
 /** 设施合计。下雨天只有能挡雨的（rain_ok）场地算开放、有场地收入。 */
 export function facilityTotals(s: GameState, w: World) {
   let courts = 0;
@@ -207,13 +222,8 @@ export function makeEnv(s: GameState, w: World, extra: Record<string, Value> = {
           return facs().income;
         case 'facility_upkeep_week':
           return facs().upkeep;
-        case 'restored': {
-          // 修好 = 换到了一个给园区加分的状态（扫完沙、挖完沙、清完碎石这些中间状态还不算）
-          let n = 0;
-          for (const [id, st] of Object.entries(s.facilities))
-            if (st !== w.act.facilities[id] && (stateDef(s, w, id)?.quality ?? 0) > 0) n++;
-          return n;
-        }
+        case 'restored':
+          return restoredCount(s, w);
         case 'idle_days': {
           // 在职的人里闲得最久的那个，连续闲了几个营业日（720 营业分钟算一天）
           let m = 0;

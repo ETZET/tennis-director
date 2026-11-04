@@ -173,6 +173,35 @@ describe('修复变体（LG-14）', () => {
     );
   });
 
+  it('牌匾带队按整处设施累计：分两张工单修、中途停工换人接着干，最后到场的人不算带队', () => {
+    const s = newGame(FIX, { seed: 2 });
+    s.cards.scheduled = [];
+    s.cards.open = [];
+    s.cards.nextDraw = Number.POSITIVE_INFINITY;
+    for (const id of ['director', 'dale']) (s.people[id] as { at: string }).at = 'outer_1';
+    // 扫沙：Dale 干一会儿就走（停工），总监接着把它扫完
+    advance(s, FIX, [assign('dale', 'o1_sweep')], 1);
+    advance(s, FIX, [], 90);
+    advance(s, FIX, [assign('dale', null)], 1);
+    const paused = s.orders.o1_sweep;
+    expect(paused?.started).toBe(true);
+    const dale = paused?.by?.dale ?? 0;
+    expect(dale).toBeGreaterThan(0);
+    advance(s, FIX, [], 30);
+    expect(s.orders.o1_sweep?.by?.dale).toBe(dale); // 停工期间进度和每人的账都留着
+    advance(s, FIX, [assign('dale', 'o1_sweep'), assign('director', 'o1_sweep')], 1);
+    expect(until(s, (x) => x.facilities.outer_1 === 'swept')).toBe(true);
+    expect(s.plaque).toEqual([]);
+    // 换网：只有总监去（最后到场的人），整处设施 Dale 做得多，还是 Dale 带队
+    advance(s, FIX, [assign('director', 'o1_net')], 1);
+    expect(until(s, (x) => x.facilities.outer_1 === 'playable')).toBe(true);
+    const row = s.plaque[0];
+    expect(row).toMatchObject({ facility: 'outer_1', order: 'o1_net', leader: 'dale' });
+    expect(row?.crew).toEqual(['dale', 'director']);
+    expect(row?.work).toBe(orderStatus(s, W(), order('o1_sweep')).work + orderStatus(s, W(), order('o1_net')).work);
+    expect(s.repairs?.outer_1).toBeUndefined();
+  });
+
   it('没写变体的工单照旧：修好了也记牌匾（会员场），没有变体', () => {
     const s = newGame(FIX, { seed: 2 });
     s.cards.scheduled = [];
@@ -306,6 +335,34 @@ describe('星级和奖杯（LG-10）', () => {
     advance(s, FIX, [], 20);
     expect(s.stars).toBe(2);
     expect(starStatus(s, w).next).toBeNull();
+  });
+
+  it('办成表演赛就结束这一局：★5（exhibition_done）在结束之前升上来，发 star_up、写一条升星日志', () => {
+    const s = newGame(CONTENT, { seed: 5 });
+    s.cards.scheduled = [];
+    s.cards.open = [];
+    s.cards.nextDraw = Number.POSITIVE_INFINITY;
+    s.stars = 4;
+    s.facilities.stadium_1 = 'restored';
+    (s.people.director as { at: string }).at = 'stadium_1';
+    s.stats.cash = 10000;
+    const ex = worldFor(CONTENT, 'indian_wells').orders.get('st1_exhibition') as Order;
+    // 只看办成的那一支：判定必过、一个人就够
+    const c = structuredClone(CONTENT) as ContentBundle;
+    c.version = `${CONTENT.version}-ex`;
+    const o = c.orders.find((x) => x.id === ex.id) as Order;
+    o.check = { chance: '1' };
+    o.work = '10m';
+    const events: SimEvent[] = [];
+    events.push(...advance(s, c, [assign('director', ex.id)], 1).events);
+    for (let i = 0; i < 200 && !s.outcome; i++) events.push(...advance(s, c, [], 1).events);
+    expect(s.outcome).toMatchObject({ result: 'won', ending: 'exhibition' });
+    expect(s.stars).toBe(5);
+    const up = events.findIndex((e) => e.type === 'star_up' && e.stars === 5);
+    const end = events.findIndex((e) => e.type === 'actEnded');
+    expect(up).toBeGreaterThanOrEqual(0);
+    expect(up).toBeLessThan(end);
+    expect(s.log.some((e) => e.cause.kind === 'star' && e.cause.stars === 5)).toBe(true);
   });
 
   it('没写 stars 的地图（现在的内容）永远 0 星，什么都不发', () => {

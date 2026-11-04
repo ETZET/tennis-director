@@ -181,10 +181,10 @@ describe('修复就是解锁（ADR 0015）', () => {
     expect(posts.sort()).toEqual(['o1_lesson', 'o1_rental', 'o1_upkeep']);
     for (const o of ['ch_repair', 'o23_repair', 'o1_resurface'])
       expect(orderStatus(s, w, w.orders.get(o) as never).visible, o).toBe(true);
+    // 复原（HUD）和变量 restored 是同一个数，修好的那一分钟就跟上，不等收盘
     advance(s, CONTENT, [], 1);
-    expect(s.stats.restoration).toBe(0);
-    until(s, (x) => dayOf(x.t) === 2);
     expect(s.stats.restoration).toBe(1);
+    expect(num(s, w, 'restored')).toBe(1);
   });
 
   it('后面的设施要等前面的修好：Stadium 1 要等 Stadium 2，Stadium 2 要等 Stadium 3', () => {
@@ -516,6 +516,41 @@ describe('衰减（准则 6）', () => {
     expect(until(s, (x) => x.facilities.outer_23 === 'playable', 600)).toBe(true);
     expect(s.stats.cash).toBe(cash - 75);
     expect(s.condition.outer_23).toBeCloseTo(c + 50);
+  });
+
+  it('修好了几处只有一个说法：掉档停用不算、重开当场又算，复原 stat 和变量 restored、星级清单一直一致', () => {
+    const s = quiet(court1(fresh()));
+    const w = W();
+    s.facilities.practice = 'open';
+    s.condition.practice = 20; // 一天掉 4：周日收盘时低于 15，掉成停用
+    s.condition.outer_1 = 100;
+    const same = () => {
+      expect(s.stats.restoration).toBe(num(s, w, 'restored'));
+      expect(test(s, w, { expr: 'restored >= 2' })).toBe((s.stats.restoration ?? 0) >= 2);
+    };
+    advance(s, CONTENT, [], 1);
+    expect(s.stats.restoration).toBe(2);
+    same();
+    until(s, (x) => dayOf(x.t) === 8);
+    expect(s.facilities.practice).toBe('worn');
+    expect(s.stats.restoration).toBe(1);
+    same();
+    // 白天重开：做完的下一分钟复原就回到 2（不等收盘）
+    for (const id of ['director', 'dale']) (s.people[id] as { at: string }).at = 'practice';
+    advance(s, CONTENT, [assign('director', 'pr_reopen'), assign('dale', 'pr_reopen')], 0);
+    expect(until(s, (x) => x.facilities.practice === 'open', 600)).toBe(true);
+    expect(dayOf(s.t)).toBe(8);
+    advance(s, CONTENT, [], 1);
+    expect(s.stats.restoration).toBe(2);
+    same();
+    // 改造停用期间也不算，期满又算
+    s.remodels.practice = { variant: 'bootcamp', until: s.t + 60 };
+    advance(s, CONTENT, [], 1);
+    expect(s.stats.restoration).toBe(1);
+    same();
+    advance(s, CONTENT, [], 60);
+    expect(s.stats.restoration).toBe(2);
+    same();
   });
 
   it('掉档一周最多一档：新铺的外场 1 先掉回旧场地（可以补面），再一周才停用；废墟不掉档', () => {

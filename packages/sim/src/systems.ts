@@ -67,6 +67,17 @@ function qualitySystem(ctx: Ctx): void {
 
 /* ---------------- 收盘：人员、经济、会员、声望、派生量、失败条件 ---------------- */
 
+/**
+ * 只读此刻状态的派生量（例如复原 restoration = restored）每分钟同步，HUD 读到的和星级清单里的 restored 永远是同一个数。
+ * 读本周服务率（service_rate、service_demand）的派生量照旧只在收盘时算（准则 6：不实时漂移）。
+ */
+const WEEKLY_VARS = /\bservice_(rate|demand)\b/;
+function liveDerived(ctx: Ctx): void {
+  const { s, w } = ctx;
+  for (const [stat, src] of Object.entries(w.act.rules.derived))
+    if (!WEEKLY_VARS.test(src)) setStat(ctx, stat, num(s, w, src));
+}
+
 export function recomputeDerived(ctx: Ctx): void {
   const { s, w } = ctx;
   for (const [stat, src] of Object.entries(w.act.rules.derived)) setStat(ctx, stat, num(s, w, src));
@@ -181,6 +192,7 @@ export function tick(ctx: Ctx): void {
   staffSystem(ctx); // 岗位转圈、工单推进、办事
   activitySystem(ctx); // 活动开始、结算
   qualitySystem(ctx); // 项目质量
+  liveDerived(ctx); // 复原这类只读此刻状态的派生量
   if (minuteOfDay(s.t) % 10 === 0) checkStars(ctx); // 星级（LG-10）：每 10 分钟看一眼下一星的清单
   expireCards(ctx); // 事件：倒计时到了执行默认后果
   directorDraw(ctx); // 导演：要不要发新卡

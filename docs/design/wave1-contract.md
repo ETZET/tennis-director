@@ -203,9 +203,12 @@ effects:
 | `plaque` | `PlaqueRow[]` | 牌匾 |
 | `stars` | `number` | 0–5，只往上 |
 | `trophies` | `number` | 奖杯数 |
-| `orders[id].variant / by / mins` | | 锁定的变体、每人做了多少工作量、有人在干的分钟数 |
+| `orders[id].variant / by / mins` | | 锁定的变体、每人做了多少工作量、有人在干的分钟数（停工期间保留） |
+| `repairs?` | `Record<facility, { by, mins, work }>` | 还没上牌匾的设施：修它的所有工单累计的每人工作量、分钟数、已做完工单的名义工作量（牌匾带队按它定） |
 
-`PlaqueRow = { facility, variant?, leader, crew: string[], day, minutes, work, order }`：一处设施**第一次修好**（状态和开局不同、质量 > 0，和变量 `restored` 同一个说法）时由那张工单自动记一行。`leader` = 这张工单上做得最多的人，`crew` 按做的多少排；`minutes` 是有人在干的分钟数，`work` 是名义工作量（能力 50 的一个人要干的分钟），快讯的"快了几小时"用 `work − minutes` 讲。一处设施只记一行（重开、改造不再记）。
+`PlaqueRow = { facility, variant?, leader, crew: string[], day, minutes, work, order }`：一处设施**第一次修好**（见下面"修好了"的定义）时由修好它的那张工单（`order`）自动记一行。`leader` = 修这处设施做得最多的人，`crew` 按做的多少排——工作量按这处设施第一次修好之前**所有**工单累计（`state.repairs[facility] = { by, mins, work }`：挖沙 → 铺场这样分几张工单修的、中途停工再由别人接着干的，每人的账都留着），不是只看最后那张；`minutes` 是这些工单上有人在干的分钟数，`work` 是它们的名义工作量之和（能力 50 的一个人要干的分钟），快讯的"快了几小时"用 `work − minutes` 讲。一处设施只记一行（重开、改造不再记、也不再累计）；记上牌匾后 `repairs[facility]` 拿掉。
+
+**"修好了"只有一个定义**（`isRestored(s, w, facility)`，`@td/sim` 的 vars.ts）：状态和开局不同、这一档质量 > 0、而且没在改造。扫完沙、挖完沙这些中间状态不算；掉档停用（`worn`，质量 0）不算，`*_reopen` 重开后又算；改造停用期间不算，期满又算。变量 `restored`（星级的"修好 N 处"、声望的周结算项）、HUD 的复原 `stat.restoration`（幕规则 `derived: restoration: restored`）和牌匾都用它。`stat.restoration` 这类只读此刻状态的派生量每分钟同步（读 `service_rate` / `service_demand` 的派生量照旧收盘才算），所以复原数和星级清单永远一致。
 
 计算变量（`COMPUTED_VARS` 两边一致）：`stars`、`trophies`；另有 `variant.<设施>`（`VARIANT_VAR`）。
 
@@ -230,4 +233,4 @@ effects:
 - `stateDef(s, w, facility)`：此刻这一档的实际数值；`remodeling(s, facility)`。
 - `starStatus(s, w)` → `{ stars, max, next: { level, items: { id, met }[], missing, opens } | null }`（状态条的星级格和明细）。
 
-星级每 10 分钟和每天收盘时检查一次，满足就升（可以连升，每星各发一次 `star_up`），不暂停。机器人：变体工单 greedy / cautious 选第一个变体，human 按自己的种子随机挑一个、想好不改；升级工单按 +40 分估价，只派够门槛的人；改造不主动做。
+星级每 10 分钟、每天收盘时、以及效果 `endAct` 结束这一局之前各检查一次，满足就升（可以连升，每星各发一次 `star_up`、各写一条升星日志），不暂停。所以表演赛办成（同一串效果里先设 `exhibition_done` 再 `endAct`）时 ★5 一定在 `actEnded` 之前升上来。机器人：变体工单 greedy / cautious 选第一个变体，human 按自己的种子随机挑一个、想好不改；升级工单按 +40 分估价，只派够门槛的人；改造不主动做。

@@ -1,4 +1,3 @@
-import { type Ctx, run } from './effects';
 import type { GameState } from './state';
 import { test } from './vars';
 import type { World } from './world';
@@ -37,17 +36,5 @@ export function starStatus(s: GameState, w: World): StarStatus {
   };
 }
 
-/** 看一眼下一星的清单，满足就升（一次可以连升几星，每一星各写一条日志） */
-export function checkStars(ctx: Ctx): void {
-  const { s, w } = ctx;
-  const levels = w.act.stars;
-  if (!levels?.length) return;
-  for (;;) {
-    const stars = s.stars ?? 0;
-    const lv = levels[stars];
-    if (!lv || !Object.values(lv.requires).every((c) => test(s, w, c))) return;
-    s.stars = stars + 1;
-    run(ctx, { kind: 'star', stars: s.stars, opens: [...lv.opens] }, null, []);
-    ctx.events.push({ type: 'star_up', stars: s.stars, opens: [...lv.opens] });
-  }
-}
+// 升星检查在 effects.ts（结束这一局之前也要看一眼星级，见 endAct），这里转出去
+export { checkStars } from './effects';

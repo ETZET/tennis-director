@@ -148,6 +148,8 @@ export function applyEffects(ctx: Ctx, effects: readonly Effect[], entryId: numb
       out.push({ kind: 'text', key: e.log });
     } else if ('endAct' in e) {
       if (s.outcome) continue;
+      // 先看一眼星级再结束：表演赛那张工单前面的效果刚设了 exhibition_done，★5 要在这一局结束前升上来
+      checkStars(ctx);
       s.outcome = { result: e.endAct, ending: e.ending, t: s.t };
       out.push({ kind: 'end', result: e.endAct, ending: e.ending });
       ctx.events.push({ type: 'actEnded', result: e.endAct, ending: e.ending });
@@ -173,4 +175,22 @@ export function run(ctx: Ctx, cause: Cause, parent: number | null, effects: read
   const entry = logEntry(ctx, cause, parent, out);
   applyEffects(ctx, effects, entry.id, out);
   return entry;
+}
+
+/**
+ * 星级（LG-10）：看一眼下一星的清单，满足就升（一次可以连升几星，每一星各写一条日志）。
+ * 每 10 分钟、每天收盘、以及结束这一局之前（endAct）各看一次。
+ */
+export function checkStars(ctx: Ctx): void {
+  const { s, w } = ctx;
+  const levels = w.act.stars;
+  if (!levels?.length) return;
+  for (;;) {
+    const stars = s.stars ?? 0;
+    const lv = levels[stars];
+    if (!lv || !Object.values(lv.requires).every((c) => test(s, w, c))) return;
+    s.stars = stars + 1;
+    run(ctx, { kind: 'star', stars: s.stars, opens: [...lv.opens] }, null, []);
+    ctx.events.push({ type: 'star_up', stars: s.stars, opens: [...lv.opens] });
+  }
 }

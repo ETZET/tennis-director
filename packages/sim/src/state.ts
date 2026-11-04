@@ -69,7 +69,7 @@ export interface OrderState {
 export interface PlaqueRow {
   facility: string;
   variant?: string;
-  /** 带队：这张工单上做得最多的人 */
+  /** 带队：修这处设施（第一次修好之前的所有工单）做得最多的人 */
   leader: string;
   /** 一起干的人（按做的多少排，带队在最前） */
   crew: string[];
@@ -240,6 +240,11 @@ export interface GameState {
   picks: Record<string, string>;
   /** 大门牌匾（LG-14） */
   plaque: PlaqueRow[];
+  /**
+   * 还没上牌匾的设施：修它的所有工单上每人做了多少工作量、有人在干的分钟数、已经做完的那几张工单的名义工作量。
+   * 跨工单（挖沙 → 铺场）、跨停工累计；记上牌匾就拿掉。旧存档没有这一项，用到时补上。
+   */
+  repairs?: Record<string, { by: Record<string, number>; mins: number; work: number }>;
   /** 星级 0..5（LG-10）：达到过的最高星，不往回掉 */
   stars: number;
   /** 奖杯数（LG-10） */

@@ -12,7 +12,7 @@ import {
   type PlaqueRow,
   weekdayOf,
 } from './state';
-import { isStaff, num, remodeling, stateDef, test } from './vars';
+import { isRestored, isStaff, num, remodeling, stateDef, test } from './vars';
 import { haltWalk, leaveJob, walkTo } from './walk';
 import type { World } from './world';
 
@@ -572,10 +572,6 @@ function postSystem(ctx: Ctx, jobs: Map<string, string[]>): void {
   }
 }
 
-/** 修好了：状态和开局不一样、而且给园区加分（和变量 restored 同一个说法） */
-const isRestored = (s: GameState, w: World, f: string): boolean =>
-  s.facilities[f] !== w.act.facilities[f] && (stateDef(s, w, f)?.quality ?? 0) > 0;
-
 function finishOrder(ctx: Ctx, o: Order): void {
   const { s, w } = ctx;
   const crew = crewOf(s, o.id);
@@ -612,8 +608,11 @@ function finishOrder(ctx: Ctx, o: Order): void {
     ctx.events.push({ type: 'remodel_started', facility: f, variant: o.remodel, until });
   }
   // 牌匾（LG-14）：一处设施第一次修好，大门的牌匾自动记一行——谁带队（做得最多的人）、第几天
+  // 带队和一起干的人按这处设施第一次修好之前所有工单上的工作量算（s.repairs：挖沙、铺场这样分几张工单修的，
+  // 中途停工、换人接着干的，都一起记）；没有累计的旧存档退回这张工单的 by
   if (f && !wasRestored && isRestored(s, w, f) && !s.plaque.some((r) => r.facility === f)) {
-    const by = st?.by ?? {};
+    const credit = s.repairs?.[f];
+    const by = credit?.by ?? st?.by ?? {};
     const people = [...new Set([...Object.keys(by), ...crew])].sort(
       (a, b) => (by[b] ?? 0) - (by[a] ?? 0) || a.localeCompare(b),
     );
@@ -625,14 +624,19 @@ function finishOrder(ctx: Ctx, o: Order): void {
         leader,
         crew: people,
         day: dayOf(s.t),
-        minutes: st?.mins ?? 0,
-        work: orderWork(s, o, variant),
+        minutes: credit?.mins ?? st?.mins ?? 0,
+        work: (credit?.work ?? 0) + orderWork(s, o, variant),
         order: o.id,
       };
       s.plaque.push(row);
       entry.effects.push({ kind: 'plaque', facility: f, leader });
       ctx.events.push({ type: 'plaque_added', ...row });
     }
+  }
+  if (f && s.repairs?.[f]) {
+    // 记过牌匾了，累计用完；还没修好（中间那一步，例如挖完沙）就把这张工单的名义工作量记上，接着累计
+    if (s.plaque.some((r) => r.facility === f)) delete s.repairs[f];
+    else s.repairs[f].work += orderWork(s, o, variant);
   }
   s.orderLog.done[o.id] = (s.orderLog.done[o.id] ?? 0) + 1;
   if (o.cooldown) s.orderLog.cooldowns[o.id] = s.t + minutes(o.cooldown);
@@ -668,6 +672,7 @@ function orderSystem(ctx: Ctx, jobs: Map<string, string[]>): void {
     }
     const here = crew.filter((id) => working(s, w, id));
     if (!here.length) continue;
+    const f = orderFacility(w, o);
     let state = st;
     if (!state) {
       // 第一个人到场：扣材料费开工；钱不够就开不了，人闲下来。变体工单在这一刻锁定变体（LG-14）
@@ -682,7 +687,6 @@ function orderSystem(ctx: Ctx, jobs: Map<string, string[]>): void {
       }
       if (cost) setStat(ctx, 'cash', (s.stats.cash ?? 0) - cost);
       state = s.orders[o.id] = { progress: 0, started: true, by: {}, mins: 0 };
-      const f = orderFacility(w, o);
       if (variant && f) {
         state.variant = variant;
         delete s.picks[o.id];
@@ -691,13 +695,20 @@ function orderSystem(ctx: Ctx, jobs: Map<string, string[]>): void {
       }
       ctx.events.push({ type: 'orderStarted', order: o.id, at: o.at, performance: o.performance ?? null });
     }
+    // 这处设施还没上过牌匾：工作量也记到设施上（跨工单、跨停工累计，牌匾按它定带队）
+    const credit =
+      f && !s.plaque.some((r) => r.facility === f)
+        ? ((s.repairs ??= {})[f] ??= { by: {}, mins: 0, work: 0 })
+        : undefined;
     for (const id of here) {
       const v = speedOf(workSkill(s, w, id, o.skill));
       state.progress += v;
       const by = (state.by ??= {});
       by[id] = (by[id] ?? 0) + v;
+      if (credit) credit.by[id] = (credit.by[id] ?? 0) + v;
     }
     state.mins = (state.mins ?? 0) + 1;
+    if (credit) credit.mins += 1;
     if (state.progress >= orderWork(s, o)) finishOrder(ctx, o);
   }
 }
