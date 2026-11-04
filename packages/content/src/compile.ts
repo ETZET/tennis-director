@@ -73,6 +73,8 @@ export const COMPUTED_VARS = [
   'service_rate',
   /** 这一周（或者上一周）有没有需求：0 或 1。没有需求的一周，服务率无从谈起（GM-1） */
   'service_demand',
+  /** 整季（到现在为止所有周加上这一周）的服务率 0..1；只给结局打分用（要扫日志） */
+  'service_season',
   /** 周结算里声望服务项的及格线（rules.week.service_pass） */
   'service_pass',
   /** 修好、能打的场地数，不管今天下不下雨（会员上限按这个算） */
@@ -105,11 +107,13 @@ export const COMPUTED_VARS = [
   'best.play',
   /**
    * 结局（W4，LG-13）：exhibition 表演赛办成过没有（0/1，ending.exhibition 条件第一次满足时记下）；
-   * days_early 结算那天离 ending.day 还有几天（还没结算时按今天算；不小于 0）；season 第几季（1、2）；settled 结算过没有（0/1）。
+   * days_early 结算那天离 ending.day 还有几天（还没结算时按今天算；不小于 0）；
+   * exhibition_early 表演赛办成那天离 ending.day 还有几天（没办成是 0；和什么时候结算无关）；season 第几季（1、2）；settled 结算过没有（0/1）。
    * 没写 ending 的地图读到 0（season 读到 1）。
    */
   'ending.exhibition',
   'ending.days_early',
+  'ending.exhibition_early',
   'ending.season',
   'ending.settled',
 ] as const;

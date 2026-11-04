@@ -214,8 +214,11 @@ describe('修复就是解锁（ADR 0015）', () => {
     s.stars = 4;
     for (const id of ['director', 'dale']) (s.people[id] as { at: string }).at = 'stadium_1';
     advance(s, CONTENT, [assign('director', 'st1_exhibition'), assign('dale', 'st1_exhibition')], 0);
-    expect(until(s, (x) => x.outcome !== null)).toBe(true);
-    expect(s.outcome).toMatchObject({ result: 'won', ending: 'exhibition' });
+    // 结局方案 A（W4 内容打开了 ending）：办成不再结束这一局，记下表演赛、来结局卡；不写 ending 的旧行为见 ending.test.ts
+    expect(until(s, (x) => x.ending.exhibition !== null || x.outcome !== null)).toBe(true);
+    expect(s.outcome).toBeNull();
+    expect(s.flags.exhibition_done).toBe(true);
+    expect(until(s, (x) => x.cards.open.some((o) => o.card === 'iw_ending'), 5)).toBe(true);
   });
 });
 
@@ -865,12 +868,14 @@ describe('时间', () => {
     expect(s.stats.members).toBe(10);
   });
 
-  it('第 112 天收盘前没办成表演赛：期限到了，游戏结束', () => {
+  it('第 112 天 18 点没办成表演赛：结算打分（结局方案 A），期限卡不再判输', () => {
     const s = fresh(4);
     s.cards.open = [];
     s.t = at(112, 17);
     expect(until(s, (x) => x.outcome !== null, 4 * 60)).toBe(true);
-    expect(s.outcome).toMatchObject({ result: 'lost', ending: 'deadline' });
+    expect(s.outcome).toMatchObject({ result: 'settled', ending: 'score', t: at(112, 18) });
+    expect(s.ending.settlement?.reason).toBe('deadline');
+    expect(s.cards.shown.iw_deadline ?? 0).toBe(0);
   });
 });
 
@@ -992,7 +997,7 @@ describe('确定性', () => {
     const c = runGame(CONTENT, randomBot(5), 100).state;
     expect(stateHash(a)).toBe(stateHash(b));
     expect(stateHash(a)).not.toBe(stateHash(c));
-  });
+  }, 30_000); // 整局跑四遍，CI 机器慢，给足时间
 
   it('状态能直接 JSON 序列化再读回来', () => {
     const s = runGame(CONTENT, greedyBot(), 7, { maxDays: 4 }).state;
@@ -1052,9 +1057,10 @@ describe('整局', () => {
     expect(r.state.log.some((e) => e.cause.kind === 'order')).toBe(true);
   }, 20_000);
 
-  it('放置不管的对照局：打得完（期限到了），什么都没修好', () => {
+  it('放置不管的对照局：打得完（第 112 天结算，最后一档），什么都没修好', () => {
     const r = runGame(CONTENT, idleBot(), 1);
-    expect(r.outcome).toMatchObject({ result: 'lost', ending: 'deadline' });
+    expect(r.outcome).toMatchObject({ result: 'settled', ending: 'score' });
+    expect(r.state.ending.settlement?.grade).toBe('D');
     expect(r.state.stats.restoration).toBe(0);
     expect(r.state.stats.quality ?? 0).toBeLessThan(30);
   }, 20_000);

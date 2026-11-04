@@ -42,6 +42,21 @@ export function serviceRate(s: GameState): number {
   return s.week.lastDemand > 0 ? s.week.last : 0;
 }
 
+/**
+ * 整季的服务率 0..1（W4 结局打分）：所有周结算（因果日志里的 week）加上这一周到现在，有人在岗的分钟 / 有需求的分钟。
+ * 一直没有需求时是 0。只在结算打分时读（要扫一遍日志），别在每个 tick 的条件里用。
+ */
+export function serviceSeason(s: GameState): number {
+  let demand = s.week.demand;
+  let served = s.week.served;
+  for (const e of s.log) {
+    if (e.cause.kind !== 'week') continue;
+    demand += e.cause.demand;
+    served += e.cause.served;
+  }
+  return demand > 0 ? served / demand : 0;
+}
+
 /** 本周（或者上周）有没有需求：服务率有没有意义 */
 export function hasDemand(s: GameState): boolean {
   return s.week.demand > 0 || s.week.lastDemand > 0;
@@ -227,6 +242,8 @@ export function makeEnv(s: GameState, w: World, extra: Record<string, Value> = {
           return s.condition[rest] ?? 100;
         case 'service_rate':
           return serviceRate(s);
+        case 'service_season':
+          return serviceSeason(s);
         case 'service_demand':
           return hasDemand(s) ? 1 : 0;
         case 'service_pass':
@@ -373,6 +390,10 @@ export function endingVar(s: GameState, w: World, rest: string): Value | undefin
       if (!e) return 0;
       const day = st?.settlement ? st.settlement.day : dayOf(s.t);
       return Math.max(0, e.day - day);
+    }
+    case 'exhibition_early': {
+      if (!e || st?.exhibition === null || st?.exhibition === undefined) return 0;
+      return Math.max(0, e.day - dayOf(st.exhibition));
     }
     case 'season':
       return st?.season ?? 1;

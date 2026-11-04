@@ -1,5 +1,5 @@
 {
- "version": "570cbaa6",
+ "version": "c4b6e2c6",
  "stats": [
   {
    "id": "cash",
@@ -3253,6 +3253,25 @@
    "onFail": []
   },
   {
+   "id": "official_tournament",
+   "act": "indian_wells",
+   "at": "outer_23",
+   "skill": "service",
+   "work": "6h",
+   "cost": 0,
+   "when": {
+    "facility": "outer_23",
+    "is": "playable"
+   },
+   "crew": 3,
+   "once": false,
+   "restore": 0,
+   "effects": [],
+   "onSuccess": [],
+   "onFail": [],
+   "performance": "match"
+  },
+  {
    "id": "pl_tournament",
    "act": "indian_wells",
    "at": "entrance",
@@ -3493,7 +3512,16 @@
    "work": "10h",
    "cost": 1000,
    "when": {
-    "expr": "stars >= 3"
+    "all": [
+     {
+      "expr": "stars >= 3"
+     },
+     {
+      "not": {
+       "flag": "exhibition_done"
+      }
+     }
+    ]
    },
    "crew": 3,
    "once": false,
@@ -3522,7 +3550,16 @@
    "work": "6h",
    "cost": 900,
    "when": {
-    "expr": "stars >= 3"
+    "all": [
+     {
+      "expr": "stars >= 3"
+     },
+     {
+      "not": {
+       "flag": "exhibition_done"
+      }
+     }
+    ]
    },
    "crew": 2,
    "once": false,
@@ -3542,7 +3579,16 @@
    "work": "10h",
    "cost": 600,
    "when": {
-    "expr": "stars >= 3"
+    "all": [
+     {
+      "expr": "stars >= 3"
+     },
+     {
+      "not": {
+       "flag": "exhibition_done"
+      }
+     }
+    ]
    },
    "crew": 3,
    "once": false,
@@ -3570,7 +3616,16 @@
    "work": "14h",
    "cost": 1500,
    "when": {
-    "expr": "stars >= 3"
+    "all": [
+     {
+      "expr": "stars >= 3"
+     },
+     {
+      "not": {
+       "flag": "exhibition_done"
+      }
+     }
+    ]
    },
    "crew": 4,
    "once": false,
@@ -3800,6 +3855,11 @@
      },
      {
       "expr": "stars >= 4"
+     },
+     {
+      "not": {
+       "flag": "exhibition_done"
+      }
      }
     ]
    },
@@ -5162,6 +5222,119 @@
        }
       ]
      }
+    },
+    {
+     "id": "official_tournament",
+     "kind": "host",
+     "at": "outer_23",
+     "weeks": [
+      6,
+      12
+     ],
+     "days": [
+      5,
+      6
+     ],
+     "hours": [
+      9,
+      17
+     ],
+     "when": {
+      "all": [
+       {
+        "expr": "ending.season >= 2 && stars >= 5"
+       },
+       {
+        "facility": "outer_23",
+        "is": "playable"
+       },
+       {
+        "facility": "clubhouse",
+        "is": "open"
+       },
+       {
+        "facility": "plaza",
+        "is": "open"
+       }
+      ]
+     },
+     "fee": 2500,
+     "order": "official_tournament",
+     "lead": "7d",
+     "posts": [
+      "t_checkin",
+      "t_courtside",
+      "t_catering",
+      "t_umpire"
+     ],
+     "closes": [
+      "o23_rental",
+      "o23_clinic"
+     ],
+     "reward": [
+      {
+       "stat": "cash",
+       "add": 5000
+      },
+      {
+       "stat": "reputation",
+       "add": 8
+      },
+      {
+       "trophy": 1
+      },
+      {
+       "flag": "official_tournament_done",
+       "set": true
+      }
+     ],
+     "goals": [
+      {
+       "id": "staffed",
+       "if": "event.staffed >= 0.95",
+       "reward": [
+        {
+         "stat": "members",
+         "add": 6
+        }
+       ]
+      },
+      {
+       "id": "service",
+       "if": "event.service_rate >= 0.85",
+       "reward": [
+        {
+         "stat": "reputation",
+         "add": 3
+        }
+       ]
+      }
+     ],
+     "repeat": {
+      "scale": 0.5,
+      "goals": [
+       {
+        "id": "staffed",
+        "if": "event.staffed >= 0.95",
+        "reward": [
+         {
+          "stat": "members",
+          "add": 6
+         }
+        ]
+       },
+       {
+        "id": "service",
+        "if": "event.service_rate >= 0.85",
+        "reward": [
+         {
+          "stat": "cash",
+          "add": 1500
+         }
+        ]
+       }
+      ]
+     }
     }
    ],
    "growth": {
@@ -5247,6 +5420,83 @@
       "effects": []
      }
     ]
+   },
+   "ending": {
+    "mode": "score",
+    "day": 112,
+    "hour": 18,
+    "exhibition": {
+     "flag": "exhibition_done"
+    },
+    "card": "iw_ending",
+    "score": {
+     "stars": {
+      "of": "stars",
+      "per": 800
+     },
+     "trophies": {
+      "of": "trophies",
+      "per": 300
+     },
+     "members": {
+      "of": "min(stat.members, 100)",
+      "per": 5
+     },
+     "reputation": {
+      "of": "stat.reputation",
+      "per": 5
+     },
+     "unlocks": {
+      "of": "unlocked.junior_coach + unlocked.night_clay_care + unlocked.member_referrals + unlocked.open_division + unlocked.weekend_camp",
+      "per": 200
+     },
+     "exhibition": {
+      "of": "ending.exhibition",
+      "per": 1500
+     },
+     "pace": {
+      "of": "ending.exhibition_early",
+      "per": 120
+     },
+     "service": {
+      "of": "max(0, round(service_season * 100) - 50)",
+      "per": 150
+     },
+     "early": {
+      "of": "ending.exhibition * ending.days_early",
+      "per": 30
+     },
+     "cash": {
+      "of": "min(5000, max(0, stat.cash - 3000))",
+      "per": 0.1
+     }
+    },
+    "grades": [
+     {
+      "grade": "S",
+      "gte": 15500
+     },
+     {
+      "grade": "A",
+      "gte": 13800
+     },
+     {
+      "grade": "B",
+      "gte": 11800
+     },
+     {
+      "grade": "C",
+      "gte": 6000
+     },
+     {
+      "grade": "D",
+      "gte": 0
+     }
+    ],
+    "season2": {
+     "goal": "official_tournament",
+     "start_cards": []
+    }
    },
    "daily": [],
    "seasons": [
@@ -7016,6 +7266,59 @@
    }
   },
   {
+   "id": "iw_ending",
+   "act": "indian_wells",
+   "source": "milestone",
+   "tone": "neutral",
+   "weight": 1,
+   "countdown": "1d",
+   "pause": true,
+   "location": "stadium_1",
+   "who": "investors",
+   "options": {
+    "A": {
+     "effects": [
+      {
+       "settle": true
+      }
+     ],
+     "onSuccess": [],
+     "onFail": []
+    },
+    "B": {
+     "effects": [
+      {
+       "decay_mult": {
+        "facility": "outer_1",
+        "factor": 1.5,
+        "days": 21
+       }
+      },
+      {
+       "decay_mult": {
+        "facility": "outer_23",
+        "factor": 1.5,
+        "days": 21
+       }
+      },
+      {
+       "decay_mult": {
+        "facility": "practice",
+        "factor": 1.5,
+        "days": 21
+       }
+      }
+     ],
+     "onSuccess": [],
+     "onFail": []
+    }
+   },
+   "default": {
+    "then": "B",
+    "extra": []
+   }
+  },
+  {
    "id": "iw_first_players",
    "act": "indian_wells",
    "source": "threshold",
@@ -8672,13 +8975,31 @@
    "endings.deadline.body": "The investors' sixteen weeks are over and the exhibition never happened. The restoration stops and the gates are locked again.",
    "endings.bankrupt.title": "Out of money",
    "endings.bankrupt.body": "The garden can't make payroll and the investors stop the restoration. The gates are locked again.",
+   "endings.score.title": "Season one is scored",
+   "endings.score.body": "The investors close their notebooks. Stars, trophies, members, reputation, the people you brought on, the exhibition and the money in the bank all go on one sheet.",
+   "ending.items.stars": "Stars",
+   "ending.items.trophies": "Trophies",
+   "ending.items.members": "Members (up to 100)",
+   "ending.items.reputation": "Reputation",
+   "ending.items.unlocks": "Staff breakthroughs",
+   "ending.items.exhibition": "Exhibition",
+   "ending.items.pace": "Exhibition, days ahead of day 112",
+   "ending.items.service": "Season service rate (points above 50%)",
+   "ending.items.early": "Settled early (days)",
+   "ending.items.cash": "Cash above $3,000 (up to $5,000 counts)",
+   "ending.grades.S": "Desert legend",
+   "ending.grades.A": "Valley favourite",
+   "ending.grades.B": "Back on its feet",
+   "ending.grades.C": "One step short",
+   "ending.grades.D": "Gates barely open",
+   "ending.goals.official_tournament": "Host an official tournament",
    "events.iw_pickle_noise.title": "Too loud, one court short",
    "events.iw_pickle_noise.body": "Three members who have played here for twenty years are waiting by the pickleball courts. \"Pop, pop, pop, all weekend. And we lost a tennis court for it.\" More of them are talking about La Quinta.",
    "events.iw_pickle_noise.options.A": "Acoustic panels and quiet paddles ($450)",
    "events.iw_pickle_noise.options.B": "Hold a members' meeting about time slots (you, 3 hours; it may not work)",
    "events.iw_pickle_noise.options.C": "They'll get used to it",
    "events.iw_investor_check.title": "The investors visit",
-   "events.iw_investor_check.body": "The investors are at the main gate. Three weeks are left before their deadline.",
+   "events.iw_investor_check.body": "The investors are at the main gate to see how the club is doing. On day 112 they score the season.",
    "events.iw_investor_check.options.A": "I'll show you around myself",
    "events.iw_investor_check.options.B": "Have a look on your own",
    "events.iw_investor_check.options.C": "Ask for $1500 more (reputation −5)",
@@ -8785,6 +9106,10 @@
    "events.iw_route_s4.body": "A resort club needs room. Turn the south car park into a viewing slope and grow new land in the southeast, or bridge over to the little sky island with the two old net posts? If you don't choose by tomorrow, Dale picks the plaza.",
    "events.iw_route_s4.options.A": "Event plaza: a viewing slope for big matches (now: exhibition +5%)",
    "events.iw_route_s4.options.B": "Academy isle: a bridge to the island academy (now: academy lessons +$2, junior semifinal +10%)",
+   "events.iw_ending.title": "The stands are still full. Hand in the books?",
+   "events.iw_ending.body": "The exhibition is over and the investors are waiting in the front row. \"We can score the season today, and finishing early counts in your favour. Or keep running until day 112: one more cup, more time for your people to grow. But those weeks go on the service record too, and a slack rota drags it down. The wind season does not wait for anyone.\"",
+   "events.iw_ending.options.A": "Settle now: score the season today, with a bonus for every day early",
+   "events.iw_ending.options.B": "Keep running to day 112: no early bonus, more trophies and breakthroughs possible; three weeks of wind season wear the outdoor courts 50% faster (and the season service rate keeps counting)",
    "log.night_care": "The clay is well cared for; it wears 30% slower this week",
    "log.dale_swept": "Dale left his post for three hours and fixed up the worst place",
    "log.dale_sweep_declined": "You told Dale you'd send someone yourself",
@@ -8957,7 +9282,7 @@
    "orders.st1_rebuild.note": "The biggest job of the game",
    "orders.st1_rebuild.locked": "Clear the Stadium first",
    "orders.st1_exhibition.title": "Hold the exhibition",
-   "orders.st1_exhibition.note": "Six people for a whole day; the higher the reputation, the better the odds (at most 75% without the build-up)",
+   "orders.st1_exhibition.note": "Six people working together (a little over an hour); the higher the reputation, the better the odds (at most 75% without the build-up)",
    "orders.st1_exhibition.locked": "★4 and the Stadium rebuilt",
    "orders.pl_tournament.title": "Play a tournament",
    "orders.pl_tournament.note": "Players only, once a week; a small event: the better they play, the likelier a win (prize money, no trophy)",
@@ -8997,7 +9322,7 @@
    "orders.cup_monthly.note": "$60; Saturday of weeks 3, 7, 11, 15. Check-in and umpire posts that day; two courts closed to rentals and lessons; rain spoils it. A trophy",
    "orders.cup_monthly.locked": "★1 and two repaired courts",
    "orders.regional_open.title": "Play the regional open",
-   "orders.regional_open.note": "$200; players only, a whole day away; a win brings $800, reputation and a trophy. From ★3 it's doubles: a second player, or a coach who misses a day of lessons",
+   "orders.regional_open.note": "$200; players only, away from the club on match day; a win brings $800, reputation and a trophy. From ★3 it's doubles: a second player, or a coach who misses a day of lessons",
    "orders.regional_open.locked": "★2 and a player on staff",
    "orders.junior_regional.title": "Take juniors to the regional",
    "orders.junior_regional.note": "$80; a coach takes the kids for half a day; a semifinal brings members, reputation and a trophy",
@@ -9005,6 +9330,9 @@
    "orders.invitational.title": "Host the invitational",
    "orders.invitational.note": "$800; four event posts both days of the weekend; rain spoils it. Clay: more reputation; hard courts: more money",
    "orders.invitational.locked": "★3; clay courts, clubhouse and Circle of Palms open",
+   "orders.official_tournament.title": "Host the official tournament",
+   "orders.official_tournament.note": "$2500; the season-two goal; four event posts both days of the weekend; $5000 prize money, reputation and a trophy",
+   "orders.official_tournament.locked": "Season two, ★5; clay courts, clubhouse and Circle of Palms open",
    "orders.prep_stands.title": "Exhibition build-up · Stands",
    "orders.prep_stands.note": "$1500; exhibition +8%, +$1500 in tickets if it happens; reputation +2",
    "orders.prep_stands.locked": "From ★3",
@@ -9017,8 +9345,8 @@
    "orders.prep_media.title": "Exhibition build-up · Sponsor and TV",
    "orders.prep_media.note": "$900; the sponsor pays $150 a week; +$1000 TV money if the exhibition happens",
    "orders.prep_media.locked": "From ★3",
-   "variants.outer_23.clay": "Keep the clay",
-   "variants.outer_23.hard": "Rebuild as hard courts",
+   "variants.outer_23.clay": "Clay courts",
+   "variants.outer_23.hard": "Hard courts",
    "variants.clubhouse.cafe": "Patio café",
    "variants.clubhouse.physio": "Physio room",
    "variants.stadium_3.pickle4": "Four pickleball courts",
@@ -9089,7 +9417,7 @@
    "stars.opens.sponsor": "A sponsor slot",
    "stars.opens.exhibition_prep": "The exhibition build-up shows on the Stadium",
    "stars.opens.exhibition": "The exhibition can be held",
-   "stars.opens.finale": "The season's final tally",
+   "stars.opens.finale": "Season scoring (day 112, or settle early)",
    "seasons.autumn": "Autumn",
    "seasons.winter": "Winter",
    "seasons.spring": "Spring · windy season",
@@ -9196,6 +9524,9 @@
    "tournaments.invitational.goals.full_house": "70+ members",
    "tournaments.invitational.variants.clay": "Clay-court invitational",
    "tournaments.invitational.variants.hard": "Hard-court invitational",
+   "tournaments.official_tournament.title": "The official tournament",
+   "tournaments.official_tournament.goals.staffed": "All four event posts staffed both days",
+   "tournaments.official_tournament.goals.service": "Service 85%+ both days",
    "routes.s2.youth": "Youth academy",
    "routes.s2.resort": "Desert resort",
    "routes.s3.south_courts": "South courts",
@@ -9225,6 +9556,7 @@
    "ui.beat.hiring": "Hiring day",
    "ui.beat.cards.iw_investor_check": "Investor visit",
    "ui.beat.cards.iw_deadline": "Final reckoning",
+   "ui.beat.settle": "Season settlement",
    "ui.beat.at.today": "{time}",
    "ui.beat.at.tomorrow": "Tmrw {time}",
    "ui.beat.at.weekday": "{d} {time}",
@@ -9234,14 +9566,17 @@
    "ui.beat.short.tours.regional_open": "Regional",
    "ui.beat.short.tours.junior_regional": "Juniors",
    "ui.beat.short.tours.invitational": "Invitational",
+   "ui.beat.short.tours.official_tournament": "Official",
    "ui.beat.short.cards.iw_investor_check": "Investors",
    "ui.beat.short.cards.iw_deadline": "Deadline",
+   "ui.beat.short.settle": "Settlement",
    "ui.stars.label": "Next ★: {n} to go",
    "ui.stars.full": "All stars",
    "ui.stars.title": "To reach ★{n}",
    "ui.stars.title_full": "The club is at ★{n}",
    "ui.stars.opens": "Unlocks: {list}",
    "ui.stars.foot": "Restored {n}/{total} · investor deadline in {days} days",
+   "ui.stars.foot_score": "Restored {n}/{total} · season scored in {days} days",
    "ui.stars.restored": "Restored {n}/{total}",
    "ui.stars.sign": "A new star on the gate sign",
    "ui.variant.hint": "Tap an option to preview it · drag someone onto one to start",
@@ -9420,7 +9755,7 @@
    "ui.wire.worn": "{place} condition down to {n}: below {limit} at Sunday close it loses a grade and its jobs stop",
    "ui.wire.dropping": "{place} condition {n}: without upkeep it loses a grade at close tomorrow (Sunday)",
    "ui.wire.star_up": "★{n}! The club earned a new star on the gate sign{opens}",
-   "ui.wire.star_opens": " · unlocks {list}",
+   "ui.wire.star_opens": " · new: {list}",
    "ui.wire.variant_locked": "{place}: work started as “{variant}” — that choice is locked in",
    "ui.wire.plaque": "{name} led the {place} repair (day {day}) · name added to the gate plaque{faster}",
    "ui.wire.plaque_faster": " · the crew beat one person by {time}",
@@ -9517,6 +9852,7 @@
    "ui.sheet.restore_done": "Condition +{n} when done",
    "ui.sheet.wear": "Wear {n}/round",
    "ui.sheet.work": "{time} left (one person, skill 50)",
+   "ui.sheet.work_crew": "{n} people together: about {time}",
    "ui.sheet.crew": "Up to {n} people",
    "ui.sheet.post_on": "{name} is on it · {time} left this round",
    "ui.sheet.post_wait": "{name} is here, waiting for customers",
@@ -9545,6 +9881,7 @@
    "ui.grow.reach": "can reach {skill} {n} → {what}",
    "ui.grow.reach_now": "{skill} {n} already → {what}",
    "ui.ending.topic": "Season one · final score",
+   "ui.ending.decide_topic": "Season one · the books",
    "ui.ending.title": "The season is scored",
    "ui.ending.total": "Total",
    "ui.ending.day": "Day {n}",
@@ -9558,10 +9895,10 @@
    "ui.ending.item.exhibition": "Exhibition",
    "ui.ending.item.early": "Days early",
    "ui.ending.item.cash": "Cash",
-   "ui.ending.verdict.S": "A season people in the desert will talk about for years.",
-   "ui.ending.verdict.A": "The garden is back, and everyone in the valley knows it.",
-   "ui.ending.verdict.B": "Solid work: the club stands on its own feet again.",
-   "ui.ending.verdict.C": "It's open and it's breathing, but only just.",
+   "ui.ending.verdict.S": "An early exhibition and a rota that never went slack: the desert will talk about this season for years.",
+   "ui.ending.verdict.A": "The exhibition came early and the posts were mostly covered: the garden is back, and the valley knows it.",
+   "ui.ending.verdict.B": "The exhibition happened, a little late or with posts left empty at times: the club stands on its own feet again.",
+   "ui.ending.verdict.C": "The club is rebuilt and busy, but the season never got its exhibition night (or the posts stood empty too often).",
    "ui.ending.verdict.D": "The gates are open, but the season got away from you.",
    "ui.ending.season2": "Start season two",
    "ui.ending.summary": "See summary",
@@ -9571,16 +9908,21 @@
    "ui.ending.recap.star": "Reached ★{n}",
    "ui.ending.recap.route": "Chose the road: {route}",
    "ui.ending.recap.variant": "{place} rebuilt as “{variant}”",
-   "ui.ending.recap.trophy": "Won a trophy at the {title}",
+   "ui.ending.recap.variant_kept": "{place} rebuilt, same as before",
+   "ui.ending.recap.trophy": "Won a trophy: {title}",
    "ui.ending.recap.unlock": "{what} unlocked ({names})",
    "ui.ending.recap.exhibition": "The exhibition filled the Stadium",
    "ui.ending.recap.settled": "Scored {total} · grade {grade}",
    "ui.ending.goal": "Season {n} · goal: {goal}",
    "ui.ending.goal_tbd": "the next goal is coming soon",
+   "ui.ending.preview_title": "If the season were scored now",
+   "ui.ending.preview_line": "Estimate · scored on day {day}, in {n} days",
+   "ui.ending.preview_line_today": "Estimate · scored today (day {day}) at closing",
+   "ui.ending.preview_line_now": "Estimate",
    "ui.ending.settle_now": "Settle now: +{n} early bonus",
    "ui.ending.settle_score": "Score if settled now: {total} ({grade})",
    "ui.ending.keep": "Keep running to day {day}",
-   "ui.ending.keep_risk": "No early bonus; members, cash and trophies keep counting (and so does the risk)",
+   "ui.ending.keep_risk": "No early bonus; wind season wears the outdoor courts 50% faster for three weeks; the week-15 cup and staff breakthroughs are still on the table, and the season service rate keeps counting (down as well as up)",
    "ui.ending.wire_settled": "Season one settled: {total} points, grade {grade}",
    "ui.ending.wire_season_two": "Season two begins · goal: {goal}",
    "ui.ending.because_settled": "season one was scored ({total}, grade {grade})",
@@ -9643,13 +9985,31 @@
    "endings.deadline.body": "投资方给的十六周到了，表演赛还没办成。修复停了，大门又锁上了。",
    "endings.bankrupt.title": "钱花光了",
    "endings.bankrupt.body": "俱乐部发不出工资，投资方叫停了修复。大门又锁上了。",
+   "endings.score.title": "第一季打分了",
+   "endings.score.body": "投资方合上了本子。星级、奖杯、会员、声望、你带出来的人、表演赛和账上的钱，都记在同一张单子上。",
+   "ending.items.stars": "星级",
+   "ending.items.trophies": "奖杯",
+   "ending.items.members": "会员（算到 100 人）",
+   "ending.items.reputation": "声望",
+   "ending.items.unlocks": "员工成长解锁",
+   "ending.items.exhibition": "表演赛",
+   "ending.items.pace": "表演赛比第 112 天早几天",
+   "ending.items.service": "整季服务率（50% 以上的点数）",
+   "ending.items.early": "提前交账天数",
+   "ending.items.cash": "现金（3,000 美元以上，最多算 5,000 美元）",
+   "ending.grades.S": "沙漠传奇",
+   "ending.grades.A": "山谷名园",
+   "ending.grades.B": "重新站稳",
+   "ending.grades.C": "差一口气",
+   "ending.grades.D": "门勉强开着",
+   "ending.goals.official_tournament": "办一场正式巡回赛",
    "events.iw_pickle_noise.title": "太吵了，还少了一片场",
    "events.iw_pickle_noise.body": "三位在这儿打了二十年网球的老会员在匹克球场边等你：\"啪、啪、啪，一整个周末。为了这个还拆了一片网球场。\"有几个人已经在说去 La Quinta 了。",
    "events.iw_pickle_noise.options.A": "装隔音板、换静音拍（$450）",
    "events.iw_pickle_noise.options.B": "开个会员会，讲清楚分时段（你亲自去 3 小时，不一定谈得拢）",
    "events.iw_pickle_noise.options.C": "过阵子就习惯了",
    "events.iw_investor_check.title": "投资方来看进度",
-   "events.iw_investor_check.body": "投资方的人站在大门口。离他们给的期限只剩三周了。",
+   "events.iw_investor_check.body": "投资方的人站在大门口，来看会所现在的样子。第 112 天他们要给这一季打分。",
    "events.iw_investor_check.options.A": "我亲自带你们转",
    "events.iw_investor_check.options.B": "你们自己随便看",
    "events.iw_investor_check.options.C": "请他们追加 $1500（声望 −5）",
@@ -9756,6 +10116,10 @@
    "events.iw_route_s4.body": "度假名园要地方。把南停车场改成观赛坡、在东南角长出新地，还是搭一座桥，把东南天上那座带两根旧网柱的小岛接过来？明天还不定，Dale 就按赛事广场来。",
    "events.iw_route_s4.options.A": "赛事广场：大比赛的观赛坡（现在：表演赛成功率 +5%）",
    "events.iw_route_s4.options.B": "学院岛：搭桥接上岛上的学院（现在：学院课每圈 +$2，青少年赛进四强 +10%）",
+   "events.iw_ending.title": "看台还没散，现在交账吗？",
+   "events.iw_ending.body": "表演赛散场了，投资方还坐在第一排等你。\"今天就可以给这一季打分，提前交卷算你的。也可以接着干到第 112 天：还有一场内赛，你的人也还能再长一截——可这几周的服务也记在账上，排不好人就往下掉。风季不等人。\"",
+   "events.iw_ending.options.A": "马上结算：今天就打分，每提前一天有奖励",
+   "events.iw_ending.options.B": "接着经营到第 112 天：没有提前奖励，奖杯、解锁还能多；风季三周，外场掉得快一半（整季服务率也接着算）",
    "log.night_care": "红土场养透了，这一周掉得慢三成",
    "log.dale_swept": "Dale 离岗三小时，把掉得最厉害的那一处收拾了一遍",
    "log.dale_sweep_declined": "你跟 Dale 说你自己派人",
@@ -9928,7 +10292,7 @@
    "orders.st1_rebuild.note": "整局最大的一笔",
    "orders.st1_rebuild.locked": "先清理 中心球场",
    "orders.st1_exhibition.title": "办表演赛",
-   "orders.st1_exhibition.note": "六个人张罗一整天；声望越高越容易办成（不筹备最多七成五把握）",
+   "orders.st1_exhibition.note": "六个人一起张罗（一个多小时）；声望越高越容易办成（不筹备最多七成五把握）",
    "orders.st1_exhibition.locked": "★4，中心球场重建完成",
    "orders.pl_tournament.title": "出去打一站比赛",
    "orders.pl_tournament.note": "只有球员能去，一周一次；小比赛：球技越高越可能赢（拿奖金，不算奖杯）",
@@ -9968,7 +10332,7 @@
    "orders.cup_monthly.note": "$60；第 3、7、11、15 周的周六。当天开签到和裁判两个岗位，两块场不租场、不上课；下雨就白办。奖杯一座",
    "orders.cup_monthly.locked": "★1，而且有两块修好的场地",
    "orders.regional_open.title": "去打地区业余赛",
-   "orders.regional_open.note": "$200；只有球员能去，离开一整天；赢了 $800、声望、奖杯一座。★3 起是双打：再一名球员，或者一名教练陪打（那天的课没人上）",
+   "orders.regional_open.note": "$200；只有球员能去，比赛那天离开会所；赢了 $800、声望、奖杯一座。★3 起是双打：再一名球员，或者一名教练陪打（那天的课没人上）",
    "orders.regional_open.locked": "★2，有一名球员",
    "orders.junior_regional.title": "带学员去地区青少年赛",
    "orders.junior_regional.note": "$80；一名教练带队半天；进四强会员、声望、奖杯一座",
@@ -9976,6 +10340,9 @@
    "orders.invitational.title": "办邀请赛",
    "orders.invitational.note": "$800；周末两天开四个临时岗位；下雨就白办。红土声望多，硬地钱多",
    "orders.invitational.locked": "★3；红土场、会所、棕榈喷泉都开着",
+   "orders.official_tournament.title": "办正式巡回赛",
+   "orders.official_tournament.note": "$2500；第二季的目标，周末两天开四个临时岗位；奖金 $5000、声望、奖杯一座",
+   "orders.official_tournament.locked": "第二季、★5；红土场、会所、棕榈喷泉都开着",
    "orders.prep_stands.title": "表演赛筹备 · 看台",
    "orders.prep_stands.note": "$1500；表演赛 +8%，办成时门票多 $1500；声望 +2",
    "orders.prep_stands.locked": "★3 起",
@@ -9988,8 +10355,8 @@
    "orders.prep_media.title": "表演赛筹备 · 赞助和转播",
    "orders.prep_media.note": "$900；赞助商每周付 $150；表演赛办成时转播费多 $1000",
    "orders.prep_media.locked": "★3 起",
-   "variants.outer_23.clay": "保留红土",
-   "variants.outer_23.hard": "改成硬地",
+   "variants.outer_23.clay": "红土场",
+   "variants.outer_23.hard": "硬地场",
    "variants.clubhouse.cafe": "露台咖啡吧",
    "variants.clubhouse.physio": "理疗室",
    "variants.stadium_3.pickle4": "四片匹克球",
@@ -10060,7 +10427,7 @@
    "stars.opens.sponsor": "赞助位",
    "stars.opens.exhibition_prep": "中心球场挂出表演赛筹备",
    "stars.opens.exhibition": "能办表演赛了",
-   "stars.opens.finale": "这一季的总结算",
+   "stars.opens.finale": "季末打分（第 112 天，或者现在就交账）",
    "seasons.autumn": "秋天",
    "seasons.winter": "冬天",
    "seasons.spring": "春天 · 风季",
@@ -10167,6 +10534,9 @@
    "tournaments.invitational.goals.full_house": "会员 70 人以上",
    "tournaments.invitational.variants.clay": "红土邀请赛",
    "tournaments.invitational.variants.hard": "硬地邀请赛",
+   "tournaments.official_tournament.title": "正式巡回赛",
+   "tournaments.official_tournament.goals.staffed": "两天四个临时岗位全程有人",
+   "tournaments.official_tournament.goals.service": "两天服务率 85% 以上",
    "routes.s2.youth": "青训之路",
    "routes.s2.resort": "度假之路",
    "routes.s3.south_courts": "南场",
@@ -10196,6 +10566,7 @@
    "ui.beat.hiring": "招聘日",
    "ui.beat.cards.iw_investor_check": "投资方来访",
    "ui.beat.cards.iw_deadline": "期限结算",
+   "ui.beat.settle": "季末结算",
    "ui.beat.at.today": "今天{time}",
    "ui.beat.at.tomorrow": "明天{time}",
    "ui.beat.at.weekday": "周{d}{time}",
@@ -10205,14 +10576,17 @@
    "ui.beat.short.tours.regional_open": "地区赛",
    "ui.beat.short.tours.junior_regional": "青少赛",
    "ui.beat.short.tours.invitational": "邀请赛",
+   "ui.beat.short.tours.official_tournament": "巡回赛",
    "ui.beat.short.cards.iw_investor_check": "投资方",
    "ui.beat.short.cards.iw_deadline": "期限",
+   "ui.beat.short.settle": "季末结算",
    "ui.stars.label": "下一星差 {n} 项",
    "ui.stars.full": "星已满",
    "ui.stars.title": "升到 ★{n} 还要",
    "ui.stars.title_full": "俱乐部已经 ★{n}",
    "ui.stars.opens": "升上来开出：{list}",
    "ui.stars.foot": "已复原 {n}/{total} · 离投资方期限还有 {days} 天",
+   "ui.stars.foot_score": "已复原 {n}/{total} · 还有 {days} 天季末结算",
    "ui.stars.restored": "已复原 {n}/{total}",
    "ui.stars.sign": "大门的星级牌上又亮了一颗星",
    "ui.variant.hint": "点一种看修好的样子 · 把人拖到那一行就按它开工",
@@ -10488,6 +10862,7 @@
    "ui.sheet.restore_done": "完工后状况 +{n}",
    "ui.sheet.wear": "磨损 {n}/圈",
    "ui.sheet.work": "还要 {time}（能力 50 的一个人）",
+   "ui.sheet.work_crew": "{n} 人一起约 {time}",
    "ui.sheet.crew": "最多 {n} 人一起",
    "ui.sheet.post_on": "{name}在干 · 这一圈还要 {time}",
    "ui.sheet.post_wait": "{name}在这儿，等客人来",
@@ -10516,6 +10891,7 @@
    "ui.grow.reach": "能练到{skill} {n} → {what}",
    "ui.grow.reach_now": "{skill}已有 {n} → {what}",
    "ui.ending.topic": "第一季 · 结算",
+   "ui.ending.decide_topic": "第一季 · 交账",
    "ui.ending.title": "这一季打分了",
    "ui.ending.total": "总分",
    "ui.ending.day": "第 {n} 天",
@@ -10529,10 +10905,10 @@
    "ui.ending.item.exhibition": "表演赛",
    "ui.ending.item.early": "提前天数",
    "ui.ending.item.cash": "现金",
-   "ui.ending.verdict.S": "沙漠里的人会把这一季讲上好多年。",
-   "ui.ending.verdict.A": "花园活过来了，整个山谷都知道。",
-   "ui.ending.verdict.B": "干得扎实：会所重新站稳了脚跟。",
-   "ui.ending.verdict.C": "开着门、喘着气，但也就这样了。",
+   "ui.ending.verdict.S": "表演赛办得早，整季的班排得又满又稳：沙漠里的人会把这一季讲上好多年。",
+   "ui.ending.verdict.A": "表演赛办得早，岗位大多有人：花园活过来了，整个山谷都知道。",
+   "ui.ending.verdict.B": "表演赛办成了，只是晚了些、岗位也有空着的时候：会所重新站稳了脚跟。",
+   "ui.ending.verdict.C": "会所修起来了、也热闹，可这一季没等到表演赛那一晚（或者岗位空得太多）。",
    "ui.ending.verdict.D": "大门开着，可这一季没抓住。",
    "ui.ending.season2": "开第二季",
    "ui.ending.summary": "看总结",
@@ -10542,16 +10918,21 @@
    "ui.ending.recap.star": "升到 ★{n}",
    "ui.ending.recap.route": "选了路：{route}",
    "ui.ending.recap.variant": "{place}修成了“{variant}”",
+   "ui.ending.recap.variant_kept": "{place}照原样修好了",
    "ui.ending.recap.trophy": "在{title}拿了一座奖杯",
    "ui.ending.recap.unlock": "开出了{what}（{names}）",
    "ui.ending.recap.exhibition": "表演赛坐满了中心球场",
    "ui.ending.recap.settled": "得了 {total} 分 · {grade} 档",
    "ui.ending.goal": "第 {n} 季 · 目标：{goal}",
    "ui.ending.goal_tbd": "新目标还在路上",
+   "ui.ending.preview_title": "现在结算的话",
+   "ui.ending.preview_line": "预估 · 第 {day} 天结算，还有 {n} 天",
+   "ui.ending.preview_line_today": "预估 · 今天（第 {day} 天）收工时结算",
+   "ui.ending.preview_line_now": "预估",
    "ui.ending.settle_now": "马上结算：提前奖励 +{n}",
    "ui.ending.settle_score": "现在结算是 {total} 分（{grade}）",
    "ui.ending.keep": "接着经营到第 {day} 天",
-   "ui.ending.keep_risk": "没有提前奖励；会员、现金、奖杯还在涨（风险也还在）",
+   "ui.ending.keep_risk": "没有提前奖励；风季三周外场掉得快一半；第 15 周的内赛、成长解锁还拿得到，整季服务率接着算（掉了也算）",
    "ui.ending.wire_settled": "第一季结算：{total} 分，{grade} 档",
    "ui.ending.wire_season_two": "第二季开始 · 目标：{goal}",
    "ui.ending.because_settled": "第一季打了分（{total}，{grade} 档）",

@@ -42,6 +42,31 @@ endings:
   bankrupt:
     title: 钱花光了
     body: 俱乐部发不出工资，投资方叫停了修复。大门又锁上了。
+  score:
+    title: 第一季打分了
+    body: 投资方合上了本子。星级、奖杯、会员、声望、你带出来的人、表演赛和账上的钱，都记在同一张单子上。
+
+# 结局打分（W4，结局方案 A）：分项名、评语档名、第二季目标（占位）
+ending:
+  items:
+    stars: 星级
+    trophies: 奖杯
+    members: 会员（算到 100 人）
+    reputation: 声望
+    unlocks: 员工成长解锁
+    exhibition: 表演赛
+    pace: 表演赛比第 112 天早几天
+    service: 整季服务率（50% 以上的点数）
+    early: 提前交账天数
+    cash: 现金（3,000 美元以上，最多算 5,000 美元）
+  grades:
+    S: 沙漠传奇
+    A: 山谷名园
+    B: 重新站稳
+    C: 差一口气
+    D: 门勉强开着
+  goals:
+    official_tournament: 办一场正式巡回赛
 
 events:
   iw_pickle_noise:
@@ -53,7 +78,7 @@ events:
       C: 过阵子就习惯了
   iw_investor_check:
     title: 投资方来看进度
-    body: 投资方的人站在大门口。离他们给的期限只剩三周了。
+    body: 投资方的人站在大门口，来看会所现在的样子。第 112 天他们要给这一季打分。
     options:
       A: 我亲自带你们转
       B: 你们自己随便看
@@ -210,6 +235,12 @@ events:
     options:
       A: 赛事广场：大比赛的观赛坡（现在：表演赛成功率 +5%）
       B: 学院岛：搭桥接上岛上的学院（现在：学院课每圈 +$2，青少年赛进四强 +10%）
+  iw_ending:
+    title: 看台还没散，现在交账吗？
+    body: 表演赛散场了，投资方还坐在第一排等你。"今天就可以给这一季打分，提前交卷算你的。也可以接着干到第 112 天：还有一场内赛，你的人也还能再长一截——可这几周的服务也记在账上，排不好人就往下掉。风季不等人。"
+    options:
+      A: 马上结算：今天就打分，每提前一天有奖励
+      B: 接着经营到第 112 天：没有提前奖励，奖杯、解锁还能多；风季三周，外场掉得快一半（整季服务率也接着算）
 log:
   night_care: 红土场养透了，这一周掉得慢三成
   dale_swept: Dale 离岗三小时，把掉得最厉害的那一处收拾了一遍
@@ -305,7 +336,7 @@ orders:
   st1_reopen: { title: "重开中心球场", note: "掉档了：修大屏、清看台，$450" }
   st1_clear: { title: "清理中心球场", note: "搬走塌下来的东北角看台", locked: "先让泳池开放" }
   st1_rebuild: { title: "重建 中心球场", note: "整局最大的一笔", locked: "先清理 中心球场" }
-  st1_exhibition: { title: "办表演赛", note: "六个人张罗一整天；声望越高越容易办成（不筹备最多七成五把握）", locked: "★4，中心球场重建完成" }
+  st1_exhibition: { title: "办表演赛", note: "六个人一起张罗（一个多小时）；声望越高越容易办成（不筹备最多七成五把握）", locked: "★4，中心球场重建完成" }
   pl_tournament: { title: "出去打一站比赛", note: "只有球员能去，一周一次；小比赛：球技越高越可能赢（拿奖金，不算奖杯）" }
   o23_pro_clay: { title: 赛事级红土, note: $400；要一名维护 ≥ 75 的人。场地更好，也更娇气, locked: 红土场开放、保留了红土 }
   o23_night_care: { title: 红土场夜间养护, note: $60、3 小时；要一名维护 ≥ 75 的人。灯下浇水、滚压、补线：状况 +40，之后一周掉得慢三成；一周一次, locked: 红土场开放、保留了红土；一名维护 ≥ 75 的维护工 }
@@ -320,9 +351,10 @@ orders:
   st3_to_tennis2: { title: 改回两片网球场, note: $1400；停用一周。老会员高兴，联赛的人走了 }
   st3_to_pickle4: { title: 改成四片匹克球, note: $1000；停用一周。联赛收入高，老会员不满 }
   cup_monthly: { title: 报名月度内赛, note: $60；第 3、7、11、15 周的周六。当天开签到和裁判两个岗位，两块场不租场、不上课；下雨就白办。奖杯一座, locked: ★1，而且有两块修好的场地 }
-  regional_open: { title: 去打地区业余赛, note: $200；只有球员能去，离开一整天；赢了 $800、声望、奖杯一座。★3 起是双打：再一名球员，或者一名教练陪打（那天的课没人上）, locked: ★2，有一名球员 }
+  regional_open: { title: 去打地区业余赛, note: $200；只有球员能去，比赛那天离开会所；赢了 $800、声望、奖杯一座。★3 起是双打：再一名球员，或者一名教练陪打（那天的课没人上）, locked: ★2，有一名球员 }
   junior_regional: { title: 带学员去地区青少年赛, note: $80；一名教练带队半天；进四强会员、声望、奖杯一座, locked: ★2，青训场开着，这一周学院课上够 10 圈 }
   invitational: { title: 办邀请赛, note: $800；周末两天开四个临时岗位；下雨就白办。红土声望多，硬地钱多, locked: ★3；红土场、会所、棕榈喷泉都开着 }
+  official_tournament: { title: 办正式巡回赛, note: $2500；第二季的目标，周末两天开四个临时岗位；奖金 $5000、声望、奖杯一座, locked: 第二季、★5；红土场、会所、棕榈喷泉都开着 }
   prep_stands: { title: 表演赛筹备 · 看台, note: $1500；表演赛 +8%，办成时门票多 $1500；声望 +2, locked: ★3 起 }
   prep_lights: { title: 表演赛筹备 · 夜场灯, note: $1000；表演赛 +4%；重建以后周四到周六开夜场；电费每周 +$30, locked: ★3 起 }
   prep_service: { title: 表演赛筹备 · 球童和服务, note: $600；表演赛 +10%；会员 +2, locked: ★3 起 }
@@ -330,7 +362,8 @@ orders:
 
 # 修复变体（GM-13）：名字，和每个变体换来什么、付出什么（variant_notes，给地点清单用）
 variants:
-  outer_23: { clay: 保留红土, hard: 改成硬地 }
+  # 名字是名词（结局总结里写成"红土场修成了“硬地场”"，W4 门试玩：动词短语读不通）
+  outer_23: { clay: 红土场, hard: 硬地场 }
   clubhouse: { cafe: 露台咖啡吧, physio: 理疗室 }
   stadium_3: { pickle4: 四片匹克球, tennis2: 两片网球场 }
   practice: { academy: 青少年学院, bootcamp: 晨间训练营 }
@@ -389,7 +422,7 @@ stars:
     sponsor: 赞助位
     exhibition_prep: 中心球场挂出表演赛筹备
     exhibition: 能办表演赛了
-    finale: 这一季的总结算
+    finale: 季末打分（第 112 天，或者现在就交账）
 
 seasons:
   autumn: 秋天
@@ -481,6 +514,9 @@ tournaments:
     title: 邀请赛
     goals: { staffed: 两天四个临时岗位全程有人, service: 两天服务率 80% 以上, full_house: 会员 70 人以上 }
     variants: { clay: 红土邀请赛, hard: 硬地邀请赛 }
+  official_tournament:
+    title: 正式巡回赛
+    goals: { staffed: 两天四个临时岗位全程有人, service: 两天服务率 85% 以上 }
 # 选路（GM-14）
 routes:
   s2: { youth: 青训之路, resort: 度假之路 }
@@ -519,12 +555,15 @@ ui:
     live: 进行中
     hiring: 招聘日
     cards: { iw_investor_check: 投资方来访, iw_deadline: 期限结算 }
+    # 打分结局（W4）：第 112 天那一格是季末结算，不是期限
+    settle: 季末结算
     # 季节栏的节拍牌（手机 390 宽要放下两张）：短时间、短名字
     at: { today: "今天{time}", tomorrow: "明天{time}", weekday: "周{d}{time}", day: "第{n}天{time}" }
     short:
       hiring: 招聘
-      tours: { cup_monthly: 内赛, regional_open: 地区赛, junior_regional: 青少赛, invitational: 邀请赛 }
+      tours: { cup_monthly: 内赛, regional_open: 地区赛, junior_regional: 青少赛, invitational: 邀请赛, official_tournament: 巡回赛 }
       cards: { iw_investor_check: 投资方, iw_deadline: 期限 }
+      settle: 季末结算
   # 星级（UI-8）：状态条的星级格和点开的清单
   stars:
     label: "下一星差 {n} 项"
@@ -533,6 +572,7 @@ ui:
     title_full: "俱乐部已经 ★{n}"
     opens: "升上来开出：{list}"
     foot: "已复原 {n}/{total} · 离投资方期限还有 {days} 天"
+    foot_score: "已复原 {n}/{total} · 还有 {days} 天季末结算"
     restored: "已复原 {n}/{total}"
     sign: 大门的星级牌上又亮了一颗星
   # 修复变体（UI-11）：修复工单下面一个变体一行
@@ -798,6 +838,7 @@ ui:
     restore_done: "完工后状况 +{n}"
     wear: "磨损 {n}/圈"
     work: "还要 {time}（能力 50 的一个人）"
+    work_crew: "{n} 人一起约 {time}"
     crew: "最多 {n} 人一起"
     post_on: "{name}在干 · 这一圈还要 {time}"
     post_wait: "{name}在这儿，等客人来"
@@ -825,6 +866,7 @@ ui:
     reach_now: "{skill}已有 {n} → {what}"
   ending:
     topic: 第一季 · 结算
+    decide_topic: 第一季 · 交账
     title: 这一季打分了
     total: 总分
     day: "第 {n} 天"
@@ -840,10 +882,10 @@ ui:
       early: 提前天数
       cash: 现金
     verdict:
-      S: "沙漠里的人会把这一季讲上好多年。"
-      A: "花园活过来了，整个山谷都知道。"
-      B: "干得扎实：会所重新站稳了脚跟。"
-      C: "开着门、喘着气，但也就这样了。"
+      S: "表演赛办得早，整季的班排得又满又稳：沙漠里的人会把这一季讲上好多年。"
+      A: "表演赛办得早，岗位大多有人：花园活过来了，整个山谷都知道。"
+      B: "表演赛办成了，只是晚了些、岗位也有空着的时候：会所重新站稳了脚跟。"
+      C: "会所修起来了、也热闹，可这一季没等到表演赛那一晚（或者岗位空得太多）。"
       D: "大门开着，可这一季没抓住。"
     season2: 开第二季
     summary: 看总结
@@ -854,16 +896,22 @@ ui:
       star: "升到 ★{n}"
       route: "选了路：{route}"
       variant: "{place}修成了“{variant}”"
+      variant_kept: "{place}照原样修好了"
       trophy: "在{title}拿了一座奖杯"
       unlock: "开出了{what}（{names}）"
       exhibition: 表演赛坐满了中心球场
       settled: "得了 {total} 分 · {grade} 档"
     goal: "第 {n} 季 · 目标：{goal}"
     goal_tbd: 新目标还在路上
+    # 星级明细里的分数预估（W4 门）：现在结算会是多少
+    preview_title: 现在结算的话
+    preview_line: "预估 · 第 {day} 天结算，还有 {n} 天"
+    preview_line_today: "预估 · 今天（第 {day} 天）收工时结算"
+    preview_line_now: 预估
     settle_now: "马上结算：提前奖励 +{n}"
     settle_score: "现在结算是 {total} 分（{grade}）"
     keep: "接着经营到第 {day} 天"
-    keep_risk: "没有提前奖励；会员、现金、奖杯还在涨（风险也还在）"
+    keep_risk: "没有提前奖励；风季三周外场掉得快一半；第 15 周的内赛、成长解锁还拿得到，整季服务率接着算（掉了也算）"
     wire_settled: "第一季结算：{total} 分，{grade} 档"
     wire_season_two: "第二季开始 · 目标：{goal}"
     because_settled: "第一季打了分（{total}，{grade} 档）"

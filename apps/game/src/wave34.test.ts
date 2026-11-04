@@ -297,6 +297,32 @@ describe('W4 ending card (UI-10)', () => {
     expect(s2.season?.beats?.some((b) => b.id.startsWith('cal:'))).toBeFalsy();
   });
 
+  it('during play: the star sheet carries a running score estimate, the day-112 beat reads "Season settlement"', () => {
+    const c = fixture({ ending: true });
+    const s = quiet(c, 106, 16);
+    s.stats.cash = 3456.7;
+    const { session, p } = setup(c, s);
+    const snap = p.snapshot(session);
+    const sc = snap.stars?.score;
+    const ending = c.acts.find((a) => a.id === 'indian_wells')?.ending;
+    // 分项跟着地图的 ending.score 走：内容加了项，这里自动多一行
+    expect(sc?.rows.map((r) => r.id)).toEqual(Object.keys(ending?.score ?? {}));
+    expect(sc?.title).toBe('If the season were scored now');
+    // 天数和 ending.days_early 一个算法：第 106 天 16 点离第 112 天是 6 天（不是向上取整的 7 天）
+    expect(sc?.line).toBe('Estimate · scored on day 112, in 6 days');
+    // 显示的数取整（不写 $3,456.7）
+    expect(sc?.rows.find((r) => r.id === 'cash')?.detail).toBe('$3,457 × 0.1');
+    const beat = snap.season?.beats?.find((b) => b.id.startsWith('cal:') && b.full?.startsWith('Season settlement'));
+    expect(beat?.label).toBe('Settlement');
+    // 结算以后：节拍牌不挂，星级明细不再预估
+    go(s, c, (7 * 24 + 3) * 60);
+    expect(s.outcome?.result).toBe('settled');
+    const after = p.snapshot(session);
+    expect(after.season?.beats ?? []).toEqual([]);
+    expect(after.stars?.score).toBeUndefined();
+    expect(after.wire[0]?.text).toMatch(/^Season one settled/);
+  });
+
   it('summary lists stars with days, routes, variants and trophies from the causal log', () => {
     const c = fixture({ ending: true });
     const s = quiet(c, 112, 17);
@@ -314,6 +340,13 @@ describe('W4 ending card (UI-10)', () => {
         t: at(30, 12),
         cause: { kind: 'order', order: 'o23_repair', people: ['dale'] },
         parent: null,
+        effects: [{ kind: 'variant', facility: 'outer_23', variant: 'hard' }],
+      },
+      {
+        id: 9004,
+        t: at(31, 12),
+        cause: { kind: 'order', order: 'o23_repair', people: ['dale'] },
+        parent: null,
         effects: [{ kind: 'variant', facility: 'outer_23', variant: 'clay' }],
       },
     );
@@ -323,7 +356,9 @@ describe('W4 ending card (UI-10)', () => {
     const lines = p.snapshot(session).card?.recap?.lines ?? [];
     expect(lines[0]).toMatchObject({ when: 'Day 20', text: 'Reached ★2' });
     expect(lines[1]?.text).toMatch(/^Chose the road: /);
-    expect(lines[2]?.text).toMatch(/^Clay courts rebuilt as /);
+    // 地方用原名、修成的样子用名词；和原名一样时说"照原样"（W4 门试玩）
+    expect(lines[2]?.text).toBe('Clay courts rebuilt as “Hard courts”');
+    expect(lines[3]?.text).toBe('Clay courts rebuilt, same as before');
   });
 
   it('early exhibition: the decision card spells out "settle now (+N early bonus)" vs "keep running to day 112"', () => {

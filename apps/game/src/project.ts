@@ -551,6 +551,8 @@ export class Projector {
     const T = this.text;
     const w = worldOf(s, this.content);
     const out: (BeatItem & { t: number })[] = [];
+    // 这一局停下来了（结算、破产）：日程不再往下走，节拍牌不挂（W4 门试玩：结算卡后面还挂着"期限"）
+    if (s.outcome) return [];
     // 牌子上写短名字、短时间（手机 390 宽要放下两张，UI-9）；完整的说法放 full（长按 / 读屏）
     const beat = (id: string, t: number, label: string, short: string, place: string, live = false) => {
       const when = live ? T.tr('ui.beat.live') : this.when(s, t);
@@ -592,11 +594,13 @@ export class Projector {
       const t = at(x.day, x.hour);
       if (t <= s.t) continue;
       const c = w.cards.get(x.card);
+      // 结局打开时（W4）那一刻是季末结算，不是旧的"期限"（那张期限卡打不开了：那一分钟先结算）
+      const settle = w.act.ending && t >= at(w.act.ending.day, w.act.ending.hour);
       beat(
         `cal:${x.card}:${t}`,
         t,
-        T.tr(`ui.beat.cards.${x.card}`, T.cardTitle(x.card)),
-        T.tr(`ui.beat.short.cards.${x.card}`, ''),
+        settle ? T.tr('ui.beat.settle') : T.tr(`ui.beat.cards.${x.card}`, T.cardTitle(x.card)),
+        settle ? T.tr('ui.beat.short.settle', '') : T.tr(`ui.beat.short.cards.${x.card}`, ''),
         c?.location ?? c?.stage?.anchor ?? 'entrance',
       );
     }
@@ -694,6 +698,15 @@ export class Projector {
     const act = worldOf(s, this.content).act;
     const last = act.calendar[act.calendar.length - 1];
     return last ? at(last.day, last.hour) : null;
+  }
+
+  /**
+   * 离期限还有几天：按"期限那天 − 今天"数（和结局的 ending.days_early、提前奖励一个算法，W4 门试玩：
+   * 卡上写"还剩 27 天"、提前奖励按 26 天算）。没有期限是 null。
+   */
+  private daysLeft(s: GameState): number | null {
+    const end = this.deadline(s);
+    return end === null ? null : Math.max(0, dayOf(end) - dayOf(s.t));
   }
 
   /** 某人走到某处还要几分钟（和模拟改派时的走法一致：路上可以半路掉头，见 walkEta） */
@@ -850,7 +863,7 @@ export class Projector {
       },
       headCoach: { name: coach ? T.personName(coach) : '', vacant: !coach },
       details,
-      wire: this.wire,
+      wire: this.wireNow(s),
       card: this.card(session),
       status: this.status(session),
       story,
@@ -863,12 +876,28 @@ export class Projector {
     };
   }
 
+  /**
+   * 跑马灯：这一局停下来以后（结算、破产）第一条一定是结局那一句。读档进来、或者结算那一批里别的快讯
+   * 排到了前面时，跑马灯不会还停在结算以前的事上（W4 门试玩）。
+   */
+  private wireNow(s: GameState): readonly WireItem[] {
+    const o = s.outcome;
+    if (!o) return this.wire;
+    const T = this.text;
+    const st = o.result === 'settled' ? s.ending?.settlement : null;
+    const text = st
+      ? T.fmt('ui.ending.wire_settled', { total: st.total, grade: st.grade })
+      : T.tr(`endings.${o.ending}.title`, '');
+    if (!text) return this.wire;
+    const rest = this.wire.filter((x) => x.text !== text);
+    return [{ id: -1, time: T.clock(st?.t ?? o.t), text, hot: true }, ...rest];
+  }
+
   /** 状态条上的复原进度：八处设施修好了几处，加上离投资方的期限还有几天 */
   private board(s: GameState): NonNullable<HudSnapshot['board']> {
     const v = Math.round(s.stats.restoration ?? 0);
     const total = worldOf(s, this.content).facilities.size;
-    const end = this.deadline(s);
-    const days = end === null ? null : Math.max(0, Math.ceil((end - s.t) / 1440));
+    const days = this.daysLeft(s);
     // 落后于进度：剩下的天数里平均每处设施不到 10 天
     const behind = days !== null && total - v > 0 && days / (total - v) < 10;
     return {
@@ -891,11 +920,11 @@ export class Projector {
     const st = starStatus(s, w);
     const next = st.next;
     const lv = next ? w.act.stars?.[next.level - 1] : undefined;
-    const end = this.deadline(s);
-    const days = end === null ? null : Math.max(0, Math.ceil((end - s.t) / 1440));
+    const days = this.daysLeft(s);
     const restored = Math.round(s.stats.restoration ?? 0);
     const sep = T.lang === 'zh' ? '、' : ', ';
     const opens = next?.opens.map((k) => T.tr(`stars.opens.${k}`, k)).join(sep);
+    const score = this.scorePreview(s);
     return {
       n: st.stars,
       max: st.max,
@@ -914,7 +943,12 @@ export class Projector {
       foot:
         days === null || s.outcome
           ? T.fmt('ui.stars.restored', { n: restored, total: w.facilities.size })
-          : T.fmt('ui.stars.foot', { n: restored, total: w.facilities.size, days }),
+          : T.fmt(w.act.ending ? 'ui.stars.foot_score' : 'ui.stars.foot', {
+              n: restored,
+              total: w.facilities.size,
+              days,
+            }),
+      ...(score ? { score } : {}),
     };
   }
 
@@ -992,8 +1026,7 @@ export class Projector {
   private context(s: GameState): Chip[] {
     const T = this.text;
     const b = Math.round(s.stats.restoration ?? 0);
-    const end = this.deadline(s);
-    const days = end === null ? 0 : Math.max(0, Math.ceil((end - s.t) / 1440));
+    const days = this.daysLeft(s) ?? 0;
     return [
       { text: T.fmt('ui.ctx.restore', { n: b, total: worldOf(s, this.content).facilities.size, days }), tone: 'info' },
       {
@@ -1267,6 +1300,18 @@ export class Projector {
       text: T.fmt('ui.sheet.work', { time: T.duration(st.work * (1 - st.progress)) }),
       tone: 'time',
     });
+    // 几个人一起干要多久（W4 门试玩：表演赛写着"一整天"，六个人其实一个多小时就办完）：
+    // 派了人按这几个人的速度算，没派按满员、能力 50 算
+    if (o.crew > 1) {
+      const speed = st.crew.length
+        ? st.crew.reduce((a, id) => a + speedOf(workSkill(s, w, id, o.skill)), 0)
+        : o.crew * speedOf(50);
+      const n = st.crew.length || o.crew;
+      chips.push({
+        text: T.fmt('ui.sheet.work_crew', { n, time: T.duration((st.work * (1 - st.progress)) / speed) }),
+        tone: 'time',
+      });
+    }
     if (o.remodel)
       chips.push({ text: T.fmt('ui.chip.closed', { time: T.duration(minutes(o.closed_for ?? '7d')) }), tone: 'loss' });
     if (o.upgrade) {
@@ -1734,6 +1779,8 @@ export class Projector {
       if (o.once && (s.orderLog.done[o.id] ?? 0) > 0) continue;
       // 分期筹备做完的一期：筹备格里已经打了勾，不再当成"还没开出来"挂一行锁
       if ((s.orderLog.done[o.id] ?? 0) > 0 && [...w.prep.values()].some((ids) => ids.includes(o.id))) continue;
+      // 表演赛办成以后，筹备工单不再有意义：不挂锁行
+      if (s.flags.exhibition_done && [...w.prep.values()].some((ids) => ids.includes(o.id))) continue;
       if ((s.orderLog.cooldowns[o.id] ?? -1) > s.t) continue;
       // 已经装上的升级、和现在的变体对不上的升级、已经改成的样子：不是"还没开出来"，不再挂一行（改造期满后也按新变体重看）
       if (fac && o.upgrade) {
@@ -1902,6 +1949,8 @@ export class Projector {
   private prepPanel(s: GameState, anchor: string): PlaceSheetData['prep'] {
     const T = this.text;
     const w = worldOf(s, this.content);
+    // 表演赛已经办成：筹备格整个不显示（GATE-4 复测 P1）
+    if (s.flags.exhibition_done) return undefined;
     for (const [group, ids] of w.prep) {
       const orders = ids.map((id) => w.orders.get(id)).filter((o): o is Order => !!o && o.at === anchor);
       if (!orders.length) continue;
@@ -2275,7 +2324,8 @@ export class Projector {
     const card: EventCardData = {
       id: `c${o.uid}`,
       kind: answers.length ? 'decision' : 'news',
-      topic: T.tr(`events.${o.card}.topic`, ''),
+      // 结局卡（W4）挂「第一季 · 交账」；别的卡内容没写话题时是空的（界面上空话题不画，W4 门试玩）
+      topic: T.tr(`events.${o.card}.topic`, endCard ? T.tr('ui.ending.decide_topic') : ''),
       location: loc ? T.anchor(loc) : T.tr('ui.club.name'),
       headline: T.cardTitle(o.card),
       body: T.tr(`events.${o.card}.body`, ''),
@@ -2377,39 +2427,81 @@ export class Projector {
       location: T.tr('ui.club.name'),
       headline: T.tr('endings.score.title', T.tr('ui.ending.title')),
       ...(summary || !body ? {} : { body }),
-      ...(summary ? { recap: this.recap(s, st) } : { score: this.scoreCard(st) }),
+      ...(summary ? { recap: this.recap(s, st) } : { score: this.scoreCard(s, st) }),
       actions,
     };
   }
 
   /** 分项打分：每项"多少 × 每个几分"和得分；钱按 $ 写 */
-  scoreCard(st: NonNullable<EndingStatus['settlement']>): ScoreCard {
+  scoreCard(s: GameState, st: NonNullable<EndingStatus['settlement']>): ScoreCard {
     const T = this.text;
-    const n = (v: number) => (Math.round(v * 10) / 10).toLocaleString(T.lang === 'zh' ? 'zh-CN' : 'en-US');
-    const signed = (v: number) => (v < 0 ? `−${n(-v)}` : n(v));
     const early = st.items.find((x) => x.id === 'early');
     const days = early && early.points > 0 ? Math.round(early.points / (early.per || 1)) : 0;
-    const gradeName = T.tr(`ending.grades.${st.grade}`, '');
     return {
-      rows: st.items.map((x) => ({
+      ...this.scoreRows(s, st),
+      line:
+        st.reason === 'early' && days > 0
+          ? T.fmt('ui.ending.line_early', { day: st.day, n: days })
+          : T.fmt('ui.ending.line_deadline', { day: st.day }),
+    };
+  }
+
+  /**
+   * 分项、总分、评语（结局卡和星级明细里的预估共用）。分项完全按地图的 ending.score 来，内容加了项这里自动多一行；
+   * 算的是钱的项（表达式里有 stat.cash）按 $ 写；显示的数取整（分数本身由模拟算好）。
+   */
+  private scoreRows(s: GameState, sc: EndingStatus['preview']): ScoreCard {
+    const T = this.text;
+    const loc = T.lang === 'zh' ? 'zh-CN' : 'en-US';
+    const n = (v: number) => (Math.round(v * 10) / 10).toLocaleString(loc);
+    const signed = (v: number) => (v < 0 ? `−${n(-v)}` : n(v));
+    // 显示的数取整（钱、比例），免得写成 $15,689.7
+    const shown = (v: number) => {
+      const r = Math.round(v);
+      return r < 0 ? `−${(-r).toLocaleString(loc)}` : r.toLocaleString(loc);
+    };
+    const score = worldOf(s, this.content).act.ending?.score ?? {};
+    const money = (id: string) => id === 'cash' || /\bstat\.cash\b/.test(String(score[id]?.of ?? ''));
+    const gradeName = T.tr(`ending.grades.${sc.grade}`, '');
+    return {
+      rows: sc.items.map((x) => ({
         id: x.id,
         label: T.tr(`ending.items.${x.id}`, T.tr(`ui.ending.item.${x.id}`, x.id)),
         detail: T.fmt('ui.ending.detail', {
-          value: x.id === 'cash' ? `${x.value < 0 ? '−' : ''}$${n(Math.abs(x.value))}` : signed(x.value),
+          value: money(x.id) ? `${x.value < 0 ? '−' : ''}$${shown(Math.abs(x.value))}` : shown(x.value),
           per: n(x.per),
         }),
         points: signed(x.points),
         ...(x.points < 0 ? { negative: true } : {}),
       })),
-      total: signed(st.total),
+      total: signed(sc.total),
       totalLabel: T.tr('ui.ending.total'),
-      grade: st.grade,
+      grade: sc.grade,
       ...(gradeName ? { gradeName } : {}),
-      verdict: T.tr(`ui.ending.verdict.${st.grade}`, gradeName),
+      verdict: T.tr(`ui.ending.verdict.${sc.grade}`, gradeName),
+    };
+  }
+
+  /**
+   * 星级明细里的分数预估（W4 门试玩 P2）：现在就结算会是多少，分项和结局卡一样；只读。
+   * 第一季、还没结算、结局打开时才有。
+   */
+  private scorePreview(s: GameState): StarInfo['score'] {
+    if (s.outcome) return undefined;
+    const es = endingStatus(s, worldOf(s, this.content));
+    if (!es || es.season > 1 || es.settlement) return undefined;
+    const T = this.text;
+    const days = this.daysLeft(s);
+    return {
+      title: T.tr('ui.ending.preview_title'),
+      ...this.scoreRows(s, es.preview),
       line:
-        st.reason === 'early' && days > 0
-          ? T.fmt('ui.ending.line_early', { day: st.day, n: days })
-          : T.fmt('ui.ending.line_deadline', { day: st.day }),
+        days === null || !es.deadline
+          ? T.tr('ui.ending.preview_line_now')
+          : T.fmt(days === 0 ? 'ui.ending.preview_line_today' : 'ui.ending.preview_line', {
+              day: es.deadline.day,
+              n: days,
+            }),
     };
   }
 
@@ -2444,21 +2536,19 @@ export class Projector {
               route: T.tr(`routes.${x.slot}.${x.route}`, x.route).split(' · ')[0] ?? x.route,
             }),
           );
-        else if (x.kind === 'variant')
+        else if (x.kind === 'variant') {
+          // 地方用原来的名字（不按现在的变体叫）；修成的样子和原名一样（"红土场"保留红土）时说"照原样修好"
+          const place = T.tr(`ui.fac.${x.facility}`, x.facility);
+          const variant = this.variantName(x.facility, x.variant);
           add(
             e,
             i + 1,
-            T.fmt('ui.ending.recap.variant', {
-              place: T.facility(x.facility),
-              variant: this.variantName(x.facility, x.variant),
-            }),
+            variant === place
+              ? T.fmt('ui.ending.recap.variant_kept', { place })
+              : T.fmt('ui.ending.recap.variant', { place, variant }),
           );
-        else if (x.kind === 'trophy' && x.delta > 0 && c.kind === 'tournament')
-          add(
-            e,
-            i + 1,
-            T.fmt('ui.ending.recap.trophy', { title: T.tr(`tournaments.${c.tournament}.title`, c.tournament) }),
-          );
+        } else if (x.kind === 'trophy' && x.delta > 0 && c.kind === 'tournament')
+          add(e, i + 1, T.fmt('ui.ending.recap.trophy', { title: this.tourTitle(s, c.tournament) }));
       });
     }
     const ex = s.ending?.exhibition;

@@ -9,7 +9,8 @@ work: 14h
 cost: 1500
 crew: 4
 prep: exhibition
-when: { expr: "stars >= 3" }
+# 表演赛办成以后不再挂（W4 门试玩：办完了还在卖看台）
+when: { all: [{ expr: "stars >= 3" }, { not: { flag: exhibition_done } }] }
 effects:
   - { flag: prep_stands, set: true }
   - { stat: reputation, add: 2 }

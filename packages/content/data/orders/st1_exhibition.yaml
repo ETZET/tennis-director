@@ -10,7 +10,9 @@ cost: 3000
 crew: 6
 cooldown: 7d
 # ★4 以后才办得成（LG-10、GM-9）
-when: { all: [{ facility: stadium_1, is: restored }, { expr: "stars >= 4" }] }
+# 结局方案 A：办成一次就不再出现（接着经营的局不能再办一场刷现金分）。不用 once：once 按"做完过"算，冷场了也算，
+# 冷场以后还要一周后能再办
+when: { all: [{ facility: stadium_1, is: restored }, { expr: "stars >= 4" }, { not: { flag: exhibition_done } }] }
 # 表演赛四期筹备（W2）是加成不是门槛：不筹备最多七成五把握；看台 +8%、夜场灯 +4%、球童和服务 +10%；
 # ★4 选了赛事广场（route s4 = event_plaza）再 +5%（观赛坡先搭起来了）。
 check: { chance: "clamp(0.3 + (stat.reputation - 50) / 80 + (stat.quality - 60) / 100 + (flag.dale_umpire ? 0.05 : 0) + min(hired.legend, 1) * 0.05 + (variant.plaza == \"shade_lawn\" ? 0.05 : 0), 0.15, 0.75) + (flag.prep_stands ? 0.08 : 0) + (flag.prep_lights ? 0.04 : 0) + (flag.prep_service ? 0.1 : 0) + (route.s4 == \"event_plaza\" ? 0.05 : 0)" }

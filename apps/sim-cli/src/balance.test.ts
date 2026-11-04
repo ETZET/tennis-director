@@ -46,8 +46,9 @@ describe('Indian Wells balance band', () => {
     it('a careful player mostly scores in the top two grades', () => {
       expect(share('greedy', [top, second])).toBeGreaterThanOrEqual(0.8);
     });
-    it("a player who never hires doesn't reach the top grade", () => {
-      expect(share('cautious', [top])).toBe(0);
+    it("a player who never hires doesn't reach the top three grades (W4 gate: cautious is C/D)", () => {
+      // 分数讲经营得好不好（整季服务率、表演赛提前几天），不招人的局到 ★4 也只在 C、D
+      expect(share('cautious', grades.slice(0, 3))).toBe(0);
     });
     it('random play rarely reaches the top two grades', () => {
       expect(share('random', [top, second])).toBeLessThanOrEqual(0.2);
@@ -62,6 +63,17 @@ describe('Indian Wells balance band', () => {
 
   it('no game gets stuck and every card shows up', () => {
     for (const b of r.bots) expect(b.stuck, b.bot).toBe(0);
-    expect(r.neverShown).toEqual([]);
+    // 结局方案 A 下，只会判输的期限卡（每个选项都 endAct: lost）打不开：那一分钟先结算了（wave2-5-contract.md W4）
+    const superseded = new Set(
+      scored
+        ? CONTENT.cards
+            .filter((c) => c.act === r.act)
+            .filter((c) =>
+              Object.values(c.options).every((o) => o.effects.some((e) => 'endAct' in e && e.endAct === 'lost')),
+            )
+            .map((c) => c.id)
+        : [],
+    );
+    expect(r.neverShown.filter((c) => !superseded.has(c))).toEqual([]);
   });
 });
