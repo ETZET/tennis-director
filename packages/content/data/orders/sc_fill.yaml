@@ -1,0 +1,14 @@
+# 南场第 3 张：填掉水塘。填了就回不去了，Hal Brooks 记得这件事（flag hal_pond_filled）。
+id: sc_fill
+act: indian_wells
+at: south_courts
+skill: upkeep
+work: 8h
+cost: 200
+crew: 4
+when: { flag: gw_gate_open }
+effects:
+  - { flag: gw_pond_filled, set: true }
+  - { flag: hal_pond_filled, set: true }
+  - { log: log.pond_filled }
+performance: contractor

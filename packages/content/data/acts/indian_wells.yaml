@@ -27,7 +27,7 @@ people:
   - { id: dale, at: clubhouse, head_coach: true }
 # 开局的状况（0..100）：废了十年，到处都很差
 condition: { outer_1: 10, outer_23: 10, practice: 10, clubhouse: 20, plaza: 15, stadium_3: 5, stadium_2: 10, stadium_1: 5 }
-anchors: [entrance, parking, plaza, clubhouse, stadium_1, stadium_2, stadium_3, practice, outer_1, outer_23]
+anchors: [entrance, parking, plaza, clubhouse, stadium_1, stadium_2, stadium_3, practice, outer_1, outer_23, south_courts, oasis_lawn, event_plaza, academy_isle]
 # 步行分钟数：两两之间都有一条边，分钟数按画面里步道的长度换算
 # （1.6 米 / 游戏分钟，见 render 的 indianWells.WALK_METERS_PER_MINUTE；game.test 检查两边一致）。
 nav:
@@ -76,6 +76,53 @@ nav:
   - [practice, outer_1, 5]
   - [practice, outer_23, 5]
   - [outer_1, outer_23, 5]
+  # 地块（W5，ADR 0021）的新锚点：只加不挪。分钟数照 iso 的步行表（art17，步道长度 ÷ 1.6），新地只当终点、不当中转站
+  - [entrance, south_courts, 105]
+  - [parking, south_courts, 117]
+  - [plaza, south_courts, 96]
+  - [clubhouse, south_courts, 47]
+  - [stadium_1, south_courts, 71]
+  - [stadium_2, south_courts, 36]
+  - [stadium_3, south_courts, 81]
+  - [practice, south_courts, 54]
+  - [outer_1, south_courts, 54]
+  - [outer_23, south_courts, 54]
+  - [south_courts, oasis_lawn, 6]
+  - [south_courts, event_plaza, 116]
+  - [south_courts, academy_isle, 196]
+  - [entrance, oasis_lawn, 104]
+  - [parking, oasis_lawn, 116]
+  - [plaza, oasis_lawn, 95]
+  - [clubhouse, oasis_lawn, 46]
+  - [stadium_1, oasis_lawn, 70]
+  - [stadium_2, oasis_lawn, 35]
+  - [stadium_3, oasis_lawn, 80]
+  - [practice, oasis_lawn, 54]
+  - [outer_1, oasis_lawn, 54]
+  - [outer_23, oasis_lawn, 54]
+  - [oasis_lawn, event_plaza, 116]
+  - [oasis_lawn, academy_isle, 196]
+  - [entrance, event_plaza, 12]
+  - [parking, event_plaza, 12]
+  - [plaza, event_plaza, 37]
+  - [clubhouse, event_plaza, 78]
+  - [stadium_1, event_plaza, 56]
+  - [stadium_2, event_plaza, 85]
+  - [stadium_3, event_plaza, 38]
+  - [practice, event_plaza, 67]
+  - [outer_1, event_plaza, 67]
+  - [outer_23, event_plaza, 67]
+  - [event_plaza, academy_isle, 92]
+  - [entrance, academy_isle, 91]
+  - [parking, academy_isle, 92]
+  - [plaza, academy_isle, 117]
+  - [clubhouse, academy_isle, 158]
+  - [stadium_1, academy_isle, 136]
+  - [stadium_2, academy_isle, 165]
+  - [stadium_3, academy_isle, 118]
+  - [practice, academy_isle, 147]
+  - [outer_1, academy_isle, 147]
+  - [outer_23, academy_isle, 147]
 seasons:
   - { id: autumn, from_day: 1, decay: 1 }
   # 冬天游客最多，风小，设施掉得慢一点
@@ -132,11 +179,68 @@ stars:
       exhibition: { flag: exhibition_done }
     opens: [finale]
 # 三次选路（GM-14，wave2-5-contract.md）：处 → 路，第一条是路 A（默认、Dale 替你定的那条）。文案 routes.<处>.<路>。
-# ★2 的路在 W2 就生效（变体先开、招聘日、周末客人）；★3、★4 的路在 W5 决定开哪块地，W2 先给一点马上看得见的效果。
+# ★2 的路在 W2 就生效（变体先开、招聘日、周末客人）；★3、★4 的路决定开哪块地（W5，下面的 plots：选了就开工）。
 routes:
   s2: [youth, resort]
   s3: [south_courts, oasis_lawn]
   s4: [event_plaza, academy_isle]
+# 地块（W5，GM-15，ADR 0021，schema 见 wave2-5-contract.md"W5 最终 schema"）：地图跟着 ★3、★4 的选路长出去。
+# 选路卡定了路，同名的变体就开工：清理工单一起挂在新地的地点牌上（有先后：拆了门才能清沙坑……），都做完就开地。
+# 接下的主办赛事的比赛日工地停工（pause_on_events 默认）。施工的副作用写在别处：
+# - golf_west 施工时泳池那边吵（posts/st2_*.yaml 每圈少 $3）；
+# - se_corner 按赛事广场施工、车挪走以后少一个停车场（rules.week.members 每周少来 2 人）。
+# 开了以后：南场多两片场（会员上限 +24、质量 +6、看场岗位离得远，要有人守）；绿洲草坪是周末度假客（小屋管家，水费按圈扣，
+# 会员上限不涨，质量 +5）；赛事广场让表演赛把握 +10%、门票 +$2000、邀请赛 +$500、赞助商的横幅卡不用等匹克球场、
+# 周末赞助展台；学院岛是驻岛教练和宿舍（会员 +6，学院课每圈 +$2），起风天关桥，表演赛不会更快。
+# 数字由机器人校准（人-17），见 docs/balance/indian-wells.md"地块"和设计文档"地图怎么长大 · W5 定稿"。
+plots:
+  - id: golf_west
+    route: s3
+    variants:
+      south_courts:
+        anchor: south_courts
+        orders: [sc_gate, sc_bunkers, sc_fill, sc_pave, sc_nets]
+        start: [{ log: log.golf_west_building }]
+        opens:
+          posts: [sc_league, sc_rental]
+          effects:
+            - { stat: reputation, add: 2 }
+            - { log: log.south_courts_open }
+      oasis_lawn:
+        anchor: oasis_lawn
+        orders: [ol_paths, ol_cabins, ol_pool]
+        start: [{ log: log.golf_west_building }]
+        opens:
+          posts: [ol_host]
+          effects:
+            - { stat: reputation, add: 3 }
+            - { flag: golf_developer, set: true }
+            - { log: log.oasis_lawn_open }
+  - id: se_corner
+    route: s4
+    variants:
+      event_plaza:
+        anchor: event_plaza
+        orders: [ep_cars, ep_fill, ep_slope, ep_lot]
+        start: [{ log: log.se_corner_building }]
+        opens:
+          posts: [ep_booth]
+          effects:
+            - { stat: reputation, add: 3 }
+            - { log: log.event_plaza_open }
+      academy_isle:
+        anchor: academy_isle
+        orders: [ai_dock, ai_bridge, ai_dorm, ai_court]
+        start: [{ log: log.se_corner_building }]
+        opens:
+          posts: [ai_resident, ai_dorm_host]
+          effects:
+            # 第一批寄宿学员预交一学期学费（校准 GM-15：岛上的两个岗位都不算需求、机器人很少常驻，
+            # 没有这笔学员押金时学院岛比赛事广场少约 $2000、分数也低一截）
+            - { stat: cash, add: 1200 }
+            - { stat: members, add: 6 }
+            - { stat: reputation, add: 3 }
+            - { log: log.academy_isle_open }
 # 赛事阶梯（GM-10，设计文档"赛事阶梯"）：赛事不是卡，报名工单提前一周出现在地点牌上。
 # 周从第 1 天（周一）算起：第 n 周的周六是第 7n − 1 天。第 52–84 天的节拍：
 # 青少年赛第 54–55 天（第 8 周周五、周六）、地区赛第 59–60 天（第 9 周周三、周四）、邀请赛第 69–70 天、内赛第 76 天、青少年赛第 82–83 天、投资方第 85 天。
@@ -247,6 +351,8 @@ tournaments:
       - { flag: hosted_invitational, set: true }
       - { stat: reputation, add: 3, if: { variant: outer_23, is: clay } }
       - { stat: cash, add: 600, if: { variant: outer_23, is: hard } }
+      # 赛事广场开了（W5）：观赛坡坐得下更多人
+      - { stat: cash, add: 500, if: { all: [{ plot: se_corner, is: open }, { plot: se_corner, is: event_plaza }] } }
     goals:
       - { id: staffed, if: "event.staffed >= 0.95", reward: [{ stat: members, add: 4 }] }
       - { id: service, if: "event.service_rate >= 0.8", reward: [{ stat: reputation, add: 2 }] }
@@ -346,6 +452,9 @@ rules:
     service: stat.service * 0.2
     coach: coach.skill * 0.15 * coach.attention
     gear: "flag.ball_machine ? 4 : 0"
+    # 新地（W5）：南场两片新场 +6，绿洲草坪 +5，赛事广场 +4，学院岛 +4（开了才算）
+    land: >-
+      (plot.golf_west == "open" ? (route.s3 == "south_courts" ? 6 : 5) : 0) + (plot.se_corner == "open" ? 4 : 0)
   quality_rate: 0.15
   # 会员和声望每周日收盘结算一次（准则 6），写成一条周结算日志。service_rate 是这一周的服务率，
   # service_demand 是这一周有没有需求：还没有一个开放的岗位时，没有客人，也就没有口碑——服务项和质量项都不算（不倒扣）。
@@ -355,13 +464,17 @@ rules:
       service: service_demand * (service_rate - service_pass) * 2
       quality: service_demand * (stat.quality - 50) / 25
       restored: restored * 0.15
+    # 赛事广场施工、车挪走以后（W5）：南停车场停不了车，每周少来 2 人
     members: >-
-      max(0, round(courts_built * service_rate + service_demand * ((stat.quality - 30) / 12 + stat.reputation / 30)))
+      max(0, round(courts_built * service_rate + service_demand * ((stat.quality - 30) / 12 + stat.reputation / 30))
+      - (plot.se_corner == "building" && route.s4 == "event_plaza" && flag.ep_cleared ? 2 : 0))
     # 会员有上限：每块修好的场地撑得起 12 个会员（下雨天场地关门，但会员不会因此退会），会所开了再多 15 个；超出的人周末就不续了
     # 会所修成咖啡吧（GM-13）多撑 10 个：有地方坐、有东西吃，会员才愿意续；理疗室（和没选过变体的旧存档）还是 15
     # 会员推荐（W3 成长解锁 member_referrals：前台服务 ≥ 70）再多撑 10 个
+    # 南场开了（W5）两片新场再撑 24 个；绿洲草坪不涨（度假客不是会员）
     member_cap: >-
       courts_built * 12 + (facility.clubhouse == "open" ? (variant.clubhouse == "cafe" ? 25 : 15) : 0) + unlocked.member_referrals * 10
+      + (plot.golf_west == "open" && route.s3 == "south_courts" ? 24 : 0)
   dues_week: 12
   derived:
     service: round(service_rate * 100)

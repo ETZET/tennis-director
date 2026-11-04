@@ -1,0 +1,10 @@
+# 绿洲草坪第 3 张：小泳池庭院，接上水。三张都做完绿洲草坪开张（地块 golf_west 开地）。
+id: ol_pool
+act: indian_wells
+at: oasis_lawn
+skill: upkeep
+work: 6h
+cost: 300
+crew: 3
+when: { flag: ol_paths }
+performance: workday

@@ -13,6 +13,8 @@ effects:
   - { stat: cash, add: 4, if: { upgrade: stadium_2, has: cabanas } }
   - { stat: members, add: 1, chance: 0.03 }
   - { stat: reputation, add: 0.05 }
+  # 高尔夫西段施工（W5 地块 golf_west）：推土机、搅拌车就在泳池南边，客人待不住
+  - { stat: cash, add: -3, if: { plot: golf_west, is: building } }
 # W2 复验（P1）：使用磨损再降到原来的十分之一。有人在岗的设施每天只掉一点（看场 + 上课的会员场约 1/天），
 # 掉档要好几周、画面信号先出来；维护照旧能稳住、补回来，赛事日（t_umpire、t_courtside）磨得多
 wear: 0.025

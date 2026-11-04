@@ -1,33 +1,33 @@
 # 机器人跑局报告 · indian_wells
 
-导演 steady · 内容版本 cfe3ae34 · 共 1400 局
+导演 steady · 内容版本 774f1d0e · 共 1400 局
 
 | 机器人 | 局数 | 平均分 | 中位分 | 提前结算 | 平均天数 | 卡死 | 平均质量 | 平均会员 | 平均声望 | 平均现金 | 平均复原 | 每局耗时 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| greedy | 200 | 16561 | 16702 | 99.5% | 81.3 | 0 | 100.0 | 113.8 | 100.0 | $8460 | 8.0/8 | 788.3 ms |
-| random | 200 | 2097 | 2340 | 0.0% | 110.6 | 0 | 59.2 | 60.4 | 26.3 | $1352 | 3.7/8 | 628.3 ms |
-| cautious | 200 | 6006 | 6088 | 0.0% | 112.0 | 0 | 100.0 | 99.8 | 97.6 | $4993 | 7.0/8 | 1032.5 ms |
-| idle | 200 | 15 | 15 | 0.0% | 112.0 | 0 | 7.8 | 0.0 | 3.0 | $621 | 0.0/8 | 452.7 ms |
-| good | 200 | 14990 | 14931 | 93.0% | 91.6 | 0 | 100.0 | 117.4 | 99.9 | $9096 | 8.0/8 | 765.9 ms |
-| average | 200 | 14358 | 14350 | 92.5% | 94.3 | 0 | 100.0 | 116.2 | 100.0 | $9141 | 8.0/8 | 720.4 ms |
-| novice | 200 | 12912 | 13145 | 76.0% | 101.2 | 0 | 100.0 | 117.1 | 100.0 | $9519 | 8.0/8 | 757.5 ms |
+| greedy | 200 | 15950 | 16000 | 99.5% | 83.1 | 0 | 100.0 | 139.0 | 100.0 | $10412 | 8.0/8 | 918.1 ms |
+| random | 200 | 1913 | 1668 | 0.0% | 110.0 | 0 | 55.1 | 54.2 | 22.2 | $1117 | 3.5/8 | 674.4 ms |
+| cautious | 200 | 5915 | 5943 | 0.0% | 112.0 | 0 | 100.0 | 122.2 | 99.1 | $3519 | 7.0/8 | 1087.6 ms |
+| idle | 200 | 15 | 15 | 0.0% | 112.0 | 0 | 7.8 | 0.0 | 3.0 | $621 | 0.0/8 | 517.1 ms |
+| good | 200 | 14415 | 14420 | 96.0% | 91.7 | 0 | 100.0 | 129.1 | 100.0 | $9627 | 8.0/8 | 783.5 ms |
+| average | 200 | 13604 | 13565 | 90.0% | 95.5 | 0 | 100.0 | 129.0 | 99.9 | $10246 | 8.0/8 | 921.0 ms |
+| novice | 200 | 12032 | 12242 | 73.5% | 102.1 | 0 | 100.0 | 128.7 | 100.0 | $10170 | 8.0/8 | 1042.7 ms |
 
 ## 打分（结局方案 A）
 
 | 机器人 | 10% 分位 | 中位 | 90% 分位 | 评语档 | 分项平均 |
 | --- | --- | --- | --- | --- | --- |
-| greedy | 15700 | 16702 | 17326 | S 93.5%，A 6.0%，B 0.0%，C 0.5%，D 0.0% | stars 3992，trophies 1481，members 500，reputation 500，unlocks 506，exhibition 1493，pace 3689，service 3018，early 922，cash 461 |
-| random | 1124 | 2340 | 3001 | S 0.0%，A 0.0%，B 0.0%，C 0.0%，D 96.5%，bankrupt 3.5% | stars 1231，trophies 261，members 309，reputation 134，unlocks 97，exhibition 0，pace 0，service 52，early 0，cash 12 |
-| cautious | 5622 | 6088 | 6476 | S 0.0%，A 0.0%，B 0.0%，C 64.5%，D 35.5% | stars 3168，trophies 1425，members 496，reputation 488，unlocks 226，exhibition 0，pace 0，service 0，early 0，cash 203 |
+| greedy | 15100 | 16000 | 16750 | S 79.5%，A 18.5%，B 1.5%，C 0.5%，D 0.0% | stars 3992，trophies 1526，members 500，reputation 500，unlocks 574，exhibition 1493，pace 3466，service 2534，early 866，cash 500 |
+| random | 1035 | 1668 | 2874 | S 0.0%，A 0.0%，B 0.0%，C 0.0%，D 94.0%，bankrupt 6.0% | stars 1145，trophies 211，members 281，reputation 114，unlocks 118，exhibition 0，pace 0，service 26，early 0，cash 18 |
+| cautious | 5595 | 5943 | 6311 | S 0.0%，A 0.0%，B 0.0%，C 38.5%，D 61.5% | stars 3164，trophies 1464，members 500，reputation 495，unlocks 216，exhibition 0，pace 0，service 0，early 0，cash 76 |
 | idle | 15 | 15 | 15 | S 0.0%，A 0.0%，B 0.0%，C 0.0%，D 100.0% | stars 0，trophies 0，members 0，reputation 15，unlocks 0，exhibition 0，pace 0，service 0，early 0，cash 0 |
-| good | 13550 | 14931 | 16649 | S 30.0%，A 58.0%，B 10.0%，C 2.0%，D 0.0% | stars 3984，trophies 1544，members 499，reputation 499，unlocks 507，exhibition 1485，pace 2623，service 2762，early 613，cash 474 |
-| average | 12777 | 14350 | 15917 | S 21.0%，A 48.0%，B 27.0%，C 4.0%，D 0.0% | stars 3996，trophies 1587，members 499，reputation 500，unlocks 534，exhibition 1493，pace 2283，service 2451，early 530，cash 485 |
-| novice | 10982 | 13145 | 14800 | S 5.5%，A 27.5%，B 45.5%，C 21.5%，D 0.0% | stars 3936，trophies 1595，members 498，reputation 500，unlocks 533，exhibition 1418，pace 1625，service 2003，early 323，cash 482 |
+| good | 13150 | 14420 | 15900 | S 15.5%，A 59.0%，B 22.5%，C 3.0%，D 0.0% | stars 4000，trophies 1557，members 500，reputation 500，unlocks 518，exhibition 1500，pace 2539，service 2204，early 610，cash 487 |
+| average | 12170 | 13565 | 15500 | S 10.0%，A 35.5%，B 46.0%，C 8.5%，D 0.0% | stars 3992，trophies 1626，members 499，reputation 500，unlocks 512，exhibition 1485，pace 2182，service 1826，early 494，cash 489 |
+| novice | 9579 | 12242 | 14320 | S 0.5%，A 14.0%，B 50.0%，C 35.5%，D 0.0% | stars 3900，trophies 1562，members 499，reputation 500，unlocks 538，exhibition 1358，pace 1481，service 1429，early 298，cash 468 |
 
 ## 结局分布
 
 - greedy：score 100.0%
-- random：score 96.5%，bankrupt 3.5%
+- random：score 94.0%，bankrupt 6.0%
 - cautious：score 100.0%
 - idle：score 100.0%
 - good：score 100.0%
@@ -37,56 +37,95 @@
 ## 修复变体（局数比例）
 
 - greedy：clubhouse.cafe 100.0%，outer_23.clay 100.0%，plaza.nightlife 100.0%，practice.academy 100.0%，stadium_2.recovery 9.5%，stadium_2.resort 90.5%，stadium_3.pickle4 100.0%
-- random：clubhouse.cafe 76.0%，clubhouse.physio 16.5%，outer_23.clay 88.0%，plaza.nightlife 30.0%，practice.academy 78.0%，practice.bootcamp 1.5%，stadium_3.pickle4 8.5%，stadium_3.tennis2 1.0%
+- random：clubhouse.cafe 86.5%，clubhouse.physio 5.0%，outer_23.clay 82.5%，plaza.nightlife 23.0%，practice.academy 67.5%，practice.bootcamp 2.0%，stadium_3.pickle4 7.5%，stadium_3.tennis2 0.5%
 - cautious：clubhouse.cafe 100.0%，outer_23.clay 100.0%，plaza.nightlife 100.0%，practice.academy 100.0%，stadium_2.recovery 3.5%，stadium_2.resort 96.5%，stadium_3.pickle4 100.0%
 - idle：—
-- good：clubhouse.cafe 57.0%，clubhouse.physio 43.0%，outer_23.clay 55.0%，outer_23.hard 45.0%，plaza.nightlife 52.0%，plaza.shade_lawn 48.0%，practice.academy 48.0%，practice.bootcamp 52.0%，stadium_2.recovery 52.0%，stadium_2.resort 48.0%，stadium_3.pickle4 50.5%，stadium_3.tennis2 49.5%
-- average：clubhouse.cafe 57.5%，clubhouse.physio 42.5%，outer_23.clay 45.0%，outer_23.hard 55.0%，plaza.nightlife 48.5%，plaza.shade_lawn 51.5%，practice.academy 46.0%，practice.bootcamp 54.0%，stadium_2.recovery 50.5%，stadium_2.resort 49.5%，stadium_3.pickle4 53.5%，stadium_3.tennis2 46.5%
-- novice：clubhouse.cafe 52.5%，clubhouse.physio 47.5%，outer_23.clay 54.0%，outer_23.hard 46.0%，plaza.nightlife 50.0%，plaza.shade_lawn 50.0%，practice.academy 48.5%，practice.bootcamp 51.5%，stadium_2.recovery 53.0%，stadium_2.resort 47.0%，stadium_3.pickle4 48.5%，stadium_3.tennis2 51.5%
+- good：clubhouse.cafe 57.0%，clubhouse.physio 43.0%，outer_23.clay 55.0%，outer_23.hard 45.0%，plaza.nightlife 52.0%，plaza.shade_lawn 48.0%，practice.academy 48.0%，practice.bootcamp 52.0%，stadium_2.recovery 56.5%，stadium_2.resort 43.5%，stadium_3.pickle4 50.5%，stadium_3.tennis2 49.5%
+- average：clubhouse.cafe 57.5%，clubhouse.physio 42.5%，outer_23.clay 45.0%，outer_23.hard 55.0%，plaza.nightlife 48.5%，plaza.shade_lawn 51.5%，practice.academy 46.0%，practice.bootcamp 54.0%，stadium_2.recovery 51.0%，stadium_2.resort 49.0%，stadium_3.pickle4 53.5%，stadium_3.tennis2 46.5%
+- novice：clubhouse.cafe 52.5%，clubhouse.physio 47.5%，outer_23.clay 54.0%，outer_23.hard 46.0%，plaza.nightlife 50.0%，plaza.shade_lawn 50.0%，practice.academy 48.5%，practice.bootcamp 51.5%，stadium_2.recovery 49.0%，stadium_2.resort 51.0%，stadium_3.pickle4 48.5%，stadium_3.tennis2 51.5%
 
 ## 星级
 
-- greedy：平均 4.99 星、4.93 座奖杯；★1 中位第 3 天（100.0% 的局升上来），★2 中位第 20 天（100.0% 的局升上来），★3 中位第 48 天（100.0% 的局升上来），★4 中位第 70 天（99.5% 的局升上来），★5 中位第 80 天（99.5% 的局升上来）
-- random：平均 1.51 星、0.84 座奖杯；★1 中位第 28 天（99.5% 的局升上来），★2 中位第 83 天（51.0% 的局升上来），★3 中位第 98 天（1.0% 的局升上来）
-- cautious：平均 3.96 星、4.75 座奖杯；★1 中位第 7 天（100.0% 的局升上来），★2 中位第 23 天（100.0% 的局升上来），★3 中位第 68 天（100.0% 的局升上来），★4 中位第 92 天（96.0% 的局升上来）
+- greedy：平均 4.99 星、5.08 座奖杯；★1 中位第 3 天（100.0% 的局升上来），★2 中位第 20 天（100.0% 的局升上来），★3 中位第 48 天（100.0% 的局升上来），★4 中位第 70 天（99.5% 的局升上来），★5 中位第 82 天（99.5% 的局升上来）
+- random：平均 1.40 星、0.66 座奖杯；★1 中位第 32 天（99.0% 的局升上来），★2 中位第 97 天（40.5% 的局升上来），★3 中位第 104 天（1.0% 的局升上来）
+- cautious：平均 3.96 星、4.88 座奖杯；★1 中位第 7 天（100.0% 的局升上来），★2 中位第 23 天（100.0% 的局升上来），★3 中位第 68 天（100.0% 的局升上来），★4 中位第 95 天（95.5% 的局升上来）
 - idle：平均 0.00 星、0.00 座奖杯；没有升星
-- good：平均 4.98 星、5.14 座奖杯；★1 中位第 4 天（100.0% 的局升上来），★2 中位第 24 天（100.0% 的局升上来），★3 中位第 48 天（100.0% 的局升上来），★4 中位第 70 天（99.0% 的局升上来），★5 中位第 91 天（99.0% 的局升上来）
-- average：平均 5.00 星、5.29 座奖杯；★1 中位第 6 天（100.0% 的局升上来），★2 中位第 26 天（100.0% 的局升上来），★3 中位第 48 天（100.0% 的局升上来），★4 中位第 70 天（100.0% 的局升上来），★5 中位第 92 天（99.5% 的局升上来）
-- novice：平均 4.92 星、5.32 座奖杯；★1 中位第 7 天（100.0% 的局升上来），★2 中位第 28 天（100.0% 的局升上来），★3 中位第 50 天（100.0% 的局升上来），★4 中位第 71 天（97.5% 的局升上来），★5 中位第 97 天（94.5% 的局升上来）
+- good：平均 5.00 星、5.19 座奖杯；★1 中位第 4 天（100.0% 的局升上来），★2 中位第 24 天（100.0% 的局升上来），★3 中位第 48 天（100.0% 的局升上来），★4 中位第 70 天（100.0% 的局升上来），★5 中位第 91 天（100.0% 的局升上来）
+- average：平均 4.99 星、5.42 座奖杯；★1 中位第 6 天（100.0% 的局升上来），★2 中位第 26 天（100.0% 的局升上来），★3 中位第 48 天（100.0% 的局升上来），★4 中位第 70 天（100.0% 的局升上来），★5 中位第 92 天（99.0% 的局升上来）
+- novice：平均 4.88 星、5.21 座奖杯；★1 中位第 7 天（100.0% 的局升上来），★2 中位第 28 天（100.0% 的局升上来），★3 中位第 50 天（100.0% 的局升上来），★4 中位第 72 天（97.0% 的局升上来），★5 中位第 98 天（90.5% 的局升上来）
+
+## 地块（W5）
+
+- greedy：golf_west 开工 100.0%（south_courts 100.0%），开地 100.0%，中位第 49 天、施工 1.1 天；se_corner 开工 99.5%（event_plaza 99.5%），开地 94.0%，中位第 71 天、施工 0.8 天
+- random：golf_west 开工 1.0%（oasis_lawn 1.0%），开地 0.0%
+- cautious：golf_west 开工 100.0%（south_courts 100.0%），开地 100.0%，中位第 75 天、施工 6.8 天；se_corner 开工 95.5%（event_plaza 95.5%），开地 95.5%，中位第 98 天、施工 3.4 天
+- idle：—
+- good：golf_west 开工 100.0%（oasis_lawn 50.0%、south_courts 50.0%），开地 100.0%，中位第 51 天、施工 2.1 天；se_corner 开工 100.0%（academy_isle 50.5%、event_plaza 49.5%），开地 90.0%，中位第 72 天、施工 1.9 天
+- average：golf_west 开工 100.0%（south_courts 55.0%、oasis_lawn 45.0%），开地 100.0%，中位第 52 天、施工 2.8 天；se_corner 开工 100.0%（event_plaza 50.0%、academy_isle 50.0%），开地 95.5%，中位第 73 天、施工 2.1 天
+- novice：golf_west 开工 100.0%（oasis_lawn 51.5%、south_courts 48.5%），开地 100.0%，中位第 56 天、施工 3.7 天；se_corner 开工 97.0%（event_plaza 51.0%、academy_isle 46.0%），开地 94.5%，中位第 75 天、施工 2.9 天
 
 ## 卡出现的局数比例
 
 | 卡 | 出现比例 |
 | --- | --- |
 | iw_deadline | 0.0% |
-| iw_dale_sweep | 11.2% |
-| iw_hiring_day_4b | 21.0% |
-| iw_hiring_day_4c | 27.7% |
-| iw_dale_nudge | 30.5% |
-| iw_hiring_day_4 | 31.5% |
-| iw_hiring_day_2b | 34.8% |
-| iw_hiring_day_3b | 35.3% |
-| iw_hiring_day_3 | 46.4% |
-| iw_hiring_day_2 | 48.1% |
+| iw_dale_sweep | 12.1% |
+| iw_hiring_day_4b | 22.9% |
+| iw_hiring_day_4c | 26.7% |
+| iw_dale_nudge | 30.4% |
+| iw_hiring_day_4 | 31.1% |
+| iw_hiring_day_2b | 34.5% |
+| iw_hiring_day_3b | 34.8% |
+| iw_hiring_day_3 | 46.8% |
+| iw_hiring_day_2 | 48.4% |
 | iw_pickle_noise | 51.4% |
-| iw_ending | 56.1% |
+| iw_ending | 55.6% |
 | iw_route_s4 | 70.3% |
 | iw_dale_story | 71.4% |
 | iw_route_s3 | 71.6% |
 | iw_sponsor | 71.6% |
-| iw_loan_due | 73.3% |
-| iw_route_s2 | 78.7% |
-| iw_rival_club | 81.3% |
-| iw_hiring_day_1 | 84.2% |
-| iw_reporter | 84.4% |
-| iw_investor_check | 85.4% |
-| iw_sandstorm | 85.6% |
+| iw_loan_due | 73.1% |
+| iw_route_s2 | 77.2% |
+| iw_rival_club | 81.9% |
+| iw_reporter | 83.4% |
+| iw_hiring_day_1 | 84.0% |
 | iw_first_players | 85.7% |
-| iw_dale_ten_years | 98.6% |
-| iw_credit_union | 99.5% |
+| iw_sandstorm | 85.7% |
+| iw_investor_check | 87.1% |
+| iw_dale_ten_years | 99.4% |
+| iw_credit_union | 99.6% |
 | iw_arrival | 100.0% |
 
 **从未出现的卡：** iw_deadline
+
+## 地块（W5 GM-15，手工附录）
+
+内容版本 774f1d0e。上面"地块"一节是 sim-cli 的统计（普通玩家机器人按种子随便选路，greedy、cautious 总选路 A）。
+同一批种子（1–80）强制选同一条路的中位分（临时脚本，没进 sim-cli；学院岛是加了学员押金以后的那一版）：
+
+| 处 | 变体 | good | average | novice |
+| --- | --- | --- | --- | --- |
+| ★3 | 南场 | 14225 | 13400 | 12550 |
+| ★3 | 绿洲草坪 | 14225 | 13450 | 12400 |
+| ★4 | 赛事广场 | 14450 | 13450 | 12255 |
+| ★4 | 学院岛 | 14430 | 13643 | 12440 |
+
+- 两边都不被压制：南场会员多（平均 141 对 117，上限 +24），绿洲草坪整季服务率略高；赛事广场结束时现金多约 $1500（门票），学院岛表演赛略早。
+- 南场远（离会所 47、离大门 105 分钟）不是陷阱：分数和绿洲草坪一样。学院岛最远（91–158 分钟），靠学员押金 $1200、会员 +6 和两个不算需求的岗位抵掉。
+- 表演赛没被提前也没被卡住：表演赛中位第 91.5 / 92 / 98 天（good / average / novice），不开地是 89 / 92 / 97；办成表演赛的局和以前一样（见上面"打分"的 exhibition 分项）。
+- 开地的代价：和不开地（在内存里拿掉地块）比，good / average / novice 中位约 −600 / −550 / −650（80 局），一半是清地的钱和人手推迟了表演赛（pace），一半是新需求岗位拉低整季服务率（service）。评语档（之前 → 现在）：
+
+| 机器人 | 之前 | 现在 |
+| --- | --- | --- |
+| greedy | S 93.5 / A 6 | S 79.5 / A 18.5 / B 1.5 / C 0.5 |
+| good | S 30 / A 58 / B 10 / C 2 | S 15.5 / A 59 / B 22.5 / C 3 |
+| average | S 21 / A 48 / B 27 / C 4 | S 10 / A 35.5 / B 46 / C 8.5 |
+| novice | S 5.5 / A 27.5 / B 45.5 / C 21.5 | S 0.5 / A 14 / B 50 / C 35.5 |
+| cautious | C 64.5 / D 35.5 | C 38.5 / D 61.5 |
+| random | D 96.5 / 破产 3.5 | D 94 / 破产 6 |
+| idle | D 100 | D 100 |
+
+档的门槛没动：good 多半 A、average 多半 A/B、novice 多半 B/C，仍然分得开；S 变少了。
 
 ## 结局打分（W4 门评审，手工附录）
 

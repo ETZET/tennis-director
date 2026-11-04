@@ -1,0 +1,10 @@
+# 学院岛第 3 张：盖宿舍，寄宿的学员和来探望的家长住这儿。
+id: ai_dorm
+act: indian_wells
+at: academy_isle
+skill: upkeep
+work: 6h
+cost: 300
+crew: 4
+when: { flag: isle_bridge }
+performance: contractor

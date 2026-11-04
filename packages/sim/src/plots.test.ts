@@ -79,8 +79,27 @@ const MIN: Record<string, Record<string, number>> = {
 };
 const NEW = Object.keys(MIN);
 
-function fixture(): ContentBundle {
+/**
+ * 内容里的地图去掉地块（W5 GM-15 内容写了 plots 以后）：新锚点、连着它们的边、地块、放在新锚点上的岗位和工单都拿掉，
+ * 就是"地图不长大"的那一份（别处写的 plot.<id> 条件读成 locked）
+ */
+function bare(): ContentBundle {
   const c = structuredClone(CONTENT) as ContentBundle;
+  c.version = `${CONTENT.version}-w5-bare`;
+  const a = c.acts.find((x) => x.id === 'indian_wells');
+  if (!a) throw new Error('no indian_wells');
+  const land = new Set(NEW);
+  a.anchors = a.anchors.filter((x) => !land.has(x));
+  a.nav = a.nav.filter(([x, y]) => !land.has(x) && !land.has(y));
+  delete a.plots;
+  c.orders = c.orders.filter((o) => !land.has(o.at));
+  c.posts = c.posts.filter((o) => !land.has(o.at));
+  return c;
+}
+const BARE = bare();
+
+function fixture(): ContentBundle {
+  const c = structuredClone(BARE) as ContentBundle;
   c.version = `${CONTENT.version}-w5-fixture`;
   const a = c.acts.find((x) => x.id === 'indian_wells');
   if (!a) throw new Error('no indian_wells');
@@ -182,10 +201,10 @@ const crew = (s: GameState, order: string, anchor: string) => {
 
 describe('W5 land plots (LG-15)', () => {
   it('switch off: no plots in content = no plot state, every place available, routes unchanged', () => {
-    const s = quiet(newGame(CONTENT, { seed: 3 }));
-    const w = worldFor(CONTENT, 'indian_wells');
+    const s = quiet(newGame(BARE, { seed: 3 }));
+    const w = worldFor(BARE, 'indian_wells');
     expect(w.plots.size).toBe(0);
-    choose(s, 'south_courts', CONTENT);
+    choose(s, 'south_courts', BARE);
     expect(s.routes.s3).toBe('south_courts');
     expect(s.plots).toEqual({});
     for (const a of w.act.anchors) expect(placeAvailable(s, w, a)).toBe(true);
@@ -193,7 +212,7 @@ describe('W5 land plots (LG-15)', () => {
   });
 
   it('navigation only adds: routes between old places are the same; plot anchors are only end points', () => {
-    const w0 = worldFor(CONTENT, 'indian_wells');
+    const w0 = worldFor(BARE, 'indian_wells');
     const old = w0.act.anchors;
     for (const a of old)
       for (const b of old) expect(shortestRoute(W, a, b), `${a}→${b}`).toEqual(shortestRoute(w0, a, b));

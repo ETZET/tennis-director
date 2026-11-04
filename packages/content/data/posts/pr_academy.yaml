@@ -11,9 +11,9 @@ effects:
   - { stat: cash, add: "round(12 * (0.6 + worker.skill / 100) * clamp(0.5 + stat.members / 40, 0.5, 2)) + (flag.ball_machine ? 4 : 0)" }
   - { stat: members, add: 1, chance: 0.05 }
   - { stat: reputation, add: 0.03 }
-  # 青训之路（GM-14，★2 选路 youth）：报青训的孩子多；★4 选了学院岛再多一点
+  # 青训之路（GM-14，★2 选路 youth）：报青训的孩子多；★4 学院岛开了（W5）再多一点（寄宿学员下午也来）
   - { stat: cash, add: 2, if: { route: s2, is: youth } }
-  - { stat: cash, add: 2, if: { route: s4, is: academy_isle } }
+  - { stat: cash, add: 2, if: { all: [{ plot: se_corner, is: open }, { plot: se_corner, is: academy_isle }] } }
   - { stat: cash, add: 5, if: { upgrade: practice, has: video_wall } }
   # 青少年带教（W3 成长解锁 junior_coach：有一名教学 ≥ 65 的教练）：家长听说这里有够格的青训教练，学费高一点、报名的多一点
   - { stat: cash, add: 3, if: { unlocked: junior_coach } }

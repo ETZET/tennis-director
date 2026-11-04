@@ -1,0 +1,11 @@
+# 南场 · 看场（★3 南场开地以后，W5 GM-15）：工作日两片新硬地，有人看着就开场。没有固定时段、不算需求：
+# 没人守就没有收入（离会所 47 分钟，派一个人过去就一整天不在别处）。
+id: sc_rental
+act: indian_wells
+at: south_courts
+skill: service
+cycle: 1h
+effects:
+  - { stat: cash, add: "round(5 * (0.6 + worker.skill / 100) * (1 + stat.reputation / 120))" }
+  - { stat: members, add: 1, chance: 0.03 }
+performance: open_play

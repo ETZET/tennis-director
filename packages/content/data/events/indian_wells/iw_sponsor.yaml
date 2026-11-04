@@ -1,11 +1,17 @@
-# 本地一家银行看到 匹克球场 开了，想在看台上挂一块大横幅。
+# 本地一家银行看到 匹克球场（或者赛事广场）开了，想在看台上挂一块大横幅。
 id: iw_sponsor
 act: indian_wells
 source: threshold
 tone: neutral
 once: true
 countdown: 1d
-when: { all: [{ facility: stadium_3, is: open }, { expr: "stars >= 3" }] }
+# 赛事广场开了（W5）：银行不用等匹克球场，广场的遮阳棚上就挂得下
+when:
+  all:
+    - { expr: "stars >= 3" }
+    - any:
+        - { facility: stadium_3, is: open }
+        - { all: [{ plot: se_corner, is: open }, { plot: se_corner, is: event_plaza }] }
 location: stadium_3
 who: sponsor
 options:

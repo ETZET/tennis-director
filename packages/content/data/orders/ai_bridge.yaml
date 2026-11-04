@@ -1,0 +1,12 @@
+# 学院岛第 2 张：搭一座长桥。桥只有一条，起风天关桥（岛上的岗位不开）。
+id: ai_bridge
+act: indian_wells
+at: academy_isle
+skill: upkeep
+work: 8h
+cost: 400
+crew: 5
+when: { flag: isle_docked }
+effects:
+  - { flag: isle_bridge, set: true }
+performance: contractor

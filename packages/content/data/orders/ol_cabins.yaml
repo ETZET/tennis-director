@@ -1,0 +1,10 @@
+# 绿洲草坪第 2 张：在水塘边盖三间小屋。
+id: ol_cabins
+act: indian_wells
+at: oasis_lawn
+skill: upkeep
+work: 12h
+cost: 500
+crew: 4
+when: { flag: ol_paths }
+performance: contractor

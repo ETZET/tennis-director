@@ -1,23 +1,19 @@
-# ★3 选路（GM-14）：高尔夫球场的老板 Hal Brooks 愿意让出西段。铺两片新场（南场），还是留下水塘盖小屋（绿洲草坪）？
-# 开地在 W5 接上；W2 先记下选择，马上给一点看得见的：南场先在高尔夫西段画线办周末对打（会员 +4），
-# 绿洲草坪先把水塘边收拾成野餐地（声望 +3）。两边都要付 $300 的测量费。
+# ★3 选路（GM-14；W5 GM-15 接上开地）：隔壁高尔夫的老板 Hal Brooks 撑不下去了，要关掉西边几个洞，把西段让给俱乐部。
+# 铺两片新场（南场），还是留下水塘盖小屋（绿洲草坪）？选了就开工：那块地的清理工单马上挂上地点牌（plots.golf_west）。
+# W2 的占位效果（测量费 $300、会员 +4 / 声望 +3）去掉了：开地本身就是马上看得见的后果，钱花在清理工单上。
 id: iw_route_s3
 act: indian_wells
 source: milestone
 tone: neutral
 location: entrance
-who: dale
+who: hal
 countdown: 1d
 pause: true
 options:
   A:
     effects:
       - { route: s3, set: south_courts }
-      - { stat: cash, add: -300 }
-      - { stat: members, add: 4 }
   B:
     effects:
       - { route: s3, set: oasis_lawn }
-      - { stat: cash, add: -300 }
-      - { stat: reputation, add: 3 }
 default: { then: A }

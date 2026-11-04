@@ -1,0 +1,12 @@
+# 南场（★3 地块 golf_west，路 s3 = south_courts，W5 GM-15）第 1 张清理工单：拆掉西步道尽头那道砌死的南门。
+# 门拆了，后面几张才排得上。南场离会所走 47 分钟、离大门 105 分钟：每派一次人都是一趟远路。
+id: sc_gate
+act: indian_wells
+at: south_courts
+skill: upkeep
+work: 3h
+cost: 0
+crew: 3
+effects:
+  - { flag: gw_gate_open, set: true }
+performance: workday
