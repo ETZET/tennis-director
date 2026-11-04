@@ -85,7 +85,7 @@ events:
       B: 发一段声明
   iw_sponsor:
     title: 银行的横幅
-    body: 本地一家银行看到匹克球场开了，想在围网上挂一圈横幅，出价不低。
+    body: 本地一家银行看到俱乐部又热闹起来，想在围网上挂一圈横幅，出价不低。
     options:
       A: 收下
       B: 婉拒
@@ -203,7 +203,7 @@ log:
   tournament_won: 你的球员在外面赢了一站比赛，带回了奖金
   tournament_lost: 你的球员这站输了，不过长了见识
   cup_hosted: 月度内赛办完了，奖杯放进了会所的柜子
-  invitational_won: 红土邀请赛看台坐满了：一座奖杯，还有奖金
+  invitational_won: 邀请赛看台坐满了：一座奖杯，还有奖金
   invitational_flop: 邀请赛冷场了，报名费白花了
 
 posts:
@@ -271,21 +271,21 @@ orders:
   st1_reopen: { title: "重开中心球场", note: "掉档了：修大屏、清看台，$450" }
   st1_clear: { title: "清理中心球场", note: "搬走塌下来的东北角看台", locked: "先让泳池开放" }
   st1_rebuild: { title: "重建 中心球场", note: "整局最大的一笔", locked: "先清理 中心球场" }
-  st1_exhibition: { title: "办表演赛", note: "声望 50 以上，一群人张罗一整天", locked: "★4、中心球场重建完成、声望 50 以上" }
-  pl_tournament: { title: "出去打一站比赛", note: "只有球员能去，一周一次；球技越高越可能赢" }
-  o23_pro_clay: { title: 赛事级红土, note: $500；要一名维护 ≥ 75 的人。场地更好，也更娇气, locked: 红土场开放、保留了红土 }
-  o23_pro_hard: { title: 职业硬地, note: $450；要一名维护 ≥ 75 的人。掉得更慢, locked: 球场开放、改成了硬地 }
-  ch_pro_shop: { title: 开一间球拍专卖店, note: $600；要一名服务 ≥ 65 的人。又多一个要人守的位子, locked: 会所开张 }
-  st3_lights: { title: 立联赛灯, note: $700；周五周六开夜场，电费每周 +$25, locked: 球场开放 }
-  pr_video_wall: { title: 场边大屏, note: $800；要一名教学 ≥ 65 的教练。课挣得多一点, locked: 青训场开放 }
-  pz_misters: { title: 装喷雾杆, note: $500；午餐和傍晚的客人坐得住, locked: 棕榈喷泉开放 }
-  st2_cabanas: { title: 再搭一排小木屋, note: $900；泳池的服务岗位多挣一点, locked: 泳池开放 }
-  ch_to_cafe: { title: 理疗室改回咖啡吧, note: $700；会所停用一周 }
+  st1_exhibition: { title: "办表演赛", note: "六个人张罗一整天；声望越高越容易办成", locked: "★4，中心球场重建完成" }
+  pl_tournament: { title: "出去打一站比赛", note: "只有球员能去，一周一次；球技越高越可能赢；★2 起赢了算奖杯" }
+  o23_pro_clay: { title: 赛事级红土, note: $400；要一名维护 ≥ 75 的人。场地更好，也更娇气, locked: 红土场开放、保留了红土 }
+  o23_pro_hard: { title: 职业硬地, note: $350；要一名维护 ≥ 75 的人。掉得更慢, locked: 球场开放、改成了硬地 }
+  ch_pro_shop: { title: 开一间球拍专卖店, note: $500；要一名服务 ≥ 65 的人。有空的人去站柜台，站着就有进账, locked: 会所开张 }
+  st3_lights: { title: 立联赛灯, note: $600；周五周六开夜场，电费每周 +$25, locked: 球场开放 }
+  pr_video_wall: { title: 场边大屏, note: $500；要一名教学 ≥ 65 的教练。课挣得多一点, locked: 青训场开放 }
+  pz_misters: { title: 装喷雾杆, note: $400；午餐和傍晚的客人坐得住, locked: 棕榈喷泉开放 }
+  st2_cabanas: { title: 再搭一排小木屋, note: $800；泳池的服务岗位多挣一点, locked: 泳池开放 }
+  ch_to_cafe: { title: 理疗室改成咖啡吧, note: $700；会所停用一周 }
   ch_to_physio: { title: 咖啡吧改成理疗室, note: $900；会所停用一周 }
   st3_to_tennis2: { title: 改回两片网球场, note: $1400；停用一周。老会员高兴，联赛的人走了 }
   st3_to_pickle4: { title: 改成四片匹克球, note: $1000；停用一周。联赛收入高，老会员不满 }
   cup_monthly: { title: 办月度内赛, note: $60，两个人半天；四周一次。奖杯一座, locked: ★1，而且有两块修好的场地 }
-  inv_clay: { title: 办红土邀请赛, note: $800，四个人一整天；下雨就白办。保留红土更容易办成, locked: ★3；红土场、会所、棕榈喷泉都开着 }
+  inv_clay: { title: 办邀请赛, note: $800，四个人一整天；下雨就白办。保留红土的更容易办成（+10%）, locked: ★3；青训场旁的两片场、会所、棕榈喷泉都开着 }
 
 # 修复变体（GM-13）：名字，和每个变体换来什么、付出什么（variant_notes，给地点清单用）
 variants:
@@ -303,17 +303,17 @@ variant_notes:
     cafe: { gives: 午餐咖啡吧；会员上限 +25, costs: 维护每周 $75 }
     physio: { gives: 体能师的理疗岗位；球员练得快；质量 +4，掉得慢, costs: 会员上限只 +15；没有午餐咖啡吧 }
   stadium_3:
-    pickle4: { gives: 周末联赛：周末最挣钱, costs: 老会员不满：声望 −2，过几天来找你 }
+    pickle4: { gives: 周末联赛：周末挣得多, costs: 老会员不满：声望 −2，过几天来找你 }
     tennis2: { gives: 多一片网球场：会员上限 +12，网球身份, costs: 修要 $2700；周末开放日只挣一半左右 }
   practice:
-    academy: { gives: 下午的青少年学院：挣得最多，家长入会, costs: 和下午的课撞时间 }
-    bootcamp: { gives: 工作日早上 8–11 点，修得便宜（$600）, costs: 每小时挣得少，掉得快，质量 −2 }
+    academy: { gives: 下午的青少年学院，每天 4 小时；发球机还能加钱, costs: 修要 $800；和下午的课撞时间 }
+    bootcamp: { gives: 工作日早上 8–11 点：教练下午还能上课；修要 $600；入会的人多一点, costs: 每天只有 3 小时，发球机不加钱；掉得快，质量 −1 }
   plaza:
-    nightlife: { gives: 天天开的夜场吧台, costs: 修要 $2200；维护每周 $70，掉得快 }
-    shade_lawn: { gives: 午餐多挣，掉得慢；表演赛 +5%, costs: 只有周末晚上 }
+    nightlife: { gives: 天天开的夜场吧台：晚上最挣钱, costs: 修要 $2200；维护每周 $70，掉得快，质量 −1 }
+    shade_lawn: { gives: 质量 +3，午餐多挣，掉得慢；表演赛 +5%, costs: 晚上只开周四到周日，挣得少 }
   stadium_2:
     resort: { gives: 周末的小木屋服务：最挣钱的岗位, costs: 维护每周 $140 }
-    recovery: { gives: 修要 $3800、更快；维护每周 $100；外出比赛胜率 +10%, costs: 工作日的冷水池挣得少 }
+    recovery: { gives: 修要 $3800、更快；维护每周 $100；外出比赛胜率 +10%, costs: 工作日的冷水池挣得少得多；质量 −2 }
 upgrades:
   outer_23: { tournament_clay: 赛事级红土, pro_hard: 职业硬地 }
   clubhouse: { pro_shop: 球拍专卖店 }
@@ -342,8 +342,8 @@ stars:
     exhibition: 在中心球场办成表演赛
   opens:
     internal_cup: 月度内赛
-    regional: 地区赛
-    invitational: 红土邀请赛
+    regional: 地区赛：赢了算奖杯
+    invitational: 邀请赛（保留红土更容易办成）
     sponsor: 赞助位
     exhibition_prep: 中心球场挂出表演赛筹备
     exhibition: 能办表演赛了
@@ -571,6 +571,8 @@ ui:
   wire:
     grew: "总监的{skill}能力到 {n} 了"
     interrupted: "{name}被叫离“{post}”，这一圈白干了"
+    routine_order: "{name}按习惯回{post}了 · {order}停在 {p}%"
+    routine_post: "{name}按习惯回{post}了 · 放下了{from}"
     week: "第 {n} 周结算 · {rate} · {what}"
     week_rate: "服务率 {n}%"
     week_none: 还没有客人
@@ -612,6 +614,8 @@ ui:
     order_new: "{cost}{time} · 还没开工"
     order_on: "{names}在干 · {p}%"
     order_paused: "停工 · {p}%"
+    order_paused_routine: "停工 · {p}% · 人按习惯走了"
+    sends_variant: "按“{variant}”"
     order_wait: "{p}% · 等人到场"
     coming: "在路上：{list}"
     coming_one: "{name} {time}"

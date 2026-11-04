@@ -114,7 +114,8 @@ stars:
       members_45: { expr: "stat.members >= (day >= 78 ? 36 : 45)" }
       rep_45: { expr: "stat.reputation >= (day >= 78 ? 36 : 45)" }
       trophies_2: { expr: "trophies >= 2" }
-    opens: [invitational, sponsor, exhibition_prep]
+    # exhibition_prep（表演赛四期筹备）等 P2 做出来再加回 opens；现在写上会让升星快讯说空话（GM 评审 W1）
+    opens: [invitational, sponsor]
   # ★4 度假名园
   - requires:
       restored_7: { expr: "restored >= 7" }

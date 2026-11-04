@@ -85,7 +85,7 @@ events:
       B: Send a statement
   iw_sponsor:
     title: The bank's banner
-    body: A local bank saw the pickleball courts reopen and wants to hang banners all along the fence. The offer is good.
+    body: A local bank has seen the club come back to life and wants to hang banners all along the fence. The offer is good.
     options:
       A: Take it
       B: Decline
@@ -203,7 +203,7 @@ log:
   tournament_won: Your player won a tournament and brought home the prize money
   tournament_lost: Your player went out early this time, but learned something
   cup_hosted: The monthly club cup is done; a trophy goes in the clubhouse case
-  invitational_won: The clay invitational filled the stands; a trophy and the prize money
+  invitational_won: The invitational filled the stands; a trophy and the prize money
   invitational_flop: The invitational fell flat; the entry fee is gone
 
 posts:
@@ -271,21 +271,21 @@ orders:
   st1_reopen: { title: "Reopen the Stadium", note: "It lost its grade: fix the big screen, clear the stands, $450" }
   st1_clear: { title: "Clear the Stadium", note: "Haul away the collapsed northeast stands", locked: "Open the pool first" }
   st1_rebuild: { title: "Rebuild the Stadium", note: "The biggest job of the game", locked: "Clear the Stadium first" }
-  st1_exhibition: { title: "Hold the exhibition", note: "Reputation 50+, a crew for a whole day", locked: "★4, Stadium rebuilt and reputation 50+" }
-  pl_tournament: { title: "Play a tournament", note: "Players only, once a week; the better they play, the likelier a win" }
-  o23_pro_clay: { title: "Tournament clay", note: "$500; needs someone with upkeep 75+. Better courts, but fussier", locked: "Clay courts open, kept as clay" }
-  o23_pro_hard: { title: "Pro hard courts", note: "$450; needs someone with upkeep 75+. Wears even slower", locked: "Courts open, rebuilt as hard courts" }
-  ch_pro_shop: { title: "Open a pro shop", note: "$600; needs someone with service 65+. Another desk to staff", locked: "Clubhouse open" }
-  st3_lights: { title: "Put up league lights", note: "$700; night sessions Fri–Sat, power bill +$25/week", locked: "Courts open" }
-  pr_video_wall: { title: "Courtside video wall", note: "$800; needs a coach with coaching 65+. Lessons earn more", locked: "Academy courts open" }
-  pz_misters: { title: "Install misters", note: "$500; guests stay longer at lunch and in the evening", locked: "Circle of Palms open" }
-  st2_cabanas: { title: "Build a row of cabanas", note: "$900; more from the pool's paid service", locked: "Pool open" }
-  ch_to_cafe: { title: "Turn the physio room back into a café", note: "$700; the clubhouse closes for a week" }
+  st1_exhibition: { title: "Hold the exhibition", note: "Six people for a whole day; the higher the reputation, the better the odds", locked: "★4 and the Stadium rebuilt" }
+  pl_tournament: { title: "Play a tournament", note: "Players only, once a week; the better they play, the likelier a win; from ★2 a win brings home a trophy" }
+  o23_pro_clay: { title: "Tournament clay", note: "$400; needs someone with upkeep 75+. Better courts, but fussier", locked: "Clay courts open, kept as clay" }
+  o23_pro_hard: { title: "Pro hard courts", note: "$350; needs someone with upkeep 75+. Wears even slower", locked: "Courts open, rebuilt as hard courts" }
+  ch_pro_shop: { title: "Open a pro shop", note: "$500; needs someone with service 65+. Anyone free can mind the counter; it earns while they do", locked: "Clubhouse open" }
+  st3_lights: { title: "Put up league lights", note: "$600; night sessions Fri–Sat, power bill +$25/week", locked: "Courts open" }
+  pr_video_wall: { title: "Courtside video wall", note: "$500; needs a coach with coaching 65+. Lessons earn more", locked: "Academy courts open" }
+  pz_misters: { title: "Install misters", note: "$400; guests stay longer at lunch and in the evening", locked: "Circle of Palms open" }
+  st2_cabanas: { title: "Build a row of cabanas", note: "$800; more from the pool's paid service", locked: "Pool open" }
+  ch_to_cafe: { title: "Turn the physio room into a café", note: "$700; the clubhouse closes for a week" }
   ch_to_physio: { title: "Turn the café into a physio room", note: "$900; the clubhouse closes for a week" }
   st3_to_tennis2: { title: "Back to two tennis courts", note: "$1400; closed for a week. The old members will be pleased, the league leaves" }
   st3_to_pickle4: { title: "Convert to four pickleball courts", note: "$1000; closed for a week. League money, unhappy old members" }
   cup_monthly: { title: "Host the monthly club cup", note: "$60, two people, half a day; every four weeks. A trophy", locked: "★1 and two repaired courts" }
-  inv_clay: { title: "Host the clay invitational", note: "$800, four people, a whole day; rain spoils it. Kept clay helps", locked: "★3; clay courts, clubhouse and Circle of Palms open" }
+  inv_clay: { title: "Host the invitational", note: "$800, four people, a whole day; rain spoils it. Clay courts make it likelier (+10%)", locked: "★3; the courts by the academy, clubhouse and Circle of Palms open" }
 
 # Repair variants (GM-13): the name, and what each one gives and costs (variant_notes, for the location list)
 variants:
@@ -303,17 +303,17 @@ variant_notes:
     cafe: { gives: "Lunch café; members cap +25", costs: "Upkeep $75/week" }
     physio: { gives: "Physio post for a fitness coach; players train faster; quality +4, wears slowly", costs: "Members cap only +15; no lunch café" }
   stadium_3:
-    pickle4: { gives: "Weekend league: the best weekend money", costs: "Old members are upset: reputation −2, then they come to see you" }
+    pickle4: { gives: "Weekend league: big weekend money", costs: "Old members are upset: reputation −2, then they come to see you" }
     tennis2: { gives: "A second tennis court: members cap +12, tennis identity", costs: "$2700 to build; weekend open play earns about half" }
   practice:
-    academy: { gives: "Afternoon junior academy: earns most, parents join", costs: "Clashes with afternoon lessons" }
-    bootcamp: { gives: "Weekday mornings 8–11, cheaper to build ($600)", costs: "Earns less an hour, wears faster, quality −2" }
+    academy: { gives: "Afternoon junior academy, 4 h a day; the ball machine adds to it", costs: "$800 to build; clashes with the afternoon lessons" }
+    bootcamp: { gives: "Weekday mornings 8–11: the coach can still teach afternoons; $600 to build; more sign-ups", costs: "Only 3 h a day, no ball-machine bonus; wears faster, quality −1" }
   plaza:
-    nightlife: { gives: "Evening bar every day", costs: "$2200 to build; upkeep $70/week, wears faster" }
-    shade_lawn: { gives: "Lunch earns more, wears slowly; exhibition +5%", costs: "Only weekend evenings" }
+    nightlife: { gives: "Evening bar every day: the most evening money", costs: "$2200 to build; upkeep $70/week, wears faster, quality −1" }
+    shade_lawn: { gives: "Quality +3, lunch earns more, wears slowly; exhibition +5%", costs: "Evenings only Thu–Sun, and they earn less" }
   stadium_2:
     resort: { gives: "Weekend cabana service: the best-paid post", costs: "Upkeep $140/week" }
-    recovery: { gives: "$3800 and quicker to build; upkeep $100/week; tournament wins +10%", costs: "Weekday cold plunge earns less" }
+    recovery: { gives: "$3800 and quicker to build; upkeep $100/week; tournament wins +10%", costs: "Weekday cold plunge earns much less; quality −2" }
 upgrades:
   outer_23: { tournament_clay: Tournament clay, pro_hard: Pro hard courts }
   clubhouse: { pro_shop: Pro shop }
@@ -342,8 +342,8 @@ stars:
     exhibition: Hold the exhibition in the Stadium
   opens:
     internal_cup: The monthly club cup
-    regional: Regional tournaments
-    invitational: The clay invitational
+    regional: "Regional tournaments: a win brings home a trophy"
+    invitational: The invitational (clay courts help)
     sponsor: A sponsor slot
     exhibition_prep: The exhibition build-up shows on the Stadium
     exhibition: The exhibition can be held
@@ -581,6 +581,8 @@ ui:
   wire:
     grew: "The director's {skill} reached {n}"
     interrupted: "{name} was pulled off “{post}”; that round was lost"
+    routine_order: "{name} went back to {post} (routine) · {order} paused at {p}%"
+    routine_post: "{name} went back to {post} (routine) · left {from}"
     week: "Week {n} settled · {rate} · {what}"
     week_rate: "service {n}%"
     week_none: no customers yet
@@ -622,6 +624,8 @@ ui:
     order_new: "{cost}{time} · not started"
     order_on: "{names} working · {p}%"
     order_paused: "Paused · {p}%"
+    order_paused_routine: "Paused · {p}% · crew left (routine)"
+    sends_variant: "As “{variant}”"
     order_wait: "{p}% · waiting for crew"
     coming: "On the way: {list}"
     coming_one: "{name} {time}"

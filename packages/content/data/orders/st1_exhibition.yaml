@@ -10,7 +10,7 @@ cost: 3000
 crew: 6
 cooldown: 7d
 # ★4 以后才办得成（LG-10、GM-9）
-when: { all: [{ facility: stadium_1, is: restored }, { stat: reputation, gte: 50 }, { expr: "stars >= 4" }] }
+when: { all: [{ facility: stadium_1, is: restored }, { expr: "stars >= 4" }] }
 check: { chance: "clamp(0.3 + (stat.reputation - 50) / 80 + (stat.quality - 60) / 100 + (flag.dale_umpire ? 0.05 : 0) + min(hired.legend, 1) * 0.05 + (variant.plaza == \"shade_lawn\" ? 0.05 : 0), 0.15, 0.85)" }
 onSuccess:
   - { stat: cash, add: 6000 }

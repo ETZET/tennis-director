@@ -19,7 +19,8 @@ onSuccess:
   - { stat: cash, add: 600 }
   - { stat: reputation, add: 4 }
   # 赢一站算一座奖杯（LG-10，★3 要 2 座）
-  - { trophy: 1 }
+  # ★2 开出地区赛（ADR 0020）：★2 以前赢了只拿奖金和声望，★2 起赢了才算奖杯
+  - { trophy: 1, if: { expr: "stars >= 2" } }
   - { log: log.tournament_won }
 onFail:
   - { log: log.tournament_lost }
