@@ -50,6 +50,7 @@ export function settleWeek(ctx: Ctx, day: number): void {
   let repTotal = wk.traitRep;
   let gain = 0;
   let cap: number | null = null;
+  let lossMax: number | null = null;
   if (rules) {
     for (const [k, src] of Object.entries(rules.reputation)) {
       const v = num(s, w, src, extra);
@@ -58,11 +59,13 @@ export function settleWeek(ctx: Ctx, day: number): void {
     }
     gain = Math.round(num(s, w, rules.members, extra));
     if (rules.member_cap !== undefined) cap = Math.round(num(s, w, rules.member_cap, extra));
+    if (rules.member_loss_max !== undefined) lossMax = Math.max(0, Math.round(num(s, w, rules.member_loss_max, extra)));
   }
   if (wk.traitRep) rep.traits = round1(wk.traitRep);
   const members = s.stats.members ?? 0;
-  // 超出上限的会员周末不续了（可以是负数）
-  const dm = cap === null ? gain : Math.min(gain, cap - members);
+  // 超出上限的会员周末不续了（可以是负数）；一周最多走掉 member_loss_max 个（准则 6：不一次崩掉，下周接着走）
+  const raw = cap === null ? gain : Math.min(gain, cap - members);
+  const dm = lossMax === null ? raw : Math.max(raw, -lossMax);
   let top: WeekSettlement['missed'] = null;
   for (const [post, minutes] of Object.entries(wk.missed))
     if (minutes > 0 && (!top || minutes > top.minutes || (minutes === top.minutes && post < top.post)))
@@ -88,7 +91,7 @@ export function settleWeek(ctx: Ctx, day: number): void {
       missed: top,
       money,
       rep,
-      members: { gain, cap },
+      members: { gain, cap, ...(dm > raw && lossMax !== null ? { loss_max: lossMax } : {}) },
       quality: { target: round1(q.total), terms },
     },
     null,

@@ -25,7 +25,7 @@ import type { World } from './world';
  * - 持续岗位：有人坐着、在它的时段里、条件满足时一圈一圈地转，每圈结算一次效果。有时段的岗位是"需求"，
  *   时段里每分钟都计入本周服务率的分母，有人在岗才计入分子。被拉走：这一圈作废，已算的服务分钟退回去。
  * - 一次性工单：拖人上去开工（第一个人到场时扣材料费），可以多人一起；被拉走进度保留；做满就结算。
- * - 设施状况：收盘时按 decay_day × 季节倍数衰减；岗位每圈的 wear 额外磨损；维护岗位和工单修复。
+ * - 设施状况：收盘时按 decay_day × 季节倍数衰减（今天有人守着再乘 rules.staffed_decay）；岗位每圈的 wear 额外磨损；维护岗位和工单修复。
  */
 
 /** 人在某项能力上的值（底子，不算特质） */
@@ -407,7 +407,14 @@ export function canAssign(
  */
 export function assign(ctx: Ctx, person: string, target: string | null, learn = false, variant?: string): boolean {
   const { s, w } = ctx;
-  if (canAssign(s, w, person, target, variant) !== null) return false;
+  const block = canAssign(s, w, person, target, variant);
+  // 玩家把人拖到他已经在的岗位上（例如习惯带他来的）：算"就守这儿"，守着的岗位换成它
+  if (block === 'same' && learn && target) {
+    const tp = w.posts.get(target);
+    const p = s.people[person];
+    if (tp && p) p.pin = pinnable(w, tp) ? target : null;
+  }
+  if (block !== null) return false;
   // 变体工单还没开工：记下玩家拖向的变体（第一个人到场时锁定）
   const vo = target ? w.orders.get(target) : undefined;
   if (vo?.variants && !s.orders[vo.id]) {
@@ -425,6 +432,14 @@ export function assign(ctx: Ctx, person: string, target: string | null, learn = 
   const prevJob = p.job;
   if (target && w.orders.has(target)) p.back = prevJob && w.posts.has(prevJob) ? prevJob : (p.back ?? null);
   else p.back = null;
+  // 守着的岗位（pin，W2 试玩）：玩家亲手派到"随时"岗位或赛事临时岗位上就守着它；玩家派去别处、叫停就不守了。
+  // 习惯、做完工单回去（不是玩家亲手派的）不动它；派去工单时原来守着的岗位就是 back，做完回去接着守
+  if (target === null) p.pin = null;
+  else if (learn) {
+    const tp = w.posts.get(target);
+    if (tp) p.pin = pinnable(w, tp) ? target : null;
+    else if (p.pin && p.pin !== p.back) p.pin = null;
+  }
   leaveJob(ctx, person);
   if (target === null) {
     // 叫停：走在路上的人不再去原来的地方，走到脚下这段路近的那头站住（walk.ts haltWalk）
@@ -436,6 +451,8 @@ export function assign(ctx: Ctx, person: string, target: string | null, learn = 
   if (post) {
     const prev = occupant(s, target);
     if (prev) {
+      const pp = s.people[prev] as PersonState;
+      if (pp.pin === target) pp.pin = null;
       leaveJob(ctx, prev);
       ctx.events.push({ type: 'assigned', person: prev, target: null });
     }
@@ -448,6 +465,9 @@ export function assign(ctx: Ctx, person: string, target: string | null, learn = 
 }
 
 /* ---------------- 习惯（ADR 0014） ---------------- */
+
+/** 玩家亲手派上去就一直守着的岗位：没有时段的"随时"岗位（维护），赛事的临时岗位（这一期的每个比赛日） */
+export const pinnable = (w: World, p: Post): boolean => !p.hours || w.eventPosts.has(p.id);
 
 /** 一个人最多记住几个岗位 */
 export const ROUTINE_MAX = 4;
@@ -486,6 +506,9 @@ export function learnRoutine(s: GameState, w: World, person: string, target: str
 /**
  * 现在这个人按习惯该去哪儿（null = 留在原地）：
  * 0. 在做工单（人-13）：不动，做完以前不被习惯拉走（做完回到原来的岗位，见 finishOrder）。
+ * 0'. 守着的岗位（pin）：在上面而且它开着（"随时"岗位一直算开着）就不动；不在上面（被事件叫走办完了、
+ *    临时岗位第二天开门）而它此刻开着、空着、离结束还有 45 分钟以上 → 回去。临时岗位过了时段照下面的习惯走，
+ *    下一个比赛日到点再回来。
  * 1. 在开着的班上：不动。
  * 2. 有个记住的班此刻开着、空着、离结束还有 45 分钟以上 → 去上班。
  * 3. 手上没活（班关了、闲着）：去记给他的工单（效果 task）；再不然去记住的"随时"岗位（维护）。
@@ -496,13 +519,18 @@ export function routineTarget(s: GameState, w: World, id: string): string | null
   const cur = p.job ? w.posts.get(p.job) : undefined;
   if (p.job && !cur) return null;
   const open = (x: Post) => postInHours(s, x) && postExists(s, w, x);
-  if (cur?.hours && open(cur)) return null;
   const free = (x: Post) => {
     const who = occupant(s, x.id);
     return who === null || who === id;
   };
   const now = minuteOfDay(s.t);
   const left = (x: Post) => (x.hours ? x.hours[1] * 60 - now : Number.POSITIVE_INFINITY);
+  const pin = p.pin ? w.posts.get(p.pin) : undefined;
+  if (pin && open(pin)) {
+    if (pin.id === p.job) return null;
+    if (free(pin) && left(pin) >= ROUTINE_MIN_LEFT) return pin.id;
+  }
+  if (cur?.hours && open(cur)) return null;
   for (const x of p.routine ?? []) {
     const post = w.posts.get(x);
     if (!post?.hours || post.id === p.job || !open(post) || !free(post) || left(post) < ROUTINE_MIN_LEFT) continue;
@@ -527,9 +555,14 @@ function routineSystem(ctx: Ctx): void {
   const { s, w } = ctx;
   if (minuteOfDay(s.t) % 10 !== 0) return;
   for (const id of staffIds(s, w)) {
+    const p = s.people[id] as PersonState;
+    // 守着的岗位没了（设施掉档、赛事收了）：不再守，回到习惯（准则：岗位关了就回习惯）
+    if (p.pin) {
+      const pp = w.posts.get(p.pin);
+      if (!pp || !postExists(s, w, pp)) p.pin = null;
+    }
     const t = routineTarget(s, w, id);
     if (!t) continue;
-    const p = s.people[id] as PersonState;
     const job = p.job;
     if (job && w.posts.has(job)) delete s.posts[job];
     if (t === p.resume) p.resume = null;
@@ -775,6 +808,7 @@ function releaseSystem(ctx: Ctx): void {
     const f = w.facilityAt.get(post.at) ?? null;
     const reason = f && remodeling(s, f) ? 'remodel' : eventPostOpen(s, w, post.id) === false ? 'event' : 'closed';
     delete s.posts[post.id];
+    if (p.pin === post.id) p.pin = null;
     leaveJob(ctx, id);
     ctx.events.push({ type: 'released', person: id, post: post.id, facility: f, reason });
   }
@@ -892,14 +926,39 @@ export function staffSystem(ctx: Ctx): void {
 
 /* ---------------- 收盘：衰减、今天的岗位账、夜里 ---------------- */
 
-/** 设施按天衰减（准则 6：没人管的地方慢慢变旧；季节倍数：初秋落叶多） */
+/**
+ * 今天有人守着的设施（准则 6"有人守的地方维持住"）：今天有人在它的任何一个岗位上干完过至少一圈
+ * （今天的岗位账 s.ledger，收盘写日志之前读）。
+ */
+export function staffedToday(s: GameState, w: World): Set<string> {
+  const out = new Set<string>();
+  for (const [post, e] of Object.entries(s.ledger)) {
+    const f = e.cycles > 0 ? w.facilityAt.get(w.posts.get(post)?.at ?? '') : undefined;
+    if (f) out.add(f);
+  }
+  return out;
+}
+
+/**
+ * 这处设施今晚收盘掉多少状况：decay_day × 季节倍数，今天有人守着再乘 rules.staffed_decay（默认 0.5）；
+ * 改造停用期间不掉。staffed 不给就按今天的岗位账算（界面预告"明天会不会掉档"也用它）。
+ */
+export function dayDecay(s: GameState, w: World, id: string, seasonDecay: number, staffed?: Set<string>): number {
+  if (remodeling(s, id)) return 0;
+  const d = stateDef(s, w, id)?.decay_day ?? 0;
+  if (!d) return 0;
+  const on = (staffed ?? staffedToday(s, w)).has(id);
+  return d * seasonDecay * (on ? w.act.rules.staffed_decay : 1);
+}
+
+/** 设施按天衰减（准则 6：没人管的地方慢慢变旧、有人守的掉得慢；季节倍数：初秋落叶多）。要在 closeLedger 之前调 */
 export function decayDay(ctx: Ctx, seasonDecay: number): void {
   const { s, w } = ctx;
+  const staffed = staffedToday(s, w);
   for (const id of Object.keys(s.facilities)) {
-    // 改造停用期间不掉状况
-    const d = remodeling(s, id) ? 0 : (stateDef(s, w, id)?.decay_day ?? 0);
+    const d = dayDecay(s, w, id, seasonDecay, staffed);
     if (!d) continue;
-    s.condition[id] = clamp((s.condition[id] ?? 100) - d * seasonDecay, 0, 100);
+    s.condition[id] = clamp((s.condition[id] ?? 100) - d, 0, 100);
   }
 }
 

@@ -41,6 +41,13 @@ export interface PersonState {
    * 不然就闲着。派去工单的人做完以前不被习惯拉走。
    */
   back?: string | null;
+  /**
+   * 玩家亲手派上的、要一直守着的岗位（W2 试玩）：
+   * - "随时"的岗位（维护）：习惯不再在早上把他拉回有时段的班；玩家再派他去别处、叫停、或者岗位没了（released）才回到习惯。
+   * - 赛事的临时岗位：这一期赛事的每一个比赛日都守着它（两天的邀请赛第二天也在；中途被事件叫走，办完回来）。
+   * 派去工单时如果原来就守着这个岗位，照旧记着（人-13 做完回来接着守）。
+   */
+  pin?: string | null;
   /** 连续闲了多少营业分钟（没有岗位或工单、没在走路、没在办事）；有活就清零。导演和卡用它（idle_days） */
   idleMin?: number;
 }
@@ -128,6 +135,8 @@ export type Cause =
       goals: Record<string, boolean>;
       repeat: number;
       scale: number;
+      /** 因为临时岗位没人守而没达成的目标：哪些岗位、各空了多少分钟（W2 试玩：不能悄悄失败） */
+      unstaffed?: { goal: string; posts: { post: string; minutes: number }[] }[];
     }
   /** 成长解锁（W3，LG-12）：开出了什么、记在谁名下、need 各条是谁满足的 */
   | { kind: 'unlock'; key: string; person: string; people: string[] }
@@ -175,7 +184,12 @@ export interface WeekSettlement {
   /** 声望各项（规则 week.reputation 的项，加上特质 traits） */
   rep: Record<string, number>;
   /** 会员：按公式该来多少人、场地撑得起多少人（null = 没上限） */
-  members: { gain: number; cap: number | null };
+  members: {
+    gain: number;
+    cap: number | null;
+    /** 这周本该走掉更多、被"一周最多走掉几个"（rules.week.member_loss_max）挡住时，挡在多少（没挡就不写） */
+    loss_max?: number;
+  };
   /** 质量这周在向哪个目标靠近，目标的各项 */
   quality: { target: number; terms: Record<string, number> };
 }
@@ -252,6 +266,8 @@ export interface EventRun {
   crew: string[];
   /** 已经发过"开赛"事件的那一天（第几天） */
   live?: number;
+  /** 每个临时岗位在比赛时段里空着的分钟（没达成"有人守"的目标时讲是哪几个岗位） */
+  short?: Record<string, number>;
 }
 
 /** 一局怎么结束的：通关、输了（破产、旧的期限），或者结局方案 A 的结算打分（W4） */

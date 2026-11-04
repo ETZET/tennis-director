@@ -5,7 +5,7 @@ import type { Ctx } from './effects';
 import type { SimEvent } from './events';
 import { advance, newGame, replay, stateHash } from './game';
 import { fromSave, toSave } from './save';
-import { canAssign, orderStatus, postStatus, prepStatus } from './staff';
+import { canAssign, dayDecay, orderStatus, postStatus, prepStatus, staffedToday } from './staff';
 import { at, dayOf, type GameState, minuteOfDay, SAVE_VERSION } from './state';
 import { rainCheck, tournamentStatus } from './tournaments';
 import { num, test } from './vars';
@@ -463,5 +463,164 @@ describe('内容编译（W2 schema）', () => {
     expect(msgs).toContain("missing text 'routes.s2.youth'");
     expect(msgs).toContain("missing text 'prep.show'");
     expect(msgs).not.toContain('event.staffed');
+  });
+});
+
+/* ---------------- W2 闸口试玩的修正：有人守的地方掉得慢、守着的岗位、两天的赛事 ---------------- */
+
+describe('有人守的地方维持住（准则 6，W2 闸口 P1）', () => {
+  const CW = worldFor(CONTENT, 'indian_wells');
+  /** 会员场能打、状况 90，Dale 在会员场；第 1 天 8:00 */
+  const court = (): GameState => {
+    const s = quiet(newGame(CONTENT, { seed: 2 }));
+    s.facilities.outer_1 = 'playable';
+    s.condition.outer_1 = 90;
+    (s.people.dale as { at: string }).at = 'outer_1';
+    return s;
+  };
+  const closeOf = (s: GameState, content = CONTENT) => {
+    const d = dayOf(s.t);
+    while (dayOf(s.t) === d) advance(s, content, [], 1);
+  };
+
+  it('今天有人在这处设施的岗位上干完过一圈：收盘衰减乘 staffed_decay（0.5）；没人：照 decay_day 掉', () => {
+    const empty = court();
+    closeOf(empty);
+    expect(empty.condition.outer_1).toBeCloseTo(90 - 5, 5);
+    const kept = court();
+    advance(kept, CONTENT, [assign('dale', 'o1_rental')], 0);
+    closeOf(kept);
+    const cycles = kept.week.cycles?.o1_rental ?? 0;
+    expect(cycles).toBeGreaterThan(0);
+    // 看场每圈磨损 0.5（使用磨损照算），日衰减减半：5 × 0.5
+    expect(kept.condition.outer_1).toBeCloseTo(90 - cycles * 0.5 - 2.5, 5);
+  });
+
+  it('dayDecay 讲得出今晚掉多少；倍数是内容里的 rules.staffed_decay', () => {
+    const s = court();
+    expect(dayDecay(s, CW, 'outer_1', 1)).toBe(5);
+    s.ledger.o1_rental = { person: 'dale', cycles: 1, effects: [] };
+    expect(staffedToday(s, CW).has('outer_1')).toBe(true);
+    expect(dayDecay(s, CW, 'outer_1', 1.3)).toBeCloseTo(5 * 1.3 * 0.5, 5);
+    const c = structuredClone(CONTENT) as ContentBundle;
+    c.version = `${CONTENT.version}-staffed1`;
+    const act = c.acts.find((a) => a.id === 'indian_wells');
+    if (!act) throw new Error('no act');
+    act.rules.staffed_decay = 1;
+    expect(dayDecay(s, worldFor(c, 'indian_wells'), 'outer_1', 1)).toBe(5);
+  });
+});
+
+describe('亲手派到"随时"岗位（维护）就守着（W2 闸口 P2，和人-13 一致）', () => {
+  const court = (): GameState => {
+    const s = quiet(newGame(CONTENT, { seed: 2 }));
+    s.facilities.outer_1 = 'playable';
+    s.condition.outer_1 = 70;
+    (s.people.dale as { at: string }).at = 'outer_1';
+    return s;
+  };
+  const toDay2 = (s: GameState, hour: number) => {
+    while (!(dayOf(s.t) === 2 && minuteOfDay(s.t) >= hour * 60)) advance(s, CONTENT, [], 1);
+  };
+
+  it('白天的班在习惯里，玩家把他拖去维护：第二天早上不被习惯拉回看场', () => {
+    const s = court();
+    advance(s, CONTENT, [assign('dale', 'o1_rental')], 30);
+    advance(s, CONTENT, [assign('dale', 'o1_upkeep')], 0);
+    expect(s.people.dale).toMatchObject({ job: 'o1_upkeep', pin: 'o1_upkeep' });
+    expect(s.people.dale?.routine).toEqual(['o1_upkeep', 'o1_rental']); // 习惯照记（ADR 0014）
+    toDay2(s, 9);
+    expect(s.people.dale?.job).toBe('o1_upkeep');
+    // 叫停就不守了；再派去看场，过了时段照习惯去维护、第二天又回看场
+    advance(s, CONTENT, [assign('dale', null)], 0);
+    expect(s.people.dale?.pin).toBeNull();
+  });
+
+  it('习惯自己带去的维护不算守着：看场过了时段去维护，第二天 8 点回看场（ADR 0014 照旧）', () => {
+    const s = court();
+    advance(s, CONTENT, [assign('dale', 'o1_upkeep')], 10);
+    advance(s, CONTENT, [assign('dale', 'o1_rental')], 0);
+    expect(s.people.dale?.pin).toBeNull();
+    while (minuteOfDay(s.t) < 15 * 60 + 30) advance(s, CONTENT, [], 1);
+    expect(s.people.dale).toMatchObject({ job: 'o1_upkeep', pin: null });
+    toDay2(s, 8.5);
+    expect(s.people.dale?.job).toBe('o1_rental');
+  });
+
+  it('守着的岗位没了（设施掉档）：放下来，不再守', () => {
+    const s = court();
+    advance(s, CONTENT, [assign('dale', 'o1_upkeep')], 5);
+    s.facilities.outer_1 = 'worn';
+    advance(s, CONTENT, [], 11);
+    expect(s.people.dale).toMatchObject({ job: null, pin: null });
+  });
+});
+
+describe('两天的主办赛事：派上临时岗位的人两天都守着（W2 闸口 P2）', () => {
+  const c2 = structuredClone(FIX) as ContentBundle;
+  c2.version = `${FIX.version}-twoday`;
+  const act = c2.acts.find((a) => a.id === 'indian_wells');
+  if (!act) throw new Error('no act');
+  const cup = act.tournaments?.find((t) => t.id === 'cup');
+  if (!cup) throw new Error('no cup');
+  cup.days = [5, 6];
+  for (const k of Object.keys(act.weather)) act.weather[k] = { sun: 1, cloud: 0, rain: 0, wind: 0 };
+  const W2 = worldFor(c2, 'indian_wells');
+  const go = (s: GameState, mins: number) => advance(s, c2, [], mins).events;
+  /** 会所开着、Dale 的习惯是前台（8–18）；总监报了名；推到第 6 天开门 */
+  const entered = (): GameState => {
+    const s = club(5);
+    s.facilities.clubhouse = 'open';
+    s.condition.clubhouse = 90;
+    advance(s, c2, [assign('dale', 'ch_desk'), assign('director', 'cup_signup')], 0);
+    for (let i = 0; i < 3 * 60 && !s.events.cup; i++) go(s, 1);
+    expect(s.events.cup).toBeDefined();
+    while (dayOf(s.t) < 6) go(s, 1);
+    return s;
+  };
+
+  it('第二天开门他先按习惯去前台，临时岗位到点（9 点）自己回去；"全程有人"的目标达成', () => {
+    const s = entered();
+    expect(W2.editions.get('cup')?.[0]?.days).toEqual([6, 7]);
+    advance(s, c2, [assign('director', 't_checkin'), assign('dale', 't_umpire')], 0);
+    expect(s.people.dale?.pin).toBe('t_umpire');
+    expect(s.people.dale?.routine).not.toContain('t_umpire');
+    while (dayOf(s.t) < 7 || minuteOfDay(s.t) < 10 * 60) go(s, 1);
+    expect(s.people.dale?.job).toBe('t_umpire');
+    expect(s.people.director?.job).toBe('t_checkin');
+    const ev: SimEvent[] = [];
+    while (s.events.cup) ev.push(...go(s, 1));
+    // 前台那一小时没人（服务率的目标看全园）；临时岗位两天都有人
+    const done = ev.find((e) => e.type === 'tournament_done');
+    expect(done && 'goals' in done ? done.goals.find((g) => g.id === 'staffed') : null).toEqual({
+      id: 'staffed',
+      met: true,
+    });
+    expect(ev.some((e) => e.type === 'tournament_goal_missed')).toBe(false);
+    // 收赛后临时岗位没了：放下来、不再守，第二天照习惯回前台
+    go(s, 11);
+    expect(s.people.dale?.pin).toBeNull();
+  });
+
+  it('第二天没人守临时岗位：目标没达成，发 tournament_goal_missed 讲是哪几个岗位，日志里也记着', () => {
+    const s = entered();
+    advance(s, c2, [assign('director', 't_checkin'), assign('dale', 't_umpire')], 0);
+    while (dayOf(s.t) < 7) go(s, 1);
+    // 玩家第二天一早把两个人都派走（Dale 已经被习惯带去了前台：再拖到前台上也算"就守这儿"）
+    advance(s, c2, [assign('dale', 'ch_desk'), assign('director', null)], 0);
+    expect(s.people.dale?.pin ?? null).toBeNull();
+    const ev: SimEvent[] = [];
+    while (s.events.cup) ev.push(...go(s, 1));
+    const done = ev.find((e) => e.type === 'tournament_done');
+    expect(done).toMatchObject({ goals: [{ id: 'service' }, { id: 'staffed', met: false }] });
+    const missed = ev.find((e) => e.type === 'tournament_goal_missed');
+    expect(missed).toMatchObject({ tournament: 'cup', goal: 'staffed' });
+    expect(missed && 'staffed' in missed ? missed.staffed : 1).toBeLessThanOrEqual(0.5);
+    expect(missed && 'posts' in missed ? missed.posts.map((p) => p.post).sort() : []).toEqual([
+      't_checkin',
+      't_umpire',
+    ]);
+    const log = s.log.find((x) => x.cause.kind === 'tournament');
+    expect(log?.cause).toMatchObject({ unstaffed: [{ goal: 'staffed' }] });
   });
 });

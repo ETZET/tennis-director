@@ -341,8 +341,26 @@ describe('周结算（GM-1：放着不管时数字的变化要讲得清）', () 
     s.stats.members = 30; // 上限 1 块场 × 12
     const e = toSettlement(s);
     expect(e.cause.members.cap).toBe(12);
-    expect(statDelta(e, 'members')?.delta).toBe(-18);
-    expect(s.stats.members).toBe(12);
+    // 一周最多走掉 max(8, 30 × 25%) = 8 个（rules.week.member_loss_max），剩下的下周接着走
+    expect(statDelta(e, 'members')?.delta).toBe(-8);
+    expect(e.cause.members.loss_max).toBe(8);
+    expect(s.stats.members).toBe(22);
+    const e2 = toSettlement(s);
+    expect(statDelta(e2, 'members')?.delta).toBe(-8);
+    expect(s.stats.members).toBe(14);
+  });
+
+  it('一周最多走掉的会员按规则算（四分之一，至少 8）；没挡住时周结算不写 loss_max', () => {
+    const s = quiet(court1(fresh(9)));
+    s.stats.members = 80;
+    const e = toSettlement(s);
+    expect(statDelta(e, 'members')?.delta).toBe(-20);
+    expect(e.cause.members.loss_max).toBe(20);
+    const t = quiet(court1(fresh(9)));
+    t.stats.members = 15;
+    const f = toSettlement(t);
+    expect(statDelta(f, 'members')?.delta).toBe(-3);
+    expect(f.cause.members.loss_max).toBeUndefined();
   });
 
   it('员工特质的声望不每天漂：记在本周的账上，周日一起结算并写进周结算', () => {

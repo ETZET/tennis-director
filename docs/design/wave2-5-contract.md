@@ -219,6 +219,23 @@ default: { then: A }
 - 在工单上的人习惯不拉走（`routineTarget` 直接返回 null），直到做完、作废、或者玩家改派。从岗位上被派去工单时记下 `back`；工单做完（或作废、钱不够开不了工）回到 `back`——它存在、在时段里（或没有时段）、没人坐的话（发 `returned {person, post, order}`），不然闲着，之后照习惯走。原来"班一开始放下工单去上班"的行为去掉了；`resume` 只剩效果 `task` 用。
 - 每分钟：坐在已经不存在的岗位上的人放下来闲着（这一圈作废，不发 `postInterrupted`），发 `released {person, post, facility, reason}`，`reason`：`'closed'`（设施掉档等条件没了）、`'remodel'`（改造停用）、`'event'`（赛事收了临时岗位，或比赛日 `closes` 占了场）。岗位回来后习惯会带他回去。
 
+### W2 闸口修正：守着的岗位、有人守的设施、会员一周最多走多少（2026-11-04，GM-1 问题 1、W2 闸口试玩）
+
+**守着的岗位（`people[id].pin: string | null`，可选字段，旧档没有 = null，不升存档版本）。** 和人-13 同一个原则：玩家亲手做的安排，习惯不推翻。
+
+- 玩家亲手（`assign` 命令）把人派到**"随时"岗位**（没有 `hours`，例如维护）或**赛事临时岗位**上，`pin` = 这个岗位；派到有时段的普通岗位、工单以外的别处，或者叫停（`target: null`），`pin` 清掉。拖到他已经在的岗位上（例如习惯带他来的）也算一次"就守这儿"。
+- 派去工单时：原来守着的岗位就是 `back`，`pin` 照旧留着（做完回去接着守）；别的情况清掉。
+- 习惯、做完工单回去（`returned`）不是玩家亲手派的，不改 `pin`。别人被玩家派上这个岗位顶掉时，原来那人的 `pin` 清掉。
+- `routineTarget`：在工单上照旧不动（人-13）；之后先看 `pin`——它此刻开着（在时段里、存在；"随时"岗位一直算在时段里），人在上面就**不动**（早上 8 点不再被拉回前台）；不在上面（被事件叫走办完了、第二个比赛日到点）而它空着、离结束还有 45 分钟以上，就**回去**。临时岗位过了当天的时段照下面的习惯走（不白站着），下一个比赛日到点再回来。
+- 不再守：岗位没了（`released`；或 `routineSystem` 发现 `pin` 指的岗位不存在了：设施掉档、赛事收赛）、被解雇。之后照 ADR 0014 的习惯走。
+- 习惯（`routine`）照旧记：派到维护上同样进习惯（顶掉旧的"随时"岗位），有时段的班留在习惯里，等玩家把他拖回有时段的班（`pin` 清掉）时照旧生效。所以规则是：**最后一次亲手拖动说了算；习惯只填它没说的空当。**
+
+**有人守的设施掉得慢（`rules.staffed_decay`，0..1，默认 0.5）。** 收盘衰减改成 `decay_day × 季节倍数 × (今天有人守 ? staffed_decay : 1)`。"今天有人守" = 今天有人在这处设施的任何一个岗位（包括维护）上干完过至少一圈（读今天的岗位账，所以收盘时衰减挪到 `closeLedger` 之前；日志顺序不变）。岗位每圈的 `wear` 是使用磨损，照算不打折——要调就改岗位 YAML 里的 `wear`。`dayDecay(s, w, facility, seasonDecay, staffed?)` 和 `staffedToday(s, w)` 导出给界面（"周日会不会掉档"的预告应该用它，不要直接用 `decay_day`）。
+
+**会员一周最多走多少（`rules.week.member_loss_max`，表达式，默认 `max(8, stat.members * 0.25)`）。** 周结算的会员变化不低于它的相反数（只挡走，不挡来）；挡住时周结算日志 `cause.members.loss_max` 写出挡在多少，下一周接着按上限走。
+
+**赛事目标因为没人守而没达成（领域事件 `tournament_goal_missed`）。** 收赛结算时，条件里用到 `event.staffed` 的附加目标没达成、而临时岗位确实空过，就发 `{ type: 'tournament_goal_missed'; tournament; at; goal; staffed /* 0..1 */; posts: { post; minutes }[] /* 空了多少分钟，从多到少 */ }`（在 `tournament_done` 之后），日志 `cause.unstaffed: { goal, posts }[]` 同样记着。`EventRun.short: Record<post, minutes>` 是每个临时岗位在比赛时段里空着的分钟。快讯可以用它讲"邀请赛第二天签到没人，'全程有人'没拿到"。
+
 ### 领域事件（新增）
 
 ```ts
@@ -230,6 +247,7 @@ default: { then: A }
 { type: 'prep_done'; group; order; done; total }            // 画面 prep(order, true)
 { type: 'released'; person; post; facility: string | null; reason: 'closed' | 'remodel' | 'event' }
 { type: 'returned'; person; post; order }
+{ type: 'tournament_goal_missed'; tournament; at; goal; staffed; posts: { post; minutes }[] }   // W2 闸口修正，见上
 ```
 
 因果日志：赛事结算 `cause: { kind: 'tournament', tournament, result: 'done' | 'spoiled', goals: Record<id, boolean>, repeat, scale }`；选路的效果记录 `{ kind: 'route', slot, route }`。

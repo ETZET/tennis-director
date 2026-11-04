@@ -1,8 +1,9 @@
 import type { Effect, Order, Tournament, TournamentGoal } from '@td/content';
 import { evalBool, type Value } from '@td/shared';
 import { applyEffects, type Ctx, logEntry } from './effects';
+import type { SimEvent } from './events';
 import { rand } from './rng';
-import { dayOf, type EffectRecord, type EventRun, type GameState, minuteOfDay } from './state';
+import { type Cause, dayOf, type EffectRecord, type EventRun, type GameState, minuteOfDay } from './state';
 import { makeEnv, num, test } from './vars';
 import type { Edition, World } from './world';
 
@@ -105,12 +106,16 @@ function resolve(ctx: Ctx, t: Tournament, run: EventRun): void {
   const vars = runVars(s, t, run);
   const out: EffectRecord[] = [];
   const goals: Record<string, boolean> = {};
-  const entry = logEntry(
-    ctx,
-    { kind: 'tournament', tournament: t.id, result: 'done', goals, repeat, scale },
-    null,
-    out,
-  );
+  const missed: SimEvent[] = [];
+  const cause: Extract<Cause, { kind: 'tournament' }> = {
+    kind: 'tournament',
+    tournament: t.id,
+    result: 'done',
+    goals,
+    repeat,
+    scale,
+  };
+  const entry = logEntry(ctx, cause, null, out);
   const c: Ctx = { ...ctx, vars };
   applyEffects(c, scaled(t.reward, scale), entry.id, out);
   for (const g of goalsFor(t, repeat)) {
@@ -118,6 +123,22 @@ function resolve(ctx: Ctx, t: Tournament, run: EventRun): void {
     if (met && g.chance !== undefined) met = rand(s) < num(s, w, g.chance, vars);
     goals[g.id] = met;
     if (met) applyEffects(c, scaled(g.reward, scale), entry.id, out);
+    // 看到岗率的目标没达成、又确实有临时岗位空过：讲清楚是哪几个岗位（不悄悄失败）
+    else if (g.if && STAFFED_VAR.test(g.if) && run.need > run.staffed) {
+      const posts = Object.entries(run.short ?? {})
+        .filter(([, m]) => m > 0)
+        .sort(([a, x], [b, y]) => y - x || a.localeCompare(b))
+        .map(([post, minutes]) => ({ post, minutes }));
+      (cause.unstaffed ??= []).push({ goal: g.id, posts });
+      missed.push({
+        type: 'tournament_goal_missed',
+        tournament: t.id,
+        at: t.at,
+        goal: g.id,
+        staffed: Math.round((run.staffed / run.need) * 100) / 100,
+        posts,
+      });
+    }
   }
   s.tournaments[t.id] = { entries: repeat + 1, last: s.t };
   ctx.events.push({
@@ -128,7 +149,11 @@ function resolve(ctx: Ctx, t: Tournament, run: EventRun): void {
     repeat,
     scale,
   });
+  ctx.events.push(...missed);
 }
+
+/** 目标的条件里用到临时岗位到岗率 */
+const STAFFED_VAR = /\bevent\.staffed\b/;
 
 /**
  * 报名工单做完（staff.ts 的 finishOrder 调）：主办 = 接下这一期（到日子开临时岗位，收赛时结算）；外出 = 当场结算。
@@ -169,6 +194,7 @@ export function trackEventMinute(s: GameState, w: World, post: string, demand: b
     if (t.posts.includes(post)) {
       run.need += 1;
       if (busy) run.staffed += 1;
+      else (run.short ??= {})[post] = (run.short[post] ?? 0) + 1;
     }
   }
 }

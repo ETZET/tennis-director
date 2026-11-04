@@ -129,6 +129,7 @@ export function applyEffects(ctx: Ctx, effects: readonly Effect[], entryId: numb
       if (!p?.hired) continue;
       p.hired = false;
       p.job = null;
+      p.pin = null;
       p.walk = null;
       p.errand = null;
       // 走的是主教练：还在的教练里接一个（Dale 开局不开除，一直都在）

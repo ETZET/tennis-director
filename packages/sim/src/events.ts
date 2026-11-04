@@ -63,6 +63,18 @@ export type SimEvent =
       repeat: number;
       scale: number;
     }
+  /**
+   * 赛事的附加目标因为临时岗位没人守而没达成（W2 试玩：两天的邀请赛第二天没人，目标悄悄失败）。
+   * staffed 是这一期临时岗位的到岗率 0..1；posts 是空过的岗位和空了多少分钟（从多到少）。快讯用它讲"为什么没拿到"。
+   */
+  | {
+      type: 'tournament_goal_missed';
+      tournament: string;
+      at: string;
+      goal: string;
+      staffed: number;
+      posts: { post: string; minutes: number }[];
+    }
   /** 选路（W2）：这一处选了哪条路（倒计时到了按默认的也发） */
   | { type: 'route_chosen'; slot: string; route: string }
   /** 地块（W5）：开工（清理工单冒出来；画面 land(plot, 'building', variant, 0)）、开地（画面 land(plot, 'open', variant)，镜头飞过去） */
