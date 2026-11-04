@@ -109,6 +109,8 @@ export function createText(content: ContentBundle, lang: Lang): Text {
         });
       case 'trophy':
         return fmt('ui.log.trophy', { n: signed(e.delta) });
+      case 'route':
+        return fmt('ui.log.route', { route: tr(`routes.${e.slot}.${e.route}`, e.route).split(' · ')[0] ?? e.route });
       default:
         // flag、schedule 是幕后的账，不讲给玩家；变体锁定、牌匾由快讯单独讲
         return null;
@@ -180,6 +182,11 @@ export function createText(content: ContentBundle, lang: Lang): Text {
         return fmt('ui.because.remodel', {
           place: tr(`ui.fac.${c.facility}`, c.facility),
           what: tr(`variants.${c.facility}.${c.variant}`, c.variant).split(' · ')[0] ?? c.variant,
+        });
+      case 'tournament':
+        // 赛事结算（LG-11）：办完了，或者下雨办不成
+        return fmt(c.result === 'spoiled' ? 'ui.because.tournament_spoiled' : 'ui.because.tournament', {
+          title: tr(`tournaments.${c.tournament}.title`, c.tournament),
         });
       case 'debug':
         return zh ? `调试：${c.what}` : `debug: ${c.what}`;

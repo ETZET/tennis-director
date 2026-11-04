@@ -121,3 +121,15 @@
 .td-place{-webkit-user-select:none;user-select:none}
 /* 预览变体时清单收矮，场景里的预览露在清单上面（镜头同时把设施挪过去） */
 .td-place-wrap .td-place.td-place-preview{max-height:min(36%,calc(100% - 300px))}
+/* 赛事（W2）：地点清单顶上一格，附加目标此刻的进度；行标题旁的小牌（临时岗位、报名） */
+.td-place-event{display:flex;flex-direction:column;gap:4px;padding:8px 10px;background:rgba(215,255,60,.12);border-left:3px solid #d7ff3c;font:600 12px/1.3 var(--td-text,sans-serif);color:#dfe6ef}
+.td-place-event b{color:#fff;font-size:13px}
+.td-place-event ul,.td-place-prep ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+.td-place-event li,.td-place-prep li{display:flex;gap:6px;align-items:baseline}
+.td-place-event li em,.td-place-prep li em{font-style:normal;margin-left:auto;font-variant-numeric:tabular-nums;color:#c9d3e0}
+.td-goal-met{color:#9be07f}
+.td-place-prep{display:flex;flex-direction:column;gap:4px;padding:8px 10px;background:rgba(255,255,255,.06);font:600 12px/1.3 var(--td-text,sans-serif);color:#dfe6ef}
+.td-place-prep b{color:#fff;font-size:13px}
+.td-place-prep .td-prep-done{color:#9be07f}
+.td-place-prep p{margin:0;color:#c9d3e0;font-weight:500}
+.td-row-badge{display:inline-block;margin-left:6px;padding:1px 5px;background:#d7ff3c;color:#14223a;font:700 10px/1.3 var(--td-text,sans-serif);vertical-align:middle}

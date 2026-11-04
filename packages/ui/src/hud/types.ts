@@ -44,6 +44,11 @@ export interface CardAnswer {
   chips?: Chip[];
   /** 之后可能发生什么 */
   then?: string;
+  /** 选路卡（W2）：这条路开出什么、付出什么（各一句话） */
+  opens?: string;
+  costs?: string;
+  /** 选路卡：点过一次，镜头转过去、场景里叠着预览；再点一次才定 */
+  previewing?: boolean;
 }
 
 /** 转播下三分之一的事件卡：话题标签、地点标签、标题、倒计时、三个编号选项。 */
@@ -70,6 +75,8 @@ export interface EventCardData {
   who?: { name: string; role: string; initials: string; color: string };
   /** 此刻和这件事有关的局面 */
   context?: Chip[];
+  /** 收起来（选路卡点过一项时）：只留标题、倒计时和选项，让出画面看预览 */
+  compact?: boolean;
 }
 
 /** 底部员工条上的一个人（ADR 0012）：点一下拿起来，或者按住拖到场景里的岗位、工单上 */
@@ -136,6 +143,8 @@ export interface PlaceRow {
   chips?: Chip[];
   /** 还没开出来的工单：line 是怎么开出来（"先把 1 号场的裂缝补好"） */
   locked?: boolean;
+  /** 标题旁的小牌（赛事的临时岗位"今天"、报名工单"报名"） */
+  badge?: string;
   /** 修复变体（UI-11）：一个变体一行；点一行开预览，把人拖到那一行开工 */
   variants?: VariantRow[];
 }
@@ -170,6 +179,21 @@ export interface PlaceSheetData {
   empty?: string;
   /** 这个地点的设施状况 0..100（"状况 23 · 没人维护就会掉档"） */
   condition?: { value: number; label: string };
+  /** 正在这儿办的赛事（W2）：名字、一行状况、附加目标此刻的进度 */
+  event?: { title: string; line: string; goals: { id: string; text: string; met: boolean; value?: string }[] };
+  /** 分期筹备（W2，表演赛四期）：每一期的名字、花费、做完没有；foot 是还差多少 */
+  prep?: { title: string; foot: string; phases: { id: string; name: string; cost: string; done: boolean }[] };
+}
+
+/** 季节栏上"接下来的节拍"（UI-9）：招聘日、赛事、投资方、结算；点一下镜头转到那一处的地点牌 */
+export interface BeatItem {
+  id: string;
+  label: string;
+  /** "周六 9:00"、"明天 10:00"、"进行中" */
+  when: string;
+  /** 那一处的锚点 */
+  place: string;
+  live?: boolean;
 }
 
 /** 季节、天气、本周服务率 */
@@ -181,6 +205,8 @@ export interface SeasonInfo {
   /** 本周服务率 0..100（有客人的时候有人在岗的比例）；null = 还没有客人，服务率无从谈起 */
   service: number | null;
   serviceLabel: string;
+  /** 接下来的两个日历节拍（UI-9，只读） */
+  beats?: readonly BeatItem[];
 }
 
 /** 「因为……所以……」：因果日志的一条，讲给玩家听 */
@@ -261,4 +287,6 @@ export interface HudActions {
   target?(id: string): void;
   /** 地点清单里点了变体行：拿着人就按这个变体派过去，没拿就开 / 关这个变体的预览 */
   variant?(order: string, variant: string): void;
+  /** 点了季节栏上的一个节拍：镜头转到那一处的地点牌、亮一下（UI-9，只读） */
+  beat?(place: string): void;
 }

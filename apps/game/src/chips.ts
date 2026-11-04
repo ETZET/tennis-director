@@ -102,6 +102,7 @@ export function effectChips(
       const cost = orders?.find((o) => o.id === e.task)?.cost ?? 0;
       if (cost) out.push({ text: T.fmt('ui.chip.cost', { n: cost }), tone: 'cost' });
     } else if ('activity' in e) out.push({ text: T.tr(`activities.${e.activity}.title`), tone: 'time' });
+    else if ('trophy' in e) out.push({ text: T.fmt('ui.chip.trophy', { n: e.trophy }) + maybe, tone: 'gain' });
     else if ('endAct' in e)
       out.push({ text: T.tr(`endings.${e.ending}.title`), tone: e.endAct === 'won' ? 'gain' : 'loss' });
   }

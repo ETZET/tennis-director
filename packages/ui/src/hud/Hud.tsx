@@ -44,11 +44,13 @@ function Chips2({
   paused,
   status,
   s,
+  actions,
 }: {
   club: HudSnapshot['club'];
   paused: boolean;
   status?: string | null | undefined;
   s?: SeasonInfo | undefined;
+  actions?: HudActions | undefined;
 }) {
   const none = s?.service === null;
   const pct = Math.max(0, Math.min(100, s?.service ?? 0));
@@ -93,7 +95,31 @@ function Chips2({
           {status}
         </span>
       ) : null}
+      {s?.beats?.length ? <Beats beats={s.beats} actions={actions} /> : null}
     </div>
+  );
+}
+
+/** 接下来的两个日历节拍（UI-9）：只读的小牌，点一下镜头转到那一处的地点牌（不开面板） */
+function Beats({ beats, actions }: { beats: NonNullable<SeasonInfo['beats']>; actions?: HudActions | undefined }) {
+  return (
+    <span class="td-beats" title={STR.next}>
+      {beats.map((b) => (
+        <button
+          type="button"
+          key={b.id}
+          class={`td-chip td-beat${b.live ? ' td-beat-live' : ''}`}
+          title={`${b.label} · ${b.when}`}
+          onClick={(e) => {
+            actions?.beat?.(b.place);
+            if (e.detail > 0) (e.currentTarget as HTMLElement).blur();
+          }}
+        >
+          <b>{b.when}</b>
+          <span>{b.label}</span>
+        </button>
+      ))}
+    </span>
   );
 }
 
@@ -102,18 +128,20 @@ function ScoreBug({
   paused,
   status,
   season,
+  actions,
 }: {
   club: HudSnapshot['club'];
   paused: boolean;
   status?: string | null | undefined;
   season?: SeasonInfo | undefined;
+  actions?: HudActions | undefined;
 }) {
   return (
     <header class="td-bug">
       <Crest />
       <div class="td-bug-col">
         <h1 class="td-bug-name">{club.name}</h1>
-        <Chips2 club={club} paused={paused} status={status} s={season} />
+        <Chips2 club={club} paused={paused} status={status} s={season} actions={actions} />
       </div>
     </header>
   );
@@ -318,7 +346,7 @@ function StatStrip({ s }: { s: HudSnapshot }) {
 
 function EventCard({ c, actions }: { c: EventCardData; actions: HudActions }) {
   return (
-    <section class={`td-card td-card-${c.kind}`} key={c.id} aria-live="polite">
+    <section class={`td-card td-card-${c.kind}${c.compact ? ' td-card-compact' : ''}`} key={c.id} aria-live="polite">
       {c.who ? (
         <div class="td-who">
           <span class="td-face" style={{ background: c.who.color }} aria-hidden="true">
@@ -366,7 +394,7 @@ function EventCard({ c, actions }: { c: EventCardData; actions: HudActions }) {
               <button
                 type="button"
                 key={a.key}
-                class={`td-answer${a.chosen ? ' td-chosen' : ''}${a.walk ? ' td-walk' : ''}`}
+                class={`td-answer${a.chosen ? ' td-chosen' : ''}${a.walk ? ' td-walk' : ''}${a.previewing ? ' td-answer-on' : ''}`}
                 aria-disabled={a.disabled ? 'true' : undefined}
                 aria-pressed={a.chosen ? 'true' : 'false'}
                 title={a.walk ? STR.walkThere : undefined}
@@ -377,6 +405,8 @@ function EventCard({ c, actions }: { c: EventCardData; actions: HudActions }) {
                 <span class="td-key">{a.key}</span>
                 <span class="td-answer-col">
                   <span class="td-answer-text">{a.text}</span>
+                  {a.opens ? <span class="td-answer-opens">＋ {a.opens}</span> : null}
+                  {a.costs ? <span class="td-answer-costs">－ {a.costs}</span> : null}
                   {a.chips?.length ? <Chips chips={a.chips} /> : null}
                   {a.hint ? <span class="td-answer-hint">{a.hint}</span> : null}
                   {a.then ? <span class="td-answer-then">{a.then}</span> : null}
@@ -513,7 +543,7 @@ export function Hud({ s, actions }: { s: HudSnapshot; actions: HudActions }) {
     <div class="td-hud">
       {/* 左上标题卡、右上俱乐部报告（手机上上下叠着） */}
       <div class="td-top">
-        <ScoreBug club={s.club} paused={s.controls.paused} status={s.status} season={s.season} />
+        <ScoreBug club={s.club} paused={s.controls.paused} status={s.status} season={s.season} actions={actions} />
         <StatStrip s={s} />
       </div>
       {s.card ? <EventCard c={s.card} actions={actions} /> : null}

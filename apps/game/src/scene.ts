@@ -21,7 +21,9 @@ import { clamp, lerp, mulberry32, type XZ } from '@td/shared';
 import {
   type ContentBundle,
   coachAttention,
+  crewOf,
   DIRECTOR,
+  dayOf,
   type GameState,
   isStaff,
   orderStatus,
@@ -29,6 +31,7 @@ import {
   remodeling,
   type SimEvent,
   stateDef,
+  tournamentStatus,
   type World,
   working,
   worldOf,
@@ -312,6 +315,8 @@ export interface GameScene {
   setWatching(on: boolean): void;
   /** 地点清单里点了变体行：在设施上叠这个变体修好后的预览；null 关掉（UI-11，只是画面） */
   preview(facility: string | null, variant: string | null): void;
+  /** 选路卡（W2）：新地块按这条路长出来以后的半透明预览；null 关掉（Wave 5 的地图才有，没有就什么也不做） */
+  landPreview(plot: string, variant: string | null): void;
   readonly showNow: () => number;
 }
 
@@ -333,7 +338,10 @@ export function createGameScene(stage: IsoWorld, content0: ContentBundle, site0:
    * 大门星级牌（ART-14）：地图的覆盖层还没给 stars 时，游戏自己立一块（createStarSign 是 @td/iso 的公共构件）。
    * 变体、升级、牌匾也走覆盖层（wave1-contract.md），覆盖层没提供的就跳过。
    */
-  const ov = overlays as typeof overlays & { stars?(n: number, animate: boolean): void };
+  const ov = overlays as typeof overlays & {
+    stars?(n: number, animate: boolean): void;
+    landPreview?(plot: string, variant: string | null): void;
+  };
   const starSign = ov.stars ? null : createStarSign(stage);
   const setStars = (n: number, animate: boolean) => (ov.stars ? ov.stars(n, animate) : starSign?.set(n, animate));
   /** 已经交给覆盖层的设施样子（变体 + 升级 + 状态），和模拟状态对不上就重设一次 */
@@ -347,6 +355,48 @@ export function createGameScene(stage: IsoWorld, content0: ContentBundle, site0:
   let watching = true;
   /** 真实秒（暂停时也走）：升星镜头的计时 */
   let realNow = 0;
+  /** 赛事日的布置（W2）：地点 → 交给覆盖层的赛事 id；筹备每一期交给覆盖层的样子（true 建好、false 挂出来了） */
+  const dressed = new Map<string, string>();
+  const preps = new Map<string, boolean>();
+  let eventsT = -1;
+  /**
+   * 赛事日的布置和表演赛筹备：只读模拟状态，和交给覆盖层的对不上才重设（读档、开赛、收赛都靠这一步跟上）。
+   * 主办赛事：接下了、今天是比赛日（整天，收赛以后撤掉）；外出赛事：比赛日有人在报名工单上、或者这一期刚打完。
+   */
+  function applyEvents(s: GameState, w: World, force: boolean): void {
+    if (!force && s.t === eventsT) return;
+    eventsT = s.t;
+    const want = new Map<string, string>();
+    for (const ts of tournamentStatus(s, w)) {
+      if (!ts.days.includes(dayOf(s.t)) || s.t >= ts.end || want.has(ts.at)) continue;
+      const on =
+        ts.kind === 'host'
+          ? ts.entered
+          : crewOf(s, ts.order).length > 0 || (s.tournaments?.[ts.id]?.last ?? -1) >= ts.start;
+      if (on) want.set(ts.at, ts.id);
+    }
+    for (const a of [...dressed.keys()])
+      if (!want.has(a)) {
+        overlays.event?.(a, null);
+        dressed.delete(a);
+      }
+    for (const [a, k] of want)
+      if (force || dressed.get(a) !== k) {
+        overlays.event?.(a, k);
+        dressed.set(a, k);
+      }
+    // 筹备：做完的画建好的样子；挂出来了（★3 起看得见）还没做的钉测量桩；从没挂出来的不调
+    for (const ids of w.prep.values())
+      for (const id of ids) {
+        const o = w.orders.get(id);
+        if (!o) continue;
+        const done = (s.orderLog.done[id] ?? 0) > 0;
+        if (!done && !orderStatus(s, w, o).visible) continue;
+        if (!force && preps.get(id) === done) continue;
+        preps.set(id, done);
+        overlays.prep?.(id, done);
+      }
+  }
   /** 牌匾上刻的名字：内容里的原名（3×5 小字只排大写字母和数字） */
   const leaderName = (id: string) => content.people.find((p) => p.id === id)?.name ?? id;
   function applyLooks(s: GameState, force = false): void {
@@ -371,6 +421,7 @@ export function createGameScene(stage: IsoWorld, content0: ContentBundle, site0:
       starsShown = s.stars ?? 0;
       setStars(starsShown, false);
     }
+    applyEvents(s, w, force);
   }
   const rain = createRain(
     stage,
@@ -1206,6 +1257,9 @@ export function createGameScene(stage: IsoWorld, content0: ContentBundle, site0:
       if (facility !== previewOn && previewOn) overlays.preview?.(previewOn, null);
       previewOn = variant ? facility : null;
       if (facility) overlays.preview?.(facility, variant);
+    },
+    landPreview(plot, variant) {
+      ov.landPreview?.(plot, variant);
     },
     setWatching(on) {
       watching = on;

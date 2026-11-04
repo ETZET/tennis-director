@@ -263,3 +263,18 @@
   .td-chip.td-where{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;flex:1 1 140px;min-width:0}
 }
 @media (prefers-reduced-motion:reduce){.td-answer:active,.td-ctrl button:active{transform:none}}
+/* 接下来的节拍（UI-9）：季节栏下一排两块小牌，点一下镜头转过去；手指命中区上下各扩到 44px */
+.td-beats{display:flex;gap:6px;flex:1 1 100%;min-width:0}
+.td-beat{position:relative;border:0;cursor:pointer;background:var(--td-navy-2);color:var(--td-white);gap:6px;min-width:0;flex:0 1 auto;overflow:hidden;text-overflow:ellipsis}
+.td-beat::before{content:"";position:absolute;left:0;right:0;top:-12px;bottom:-12px}
+.td-beat b{color:var(--td-optic);font-weight:700}
+.td-beat span{text-transform:none;font-family:var(--td-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.td-beat-live{box-shadow:inset 0 0 0 2px var(--td-optic)}
+.td-beat:focus-visible{outline:2px solid var(--td-optic);outline-offset:2px}
+/* 选路卡（W2）：一条路开出什么、付出什么；点过一次的那一项亮着（场景里叠着预览） */
+.td-answer-opens{font:600 11.5px/1.3 var(--td-text);color:#2f7d32}
+.td-answer-costs{font:600 11.5px/1.3 var(--td-text);color:#b4472c}
+.td-answer.td-answer-on{box-shadow:inset 0 0 0 3px var(--td-optic),3px 3px 0 rgba(0,0,0,.3)}
+/* 选路卡点过一项（W2）：只留标题、倒计时、选项（没点的那项只留名字），上面让出画面看预览 */
+.td-card-compact .td-who,.td-card-compact .td-card-text,.td-card-compact .td-ctx{display:none}
+.td-card-compact .td-answer:not(.td-answer-on) :is(.td-answer-opens,.td-answer-costs,.td-chips,.td-answer-hint){display:none}

@@ -4,11 +4,13 @@ import {
   type CausalEntry,
   type ContentBundle,
   canAssign,
-  crewOf,
+  currentEdition,
   DIRECTOR,
+  dayOf,
   type Effect,
   facilityTotals,
   type GameState,
+  goalsFor,
   hasDemand,
   minuteOfDay,
   minutes,
@@ -22,6 +24,7 @@ import {
   type Post,
   postExists,
   postStatus,
+  prepStatus,
   type SimEvent,
   type SkillKind,
   servicePass,
@@ -30,7 +33,9 @@ import {
   speedOf,
   staffIds,
   starStatus,
+  type TournamentStatus,
   testCond,
+  tournamentStatus,
   wagesWeek,
   walkEta,
   weekdayOf,
@@ -39,6 +44,7 @@ import {
   worldOf,
 } from '@td/sim';
 import {
+  type BeatItem,
   type CardAnswer,
   type Chip,
   type EventCardData,
@@ -77,8 +83,6 @@ export class Projector {
   private lastSample = -1;
   /** 上一批事件处理完时每个人手上的活：习惯把人调走时，好说出他放下了什么 */
   private readonly lastJob = new Map<string, string | null>();
-  /** 被习惯调走、停在半路的工单（工单 → 谁走的）：地点清单里那一行写"人走了（习惯）" */
-  private readonly leftByRoutine = new Map<string, string>();
 
   constructor(
     private content: ContentBundle,
@@ -144,6 +148,10 @@ export class Projector {
         // 升星、改造期满由各自的领域事件讲（下面），日志这条不再重复
         const kind = e.entry.cause.kind;
         if (kind === 'star' || kind === 'remodel') continue;
+        if (kind === 'tournament') {
+          this.tournamentWire(s, e.entry);
+          continue;
+        }
         const so = T.so(e.entry);
         if (!so || kind === 'start') continue;
         const hot =
@@ -205,28 +213,76 @@ export class Projector {
         // 总监在长进：让玩家看见（核心玩法决定）
         this.push(s.t, T.fmt('ui.wire.grew', { skill: T.tr(`ui.skill.${e.skill}`), n: e.value }), false);
       } else if (e.type === 'routine') {
-        // 习惯（ADR 0014）每天早上把人调回他的班：模拟照旧（人-13），但要让玩家看见他放下了什么
+        // 习惯（ADR 0014）把人从不限时段的岗位调回他的班。人-13 起派去工单的人做完以前不被拉走，
+        // 所以这里只剩"放下了一个随时可干的岗位"这一种
         const w = worldOf(s, this.content);
         const prev = this.lastJob.get(e.person) ?? null;
-        const post = T.tr(`posts.${e.target}.title`, e.target);
-        const name = T.personName(e.person);
-        const order = prev ? w.orders.get(prev) : undefined;
-        const st = order && s.orders[order.id] ? orderStatus(s, w, order) : undefined;
         const left = prev ? w.posts.get(prev) : undefined;
-        if (order && st && st.progress < 1 && !st.crew.length) {
-          this.leftByRoutine.set(order.id, e.person);
+        if (left && !left.hours && left.id !== e.target)
           this.push(
             s.t,
-            T.fmt('ui.wire.routine_order', {
-              name,
-              post,
-              order: this.targetTitle(order.id),
-              p: Math.round(st.progress * 100),
+            T.fmt('ui.wire.routine_post', {
+              name: T.personName(e.person),
+              post: T.tr(`posts.${e.target}.title`, e.target),
+              from: this.targetTitle(left.id),
             }),
-            true,
+            false,
           );
-        } else if (left && !left.hours && left.id !== e.target)
-          this.push(s.t, T.fmt('ui.wire.routine_post', { name, post, from: this.targetTitle(left.id) }), false);
+      } else if (e.type === 'returned') {
+        // 人-13：工单做完（或作废），回到派去之前的岗位
+        this.push(
+          s.t,
+          T.fmt('ui.wire.returned', {
+            name: T.personName(e.person),
+            order: this.targetTitle(e.order),
+            post: this.targetTitle(e.post),
+          }),
+          false,
+        );
+      } else if (e.type === 'released') {
+        // 岗位没了，人放下来闲着：讲清楚为什么（掉档、改造、赛事）
+        const w = worldOf(s, this.content);
+        const at = w.posts.get(e.post)?.at;
+        const place = e.facility ? T.tr(`ui.fac.${e.facility}`, e.facility) : at ? T.anchor(at) : '';
+        const key =
+          e.reason === 'event'
+            ? w.eventPosts.has(e.post)
+              ? 'ui.wire.released_event_end'
+              : 'ui.wire.released_event'
+            : e.reason === 'remodel'
+              ? 'ui.wire.released_remodel'
+              : 'ui.wire.released_closed';
+        this.push(
+          s.t,
+          T.fmt(key, { name: T.personName(e.person), place, post: this.short(e.post) }),
+          e.reason === 'closed',
+        );
+      } else if (e.type === 'tournament_entered') {
+        this.push(
+          s.t,
+          T.fmt('ui.wire.tour_entered', { title: this.tourTitle(s, e.tournament), when: this.when(s, e.start) }),
+          false,
+        );
+      } else if (e.type === 'tournament_live') {
+        const posts = e.posts.map((p) => this.short(p)).join(T.lang === 'zh' ? '、' : ', ');
+        this.push(
+          s.t,
+          posts
+            ? T.fmt('ui.wire.tour_live', { title: this.tourTitle(s, e.tournament), posts })
+            : T.fmt('ui.wire.tour_live_none', { title: this.tourTitle(s, e.tournament) }),
+          true,
+        );
+      } else if (e.type === 'prep_done') {
+        this.push(
+          s.t,
+          T.fmt(e.done >= e.total ? 'ui.wire.prep_all' : 'ui.wire.prep_done', {
+            group: T.tr(`prep.${e.group}`, e.group),
+            what: this.short(e.order),
+            done: e.done,
+            total: e.total,
+          }),
+          false,
+        );
       } else if (e.type === 'postInterrupted') {
         // 拉走持续岗位的代价要让玩家看见
         this.push(
@@ -237,9 +293,105 @@ export class Projector {
       }
     }
     for (const [id, p] of Object.entries(s.people)) this.lastJob.set(id, p.hired ? (p.job ?? null) : null);
-    // 有人回来接着干、或者工单做完收掉了：不再写"人走了"
-    for (const o of [...this.leftByRoutine.keys()])
-      if (!s.orders[o] || crewOf(s, o).length) this.leftByRoutine.delete(o);
+  }
+
+  /** 赛事结算（LG-11）的快讯：办完了（附加目标逐个打勾、奖杯和奖励），或者下雨办不成、报名费白花 */
+  private tournamentWire(s: GameState, entry: CausalEntry): void {
+    const T = this.text;
+    const c = entry.cause;
+    if (c.kind !== 'tournament') return;
+    const title = this.tourTitle(s, c.tournament);
+    if (c.result === 'spoiled') {
+      const fee = worldOf(s, this.content).tournaments.get(c.tournament)?.fee ?? 0;
+      this.push(s.t, T.fmt('ui.wire.tour_spoiled', { title, fee }), true);
+      return;
+    }
+    const goals = Object.entries(c.goals)
+      .map(([g, met]) => `${met ? '✓' : '✗'} ${T.tr(`tournaments.${c.tournament}.goals.${g}`, g)}`)
+      .join(' ');
+    const what = entry.effects
+      .map((x) => T.effect(x))
+      .filter((x): x is string => !!x)
+      .join(' · ');
+    const again = c.repeat > 0 ? T.fmt('ui.wire.tour_again', { n: c.repeat + 1, k: c.scale }) : '';
+    this.push(s.t, [T.fmt('ui.wire.tour_done', { title }), goals, what, again].filter(Boolean).join(' · '), false);
+  }
+
+  /** 赛事的名字；认场地的赛事按这一期的场地叫（tournaments.<id>.variants.<变体>） */
+  tourTitle(s: GameState, id: string): string {
+    const T = this.text;
+    const base = T.tr(`tournaments.${id}.title`, id);
+    const of = worldOf(s, this.content).tournaments.get(id)?.variant_of;
+    const v = of ? s.variants?.[of] : undefined;
+    return v ? T.tr(`tournaments.${id}.variants.${v}`, base) : base;
+  }
+
+  /** 某个时刻离现在多远的说法："今天 9:00"、"明天 9:00"、"周六 9:00"、"第 24 天 9:00" */
+  when(s: GameState, t: number): string {
+    const T = this.text;
+    const d = dayOf(t) - dayOf(s.t);
+    const time = T.clock(t).replace(':00 ', ' ');
+    if (d <= 0) return T.fmt('ui.beat.today', { time });
+    if (d === 1) return T.fmt('ui.beat.tomorrow', { time });
+    if (d < 7) return T.fmt('ui.beat.weekday', { d: T.tr(`ui.days.${weekdayOf(t)}`), time });
+    return T.fmt('ui.beat.day', { n: dayOf(t), time });
+  }
+
+  /**
+   * 季节栏上接下来的两个日历节拍（UI-9）：招聘日（排着的招聘卡）、赛事（这一期参赛条件够、或者已经报上名的）、
+   * 日程上的投资方来访和期限。只读；点一下镜头转到那一处的地点牌。
+   */
+  beats(s: GameState): BeatItem[] {
+    const T = this.text;
+    const w = worldOf(s, this.content);
+    const out: (BeatItem & { t: number })[] = [];
+    for (const ts of tournamentStatus(s, w)) {
+      if (!this.beatOpen(s, ts)) continue;
+      const live = ts.live || (ts.entered && s.t >= ts.start);
+      out.push({
+        id: `tour:${ts.id}:${ts.start}`,
+        t: live ? s.t : ts.start,
+        label: this.tourTitle(s, ts.id),
+        when: live ? T.tr('ui.beat.live') : this.when(s, ts.start),
+        place: ts.at,
+        ...(live ? { live: true } : {}),
+      });
+    }
+    for (const x of s.cards.scheduled) {
+      const c = w.cards.get(x.card);
+      if (c?.who !== 'applicants' || x.at <= s.t) continue;
+      out.push({
+        id: `card:${x.card}:${x.at}`,
+        t: x.at,
+        label: T.tr('ui.beat.hiring'),
+        when: this.when(s, x.at),
+        place: c.location ?? c.stage?.anchor ?? 'clubhouse',
+      });
+    }
+    for (const x of w.act.calendar) {
+      const t = at(x.day, x.hour);
+      if (t <= s.t) continue;
+      const c = w.cards.get(x.card);
+      out.push({
+        id: `cal:${x.card}:${t}`,
+        t,
+        label: T.tr(`ui.beat.cards.${x.card}`, T.cardTitle(x.card)),
+        when: this.when(s, t),
+        place: c?.location ?? c?.stage?.anchor ?? 'entrance',
+      });
+    }
+    return out
+      .sort((a, b) => a.t - b.t || a.id.localeCompare(b.id))
+      .slice(0, 2)
+      .map(({ t: _, ...b }) => b);
+  }
+
+  /** 这一期赛事还算不算一个"接下来的节拍"：参赛条件够或已经报上名；主办没报上名、已经开赛的不算；外出打完的不算 */
+  private beatOpen(s: GameState, ts: TournamentStatus): boolean {
+    if (!ts.eligible && !ts.entered) return false;
+    if (s.t >= ts.end) return false;
+    if (ts.kind === 'host') return ts.entered || s.t < ts.start;
+    return (s.tournaments?.[ts.id]?.last ?? -1) < ts.start;
   }
 
   /** 变体的名字（文案 variants.<设施>.<变体>，" · " 后面是取舍一句话） */
@@ -572,6 +724,7 @@ export class Projector {
       weatherLabel: T.tr(`ui.weather.${s.weather}`),
       service,
       serviceLabel: service === null ? T.tr('ui.ctx.service_none') : T.fmt('ui.ctx.service', { n: service }),
+      beats: this.beats(s),
     };
   }
 
@@ -770,6 +923,21 @@ export class Projector {
       chips.push({ text: this.upgradeName(f, o.upgrade), tone: 'gain' });
     }
     if (o.crew > 1) chips.push({ text: T.fmt('ui.sheet.crew', { n: o.crew }), tone: 'info' });
+    if (st.minCrew > 1) chips.push({ text: T.fmt('ui.chip.min_crew', { n: st.minCrew }), tone: 'risk' });
+    // 赛事的报名工单：办完给什么（奖励按这一期的折扣；附加目标在地点清单顶上那一格）
+    const tour = st.tournament ? w.tournaments.get(st.tournament) : undefined;
+    if (tour) {
+      const k = (s.tournaments?.[tour.id]?.entries ?? 0) > 0 ? tour.repeat.scale : 1;
+      const live = tour.reward.filter((e) => !e.if || testCond(s, w, e.if));
+      chips.push(
+        ...effectChips(
+          T,
+          live.map((e) =>
+            'stat' in e && 'add' in e && typeof e.add === 'number' ? { ...e, add: Math.round(e.add * k) } : e,
+          ),
+        ),
+      );
+    }
     if (st.chance !== null)
       chips.push({ text: T.fmt('ui.chip.chance', { p: Math.round(st.chance * 100) }), tone: 'risk' });
     chips.push(...effectChips(T, o.effects));
@@ -784,8 +952,14 @@ export class Projector {
   }
 
   /** 派不过去的原因；能力门槛写出要哪项、多少（canAssign 的 'skill'） */
-  private why(block: AssignBlock, target: string): string {
+  private why(block: AssignBlock, target: string, s?: GameState): string {
     const T = this.text;
+    // 外出赛事开赛以前：报名工单挂出来了，但要等比赛那天才能出发
+    if (block === 'early' && s) {
+      const t = worldOf(s, this.content).tournamentOf.get(target);
+      const e = t ? currentEdition(worldOf(s, this.content), t.id, s.t) : null;
+      if (e) return T.fmt('ui.why.early', { when: this.when(s, e.start) });
+    }
     if (block === 'skill') {
       const o = this.content.orders.find((x) => x.id === target);
       const [k, n] = Object.entries(o?.worker ?? {})[0] ?? [];
@@ -862,7 +1036,7 @@ export class Projector {
               : fit,
           ...(here ? { here: true } : {}),
           ...(coming ? { coming: true } : {}),
-          ...(block && block !== 'same' ? { disabled: this.why(block, target) } : {}),
+          ...(block && block !== 'same' ? { disabled: this.why(block, target, s) } : {}),
         };
       });
     return {
@@ -1016,7 +1190,7 @@ export class Projector {
       const here = p?.job === id;
       const block = canAssign(s, w, picked, id);
       if (here) return { text: T.tr('ui.sheet.here'), here: true };
-      if (block && block !== 'same') return { text: this.why(block, id), blocked: true };
+      if (block && block !== 'same') return { text: this.why(block, id, s), blocked: true };
       const walk = this.walkMinutes(s, picked, at);
       const lv = (k: SkillKind) => (p ? workSkill(s, w, picked, k) : 0);
       const best = lv(skill) >= Math.max(lv('teach'), lv('upkeep'), lv('service'), lv('play'));
@@ -1044,6 +1218,7 @@ export class Projector {
     const fac = w.facilityAt.get(anchor);
     const remodel = fac ? s.remodels?.[fac] : undefined;
     const rows: (PlaceRow & { rank: number })[] = [];
+    const tours = tournamentStatus(s, w);
     for (const p of posts) {
       const st = postStatus(s, w, p);
       const need = st.demand && st.inHours && !st.person;
@@ -1069,6 +1244,8 @@ export class Projector {
         skill: p.skill,
         title: this.short(p.id),
         line,
+        // 赛事的临时岗位（W2）：只在比赛日有，标一下"今天"
+        ...(w.eventPosts.has(p.id) ? { badge: T.tr('ui.place.badge_temp') } : {}),
         ...(need ? { need: true } : {}),
         ...(st.active ? { progress: st.progress } : {}),
         faces: st.person ? [this.faceAt(s, st.person)] : [],
@@ -1080,18 +1257,22 @@ export class Projector {
     }
     for (const o of orders) {
       const st = orderStatus(s, w, o);
+      const ts = st.tournament ? tours.find((x) => x.id === st.tournament) : undefined;
+      const short = st.minCrew > 1 && st.crew.length < st.minCrew;
       const line = st.crew.length
-        ? this.orderLine(s, o, st.crew, st.progress)
+        ? short
+          ? `${this.orderLine(s, o, st.crew, st.progress)} · ${T.fmt('ui.place.min_crew', { n: st.crew.length, need: st.minCrew })}`
+          : this.orderLine(s, o, st.crew, st.progress)
         : st.started
-          ? this.leftByRoutine.has(o.id)
-            ? T.fmt('ui.place.order_paused_routine', { p: Math.round(st.progress * 100) })
-            : T.fmt('ui.place.order_paused', { p: Math.round(st.progress * 100) })
-          : st.variants && !picked
-            ? T.tr('ui.variant.hint')
-            : T.fmt('ui.place.order_new', {
-                cost: st.cost ? `$${st.cost} · ` : '',
-                time: T.duration(st.work),
-              });
+          ? T.fmt('ui.place.order_paused', { p: Math.round(st.progress * 100) })
+          : ts
+            ? this.tourLine(s, ts)
+            : st.variants && !picked
+              ? T.tr('ui.variant.hint')
+              : T.fmt('ui.place.order_new', {
+                  cost: st.cost ? `$${st.cost} · ` : '',
+                  time: T.duration(st.work),
+                });
       let fit = fitOf(o.id, o.at, o.skill);
       // 变体工单的标题行也能直接派：写明按哪个变体（玩家最后选的那行，没选过就是第一个）
       if (fit && !fit.blocked && !fit.here && st.variants && !st.locked && st.variant && fac)
@@ -1106,6 +1287,7 @@ export class Projector {
         skill: o.skill,
         title: this.targetTitle(o.id),
         line,
+        ...(ts ? { badge: T.tr(ts.kind === 'host' ? 'ui.place.badge_host' : 'ui.place.badge_away') } : {}),
         ...(st.started ? { progress: st.progress } : {}),
         faces: st.crew.map((x) => this.faceAt(s, x)),
         // 变体工单：换来、付出写在每一个变体行上，工单这一行不再重复
@@ -1154,7 +1336,23 @@ export class Projector {
           rank: 8,
         });
       }
+    // 比赛日占了场的岗位：留一行说明（和下雨一样）
+    for (const p of w.posts.values()) {
+      if (p.at !== anchor || !w.closedBy.get(p.id)?.some((t) => this.eventToday(s, t.id))) continue;
+      rows.push({
+        id: p.id,
+        kind: 'post',
+        skill: p.skill,
+        title: this.short(p.id),
+        line: T.tr('ui.place.event_closed'),
+        faces: [],
+        locked: true,
+        rank: 8,
+      });
+    }
     rows.sort((a, b) => a.rank - b.rank || (a.fit?.blocked ? 1 : 0) - (b.fit?.blocked ? 1 : 0));
+    const event = this.eventPanel(s, anchor, tours);
+    const prep = this.prepPanel(s, anchor);
     return {
       id: anchor,
       title: T.anchor(anchor),
@@ -1182,9 +1380,99 @@ export class Projector {
             ? { condition: { value: 0, label: T.tr('ui.place.worn') } }
             : {}),
       ...(picked ? { prompt: T.fmt('ui.place.pick', { name: T.personName(picked), place: T.anchor(anchor) }) } : {}),
+      ...(event ? { event } : {}),
+      ...(prep ? { prep } : {}),
       rows: rows.map(({ rank: _, ...r }) => r),
       empty: T.tr('ui.place.empty'),
     };
+  }
+
+  /** 接下的主办赛事今天是不是比赛日（closes 里的岗位整天不开） */
+  private eventToday(s: GameState, id: string): boolean {
+    const run = s.events?.[id];
+    if (!run || s.t >= run.end) return false;
+    return !!currentEdition(worldOf(s, this.content), id, s.t)?.days.includes(dayOf(s.t));
+  }
+
+  /** 报名工单还没开工时的一行：什么时候开赛 / 出发、报名费多少 */
+  private tourLine(s: GameState, ts: TournamentStatus): string {
+    const T = this.text;
+    const when = this.when(s, ts.start);
+    if (ts.kind === 'host') return T.fmt('ui.place.tour_host', { when, fee: ts.fee });
+    return T.fmt(s.t < ts.start ? 'ui.place.tour_away_early' : 'ui.place.tour_away_now', { when, fee: ts.fee });
+  }
+
+  /**
+   * 地点清单顶上的赛事格（W2）：这儿接下了一期主办赛事，写开赛 / 收赛时间和附加目标此刻的进度。
+   * 进度按结算时的同一套 event.* 变量现算（模拟里这些变量只在结算时有值）。
+   */
+  private eventPanel(s: GameState, anchor: string, tours: readonly TournamentStatus[]): PlaceSheetData['event'] {
+    const T = this.text;
+    const w = worldOf(s, this.content);
+    const ts = tours.find((x) => x.at === anchor && x.entered && s.events?.[x.id]);
+    const t = ts ? w.tournaments.get(ts.id) : undefined;
+    const run = ts ? s.events?.[ts.id] : undefined;
+    if (!ts || !t || !run) return undefined;
+    const vars = {
+      'event.service_rate': run.demand > 0 ? run.served / run.demand : 0,
+      'event.staffed': run.need > 0 ? run.staffed / run.need : t.posts.length ? 0 : 1,
+      'event.skill': run.skill,
+      'event.crew': run.crew.length,
+      'event.repeat': ts.repeat,
+    };
+    const started = s.t >= ts.start;
+    const goals = goalsFor(t, ts.repeat).map((g) => {
+      let met = false;
+      let value: string | undefined;
+      try {
+        if (g.if) {
+          met = started && num(s, w, g.if, vars) > 0;
+          const m = /^\s*([\w.]+)\s*(>=|>)\s*([\d.]+)\s*$/.exec(g.if);
+          if (m && started) {
+            const v = num(s, w, m[1] as string, vars);
+            const need = Number(m[3]);
+            const rate = (m[1] as string).endsWith('_rate') || m[1] === 'event.staffed';
+            value = rate ? `${Math.round(v * 100)}%/${Math.round(need * 100)}%` : `${Math.round(v)}/${need}`;
+          }
+        } else if (g.chance !== undefined) {
+          const p = Math.max(0, Math.min(1, num(s, w, g.chance, vars)));
+          value = T.fmt('ui.chip.chance', { p: Math.round(p * 100) });
+        }
+      } catch {
+        // 表达式读不出来就只写目标本身
+      }
+      return { id: g.id, text: T.tr(`tournaments.${t.id}.goals.${g.id}`, g.id), met, ...(value ? { value } : {}) };
+    });
+    const again = ts.repeat > 0 ? ` · ${T.fmt('ui.wire.tour_again', { n: ts.repeat + 1, k: ts.scale })}` : '';
+    return {
+      title: this.tourTitle(s, ts.id),
+      line:
+        (started
+          ? T.fmt('ui.place.event_live', { when: this.when(s, ts.end) })
+          : T.fmt('ui.place.event_soon', { when: this.when(s, ts.start) })) + again,
+      goals,
+    };
+  }
+
+  /** 分期筹备（W2，表演赛四期）：这儿挂着的那一组每一期的花费、做完没有；一期都还没挂出来（★3 以前）就不显示 */
+  private prepPanel(s: GameState, anchor: string): PlaceSheetData['prep'] {
+    const T = this.text;
+    const w = worldOf(s, this.content);
+    for (const [group, ids] of w.prep) {
+      const orders = ids.map((id) => w.orders.get(id)).filter((o): o is Order => !!o && o.at === anchor);
+      if (!orders.length) continue;
+      const st = prepStatus(s, w, group);
+      if (!st.done && !orders.some((o) => orderStatus(s, w, o).visible)) continue;
+      return {
+        title: T.fmt('ui.place.prep_title', { group: T.tr(`prep.${group}`, group), done: st.done, total: st.total }),
+        phases: st.phases.map((x) => ({ id: x.order, name: this.short(x.order), cost: `$${x.cost}`, done: x.done })),
+        foot:
+          st.done >= st.total
+            ? T.tr('ui.place.prep_all')
+            : T.fmt('ui.place.prep_left', { n: st.total - st.done, cost: st.costLeft }),
+      };
+    }
+    return undefined;
   }
 
   /**
@@ -1214,7 +1502,15 @@ export class Projector {
     ] as const;
     const picked = session.picked;
     return ids.map((v) => {
-      const [name, line] = T.tr(`variants.${f}.${v}`, v).split(' · ');
+      const [name, line0] = T.tr(`variants.${f}.${v}`, v).split(' · ');
+      const when = o.variants?.[v]?.when;
+      const shut = !!st.openVariants && !st.openVariants.includes(v);
+      const line =
+        shut && when && 'route' in when
+          ? T.fmt('ui.variant.route', { route: this.routeName(when.route, when.is) })
+          : shut
+            ? T.tr('ui.variant.closed')
+            : line0;
       // 换来、付出（内容文案 variant_notes.<设施>.<变体>.gives / costs）；没写就按数值自动出标签
       const gives = T.tr(`variant_notes.${f}.${v}.gives`, '');
       const costs = T.tr(`variant_notes.${f}.${v}.costs`, '');
@@ -1241,7 +1537,8 @@ export class Projector {
       let fit: VariantRow['fit'];
       if (picked) {
         const block = canAssign(s, w, picked, o.id, v);
-        if (block && block !== 'same') fit = { text: this.why(block, o.id), blocked: true };
+        if (block && block !== 'same')
+          fit = { text: block === 'variant' && shut && line ? line : this.why(block, o.id, s), blocked: true };
         else {
           const walk = this.walkMinutes(s, picked, o.at);
           fit = {
@@ -1266,6 +1563,151 @@ export class Projector {
       };
     });
   }
+
+  /** 选项里的选路效果（W2：{ route: s2, set: youth }）：这一项选的是哪一处的哪条路 */
+  routeOf(card: string, key: string): { slot: string; route: string } | null {
+    const c = this.content.cards.find((x) => x.id === card);
+    const opt = c?.options[key as 'A' | 'B' | 'C'];
+    for (const e of opt?.effects ?? []) if ('route' in e && 'set' in e) return { slot: e.route, route: String(e.set) };
+    return null;
+  }
+
+  /** 路的名字（文案 routes.<处>.<路>，" · " 后面是一句话说明） */
+  routeName(slot: string, route: string): string {
+    return this.text.tr(`routes.${slot}.${route}`, route).split(' · ')[0] ?? route;
+  }
+
+  /**
+   * 按这条路先开的变体：修复工单的变体 when、改造工单自己的 when 里提到了 { route: 处, is: 路 }（可以套在 any / all 里）。
+   * 返回 [设施, 变体]。
+   */
+  routeVariants(s: GameState, slot: string, route: string): [string, string][] {
+    const w = worldOf(s, this.content);
+    const names = (c: unknown): boolean => {
+      if (!c || typeof c !== 'object') return false;
+      const o = c as Record<string, unknown>;
+      if (o.route === slot && o.is === route) return true;
+      for (const k of ['all', 'any'] as const) if (Array.isArray(o[k]) && (o[k] as unknown[]).some(names)) return true;
+      return false;
+    };
+    const out: [string, string][] = [];
+    const add = (f: string | undefined, v: string) => {
+      if (f && !out.some(([a, b]) => a === f && b === v)) out.push([f, v]);
+    };
+    for (const o of w.orders.values()) {
+      const f = w.facilityAt.get(o.at);
+      for (const [v, def] of Object.entries(o.variants ?? {})) if (names(def?.when)) add(f, v);
+      if (o.remodel && names(o.when)) add(f, o.remodel);
+    }
+    return out;
+  }
+
+  /**
+   * 选路卡的一项（W2）：路名、开出什么、付出什么（内容 route_notes.<处>.<路>.opens / costs，没写就按"先开哪些变体"自动说），
+   * 点一下镜头先转过去、叠上预览，再点一下才定（main.ts）。
+   */
+  private routeAnswer(
+    session: Session,
+    uid: number,
+    key: string,
+    rt: { slot: string; route: string },
+    n: 1 | 2 | 3,
+    blocked: boolean,
+  ): CardAnswer {
+    const T = this.text;
+    const sep = T.lang === 'zh' ? '、' : ', ';
+    const routes = worldOf(session.s, this.content).act.routes?.[rt.slot] ?? [];
+    const others = routes.filter((r) => r !== rt.route);
+    const list = (r: string) =>
+      this.routeVariants(session.s, rt.slot, r)
+        .map(([f, v]) => this.variantName(f, v))
+        .join(sep);
+    const [, about] = T.tr(`routes.${rt.slot}.${rt.route}`, '').split(' · ');
+    const mine = list(rt.route);
+    const theirs = others.map(list).filter(Boolean).join(sep);
+    // 选项文案"路名：开出什么……"冒号后面就是这条路开出什么
+    const full = T.option(this.cardOf(uid, session) ?? '', key);
+    const m = /^[^：:]+[：:]\s*(.+)$/.exec(full);
+    const opens =
+      T.tr(`route_notes.${rt.slot}.${rt.route}.opens`, '') ||
+      m?.[1] ||
+      (mine ? T.fmt('ui.route.opens', { list: mine }) : (about ?? ''));
+    const costs =
+      T.tr(`route_notes.${rt.slot}.${rt.route}.costs`, '') ||
+      (theirs
+        ? T.fmt('ui.route.costs', { list: theirs })
+        : others.length
+          ? T.fmt('ui.route.other', { route: others.map((r) => this.routeName(rt.slot, r)).join(sep) })
+          : '');
+    const on = session.routePick?.uid === uid && session.routePick.option === key;
+    // 选项里别的效果（测量费、会员、声望）照常出标签
+    const s = session.s;
+    const w = worldOf(s, this.content);
+    const opt = this.content.cards.find((x) => x.id === this.cardOf(uid, session))?.options[key as 'A' | 'B' | 'C'];
+    const chips = effectChips(
+      T,
+      (opt?.effects ?? []).filter((e) => !e.if || testCond(s, w, e.if)),
+      1,
+      this.content.people,
+      this.content.orders,
+    );
+    return {
+      key: n,
+      text: this.routeName(rt.slot, rt.route),
+      ...(opens ? { opens } : {}),
+      ...(costs ? { costs } : {}),
+      ...(chips.length ? { chips } : {}),
+      ...(on ? { previewing: true } : {}),
+      hint: T.tr(
+        blocked
+          ? 'ui.hint.requires'
+          : on
+            ? 'ui.route.confirm'
+            : this.canShow(this.routeTarget(session.s, rt).anchor ?? '')
+              ? 'ui.route.look'
+              : 'ui.route.pick',
+      ),
+      ...(blocked ? { disabled: true } : {}),
+    };
+  }
+
+  private cardOf(uid: number, session: Session): string | undefined {
+    return session.s.cards.open.find((x) => x.uid === uid)?.card;
+  }
+
+  /**
+   * 选路卡上点过的那一项该把镜头转到哪儿、叠什么预览：★2 的路是先开的第一个变体（设施预览）；
+   * ★3、★4 的路是新地块（W5 的 landPreview；新锚点和路同名，W5 以前没有）。
+   */
+  routeFocus(session: Session): {
+    key: string;
+    anchor: string | null;
+    facility: string | null;
+    variant: string;
+    slot: string;
+  } | null {
+    const p = session.routePick;
+    if (!p) return null;
+    const o = Projector.focusCard(session.s, this.content);
+    if (!o || o.uid !== p.uid) return null;
+    const rt = this.routeOf(o.card, p.option);
+    if (!rt) return null;
+    return { key: `${p.uid}:${p.option}`, ...this.routeTarget(session.s, rt), slot: rt.slot };
+  }
+
+  /** 一条路落在哪儿：先开的第一个变体所在的设施；没有变体的路（★3、★4）是和路同名的新锚点（W5） */
+  private routeTarget(
+    s: GameState,
+    rt: { slot: string; route: string },
+  ): { anchor: string | null; facility: string | null; variant: string } {
+    const w = worldOf(s, this.content);
+    const [first] = this.routeVariants(s, rt.slot, rt.route);
+    if (first) return { anchor: w.facilities.get(first[0])?.anchor ?? null, facility: first[0], variant: first[1] };
+    return { anchor: rt.route, facility: null, variant: rt.route };
+  }
+
+  /** 镜头能不能转到这个锚点（地图有它的坐标；main.ts 设）：转不过去时选路卡的提示不说"看看在哪儿" */
+  canShow: (anchor: string) => boolean = () => true;
 
   /** 岗位名去掉地点前缀（"1 号场 · 青少年课" → "青少年课"）：清单的标题已经是地点了 */
   private short(id: string): string {
@@ -1312,8 +1754,11 @@ export class Projector {
     const c = w.cards.get(o.card);
     if (!c) return null;
     const statuses = optionStatus(s, w, o.uid);
+    const routeCard = statuses.some((st) => this.routeOf(o.card, st.key));
     const answers: CardAnswer[] = statuses.slice(0, 3).map((st, i) => {
       const opt = c.options[st.key];
+      const rt = this.routeOf(o.card, st.key);
+      if (rt) return this.routeAnswer(session, o.uid, st.key, rt, KEYS[i] ?? 1, !!st.blocked);
       const chips: Chip[] = [];
       if (st.cost) chips.push({ text: T.fmt('ui.chip.cost', { n: st.cost }), tone: 'cost' });
       // 要总监亲自去办：他放下手上的岗位，走过去待一段时间（代价是总监的工时）
@@ -1383,6 +1828,15 @@ export class Projector {
       ...(c.who ? { who: this.who(c.who) } : {}),
       context: this.context(s),
     };
+    // 选路卡：倒计时到了由谁来定、定哪条（默认是路 A）
+    const def = c.default?.then ? this.routeOf(o.card, c.default.then) : null;
+    if (routeCard && def)
+      card.note = T.fmt('ui.route.default', {
+        name: c.who ? this.who(c.who).name : T.personName('dale'),
+        route: this.routeName(def.slot, def.route),
+      });
+    // 点过一项：卡收起来，让出上面的画面看这条路落在哪儿
+    if (routeCard && session.routePick?.uid === o.uid) card.compact = true;
     if (o.expires !== null) {
       const total = Math.max(1, o.expires - o.opened);
       const left = Math.max(0, o.expires - session.time);

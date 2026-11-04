@@ -119,3 +119,8 @@ body{background:var(--sky);color:var(--navy);font-family:var(--f-text);overflow:
 .hb-coming{opacity:.55;outline:2px dashed var(--paper);outline-offset:-2px;filter:saturate(.5)}
 /* 夜里跳到第二天：黑一下屏（main.ts 控制透明度），盖住场景和地点牌，不盖 HUD */
 #night{position:fixed;inset:0;z-index:3;pointer-events:none;background:#0a0e1a;opacity:0}
+
+/* 季节栏上点了一个节拍（UI-9）：那一处的地点牌 / 地点名亮几秒 */
+.hub-beat,.pl-beat{outline:3px solid var(--optic);animation:beat-flash .7s ease-in-out 4}
+@keyframes beat-flash{50%{outline-color:transparent}}
+@media (prefers-reduced-motion:reduce){.hub-beat,.pl-beat{animation:none}}

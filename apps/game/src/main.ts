@@ -61,6 +61,7 @@ let projector: Projector;
 function begin(s: Session): void {
   session = s;
   projector = new Projector(content, text);
+  projector.canShow = (a) => !!(site.anchors[a] ?? site.stands[a]);
   scene.sync(s.s);
   camera.reset();
   // 开场镜头对准总监（开局他站在大门口，默认视角里在屏幕外；QA P2-3）：总监落在画面中间偏右
@@ -123,6 +124,7 @@ const hudActions: HudActions = {
   },
   target: (id) => tapTarget(id),
   variant: (order, v) => tapVariant(order, v),
+  beat: (place) => jumpTo(place),
 };
 /** 屏幕上 (x, y) 那儿是地点清单的哪一行，或者哪块地点牌 */
 function targetAt(x: number, y: number): { target: string; variant?: string } | { place: string } | null {
@@ -152,7 +154,10 @@ function assignTo(person: string, target: string, variant?: string): void {
 }
 const ui = mountHud($('hud'), hudActions);
 
-function answer(key: 1 | 2 | 3): void {
+/**
+ * 卡片选项。选路卡（W2）要点两下：第一下镜头转到这条路落在哪儿、叠上预览，第二下才定（direct：试玩桥直接定）。
+ */
+function answer(key: 1 | 2 | 3, direct = false): void {
   const o = Projector.focusCard(session.s, content);
   if (!o || session.s.outcome) return;
   const w = worldOf(session.s, content);
@@ -160,8 +165,29 @@ function answer(key: 1 | 2 | 3): void {
   if (!c) return;
   const keys = (['A', 'B', 'C'] as const).filter((k) => c.options[k]);
   const opt = keys[key - 1];
-  if (opt && session.choose(o.uid, opt)) pump([]);
+  if (!opt) return;
+  const p = session.routePick;
+  if (!direct && projector.routeOf(o.card, opt) && !(p?.uid === o.uid && p.option === opt)) {
+    session.routePick = { uid: o.uid, option: opt };
+    draw();
+    return;
+  }
+  if (session.choose(o.uid, opt)) pump([]);
 }
+
+/** 选路卡 ★3、★4 的路落在哪块地上（wave2-5-contract.md「地块」；Wave 5 的地图给了 landPreview 才画得出来） */
+const ROUTE_PLOTS: Readonly<Record<string, string>> = { s3: 'golf_west', s4: 'se_corner' };
+
+/**
+ * 季节栏上点了一个节拍（UI-9）：镜头转到那一处的地点牌，牌子亮几秒。只读，不开清单。
+ */
+let beatFocus: { place: string; seq: number; until: number } | null = null;
+let beatSeq = 0;
+function jumpTo(place: string): void {
+  beatFocus = { place, seq: ++beatSeq, until: performance.now() + 3500 };
+  draw();
+}
+const beatOn = (a: string) => !!beatFocus && beatFocus.place === a && performance.now() < beatFocus.until;
 
 const draw = () => {
   syncPreview();
@@ -173,6 +199,7 @@ const draw = () => {
  * 只是画面，不进模拟。
  */
 let previewKey = '';
+let landKey = '';
 function syncPreview(): void {
   const p = session.preview;
   const w = worldOf(session.s, content);
@@ -182,12 +209,26 @@ function syncPreview(): void {
   const shown = session.place === o?.at && !session.sheet && !session.s.cards.open.length && !session.s.outcome;
   const live = !!p && !!o && !!f && shown && !session.s.orders[o.id]?.variant;
   if (!live) session.preview = null;
-  const key = live && p ? `${f}:${p.variant}` : '';
-  if (key === previewKey) return;
-  const was = previewKey.split(':')[0] || null;
-  previewKey = key;
-  if (live && p) scene.preview(f, p.variant);
-  else if (was) scene.preview(was, null);
+  // 选路卡上点过的那一项（W2）：★2 的路叠在先开的设施上，★3、★4 的路叠在新地块上
+  const rf = projector.routeFocus(session);
+  if (!rf && session.routePick && !session.s.cards.open.some((x) => x.uid === session.routePick?.uid))
+    session.routePick = null;
+  const want = live && p && f ? { f, v: p.variant } : rf?.facility ? { f: rf.facility, v: rf.variant } : null;
+  const key = want ? `${want.f}:${want.v}` : '';
+  if (key !== previewKey) {
+    const was = previewKey.split(':')[0] || null;
+    previewKey = key;
+    if (want) scene.preview(want.f, want.v);
+    else if (was) scene.preview(was, null);
+  }
+  const plot = rf && !rf.facility ? ROUTE_PLOTS[rf.slot] : undefined;
+  const lk = plot && rf ? `${plot}:${rf.variant}` : '';
+  if (lk !== landKey) {
+    const was = landKey.split(':')[0] || null;
+    landKey = lk;
+    if (plot && rf) scene.landPreview(plot, rf.variant);
+    else if (was) scene.landPreview(was, null);
+  }
 }
 
 /* ---------- 地点牌、岗位和工单的标记 ---------- */
@@ -262,7 +303,7 @@ const placeFlags = (a: string) => {
     const c = worldOf(s, content).cards.get(o.card);
     return (c?.stage?.anchor ?? c?.location) === a;
   });
-  return { here, dest, card, dot: labels.compact && !here && !dest && !card };
+  return { here, dest, card, dot: labels.compact && !here && !dest && !card && !beatOn(a) };
 };
 /** 牌子的摆放优先级：打开的、要去的、有事的、能接手里这个人的先摆，其余让位（QA P1-2） */
 const placePrio = (a: string, base: number) => () => {
@@ -270,6 +311,7 @@ const placePrio = (a: string, base: number) => () => {
   const h = hubOf(a);
   return (
     base +
+    (beatOn(a) ? 80 : 0) +
     (session.place === a ? 60 : 0) +
     (f.card ? 40 : 0) +
     (f.dest ? 30 : 0) +
@@ -292,7 +334,7 @@ for (const a of content.acts[0]?.anchors ?? []) {
     text: () => (hubOf(a) ? null : text.anchor(a)),
     cls: () => {
       const f = placeFlags(a);
-      return `pl${f.here ? ' pl-here' : ''}${f.dest ? ' pl-dest' : ''}${f.card ? ' pl-card' : ''}${f.dot ? ' pl-dot' : ''}`;
+      return `pl${f.here ? ' pl-here' : ''}${f.dest ? ' pl-dest' : ''}${f.card ? ' pl-card' : ''}${f.dot ? ' pl-dot' : ''}${beatOn(a) ? ' pl-beat' : ''}`;
     },
   });
   placeLabel.el.dataset.anchor = a;
@@ -360,7 +402,7 @@ function addHubs(c: ContentBundle): void {
           const h = hubOf(a);
           const need = h?.posts.some((p) => p.need);
           const f = placeFlags(a);
-          return `hub${f.here ? ' hub-here' : ''}${f.dest ? ' hub-dest' : ''}${f.card ? ' hub-card' : ''}${need ? ' hub-need' : ''}${h?.fit === 'fit' ? ' tg-fit' : h?.fit === 'nofit' ? ' tg-nofit' : ''}${session.place === a ? ' hub-open' : ''}`;
+          return `hub${beatOn(a) ? ' hub-beat' : ''}${f.here ? ' hub-here' : ''}${f.dest ? ' hub-dest' : ''}${f.card ? ' hub-card' : ''}${need ? ' hub-need' : ''}${h?.fit === 'fit' ? ' tg-fit' : h?.fit === 'nofit' ? ' tg-nofit' : ''}${session.place === a ? ' hub-open' : ''}`;
         },
       },
       () => tapPlace(a),
@@ -511,7 +553,34 @@ function previewFocus(): { key: string; x: number; y: number; z: number; sheet: 
   if (!o || !c) return null;
   return { key: `pv:${p.order}:${p.variant}`, x: c.x, y: site.groundY(c.x, c.z), z: c.z, sheet };
 }
+/** 选路卡上点过的那一项（W2）、季节栏上点过的节拍（UI-9）：镜头对准那一处 */
+function pointFocus(): { key: string; x: number; y: number; z: number; band: Element | null } | null {
+  const rf = projector.routeFocus(session);
+  const ra = rf?.anchor ?? null;
+  const rc = ra ? (site.anchors[ra] ?? site.stands[ra]) : undefined;
+  if (rf && rc)
+    return {
+      key: `rt:${rf.key}`,
+      x: rc.x,
+      y: site.groundY(rc.x, rc.z),
+      z: rc.z,
+      band: document.querySelector('.td-card'),
+    };
+  if (beatFocus && performance.now() < beatFocus.until) {
+    const c = site.anchors[beatFocus.place] ?? site.stands[beatFocus.place];
+    if (c) return { key: `bt:${beatFocus.seq}`, x: c.x, y: site.groundY(c.x, c.z), z: c.z, band: null };
+  }
+  return null;
+}
 function followFocus(): { x: number; z: number } | null {
+  const pt = pointFocus();
+  if (pt) {
+    if (pt.key !== focusKey) {
+      focusKey = pt.key;
+      camera.setFollow(true);
+    }
+    return camera.following ? aimAt(pt.x, pt.y, pt.z, visibleBand(pt.band)) : null;
+  }
   const pv = previewFocus();
   const f = pv ? null : scene.focus();
   const key = pv ? pv.key : f ? `f:${f.seq}` : '';
@@ -718,7 +787,7 @@ window.__td = {
   camera: () => camera,
   world: () => stage,
   fastForward,
-  answer,
+  answer: (key) => answer(key, true),
   assign: (person, target, variant) => {
     const w = worldOf(session.s, content);
     const why = canAssign(session.s, w, person, target, variant);
