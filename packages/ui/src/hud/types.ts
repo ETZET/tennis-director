@@ -303,6 +303,8 @@ export interface HudSnapshot {
 
 export interface HudActions {
   rotate(dir: -1 | 1): void;
+  /** 回到会所：镜头回到开局的位置（UI-12；地图长大以后一屏装不下） */
+  home?(): void;
   togglePause(): void;
   cycleSpeed(): void;
   /** 事件卡选项（数字键 1–3 也会走这里） */

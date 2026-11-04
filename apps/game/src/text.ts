@@ -40,6 +40,17 @@ export function createText(content: ContentBundle, lang: Lang): Text {
   // 人名：文案表里有译名就用（总监、中文版的教练称呼），没有就用内容里的名字
   const personName = (id: string) => table[`people.${id}`] ?? people.get(id) ?? id;
   const cardTitle = (card: string) => tr(`events.${card}.title`, card);
+  // 地点名：没写 anchors.<id> 的新地点（地块的锚点和路同名，W5）借选路的路名（"南场 · …" 只取前半）
+  const slots = Object.keys(content.acts[0]?.routes ?? {});
+  const anchor = (id: string) => {
+    const own = tr(`anchors.${id}`, '');
+    if (own) return own;
+    for (const slot of slots) {
+      const r = tr(`routes.${slot}.${id}`, '');
+      if (r) return r.split(' · ')[0] ?? r;
+    }
+    return id;
+  };
   const option = (card: string, key: string) => tr(`events.${card}.options.${key}`, key);
   const fmt = (key: string, vars: Record<string, string | number>) =>
     tr(key).replace(/\{(\w+)\}/g, (_, k: string) => String(vars[k] ?? `{${k}}`));
@@ -290,7 +301,7 @@ export function createText(content: ContentBundle, lang: Lang): Text {
     tr,
     fmt,
     personName,
-    anchor: (id) => tr(`anchors.${id}`, id),
+    anchor,
     cardTitle,
     option,
     effect,

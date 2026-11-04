@@ -18,6 +18,7 @@ const EN = {
   wire: 'Club wire',
   rotateLeft: 'Rotate left (Q)',
   rotateRight: 'Rotate right (E)',
+  home: 'Back to the clubhouse',
   pause: 'Pause (Space)',
   resume: 'Resume (Space)',
   speed: 'Change speed',

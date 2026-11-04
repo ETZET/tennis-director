@@ -16,10 +16,14 @@ import {
   F_TN2,
   GROUNDS,
   groundY,
+  LAND_ANCHORS,
+  LAND_STANDS,
   LAWN,
+  PLOT_ANCHORS,
   routeLine,
   SITE,
   STANDS,
+  standsWith,
 } from './layout';
 import { buildIndianWells, createFacilityOverlays, createSky } from './overlays';
 
@@ -77,6 +81,8 @@ export const INDIAN_WELLS: Site = {
   groundY,
   anchors: ANCHORS,
   stands: STANDS,
+  // 地块上的新地点（ADR 0021）：没并进 anchors / stands，游戏按地块状态用
+  land: { anchors: LAND_ANCHORS, stands: LAND_STANDS, plots: PLOT_ANCHORS, standsWith },
   routeLine,
   courts: COURTS,
   courtsFor: (anchor, variant) => (variant ? VARIANT_COURTS[anchor]?.[variant] : undefined) ?? COURTS[anchor] ?? [],

@@ -27,6 +27,8 @@ import {
   type GameState,
   isStaff,
   orderStatus,
+  placeOpen,
+  plotStatus,
   postStatus,
   remodeling,
   type SimEvent,
@@ -259,11 +261,15 @@ export interface CameraFocus {
   /** 要对准的高度（米，默认地面）：升星牌是立着的牌子，对准牌面中间 */
   y?: number;
   seq: number;
+  /** 新地启用的镜头（停完镜头飞回原来的地方） */
+  land?: boolean;
 }
 
 /** 升星的镜头：先转过去（0.9 秒后点亮新星），亮了以后再停这么久，期间卡片不抢镜头（真实秒） */
 const STAR_LIGHT_WAIT = 0.9;
 const STAR_HOLD = 2.5;
+/** 新地启用（plot_open）的镜头：飞过去停这么久（真实秒，含飞过去的一段），期间卡片不抢镜头；停完 main.ts 飞回来 */
+const LAND_HOLD = 4.5;
 /** 升星牌牌面中间离地多高（米） */
 const STAR_SIGN_LIFT = 3;
 
@@ -340,7 +346,6 @@ export function createGameScene(stage: IsoWorld, content0: ContentBundle, site0:
    */
   const ov = overlays as typeof overlays & {
     stars?(n: number, animate: boolean): void;
-    landPreview?(plot: string, variant: string | null): void;
   };
   const starSign = ov.stars ? null : createStarSign(stage);
   const setStars = (n: number, animate: boolean) => (ov.stars ? ov.stars(n, animate) : starSign?.set(n, animate));
@@ -357,6 +362,26 @@ export function createGameScene(stage: IsoWorld, content0: ContentBundle, site0:
   let realNow = 0;
   /** 赛事日的布置（W2）：地点 → 交给覆盖层的赛事 id；筹备每一期交给覆盖层的样子（true 建好、false 挂出来了） */
   const dressed = new Map<string, string>();
+  /** 交给覆盖层的地块样子（阶段 | 变体 | 进度按 1/40 取整）、第几周（伏笔） */
+  const plotLooks = new Map<string, string>();
+  let weekShown = -1;
+  /**
+   * 地块（W5）：只读模拟的 plotStatus，和交给覆盖层的对不上才重设（读档、开工、施工进度、开地都靠这一步跟上）。
+   * 没写 plots 的内容：只按周画伏笔（高尔夫西段一周比一周荒）。
+   */
+  function applyLand(s: GameState, w: World, force: boolean): void {
+    const week = Math.floor(s.t / (1440 * 7)) + 1;
+    if (force || week !== weekShown) {
+      weekShown = week;
+      overlays.week?.(week);
+    }
+    for (const p of plotStatus(s, w)) {
+      const key = `${p.state}|${p.variant ?? ''}|${Math.round(p.progress * 40)}`;
+      if (!force && plotLooks.get(p.id) === key) continue;
+      plotLooks.set(p.id, key);
+      overlays.land?.(p.id, p.state, p.variant, p.progress);
+    }
+  }
   const preps = new Map<string, boolean>();
   let eventsT = -1;
   /**
@@ -422,6 +447,7 @@ export function createGameScene(stage: IsoWorld, content0: ContentBundle, site0:
       setStars(starsShown, false);
     }
     applyEvents(s, w, force);
+    applyLand(s, w, force);
   }
   const rain = createRain(
     stage,
@@ -590,6 +616,9 @@ export function createGameScene(stage: IsoWorld, content0: ContentBundle, site0:
     starPending = null;
     starQueued = null;
     starUntil = 0;
+    landQueued = [];
+    landAt = null;
+    landUntil = 0;
     deferred = null;
     applyLooks(s, true);
     life.reset();
@@ -1060,6 +1089,7 @@ export function createGameScene(stage: IsoWorld, content0: ContentBundle, site0:
     world: stage,
     site,
     courtsAt: (s, a) => courtsAt(worldOf(s, content), s, a),
+    placeOpen: (s, a) => placeOpen(s, worldOf(s, content), a),
     sched,
     rnd,
     person: (i) => {
@@ -1112,9 +1142,15 @@ export function createGameScene(stage: IsoWorld, content0: ContentBundle, site0:
   let previewOn: string | null = null;
   /** 升星镜头停到什么时候（realNow）；这之前来的卡先记着，停完再转过去 */
   let starUntil = 0;
+  /** 新地启用：排着的（锚点）、正在看的那一处、停到什么时候（realNow） */
+  let landQueued: string[] = [];
+  let landAt: string | null = null;
+  let landUntil = 0;
+  /** 升星、新地的镜头停到什么时候 */
+  const holdUntil = () => Math.max(starUntil, landUntil);
   let deferred: { at: string; secs: number } | null = null;
   const focusOn = (at: string, secs: number) => {
-    if (realNow < starUntil) {
+    if (realNow < holdUntil()) {
       deferred = { at, secs };
       return;
     }
@@ -1160,6 +1196,9 @@ export function createGameScene(stage: IsoWorld, content0: ContentBundle, site0:
           // 升星是一个时刻（game-design.md）：镜头转到星级牌，到了再点亮新星。
           // 先排着：夜里跳天、快进时发生的，等玩家看得见画面了再演（update 里开演）
           starQueued = Math.max(starQueued ?? 0, e.stars);
+        } else if (e.type === 'plot_open') {
+          // 新地启用（W5）：镜头飞过去停一拍再回来；和升星一样，看不见画面时先排着
+          if (!landQueued.includes(e.anchor)) landQueued.push(e.anchor);
         } else if (e.type === 'weather') {
           // 天气由模拟决定：雨天下雨，其他天放晴
           if (e.weather === 'rain') rain.start();
@@ -1209,12 +1248,19 @@ export function createGameScene(stage: IsoWorld, content0: ContentBundle, site0:
       // 变体、升级、牌匾、星级：和模拟状态对一下（读档、改造期满、解锁变体都靠这一步跟上）
       applyLooks(s);
       realNow += dt;
-      if (starQueued !== null && watching && !starPending) {
+      if (starQueued !== null && watching && !starPending && realNow >= landUntil) {
         playStar(starQueued);
         starQueued = null;
       }
-      // 升星镜头停完了：停的时候来的卡这才把镜头要过去
-      if (deferred && realNow >= starUntil) {
+      // 新地启用：升星演完了（或者没有升星）再飞过去
+      if (landQueued.length && watching && !starPending && starQueued === null && realNow >= holdUntil()) {
+        landAt = landQueued.shift() ?? null;
+        landUntil = realNow + LAND_HOLD;
+        focusAnchor = null;
+        focusSeq++;
+      }
+      // 升星、新地的镜头停完了：停的时候来的卡这才把镜头要过去
+      if (deferred && realNow >= holdUntil()) {
         const d = deferred;
         deferred = null;
         focusOn(d.at, d.secs);
@@ -1266,6 +1312,10 @@ export function createGameScene(stage: IsoWorld, content0: ContentBundle, site0:
     },
     focus() {
       if (realNow < starUntil) return { x: STAR_SIGN_AT.x, z: STAR_SIGN_AT.z, y: STAR_SIGN_LIFT, seq: focusSeq };
+      if (realNow < landUntil && landAt) {
+        const p = site.anchors[landAt] ?? STANDS[landAt];
+        if (p) return { x: p.x, z: p.z, seq: focusSeq, land: true };
+      }
       if (!focusAnchor || sched.now > focusUntil) return null;
       const p = site.anchors[focusAnchor] ?? STANDS[focusAnchor];
       return p ? { x: p.x, z: p.z, seq: focusSeq } : null;

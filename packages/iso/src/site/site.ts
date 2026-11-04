@@ -31,6 +31,18 @@ export interface Site {
   readonly anchors: Readonly<Record<string, XZ>>;
   /** 每个地点上人站在哪儿（地点牌也挂在这儿） */
   readonly stands: Readonly<Record<string, XZ>>;
+  /**
+   * 地图长大（ADR 0021，可选）：地块上新地点的中心和站位。不在 anchors / stands 里（地块没开时不显示、路人不去）；
+   * 游戏按模拟的 placeAvailable / placeOpen 决定什么时候用。routeLine 认这些地点。
+   */
+  readonly land?: {
+    readonly anchors: Readonly<Record<string, XZ>>;
+    readonly stands: Readonly<Record<string, XZ>>;
+    /** 地块 → 变体 → 新锚点 */
+    readonly plots: Readonly<Record<string, Readonly<Record<string, string>>>>;
+    /** 旧站位 + 这些已经开了的新地点的站位 */
+    standsWith(open: readonly string[]): Readonly<Record<string, XZ>>;
+  };
   /** 两个地点之间步行的折线（含两头的站位） */
   routeLine(a: string, b: string): XZ[] | null;
   /** 地点 → 那儿的球场（演出、路人打球、员工朝向用）；一个地点可以有几块场地 */
@@ -83,6 +95,15 @@ export interface Site {
      * （看台搭着脚手架）。从没调过的那一期什么也不画（★3 以前不调）。不认识的 phase 不理。
      */
     prep?(phase: string, done: boolean): void;
+    /**
+     * 地块的样子（wave2-5-contract.md「地块」，ADR 0021）：locked 只有伏笔；building 是工地，progress 0..1
+     * 是施工进度；open 建好。variant 是选的路（= 地块的变体）。岛长出去时地台和镜头平移的范围一起变大。
+     */
+    land?(plot: string, state: 'locked' | 'building' | 'open', variant: string | null, progress?: number): void;
+    /** 选路卡上的半透明预览：这块地修成这个变体的样子；null 关掉 */
+    landPreview?(plot: string, variant: string | null): void;
+    /** 第几周（伏笔：高尔夫西段一周比一周荒；从 1 起） */
+    week?(week: number): void;
   };
   /** 天空和远景的动画（没有就什么也不做）；wind 0 无风 .. 1 大风（可选，默认 0.3） */
   createSky(w: IsoWorld): { update(dt: number, now: number, rain: number, wind?: number): void };

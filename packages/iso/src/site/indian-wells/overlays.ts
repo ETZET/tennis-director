@@ -1,7 +1,9 @@
 import { type Custom, Group, type Node } from '../../core/graph';
 import { buildStatics, type Lamp, type Weather } from './build';
 import { buildEvents, EVENT_KINDS, type ShowOut, showKit } from './events';
+import { FORE, golfDecayForWeek } from './foreshadow';
 import { type Cast, type GroundLike, paintGround } from './ground';
+import { createLand, type LandLayer, type LandState, type LandWorld } from './land';
 import { buildPlaque, type PlaqueRow } from './plaque';
 import { buildPrep, isPrepPhase, type PrepPhase } from './prep';
 import { buildPreviewGhost } from './preview';
@@ -30,6 +32,8 @@ export interface SiteWorld {
   readonly ground: GroundLike;
   addLamp(l: Lamp): () => void;
   readonly view: { invalidate(): void };
+  /** IsoWorld.setSlab（地图长大时地台和镜头范围一起变大；测试替身可以没有） */
+  setSlab?: LandWorld['setSlab'];
 }
 
 interface Runtime {
@@ -60,6 +64,8 @@ interface Runtime {
   /** 赛事和筹备那一层（第一次用到时才建） */
   show: { statics: Group; dynamic: Group; lampOffs: (() => void)[]; casts: readonly Cast[] } | null;
   showScheduled: boolean;
+  /** 新地的画面层（land.ts；第一次用到时才建：开局只有伏笔，不多建一遍） */
+  land: LandLayer | null;
 }
 
 const RUNTIMES = new WeakMap<SiteWorld, Runtime>();
@@ -96,6 +102,7 @@ function runtime(w: SiteWorld): Runtime {
       prep: new Map(),
       show: null,
       showScheduled: false,
+      land: null,
     };
     RUNTIMES.set(w, rt);
   }
@@ -214,8 +221,15 @@ export function createFacilityOverlays(w: SiteWorld): {
   plaque(rows: readonly PlaqueRow[]): void;
   event(anchor: string, kind: string | null): void;
   prep(phase: string, done: boolean): void;
+  land(plot: string, state: LandState, variant: string | null, progress?: number): void;
+  landPreview(plot: string, variant: string | null): void;
+  week(week: number): void;
 } {
   const rt = runtime(w);
+  const landLayer = (): LandLayer => {
+    rt.land ??= createLand(w as SiteWorld & LandWorld, { weather: rt.weather });
+    return rt.land;
+  };
   return {
     set(facility, state) {
       if (!isFacility(facility)) return;
@@ -268,12 +282,27 @@ export function createFacilityOverlays(w: SiteWorld): {
       rt.prep.set(phase, done);
       scheduleShow(rt);
     },
+    land(plot, state, variant, progress) {
+      // 还没建新地层、要的又是 locked：画面本来就是这样（只有伏笔），不用建
+      if (!rt.land && (state === 'locked' || !variant)) return;
+      landLayer().land(plot, state, variant, progress);
+    },
+    landPreview(plot, variant) {
+      if (!rt.land && !variant) return;
+      landLayer().landPreview(plot, variant);
+    },
+    week(n) {
+      const t = golfDecayForWeek(n);
+      if (!rt.land && t === FORE.decay) return;
+      landLayer().golfDecay(t);
+    },
     wear(facility, amount) {
       if (rt.wear.set(facility, amount)) rt.w.view.invalidate();
     },
     flush() {
       if (rt.scheduled) rebuild(rt);
       if (rt.showScheduled) rebuildShow(rt);
+      rt.land?.flush();
     },
   };
 }

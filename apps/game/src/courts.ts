@@ -27,3 +27,30 @@ export function variantSite(site: Site, state: () => GameState | null, content: 
   // 原型链指回原来的 site：其余字段和方法（routeLine、groundY……）照旧
   return Object.create(site, { courts: { value: courts, enumerable: true } }) as Site;
 }
+
+/**
+ * 地图长大（ADR 0021）：把地块上新地点的中心和站位并进 anchors / stands（地图给了 Site.land 时）。
+ * 游戏里的地点牌、员工站位、镜头都按这一份找坐标；显示不显示、能不能拖人由模拟的 placeAvailable 决定，
+ * 路人只去开了的（life.ts 按 placeOpen 挡）。原来的 site 不动（Site.stands 仍只有旧地点）。
+ */
+export function withLand(site: Site): Site {
+  const land = site.land;
+  if (!land) return site;
+  return Object.create(site, {
+    anchors: { value: { ...site.anchors, ...land.anchors }, enumerable: true },
+    stands: { value: { ...site.stands, ...land.stands }, enumerable: true },
+  }) as Site;
+}
+
+/** 这块地（地块 id）按 slot 这一处选路开：先看内容里的 plots，没写就按地图的地块表（新锚点和路同名） */
+export function plotForRoute(
+  site: Site,
+  plots: readonly { id: string; route: string }[] | undefined,
+  slot: string,
+  route: string,
+): string | null {
+  const p = plots?.find((x) => x.route === slot);
+  if (p) return p.id;
+  for (const [id, vs] of Object.entries(site.land?.plots ?? {})) if (route in vs) return id;
+  return null;
+}
