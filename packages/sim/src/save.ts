@@ -173,6 +173,14 @@ export const MIGRATIONS: Record<number, Migration> = {
     state.version = 10;
     return { ...save, version: 10, state };
   },
+  // 10 → 11（W4 结局方案 A，LG-13）：第一季、还没办成表演赛、没结算；旧档的 outcome 照旧（won / lost）。
+  // 结局开关在内容里（ending，默认没有 = 以前的行为）
+  10: (save) => {
+    const state = { ...(save.state as Record<string, unknown>) };
+    state.ending ??= { season: 1, exhibition: null, settlement: null, goal: null, land: {} };
+    state.version = 11;
+    return { ...save, version: 11, state };
+  },
 };
 
 export class SaveError extends Error {}

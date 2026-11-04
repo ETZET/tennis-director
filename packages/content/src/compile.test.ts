@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { parse, stringify } from 'yaml';
 import { compileContent, VARIANT_VAR } from './compile';
 import { CONTENT } from './index';
-import { growth, minutes } from './schema';
+import { DEFAULT_GRADES, DEFAULT_SCORE, ending, growth, minutes } from './schema';
 
 const DATA = join(dirname(fileURLToPath(import.meta.url)), '../data');
 const files = (): Record<string, string> => {
@@ -343,6 +343,68 @@ describe('内容编译', () => {
     expect(m).toMatch(/who 'ghost' is neither/);
     expect(m).toMatch(/unknown variable 'unlocked.nothing'/);
     expect(msgs(b, 'warnings')).toMatch(/dale: potential.teach 10 is below the starting value 45/);
+  });
+
+  it('结局方案 A（W4）：ending 分项、评语、结局卡和第二季目标都校验，文案两种语言都要有', () => {
+    const ok = files();
+    ok['events/indian_wells/iw_ending.yaml'] = stringify({
+      id: 'iw_ending',
+      act: 'indian_wells',
+      source: 'consequence',
+      tone: 'neutral',
+      pause: true,
+      countdown: '1d',
+      location: 'stadium_1',
+      who: 'investors',
+      options: { A: { effects: [{ settle: true }] }, B: { effects: [] } },
+      // biome-ignore lint/suspicious/noThenProperty: 'then' is the card spec's field name (plain data)
+      default: { then: 'B' },
+    });
+    const text = (y: Yaml) => {
+      y.ending = {
+        items: Object.fromEntries([...Object.keys(DEFAULT_SCORE), 'days'].map((k) => [k, k])),
+        grades: Object.fromEntries(DEFAULT_GRADES.map((g) => [g.grade, g.grade])),
+        goals: { official_tournament: 'Host an official tournament' },
+      };
+      y.endings.score = { title: 'Season review', body: 'The investors add it up.' };
+      y.events.iw_ending = { title: 'Done early', body: 'Settle now?', options: { A: 'Settle', B: 'Keep going' } };
+    };
+    editYaml(ok, 'i18n/zh.yaml', text);
+    editYaml(ok, 'i18n/en.yaml', text);
+    editYaml(ok, 'acts/indian_wells.yaml', (y) => {
+      y.ending = {
+        mode: 'score',
+        card: 'iw_ending',
+        score: { ...DEFAULT_SCORE, days: { of: 'ending.days_early + ending.season + ending.settled', per: 1 } },
+      };
+    });
+    // 只看这几处改动带来的错（别的内容可能正在并行改）
+    const before = new Set(msgs(compileContent(files())).split('\n'));
+    const known = (r: ReturnType<typeof compileContent>) =>
+      msgs(r)
+        .split('\n')
+        .filter((x) => x && !before.has(x));
+    expect(known(compileContent(ok))).toEqual([]);
+    expect(ending.parse({ mode: 'score' })).toMatchObject({ day: 112, hour: 18, score: DEFAULT_SCORE });
+
+    const bad = structuredClone(ok);
+    editYaml(bad, 'acts/indian_wells.yaml', (y) => {
+      y.ending.card = 'iw_nope';
+      y.ending.score.bogus = { of: 'ending.nope', per: 1 };
+      y.ending.grades = [
+        { grade: 'B', gte: 100 },
+        { grade: 'A', gte: 500 },
+        { grade: 'B', gte: 0 },
+      ];
+      y.ending.season2 = { goal: 'moon_landing' };
+    });
+    const m = known(compileContent(bad)).join('\n');
+    expect(m).toMatch(/ending.card: unknown card 'iw_nope'/);
+    expect(m).toMatch(/unknown variable 'ending.nope'/);
+    expect(m).toMatch(/missing text 'ending.items.bogus'/);
+    expect(m).toMatch(/duplicate grade/);
+    expect(m).toMatch(/highest threshold down/);
+    expect(m).toMatch(/missing text 'ending.goals.moon_landing'/);
   });
 
   it('文件名必须和 id 一致', () => {

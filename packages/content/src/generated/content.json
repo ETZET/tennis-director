@@ -1,5 +1,5 @@
 {
- "version": "2927ecf7",
+ "version": "bcb03c1e",
  "stats": [
   {
    "id": "cash",
@@ -2347,6 +2347,10 @@
     10,
     16
    ],
+   "when": {
+    "facility": "plaza",
+    "is": "open"
+   },
    "effects": [
     {
      "stat": "cash",
@@ -2391,6 +2395,10 @@
     9,
     17
    ],
+   "when": {
+    "facility": "outer_23",
+    "is": "playable"
+   },
    "effects": [
     {
      "stat": "cash",
@@ -4660,7 +4668,8 @@
       13
      ],
      "days": [
-      2
+      2,
+      3
      ],
      "hours": [
       8,
@@ -4731,7 +4740,8 @@
       12
      ],
      "days": [
-      4
+      4,
+      5
      ],
      "hours": [
       8,
@@ -6574,8 +6584,8 @@
     ]
    },
    "weight": 1,
-   "cooldown": "14d",
-   "max_shown": 3,
+   "cooldown": "21d",
+   "max_shown": 2,
    "countdown": "2h",
    "pause": false,
    "location": "outer_1",
@@ -7249,6 +7259,7 @@
    "prep.exhibition": "Exhibition build-up",
    "ui.route.look": "Tap to see where it goes",
    "ui.route.confirm": "Tap again to decide",
+   "ui.route.pick": "Tap to pick, tap again to decide",
    "ui.route.default": "If time runs out, {name} picks “{route}”",
    "ui.route.opens": "Opens first: {list}",
    "ui.route.costs": "Waits this season: {list}",
@@ -8098,7 +8109,8 @@
    "prep.exhibition": "表演赛筹备",
    "ui.route.look": "点一下先看看落在哪儿",
    "ui.route.confirm": "再点一下就定了",
-   "ui.route.default": "倒计时到了，{name}替你选“{route}”",
+   "ui.route.pick": "点一下选中，再点一下就定了",
+   "ui.route.default": "倒计时到了，{name} 替你选“{route}”",
    "ui.route.opens": "先开：{list}",
    "ui.route.costs": "这一季先不开：{list}",
    "ui.route.other": "放下“{route}”",

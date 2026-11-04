@@ -119,6 +119,8 @@ function scoreOption(w: World, c: Card, st: OptionStatus, expected: boolean): nu
       }
       if ('activity' in e) score += m * 6;
       if ('endAct' in e) score += m * (e.endAct === 'won' ? 100 : -100);
+      // 结局卡（W4）："马上结算"拿提前的天数分、不再担风险；机器人见好就收
+      if ('settle' in e) score += m * 10;
       if ('fire' in e) score -= m * 4;
     }
   };
@@ -141,6 +143,8 @@ function worstCase(c: Card, st: OptionStatus): number {
   for (const e of effs) {
     if ('stat' in e && 'add' in e && typeof e.add === 'number') worst += Math.min(0, e.add * (WEIGHT[e.stat] ?? 0));
     if ('endAct' in e && e.endAct === 'lost') worst -= 100;
+    // 结局卡（W4）：马上结算没有以后的风险
+    if ('settle' in e) worst += 1;
     if ('hire' in e) worst -= 1;
   }
   if (st.chance !== null) worst -= (1 - st.chance) * 4;

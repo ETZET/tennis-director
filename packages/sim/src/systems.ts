@@ -1,6 +1,6 @@
 import { minutes } from '@td/content';
 import { directorDraw, expireCards, openScheduled } from './cards';
-import { type Ctx, run, setStat } from './effects';
+import { type Ctx, checkEnding, run, setStat } from './effects';
 import { checkUnlocks } from './growth';
 import { weightedPick } from './rng';
 import { closeLedger, decayDay, gradeDrop, overnight, staffSystem } from './staff';
@@ -196,13 +196,18 @@ export function openDay(ctx: Ctx, day: number, fromMinute = 0): void {
 export function tick(ctx: Ctx): void {
   const { s, w } = ctx;
   if (s.outcome) return;
+  checkEnding(ctx); // 结局（W4）：到了第一季的期限就结算打分；表演赛刚办成就来结局卡
+  if (s.outcome) return;
   openScheduled(ctx); // 日历和后续事件
   tournamentSystem(ctx); // 赛事：开赛、收赛结算（LG-11）
   staffSystem(ctx); // 岗位转圈、工单推进、办事
   activitySystem(ctx); // 活动开始、结算
   qualitySystem(ctx); // 项目质量
   liveDerived(ctx); // 复原这类只读此刻状态的派生量
-  if (minuteOfDay(s.t) % 10 === 0) checkStars(ctx); // 星级（LG-10）：每 10 分钟看一眼下一星的清单
+  if (minuteOfDay(s.t) % 10 === 0) {
+    checkStars(ctx); // 星级（LG-10）：每 10 分钟看一眼下一星的清单
+    checkEnding(ctx);
+  }
   expireCards(ctx); // 事件：倒计时到了执行默认后果
   directorDraw(ctx); // 导演：要不要发新卡
   s.t += 1;

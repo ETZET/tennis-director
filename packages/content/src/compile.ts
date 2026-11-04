@@ -102,6 +102,15 @@ export const COMPUTED_VARS = [
   'best.upkeep',
   'best.service',
   'best.play',
+  /**
+   * 结局（W4，LG-13）：exhibition 表演赛办成过没有（0/1，ending.exhibition 条件第一次满足时记下）；
+   * days_early 结算那天离 ending.day 还有几天（还没结算时按今天算；不小于 0）；season 第几季（1、2）；settled 结算过没有（0/1）。
+   * 没写 ending 的地图读到 0（season 读到 1）。
+   */
+  'ending.exhibition',
+  'ending.days_early',
+  'ending.season',
+  'ending.settled',
 ] as const;
 /** 设施状况变量：condition.<设施 id> = 0..100 */
 export const CONDITION_VAR = /^condition\.([a-z][a-z0-9_]*)$/;
@@ -817,6 +826,28 @@ export function compileContent(files: Record<string, string>): CompileResult {
         needText(file, `unlocks.${u.key}`);
       }
     }
+    // 结局（W4，LG-13）
+    if (a.ending) {
+      const en = a.ending;
+      checkCond(file, en.exhibition, 'ending.exhibition');
+      if (en.card && !cards.has(en.card)) err(file, `ending.card: unknown card '${en.card}'`);
+      if (!Object.keys(en.score).length) err(file, 'ending.score: needs at least one item');
+      for (const [k, v] of Object.entries(en.score)) {
+        checkExpr(file, v.of, `ending.score.${k}`);
+        needText(file, `ending.items.${k}`);
+      }
+      const gs = en.grades.map((g) => g.grade);
+      if (new Set(gs).size !== gs.length) err(file, 'ending.grades: duplicate grade');
+      for (let i = 1; i < en.grades.length; i++)
+        if ((en.grades[i]?.gte ?? 0) > (en.grades[i - 1]?.gte ?? 0))
+          err(file, 'ending.grades: list grades from the highest threshold down');
+      for (const g of gs) needText(file, `ending.grades.${g}`);
+      needText(file, `ending.goals.${en.season2.goal}`);
+      for (const c of en.season2.start_cards)
+        if (!cards.has(c)) err(file, `ending.season2.start_cards: unknown card '${c}'`);
+      needText(file, 'endings.score.title');
+      needText(file, 'endings.score.body');
+    }
     if (a.rules.lose_if) {
       checkCond(file, a.rules.lose_if.when, 'rules.lose_if');
       needText(file, `endings.${a.rules.lose_if.ending}.title`);
@@ -847,6 +878,10 @@ export function compileContent(files: Record<string, string>): CompileResult {
   for (const a of b.orders) for (const effs of orderEffects(a)) scheduleTargets(effs);
   for (const t of allTournaments) for (const effs of tournamentEffects(t)) scheduleTargets(effs);
   for (const a of b.acts) for (const lv of a.stars ?? []) if (lv.card) reachable.add(lv.card);
+  for (const a of b.acts) {
+    if (a.ending?.card) reachable.add(a.ending.card);
+    for (const c of a.ending?.season2.start_cards ?? []) reachable.add(c);
+  }
   for (const c of b.cards)
     if (!reachable.has(c.id)) warn(`events/${c.act}/${c.id}.yaml`, `card '${c.id}' is never scheduled by anything`);
 

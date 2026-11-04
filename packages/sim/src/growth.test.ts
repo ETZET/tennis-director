@@ -8,7 +8,7 @@ import { checkUnlocks } from './growth';
 import { potentialOf } from './potential';
 import { fromSave, toSave } from './save';
 import { canAssign } from './staff';
-import type { GameState } from './state';
+import { type GameState, SAVE_VERSION } from './state';
 import { num, test } from './vars';
 import { worldFor } from './world';
 
@@ -200,13 +200,13 @@ describe('员工成长（W3）', () => {
     expect(canAssign(s, w, 'director', 'gated_lesson')).not.toBe('skill');
   });
 
-  it('v9 存档迁移到 v10：补上 unlocks', () => {
+  it('v9 存档迁移到最新：补上 unlocks', () => {
     const s = newGame(CONTENT, { seed: 3 });
     const old = JSON.parse(JSON.stringify({ ...toSave(s, []), version: 9 }));
     old.state.version = 9;
     delete old.state.unlocks;
     const { save } = fromSave(old);
-    expect(save.version).toBe(10);
+    expect(save.version).toBe(SAVE_VERSION);
     expect(save.state.unlocks).toEqual({});
   });
 });

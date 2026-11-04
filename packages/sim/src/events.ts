@@ -1,5 +1,5 @@
 import type { OptionKey, SkillKind } from '@td/content';
-import type { CausalEntry, PlaqueRow } from './state';
+import type { CausalEntry, OutcomeResult, PlaqueRow, Settlement } from './state';
 
 /**
  * 领域事件：模拟每一步发出来，画面和界面订阅它们来演出、提示。
@@ -78,7 +78,11 @@ export type SimEvent =
   | { type: 'errandFinished'; person: string }
   | { type: 'log'; entry: CausalEntry }
   | { type: 'dayEnded'; day: number }
-  | { type: 'actEnded'; result: 'won' | 'lost'; ending: string }
+  | { type: 'actEnded'; result: OutcomeResult; ending: string }
+  /** 结局（W4）：表演赛提前办成了（结局卡随后打开，如果内容写了）；结算打分（分项和评语，也存在 s.ending.settlement）；开了第二季 */
+  | { type: 'ending_offered'; day: number; card: string | null }
+  | ({ type: 'settlement' } & Settlement)
+  | { type: 'season_two'; goal: string; land: Record<string, string[]> }
   | { type: 'seasonStarted'; season: string }
   | { type: 'weather'; weather: 'sun' | 'cloud' | 'rain' | 'wind' }
   | {

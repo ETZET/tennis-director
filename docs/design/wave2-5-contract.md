@@ -309,3 +309,98 @@ growth:
 ### 显示
 
 能力在状态里是小数（存两位小数；总监以前就是 +0.3 的小数），门槛按原值比。界面显示时自己取整（员工条的条宽已经 `Math.round`），不改状态语义。
+
+---
+
+## W4 最终 schema（模拟一路已实现：LG-13 结局方案 A、第二季入口；以这一节为准）
+
+**默认关着**：地图不写 `ending` 时和以前完全一样（表演赛 `endAct: won` 通关，第 112 天的期限卡 `endAct: lost` 判输）。Wave 4 内容一路打开它。
+存档版本 **11**（10 → 11 有迁移：补 `ending: { season: 1, exhibition: null, settlement: null, goal: null, land: {} }`；旧档的 outcome 照旧）。
+
+### 内容：地图的 `ending`（`acts/<地图>.yaml`）
+
+```yaml
+ending:
+  mode: score                       # 必填；写了就是结局方案 A
+  day: 112                          # 第 day 天 hour 点结算打分（默认 112 / 18）
+  hour: 18
+  exhibition: { flag: exhibition_done }   # 默认就是它：第一次满足 = "表演赛办成了"，记下时刻
+  card: iw_ending                   # 可选：表演赛提前办成时打开的结局卡（内容写文案和选项）
+  score:                            # 分项：分 = floor(of × per)；文案 ending.items.<项>。不写 = 下面这份初值
+    stars:      { of: stars, per: 1000 }
+    trophies:   { of: trophies, per: 300 }
+    members:    { of: stat.members, per: 10 }
+    reputation: { of: stat.reputation, per: 10 }
+    exhibition: { of: ending.exhibition, per: 2000 }
+    early:      { of: "ending.exhibition * ending.days_early", per: 50 }
+    cash:       { of: stat.cash, per: 0.1 }          # 每 $10 一分（负的现金扣分）
+  grades:                           # 从高到低；第一个 total ≥ gte 的档，都不够是最后一档；文案 ending.grades.<档>
+    - { grade: S, gte: 12500 }
+    - { grade: A, gte: 10000 }
+    - { grade: B, gte: 7000 }
+    - { grade: C, gte: 4000 }
+    - { grade: D, gte: 0 }
+  season2:                          # 可不写（默认如下）
+    goal: official_tournament       # 第二季目标（占位），文案 ending.goals.<目标>
+    start: { day: 1, hour: 8 }      # 可选；默认第 1 天、开门时间
+    start_cards: []                 # 第二季一开始打开的卡
+```
+
+- 结局卡示例：`options: { A: { effects: [{ settle: true }] }, B: { effects: [] } }`，`default: { then: B }`（倒计时到了按"接着经营"）。
+- 新效果 `{ settle: true }`：现在就结算（reason `early`）。结局没打开、已经结算过、或者第二季时什么都不做。
+- 打开 `ending` 后：效果 `endAct: won`（表演赛工单）**不再结束这一局**，改成"看一眼结局"（记下表演赛、来结局卡）；`endAct: lost` 的结局是 `rules.lose_if.ending`（破产）时照旧结束，别的 `endAct: lost`（旧的期限卡 `iw_deadline`）改成结算。期限卡排在 112 天 18 点也打不开：那一分钟先结算了。内容可以删掉它，也可以留着。
+- **注意**：表演赛工单现在冷却 7 天可以再办（+$6000）。接着经营的局会刷现金分，内容打开 ending 时请给 `st1_exhibition` 加 `once: true` 或 `when: { not: { flag: exhibition_done } }`。
+- 编译器校验：`card` / `season2.start_cards` 存在；`score` 至少一项、表达式变量合法；`grades` 不重复、从高到低；文案 `ending.items.<项>`、`ending.grades.<档>`、`ending.goals.<目标>`、`endings.score.title/body` 两种语言都要有。
+
+### 条件和变量
+
+| 写法 | 意思 |
+| --- | --- |
+| `ending.exhibition` | 表演赛办成过没有（0 / 1） |
+| `ending.days_early` | 结算那天离 `ending.day` 还有几天（没结算时按今天算；不小于 0） |
+| `ending.season` | 第几季（1、2） |
+| `ending.settled` | 第一季结算过没有（0 / 1） |
+
+### 打分怎么取舍（行为）
+
+- "马上结算"：拿 `early`（每提前一天 50 分）；"接着经营"：`early` 是 0，但会员、声望、奖杯、现金还在涨，也还担着破产的风险。两条路都以结算收尾。
+- 结算前先看一眼星级（★5 算进分里）。破产（现金 < −$2000，每天收盘）照旧 `outcome: { result: 'lost', ending: 'bankrupt' }`，**不结算**、不能开第二季。
+- 结算：`outcome = { result: 'settled', ending: 'score', t }`（`OutcomeResult = 'won' | 'lost' | 'settled'`）；`s.ending.settlement` 存分项。
+
+### 状态（`GameState`，版本 11）
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `ending.season` | `number` | 第几季 |
+| `ending.exhibition` | `number \| null` | 表演赛办成的时刻 |
+| `ending.settlement` | `Settlement \| null` | `{ t, day, reason: 'early' \| 'deadline', items: { id, value, per, points }[], total, grade }`；开了第二季也留着 |
+| `ending.goal` | `string \| null` | 第二季目标（第一季是 null） |
+| `ending.land` | `Record<处, 路[]>` | 开第二季时记下第一季没选的路（选过的处留另一条，没选过的处留全部），W5 的地块用 |
+
+### 命令
+
+- `{ type: 'startSeason2' }`：第一季结算过（`result: 'settled'`）才接受。会所、人、设施、星级、奖杯、钱、习惯都留着；开着的卡、排着的卡、活动、接下的赛事清掉；
+  时钟回到 `season2.start`（卡和工单的冷却、改造期满、赛事的 `last` 跟着整天平移）；赛事日历按周重新排起来。第二季没有第 112 天的结算（目标是占位，W5 以后定）。
+
+### 领域事件和日志
+
+```ts
+{ type: 'ending_offered'; day; card: string | null }          // 表演赛提前办成（结局卡随后打开）
+{ type: 'settlement'; t; day; reason; items; total; grade }   // 结算（界面：结局卡分项和评语）
+{ type: 'actEnded'; result: 'settled'; ending: 'score' }
+{ type: 'season_two'; goal; land }
+```
+
+因果日志：`cause: { kind: 'settlement', ...Settlement }`（effects 里一条 `{ kind: 'end', result: 'settled', ending: 'score' }`）；`{ kind: 'season', season: 2, goal }`。
+
+### 给界面和游戏的函数（`@td/sim`）
+
+- `endingStatus(s, w)` → 结局没打开时 `null`；否则 `{ season, deadline: { day, hour, daysLeft } | null, exhibition: 第几天 | null, deciding（结局卡开着）, settlement, preview: { items, total, grade }（现在结算会是多少；结算后等于 settlement）, grades, canStartSeason2, goal, land }`。
+- `scoreOf(s, w)`、`gradeOf(ending, total)`、`canStartSeason2(s, w)`。
+
+### 机器人和平衡
+
+- 结局卡上 `{ settle: true }` 的选项：greedy / 普通玩家加 10 分、cautious 最坏情况 +1（见好就收）。
+- `pnpm sim bots`：地图写了 ending 时报告出平均分、中位分、提前结算比例，和每个机器人的 10% / 中位 / 90% 分位、评语档比例（破产记 `bankrupt`）、分项平均；没写时照旧出通关率。
+- `balance.test.ts`：`mode: score` 时按分数档（greedy 前两档 ≥ 80%、cautious 没有最高档、random 前两档 ≤ 20%、idle 全是最后一档）；没写时照旧按通关率。
+- 校准（按当时内容、在内存里打开初值 ending、20 局）：greedy 中位 12347、90% 分位 12630（S 门槛 13000 时 A 95% / S 5%，初值降到 12500 让好局能拿 S），good 11945、average 12038、novice 11579（A 为主），cautious 7425（B 85%），random 3491（D 为主，破产 20%），idle 92（D）。

@@ -6,7 +6,7 @@ import type { OptionKey } from '@td/content';
  */
 
 /** 存档格式版本；改了格式就加一个迁移函数（见 save.ts） */
-export const SAVE_VERSION = 10;
+export const SAVE_VERSION = 11;
 
 export interface PersonState {
   id: string;
@@ -131,6 +131,9 @@ export type Cause =
     }
   /** 成长解锁（W3，LG-12）：开出了什么、记在谁名下、need 各条是谁满足的 */
   | { kind: 'unlock'; key: string; person: string; people: string[] }
+  /** 结局（W4，LG-13）：结算打分（分项、总分、评语）；开第二季 */
+  | ({ kind: 'settlement' } & Settlement)
+  | { kind: 'season'; season: number; goal: string }
   | { kind: 'debug'; what: string };
 
 /** 一周的钱（每天收盘按天折算记进现金，周日收盘合成一条讲给玩家） */
@@ -200,7 +203,7 @@ export type EffectRecord =
   | { kind: 'trophy'; delta: number }
   /** 选路（W2） */
   | { kind: 'route'; slot: string; route: string }
-  | { kind: 'end'; result: 'won' | 'lost'; ending: string };
+  | { kind: 'end'; result: OutcomeResult; ending: string };
 
 export interface OpenCard {
   /** 这一次出现的唯一编号（同一张卡可以出现多次） */
@@ -245,6 +248,41 @@ export interface EventRun {
   crew: string[];
   /** 已经发过"开赛"事件的那一天（第几天） */
   live?: number;
+}
+
+/** 一局怎么结束的：通关、输了（破产、旧的期限），或者结局方案 A 的结算打分（W4） */
+export type OutcomeResult = 'won' | 'lost' | 'settled';
+
+/** 结算的一项：值 × 每单位的分 = 分（向下取整） */
+export interface ScoreItem {
+  id: string;
+  value: number;
+  per: number;
+  points: number;
+}
+
+/** 结算打分（W4，LG-13） */
+export interface Settlement {
+  t: number;
+  day: number;
+  /** early：表演赛办成以后在结局卡上马上结算；deadline：到了 ending.day（或者旧的期限卡） */
+  reason: 'early' | 'deadline';
+  items: ScoreItem[];
+  total: number;
+  grade: string;
+}
+
+/** 结局的状态（W4）：第几季、表演赛什么时候办成、结算、第二季的目标、第一季没选的地 */
+export interface EndingState {
+  season: number;
+  /** 表演赛办成（ending.exhibition 第一次满足）的时刻；没办成是 null */
+  exhibition: number | null;
+  /** 第一季的结算；还没结算是 null（开了第二季也留着） */
+  settlement: Settlement | null;
+  /** 第二季的目标（占位）；第一季是 null */
+  goal: string | null;
+  /** 第一季没选的路（处 → 路；没选过的处是这一处所有的路），开第二季时记下，留给 W5 的地块 */
+  land: Record<string, string[]>;
 }
 
 /** 一项赛事办过几次（LG-11：第二次起奖励打折、目标换一个） */
@@ -304,6 +342,8 @@ export interface GameState {
   tournaments: Record<string, TournamentLog>;
   /** 成长解锁（W3，LG-12）：键 → 记在谁名下、什么时候开的。一局一次，不往回收 */
   unlocks: Record<string, { person: string; t: number }>;
+  /** 结局（W4，LG-13）：地图没写 ending 时一直是初始值 */
+  ending: EndingState;
   /** 本周的账（周日收盘结算、写成一条因果日志，然后清零） */
   week: WeekState;
   /**
@@ -333,7 +373,7 @@ export interface GameState {
   weather: 'sun' | 'cloud' | 'rain' | 'wind';
   flags: Record<string, boolean | number | string>;
   log: CausalEntry[];
-  outcome: { result: 'won' | 'lost'; ending: string; t: number } | null;
+  outcome: { result: OutcomeResult; ending: string; t: number } | null;
   nextUid: number;
 }
 

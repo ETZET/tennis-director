@@ -2,6 +2,7 @@ import type { ContentBundle, OptionKey } from '@td/content';
 import { fnv1a, stableStringify } from '@td/shared';
 import { openCard, resolveCard } from './cards';
 import { type Ctx, run, setStat } from './effects';
+import { startSeason2 } from './ending';
 import type { SimEvent } from './events';
 import { assign } from './staff';
 import { at, type GameState, SAVE_VERSION } from './state';
@@ -22,6 +23,8 @@ export type Command =
    * variant：拖到变体工单的哪一行（LG-14）；还没开工时改选变体，开了工只能是锁定的那个。
    */
   | { type: 'assign'; person: string; target: string | null; variant?: string }
+  /** 结局（W4）：第一季结算以后开第二季（会所照旧，时钟回到第二季开局，目标占位） */
+  | { type: 'startSeason2' }
   | { type: 'debugSetStat'; stat: string; value: number }
   | { type: 'debugSetFlag'; flag: string; value: boolean | number | string }
   | { type: 'debugForceCard'; card: string }
@@ -70,6 +73,7 @@ export function newGame(content: ContentBundle, o: NewGameOptions): GameState {
     events: {},
     tournaments: {},
     unlocks: {},
+    ending: { season: 1, exhibition: null, settlement: null, goal: null, land: {} },
     // 开局没有"上周"：服务率无从谈起，算 0，周结算的服务项不算（GM-1）
     week: {
       demand: 0,
@@ -129,6 +133,8 @@ function applyCommand(ctx: Ctx, cmd: Command): boolean {
       return resolveCard(ctx, cmd.uid, cmd.option, 'player');
     case 'assign':
       return assign(ctx, cmd.person, cmd.target, true, cmd.variant);
+    case 'startSeason2':
+      return startSeason2(ctx);
     case 'debugSetStat':
       setStat(ctx, cmd.stat, cmd.value);
       run(ctx, { kind: 'debug', what: `set ${cmd.stat} = ${cmd.value}` }, null, []);

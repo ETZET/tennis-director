@@ -283,6 +283,8 @@ export function makeEnv(s: GameState, w: World, extra: Record<string, Value> = {
         case 'event':
           // 赛事结算以外读到 0（结算时由 extra 提供，tournaments.ts）
           return 0;
+        case 'ending':
+          return endingVar(s, w, rest);
         case 'quiet_days':
           return (s.t - (s.cards.lastOpened ?? 0)) / 1440;
         case 'wages_week':
@@ -349,4 +351,25 @@ export function test(s: GameState, w: World, c: Cond | undefined): boolean {
     return (c.running ?? true) === running;
   }
   return evalBool(w.expr(c.expr), makeEnv(s, w));
+}
+
+/** 变量 ending.*（W4 结局；地图没写 ending 时 days_early 是 0） */
+export function endingVar(s: GameState, w: World, rest: string): Value | undefined {
+  const st = s.ending;
+  const e = w.act.ending;
+  switch (rest) {
+    case 'exhibition':
+      return st?.exhibition !== null && st?.exhibition !== undefined ? 1 : 0;
+    case 'days_early': {
+      if (!e) return 0;
+      const day = st?.settlement ? st.settlement.day : dayOf(s.t);
+      return Math.max(0, e.day - day);
+    }
+    case 'season':
+      return st?.season ?? 1;
+    case 'settled':
+      return st?.settlement ? 1 : 0;
+    default:
+      return undefined;
+  }
 }

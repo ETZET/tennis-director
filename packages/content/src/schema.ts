@@ -131,6 +131,11 @@ export const effect = z.union([
   z.strictObject({ ...gate, trophy: z.number().int().min(1) }),
   /** 选路（W2）：记下这一处（s2 / s3 / s4）选了哪条路；已经选过就不再改。变量 route.<处>，条件 { route, is } */
   z.strictObject({ ...gate, route: id, set: id }),
+  /**
+   * 结局（W4，LG-13）：现在就结算打分（结局卡的"马上结算"）。只在地图写了 ending（mode: score）、第一季还没结算时生效，
+   * 别处什么都不做。
+   */
+  z.strictObject({ ...gate, settle: z.literal(true) }),
 ]);
 export type Effect = z.infer<typeof effect>;
 
@@ -553,6 +558,63 @@ export const growth = z.strictObject({
 });
 export type Growth = z.infer<typeof growth>;
 
+/* ---------------- 结局（W4，LG-13） ---------------- */
+
+/** 评语档：S/A/B/C/D（文案 ending.grades.<档>） */
+export const GRADES = ['S', 'A', 'B', 'C', 'D'] as const;
+export type Grade = (typeof GRADES)[number];
+
+/** 分项的初值（wave2-5-contract.md W4）：分 = floor(of × per)；文案 ending.items.<项> */
+export const DEFAULT_SCORE: Record<string, { of: string; per: number }> = {
+  stars: { of: 'stars', per: 1000 },
+  trophies: { of: 'trophies', per: 300 },
+  members: { of: 'stat.members', per: 10 },
+  reputation: { of: 'stat.reputation', per: 10 },
+  exhibition: { of: 'ending.exhibition', per: 2000 },
+  early: { of: 'ending.exhibition * ending.days_early', per: 50 },
+  cash: { of: 'stat.cash', per: 0.1 },
+};
+
+/** 评语档的初值（机器人校准，见 docs/balance）：从上往下第一个 total ≥ gte 的档；都不够是最后一档 */
+export const DEFAULT_GRADES: { grade: Grade; gte: number }[] = [
+  { grade: 'S', gte: 12500 },
+  { grade: 'A', gte: 10000 },
+  { grade: 'B', gte: 7000 },
+  { grade: 'C', gte: 4000 },
+  { grade: 'D', gte: 0 },
+];
+
+/**
+ * 结局方案 A（W4）：地图写了 ending 才打开，不写 = 以前的行为（表演赛通关、第 112 天输）。
+ * - 第 day 天 hour 点结算打分（settlement），不判输；破产（rules.lose_if）照旧结束。
+ * - exhibition 第一次满足（表演赛办成，★5）而且还没到 day：记下来，打开 card（结局卡：马上结算 { settle: true }，
+ *   或者接着经营到 day）。这时效果 endAct: won 不再结束这一局。
+ * - score：分项（文案 ending.items.<项>），分 = floor(of × per)；grades：评语档（文案 ending.grades.<档>）。
+ * - season2：结算以后命令 startSeason2 开第二季：会所照旧，时钟回到 start，目标 goal（文案 ending.goals.<目标>，占位）。
+ */
+export const ending = z.strictObject({
+  mode: z.literal('score'),
+  day: z.number().int().min(1).default(112),
+  hour: z.number().min(0).max(24).default(18),
+  exhibition: cond.default({ flag: 'exhibition_done' }),
+  card: id.optional(),
+  score: z.record(id, z.strictObject({ of: z.string(), per: z.number() })).default(DEFAULT_SCORE),
+  grades: z
+    .array(z.strictObject({ grade: z.enum(GRADES), gte: z.number() }))
+    .min(1)
+    .default(DEFAULT_GRADES),
+  season2: z
+    .strictObject({
+      goal: id.default('official_tournament'),
+      /** 第二季从哪一天几点开始（不写 = 第 1 天、地图的开门时间） */
+      start: z.strictObject({ day: z.number().int().min(1), hour: z.number().min(0).max(24) }).optional(),
+      /** 第二季一开始打开的卡 */
+      start_cards: z.array(id).default([]),
+    })
+    .default({ goal: 'official_tournament', start_cards: [] }),
+});
+export type Ending = z.infer<typeof ending>;
+
 /* ---------------- 幕 ---------------- */
 
 export const act = z.strictObject({
@@ -639,6 +701,8 @@ export const act = z.strictObject({
   tournaments: z.array(tournament).optional(),
   /** 员工成长（W3，LG-12）：不写 = 关（和以前一样） */
   growth: growth.optional(),
+  /** 结局方案 A（W4，LG-13）：不写 = 以前的行为 */
+  ending: ending.optional(),
   /** 每天固定开的活动（例如下午的青少年课） */
   daily: z.array(z.strictObject({ hour: z.number(), activity: id, if: cond.optional() })).default([]),
   /** 季节：从第几天开始（第一个从第 1 天开始）；decay 是这一季设施衰减的倍数（初秋落叶多） */

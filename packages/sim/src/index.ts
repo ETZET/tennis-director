@@ -16,6 +16,13 @@ export {
   type OptionStatus,
   optionStatus,
 } from './cards';
+export {
+  canStartSeason2,
+  type EndingStatus,
+  endingStatus,
+  gradeOf,
+  scoreOf,
+} from './ending';
 export type { SimEvent } from './events';
 export * from './game';
 export { growthOf, potentialOf } from './potential';
