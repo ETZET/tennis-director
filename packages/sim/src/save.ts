@@ -151,6 +151,43 @@ export const MIGRATIONS: Record<number, Migration> = {
     state.version = 8;
     return { ...save, version: 8, state };
   },
+  // 8 → 9（W2：赛事日历 LG-11、选路、人-13）：没有选过路、没有接下的赛事和参赛记录；
+  // 每个人加上"派去工单之前的岗位"（旧档里在做工单的人做完以后闲着，和以前一样）
+  8: (save) => {
+    const state = { ...(save.state as Record<string, unknown>) };
+    state.routes ??= {};
+    state.events ??= {};
+    state.tournaments ??= {};
+    const people: Record<string, Record<string, unknown>> = {};
+    for (const [id, p] of Object.entries((state.people as Record<string, Record<string, unknown>>) ?? {}))
+      people[id] = { back: null, ...p };
+    state.people = people;
+    state.version = 9;
+    return { ...save, version: 9, state };
+  },
+  // 9 → 10（W3 员工成长，LG-12）：没有开过的解锁。能力本来就可以是小数（总监每圈 +0.3），格式不变；
+  // 潜力不进存档（按内容现算），成长开关在内容里（growth.enabled，默认关）
+  9: (save) => {
+    const state = { ...(save.state as Record<string, unknown>) };
+    state.unlocks ??= {};
+    state.version = 10;
+    return { ...save, version: 10, state };
+  },
+  // 10 → 11（W4 结局方案 A，LG-13）：第一季、还没办成表演赛、没结算；旧档的 outcome 照旧（won / lost）。
+  // 结局开关在内容里（ending，默认没有 = 以前的行为）
+  10: (save) => {
+    const state = { ...(save.state as Record<string, unknown>) };
+    state.ending ??= { season: 1, exhibition: null, settlement: null, goal: null, land: {} };
+    state.version = 11;
+    return { ...save, version: 11, state };
+  },
+  // 11 → 12（W5 地块，LG-15）：没有开工的地块（地块开关在内容里：地图写了 plots 才有地块）
+  11: (save) => {
+    const state = { ...(save.state as Record<string, unknown>) };
+    state.plots ??= {};
+    state.version = 12;
+    return { ...save, version: 12, state };
+  },
 };
 
 export class SaveError extends Error {}

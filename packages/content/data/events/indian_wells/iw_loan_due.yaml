@@ -1,4 +1,9 @@
-# 四周到了：信用社来收钱。一次还清，或者再拖两周、多付利息。
+# 四周到了：信用社来收 $3000（GM-14 合并：原来的"展期结束"并进这张，少一张卡）。
+# GM-1：两项都锁住只能干等。现在每一项都付得起：
+# A 一次还清 $3000（钱不够时锁住）；B 先还 $2000、剩下的赖掉（声望 −4 起）——账上最多扣到 −$1000（不让一笔贷款直接逼到破产），
+# 扣不够的部分也变成坏名声（每差 $500 声望再 −1）。有钱时 A 省名声、B 省 $1000；没钱时只能 B。
+# 评审（W2 门）：原来 B 只还 $1500，借 $2500 赖一半净赚 $1000，"借了再赖"太便宜（准则 2）。试过只还本金 $2500：
+# novice 通关率掉 10 个点（钱紧的局表演赛来不及），取中间 $2000。
 id: iw_loan_due
 act: indian_wells
 source: consequence
@@ -9,14 +14,23 @@ location: entrance
 who: lender
 options:
   A:
-    # 还清：$3000，一了百了
     cost: 3000
     effects:
       - { flag: loan_taken, set: false }
       - { log: log.loan_paid }
   B:
-    # 展期两周：先付 $400 利息，两周后还是要还 $3000
-    cost: 400
     effects:
-      - { schedule: iw_loan_final, in: 14d }
+      # 写成按现金分档的定数（W2 门试玩：表达式在卡上只显示"声望 ± / 现金 ±"）：先按扣款前的现金挑一档，再扣。
+      # 扣到最多 −$1000 为止（$500 一档）；每少还 $500，声望再 −1。效果按顺序结算，从最低一档往上排：扣过款的现金只会落进已经判过的低档，所以只命中一档。
+      - { stat: reputation, add: -8, if: { expr: "stat.cash < -500" } }
+      - { stat: reputation, add: -7, if: { expr: "stat.cash >= -500 && stat.cash < 0" } }
+      - { stat: cash, add: -500, if: { expr: "stat.cash >= -500 && stat.cash < 0" } }
+      - { stat: reputation, add: -6, if: { expr: "stat.cash >= 0 && stat.cash < 500" } }
+      - { stat: cash, add: -1000, if: { expr: "stat.cash >= 0 && stat.cash < 500" } }
+      - { stat: reputation, add: -5, if: { expr: "stat.cash >= 500 && stat.cash < 1000" } }
+      - { stat: cash, add: -1500, if: { expr: "stat.cash >= 500 && stat.cash < 1000" } }
+      - { stat: reputation, add: -4, if: { expr: "stat.cash >= 1000" } }
+      - { stat: cash, add: -2000, if: { expr: "stat.cash >= 1000" } }
+      - { flag: loan_taken, set: false }
+      - { log: log.loan_settled }
 default: { then: B }

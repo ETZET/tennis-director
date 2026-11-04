@@ -1,4 +1,5 @@
-# 出去打一站比赛：只有球员能去（作用 player）。从大门出发，Palm Springs、La Quinta 的地区赛，一周一次。
+# 出去打一站比赛：只有球员能去（作用 player）。从大门出发，Palm Springs、La Quinta 的周末小比赛，一周一次。
+# 赛事阶梯（GM-10）以后它是"小比赛"：赢了拿奖金和名气，不算奖杯；奖杯在地区业余赛（regional_open）里拿。
 # 球技越高越可能赢（判定看去的那个人的球技）；赢了带回奖金和名气，输了也长见识。
 id: pl_tournament
 act: indian_wells
@@ -18,9 +19,6 @@ effects:
 onSuccess:
   - { stat: cash, add: 600 }
   - { stat: reputation, add: 4 }
-  # 赢一站算一座奖杯（LG-10，★3 要 2 座）
-  # ★2 开出地区赛（ADR 0020）：★2 以前赢了只拿奖金和声望，★2 起赢了才算奖杯
-  - { trophy: 1, if: { expr: "stars >= 2" } }
   - { log: log.tournament_won }
 onFail:
   - { log: log.tournament_lost }

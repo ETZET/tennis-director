@@ -14,6 +14,83 @@ export interface Rect {
   z1: number;
 }
 
+/** 几块矩形的外包框 */
+export function rectsBounds(rs: readonly Rect[]): Rect {
+  let x0 = Number.POSITIVE_INFINITY;
+  let x1 = Number.NEGATIVE_INFINITY;
+  let z0 = Number.POSITIVE_INFINITY;
+  let z1 = Number.NEGATIVE_INFINITY;
+  for (const r of rs) {
+    x0 = Math.min(x0, r.x0);
+    x1 = Math.max(x1, r.x1);
+    z0 = Math.min(z0, r.z0);
+    z1 = Math.max(z1, r.z1);
+  }
+  return { x0, x1, z0, z1 };
+}
+
+/** 外轮廓的一面墙：x0..x1 × z0..z1 是一条线段（x0 = x1 或 z0 = z1），(nx, nz) 朝外 */
+export interface SlabWall {
+  x0: number;
+  x1: number;
+  z0: number;
+  z1: number;
+  nx: number;
+  nz: number;
+}
+
+/**
+ * 几块矩形合并后的外轮廓：按所有矩形的边把平面切成格子，"格子在地台里、隔壁不在"的那条格边就是外墙；
+ * 同一条直线上、朝向相同、首尾相接的格边并成一面墙。重叠、相接的矩形都行，中间的接缝不会出现。
+ */
+export function slabOutline(rs: readonly Rect[]): SlabWall[] {
+  const xs = [...new Set(rs.flatMap((r) => [r.x0, r.x1]))].sort((a, b) => a - b);
+  const zs = [...new Set(rs.flatMap((r) => [r.z0, r.z1]))].sort((a, b) => a - b);
+  const NX = xs.length - 1;
+  const NZ = zs.length - 1;
+  const inside = (i: number, j: number): boolean => {
+    if (i < 0 || j < 0 || i >= NX || j >= NZ) return false;
+    const cx = ((xs[i] as number) + (xs[i + 1] as number)) / 2;
+    const cz = ((zs[j] as number) + (zs[j + 1] as number)) / 2;
+    return rs.some((r) => cx > r.x0 && cx < r.x1 && cz > r.z0 && cz < r.z1);
+  };
+  const walls: SlabWall[] = [];
+  const push = (w: SlabWall) => {
+    const p = walls[walls.length - 1];
+    // 和上一段接上（同一条线、同一个朝向）就并起来
+    if (p && p.nx === w.nx && p.nz === w.nz) {
+      if (w.nx !== 0 && p.x0 === w.x0 && p.z1 === w.z0) {
+        p.z1 = w.z1;
+        return;
+      }
+      if (w.nz !== 0 && p.z0 === w.z0 && p.x1 === w.x0) {
+        p.x1 = w.x1;
+        return;
+      }
+    }
+    walls.push(w);
+  };
+  // 竖墙（x = 常数）：每条 x 线从北往南扫
+  for (let i = 0; i <= NX; i++)
+    for (const nx of [-1, 1])
+      for (let j = 0; j < NZ; j++) {
+        const a = inside(i - 1, j);
+        const b = inside(i, j);
+        if ((nx === 1 && a && !b) || (nx === -1 && b && !a))
+          push({ x0: xs[i] as number, x1: xs[i] as number, z0: zs[j] as number, z1: zs[j + 1] as number, nx, nz: 0 });
+      }
+  // 横墙（z = 常数）：每条 z 线从西往东扫
+  for (let j = 0; j <= NZ; j++)
+    for (const nz of [-1, 1])
+      for (let i = 0; i < NX; i++) {
+        const a = inside(i, j - 1);
+        const b = inside(i, j);
+        if ((nz === 1 && a && !b) || (nz === -1 && b && !a))
+          push({ x0: xs[i] as number, x1: xs[i + 1] as number, z0: zs[j] as number, z1: zs[j] as number, nx: 0, nz });
+      }
+  return walls;
+}
+
 /** 夜里的灯光池：位置、半径（米）、强度 */
 export interface Lamp {
   x: number;
@@ -33,14 +110,18 @@ const SDZ = -0.62;
 export class GroundPainter {
   /** 米每纹素 */
   readonly TS = 0.2;
-  readonly x0: number;
-  readonly z0: number;
-  readonly x1: number;
-  readonly z1: number;
-  readonly TW: number;
-  readonly TH: number;
+  /** 贴图的范围（地台几块矩形的外包框；setExtent 会改） */
+  x0: number;
+  z0: number;
+  x1: number;
+  z1: number;
+  TW: number;
+  TH: number;
   /** 白天的贴图（打包色；0 = 没有地面，透明） */
-  readonly tex: Uint32Array;
+  tex: Uint32Array;
+  /** 地台由几块矩形拼成时：哪些纹素在地台里（1 = 在）；单块矩形时 null（整张都是地面） */
+  mask: Uint8Array | null = null;
+  private readonly fill: number;
   /** 改一次加一 */
   version = 0;
   lampVersion = 0;
@@ -50,18 +131,95 @@ export class GroundPainter {
   private nightKey = '';
   private nightBuf: Uint32Array | null = null;
 
-  constructor(slab: Rect, fill = pk(233, 201, 153)) {
-    this.x0 = slab.x0;
-    this.z0 = slab.z0;
-    this.x1 = slab.x1;
-    this.z1 = slab.z1;
-    this.TW = Math.round((slab.x1 - slab.x0) / this.TS);
-    this.TH = Math.round((slab.z1 - slab.z0) / this.TS);
+  /** slab：一块矩形，或几块拼出的轮廓（贴图覆盖外包框，框里不在地台上的纹素是 0） */
+  constructor(slab: Rect | readonly Rect[], fill = pk(233, 201, 153)) {
+    const rs = Array.isArray(slab) ? (slab as readonly Rect[]) : [slab as Rect];
+    const b = rectsBounds(rs);
+    this.fill = fill;
+    this.x0 = b.x0;
+    this.z0 = b.z0;
+    this.x1 = b.x1;
+    this.z1 = b.z1;
+    this.TW = Math.round((b.x1 - b.x0) / this.TS);
+    this.TH = Math.round((b.z1 - b.z0) / this.TS);
     this.tex = new Uint32Array(this.TW * this.TH).fill(fill);
+    if (rs.length > 1) this.applyMask(rs, null);
+  }
+
+  /**
+   * 地台换了轮廓（world.setSlab）：贴图换成新外包框的大小，原来画过的纹素按世界坐标原样搬过去
+   * （外包框的西北角没动时，纹素下标也不变，hash(i, j) 的花纹对得上）；新进地台的纹素填底色，
+   * 出了地台的纹素清成 0。之后由场景把新地画上去。
+   */
+  setExtent(slab: readonly Rect[]): void {
+    const b = rectsBounds(slab);
+    const TS = this.TS;
+    const TW = Math.round((b.x1 - b.x0) / TS);
+    const TH = Math.round((b.z1 - b.z0) / TS);
+    const old = { tex: this.tex, TW: this.TW, TH: this.TH, mask: this.mask };
+    const di = Math.round((this.x0 - b.x0) / TS);
+    const dj = Math.round((this.z0 - b.z0) / TS);
+    const tex = new Uint32Array(TW * TH);
+    const keep = new Uint8Array(TW * TH);
+    for (let j = 0; j < old.TH; j++) {
+      const nj = j + dj;
+      if (nj < 0 || nj >= TH) continue;
+      for (let i = 0; i < old.TW; i++) {
+        const ni = i + di;
+        if (ni < 0 || ni >= TW) continue;
+        const o = j * old.TW + i;
+        if (old.mask && !old.mask[o]) continue;
+        tex[nj * TW + ni] = old.tex[o] as number;
+        keep[nj * TW + ni] = 1;
+      }
+    }
+    this.x0 = b.x0;
+    this.z0 = b.z0;
+    this.x1 = b.x1;
+    this.z1 = b.z1;
+    this.TW = TW;
+    this.TH = TH;
+    this.tex = tex;
+    this.mask = null;
+    if (slab.length > 1) this.applyMask(slab, keep);
+    else for (let p = 0; p < tex.length; p++) if (!keep[p]) tex[p] = this.fill;
+    this.LIT = null;
+    this.litVer = -1;
+    this.litBuild = -1;
+    this.nightBuf = null;
+    this.nightKey = '';
+    this.version++;
+    this.lampVersion++;
+  }
+
+  /** 按几块矩形算出地台的纹素：框外的清成 0；keep 里没标的地台纹素填底色（keep = null：全填过了） */
+  private applyMask(rs: readonly Rect[], keep: Uint8Array | null): void {
+    const { TS, TW, TH, tex } = this;
+    const mask = new Uint8Array(TW * TH);
+    for (const r of rs) {
+      const i0 = Math.max(0, Math.round((r.x0 - this.x0) / TS));
+      const i1 = Math.min(TW, Math.round((r.x1 - this.x0) / TS));
+      const j0 = Math.max(0, Math.round((r.z0 - this.z0) / TS));
+      const j1 = Math.min(TH, Math.round((r.z1 - this.z0) / TS));
+      for (let j = j0; j < j1; j++) mask.fill(1, j * TW + i0, j * TW + i1);
+    }
+    for (let p = 0; p < tex.length; p++) {
+      if (!mask[p]) tex[p] = 0;
+      else if (keep && !keep[p]) tex[p] = this.fill;
+    }
+    this.mask = mask;
+  }
+
+  /** 该点在不在地台上 */
+  onSlab(x: number, z: number): boolean {
+    const i = Math.floor((x - this.x0) / this.TS);
+    const j = Math.floor((z - this.z0) / this.TS);
+    if (i < 0 || j < 0 || i >= this.TW || j >= this.TH) return false;
+    return !this.mask || this.mask[j * this.TW + i] === 1;
   }
 
   paintRect(x0: number, x1: number, z0: number, z1: number, fn: PaintFn): void {
-    const { TS, TW, TH, tex } = this;
+    const { TS, TW, TH, tex, mask } = this;
     const i0 = Math.max(0, Math.ceil((x0 - this.x0) / TS - 0.5));
     const i1 = Math.min(TW - 1, Math.floor((x1 - this.x0) / TS - 0.5));
     const j0 = Math.max(0, Math.ceil((z0 - this.z0) / TS - 0.5));
@@ -69,6 +227,7 @@ export class GroundPainter {
     for (let j = j0; j <= j1; j++) {
       const z = this.z0 + (j + 0.5) * TS;
       for (let i = i0; i <= i1; i++) {
+        if (mask && !mask[j * TW + i]) continue;
         const x = this.x0 + (i + 0.5) * TS;
         const v = fn(x, z, tex[j * TW + i] as number, i, j);
         if (v) tex[j * TW + i] = v;

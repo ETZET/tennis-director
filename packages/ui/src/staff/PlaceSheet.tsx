@@ -30,6 +30,38 @@ export function PlaceSheet({ p, actions }: { p: PlaceSheetData; actions: HudActi
             </span>
           </div>
         ) : null}
+        {p.event ? (
+          <div class="td-place-event" aria-live="polite">
+            <b>{p.event.title}</b>
+            <span>{p.event.line}</span>
+            {p.event.goals.length ? (
+              <ul>
+                {p.event.goals.map((g) => (
+                  <li key={g.id} class={g.met ? 'td-goal-met' : ''}>
+                    <span aria-hidden="true">{g.met ? '✓' : '○'}</span>
+                    <span>{g.text}</span>
+                    {g.value ? <em>{g.value}</em> : null}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
+        ) : null}
+        {p.prep ? (
+          <div class="td-place-prep">
+            <b>{p.prep.title}</b>
+            <ul>
+              {p.prep.phases.map((x) => (
+                <li key={x.id} class={x.done ? 'td-prep-done' : ''}>
+                  <span aria-hidden="true">{x.done ? '✓' : '○'}</span>
+                  <span>{x.name}</span>
+                  <em>{x.done ? STR.done : x.cost}</em>
+                </li>
+              ))}
+            </ul>
+            <p>{p.prep.foot}</p>
+          </div>
+        ) : null}
         {p.prompt ? <p class="td-sheet-status">{p.prompt}</p> : null}
         {p.rows.length ? (
           <ul class="td-place-rows">
@@ -56,7 +88,10 @@ export function PlaceSheet({ p, actions }: { p: PlaceSheetData; actions: HudActi
                     ) : null}
                   </span>
                   <span class="td-row-text">
-                    <b>{r.title}</b>
+                    <b>
+                      {r.title}
+                      {r.badge ? <span class="td-row-badge">{r.badge}</span> : null}
+                    </b>
                     <span>
                       {r.fit?.best && !r.fit.blocked ? <em class="td-row-best">{STR.best}</em> : null}
                       {r.fit && !r.locked ? r.fit.text : r.line}

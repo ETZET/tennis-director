@@ -1,0 +1,14 @@
+# 临时岗位 · 场边服务（GM-10）：邀请赛两天在红土场边递毛巾、换球、看着观众席。只在接下的邀请赛比赛日开。
+id: t_courtside
+act: indian_wells
+at: outer_23
+skill: service
+cycle: 1h
+hours: [9, 17]
+when: { facility: outer_23, is: playable }
+effects:
+  - { stat: cash, add: "round(5 * (0.6 + worker.skill / 100) * (1 + stat.reputation / 120))" }
+  - { stat: reputation, add: 0.02 }
+# 比赛日一整天的比赛磨场地（W2 复验 P1）：赛事前后要有人维护
+wear: 0.5
+performance: match

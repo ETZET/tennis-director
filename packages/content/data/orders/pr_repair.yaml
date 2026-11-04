@@ -15,5 +15,6 @@ effects:
 performance: workday
 # 修成什么（GM-13）：学院要发球机位、学员看板；晨间训练营只要标志桶、跑道和几件器械，便宜
 variants:
-  academy: {}
+  # ★2 选了度假之路（GM-14）：学院晚一星才开（★3），先只有训练营；青训之路、还没选路时照常
+  academy: { when: { any: [{ route: s2, is: none }, { route: s2, is: youth }, { expr: "stars >= 3" }] } }
   bootcamp: { cost: 600, work: 9h }

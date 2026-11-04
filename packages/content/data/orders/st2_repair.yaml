@@ -16,5 +16,6 @@ effects:
 performance: contractor
 # 修成什么（GM-13）：度假泳池（躺椅、小木屋），还是冷水恢复池（便宜、快、给球员用）
 variants:
-  resort: {}
+  # ★2 选了青训之路（GM-14）：度假泳池晚一星才开（★3），先只有冷水恢复池；度假之路、还没选路时照常
+  resort: { when: { any: [{ route: s2, is: none }, { route: s2, is: resort }, { expr: "stars >= 3" }] } }
   recovery: { cost: 3800, work: 20h }

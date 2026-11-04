@@ -17,6 +17,11 @@ export interface IsoWorld {
   readonly statics: Node;
   /** 地面贴图：paintRect / paintCirc（改完自动标脏） */
   readonly ground: GroundPainter;
+  /**
+   * 地台换轮廓（地图长大，ADR 0021）：几块矩形合并后画侧面，地面贴图跟着变（原来画的留着，新地是底色，
+   * 场景自己画上去）。bounds 给了就同时放宽镜头平移的范围。
+   */
+  setSlab(rects: Rect | readonly Rect[], bounds?: Rect): void;
   /** 夜里的灯光池，返回移除函数 */
   addLamp(l: Lamp): () => void;
   /** dt 秒，now 演出时间（秒） */
@@ -30,8 +35,8 @@ export interface IsoWorldOptions {
   sky: string;
   /** 场地范围（镜头平移的默认限制） */
   bounds: Rect;
-  /** 地台（浮空岛）范围；默认 bounds 外扩 12 米 */
-  slab?: Rect;
+  /** 地台（浮空岛）范围：一块矩形，或几块拼出的轮廓（合并后画侧面）；默认 bounds 外扩 12 米 */
+  slab?: Rect | readonly Rect[];
   /** 地台厚度（米），默认 7；小岛可以薄一些 */
   slabDepth?: number;
   /** 初始镜头 */
@@ -69,6 +74,15 @@ export function createIsoWorld(container: HTMLElement, o: IsoWorldOptions): IsoW
     statics,
     ground: view.ground,
     addLamp: (l) => view.ground.addLamp(l),
+    setSlab(rects, bounds) {
+      view.setSlab(rects);
+      if (bounds)
+        camera.limits = {
+          ...camera.limits,
+          tx: [Math.min(bounds.x0, bounds.x1), Math.max(bounds.x0, bounds.x1)],
+          tz: [Math.min(bounds.z0, bounds.z1), Math.max(bounds.z0, bounds.z1)],
+        };
+    },
     render(dt, now) {
       if (!camera.takeUpdated()) camera.update(dt, null);
       view.render(scene, statics, now);

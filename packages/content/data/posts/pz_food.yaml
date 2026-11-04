@@ -12,4 +12,6 @@ effects:
   # 遮阳观赛坡（GM-13）：棚子外面也坐得住；喷雾杆再凉一点
   - { stat: cash, add: 2, if: { variant: plaza, is: shade_lawn } }
   - { stat: cash, add: 3, if: { upgrade: plaza, has: misters } }
-wear: 0.5
+# W2 复验（P1）：使用磨损再降到原来的十分之一。有人在岗的设施每天只掉一点（看场 + 上课的会员场约 1/天），
+# 掉档要好几周、画面信号先出来；维护照旧能稳住、补回来，赛事日（t_umpire、t_courtside）磨得多
+wear: 0.025

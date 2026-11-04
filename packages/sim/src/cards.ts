@@ -196,7 +196,8 @@ export function eligibleCards(s: GameState, w: World): { card: string; weight: n
     if (s.cards.open.some((o) => o.card === c.id)) continue;
     if (s.cards.scheduled.some((x) => x.card === c.id)) continue;
     if (!test(s, w, c.when)) continue;
-    out.push({ card: c.id, weight: c.weight * Math.max(0, toneWeight(c.tone)) });
+    const weight = typeof c.weight === 'number' ? c.weight : Number(w.expr(c.weight).eval(env));
+    out.push({ card: c.id, weight: Math.max(0, weight) * Math.max(0, toneWeight(c.tone)) });
   }
   s.rng = saved;
   return out;

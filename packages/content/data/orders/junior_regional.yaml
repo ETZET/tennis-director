@@ -1,0 +1,10 @@
+# 地区青少年赛的报名工单（GM-10，tournaments.junior_regional）：第 8、12 周的周五或周六，一名教练带学员去 Palm Desert 打半天。
+# 这一周青训场的课要上够 10 圈才报得上名（赛事的 when）。学员进不进四强看带队教练的教学。
+id: junior_regional
+act: indian_wells
+at: entrance
+skill: teach
+work: 4h
+crew: 1
+only: [coach]
+performance: lesson

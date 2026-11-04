@@ -12,5 +12,9 @@ effects:
   - { stat: cash, add: 2, if: { upgrade: outer_23, has: tournament_clay } }
   - { stat: cash, add: 1, if: { upgrade: outer_23, has: pro_hard } }
   - { stat: members, add: 1, chance: 0.04 }
-wear: 0.8
+  # 度假之路（GM-14，★2 选路 resort）：周末从 Palm Springs 的酒店来打球的客人多
+  - { stat: cash, add: 2, if: { all: [{ route: s2, is: resort }, { expr: "weekday >= 5" }] } }
+# W2 复验（P1）：使用磨损再降到原来的十分之一。有人在岗的设施每天只掉一点（看场 + 上课的会员场约 1/天），
+# 掉档要好几周、画面信号先出来；维护照旧能稳住、补回来，赛事日（t_umpire、t_courtside）磨得多
+wear: 0.04
 performance: open_play

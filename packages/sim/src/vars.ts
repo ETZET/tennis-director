@@ -1,7 +1,8 @@
-import type { Cond, FacilityState } from '@td/content';
+import type { Cond, FacilityState, SkillKind } from '@td/content';
 import { type ExprEnv, evalBool, evalNumber, type Value } from '@td/shared';
+import { ACCESS } from './potential';
 import { rand } from './rng';
-import { DIRECTOR, dayOf, type GameState, minuteOfDay, type PersonAttr, weekdayOf } from './state';
+import { DIRECTOR, dayOf, type GameState, minuteOfDay, type PersonAttr, type PersonState, weekdayOf } from './state';
 import type { World } from './world';
 
 /**
@@ -84,6 +85,28 @@ export function hiredWith(s: GameState, w: World, tag: string): number {
   return n;
 }
 
+export const tagged = (w: World, id: string, tag: string | undefined): boolean => {
+  if (!tag) return true;
+  const d = w.people.get(id);
+  return !!d && (d.kind === tag || d.traits.includes(tag));
+};
+
+/** 在职、能指派的人里有没有一个 who 的这项能力（底子）≥ gte（条件 skilled） */
+export function anySkilled(s: GameState, w: World, k: SkillKind, gte: number, who?: string): boolean {
+  for (const id in s.people) {
+    const p = s.people[id] as PersonState;
+    if (isStaff(s, w, id) && tagged(w, id, who) && p[ACCESS[k]] >= gte) return true;
+  }
+  return false;
+}
+
+/** 在职、能指派的人里这项能力底子最高的值（变量 best.<能力>） */
+export function bestSkill(s: GameState, w: World, k: SkillKind): number {
+  let m = 0;
+  for (const id in s.people) if (isStaff(s, w, id)) m = Math.max(m, (s.people[id] as PersonState)[ACCESS[k]]);
+  return m;
+}
+
 /**
  * 设施此刻这一档的数值（LG-14）：基础状态，换上变体的覆盖，再加上装上的升级。
  * 没有变体和升级的设施直接返回内容里的那一档（不新建对象）。
@@ -117,6 +140,15 @@ export const remodeling = (s: GameState, id: string): boolean => !!s.remodels?.[
  */
 export const isRestored = (s: GameState, w: World, id: string): boolean =>
   s.facilities[id] !== w.act.facilities[id] && !remodeling(s, id) && (stateDef(s, w, id)?.quality ?? 0) > 0;
+
+/** 分期筹备（W2）：这一组工单做完了几成 0..1（没有这一组是 0） */
+export function prepProgress(s: GameState, w: World, group: string): number {
+  const ids = w.prep.get(group);
+  if (!ids?.length) return 0;
+  let n = 0;
+  for (const id of ids) if ((s.orderLog.done[id] ?? 0) > 0) n++;
+  return n / ids.length;
+}
 
 /** 修好了几处（变量 restored） */
 export function restoredCount(s: GameState, w: World): number {
@@ -236,6 +268,25 @@ export function makeEnv(s: GameState, w: World, extra: Record<string, Value> = {
           return s.trophies ?? 0;
         case 'variant':
           return s.variants?.[rest] ?? '';
+        case 'route':
+          return s.routes?.[rest] ?? '';
+        case 'plot':
+          return s.plots?.[rest]?.state ?? 'locked';
+        case 'prep':
+          return prepProgress(s, w, rest);
+        case 'best':
+          return rest === 'teach' || rest === 'upkeep' || rest === 'service' || rest === 'play'
+            ? bestSkill(s, w, rest)
+            : undefined;
+        case 'unlocked':
+          return s.unlocks?.[rest] ? 1 : 0;
+        case 'cycles':
+          return s.week.cycles?.[rest] ?? 0;
+        case 'event':
+          // 赛事结算以外读到 0（结算时由 extra 提供，tournaments.ts）
+          return 0;
+        case 'ending':
+          return endingVar(s, w, rest);
         case 'quiet_days':
           return (s.t - (s.cards.lastOpened ?? 0)) / 1440;
         case 'wages_week':
@@ -276,6 +327,17 @@ export function test(s: GameState, w: World, c: Cond | undefined): boolean {
   if ('facility' in c) return s.facilities[c.facility] === c.is;
   if ('variant' in c) return (s.variants?.[c.variant] ?? 'none') === c.is;
   if ('upgrade' in c) return !!s.upgrades?.[c.upgrade]?.includes(c.has);
+  if ('route' in c) return (s.routes?.[c.route] ?? 'none') === c.is;
+  if ('plot' in c) {
+    // 地块（W5）：is 是阶段（locked / building / open），或者变体（按它开了工、或者开了）
+    const st = s.plots?.[c.plot];
+    return c.is === 'locked' || c.is === 'building' || c.is === 'open'
+      ? (st?.state ?? 'locked') === c.is
+      : st?.variant === c.is;
+  }
+  if ('prep' in c) return prepProgress(s, w, c.prep) >= 1 === (c.done ?? true);
+  if ('skilled' in c) return anySkilled(s, w, c.skilled, c.gte, c.who);
+  if ('unlocked' in c) return !!s.unlocks?.[c.unlocked];
   if ('assigned' in c) {
     const p = s.people[c.assigned];
     return !!p?.job && !p.walk && (c.at === undefined || p.at === c.at);
@@ -298,4 +360,25 @@ export function test(s: GameState, w: World, c: Cond | undefined): boolean {
     return (c.running ?? true) === running;
   }
   return evalBool(w.expr(c.expr), makeEnv(s, w));
+}
+
+/** 变量 ending.*（W4 结局；地图没写 ending 时 days_early 是 0） */
+export function endingVar(s: GameState, w: World, rest: string): Value | undefined {
+  const st = s.ending;
+  const e = w.act.ending;
+  switch (rest) {
+    case 'exhibition':
+      return st?.exhibition !== null && st?.exhibition !== undefined ? 1 : 0;
+    case 'days_early': {
+      if (!e) return 0;
+      const day = st?.settlement ? st.settlement.day : dayOf(s.t);
+      return Math.max(0, e.day - day);
+    }
+    case 'season':
+      return st?.season ?? 1;
+    case 'settled':
+      return st?.settlement ? 1 : 0;
+    default:
+      return undefined;
+  }
 }

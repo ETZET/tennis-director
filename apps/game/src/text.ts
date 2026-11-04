@@ -13,7 +13,14 @@ export interface Text {
   /** 带占位符的文案：fmt('ui.left', { time: '12 min' }) */
   fmt(key: string, vars: Record<string, string | number>): string;
   personName(id: string): string;
+  /** 地点名：那一处设施现在是什么变体，先找 anchors.<id>.<变体>（硬地场、二号网球场……），没有再用 anchors.<id> */
   anchor(id: string): string;
+  /** 设施名（ui.fac.<设施>）：同样先找 ui.fac.<设施>.<变体> */
+  facility(id: string): string;
+  /** 设施某一档的名字（facilities.<设施>.<状态>）：先找 facilities.<设施>.<状态>.<变体> */
+  facilityState(id: string, state: string, fallback?: string): string;
+  /** 告诉文案每处设施现在的变体（模拟状态的 variants；每帧由投影调一次） */
+  setVariants(v: Readonly<Record<string, string>> | undefined): void;
   cardTitle(card: string): string;
   option(card: string, key: string): string;
   effect(e: EffectRecord): string | null;
@@ -21,6 +28,8 @@ export interface Text {
   because(e: CausalEntry): string;
   /** 因果日志一条的"所以"部分；没有可讲的效果时返回 null */
   so(e: CausalEntry): string | null;
+  /** 时间到了、由卡上的那个人替你选的那一条（"Dale 选了“南场”（时间到了）"）；不是这种情况返回 null */
+  defaultPick(e: CausalEntry): string | null;
   clock(t: number): string;
   day(t: number): string;
   duration(min: number): string;
@@ -40,7 +49,46 @@ export function createText(content: ContentBundle, lang: Lang): Text {
   // 人名：文案表里有译名就用（总监、中文版的教练称呼），没有就用内容里的名字
   const personName = (id: string) => table[`people.${id}`] ?? people.get(id) ?? id;
   const cardTitle = (card: string) => tr(`events.${card}.title`, card);
+  // 地点名：没写 anchors.<id> 的新地点（地块的锚点和路同名，W5）借选路的路名（"南场 · …" 只取前半）
+  const slots = Object.keys(content.acts[0]?.routes ?? {});
+  // 变体名（W2）：锚点 → 设施；每处设施现在的变体由 setVariants 告诉
+  const facilityOf = new Map(content.facilities.map((f) => [f.anchor, f.id]));
+  let variants: Readonly<Record<string, string>> = {};
+  const setVariants = (v: Readonly<Record<string, string>> | undefined) => {
+    variants = v ?? {};
+  };
+  /** 先试 <key>.<变体>，没有就是空串 */
+  const byVariant = (key: string, facility: string | undefined) => {
+    const v = facility ? variants[facility] : undefined;
+    return v ? tr(`${key}.${v}`, '') : '';
+  };
+  const facility = (f: string) => byVariant(`ui.fac.${f}`, f) || tr(`ui.fac.${f}`, f);
+  const facilityState = (f: string, state: string, fallback?: string) =>
+    byVariant(`facilities.${f}.${state}`, f) || tr(`facilities.${f}.${state}`, fallback);
+  const anchor = (id: string) => {
+    const own = byVariant(`anchors.${id}`, facilityOf.get(id)) || tr(`anchors.${id}`, '');
+    if (own) return own;
+    for (const slot of slots) {
+      const r = tr(`routes.${slot}.${id}`, '');
+      if (r) return r.split(' · ')[0] ?? r;
+    }
+    return id;
+  };
   const option = (card: string, key: string) => tr(`events.${card}.options.${key}`, key);
+  const cardWho = new Map(content.cards.map((c) => [c.id, c.who]));
+  // 时间到了由卡上的那个人（不是"应聘者"这类角色）替你选：说是谁、选了哪一项；选路的说路名
+  const defaultPick = (e: CausalEntry): string | null => {
+    const c = e.cause;
+    if (c.kind !== 'default' || !c.option) return null;
+    const who = cardWho.get(c.card);
+    if (!who || !people.has(who)) return null;
+    const r = e.effects.find((x) => x.kind === 'route');
+    const what =
+      r && r.kind === 'route'
+        ? (tr(`routes.${r.slot}.${r.route}`, r.route).split(' · ')[0] ?? r.route)
+        : (option(c.card, c.option).split(/[:：·]/)[0] ?? '').trim();
+    return fmt('ui.because.default_pick', { name: personName(who), option: what });
+  };
   const fmt = (key: string, vars: Record<string, string | number>) =>
     tr(key).replace(/\{(\w+)\}/g, (_, k: string) => String(vars[k] ?? `{${k}}`));
 
@@ -70,7 +118,7 @@ export function createText(content: ContentBundle, lang: Lang): Text {
       case 'cost':
         return zh ? `花了 $${e.amount}` : `spent $${e.amount}`;
       case 'facility':
-        return tr(`facilities.${e.facility}.${e.state}`);
+        return facilityState(e.facility, e.state);
       case 'hire':
         return zh ? `${personName(e.person)} 上任` : `${personName(e.person)} hired`;
       case 'fire':
@@ -95,20 +143,22 @@ export function createText(content: ContentBundle, lang: Lang): Text {
           .replace('{what}', tr(`orders.${e.order}.title`, e.order));
       case 'condition': {
         if (Math.abs(e.delta) < 1) return null;
-        return `${tr(`ui.fac.${e.facility}`, e.facility)} ${tr('ui.condition')} ${signed(e.delta)}`;
+        return `${facility(e.facility)} ${tr('ui.condition')} ${signed(e.delta)}`;
       }
       case 'upgrade':
         return fmt('ui.log.upgrade', {
           what: tr(`upgrades.${e.facility}.${e.upgrade}`, e.upgrade).split(' · ')[0] ?? e.upgrade,
-          place: tr(`ui.fac.${e.facility}`, e.facility),
+          place: facility(e.facility),
         });
       case 'remodel':
         return fmt('ui.log.remodel', {
-          place: tr(`ui.fac.${e.facility}`, e.facility),
+          place: facility(e.facility),
           what: tr(`variants.${e.facility}.${e.variant}`, e.variant).split(' · ')[0] ?? e.variant,
         });
       case 'trophy':
         return fmt('ui.log.trophy', { n: signed(e.delta) });
+      case 'route':
+        return fmt('ui.log.route', { route: tr(`routes.${e.slot}.${e.route}`, e.route).split(' · ')[0] ?? e.route });
       default:
         // flag、schedule 是幕后的账，不讲给玩家；变体锁定、牌匾由快讯单独讲
         return null;
@@ -133,6 +183,7 @@ export function createText(content: ContentBundle, lang: Lang): Text {
         return zh ? `你选了${o}${r}` : `you went with ${o}${r}`;
       }
       case 'default':
+        if (defaultPick(e)) return defaultPick(e) as string;
         return zh ? `没人处理“${cardTitle(c.card)}”` : `nobody handled “${cardTitle(c.card)}”`;
       case 'activity':
         return zh
@@ -171,16 +222,29 @@ export function createText(content: ContentBundle, lang: Lang): Text {
         );
       }
       case 'wear':
-        return tr('ui.because.wear')
-          .replace('{place}', tr(`ui.fac.${c.facility}`, c.facility))
-          .replace('{n}', String(c.condition));
+        return tr('ui.because.wear').replace('{place}', facility(c.facility)).replace('{n}', String(c.condition));
       case 'star':
         return fmt('ui.because.star', { n: c.stars });
       case 'remodel':
         return fmt('ui.because.remodel', {
-          place: tr(`ui.fac.${c.facility}`, c.facility),
+          place: facility(c.facility),
           what: tr(`variants.${c.facility}.${c.variant}`, c.variant).split(' · ')[0] ?? c.variant,
         });
+      case 'tournament':
+        // 赛事结算（LG-11）：办完了，或者下雨办不成
+        return fmt(c.result === 'spoiled' ? 'ui.because.tournament_spoiled' : 'ui.because.tournament', {
+          title: tr(`tournaments.${c.tournament}.title`, c.tournament),
+        });
+      case 'unlock':
+        // 成长解锁（W3）：满足各条门槛的人
+        return fmt('ui.grow.because', {
+          names: c.people.map(personName).join(zh ? '、' : ' & ') || personName(c.person),
+        });
+      case 'settlement':
+        // 结算打分（W4）
+        return fmt('ui.ending.because_settled', { total: c.total, grade: c.grade });
+      case 'season':
+        return tr('ui.ending.because_season');
       case 'debug':
         return zh ? `调试：${c.what}` : `debug: ${c.what}`;
       default:
@@ -253,7 +317,13 @@ export function createText(content: ContentBundle, lang: Lang): Text {
       const list = e.cause.opens.map((k) => tr(`stars.opens.${k}`, k)).join(zh ? '、' : ', ');
       return list ? fmt('ui.stars.opens', { list }) : tr('ui.stars.sign');
     }
-    const parts = e.effects.map(effect).filter((x): x is string => !!x);
+    // 时间到了替你选的路：路名已经在"因为"那半句里，这里不再说一遍没有主语的"走上了……"
+    const picked = defaultPick(e) !== null;
+    const parts = e.effects
+      .map((x) => (picked && x.kind === 'route' ? null : effect(x)))
+      .filter((x): x is string => !!x);
+    // 成长解锁（W3）：效果可能是幕后的旗标，至少讲开出了什么
+    if (e.cause.kind === 'unlock') parts.unshift(tr(`unlocks.${e.cause.key}`, e.cause.key));
     return parts.length ? parts.join(zh ? '，' : ', ') : null;
   };
 
@@ -271,12 +341,16 @@ export function createText(content: ContentBundle, lang: Lang): Text {
     tr,
     fmt,
     personName,
-    anchor: (id) => tr(`anchors.${id}`, id),
+    anchor,
     cardTitle,
     option,
     effect,
     because,
     so,
+    defaultPick,
+    facility,
+    facilityState,
+    setVariants,
     clock,
     day,
     duration,
@@ -292,7 +366,7 @@ export function entryTone(e: CausalEntry): 'bad' | 'good' | undefined {
       if (x.delta > 0) good++;
       else if (x.delta < 0) bad++;
     }
-    if (x.kind === 'end') return x.result === 'won' ? 'good' : 'bad';
+    if (x.kind === 'end') return x.result === 'lost' ? 'bad' : 'good';
   }
   // 掉档（准则 6）是坏消息
   if (e.cause.kind === 'wear') return 'bad';

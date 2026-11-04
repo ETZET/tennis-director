@@ -6,14 +6,14 @@ import type { OptionKey } from '@td/content';
  */
 
 /** 存档格式版本；改了格式就加一个迁移函数（见 save.ts） */
-export const SAVE_VERSION = 8;
+export const SAVE_VERSION = 12;
 
 export interface PersonState {
   id: string;
   hired: boolean;
   /** 站在哪个锚点；走在路上时是走之前的锚点（walk 不为 null） */
   at: string;
-  /** 教学能力 */
+  /** 教学能力（W3 成长打开后会是小数：存两位小数，界面自己取整） */
   skill: number;
   /** 维护能力 */
   upkeep: number;
@@ -34,8 +34,20 @@ export interface PersonState {
    * 手上的岗位过了时段、工单做完、或者闲着时，自己走去其中此刻开着、空着的那个。
    */
   routine: string[];
-  /** 为了上班暂停的工单（ADR 0014）：下了班回去接着干；玩家亲手派活或叫停时清掉 */
+  /** 记给他的工单（效果 task）：闲下来就自己走过去开工；玩家亲手派活或叫停时清掉 */
   resume?: string | null;
+  /**
+   * 人-13（W2）：从岗位上被派去做工单时，记下原来的岗位。工单做完（或作废）回到这个岗位——它还开着、空着的话；
+   * 不然就闲着。派去工单的人做完以前不被习惯拉走。
+   */
+  back?: string | null;
+  /**
+   * 玩家亲手派上的、要一直守着的岗位（W2 试玩）：
+   * - "随时"的岗位（维护）：习惯不再在早上把他拉回有时段的班；玩家再派他去别处、叫停、或者岗位没了（released）才回到习惯。
+   * - 赛事的临时岗位：这一期赛事的每一个比赛日都守着它（两天的邀请赛第二天也在；中途被事件叫走，办完回来）。
+   * 派去工单时如果原来就守着这个岗位，照旧记着（人-13 做完回来接着守）。
+   */
+  pin?: string | null;
   /** 连续闲了多少营业分钟（没有岗位或工单、没在走路、没在办事）；有活就清零。导演和卡用它（idle_days） */
   idleMin?: number;
 }
@@ -113,6 +125,26 @@ export type Cause =
   | { kind: 'remodel'; facility: string; variant: string }
   /** 升星（LG-10）：几星、开出了什么 */
   | { kind: 'star'; stars: number; opens: string[] }
+  /**
+   * 赛事结算（LG-11）：办完（done，附加目标各自达成没有、第几次参加、奖励打几折），或者下雨办不成（spoiled）
+   */
+  | {
+      kind: 'tournament';
+      tournament: string;
+      result: 'done' | 'spoiled';
+      goals: Record<string, boolean>;
+      repeat: number;
+      scale: number;
+      /** 因为临时岗位没人守而没达成的目标：哪些岗位、各空了多少分钟（W2 试玩：不能悄悄失败） */
+      unstaffed?: { goal: string; posts: { post: string; minutes: number }[] }[];
+    }
+  /** 成长解锁（W3，LG-12）：开出了什么、记在谁名下、need 各条是谁满足的 */
+  | { kind: 'unlock'; key: string; person: string; people: string[] }
+  /** 结局（W4，LG-13）：结算打分（分项、总分、评语）；开第二季 */
+  | ({ kind: 'settlement' } & Settlement)
+  | { kind: 'season'; season: number; goal: string }
+  /** 地块（W5，LG-15）：开工（选路、效果或者第二季带出来的），或者清理工单都做完、开地 */
+  | { kind: 'plot'; plot: string; variant: string; state: 'building' | 'open' }
   | { kind: 'debug'; what: string };
 
 /** 一周的钱（每天收盘按天折算记进现金，周日收盘合成一条讲给玩家） */
@@ -137,6 +169,8 @@ export interface WeekState {
   traitRep: number;
   /** 这一周开始时的质量 */
   q0: number;
+  /** 每个岗位这一周转了几圈（变量 cycles.<岗位>；W2，旧存档没有） */
+  cycles?: Record<string, number>;
 }
 
 export interface WeekSettlement {
@@ -150,7 +184,12 @@ export interface WeekSettlement {
   /** 声望各项（规则 week.reputation 的项，加上特质 traits） */
   rep: Record<string, number>;
   /** 会员：按公式该来多少人、场地撑得起多少人（null = 没上限） */
-  members: { gain: number; cap: number | null };
+  members: {
+    gain: number;
+    cap: number | null;
+    /** 这周本该走掉更多、被"一周最多走掉几个"（rules.week.member_loss_max）挡住时，挡在多少（没挡就不写） */
+    loss_max?: number;
+  };
   /** 质量这周在向哪个目标靠近，目标的各项 */
   quality: { target: number; terms: Record<string, number> };
 }
@@ -178,7 +217,11 @@ export type EffectRecord =
   | { kind: 'remodel'; facility: string; variant: string; until: number }
   | { kind: 'plaque'; facility: string; leader: string }
   | { kind: 'trophy'; delta: number }
-  | { kind: 'end'; result: 'won' | 'lost'; ending: string };
+  /** 选路（W2） */
+  | { kind: 'route'; slot: string; route: string }
+  /** 地块开工、开地（W5） */
+  | { kind: 'plot'; plot: string; variant: string; state: 'building' | 'open' }
+  | { kind: 'end'; result: OutcomeResult; ending: string };
 
 export interface OpenCard {
   /** 这一次出现的唯一编号（同一张卡可以出现多次） */
@@ -205,6 +248,79 @@ export interface RunningActivity {
   end: number;
   started: boolean;
   cause: number | null;
+}
+
+/** 一场接下了的赛事（LG-11）：这一期的时间，和赛事那几天时段里的账 */
+export interface EventRun {
+  /** 第一天开赛、最后一天收赛的时刻（绝对分钟） */
+  start: number;
+  end: number;
+  /** 赛事那几天时段里全园有需求的岗位分钟、其中有人在岗的分钟 */
+  demand: number;
+  served: number;
+  /** 临时岗位的时段分钟、其中有人在岗的分钟 */
+  need: number;
+  staffed: number;
+  /** 报名工单上那项能力最高的人的值，和干过的人 */
+  skill: number;
+  crew: string[];
+  /** 已经发过"开赛"事件的那一天（第几天） */
+  live?: number;
+  /** 每个临时岗位在比赛时段里空着的分钟（没达成"有人守"的目标时讲是哪几个岗位） */
+  short?: Record<string, number>;
+}
+
+/** 一局怎么结束的：通关、输了（破产、旧的期限），或者结局方案 A 的结算打分（W4） */
+export type OutcomeResult = 'won' | 'lost' | 'settled';
+
+/** 结算的一项：值 × 每单位的分 = 分（向下取整） */
+export interface ScoreItem {
+  id: string;
+  value: number;
+  per: number;
+  points: number;
+}
+
+/** 结算打分（W4，LG-13） */
+export interface Settlement {
+  t: number;
+  day: number;
+  /** early：表演赛办成以后在结局卡上马上结算；deadline：到了 ending.day（或者旧的期限卡） */
+  reason: 'early' | 'deadline';
+  items: ScoreItem[];
+  total: number;
+  grade: string;
+}
+
+/** 结局的状态（W4）：第几季、表演赛什么时候办成、结算、第二季的目标、第一季没选的地 */
+export interface EndingState {
+  season: number;
+  /** 表演赛办成（ending.exhibition 第一次满足）的时刻；没办成是 null */
+  exhibition: number | null;
+  /** 第一季的结算；还没结算是 null（开了第二季也留着） */
+  settlement: Settlement | null;
+  /** 第二季的目标（占位）；第一季是 null */
+  goal: string | null;
+  /** 第一季没选的路（处 → 路；没选过的处是这一处所有的路），开第二季时记下，留给 W5 的地块 */
+  land: Record<string, string[]>;
+}
+
+/** 一块地（W5，LG-15）：按哪个变体在施工、或者已经开了；还没开工（locked）的地块不在表里 */
+export interface PlotState {
+  state: 'building' | 'open';
+  variant: string;
+  /** 开工的时刻、开地的时刻（还在施工是 null） */
+  since: number;
+  opened: number | null;
+  /** 开工那一条因果日志（开地的日志挂在它下面） */
+  cause: number | null;
+}
+
+/** 一项赛事办过几次（LG-11：第二次起奖励打折、目标换一个） */
+export interface TournamentLog {
+  entries: number;
+  /** 上一次结算的时刻 */
+  last: number;
 }
 
 export interface GameState {
@@ -249,6 +365,18 @@ export interface GameState {
   stars: number;
   /** 奖杯数（LG-10） */
   trophies: number;
+  /** 选路（W2）：处（s2 / s3 / s4）→ 选的路 */
+  routes: Record<string, string>;
+  /** 赛事（LG-11）：接下了、还没结算的那一期（赛事 id → 这一期） */
+  events: Record<string, EventRun>;
+  /** 赛事 id → 办过几次 */
+  tournaments: Record<string, TournamentLog>;
+  /** 成长解锁（W3，LG-12）：键 → 记在谁名下、什么时候开的。一局一次，不往回收 */
+  unlocks: Record<string, { person: string; t: number }>;
+  /** 结局（W4，LG-13）：地图没写 ending 时一直是初始值 */
+  ending: EndingState;
+  /** 地块（W5，LG-15）：地块 id → 施工或已开；地图没写 plots 时一直是空的 */
+  plots: Record<string, PlotState>;
   /** 本周的账（周日收盘结算、写成一条因果日志，然后清零） */
   week: WeekState;
   /**
@@ -278,7 +406,7 @@ export interface GameState {
   weather: 'sun' | 'cloud' | 'rain' | 'wind';
   flags: Record<string, boolean | number | string>;
   log: CausalEntry[];
-  outcome: { result: 'won' | 'lost'; ending: string; t: number } | null;
+  outcome: { result: OutcomeResult; ending: string; t: number } | null;
   nextUid: number;
 }
 

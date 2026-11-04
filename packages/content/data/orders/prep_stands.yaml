@@ -1,0 +1,16 @@
+# 表演赛四期筹备 · 看台（W2，设计文档"表演赛分四期筹备"）：★3 起挂在中心球场的地点牌上，每一期只做一次。
+# 筹备是加成，不是门槛（GM-1：终局太贵）：不做也能办表演赛，做了更稳、更挣钱。
+# 看台：补上临时看台、修座位。表演赛坐得下更多人：成功率 +8%，办成时门票多 $1500；做完声望 +2。
+id: prep_stands
+act: indian_wells
+at: stadium_1
+skill: upkeep
+work: 14h
+cost: 1500
+crew: 4
+prep: exhibition
+when: { expr: "stars >= 3" }
+effects:
+  - { flag: prep_stands, set: true }
+  - { stat: reputation, add: 2 }
+performance: contractor

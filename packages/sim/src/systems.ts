@@ -1,10 +1,12 @@
 import { minutes } from '@td/content';
 import { directorDraw, expireCards, openScheduled } from './cards';
-import { type Ctx, run, setStat } from './effects';
+import { type Ctx, checkEnding, run, setStat } from './effects';
+import { checkUnlocks } from './growth';
 import { weightedPick } from './rng';
 import { closeLedger, decayDay, gradeDrop, overnight, staffSystem } from './staff';
 import { checkStars } from './stars';
 import { at, dayOf, minuteOfDay, weekdayOf } from './state';
+import { rainCheck, tournamentSystem } from './tournaments';
 import { num, qualityTarget, test } from './vars';
 import { walkSystem } from './walk';
 import { bookDay, settleWeek } from './week';
@@ -12,8 +14,8 @@ import type { World } from './world';
 
 /**
  * 每个 tick 按固定顺序执行的系统，每个只负责一件事（ADR 0012）：
- * 日历 → 员工走路 → 改造期满 → 岗位和工单 → 活动 → 质量 → 星级 → 事件 → 导演。
- * 收盘时：今天的岗位账 → 衰减 → 经济（按天记账）→（周日）周结算（一条因果日志）→ 掉档。
+ * 日历 → 赛事 → 员工走路 → 改造期满 → 放下没了岗位的人 → 岗位和工单 → 活动 → 质量 → 星级 → 事件 → 导演。
+ * 收盘时：衰减（读今天的岗位账）→ 今天的岗位账 → 经济（按天记账）→（周日）周结算（一条因果日志）→ 掉档。
  */
 
 /* ---------------- 活动 ---------------- */
@@ -99,8 +101,11 @@ export function recomputeDerived(ctx: Ctx): void {
 function closeDay(ctx: Ctx): void {
   const { s, w } = ctx;
   const day = dayOf(s.t);
-  closeLedger(ctx);
+  // 赛事收赛在关门那一刻的（时段写到关门）：今天就结算，不等明早
+  tournamentSystem(ctx);
+  // 衰减先看今天的岗位账（有人守着的设施掉得慢），再把账写成日志清掉
   decayDay(ctx, w.act.seasons.find((x) => x.id === s.season)?.decay ?? 1);
+  closeLedger(ctx);
   // 钱按天记账、老写法的每日漂移（week.ts，GM-1：不每天各写一条日志）
   bookDay(ctx, day);
   // 在职人员的特质：士气漂移；声望漂移记在本周的账上，周日一起结算（准则 6：声望不实时漂移）
@@ -122,6 +127,8 @@ function closeDay(ctx: Ctx): void {
   recomputeDerived(ctx);
   // 周结算以后会员和声望变了：看一眼星级（LG-10）
   checkStars(ctx);
+  // 成长解锁（W3）：招来的人、效果加的能力，收盘时补看一眼（成长关着时什么都不做）
+  checkUnlocks(ctx);
   if (sunday) {
     // 拆成几项的派生量：这一周每项变了多少（界面说明董事会信心为什么变）
     const terms: Record<string, { total: number; delta: Record<string, number> }> = {};
@@ -164,6 +171,8 @@ export function openDay(ctx: Ctx, day: number, fromMinute = 0): void {
     if (pick) s.weather = pick;
     ctx.events.push({ type: 'weather', weather: s.weather });
   }
+  // 赛事（LG-11）：接下的主办赛事今天比赛、又下雨，就办不成
+  rainCheck(ctx);
   for (const d of w.act.daily) {
     const start = at(day, d.hour);
     if (start < s.t || minuteOfDay(start) < fromMinute) continue;
@@ -188,12 +197,18 @@ export function openDay(ctx: Ctx, day: number, fromMinute = 0): void {
 export function tick(ctx: Ctx): void {
   const { s, w } = ctx;
   if (s.outcome) return;
+  checkEnding(ctx); // 结局（W4）：到了第一季的期限就结算打分；表演赛刚办成就来结局卡
+  if (s.outcome) return;
   openScheduled(ctx); // 日历和后续事件
+  tournamentSystem(ctx); // 赛事：开赛、收赛结算（LG-11）
   staffSystem(ctx); // 岗位转圈、工单推进、办事
   activitySystem(ctx); // 活动开始、结算
   qualitySystem(ctx); // 项目质量
   liveDerived(ctx); // 复原这类只读此刻状态的派生量
-  if (minuteOfDay(s.t) % 10 === 0) checkStars(ctx); // 星级（LG-10）：每 10 分钟看一眼下一星的清单
+  if (minuteOfDay(s.t) % 10 === 0) {
+    checkStars(ctx); // 星级（LG-10）：每 10 分钟看一眼下一星的清单
+    checkEnding(ctx);
+  }
   expireCards(ctx); // 事件：倒计时到了执行默认后果
   directorDraw(ctx); // 导演：要不要发新卡
   s.t += 1;

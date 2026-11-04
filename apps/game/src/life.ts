@@ -50,6 +50,8 @@ export interface LifeDeps {
   site: Site;
   /** 这个地点现在有几块能打的场地（看设施状态） */
   courtsAt: (s: GameState, anchor: string) => number;
+  /** 这个地点开了没有（地块上的新地点要开了才去；不在地块上的一直 true；不给 = 都开着） */
+  placeOpen?: (s: GameState, anchor: string) => boolean;
   sched: Scheduler;
   rnd: () => number;
   /** 一个藏着的路人（每个号码一个人） */
@@ -148,9 +150,13 @@ export function createLife(d: LifeDeps): Life {
     if (!site.courts[c.anchor]?.[c.k]) return 0;
     return c.k < d.courtsAt(s, c.anchor) ? 1 : 0;
   };
+  /** 地块上的新地点（ADR 0021）：开了才去（那儿没有设施状态，开了就算开着） */
+  const LAND = new Set(Object.keys(site.land?.stands ?? {}));
   /** 路人只去开着的地方（有场地能打的、或者设施修好了的），再加大门和停车场 */
   const spotOpen = (s: GameState, a: string) =>
-    a === 'entrance' || a === 'parking' || d.courtsAt(s, a) > 0 || s.facilities[a] === 'open';
+    LAND.has(a)
+      ? !!site.stands[a] && (d.placeOpen?.(s, a) ?? false)
+      : a === 'entrance' || a === 'parking' || d.courtsAt(s, a) > 0 || s.facilities[a] === 'open';
 
   /* ---------- 走位的公共部分：进场、离场、掉头、溶解 ---------- */
   /** 游戏分钟 / 真实秒（按最近一段时间估，用来算"走得完走不完"） */

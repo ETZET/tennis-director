@@ -44,11 +44,13 @@ function Chips2({
   paused,
   status,
   s,
+  actions,
 }: {
   club: HudSnapshot['club'];
   paused: boolean;
   status?: string | null | undefined;
   s?: SeasonInfo | undefined;
+  actions?: HudActions | undefined;
 }) {
   const none = s?.service === null;
   const pct = Math.max(0, Math.min(100, s?.service ?? 0));
@@ -93,7 +95,37 @@ function Chips2({
           {status}
         </span>
       ) : null}
+      {s?.goal ? (
+        <span class="td-chip td-goal" title={s.goal}>
+          {s.goal}
+        </span>
+      ) : null}
+      {s?.beats?.length ? <Beats beats={s.beats} actions={actions} /> : null}
     </div>
+  );
+}
+
+/** 接下来的两个日历节拍（UI-9）：只读的小牌，点一下镜头转到那一处的地点牌（不开面板） */
+function Beats({ beats, actions }: { beats: NonNullable<SeasonInfo['beats']>; actions?: HudActions | undefined }) {
+  return (
+    <span class="td-beats" title={STR.next}>
+      {beats.map((b) => (
+        <button
+          type="button"
+          key={b.id}
+          class={`td-chip td-beat${b.live ? ' td-beat-live' : ''}`}
+          title={b.full ?? `${b.label} · ${b.when}`}
+          aria-label={b.full ?? `${b.label} · ${b.when}`}
+          onClick={(e) => {
+            actions?.beat?.(b.place);
+            if (e.detail > 0) (e.currentTarget as HTMLElement).blur();
+          }}
+        >
+          <b>{b.when}</b>
+          <span>{b.label}</span>
+        </button>
+      ))}
+    </span>
   );
 }
 
@@ -102,18 +134,20 @@ function ScoreBug({
   paused,
   status,
   season,
+  actions,
 }: {
   club: HudSnapshot['club'];
   paused: boolean;
   status?: string | null | undefined;
   season?: SeasonInfo | undefined;
+  actions?: HudActions | undefined;
 }) {
   return (
     <header class="td-bug">
       <Crest />
       <div class="td-bug-col">
         <h1 class="td-bug-name">{club.name}</h1>
-        <Chips2 club={club} paused={paused} status={status} s={season} />
+        <Chips2 club={club} paused={paused} status={status} s={season} actions={actions} />
       </div>
     </header>
   );
@@ -318,7 +352,7 @@ function StatStrip({ s }: { s: HudSnapshot }) {
 
 function EventCard({ c, actions }: { c: EventCardData; actions: HudActions }) {
   return (
-    <section class={`td-card td-card-${c.kind}`} key={c.id} aria-live="polite">
+    <section class={`td-card td-card-${c.kind}${c.compact ? ' td-card-compact' : ''}`} key={c.id} aria-live="polite">
       {c.who ? (
         <div class="td-who">
           <span class="td-face" style={{ background: c.who.color }} aria-hidden="true">
@@ -366,7 +400,7 @@ function EventCard({ c, actions }: { c: EventCardData; actions: HudActions }) {
               <button
                 type="button"
                 key={a.key}
-                class={`td-answer${a.chosen ? ' td-chosen' : ''}${a.walk ? ' td-walk' : ''}`}
+                class={`td-answer${a.chosen ? ' td-chosen' : ''}${a.walk ? ' td-walk' : ''}${a.previewing ? ' td-answer-on' : ''}`}
                 aria-disabled={a.disabled ? 'true' : undefined}
                 aria-pressed={a.chosen ? 'true' : 'false'}
                 title={a.walk ? STR.walkThere : undefined}
@@ -377,7 +411,10 @@ function EventCard({ c, actions }: { c: EventCardData; actions: HudActions }) {
                 <span class="td-key">{a.key}</span>
                 <span class="td-answer-col">
                   <span class="td-answer-text">{a.text}</span>
+                  {a.opens ? <span class="td-answer-opens">＋ {a.opens}</span> : null}
+                  {a.costs ? <span class="td-answer-costs">－ {a.costs}</span> : null}
                   {a.chips?.length ? <Chips chips={a.chips} /> : null}
+                  {a.potential ? <span class="td-answer-potential">{a.potential}</span> : null}
                   {a.hint ? <span class="td-answer-hint">{a.hint}</span> : null}
                   {a.then ? <span class="td-answer-then">{a.then}</span> : null}
                 </span>
@@ -386,6 +423,8 @@ function EventCard({ c, actions }: { c: EventCardData; actions: HudActions }) {
             ))}
           </div>
         ) : null}
+        {c.score ? <ScoreTable sc={c.score} /> : null}
+        {c.recap ? <Recap r={c.recap} /> : null}
         {c.note || c.action ? (
           <div class="td-card-foot">
             {c.note ? <span class="td-card-note">{c.note}</span> : <span />}
@@ -396,8 +435,71 @@ function EventCard({ c, actions }: { c: EventCardData; actions: HudActions }) {
             ) : null}
           </div>
         ) : null}
+        {c.actions?.length ? (
+          <div class="td-card-actions">
+            {c.actions.map((a, i) => (
+              <button
+                type="button"
+                key={a.id}
+                class={i === 0 ? 'td-card-action' : 'td-card-action td-card-action-2'}
+                onClick={() => actions.cardAction(a.id)}
+              >
+                {a.label}
+              </button>
+            ))}
+          </div>
+        ) : null}
       </div>
     </section>
+  );
+}
+
+/** 结局卡（W4）：分项一行一行，最后是总分、评语档和一句评语 */
+function ScoreTable({ sc }: { sc: NonNullable<EventCardData['score']> }) {
+  return (
+    <div class="td-score">
+      {sc.line ? <p class="td-score-line">{sc.line}</p> : null}
+      <ol class="td-score-rows">
+        {sc.rows.map((r) => (
+          <li key={r.id} class={r.negative ? 'td-bad' : ''}>
+            <span class="td-score-label">{r.label}</span>
+            <span class="td-score-detail">{r.detail}</span>
+            <b>{r.points}</b>
+          </li>
+        ))}
+      </ol>
+      <div class="td-score-total">
+        <span class={`td-score-grade td-grade-${sc.grade}`}>{sc.grade}</span>
+        <span class="td-score-verdict">
+          {sc.gradeName ? <b>{sc.gradeName}</b> : null}
+          <span>{sc.verdict}</span>
+        </span>
+        <span class="td-score-sum">
+          <span>{sc.totalLabel}</span>
+          <b>{sc.total}</b>
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/** 结局卡"看总结"：这一季的大事，按时间排 */
+function Recap({ r }: { r: NonNullable<EventCardData['recap']> }) {
+  return (
+    <div class="td-recap">
+      <h3>{r.title}</h3>
+      {r.lines.length ? (
+        <ol>
+          {r.lines.map((x) => (
+            <li key={x.id}>
+              <b>{x.when}</b> {x.text}
+            </li>
+          ))}
+        </ol>
+      ) : r.empty ? (
+        <p>{r.empty}</p>
+      ) : null}
+    </div>
   );
 }
 
@@ -471,6 +573,13 @@ const PlayIcon = () => (
   </svg>
 );
 
+/** 回到会所：一座小房子 */
+const HomeIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+    <path d="M12 3l9 8h-3v9h-5v-6h-2v6H6v-9H3z" />
+  </svg>
+);
+
 function ClubWire({ s, actions }: { s: HudSnapshot; actions: HudActions }) {
   const { paused, speed } = s.controls;
   return (
@@ -478,7 +587,7 @@ function ClubWire({ s, actions }: { s: HudSnapshot; actions: HudActions }) {
       <span class="td-wire-tag">{STR.wire}</span>
       <ol class="td-wire-items" aria-label={STR.wire}>
         {s.wire.map((w) => (
-          <li key={w.id} class={w.hot ? 'td-hot' : ''}>
+          <li key={w.id} class={w.hot ? 'td-hot' : ''} title={w.text}>
             <b>{w.time}</b> {w.text}
           </li>
         ))}
@@ -490,6 +599,17 @@ function ClubWire({ s, actions }: { s: HudSnapshot; actions: HudActions }) {
         <button type="button" aria-label={STR.rotateRight} title={STR.rotateRight} onClick={() => actions.rotate(1)}>
           <RotR />
         </button>
+        {actions.home ? (
+          <button
+            type="button"
+            class="td-ctrl-home"
+            aria-label={STR.home}
+            title={STR.home}
+            onClick={() => actions.home?.()}
+          >
+            <HomeIcon />
+          </button>
+        ) : null}
         <button
           type="button"
           class="td-ctrl-main"
@@ -513,7 +633,7 @@ export function Hud({ s, actions }: { s: HudSnapshot; actions: HudActions }) {
     <div class="td-hud">
       {/* 左上标题卡、右上俱乐部报告（手机上上下叠着） */}
       <div class="td-top">
-        <ScoreBug club={s.club} paused={s.controls.paused} status={s.status} season={s.season} />
+        <ScoreBug club={s.club} paused={s.controls.paused} status={s.status} season={s.season} actions={actions} />
         <StatStrip s={s} />
       </div>
       {s.card ? <EventCard c={s.card} actions={actions} /> : null}

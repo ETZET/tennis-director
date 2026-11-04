@@ -1,8 +1,15 @@
-import { createIsoWorld, type IsoCameraPose, indianWells, type Site, setPeopleView } from '@td/iso';
+import {
+  createIsoWorld,
+  type IsoCameraLimits,
+  type IsoCameraPose,
+  indianWells,
+  type Site,
+  setPeopleView,
+} from '@td/iso';
 import { clamp } from '@td/shared';
-import { CONTENT, type ContentBundle, canAssign, DIRECTOR, type SimEvent, worldOf } from '@td/sim';
+import { CONTENT, type ContentBundle, canAssign, DIRECTOR, placeAvailable, type SimEvent, worldOf } from '@td/sim';
 import { type HudActions, mountHud, setHudStrings } from '@td/ui';
-import { variantSite } from './courts';
+import { plotForRoute, variantSite, withLand } from './courts';
 import { createDebug } from './debug';
 import { GameLabels } from './labels';
 import { clearAutosave, downloadSave, readAutosave, writeAutosave } from './persist';
@@ -36,7 +43,8 @@ const applyHudStrings = () => setHudStrings((k) => text.tr(`ui.hud.${k}`, '') ||
 applyHudStrings();
 
 /* ---------- 舞台：整局只有一张地图（Indian Wells，2026-11-01） ---------- */
-const site: Site = indianWells.INDIAN_WELLS;
+// 地块上的新地点（ADR 0021）并进锚点和站位：开没开由模拟的 placeAvailable / placeOpen 决定
+const site: Site = withLand(indianWells.INDIAN_WELLS);
 const container = $('stage');
 const HOME: IsoCameraPose =
   container.clientWidth / Math.max(1, container.clientHeight) < 0.8 ? site.camera.portrait : site.camera.overview;
@@ -61,6 +69,7 @@ let projector: Projector;
 function begin(s: Session): void {
   session = s;
   projector = new Projector(content, text);
+  projector.canShow = (a) => !!(site.anchors[a] ?? site.stands[a]);
   scene.sync(s.s);
   camera.reset();
   // 开场镜头对准总监（开局他站在大门口，默认视角里在屏幕外；QA P2-3）：总监落在画面中间偏右
@@ -82,6 +91,11 @@ function freshSession(): Session {
 /* ---------- 界面 ---------- */
 const hudActions: HudActions = {
   rotate: (dir) => camera.rotate(-dir),
+  // 回到会所（UI-12）：镜头回到开局的位姿（转角不变），不再跟随别处
+  home: () => {
+    camera.setFollow(false);
+    camera.reset();
+  },
   togglePause: () => {
     session.paused = !session.paused;
     draw();
@@ -95,6 +109,20 @@ const hudActions: HudActions = {
     if (id === 'replay') {
       void clearAutosave();
       begin(freshSession());
+    } else if (id === 'summary' || id === 'score') {
+      // 结局卡（W4）：分数和总结来回切，只是画面
+      session.endView = id;
+      draw();
+    } else if (id === 'season2') {
+      // 开第二季：时钟回到第二季开局，画面按新状态重新摆一遍
+      session.endView = 'score';
+      session.send({ type: 'startSeason2' });
+      pump([]);
+      if (!session.s.outcome) {
+        scene.sync(session.s);
+        session.paused = false;
+        draw();
+      }
     }
   },
   // 员工条：点一下拿起来，再点场景里的岗位或工单；或者按住直接拖过去
@@ -123,6 +151,7 @@ const hudActions: HudActions = {
   },
   target: (id) => tapTarget(id),
   variant: (order, v) => tapVariant(order, v),
+  beat: (place) => jumpTo(place),
 };
 /** 屏幕上 (x, y) 那儿是地点清单的哪一行，或者哪块地点牌 */
 function targetAt(x: number, y: number): { target: string; variant?: string } | { place: string } | null {
@@ -152,7 +181,10 @@ function assignTo(person: string, target: string, variant?: string): void {
 }
 const ui = mountHud($('hud'), hudActions);
 
-function answer(key: 1 | 2 | 3): void {
+/**
+ * 卡片选项。选路卡（W2）要点两下：第一下镜头转到这条路落在哪儿、叠上预览，第二下才定（direct：试玩桥直接定）。
+ */
+function answer(key: 1 | 2 | 3, direct = false): void {
   const o = Projector.focusCard(session.s, content);
   if (!o || session.s.outcome) return;
   const w = worldOf(session.s, content);
@@ -160,8 +192,26 @@ function answer(key: 1 | 2 | 3): void {
   if (!c) return;
   const keys = (['A', 'B', 'C'] as const).filter((k) => c.options[k]);
   const opt = keys[key - 1];
-  if (opt && session.choose(o.uid, opt)) pump([]);
+  if (!opt) return;
+  const p = session.routePick;
+  if (!direct && projector.routeOf(o.card, opt) && !(p?.uid === o.uid && p.option === opt)) {
+    session.routePick = { uid: o.uid, option: opt };
+    draw();
+    return;
+  }
+  if (session.choose(o.uid, opt)) pump([]);
 }
+
+/**
+ * 季节栏上点了一个节拍（UI-9）：镜头转到那一处的地点牌，牌子亮几秒。只读，不开清单。
+ */
+let beatFocus: { place: string; seq: number; until: number } | null = null;
+let beatSeq = 0;
+function jumpTo(place: string): void {
+  beatFocus = { place, seq: ++beatSeq, until: performance.now() + 3500 };
+  draw();
+}
+const beatOn = (a: string) => !!beatFocus && beatFocus.place === a && performance.now() < beatFocus.until;
 
 const draw = () => {
   syncPreview();
@@ -173,6 +223,7 @@ const draw = () => {
  * 只是画面，不进模拟。
  */
 let previewKey = '';
+let landKey = '';
 function syncPreview(): void {
   const p = session.preview;
   const w = worldOf(session.s, content);
@@ -182,12 +233,27 @@ function syncPreview(): void {
   const shown = session.place === o?.at && !session.sheet && !session.s.cards.open.length && !session.s.outcome;
   const live = !!p && !!o && !!f && shown && !session.s.orders[o.id]?.variant;
   if (!live) session.preview = null;
-  const key = live && p ? `${f}:${p.variant}` : '';
-  if (key === previewKey) return;
-  const was = previewKey.split(':')[0] || null;
-  previewKey = key;
-  if (live && p) scene.preview(f, p.variant);
-  else if (was) scene.preview(was, null);
+  // 选路卡上点过的那一项（W2）：★2 的路叠在先开的设施上，★3、★4 的路叠在新地块上
+  const rf = projector.routeFocus(session);
+  if (!rf && session.routePick && !session.s.cards.open.some((x) => x.uid === session.routePick?.uid))
+    session.routePick = null;
+  const want = live && p && f ? { f, v: p.variant } : rf?.facility ? { f: rf.facility, v: rf.variant } : null;
+  const key = want ? `${want.f}:${want.v}` : '';
+  if (key !== previewKey) {
+    const was = previewKey.split(':')[0] || null;
+    previewKey = key;
+    if (want) scene.preview(want.f, want.v);
+    else if (was) scene.preview(was, null);
+  }
+  // ★3、★4 的路落在哪块地上（wave2-5-contract.md「地块」）
+  const plot = rf && !rf.facility ? plotForRoute(site, content.acts[0]?.plots, rf.slot, rf.variant) : null;
+  const lk = plot && rf ? `${plot}:${rf.variant}` : '';
+  if (lk !== landKey) {
+    const was = landKey.split(':')[0] || null;
+    landKey = lk;
+    if (plot && rf) scene.landPreview(plot, rf.variant);
+    else if (was) scene.landPreview(was, null);
+  }
 }
 
 /* ---------- 地点牌、岗位和工单的标记 ---------- */
@@ -252,6 +318,8 @@ const placePoint = (a: string) => {
   };
 };
 const director = () => session.s.people[DIRECTOR];
+/** 这个地点在不在地图上（地块上的新地点开工以后才有；W5） */
+const avail = (a: string) => placeAvailable(session.s, worldOf(session.s, content), a);
 /** 拉远看整座岛时（手机默认视角），只给总监所在、正要去、有事的地方挂名字；其余缩成小圆点 */
 const placeFlags = (a: string) => {
   const s = session.s;
@@ -262,7 +330,7 @@ const placeFlags = (a: string) => {
     const c = worldOf(s, content).cards.get(o.card);
     return (c?.stage?.anchor ?? c?.location) === a;
   });
-  return { here, dest, card, dot: labels.compact && !here && !dest && !card };
+  return { here, dest, card, dot: labels.compact && !here && !dest && !card && !beatOn(a) };
 };
 /** 牌子的摆放优先级：打开的、要去的、有事的、能接手里这个人的先摆，其余让位（QA P1-2） */
 const placePrio = (a: string, base: number) => () => {
@@ -270,6 +338,7 @@ const placePrio = (a: string, base: number) => () => {
   const h = hubOf(a);
   return (
     base +
+    (beatOn(a) ? 80 : 0) +
     (session.place === a ? 60 : 0) +
     (f.card ? 40 : 0) +
     (f.dest ? 30 : 0) +
@@ -279,41 +348,49 @@ const placePrio = (a: string, base: number) => () => {
     (h?.ready ? 4 : 0)
   );
 };
-for (const a of content.acts[0]?.anchors ?? []) {
-  const placeLabel = labels.add({
-    get: ground(a, 0.2),
-    screen: placePoint(a),
-    lift: () => (placeFlags(a).dot ? 8 : 18),
-    prio: placePrio(a, 0),
-    crowded: 'dot',
-    keepOnScreen: true,
-    // 缩成小圆点的地方如果立着地点牌，圆点就不画了（地点牌本身能点）
-    // 立着地点牌的地方，名字和状态（总监在这儿、正要去、有卡）都画在地点牌上（一个地点只有一块牌）
-    text: () => (hubOf(a) ? null : text.anchor(a)),
-    cls: () => {
-      const f = placeFlags(a);
-      return `pl${f.here ? ' pl-here' : ''}${f.dest ? ' pl-dest' : ''}${f.card ? ' pl-card' : ''}${f.dot ? ' pl-dot' : ''}`;
-    },
-  });
-  placeLabel.el.dataset.anchor = a;
-  const center = site.anchors[a];
-  labels.add({
-    // 活动牌挂在场地中央（地点牌在门口），两块牌子不叠在一起
-    get: center ? () => ({ x: center.x, y: site.groundY(center.x, center.z) + 0.2, z: center.z }) : ground(a, 0.2),
-    lift: 20,
-    prio: () => -10,
-    crowded: 'hide',
-    stem: false,
-    cls: () => 'act',
-    text: () => {
-      const s = session.s;
-      const r = s.activities.find((x) => x.started && x.anchor === a && s.t < x.end);
-      return r
-        ? text.fmt('ui.activity', { title: text.tr(`activities.${r.id}.title`), time: text.duration(r.end - s.t) })
-        : null;
-    },
-  });
+/** 已经立了名字牌、地点牌的地点（内容热重载加了新地点时只补新的） */
+const named = new Set<string>();
+const hubbed = new Set<string>();
+function addPlaceLabels(c: ContentBundle): void {
+  for (const a of c.acts[0]?.anchors ?? []) {
+    if (named.has(a)) continue;
+    named.add(a);
+    const placeLabel = labels.add({
+      get: ground(a, 0.2),
+      screen: placePoint(a),
+      lift: () => (placeFlags(a).dot ? 8 : 18),
+      prio: placePrio(a, 0),
+      crowded: 'dot',
+      keepOnScreen: true,
+      // 缩成小圆点的地方如果立着地点牌，圆点就不画了（地点牌本身能点）
+      // 立着地点牌的地方，名字和状态（总监在这儿、正要去、有卡）都画在地点牌上（一个地点只有一块牌）
+      text: () => (!avail(a) || hubOf(a) ? null : text.anchor(a)),
+      cls: () => {
+        const f = placeFlags(a);
+        return `pl${f.here ? ' pl-here' : ''}${f.dest ? ' pl-dest' : ''}${f.card ? ' pl-card' : ''}${f.dot ? ' pl-dot' : ''}${beatOn(a) ? ' pl-beat' : ''}`;
+      },
+    });
+    placeLabel.el.dataset.anchor = a;
+    const center = site.anchors[a];
+    labels.add({
+      // 活动牌挂在场地中央（地点牌在门口），两块牌子不叠在一起
+      get: center ? () => ({ x: center.x, y: site.groundY(center.x, center.z) + 0.2, z: center.z }) : ground(a, 0.2),
+      lift: 20,
+      prio: () => -10,
+      crowded: 'hide',
+      stem: false,
+      cls: () => 'act',
+      text: () => {
+        const s = session.s;
+        const r = s.activities.find((x) => x.started && x.anchor === a && s.t < x.end);
+        return r
+          ? text.fmt('ui.activity', { title: text.tr(`activities.${r.id}.title`), time: text.duration(r.end - s.t) })
+          : null;
+      },
+    });
+  }
 }
+addPlaceLabels(content);
 
 /**
  * 地点牌（ADR 0013）：一个地点一块牌，和这个地点有多少岗位、工单无关。
@@ -328,6 +405,8 @@ const hubOf = (a: string) => {
 const esc = (x: string) => x.replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`);
 function addHubs(c: ContentBundle): void {
   for (const a of c.acts[0]?.anchors ?? []) {
+    if (hubbed.has(a)) continue;
+    hubbed.add(a);
     const m = labels.add(
       {
         // 牌子指向地点本身（球场远端的边、地点中心），不压在站位上的人头上（QA P2-4）
@@ -337,7 +416,7 @@ function addHubs(c: ContentBundle): void {
         keepOnScreen: true,
         prio: placePrio(a, 10),
         crowded: 'dot',
-        text: () => (hubOf(a) ? text.anchor(a) : null),
+        text: () => (avail(a) && hubOf(a) ? text.anchor(a) : null),
         html: () => {
           const h = hubOf(a);
           if (!h) return '';
@@ -360,7 +439,7 @@ function addHubs(c: ContentBundle): void {
           const h = hubOf(a);
           const need = h?.posts.some((p) => p.need);
           const f = placeFlags(a);
-          return `hub${f.here ? ' hub-here' : ''}${f.dest ? ' hub-dest' : ''}${f.card ? ' hub-card' : ''}${need ? ' hub-need' : ''}${h?.fit === 'fit' ? ' tg-fit' : h?.fit === 'nofit' ? ' tg-nofit' : ''}${session.place === a ? ' hub-open' : ''}`;
+          return `hub${beatOn(a) ? ' hub-beat' : ''}${f.here ? ' hub-here' : ''}${f.dest ? ' hub-dest' : ''}${f.card ? ' hub-card' : ''}${need ? ' hub-need' : ''}${h?.fit === 'fit' ? ' tg-fit' : h?.fit === 'nofit' ? ' tg-nofit' : ''}${session.place === a ? ' hub-open' : ''}`;
         },
       },
       () => tapPlace(a),
@@ -428,18 +507,72 @@ const setHover = (el: HTMLElement | null) => {
   hoverEl = el;
   hoverEl?.classList.add('drop-hover');
 };
-document.addEventListener('pointermove', (e) => {
-  // 只在按住拖人时（员工条拿起了人、手指没松开）
-  if (!session.picked || !e.buttons) return setHover(null);
+const hoverAt = (x: number, y: number) => {
   let el: HTMLElement | null = null;
-  for (const x of document.elementsFromPoint(e.clientX, e.clientY)) {
-    el = (x as HTMLElement).closest?.<HTMLElement>('[data-target],[data-place]') ?? null;
+  for (const h of document.elementsFromPoint(x, y)) {
+    el = (h as HTMLElement).closest?.<HTMLElement>('[data-target],[data-place]') ?? null;
     if (el) break;
   }
   setHover(el);
+};
+/** 按住拖人时手指在哪（视口 CSS 像素）；松手、没拿人是 null */
+let dragPt: { x: number; y: number } | null = null;
+document.addEventListener('pointermove', (e) => {
+  // 只在按住拖人时（员工条拿起了人、手指没松开）
+  if (!session.picked || !e.buttons) {
+    dragPt = null;
+    return setHover(null);
+  }
+  dragPt = { x: e.clientX, y: e.clientY };
+  hoverAt(e.clientX, e.clientY);
 });
-document.addEventListener('pointerup', () => setHover(null));
-document.addEventListener('pointercancel', () => setHover(null));
+const endDrag = () => {
+  dragPt = null;
+  edge.left = false;
+  edge.t = 0;
+  setHover(null);
+};
+document.addEventListener('pointerup', endDrag);
+document.addEventListener('pointercancel', endDrag);
+
+/*
+ * ---------- 拿着人拖到屏幕边：镜头往那边平移（UI-12） ----------
+ * 地图长大以后一屏装不下（ADR 0021），要派到远处的地方就把人拖到边上。左右两边、HUD 上沿下面一条、
+ * 员工条上面一条是"边"；手指停在边上一小会儿才开始走，越靠边越快，到了镜头范围的尽头就停。
+ * 刚从员工条按住拿人时手指本来就在底下：先拖进画面里一次，底边才算数；手指回到员工条上不平移（那是放回去）。
+ */
+const EDGE_PX = 48;
+const EDGE_SPEED = 560;
+const EDGE_DWELL = 0.18;
+const edge = { left: false, t: 0 };
+function edgePan(dt: number): void {
+  if (!dragPt || !session.picked) {
+    edge.t = 0;
+    return;
+  }
+  const r = container.getBoundingClientRect();
+  const x = dragPt.x - r.left;
+  const y = dragPt.y - r.top;
+  const W = r.width;
+  const band = visibleBand(document.querySelector('.td-staff-row') ?? document.querySelector('.td-wire'));
+  if (y < band.bottom - EDGE_PX) edge.left = true;
+  const k = (d: number) => clamp(1 - d / EDGE_PX, 0, 1);
+  const ex = x < EDGE_PX ? -k(x) : x > W - EDGE_PX ? k(W - x) : 0;
+  const ey =
+    y < band.top + EDGE_PX ? -k(Math.max(0, y - band.top)) : edge.left && y <= band.bottom ? k(band.bottom - y) : 0;
+  if (!ex && !ey) {
+    edge.t = 0;
+    return;
+  }
+  edge.t += dt;
+  const ramp = clamp((edge.t - EDGE_DWELL) / 0.4, 0, 1);
+  if (!ramp) return;
+  camera.setFollow(false);
+  const v = EDGE_SPEED * ramp * dt;
+  camera.pan(-ex * v, -ey * v);
+  // 画面在手指下面挪了：落点跟着重新亮
+  hoverAt(dragPt.x, dragPt.y);
+}
 
 /* ---------- 键盘 ---------- */
 window.addEventListener('keydown', (e) => {
@@ -511,16 +644,88 @@ function previewFocus(): { key: string; x: number; y: number; z: number; sheet: 
   if (!o || !c) return null;
   return { key: `pv:${p.order}:${p.variant}`, x: c.x, y: site.groundY(c.x, c.z), z: c.z, sheet };
 }
+/** 选路卡上点过的那一项（W2）、季节栏上点过的节拍（UI-9）：镜头对准那一处 */
+function pointFocus(): { key: string; x: number; y: number; z: number; band: Element | null } | null {
+  const rf = projector.routeFocus(session);
+  const ra = rf?.anchor ?? null;
+  const rc = ra ? (site.anchors[ra] ?? site.stands[ra]) : undefined;
+  if (rf && rc)
+    return {
+      key: `rt:${rf.key}`,
+      x: rc.x,
+      y: site.groundY(rc.x, rc.z),
+      z: rc.z,
+      band: document.querySelector('.td-card'),
+    };
+  if (beatFocus && performance.now() < beatFocus.until) {
+    const c = site.anchors[beatFocus.place] ?? site.stands[beatFocus.place];
+    if (c) return { key: `bt:${beatFocus.seq}`, x: c.x, y: site.groundY(c.x, c.z), z: c.z, band: null };
+  }
+  return null;
+}
+/**
+ * 镜头平移的范围平时由地图定（地台长大时 setSlab 放宽）。选路卡预览还没长出来的地（学院岛在天上）、
+ * 新地启用时，范围临时放宽到够得着那一处；不看了就还回去（这期间地图自己改过范围就以地图的为准）。
+ */
+let baseLimits: IsoCameraLimits | null = null;
+let ownLimits: IsoCameraLimits | null = null;
+function reach(p: { x: number; z: number } | null): void {
+  if (baseLimits && camera.limits !== ownLimits) baseLimits = null; // 地图换了范围
+  if (!p) {
+    if (baseLimits) camera.limits = baseLimits;
+    baseLimits = ownLimits = null;
+    return;
+  }
+  const b = baseLimits ?? camera.limits;
+  if (p.x >= b.tx[0] && p.x <= b.tx[1] && p.z >= b.tz[0] && p.z <= b.tz[1]) {
+    reach(null);
+    return;
+  }
+  baseLimits = b;
+  ownLimits = {
+    zoom: b.zoom,
+    tx: [Math.min(b.tx[0], p.x), Math.max(b.tx[1], p.x)],
+    tz: [Math.min(b.tz[0], p.z), Math.max(b.tz[1], p.z)],
+  };
+  camera.limits = ownLimits;
+}
+const landAnchor = (a: string | null | undefined) => (a ? (site.land?.anchors[a] ?? null) : null);
+/** 新地启用的镜头（W5）：飞过去之前镜头的目标点；停完飞回来，飞回来这一段到什么时候（performance.now） */
+let flyBack: { key: string; tx: number; tz: number } | null = null;
+let returning: { tx: number; tz: number; until: number } | null = null;
 function followFocus(): { x: number; z: number } | null {
+  const pt = pointFocus();
+  const rf = pt?.key.startsWith('rt:') ? projector.routeFocus(session) : null;
+  const f0 = pt ? null : scene.focus();
+  reach(landAnchor(rf?.anchor) ?? (f0?.land ? f0 : null));
+  if (pt) {
+    flyBack = null;
+    returning = null;
+    if (pt.key !== focusKey) {
+      focusKey = pt.key;
+      camera.setFollow(true);
+    }
+    return camera.following ? aimAt(pt.x, pt.y, pt.z, visibleBand(pt.band)) : null;
+  }
   const pv = previewFocus();
-  const f = pv ? null : scene.focus();
+  const f = pv ? null : f0;
   const key = pv ? pv.key : f ? `f:${f.seq}` : '';
+  if (flyBack && key !== flyBack.key) {
+    // 新地的镜头停完了：飞回原来的地方（玩家中途拖过画面就不回；接着有别的镜头也不回）
+    if (camera.following && !pv && !f) returning = { tx: flyBack.tx, tz: flyBack.tz, until: performance.now() + 2500 };
+    flyBack = null;
+  }
   if (!pv && !f) {
+    if (returning && camera.following && performance.now() < returning.until)
+      return { x: returning.tx, z: returning.tz };
+    returning = null;
     focusKey = '';
     if (camera.following) camera.setFollow(false);
     return null;
   }
+  returning = null;
   if (key !== focusKey) {
+    if (f?.land) flyBack = { key, tx: camera.target.tx, tz: camera.target.tz };
     focusKey = key;
     camera.setFollow(true);
   }
@@ -576,6 +781,7 @@ function frame(ts: number) {
   const card = document.querySelector('.td-card');
   const occ = card ? Math.max(0, container.clientHeight - card.getBoundingClientRect().top) : 0;
   if (occ !== camera.occludedBottomPx) camera.occludedBottomPx = occ;
+  edgePan(dt);
   camera.update(dt, followFocus());
   // 人物取帧要知道镜头转角和精灵档位（people/view.ts），先于人物更新
   const pr = stage.view.proj;
@@ -618,6 +824,8 @@ function setContent(c: ContentBundle): void {
   session.content = c;
   projector.setContent(c, text);
   scene.setContent(c);
+  addPlaceLabels(c);
+  addHubs(c);
   draw();
 }
 
@@ -718,7 +926,7 @@ window.__td = {
   camera: () => camera,
   world: () => stage,
   fastForward,
-  answer,
+  answer: (key) => answer(key, true),
   assign: (person, target, variant) => {
     const w = worldOf(session.s, content);
     const why = canAssign(session.s, w, person, target, variant);

@@ -18,7 +18,7 @@ import { BAY, bay, clamp, fbm, hash, Palette, pk, vnoise } from './color';
 import { type Light, lampsOf, NOON } from './daylight';
 import { SceneDrawer } from './draw';
 import type { Node } from './graph';
-import { GroundPainter, type Rect } from './ground';
+import { GroundPainter, type Rect, rectsBounds, type SlabWall, slabOutline } from './ground';
 import { HV, Projection } from './proj';
 import { faceF, Raster, ZNONE, ZTEST, ZWRITE } from './raster';
 
@@ -41,8 +41,8 @@ const rgbOf = (h: string): [number, number, number] => {
 };
 
 export interface IsoViewOptions {
-  /** 地台（浮空岛）的范围；地面贴图覆盖它 */
-  slab: Rect;
+  /** 地台（浮空岛）的范围：一块矩形，或几块拼出的轮廓（合并后画侧面）；地面贴图覆盖它的外包框 */
+  slab: Rect | readonly Rect[];
   /** 地台厚度（米），默认 7 */
   slabDepth?: number;
   /** 旋转中心，默认地台中心 */
@@ -127,7 +127,10 @@ export class IsoView {
   readonly pal = new Palette();
   readonly raster: Raster;
   readonly ground: GroundPainter;
-  readonly slab: Rect;
+  /** 地台的外包框（单块矩形时就是它本身） */
+  slab: Rect;
+  /** 拼成地台的几块矩形（setSlab 会换） */
+  slabRects: readonly Rect[];
   readonly slabDepth: number;
   /** 每个缓冲像素多少 CSS 像素 */
   PS = 1;
@@ -174,17 +177,20 @@ export class IsoView {
   /** 夜色在往哪边走（+1 入夜、-1 天亮），最近一次变化后过了多少帧 */
   private dir = 1;
   private still = 1e9;
+  /** 合并后的外轮廓（几块矩形时才用） */
+  private outline: readonly SlabWall[] | null = null;
 
   constructor(
     readonly container: HTMLElement,
     o: IsoViewOptions,
   ) {
-    this.slab = o.slab;
+    this.slabRects = normSlab(o.slab);
+    this.slab = rectsBounds(this.slabRects);
     this.slabDepth = o.slabDepth ?? 7;
     this.pixelSize = o.pixelSize;
-    this.ground = new GroundPainter(o.slab);
-    this.proj.cx = o.center?.x ?? (o.slab.x0 + o.slab.x1) / 2;
-    this.proj.cz = o.center?.z ?? (o.slab.z0 + o.slab.z1) / 2;
+    this.ground = new GroundPainter(this.slabRects);
+    this.proj.cx = o.center?.x ?? (this.slab.x0 + this.slab.x1) / 2;
+    this.proj.cz = o.center?.z ?? (this.slab.z0 + this.slab.z1) / 2;
     const cv = document.createElement('canvas');
     cv.className = 'td-iso';
     Object.assign(cv.style, {
@@ -270,6 +276,20 @@ export class IsoView {
 
   /** 静态层标脏：下一帧重烘（设施状态变了、静态节点增删） */
   invalidate(): void {
+    this.version++;
+  }
+
+  /**
+   * 地台换轮廓（地图长大，ADR 0021）：几块矩形合并后画侧面，地面贴图跟着换成新的外包框
+   * （画过的纹素原样留下，新地填底色，等场景画上去）。旋转中心不动，镜头不跳。
+   */
+  setSlab(slab: Rect | readonly Rect[]): void {
+    this.slabRects = normSlab(slab);
+    this.slab = rectsBounds(this.slabRects);
+    this.outline = null;
+    this.ground.setExtent(this.slabRects);
+    this.bg = null;
+    this.jobTex = null;
     this.version++;
   }
 
@@ -742,36 +762,78 @@ export class IsoView {
     }
   }
 
-  /** 地台侧面（带地层） */
+  /**
+   * 地台侧面（带地层）。单块矩形照原来画一个没顶的方块；几块拼成的轮廓先合并成外轮廓的一圈墙，
+   * 朝镜头的墙从远到近画。地层只看"离地面多深"（每面墙的上沿都在 y = 0），所以几面墙的土层在同一高度接上；
+   * 内角（凹进去的角）两面墙直接相接，不留缝、不加竖线，外角和单块矩形时一样。
+   */
   private drawSides(r: Raster): void {
     const pr = this.proj;
-    const SL = this.slab;
     const k = pr.k;
     r.zmode = ZNONE;
-    r.box(SL.x0, SL.x1, SL.z0, SL.z1, -this.slabDepth, 0, '#b98a58', {
-      noTop: true,
-      edge: false,
-      sideSh: (nx, nz, pts) => {
-        const p3 = pts[3] as readonly [number, number, number];
-        const p2 = pts[2] as readonly [number, number, number];
-        const a = pr.P(p3[0], p3[1], p3[2]);
-        const b = pr.P(p2[0], p2[1], p2[2]);
-        const sl = (b[1] - a[1]) / (b[0] - a[0] || 1);
-        const f = faceF(nx, nz);
-        const L = [
-          r.col('#d9b07a', f),
-          r.col('#c0905c', f),
-          r.col('#a8784a', f),
-          r.col('#8e623e', f),
-          r.col('#74503a', f),
-        ];
-        return (x, y) => {
-          const top = a[1] + (x + 0.5 - a[0]) * sl;
-          const d = (y + 0.5 - top) / (k * HV) + Math.sin(x * 0.13) * 0.35 + (bay(x, y) - 0.5) * 0.4;
-          return (d < 0.6 ? L[0] : d < 2.2 ? L[1] : d < 4 ? L[2] : d < 5.6 ? L[3] : L[4]) as number;
-        };
-      },
-    });
+    const sideSh = (nx: number, nz: number, pts: readonly (readonly [number, number, number])[]) => {
+      const p3 = pts[3] as readonly [number, number, number];
+      const p2 = pts[2] as readonly [number, number, number];
+      const a = pr.P(p3[0], p3[1], p3[2]);
+      const b = pr.P(p2[0], p2[1], p2[2]);
+      const sl = (b[1] - a[1]) / (b[0] - a[0] || 1);
+      const f = faceF(nx, nz);
+      const L = [
+        r.col('#d9b07a', f),
+        r.col('#c0905c', f),
+        r.col('#a8784a', f),
+        r.col('#8e623e', f),
+        r.col('#74503a', f),
+      ];
+      return (x: number, y: number) => {
+        const top = a[1] + (x + 0.5 - a[0]) * sl;
+        const d = (y + 0.5 - top) / (k * HV) + Math.sin(x * 0.13) * 0.35 + (bay(x, y) - 0.5) * 0.4;
+        return (d < 0.6 ? L[0] : d < 2.2 ? L[1] : d < 4 ? L[2] : d < 5.6 ? L[3] : L[4]) as number;
+      };
+    };
+    if (this.slabRects.length === 1) {
+      const SL = this.slab;
+      r.box(SL.x0, SL.x1, SL.z0, SL.z1, -this.slabDepth, 0, '#b98a58', { noTop: true, edge: false, sideSh });
+      return;
+    }
+    this.outline ??= slabOutline(this.slabRects);
+    const y0 = -this.slabDepth;
+    const walls: { d: number; nx: number; nz: number; pts: [number, number, number][] }[] = [];
+    for (const w of this.outline) {
+      if (!r.vis(w.nx, w.nz)) continue;
+      // 四个角的顺序和 Raster.box 的侧面一样（pts[3] → pts[2] 是上沿，地层着色器按它算）
+      const pts: [number, number, number][] =
+        w.nx === 1
+          ? [
+              [w.x0, y0, w.z0],
+              [w.x0, y0, w.z1],
+              [w.x0, 0, w.z1],
+              [w.x0, 0, w.z0],
+            ]
+          : w.nx === -1
+            ? [
+                [w.x0, y0, w.z1],
+                [w.x0, y0, w.z0],
+                [w.x0, 0, w.z0],
+                [w.x0, 0, w.z1],
+              ]
+            : w.nz === 1
+              ? [
+                  [w.x1, y0, w.z0],
+                  [w.x0, y0, w.z0],
+                  [w.x0, 0, w.z0],
+                  [w.x1, 0, w.z0],
+                ]
+              : [
+                  [w.x0, y0, w.z0],
+                  [w.x1, y0, w.z0],
+                  [w.x1, 0, w.z0],
+                  [w.x0, 0, w.z0],
+                ];
+      walls.push({ d: pr.depth((w.x0 + w.x1) / 2, (w.z0 + w.z1) / 2), nx: w.nx, nz: w.nz, pts });
+    }
+    walls.sort((a, b) => a.d - b.d);
+    for (const w of walls) r.wpoly(w.pts, r.col('#b98a58', faceF(w.nx, w.nz)), sideSh(w.nx, w.nz, w.pts));
   }
 
   /**
@@ -879,13 +941,14 @@ export class IsoView {
     const km = Math.min(k, 2.5);
     const mh = this.BH / 158;
     let topY = 1e9;
-    for (const [x, z] of [
-      [SL.x0, SL.z0],
-      [SL.x1, SL.z0],
-      [SL.x1, SL.z1],
-      [SL.x0, SL.z1],
-    ] as const)
-      topY = Math.min(topY, pr.sy(x, 0, z));
+    for (const R of this.slabRects.length > 1 ? this.slabRects : [SL])
+      for (const [x, z] of [
+        [R.x0, R.z0],
+        [R.x1, R.z0],
+        [R.x1, R.z1],
+        [R.x0, R.z1],
+      ] as const)
+        topY = Math.min(topY, pr.sy(x, 0, z));
     const hy = Math.round(topY + 18 * km);
     const yEnd = Math.min(H, Math.max(0, hy + 2));
     for (let y = 0; y < yEnd; y++) {
@@ -959,4 +1022,10 @@ export class IsoView {
       starHi: Uint8Array.from(hi),
     };
   }
+}
+
+function normSlab(s: Rect | readonly Rect[]): readonly Rect[] {
+  const rs = Array.isArray(s) ? (s as readonly Rect[]) : [s as Rect];
+  if (rs.length === 0) throw new Error('slab: 至少一块矩形');
+  return rs.map((r) => ({ x0: r.x0, x1: r.x1, z0: r.z0, z1: r.z1 }));
 }

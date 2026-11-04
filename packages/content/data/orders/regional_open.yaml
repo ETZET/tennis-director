@@ -1,0 +1,16 @@
+# 地区业余赛的报名工单（GM-10，tournaments.regional_open）：第 5、9、13 周的周三或周四，球员从大门出发，打一整天。
+# 提前一周出现，比赛那天才能出发（'early'）。★3 起是双打：要两个人一起去（min_crew）。
+# 评审（W2 门）：大多数局只有一名球员（球员只在招聘日 2b、3b 来），原来"两名球员"让第 9、13 周的地区赛几乎没人去。
+# 现在搭档可以是第二名球员，也可以是一名教练陪打：那一天他的课没人上（准则 2、5）。参赛条件照旧要有一名球员在职。
+# 赢不赢看去的人里球技最高的那个（附加目标 win），双打多一成；冷水恢复池再多一成。
+id: regional_open
+act: indian_wells
+at: entrance
+skill: play
+work: 6h
+crew: 2
+min_crew: "stars >= 3 ? 2 : 1"
+only: [player, coach]
+effects:
+  - { person: worker, add: { play: 1 } }
+performance: match

@@ -108,14 +108,17 @@ stars:
       members_20: { stat: members, gte: 20 }
       cup_once: { flag: hosted_cup }
     opens: [regional]
+    # 选路（GM-14）：升上这一星时来选路卡，一天倒计时，不选由 Dale 定（路 A）
+    card: iw_route_s2
   # ★3 社区俱乐部
   - requires:
       restored_6: { expr: "restored >= 6" }
       members_45: { expr: "stat.members >= (day >= 78 ? 36 : 45)" }
       rep_45: { expr: "stat.reputation >= (day >= 78 ? 36 : 45)" }
       trophies_2: { expr: "trophies >= 2" }
-    # exhibition_prep（表演赛四期筹备）等 P2 做出来再加回 opens；现在写上会让升星快讯说空话（GM 评审 W1）
-    opens: [invitational, sponsor]
+    # 表演赛四期筹备（W2）从 ★3 起挂在中心球场的地点牌上（orders/prep_*.yaml）
+    opens: [invitational, sponsor, exhibition_prep]
+    card: iw_route_s3
   # ★4 度假名园
   - requires:
       restored_7: { expr: "restored >= 7" }
@@ -123,10 +126,135 @@ stars:
       rep_60: { expr: "stat.reputation >= (day >= 78 ? 48 : 60)" }
       invitational: { any: [{ flag: hosted_invitational }, { expr: "day >= 78 && trophies >= 4" }] }
     opens: [exhibition]
+    card: iw_route_s4
   # ★5 沙漠名园
   - requires:
       exhibition: { flag: exhibition_done }
     opens: [finale]
+# 三次选路（GM-14，wave2-5-contract.md）：处 → 路，第一条是路 A（默认、Dale 替你定的那条）。文案 routes.<处>.<路>。
+# ★2 的路在 W2 就生效（变体先开、招聘日、周末客人）；★3、★4 的路在 W5 决定开哪块地，W2 先给一点马上看得见的效果。
+routes:
+  s2: [youth, resort]
+  s3: [south_courts, oasis_lawn]
+  s4: [event_plaza, academy_isle]
+# 赛事阶梯（GM-10，设计文档"赛事阶梯"）：赛事不是卡，报名工单提前一周出现在地点牌上。
+# 周从第 1 天（周一）算起：第 n 周的周六是第 7n − 1 天。第 52–84 天的节拍：
+# 青少年赛第 54–55 天（第 8 周周五、周六）、地区赛第 59–60 天（第 9 周周三、周四）、邀请赛第 69–70 天、内赛第 76 天、青少年赛第 82–83 天、投资方第 85 天。
+# 不参加没有惩罚。第二次起奖励减半（奖杯和标记不打折），附加目标换一个。
+tournaments:
+  # 月度内赛：第 3、7、11、15 周的周六。占会员场和红土场的一块一整天：不租场、不上课。开签到、裁判两个临时岗位。
+  - id: cup_monthly
+    kind: host
+    at: outer_1
+    weeks: [3, 7, 11, 15]
+    days: [5]
+    hours: [9, 17]
+    when: { all: [{ expr: "stars >= 1" }, { expr: "courts_built >= 2" }] }
+    fee: 60
+    order: cup_monthly
+    posts: [t_checkin, t_umpire]
+    closes: [o1_rental, o1_lesson, o23_rental]
+    reward:
+      - { trophy: 1 }
+      - { flag: hosted_cup, set: true }
+      - { stat: reputation, add: 2 }
+      - { stat: members, add: 2 }
+    goals:
+      - { id: service, if: "event.service_rate >= 0.8", reward: [{ stat: reputation, add: 1 }] }
+      - { id: members, if: "stat.members >= 10", reward: [{ stat: members, add: 2 }] }
+    repeat:
+      scale: 0.5
+      goals:
+        - { id: staffed, if: "event.staffed >= 0.95", reward: [{ stat: cash, add: 150 }] }
+        - { id: full_house, if: "stat.members >= 40", reward: [{ stat: reputation, add: 2 }] }
+  # 地区业余赛：第 5、9、13 周的周三、周四（两天里挑一天去），球员从大门出发打一天。★3 起是双打，要两名球员（工单的 min_crew）。
+  # 每 6 天一次的"出去打一站比赛"（pl_tournament）保留，当作小比赛，不算奖杯。
+  - id: regional_open
+    kind: away
+    at: entrance
+    weeks: [5, 9, 13]
+    days: [2, 3]
+    hours: [8, 18]
+    when: { expr: "stars >= 2 && hired.player >= 1" }
+    fee: 200
+    order: regional_open
+    reward:
+      - { stat: reputation, add: 1 }
+    goals:
+      - id: win
+        chance: "clamp(0.1 + (event.skill - 50) / 45 + (event.crew >= 2 ? 0.1 : 0) + (variant.stadium_2 == \"recovery\" ? 0.1 : 0), 0.05, 0.9)"
+        reward: [{ stat: cash, add: 800 }, { stat: reputation, add: 5 }, { trophy: 1 }]
+    repeat:
+      scale: 0.5
+      goals:
+        # 卫冕：大家都认得你的球员了，难一点
+        - id: defend
+          chance: "clamp(0.05 + (event.skill - 55) / 45 + (event.crew >= 2 ? 0.1 : 0) + (variant.stadium_2 == \"recovery\" ? 0.1 : 0), 0.05, 0.85)"
+          reward: [{ stat: cash, add: 1000 }, { stat: reputation, add: 6 }, { trophy: 1 }]
+  # 地区青少年赛：第 8、12 周的周五、周六（两天里挑一天去），一名教练带学员去半天。
+  # 这一周青训场的课要上够 10 圈（学院或训练营）。
+  - id: junior_regional
+    kind: away
+    at: entrance
+    weeks: [8, 12]
+    days: [4, 5]
+    hours: [8, 18]
+    when:
+      all:
+        - { expr: "stars >= 2" }
+        - { facility: practice, is: open }
+        - { expr: "cycles.pr_academy + cycles.pr_bootcamp >= 10" }
+    fee: 80
+    order: junior_regional
+    reward:
+      - { stat: reputation, add: 1 }
+    goals:
+      # 有学员进四强：看带队教练的教学
+      - id: semis
+        chance: "clamp(0.2 + (event.skill - 45) / 50 + (route.s4 == \"academy_isle\" ? 0.1 : 0), 0.15, 0.85)"
+        reward: [{ stat: reputation, add: 3 }, { stat: members, add: 4 }, { trophy: 1 }]
+    repeat:
+      scale: 0.5
+      goals:
+        # 第二次：要进决赛才算
+        - id: final
+          chance: "clamp(0.1 + (event.skill - 45) / 50 + (route.s4 == \"academy_isle\" ? 0.1 : 0), 0.05, 0.75)"
+          reward: [{ stat: reputation, add: 5 }, { stat: members, add: 6 }, { trophy: 1 }]
+  # 邀请赛：第 10、13 周的周末，在红土场办两天，会所和棕榈喷泉都要开着。四个临时岗位两天都要有人。
+  # 认场地：保留红土是红土邀请赛（老牌，声望多），修成硬地是硬地邀请赛（报名的人多，钱多）。下雨就白花报名费。
+  - id: invitational
+    kind: host
+    at: outer_23
+    weeks: [10, 13]
+    days: [5, 6]
+    hours: [9, 17]
+    variant_of: outer_23
+    when:
+      all:
+        - { expr: "stars >= 3" }
+        - { facility: outer_23, is: playable }
+        - { facility: clubhouse, is: open }
+        - { facility: plaza, is: open }
+    fee: 800
+    order: invitational
+    posts: [t_checkin, t_courtside, t_catering, t_umpire]
+    closes: [o23_rental, o23_clinic]
+    reward:
+      - { stat: cash, add: 2000 }
+      - { stat: reputation, add: 6 }
+      - { trophy: 1 }
+      - { flag: hosted_invitational, set: true }
+      - { stat: reputation, add: 3, if: { variant: outer_23, is: clay } }
+      - { stat: cash, add: 600, if: { variant: outer_23, is: hard } }
+    goals:
+      - { id: staffed, if: "event.staffed >= 0.95", reward: [{ stat: members, add: 4 }] }
+      - { id: service, if: "event.service_rate >= 0.8", reward: [{ stat: reputation, add: 2 }] }
+    repeat:
+      scale: 0.5
+      goals:
+        - { id: staffed, if: "event.staffed >= 0.95", reward: [{ stat: members, add: 4 }] }
+        # 第二届：看台坐满才算
+        - { id: full_house, if: "stat.members >= 70", reward: [{ stat: cash, add: 1000 }] }
 # 投资方给了 16 周：第 13 周来看一次进度，第 112 天收盘前还没办成表演赛就停工
 calendar:
   - { day: 85, hour: 10, card: iw_investor_check }
@@ -168,6 +296,10 @@ rules:
   # 掉档（准则 6）：周日收盘时状况低于 15 的设施掉一档（facilities.yaml 的 drops_to）。
   # 先有画面信号（状况低于 60 起积沙、杂草），低于 30 质量减半、快讯提醒，周六收盘再提醒一次，周日才掉。
   grade_drop_below: 15
+  # 有人守的设施（今天有人在它的任何岗位上干完过一圈）收盘衰减只算一成（W2 复验 P1，默认 0.5 太快：
+  # 看场 + 上课的会员场九天就掉到 0）。现在有人在岗、没人维护的球场每天约掉 1，掉档要好几周；
+  # 没人管的照 decay_day 掉；维护岗位每圈 +4，顶得住、补得回，赛事日的磨损也要它来补
+  staffed_decay: 0.1
   director_growth: 0.3
   director_skill_cap: 80
 daily: []

@@ -1,8 +1,18 @@
-import { type Effect, minutes, type Person, WORKER } from '@td/content';
+import { type Effect, type Ending, minutes, type Person, WORKER } from '@td/content';
 import { clamp, type Value } from '@td/shared';
 import type { SimEvent } from './events';
+import { capWorkerGain } from './potential';
 import { rand } from './rng';
-import type { CausalEntry, Cause, EffectRecord, GameState } from './state';
+import {
+  at,
+  type CausalEntry,
+  type Cause,
+  dayOf,
+  type EffectRecord,
+  type GameState,
+  type ScoreItem,
+  type Settlement,
+} from './state';
 import { num, test } from './vars';
 import { sendErrand } from './walk';
 import type { World } from './world';
@@ -119,6 +129,7 @@ export function applyEffects(ctx: Ctx, effects: readonly Effect[], entryId: numb
       if (!p?.hired) continue;
       p.hired = false;
       p.job = null;
+      p.pin = null;
       p.walk = null;
       p.errand = null;
       // 走的是主教练：还在的教练里接一个（Dale 开局不开除，一直都在）
@@ -135,7 +146,11 @@ export function applyEffects(ctx: Ctx, effects: readonly Effect[], entryId: numb
         const v = e.add[attr];
         if (v === undefined) continue;
         const before = p[attr];
-        p[attr] = clamp(before + num(s, w, v, ctx.vars), 0, 100);
+        let after = clamp(before + num(s, w, v, ctx.vars), 0, 100);
+        // W3：干活涨的能力（person: worker，例如球员的训练）截在潜力上；成长关着时不截。跨门槛的 skill_up 由 staff.ts 补发
+        const k = attr === 'skill' ? 'teach' : attr === 'morale' || attr === 'fatigue' ? null : attr;
+        if (k && e.person === WORKER) after = capWorkerGain(w, who, k, before, after);
+        p[attr] = after;
         const delta = p[attr] - before;
         if (delta !== 0) out.push({ kind: 'person', person: who, attr, delta });
       }
@@ -148,6 +163,8 @@ export function applyEffects(ctx: Ctx, effects: readonly Effect[], entryId: numb
       out.push({ kind: 'text', key: e.log });
     } else if ('endAct' in e) {
       if (s.outcome) continue;
+      // 结局方案 A（W4）：表演赛不再通关、旧的期限改成结算（破产照旧），见 ending.ts
+      if (interceptEndAct(ctx, e.endAct, e.ending, entryId)) continue;
       // 先看一眼星级再结束：表演赛那张工单前面的效果刚设了 exhibition_done，★5 要在这一局结束前升上来
       checkStars(ctx);
       s.outcome = { result: e.endAct, ending: e.ending, t: s.t };
@@ -159,6 +176,20 @@ export function applyEffects(ctx: Ctx, effects: readonly Effect[], entryId: numb
     } else if ('trophy' in e) {
       s.trophies = (s.trophies ?? 0) + e.trophy;
       out.push({ kind: 'trophy', delta: e.trophy });
+    } else if ('route' in e) {
+      // 选路（W2）：一处只选一次
+      if (s.routes?.[e.route]) continue;
+      (s.routes ??= {})[e.route] = e.set;
+      out.push({ kind: 'route', slot: e.route, route: e.set });
+      ctx.events.push({ type: 'route_chosen', slot: e.route, route: e.set });
+      // 地块（W5）：这一处的路决定的第一季地块，按同名的变体开工
+      for (const p of w.plots.values())
+        if (p.route === e.route && p.season === 1 && p.variants[e.set]) startPlot(ctx, p.id, e.set, entryId, out);
+    } else if ('build' in e) {
+      startPlot(ctx, e.plot, e.build, entryId, out);
+    } else if ('settle' in e) {
+      // 结局卡的"马上结算"（W4）：结局没打开、或者已经结算过时什么都不做
+      settle(ctx, 'early', entryId);
     } else if ('task' in e) {
       // 把一张工单记给某人（ADR 0014 的 resume）：他手上的班或活结束、闲下来时，习惯系统让他自己走过去开工
       const p = s.people[e.who];
@@ -167,6 +198,50 @@ export function applyEffects(ctx: Ctx, effects: readonly Effect[], entryId: numb
       out.push({ kind: 'task', person: e.who, order: e.task });
     }
   }
+}
+
+/* ---------------- 地块（W5，LG-15；只读的查询在 plots.ts） ---------------- */
+
+/**
+ * 地块按 variant 开工：还没开工（locked）才生效。写一条挂在 parent 下的日志（执行变体的 start 效果），
+ * 在 out（引出它的那一条）里记一笔；清理工单从这一刻起出现。清理工单碰巧都做过了（第二季）就直接开地。
+ */
+export function startPlot(
+  ctx: Ctx,
+  plot: string,
+  variant: string,
+  parent: number | null,
+  out?: EffectRecord[],
+): boolean {
+  const { s, w } = ctx;
+  const p = w.plots.get(plot);
+  const v = p?.variants[variant];
+  if (!p || !v || s.plots?.[plot]) return false;
+  const entry = logEntry(ctx, { kind: 'plot', plot, variant, state: 'building' }, parent, []);
+  (s.plots ??= {})[plot] = { state: 'building', variant, since: s.t, opened: null, cause: entry.id };
+  const rec: EffectRecord = { kind: 'plot', plot, variant, state: 'building' };
+  out?.push(rec);
+  entry.effects.push(rec);
+  ctx.events.push({ type: 'plot_building', plot, variant, anchor: v.anchor, orders: [...v.orders] });
+  applyEffects(ctx, v.start, entry.id, entry.effects);
+  checkPlotOpen(ctx, plot);
+  return true;
+}
+
+/** 施工中的地块：这个变体的清理工单都做完了就开地（执行 opens.effects，发 plot_open） */
+export function checkPlotOpen(ctx: Ctx, plot: string): boolean {
+  const { s, w } = ctx;
+  const st = s.plots?.[plot];
+  const v = st ? w.plots.get(plot)?.variants[st.variant] : undefined;
+  if (!st || !v || st.state !== 'building') return false;
+  if (!v.orders.every((o) => (s.orderLog.done[o] ?? 0) > 0)) return false;
+  st.state = 'open';
+  st.opened = s.t;
+  const entry = logEntry(ctx, { kind: 'plot', plot, variant: st.variant, state: 'open' }, st.cause, []);
+  entry.effects.push({ kind: 'plot', plot, variant: st.variant, state: 'open' });
+  ctx.events.push({ type: 'plot_open', plot, variant: st.variant, anchor: v.anchor });
+  applyEffects(ctx, v.opens.effects, entry.id, entry.effects);
+  return true;
 }
 
 /** 执行效果并写一条日志；返回日志条目。 */
@@ -190,7 +265,110 @@ export function checkStars(ctx: Ctx): void {
     const lv = levels[stars];
     if (!lv || !Object.values(lv.requires).every((c) => test(s, w, c))) return;
     s.stars = stars + 1;
-    run(ctx, { kind: 'star', stars: s.stars, opens: [...lv.opens] }, null, []);
+    const entry = run(ctx, { kind: 'star', stars: s.stars, opens: [...lv.opens] }, null, []);
     ctx.events.push({ type: 'star_up', stars: s.stars, opens: [...lv.opens] });
+    // 升星带一张卡（W2 的选路卡）：下一分钟打开，因果链指向这次升星
+    if (lv.card) s.cards.scheduled.push({ card: lv.card, at: s.t, cause: entry.id });
   }
+}
+
+/* ---------------- 结局方案 A（W4，LG-13；第二季和 HUD 的查询在 ending.ts） ---------------- */
+
+export const endingOf = (w: World): Ending | null => w.act.ending ?? null;
+
+/** 第一季的期限（绝对分钟） */
+export const deadlineOf = (e: Ending): number => at(e.day, e.hour);
+
+/** 旧存档或者测试手搓的状态可能没有 ending：补上初始值 */
+export function endingState(s: GameState): GameState['ending'] {
+  return (s.ending ??= { season: 1, exhibition: null, settlement: null, goal: null, land: {} });
+}
+
+/** 按 ending.score 算分项和总分，按 ending.grades 定评语（现在就结算的话会是多少；HUD 的预估也用它） */
+export function scoreOf(s: GameState, w: World): { items: ScoreItem[]; total: number; grade: string } {
+  const e = endingOf(w);
+  if (!e) return { items: [], total: 0, grade: '' };
+  const saved = s.rng;
+  const items: ScoreItem[] = [];
+  for (const [id, it] of Object.entries(e.score)) {
+    const value = num(s, w, it.of);
+    // 浮点误差：0.1 × 4560 = 455.99999…，向下取整前先补一点
+    items.push({ id, value, per: it.per, points: Math.floor(value * it.per + 1e-9) });
+  }
+  s.rng = saved;
+  const total = items.reduce((a, x) => a + x.points, 0);
+  return { items, total, grade: gradeOf(e, total) };
+}
+
+/** 从上往下第一个 total ≥ gte 的档；都不够是最后一档 */
+export function gradeOf(e: Ending, total: number): string {
+  for (const g of e.grades) if (total >= g.gte) return g.grade;
+  return e.grades[e.grades.length - 1]?.grade ?? '';
+}
+
+/** 第一季还没结算、结局打开着 */
+const live = (s: GameState, w: World): Ending | null => {
+  const e = endingOf(w);
+  if (!e || s.outcome) return null;
+  const st = endingState(s);
+  return st.season === 1 && !st.settlement ? e : null;
+};
+
+/** 结算打分：写一条因果日志，发 settlement 和 actEnded（result: settled），这一季停下来 */
+export function settle(ctx: Ctx, reason: Settlement['reason'], parent: number | null = null): boolean {
+  const { s, w } = ctx;
+  if (!live(s, w)) return false;
+  // 先看一眼星级再结算：表演赛那张工单刚设了 exhibition_done，★5 要算进分里
+  checkStars(ctx);
+  const day = dayOf(s.t);
+  const st = endingState(s);
+  const sc = scoreOf(s, w);
+  const settlement: Settlement = { t: s.t, day, reason, ...sc };
+  st.settlement = settlement;
+  s.outcome = { result: 'settled', ending: 'score', t: s.t };
+  run(ctx, { kind: 'settlement', ...structuredClone(settlement) }, parent, []).effects.push({
+    kind: 'end',
+    result: 'settled',
+    ending: 'score',
+  });
+  ctx.events.push({ type: 'settlement', ...structuredClone(settlement) });
+  ctx.events.push({ type: 'actEnded', result: 'settled', ending: 'score' });
+  return true;
+}
+
+/**
+ * 每分钟（tick 开头）、每 10 分钟随星级、以及 endAct: won 时看一眼：
+ * 到了期限就结算；表演赛刚办成就记下来、打开结局卡。
+ */
+export function checkEnding(ctx: Ctx, parent: number | null = null): void {
+  const { s, w } = ctx;
+  const e = live(s, w);
+  if (!e) return;
+  if (s.t >= deadlineOf(e)) {
+    settle(ctx, 'deadline', parent);
+    return;
+  }
+  const st = endingState(s);
+  if (st.exhibition !== null || !test(s, w, e.exhibition)) return;
+  st.exhibition = s.t;
+  ctx.events.push({ type: 'ending_offered', day: dayOf(s.t), card: e.card ?? null });
+  if (e.card) s.cards.scheduled.push({ card: e.card, at: s.t, cause: parent });
+}
+
+/**
+ * 效果 endAct 在结局打开时怎么办：won（表演赛）不再结束这一局，改成看一眼结局（记下表演赛、来结局卡）；
+ * lost 是破产（rules.lose_if 的结局）照旧结束；别的 lost（旧的期限卡）改成结算。
+ * 返回 true 表示已经接管，effects.ts 不再按老办法结束。
+ */
+export function interceptEndAct(ctx: Ctx, result: 'won' | 'lost', ending: string, parent: number): boolean {
+  const { s, w } = ctx;
+  const e = endingOf(w);
+  if (!e) return false;
+  if (result === 'lost' && ending === w.act.rules.lose_if?.ending) return false;
+  // 第二季：还没有结局，旧的通关和期限都不结束（第二季的目标是占位）
+  if (endingState(s).season !== 1) return true;
+  checkStars(ctx);
+  if (result === 'won') checkEnding(ctx, parent);
+  else settle(ctx, 'deadline', parent);
+  return true;
 }

@@ -9,5 +9,9 @@ when: { any: [{ facility: outer_1, is: playable }, { facility: outer_1, is: resu
 effects:
   - { stat: cash, add: "round(3 * (0.6 + worker.skill / 100) * (1 + stat.reputation / 120))" }
   - { stat: members, add: 1, chance: 0.03 }
-wear: 0.5
+  # 度假之路（GM-14，★2 选路 resort）：周末从 Palm Springs 的酒店来打球的客人多
+  - { stat: cash, add: 2, if: { all: [{ route: s2, is: resort }, { expr: "weekday >= 5" }] } }
+# W2 复验（P1）：使用磨损再降到原来的十分之一。有人在岗的设施每天只掉一点（看场 + 上课的会员场约 1/天），
+# 掉档要好几周、画面信号先出来；维护照旧能稳住、补回来，赛事日（t_umpire、t_courtside）磨得多
+wear: 0.05
 performance: open_play

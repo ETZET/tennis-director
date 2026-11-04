@@ -11,6 +11,10 @@ export const duration = z.string().regex(/^\d+(\.\d+)?[mhd]$/, 'durations look l
 /** 数或表达式字符串（表达式在编译时检查） */
 const amount = z.union([z.number(), z.string()]);
 
+/** 员工的能力：教学、维护、服务，加上球员的球技 */
+export const SKILLS = ['teach', 'upkeep', 'service', 'play'] as const;
+export type SkillKind = (typeof SKILLS)[number];
+
 /* ---------------- 条件 ---------------- */
 
 export type Cond =
@@ -22,6 +26,11 @@ export type Cond =
   | { facility: string; is: string }
   | { variant: string; is: string }
   | { upgrade: string; has: string }
+  | { route: string; is: string }
+  | { plot: string; is: string }
+  | { prep: string; done?: boolean }
+  | { skilled: SkillKind; gte: number; who?: string }
+  | { unlocked: string }
   | { assigned: string; at?: string }
   | { day: { gte?: number; lte?: number } }
   | { hour: { gte?: number; lte?: number } }
@@ -52,6 +61,21 @@ export const cond: z.ZodType<Cond> = z.lazy(() =>
     z.strictObject({ variant: id, is: id }),
     /** 设施装上了这个升级（LG-14） */
     z.strictObject({ upgrade: id, has: id }),
+    /** 这一处选路（LG-11 / W2：s2、s3、s4）选了哪条路；is: none = 还没选 */
+    z.strictObject({ route: id, is: id }),
+    /**
+     * 地块（W5，LG-15）：is 是 locked / building / open，或者变体 id（= 按这个变体在施工或者已经开了）
+     */
+    z.strictObject({ plot: id, is: id }),
+    /** 一组分期筹备工单（order 的 prep）是不是都做完了；done: false = 还没都做完 */
+    z.strictObject({ prep: id, done: z.boolean().optional() }),
+    /**
+     * 员工成长（W3）：在职、能指派的人里（含总监）有没有一个这项能力（底子，不算特质）≥ gte 的；
+     * who 写了就只看作用（kind）或特质是它的人，例如 { skilled: upkeep, gte: 75, who: crew }
+     */
+    z.strictObject({ skilled: z.enum(SKILLS), gte: z.number().min(0).max(100), who: id.optional() }),
+    /** 成长解锁（W3）：act 的 growth.unlocks 里这一项开出来了没有 */
+    z.strictObject({ unlocked: id }),
     /** 这个人正在干活（站在岗位或工单上）；带 at 时还要求在那个地点 */
     z.strictObject({ assigned: id, at: id.optional() }),
     z.strictObject({ day: z.strictObject({ gte: z.number().optional(), lte: z.number().optional() }) }),
@@ -110,6 +134,18 @@ export const effect = z.union([
   z.strictObject({ ...gate, task: id, who: id }),
   /** 奖杯 +n（LG-10：办成一次主办赛事、或者在外出赛事里赢下来）；变量 trophies */
   z.strictObject({ ...gate, trophy: z.number().int().min(1) }),
+  /** 选路（W2）：记下这一处（s2 / s3 / s4）选了哪条路；已经选过就不再改。变量 route.<处>，条件 { route, is } */
+  z.strictObject({ ...gate, route: id, set: id }),
+  /**
+   * 结局（W4，LG-13）：现在就结算打分（结局卡的"马上结算"）。只在地图写了 ending（mode: score）、第一季还没结算时生效，
+   * 别处什么都不做。
+   */
+  z.strictObject({ ...gate, settle: z.literal(true) }),
+  /**
+   * 地块（W5，LG-15）：按这个变体开始施工（地块还是 locked 时才生效；冒出它的清理工单）。
+   * 选路（route）会自动让对应的地块开工，这个效果给第二季和特别的卡用
+   */
+  z.strictObject({ ...gate, plot: id, build: id }),
 ]);
 export type Effect = z.infer<typeof effect>;
 
@@ -142,7 +178,8 @@ export const card = z.strictObject({
   tone: z.enum(['crisis', 'relief', 'comedy', 'neutral']).default('neutral'),
   /** 抽卡的前置条件（阈值和随机卡） */
   when: cond.optional(),
-  weight: z.number().min(0).default(1),
+  /** 抽卡权重：数或表达式（例如按选的路调招聘日的权重：route.s2 == "youth" ? 2 : 1） */
+  weight: amount.default(1),
   cooldown: duration.optional(),
   /** 只出现一次（里程碑、日历、后果卡默认只出现一次） */
   once: z.boolean().optional(),
@@ -253,6 +290,14 @@ export type Facility = z.infer<typeof facility>;
 export const PERSON_KINDS = ['coach', 'crew', 'special', 'player'] as const;
 export type PersonKind = (typeof PERSON_KINDS)[number];
 
+/** 每项能力一个数（0..100），都可以不写 */
+const skillCaps = z.strictObject({
+  teach: z.number().min(0).max(100).optional(),
+  upkeep: z.number().min(0).max(100).optional(),
+  service: z.number().min(0).max(100).optional(),
+  play: z.number().min(0).max(100).optional(),
+});
+
 export const person = z.strictObject({
   id,
   name: z.string(),
@@ -275,6 +320,11 @@ export const person = z.strictObject({
   /** 旧写法：应聘者招进来以后当什么（coach 会接任主教练）。新人物用 kind: coach */
   hire_as: z.enum(['coach', 'staff']).optional(),
   traits: z.array(id).default([]),
+  /**
+   * 潜力（W3 员工成长）：每项能力干活能涨到多少。不写的项 = 起始值 + growth.headroom（默认 15），
+   * 带 growth.traits 里的特质再加（"大器晚成" late_bloomer 默认 +10，即起始值 +25）；都截在 100。总监不看潜力（director_skill_cap）。
+   */
+  potential: skillCaps.optional(),
 });
 export type Person = z.infer<typeof person>;
 
@@ -317,10 +367,6 @@ export type DirectorConfig = z.infer<typeof director>;
 
 /* ---------------- 岗位和工单（ADR 0012）：玩家把人拖上去 ---------------- */
 
-/** 员工的能力：教学、维护、服务，加上球员的球技 */
-export const SKILLS = ['teach', 'upkeep', 'service', 'play'] as const;
-export type SkillKind = (typeof SKILLS)[number];
-
 /**
  * 持续岗位：地点上的一个"位子"。有人坐着、在它的时段里、条件满足时，一圈一圈地转，每转完一圈结算一次 effects。
  * 有 hours 的岗位是"需求"：时段里每分钟都计入本周服务率（有人在岗才算服务到）。
@@ -347,6 +393,8 @@ export const post = z.strictObject({
   restore: z.number().min(0).default(0),
   /** 只收这些人：作用（kind）或特质 id，命中一个就行；不写谁都能干 */
   only: z.array(id).min(1).optional(),
+  /** 能力门槛（W3，和工单的 worker 一样）：只有这项能力（底子，不算特质）≥ N 的人能坐，例如 { teach: 60 }。canAssign 给 'skill' */
+  worker: skillCaps.optional(),
   performance: id.optional(),
 });
 export type Post = z.infer<typeof post>;
@@ -403,6 +451,8 @@ export const order = z.strictObject({
         cost: z.number().min(0).optional(),
         work: duration.optional(),
         effects: z.array(effect).optional(),
+        /** 这个变体什么时候能选（例如按选的路先开）；不满足时这一行不能拖（canAssign 给 'variant'） */
+        when: cond.optional(),
       }),
     )
     .optional(),
@@ -414,8 +464,208 @@ export const order = z.strictObject({
    */
   remodel: id.optional(),
   closed_for: duration.optional(),
+  /**
+   * 至少几个人到场才开工（W2：★3 起地区赛的双打要两名球员）：数或表达式。人不够时不扣材料费、不走进度。
+   */
+  min_crew: amount.optional(),
+  /**
+   * 分期筹备（W2：表演赛四期）：这张工单是哪一组的一期。同一组的工单各做一次；
+   * 变量 prep.<组> = 做完的比例 0..1，条件 { prep: <组> } = 都做完了。
+   */
+  prep: id.optional(),
 });
 export type Order = z.infer<typeof order>;
+
+/* ---------------- 赛事日历（LG-11） ---------------- */
+
+/** 附加目标：赛事结束时判定。if 和 chance 是表达式，可以用 event.* 变量（这一场的服务率、临时岗位到岗率……） */
+export const tournamentGoal = z.strictObject({
+  id,
+  if: z.string().optional(),
+  chance: amount.optional(),
+  reward: z.array(effect).default([]),
+});
+export type TournamentGoal = z.infer<typeof tournamentGoal>;
+
+export const WEEKDAY = z.number().int().min(0).max(6);
+
+/**
+ * 地图日历上的一项赛事（LG-11）。日期 = 第几周（weeks，或 every 每隔几周）的星期几（days，0 = 周一），时段 hours。
+ * - 主办（host）：报名工单 order 提前 lead 出现在 at 的地点牌上，做完就算接下；到日子开出临时岗位 posts，
+ *   closes 里的岗位当天整天不开；当天下雨（rain_spoils，主办默认是）报名费白花、什么都没有。
+ * - 外出（away）：工单 order 提前 lead 出现，但要到比赛那天才能开工；做完就判定。
+ * 结束时给 reward，再逐个判定附加目标 goals。第二次起奖励按 repeat.scale 打折、目标换成 repeat.goals。
+ */
+export const tournament = z.strictObject({
+  id,
+  kind: z.enum(['host', 'away']),
+  at: id,
+  weeks: z.array(z.number().int().min(1)).optional(),
+  every: z
+    .strictObject({ weeks: z.number().int().min(1), from: z.number().int().min(1), until: z.number().int().optional() })
+    .optional(),
+  days: z.array(WEEKDAY).min(1).default([5]),
+  hours: z.tuple([z.number().min(0).max(24), z.number().min(0).max(24)]).default([9, 17]),
+  /** 参赛条件（星级、设施……）：报名工单出现、开工都要满足 */
+  when: cond.optional(),
+  /** 报名费：就是报名工单的材料费（开工时扣） */
+  fee: z.number().min(0).default(0),
+  order: id,
+  /** 报名工单提前多久出现 */
+  lead: duration.default('7d'),
+  posts: z.array(id).default([]),
+  closes: z.array(id).default([]),
+  rain_spoils: z.boolean().optional(),
+  /** 认场地：这场赛事按这处设施的变体叫不同的名字（文案 tournaments.<id>.variants.<变体>），奖励在效果的 if 里分 */
+  variant_of: id.optional(),
+  reward: z.array(effect).default([]),
+  goals: z.array(tournamentGoal).default([]),
+  repeat: z
+    .strictObject({ scale: z.number().min(0).max(1).default(0.5), goals: z.array(tournamentGoal).optional() })
+    .default({ scale: 0.5 }),
+});
+export type Tournament = z.infer<typeof tournament>;
+
+/* ---------------- 员工成长（W3，LG-12） ---------------- */
+
+/** 成长解锁的一条要求：一个在职的人（who 写了就只看这个作用或特质的人）这项能力的底子 ≥ gte */
+export const growthNeed = z.strictObject({
+  skill: z.enum(SKILLS),
+  gte: z.number().min(0).max(100),
+  who: id.optional(),
+});
+
+/**
+ * 成长解锁：need 的每一条由不同的人满足（"教练 + 体能师都 ≥ 60"写两条），when 也满足时开出来——
+ * 一局只开一次，发 unlock {person, key}，写一条因果日志，执行 effects（person: worker = 开出它的那个人）。
+ * 内容用条件 { unlocked: key }、变量 unlocked.<key> 去开工单、岗位、变体。文案 unlocks.<key>。
+ */
+export const growthUnlock = z.strictObject({
+  key: id,
+  need: z.array(growthNeed).min(1),
+  when: cond.optional(),
+  effects: z.array(effect).default([]),
+});
+export type GrowthUnlock = z.infer<typeof growthUnlock>;
+
+export const growth = z.strictObject({
+  /** 总开关；关着时能力不涨（总监照旧）、不发 skill_up、不开解锁 */
+  enabled: z.boolean().default(false),
+  /** 每干完一圈岗位或一张工单，那项能力涨多少（不超过潜力） */
+  rate: z.number().min(0).default(0.2),
+  /** 默认潜力 = 起始值 + headroom */
+  headroom: z.number().min(0).default(15),
+  /** 带这些特质的人潜力再加多少（默认大器晚成 +10） */
+  traits: z.record(id, z.number()).default({ late_bloomer: 10 }),
+  /**
+   * 哪些能力按干活涨。默认不含球技：球员的球技靠训练岗位的效果涨（person: worker add play），
+   * 打开成长后那份涨幅也截在潜力上，不再另加 rate（不重复算）
+   */
+  skills: z.array(z.enum(SKILLS)).default(['teach', 'upkeep', 'service']),
+  /** 跨过 step 的整数倍、或者某条解锁的 gte 时发 skill_up */
+  step: z.number().positive().default(5),
+  unlocks: z.array(growthUnlock).default([]),
+});
+export type Growth = z.infer<typeof growth>;
+
+/* ---------------- 结局（W4，LG-13） ---------------- */
+
+/** 评语档：S/A/B/C/D（文案 ending.grades.<档>） */
+export const GRADES = ['S', 'A', 'B', 'C', 'D'] as const;
+export type Grade = (typeof GRADES)[number];
+
+/** 分项的初值（wave2-5-contract.md W4）：分 = floor(of × per)；文案 ending.items.<项> */
+export const DEFAULT_SCORE: Record<string, { of: string; per: number }> = {
+  stars: { of: 'stars', per: 1000 },
+  trophies: { of: 'trophies', per: 300 },
+  members: { of: 'stat.members', per: 10 },
+  reputation: { of: 'stat.reputation', per: 10 },
+  exhibition: { of: 'ending.exhibition', per: 2000 },
+  early: { of: 'ending.exhibition * ending.days_early', per: 50 },
+  cash: { of: 'stat.cash', per: 0.1 },
+};
+
+/** 评语档的初值（机器人校准，见 docs/balance）：从上往下第一个 total ≥ gte 的档；都不够是最后一档 */
+export const DEFAULT_GRADES: { grade: Grade; gte: number }[] = [
+  { grade: 'S', gte: 12500 },
+  { grade: 'A', gte: 10000 },
+  { grade: 'B', gte: 7000 },
+  { grade: 'C', gte: 4000 },
+  { grade: 'D', gte: 0 },
+];
+
+/**
+ * 结局方案 A（W4）：地图写了 ending 才打开，不写 = 以前的行为（表演赛通关、第 112 天输）。
+ * - 第 day 天 hour 点结算打分（settlement），不判输；破产（rules.lose_if）照旧结束。
+ * - exhibition 第一次满足（表演赛办成，★5）而且还没到 day：记下来，打开 card（结局卡：马上结算 { settle: true }，
+ *   或者接着经营到 day）。这时效果 endAct: won 不再结束这一局。
+ * - score：分项（文案 ending.items.<项>），分 = floor(of × per)；grades：评语档（文案 ending.grades.<档>）。
+ * - season2：结算以后命令 startSeason2 开第二季：会所照旧，时钟回到 start，目标 goal（文案 ending.goals.<目标>，占位）。
+ */
+export const ending = z.strictObject({
+  mode: z.literal('score'),
+  day: z.number().int().min(1).default(112),
+  hour: z.number().min(0).max(24).default(18),
+  exhibition: cond.default({ flag: 'exhibition_done' }),
+  card: id.optional(),
+  score: z.record(id, z.strictObject({ of: z.string(), per: z.number() })).default(DEFAULT_SCORE),
+  grades: z
+    .array(z.strictObject({ grade: z.enum(GRADES), gte: z.number() }))
+    .min(1)
+    .default(DEFAULT_GRADES),
+  season2: z
+    .strictObject({
+      goal: id.default('official_tournament'),
+      /** 第二季从哪一天几点开始（不写 = 第 1 天、地图的开门时间） */
+      start: z.strictObject({ day: z.number().int().min(1), hour: z.number().min(0).max(24) }).optional(),
+      /** 第二季一开始打开的卡 */
+      start_cards: z.array(id).default([]),
+    })
+    .default({ goal: 'official_tournament', start_cards: [] }),
+});
+export type Ending = z.infer<typeof ending>;
+
+/* ---------------- 地块（W5，LG-15，ADR 0021） ---------------- */
+
+export const PLOT_STATES = ['locked', 'building', 'open'] as const;
+export type PlotPhase = (typeof PLOT_STATES)[number];
+
+/**
+ * 地块的一个变体（= 一条路）：新锚点、3–5 张清理工单（做完最后一张就开地）、开工时和开地时的效果、
+ * 开地以后才有的岗位和工单（不用再写 when）。
+ */
+export const plotVariant = z.strictObject({
+  /** 新锚点：一直在内容的 anchors 和 nav 里（导航只加不挪），地块没开时这里的岗位不开、工单不出现 */
+  anchor: id,
+  /** 清理工单：开工时一起冒出来（隐含 once），都做完就开地 */
+  orders: z.array(id).min(1),
+  /** 开工时执行一次 */
+  start: z.array(effect).default([]),
+  opens: z
+    .strictObject({
+      /** 开地以后才存在的岗位和工单（隐含"这块地按这个变体开了"） */
+      posts: z.array(id).default([]),
+      orders: z.array(id).default([]),
+      /** 开地时执行一次 */
+      effects: z.array(effect).default([]),
+    })
+    .default({ posts: [], orders: [], effects: [] }),
+});
+export type PlotVariant = z.infer<typeof plotVariant>;
+
+export const plot = z.strictObject({
+  id,
+  /** 哪一处选路决定它（s3 / s4）：选了哪条路就按同名的变体开工 */
+  route: id,
+  /**
+   * 第几季开：1 = 第一季选路时开工；2 = 开第二季时，按第一季没选的路（ending.land）里第一个有变体的开工
+   */
+  season: z.union([z.literal(1), z.literal(2)]).default(1),
+  /** 接下的主办赛事的比赛日，工地停工（清理工单不走进度） */
+  pause_on_events: z.boolean().default(true),
+  variants: z.record(id, plotVariant),
+});
+export type Plot = z.infer<typeof plot>;
 
 /* ---------------- 幕 ---------------- */
 
@@ -457,6 +707,11 @@ export const act = z.strictObject({
         reputation: z.record(id, z.string()),
         members: z.string(),
         member_cap: z.string().optional(),
+        /**
+         * 一周最多走掉多少会员（准则 6：会员按周结算、不一次崩掉；GM-1"会员一次掉 16 太陡"）。表达式，按结算前的
+         * stat.members 算；结算出的会员变化不低于它的相反数（不影响涨）。默认：一周最多走掉四分之一，至少允许走 8 个。
+         */
+        member_loss_max: z.string().default('max(8, stat.members * 0.25)'),
         service_pass: z.number().min(0).max(1).default(0.5),
       })
       .optional(),
@@ -481,15 +736,37 @@ export const act = z.strictObject({
      * 0 = 不掉档。
      */
     grade_drop_below: z.number().min(0).max(100).default(0),
+    /**
+     * 有人守的地方维持住（准则 6）：今天有人在这处设施的任何一个岗位上干完过至少一圈，收盘衰减（decay_day）乘这个数。
+     * 1 = 有人没人一样掉；0 = 有人守就不掉。岗位每圈的 wear 是使用磨损，照算不打折（在岗位 YAML 里调）。
+     */
+    staffed_decay: z.number().min(0).max(1).default(0.5),
   }),
   /**
    * 星级（LG-10，ADR 0020）：第 i 项是升到 ★(i+1) 的清单。requires 的每一条是一个条件（文案在 stars.items.<条 id>），
    * 全部满足就升星（只往上，不往回掉）；opens 是升上来开出的机制（文案在 stars.opens.<键>，内容里用 stars >= N 去开）。
    */
   stars: z
-    .array(z.strictObject({ requires: z.record(id, cond), opens: z.array(id).default([]) }))
+    .array(
+      z.strictObject({
+        requires: z.record(id, cond),
+        opens: z.array(id).default([]),
+        /** 升上这一星时打开的卡（W2 的选路卡：一天倒计时，不选按默认） */
+        card: id.optional(),
+      }),
+    )
     .max(5)
     .optional(),
+  /** 选路（W2）：处 → 可选的路（第一条是路 A，也是机器人和默认的选择）；文案 routes.<处>.<路> */
+  routes: z.record(id, z.array(id).min(2)).optional(),
+  /** 赛事日历（LG-11） */
+  tournaments: z.array(tournament).optional(),
+  /** 员工成长（W3，LG-12）：不写 = 关（和以前一样） */
+  growth: growth.optional(),
+  /** 结局方案 A（W4，LG-13）：不写 = 以前的行为 */
+  ending: ending.optional(),
+  /** 地块（W5，LG-15）：不写 = 地图不长大（和以前一样） */
+  plots: z.array(plot).optional(),
   /** 每天固定开的活动（例如下午的青少年课） */
   daily: z.array(z.strictObject({ hour: z.number(), activity: id, if: cond.optional() })).default([]),
   /** 季节：从第几天开始（第一个从第 1 天开始）；decay 是这一季设施衰减的倍数（初秋落叶多） */

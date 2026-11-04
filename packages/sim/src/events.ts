@@ -1,5 +1,5 @@
 import type { OptionKey, SkillKind } from '@td/content';
-import type { CausalEntry, PlaqueRow } from './state';
+import type { CausalEntry, OutcomeResult, PlaqueRow, Settlement } from './state';
 
 /**
  * 领域事件：模拟每一步发出来，画面和界面订阅它们来演出、提示。
@@ -26,6 +26,13 @@ export type SimEvent =
   | { type: 'postCycle'; post: string; person: string }
   /** 总监的一项能力跨过了一个整十（核心玩法决定：总监没有情绪，能力随干活慢慢涨） */
   | { type: 'directorGrew'; skill: SkillKind; value: number }
+  /**
+   * 员工成长（W3，LG-12）：一项能力跨过了门槛（step 的整数倍、或者某条解锁的 gte）；value 是门槛本身。
+   * 只在 growth.enabled 时发；总监照旧也发 directorGrew
+   */
+  | { type: 'skill_up'; person: string; skill: SkillKind; value: number }
+  /** 成长解锁开出来了（W3）：key 是 growth.unlocks 的键，person 是开出它的人 */
+  | { type: 'unlock'; person: string; key: string }
   | { type: 'postInterrupted'; post: string; person: string; lost: number }
   | { type: 'orderStarted'; order: string; at: string; performance: string | null }
   | { type: 'orderFinished'; order: string; people: string[]; success?: boolean }
@@ -43,11 +50,54 @@ export type SimEvent =
   | ({ type: 'plaque_added' } & PlaqueRow)
   /** 升星（LG-10）：画面转到大门，快讯列出开了什么 */
   | { type: 'star_up'; stars: number; opens: string[] }
+  /** 赛事（LG-11）：主办赛事接下了（报名工单做完）；比赛日开赛（画面布置、临时岗位开出来）；下雨办不成；结算 */
+  | { type: 'tournament_entered'; tournament: string; at: string; start: number; end: number }
+  | { type: 'tournament_live'; tournament: string; at: string; posts: string[] }
+  | { type: 'tournament_spoiled'; tournament: string; at: string; reason: 'rain' }
+  | {
+      type: 'tournament_done';
+      tournament: string;
+      at: string;
+      goals: { id: string; met: boolean }[];
+      /** 第几次参加（0 = 第一次）、奖励打几折 */
+      repeat: number;
+      scale: number;
+    }
+  /**
+   * 赛事的附加目标因为临时岗位没人守而没达成（W2 试玩：两天的邀请赛第二天没人，目标悄悄失败）。
+   * staffed 是这一期临时岗位的到岗率 0..1；posts 是空过的岗位和空了多少分钟（从多到少）。快讯用它讲"为什么没拿到"。
+   */
+  | {
+      type: 'tournament_goal_missed';
+      tournament: string;
+      at: string;
+      goal: string;
+      staffed: number;
+      posts: { post: string; minutes: number }[];
+    }
+  /** 选路（W2）：这一处选了哪条路（倒计时到了按默认的也发） */
+  | { type: 'route_chosen'; slot: string; route: string }
+  /** 地块（W5）：开工（清理工单冒出来；画面 land(plot, 'building', variant, 0)）、开地（画面 land(plot, 'open', variant)，镜头飞过去） */
+  | { type: 'plot_building'; plot: string; variant: string; anchor: string; orders: string[] }
+  | { type: 'plot_open'; plot: string; variant: string; anchor: string }
+  /** 分期筹备（W2）：一期做完了，这一组做完了几期 */
+  | { type: 'prep_done'; group: string; order: string; done: number; total: number }
+  /**
+   * 岗位没了，坐在上面的人放下来闲着（W2）：设施掉档（closed）、改造停用（remodel）、赛事的临时岗位收了或者
+   * 比赛日占了场（event）。界面用它讲"为什么闲着"。
+   */
+  | { type: 'released'; person: string; post: string; facility: string | null; reason: 'closed' | 'remodel' | 'event' }
+  /** 人-13（W2）：工单做完（或作废），回到派去之前的岗位 */
+  | { type: 'returned'; person: string; post: string; order: string }
   | { type: 'errandStarted'; person: string; at: string; minutes: number }
   | { type: 'errandFinished'; person: string }
   | { type: 'log'; entry: CausalEntry }
   | { type: 'dayEnded'; day: number }
-  | { type: 'actEnded'; result: 'won' | 'lost'; ending: string }
+  | { type: 'actEnded'; result: OutcomeResult; ending: string }
+  /** 结局（W4）：表演赛提前办成了（结局卡随后打开，如果内容写了）；结算打分（分项和评语，也存在 s.ending.settlement）；开了第二季 */
+  | { type: 'ending_offered'; day: number; card: string | null }
+  | ({ type: 'settlement' } & Settlement)
+  | { type: 'season_two'; goal: string; land: Record<string, string[]> }
   | { type: 'seasonStarted'; season: string }
   | { type: 'weather'; weather: 'sun' | 'cloud' | 'rain' | 'wind' }
   | {

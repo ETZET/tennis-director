@@ -1,0 +1,48 @@
+# Dale 第一次看到哪一处掉到 30 以下（W2 门评审，GM-1 问题 1："开局悄悄崩盘"，以前只有一条快讯）。
+# 一局只来一次：Dale 放下手上的事去收拾三小时（状况 +30），代价是他这三小时不在岗（课、主教练的专注）；
+# 或者你自己派人——画面和快讯照旧提醒。好几处同时低于 30 时，Dale 去最前面那一处（会员场、红土场、青训场、会所……）。
+# 卡预算：同时"起风了"一局最多一次（以前两次），总数不变。
+id: iw_dale_sweep
+act: indian_wells
+source: threshold
+tone: crisis
+once: true
+countdown: 4h
+when:
+  any:
+    - { all: [{ any: [{ facility: outer_1, is: playable }, { facility: outer_1, is: resurfaced }] }, { expr: "condition.outer_1 < 30" }] }
+    - { all: [{ facility: outer_23, is: playable }, { expr: "condition.outer_23 < 30" }] }
+    - { all: [{ facility: practice, is: open }, { expr: "condition.practice < 30" }] }
+    - { all: [{ facility: clubhouse, is: open }, { expr: "condition.clubhouse < 30" }] }
+    - { all: [{ facility: plaza, is: open }, { expr: "condition.plaza < 30" }] }
+    - { all: [{ facility: stadium_3, is: open }, { expr: "condition.stadium_3 < 30" }] }
+    - { all: [{ facility: stadium_2, is: open }, { expr: "condition.stadium_2 < 30" }] }
+    - { all: [{ facility: stadium_1, is: restored }, { expr: "condition.stadium_1 < 30" }] }
+location: clubhouse
+who: dale
+options:
+  A:
+    # 交给 Dale：他离岗三小时去收拾掉得最厉害的那一处
+    effects:
+      - { errand: dale, at: outer_1, for: 3h, if: { all: [{ any: [{ facility: outer_1, is: playable }, { facility: outer_1, is: resurfaced }] }, { expr: "condition.outer_1 < 30" }] } }
+      - { condition: outer_1, add: 30, if: { all: [{ any: [{ facility: outer_1, is: playable }, { facility: outer_1, is: resurfaced }] }, { expr: "condition.outer_1 < 30" }] } }
+      - { errand: dale, at: outer_23, for: 3h, if: { all: [{ all: [{ facility: outer_23, is: playable }, { expr: "condition.outer_23 < 30" }] }, { not: { all: [{ any: [{ facility: outer_1, is: playable }, { facility: outer_1, is: resurfaced }] }, { expr: "condition.outer_1 < 30" }] } }] } }
+      - { condition: outer_23, add: 30, if: { all: [{ all: [{ facility: outer_23, is: playable }, { expr: "condition.outer_23 < 30" }] }, { not: { all: [{ any: [{ facility: outer_1, is: playable }, { facility: outer_1, is: resurfaced }] }, { expr: "condition.outer_1 < 30" }] } }] } }
+      - { errand: dale, at: practice, for: 3h, if: { all: [{ all: [{ facility: practice, is: open }, { expr: "condition.practice < 30" }] }, { not: { all: [{ any: [{ facility: outer_1, is: playable }, { facility: outer_1, is: resurfaced }] }, { expr: "condition.outer_1 < 30" }] } }, { not: { all: [{ facility: outer_23, is: playable }, { expr: "condition.outer_23 < 30" }] } }] } }
+      - { condition: practice, add: 30, if: { all: [{ all: [{ facility: practice, is: open }, { expr: "condition.practice < 30" }] }, { not: { all: [{ any: [{ facility: outer_1, is: playable }, { facility: outer_1, is: resurfaced }] }, { expr: "condition.outer_1 < 30" }] } }, { not: { all: [{ facility: outer_23, is: playable }, { expr: "condition.outer_23 < 30" }] } }] } }
+      - { errand: dale, at: clubhouse, for: 3h, if: { all: [{ all: [{ facility: clubhouse, is: open }, { expr: "condition.clubhouse < 30" }] }, { not: { all: [{ any: [{ facility: outer_1, is: playable }, { facility: outer_1, is: resurfaced }] }, { expr: "condition.outer_1 < 30" }] } }, { not: { all: [{ facility: outer_23, is: playable }, { expr: "condition.outer_23 < 30" }] } }, { not: { all: [{ facility: practice, is: open }, { expr: "condition.practice < 30" }] } }] } }
+      - { condition: clubhouse, add: 30, if: { all: [{ all: [{ facility: clubhouse, is: open }, { expr: "condition.clubhouse < 30" }] }, { not: { all: [{ any: [{ facility: outer_1, is: playable }, { facility: outer_1, is: resurfaced }] }, { expr: "condition.outer_1 < 30" }] } }, { not: { all: [{ facility: outer_23, is: playable }, { expr: "condition.outer_23 < 30" }] } }, { not: { all: [{ facility: practice, is: open }, { expr: "condition.practice < 30" }] } }] } }
+      - { errand: dale, at: plaza, for: 3h, if: { all: [{ all: [{ facility: plaza, is: open }, { expr: "condition.plaza < 30" }] }, { not: { all: [{ any: [{ facility: outer_1, is: playable }, { facility: outer_1, is: resurfaced }] }, { expr: "condition.outer_1 < 30" }] } }, { not: { all: [{ facility: outer_23, is: playable }, { expr: "condition.outer_23 < 30" }] } }, { not: { all: [{ facility: practice, is: open }, { expr: "condition.practice < 30" }] } }, { not: { all: [{ facility: clubhouse, is: open }, { expr: "condition.clubhouse < 30" }] } }] } }
+      - { condition: plaza, add: 30, if: { all: [{ all: [{ facility: plaza, is: open }, { expr: "condition.plaza < 30" }] }, { not: { all: [{ any: [{ facility: outer_1, is: playable }, { facility: outer_1, is: resurfaced }] }, { expr: "condition.outer_1 < 30" }] } }, { not: { all: [{ facility: outer_23, is: playable }, { expr: "condition.outer_23 < 30" }] } }, { not: { all: [{ facility: practice, is: open }, { expr: "condition.practice < 30" }] } }, { not: { all: [{ facility: clubhouse, is: open }, { expr: "condition.clubhouse < 30" }] } }] } }
+      - { errand: dale, at: stadium_3, for: 3h, if: { all: [{ all: [{ facility: stadium_3, is: open }, { expr: "condition.stadium_3 < 30" }] }, { not: { all: [{ any: [{ facility: outer_1, is: playable }, { facility: outer_1, is: resurfaced }] }, { expr: "condition.outer_1 < 30" }] } }, { not: { all: [{ facility: outer_23, is: playable }, { expr: "condition.outer_23 < 30" }] } }, { not: { all: [{ facility: practice, is: open }, { expr: "condition.practice < 30" }] } }, { not: { all: [{ facility: clubhouse, is: open }, { expr: "condition.clubhouse < 30" }] } }, { not: { all: [{ facility: plaza, is: open }, { expr: "condition.plaza < 30" }] } }] } }
+      - { condition: stadium_3, add: 30, if: { all: [{ all: [{ facility: stadium_3, is: open }, { expr: "condition.stadium_3 < 30" }] }, { not: { all: [{ any: [{ facility: outer_1, is: playable }, { facility: outer_1, is: resurfaced }] }, { expr: "condition.outer_1 < 30" }] } }, { not: { all: [{ facility: outer_23, is: playable }, { expr: "condition.outer_23 < 30" }] } }, { not: { all: [{ facility: practice, is: open }, { expr: "condition.practice < 30" }] } }, { not: { all: [{ facility: clubhouse, is: open }, { expr: "condition.clubhouse < 30" }] } }, { not: { all: [{ facility: plaza, is: open }, { expr: "condition.plaza < 30" }] } }] } }
+      - { errand: dale, at: stadium_2, for: 3h, if: { all: [{ all: [{ facility: stadium_2, is: open }, { expr: "condition.stadium_2 < 30" }] }, { not: { all: [{ any: [{ facility: outer_1, is: playable }, { facility: outer_1, is: resurfaced }] }, { expr: "condition.outer_1 < 30" }] } }, { not: { all: [{ facility: outer_23, is: playable }, { expr: "condition.outer_23 < 30" }] } }, { not: { all: [{ facility: practice, is: open }, { expr: "condition.practice < 30" }] } }, { not: { all: [{ facility: clubhouse, is: open }, { expr: "condition.clubhouse < 30" }] } }, { not: { all: [{ facility: plaza, is: open }, { expr: "condition.plaza < 30" }] } }, { not: { all: [{ facility: stadium_3, is: open }, { expr: "condition.stadium_3 < 30" }] } }] } }
+      - { condition: stadium_2, add: 30, if: { all: [{ all: [{ facility: stadium_2, is: open }, { expr: "condition.stadium_2 < 30" }] }, { not: { all: [{ any: [{ facility: outer_1, is: playable }, { facility: outer_1, is: resurfaced }] }, { expr: "condition.outer_1 < 30" }] } }, { not: { all: [{ facility: outer_23, is: playable }, { expr: "condition.outer_23 < 30" }] } }, { not: { all: [{ facility: practice, is: open }, { expr: "condition.practice < 30" }] } }, { not: { all: [{ facility: clubhouse, is: open }, { expr: "condition.clubhouse < 30" }] } }, { not: { all: [{ facility: plaza, is: open }, { expr: "condition.plaza < 30" }] } }, { not: { all: [{ facility: stadium_3, is: open }, { expr: "condition.stadium_3 < 30" }] } }] } }
+      - { errand: dale, at: stadium_1, for: 3h, if: { all: [{ all: [{ facility: stadium_1, is: restored }, { expr: "condition.stadium_1 < 30" }] }, { not: { all: [{ any: [{ facility: outer_1, is: playable }, { facility: outer_1, is: resurfaced }] }, { expr: "condition.outer_1 < 30" }] } }, { not: { all: [{ facility: outer_23, is: playable }, { expr: "condition.outer_23 < 30" }] } }, { not: { all: [{ facility: practice, is: open }, { expr: "condition.practice < 30" }] } }, { not: { all: [{ facility: clubhouse, is: open }, { expr: "condition.clubhouse < 30" }] } }, { not: { all: [{ facility: plaza, is: open }, { expr: "condition.plaza < 30" }] } }, { not: { all: [{ facility: stadium_3, is: open }, { expr: "condition.stadium_3 < 30" }] } }, { not: { all: [{ facility: stadium_2, is: open }, { expr: "condition.stadium_2 < 30" }] } }] } }
+      - { condition: stadium_1, add: 30, if: { all: [{ all: [{ facility: stadium_1, is: restored }, { expr: "condition.stadium_1 < 30" }] }, { not: { all: [{ any: [{ facility: outer_1, is: playable }, { facility: outer_1, is: resurfaced }] }, { expr: "condition.outer_1 < 30" }] } }, { not: { all: [{ facility: outer_23, is: playable }, { expr: "condition.outer_23 < 30" }] } }, { not: { all: [{ facility: practice, is: open }, { expr: "condition.practice < 30" }] } }, { not: { all: [{ facility: clubhouse, is: open }, { expr: "condition.clubhouse < 30" }] } }, { not: { all: [{ facility: plaza, is: open }, { expr: "condition.plaza < 30" }] } }, { not: { all: [{ facility: stadium_3, is: open }, { expr: "condition.stadium_3 < 30" }] } }, { not: { all: [{ facility: stadium_2, is: open }, { expr: "condition.stadium_2 < 30" }] } }] } }
+      - { log: log.dale_swept }
+  B:
+    # 我来安排：Dale 留在岗位上，那一处接着掉，等你派人
+    effects:
+      - { log: log.dale_sweep_declined }
+default: { then: B }

@@ -208,7 +208,7 @@ const lines = new Map<string, XZ[] | null>();
 export function routeLine(a: string, b: string): XZ[] | null {
   const key = `${a}|${b}`;
   if (!lines.has(key)) {
-    const p = a in STANDS && b in STANDS ? shortest(`@${a}`, `@${b}`) : null;
+    const p = hasStand(a) && hasStand(b) ? shortest(`@${a}`, `@${b}`) : null;
     lines.set(key, p ? p.map((n) => NODES[n] as XZ) : null);
   }
   const l = lines.get(key);
@@ -251,3 +251,108 @@ export const F_PK4: readonly CourtFrame[] = (
  * 单独给两个实例，方便以后单独调尺寸。
  */
 export const F_TN2: readonly CourtFrame[] = [F_PB1, F_PB2].map((f) => new CourtFrame(f.ox, 0, f.oz, f.a, f.hx, f.hz));
+
+/* ---------------- 地图长大（ADR 0021）：新地的锚点、站位、步道（只追加，不挪旧的） ---------------- */
+
+/** 南墙上砌死的旧南门：西步道（x ≈ −36.5）断在这里。门洞占南墙从西数第 5 段（x0..x1），z 是墙线 */
+export const SOUTH_GATE = { x: -37.43, x0: -40.381, x1: -34.476, z: 52 } as const;
+/** ★3 收回的高尔夫西段（地块 golf_west） */
+export const GOLF_WEST = { x0: -64, x1: 2, z0: 53, z1: 81 } as const;
+/** 高尔夫的水塘（golf_west 里；绿洲草坪留着它，南场填掉它） */
+export const GOLF_POND = { x: -30, z: 66, rx: 7.5, rz: 4.5 } as const;
+/** 南场：两片新硬地（场边留得比墙里的窄一点，两片之间留 1 米） */
+export const F_SC1 = new CourtFrame(-47.5, 0, 68.5, 0, 15.5, 8.3);
+export const F_SC2 = new CourtFrame(-15.5, 0, 68.5, 0, 15.5, 8.3);
+/** 南门外沿南墙的一条步道（两种用途都有） */
+export const SOUTH_WALK = { x0: -60, x1: -4, z0: 55.2, z1: 57.8 } as const;
+/** 绿洲草坪：三间小屋（中心、宽、深）、小泳池庭院 */
+export const CABINS: readonly { x: number; z: number; w: number; d: number }[] = [
+  { x: -54, z: 62.5, w: 6, d: 5 },
+  { x: -47, z: 74.5, w: 6, d: 5 },
+  { x: -10, z: 73.5, w: 6, d: 5 },
+];
+export const OASIS_POOL = { x0: -19.5, x1: -12.5, z0: 60, z1: 63.6 } as const;
+export const OASIS_DECK = { x0: -23, x1: -6, z0: 58.6, z1: 66 } as const;
+
+/** ★4 东南角：南停车场改成观赛坡（范围就是 LOT_S），大遮阳棚和大屏 */
+export const SLOPE = LOT_S;
+/** 赛事广场：东南角新长出来的地（两块，和基础地台合并成一个轮廓）和挪过去的停车场、接过去的路 */
+export const SE_GROW: readonly { x0: number; x1: number; z0: number; z1: number }[] = [
+  { x0: 64, x1: 104, z0: 82, z1: 100 },
+  { x0: 104, x1: 112, z0: 66, z1: 94 },
+];
+export const LOT_NEW = { x0: 68, x1: 100, z0: 84, z1: 97 } as const;
+export const SE_ROAD = { x0: 97.5, x1: 102.5, z0: -4, z1: 86 } as const;
+/** 学院岛：靠岸以后的位置（地台多一块，和基础地台隔着一道桥）、桥、天上浮着时的位置和高度 */
+export const ISLE_DOCK = { x0: 86, x1: 116, z0: 98, z1: 122 } as const;
+export const ISLE_SKY = { x0: 130, x1: 160, z0: 112, z1: 136, y: 24 } as const;
+export const BRIDGE = { x: 100, z0: 82, z1: 98, w: 2.6 } as const;
+/** 岛上的练习场（场地坐标系同墙里的场：沿 x 打，场边窄）、宿舍 */
+export const F_ISLE = new CourtFrame(101, 0, 114, 0, 13.9, 7);
+export const DORM = { x0: 103, x1: 114.5, z0: 99.5, z1: 105.5 } as const;
+
+/** 新地的锚点（地点中心）。地块没开时内容里有、画面上不显示；没并进 ANCHORS，免得 Object.keys(STANDS) 的闲逛人走过去 */
+export const LAND_ANCHORS = {
+  south_courts: { x: -31.5, z: F_SC1.oz },
+  oasis_lawn: { x: GOLF_POND.x, z: GOLF_POND.z },
+  event_plaza: { x: (SLOPE.x0 + SLOPE.x1) / 2, z: (SLOPE.z0 + SLOPE.z1) / 2 },
+  academy_isle: { x: F_ISLE.ox, z: F_ISLE.oz },
+} satisfies Record<string, XZ>;
+export type LandAnchor = keyof typeof LAND_ANCHORS;
+
+/** 新地上人站在哪儿 */
+export const LAND_STANDS: Record<LandAnchor, XZ> = {
+  south_courts: { x: -31.5, z: 57 },
+  oasis_lawn: { x: -34, z: 60 },
+  event_plaza: { x: 70, z: 8.6 },
+  academy_isle: { x: 100, z: 103 },
+};
+
+/** 哪块地上有哪些新锚点 */
+export const PLOT_ANCHORS: Readonly<Record<string, Readonly<Record<string, LandAnchor>>>> = {
+  golf_west: { south_courts: 'south_courts', oasis_lawn: 'oasis_lawn' },
+  se_corner: { event_plaza: 'event_plaza', academy_isle: 'academy_isle' },
+};
+
+/** 旧站位 + 已经开了的新地的站位（Site.stands 想按"哪些地开了"增减时用） */
+export function standsWith(open: readonly string[]): Record<string, XZ> {
+  const out: Record<string, XZ> = { ...STANDS };
+  for (const a of open) if (a in LAND_STANDS) out[a] = LAND_STANDS[a as LandAnchor];
+  return out;
+}
+
+function hasStand(k: string): boolean {
+  return k in STANDS || k in LAND_STANDS;
+}
+
+/** 新的路网节点：都是挂在旧节点上的支线（不连两个旧节点，旧的最短路一条也不变） */
+const LAND_NODES: Record<string, XZ> = {
+  /** 西步道的南头（砌死的南门里边）和门外 */
+  s_gate: { x: -36.5, z: 50.5 },
+  s_out: { x: -36.5, z: 56.5 },
+  /** 车道往东接到岛边，再沿东边往南到桥头；桥那头 */
+  se_e: { x: 100, z: 0 },
+  se_head: { x: 100, z: 81 },
+  isle_foot: { x: 100, z: 99.5 },
+  ...Object.fromEntries(Object.entries(LAND_STANDS).map(([k, v]) => [`@${k}`, v])),
+};
+
+const LAND_EDGES: readonly (readonly [string, string])[] = [
+  ['q_w', 's_gate'],
+  ['s_gate', 's_out'],
+  ['s_out', '@south_courts'],
+  ['s_out', '@oasis_lawn'],
+  ['drive', '@event_plaza'],
+  ['drive', 'se_e'],
+  ['se_e', 'se_head'],
+  // 桥：一条单独的导航边
+  ['se_head', 'isle_foot'],
+  ['isle_foot', '@academy_isle'],
+];
+
+Object.assign(NODES, LAND_NODES);
+for (const [a, b] of LAND_EDGES) {
+  const d = dist(NODES[a] as XZ, NODES[b] as XZ);
+  ADJ.set(a, [...(ADJ.get(a) ?? []), [b, d]]);
+  ADJ.set(b, [...(ADJ.get(b) ?? []), [a, d]]);
+}

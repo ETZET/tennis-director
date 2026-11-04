@@ -16,18 +16,39 @@ export {
   type OptionStatus,
   optionStatus,
 } from './cards';
+export {
+  canStartSeason2,
+  type EndingStatus,
+  endingStatus,
+  gradeOf,
+  scoreOf,
+} from './ending';
 export type { SimEvent } from './events';
 export * from './game';
+export {
+  type PlotStatus,
+  placeAvailable,
+  placeOpen,
+  plotAllows,
+  plotOrderPaused,
+  plotPaused,
+  plotPhase,
+  plotStatus,
+} from './plots';
+export { growthOf, potentialOf } from './potential';
 export * from './save';
 export {
   type AssignBlock,
   canAssign,
   crewOf,
+  dayDecay,
   eligible,
   meetsWorker,
+  minCrew,
   type OrderBlock,
   type OrderStatus,
   occupant,
+  openVariants,
   orderCost,
   orderFacility,
   orderLead,
@@ -36,9 +57,11 @@ export {
   orderVariants,
   orderWork,
   type PostStatus,
+  type PrepStatus,
   postDemand,
   postExists,
   postStatus,
+  prepStatus,
   ROUTINE_MAX,
   remodelMinutes,
   routineTarget,
@@ -52,6 +75,16 @@ export { type StarItem, type StarStatus, starStatus } from './stars';
 export * from './state';
 export { seasonOn } from './systems';
 export {
+  currentEdition,
+  eventLive,
+  goalsFor,
+  repeatOf,
+  type TournamentStatus,
+  tournamentStatus,
+} from './tournaments';
+export {
+  anySkilled,
+  bestSkill,
   coachAttention,
   coachPresent,
   conditionFactor,
@@ -61,6 +94,7 @@ export {
   isRestored,
   isStaff,
   num,
+  prepProgress,
   qualityTarget,
   remodeling,
   restoredCount,
@@ -71,6 +105,6 @@ export {
   wagesWeek,
 } from './vars';
 export { shortestRoute, walkEta } from './walk';
-export { type World, worldFor } from './world';
+export { type Edition, type PlotRef, type World, worldFor } from './world';
 
 export const SIM_VERSION = 2;

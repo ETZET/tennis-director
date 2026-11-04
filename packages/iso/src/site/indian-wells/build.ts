@@ -3,6 +3,7 @@ import { fbm, hash } from '../../core/color';
 import { Custom, type DrawContext, type Node } from '../../core/graph';
 import type { CourtFrame } from '../../world/frame';
 import { type Bounds, type Draw, dark, type Kit, type Lamp, type Weather } from './common';
+import { foreshadowStatics, guardBuilt } from './foreshadow';
 import type { Cast } from './ground';
 import { box, cyl, drawText, ellSh, faceF, fq, hipRoof, type Pt, unprojector } from './kit';
 import { F_O1, F_O2, F_O3, F_P1, F_P2, F_PB1, F_PB2, F_S1, FOUNTAIN, GROUNDS, PICKLE, POOL, TERRACE } from './layout';
@@ -37,6 +38,34 @@ export interface BuildOut {
   dynamic: Node[];
   casts: Cast[];
   lamps: Lamp[];
+  /** 场景构建的小工具（新地 land.ts 借用来摆棕榈、围网、车）；它们往这一份 out 里加节点 */
+  kit?: SiteKit;
+}
+
+/** Kit 再加上 build.ts 里其余的共用小物件（land.ts 用） */
+export interface SiteKit extends Kit {
+  palm(x: number, z: number, h: number, o?: { dead?: boolean; half?: boolean; stump?: boolean; up?: boolean }): void;
+  tree(x: number, z: number, h: number, rad: number, dry: boolean): void;
+  net(F: Pick<CourtFrame, 'ox' | 'oz'>, o?: { pick?: boolean; missing?: boolean; sag?: boolean }): void;
+  fenceRect(
+    x0: number,
+    x1: number,
+    z0: number,
+    z1: number,
+    h: number,
+    gaps: readonly (readonly [number, number])[],
+    ruin: boolean,
+    seed: number,
+    screen?: boolean,
+  ): void;
+  car(x: number, z: number, c: string, rust: boolean): void;
+  bush(x: number, z: number, s: number): void;
+  tumble(x: number, z: number, rad?: number): void;
+  flag(x: number, z: number, h: number, c1: string, c2: string): void;
+  lamp(x: number, z: number, on: boolean, broken?: boolean): void;
+  sack(x: number, z: number, h: number, c: string, w?: number): void;
+  planks(x: number, z: number): void;
+  sandPile(x: number, z: number, rad: number): void;
 }
 
 export function buildStatics(fac: Facilities, wx: Weather): BuildOut {
@@ -1383,6 +1412,26 @@ export function buildStatics(fac: Facilities, wx: Weather): BuildOut {
       box(r, -41, -38, 20, 24, 0, 1.6, '#e8b22a', { lit: r.litAt(-39, 22) }),
     );
   }
+
+  /* ---------------- 地图长大的伏笔（ADR 0021；加在最后，前面的构建顺序和随机流不动） ---------------- */
+  // 南墙那一段换成砌死的南门；新地范围里原来的节点画之前先看 foreshadow.ts 的 FORE.hide
+  guardBuilt(out);
+  out.statics.push(...foreshadowStatics(lv));
+  out.kit = {
+    ...K,
+    palm,
+    tree,
+    net,
+    fenceRect,
+    car,
+    bush,
+    tumble,
+    flag,
+    lamp,
+    sack,
+    planks,
+    sandPile,
+  };
   return out;
 }
 

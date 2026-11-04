@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { parse, stringify } from 'yaml';
 import { compileContent, VARIANT_VAR } from './compile';
 import { CONTENT } from './index';
-import { minutes } from './schema';
+import { DEFAULT_GRADES, DEFAULT_SCORE, ending, growth, minutes } from './schema';
 
 const DATA = join(dirname(fileURLToPath(import.meta.url)), '../data');
 const files = (): Record<string, string> => {
@@ -267,6 +267,251 @@ describe('内容编译', () => {
     expect(m).toMatch(/outer_23.variants.hard: unknown state 'paved'/);
     expect(m).toMatch(/facility 'outer_23' has no upgrade 'nope'/);
     expect(m).toMatch(/missing text 'stars.opens.no_such_opening'/);
+  });
+
+  it('员工成长（W3）：解锁、条件、变量、潜力、岗位门槛能编译；写错都报错', () => {
+    const ok = files();
+    const zh = (y: Yaml) => {
+      y.unlocks = { night_care: '夜间养护' };
+    };
+    editYaml(ok, 'i18n/zh.yaml', zh);
+    editYaml(ok, 'i18n/en.yaml', (y) => {
+      y.unlocks = { night_care: 'Night clay care' };
+    });
+    editYaml(ok, 'acts/indian_wells.yaml', (y) => {
+      y.growth = {
+        enabled: true,
+        unlocks: [
+          {
+            key: 'night_care',
+            need: [{ skill: 'upkeep', gte: 75, who: 'crew' }],
+            effects: [
+              { person: 'worker', add: { morale: 5 } },
+              { flag: 'night_care_open', set: true },
+            ],
+          },
+        ],
+      };
+    });
+    editYaml(ok, 'posts/o1_upkeep.yaml', (y) => {
+      y.worker = { upkeep: 30 };
+      y.when = { all: [y.when, { unlocked: 'night_care' }, { skilled: 'upkeep', gte: 75, who: 'crew' }] };
+      y.effects = [{ stat: 'cash', add: 'unlocked.night_care + best.upkeep / 100' }];
+    });
+    editYaml(ok, 'people/indian_wells.yaml', (y) => {
+      y.find((p: { id: string }) => p.id === 'dale').potential = { teach: 60 };
+    });
+    // 只看这几处改动带来的错（别的内容可能正在并行改）
+    const before = new Set(msgs(compileContent(files())).split('\n'));
+    const r = compileContent(ok);
+    expect(
+      msgs(r)
+        .split('\n')
+        .filter((x) => x && !before.has(x)),
+    ).toEqual([]);
+    expect(growth.parse({ enabled: true })).toMatchObject({
+      rate: 0.2,
+      headroom: 15,
+      traits: { late_bloomer: 10 },
+      step: 5,
+    });
+
+    const bad = structuredClone(ok);
+    editYaml(bad, 'acts/indian_wells.yaml', (y) => {
+      y.growth.traits = { nope: 3 };
+      y.growth.unlocks.push({ key: 'night_care', need: [{ skill: 'upkeep', gte: 75, who: 'wizard' }] });
+      y.growth.unlocks.push({ key: 'no_text', need: [{ skill: 'teach', gte: 60 }] });
+    });
+    editYaml(bad, 'posts/o1_lesson.yaml', (y) => {
+      y.worker = { upkeep: 130 };
+    });
+    editYaml(bad, 'posts/o1_upkeep.yaml', (y) => {
+      y.when.all.push({ unlocked: 'nothing' }, { skilled: 'upkeep', gte: 10, who: 'ghost' });
+      y.effects[0].add = 'unlocked.nothing';
+    });
+    editYaml(bad, 'people/indian_wells.yaml', (y) => {
+      y.find((p: { id: string }) => p.id === 'dale').potential = { teach: 10 };
+    });
+    const b = compileContent(bad);
+    const m = msgs(b);
+    expect(m).toMatch(/growth.traits: unknown trait 'nope'/);
+    expect(m).toMatch(/duplicate unlock key/);
+    expect(m).toMatch(/who 'wizard' is neither/);
+    expect(m).toMatch(/missing text 'unlocks.no_text'/);
+    expect(m).toMatch(/o1_lesson.yaml: worker.upkeep/);
+    expect(m).toMatch(/no growth unlock 'nothing'/);
+    expect(m).toMatch(/who 'ghost' is neither/);
+    expect(m).toMatch(/unknown variable 'unlocked.nothing'/);
+    expect(msgs(b, 'warnings')).toMatch(/dale: potential.teach 10 is below the starting value 45/);
+  });
+
+  it('结局方案 A（W4）：ending 分项、评语、结局卡和第二季目标都校验，文案两种语言都要有', () => {
+    const ok = files();
+    ok['events/indian_wells/iw_ending.yaml'] = stringify({
+      id: 'iw_ending',
+      act: 'indian_wells',
+      source: 'consequence',
+      tone: 'neutral',
+      pause: true,
+      countdown: '1d',
+      location: 'stadium_1',
+      who: 'investors',
+      options: { A: { effects: [{ settle: true }] }, B: { effects: [] } },
+      // biome-ignore lint/suspicious/noThenProperty: 'then' is the card spec's field name (plain data)
+      default: { then: 'B' },
+    });
+    const text = (y: Yaml) => {
+      y.ending = {
+        items: Object.fromEntries([...Object.keys(DEFAULT_SCORE), 'days'].map((k) => [k, k])),
+        grades: Object.fromEntries(DEFAULT_GRADES.map((g) => [g.grade, g.grade])),
+        goals: { official_tournament: 'Host an official tournament' },
+      };
+      y.endings.score = { title: 'Season review', body: 'The investors add it up.' };
+      y.events.iw_ending = { title: 'Done early', body: 'Settle now?', options: { A: 'Settle', B: 'Keep going' } };
+    };
+    editYaml(ok, 'i18n/zh.yaml', text);
+    editYaml(ok, 'i18n/en.yaml', text);
+    editYaml(ok, 'acts/indian_wells.yaml', (y) => {
+      y.ending = {
+        mode: 'score',
+        card: 'iw_ending',
+        score: { ...DEFAULT_SCORE, days: { of: 'ending.days_early + ending.season + ending.settled', per: 1 } },
+      };
+    });
+    // 只看这几处改动带来的错（别的内容可能正在并行改）
+    const before = new Set(msgs(compileContent(files())).split('\n'));
+    const known = (r: ReturnType<typeof compileContent>) =>
+      msgs(r)
+        .split('\n')
+        .filter((x) => x && !before.has(x));
+    expect(known(compileContent(ok))).toEqual([]);
+    expect(ending.parse({ mode: 'score' })).toMatchObject({ day: 112, hour: 18, score: DEFAULT_SCORE });
+
+    const bad = structuredClone(ok);
+    editYaml(bad, 'acts/indian_wells.yaml', (y) => {
+      y.ending.card = 'iw_nope';
+      y.ending.score.bogus = { of: 'ending.nope', per: 1 };
+      y.ending.grades = [
+        { grade: 'B', gte: 100 },
+        { grade: 'A', gte: 500 },
+        { grade: 'B', gte: 0 },
+      ];
+      y.ending.season2 = { goal: 'moon_landing' };
+    });
+    const m = known(compileContent(bad)).join('\n');
+    expect(m).toMatch(/ending.card: unknown card 'iw_nope'/);
+    expect(m).toMatch(/unknown variable 'ending.nope'/);
+    expect(m).toMatch(/missing text 'ending.items.bogus'/);
+    expect(m).toMatch(/duplicate grade/);
+    expect(m).toMatch(/highest threshold down/);
+    expect(m).toMatch(/missing text 'ending.goals.moon_landing'/);
+  });
+
+  it('地块（W5）：每块地的每个变体走一遍（锚点、导航边、近路、清理工单、开出来的岗位），写错都报错', () => {
+    const ok = files();
+    // 步行分钟数照画面的表（art17 land-walk-minutes）
+    const SC: Record<string, number> = {
+      entrance: 105,
+      parking: 117,
+      plaza: 96,
+      clubhouse: 47,
+      stadium_1: 71,
+      stadium_2: 36,
+      stadium_3: 81,
+      practice: 54,
+      outer_1: 54,
+      outer_23: 54,
+    };
+    const OL: Record<string, number> = Object.fromEntries(Object.entries(SC).map(([k, v]) => [k, v - 1]));
+    OL.practice = 54;
+    OL.outer_1 = 54;
+    OL.outer_23 = 54;
+    const order = (id: string, at: string) =>
+      stringify({ id, act: 'indian_wells', at, skill: 'upkeep', work: '2h', crew: 2, effects: [] });
+    for (const id of ['gw_clear', 'gw_fill', 'gw_pave']) ok[`orders/${id}.yaml`] = order(id, 'south_courts');
+    for (const id of ['gw_dig', 'gw_cabins', 'gw_pool']) ok[`orders/${id}.yaml`] = order(id, 'oasis_lawn');
+    ok['posts/sc_rental.yaml'] = stringify({
+      id: 'sc_rental',
+      act: 'indian_wells',
+      at: 'south_courts',
+      skill: 'service',
+      hours: [8, 15],
+      cycle: '1h',
+      effects: [],
+    });
+    const text = (y: Yaml) => {
+      y.anchors.south_courts = 'South courts';
+      y.anchors.oasis_lawn = 'Oasis lawn';
+      for (const id of ['gw_clear', 'gw_fill', 'gw_pave', 'gw_dig', 'gw_cabins', 'gw_pool'])
+        y.orders[id] = { title: id, note: id };
+      y.posts.sc_rental = { title: 'South courts desk', note: 'Daily' };
+    };
+    editYaml(ok, 'i18n/zh.yaml', text);
+    editYaml(ok, 'i18n/en.yaml', text);
+    editYaml(ok, 'acts/indian_wells.yaml', (y) => {
+      y.anchors.push('south_courts', 'oasis_lawn');
+      for (const [k, v] of Object.entries(SC)) y.nav.push([k, 'south_courts', v]);
+      for (const [k, v] of Object.entries(OL)) y.nav.push([k, 'oasis_lawn', v]);
+      y.nav.push(['south_courts', 'oasis_lawn', 6]);
+      y.plots = [
+        {
+          id: 'golf_west',
+          route: 's3',
+          variants: {
+            south_courts: {
+              anchor: 'south_courts',
+              orders: ['gw_clear', 'gw_fill', 'gw_pave'],
+              start: [{ stat: 'quality', add: -1 }],
+              opens: { posts: ['sc_rental'], effects: [{ flag: 'south_open', set: true }] },
+            },
+            oasis_lawn: { anchor: 'oasis_lawn', orders: ['gw_dig', 'gw_cabins', 'gw_pool'] },
+          },
+        },
+      ];
+      y.rules.derived_terms = y.rules.derived_terms ?? {};
+    });
+    editYaml(ok, 'posts/o1_rental.yaml', (y) => {
+      y.when = { all: [y.when ?? { expr: 'true' }, { not: { plot: 'golf_west', is: 'building' } }] };
+    });
+    const before = new Set(msgs(compileContent(files())).split('\n'));
+    const known = (r: ReturnType<typeof compileContent>, kind: 'errors' | 'warnings' = 'errors') =>
+      msgs(r, kind)
+        .split('\n')
+        .filter((x) => x && !before.has(x));
+    const good = compileContent(ok);
+    expect(known(good)).toEqual([]);
+    expect(good.bundle?.acts[0]?.plots?.[0]?.season).toBe(1);
+
+    const bad = structuredClone(ok);
+    editYaml(bad, 'acts/indian_wells.yaml', (y) => {
+      y.nav = y.nav.filter((e: [string, string, number]) => e[1] !== 'oasis_lawn' && e[0] !== 'oasis_lawn');
+      y.nav.push(['south_courts', 'oasis_lawn', 6]);
+      // 近路：经过南场比旧路快
+      y.nav = y.nav.map((e: [string, string, number]) =>
+        e[0] === 'entrance' && e[1] === 'south_courts' ? [e[0], e[1], 5] : e,
+      );
+      y.plots[0].variants.south_courts.orders.push('o1_sweep', 'gw_nope');
+      y.plots[0].variants.oasis_lawn.orders = ['gw_dig', 'gw_clear'];
+      y.plots[0].variants.academy_isle = { anchor: 'academy_isle', orders: ['gw_pool'] };
+      y.plots[0].variants.south_courts.opens.effects.push({ plot: 'golf_west', build: 'nope' });
+    });
+    editYaml(bad, 'posts/o1_rental.yaml', (y) => {
+      y.when = { plot: 'golf_east', is: 'open' };
+    });
+    editYaml(bad, 'posts/o1_lesson.yaml', (y) => {
+      y.when = { plot: 'golf_west', is: 'half_done' };
+    });
+    const m = known(compileContent(bad)).join('\n');
+    expect(m).toMatch(/unknown plot 'golf_east'/);
+    expect(m).toMatch(/not 'half_done'/);
+    expect(m).toMatch(/'oasis_lawn' has no nav edge to an existing place/);
+    expect(m).toMatch(/entrance → south_courts → \w+ .* beats the old path/);
+    expect(m).toMatch(/unknown order 'gw_nope'/);
+    expect(m).toMatch(/'gw_clear' is already used by/);
+    expect(m).toMatch(/route slot 's3' has no route 'academy_isle'/);
+    expect(m).toMatch(/'academy_isle' is not in anchors/);
+    expect(m).toMatch(/plot 'golf_west' has no variant 'nope'/);
+    expect(known(compileContent(bad), 'warnings').join('\n')).toMatch(/oasis_lawn.orders: 2 clearance orders/);
   });
 
   it('文件名必须和 id 一致', () => {

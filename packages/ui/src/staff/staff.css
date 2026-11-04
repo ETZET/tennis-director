@@ -16,7 +16,10 @@
 .td-tok-idle .td-tok-doing,.td-tok-waiting .td-tok-doing{color:#ffc8b5}
 .td-tok-skills{display:flex;gap:3px}
 .td-sk{width:26px;height:4px;background:rgba(255,255,255,.18)}
-.td-sk i{display:block;height:100%}
+.td-sk{position:relative}
+.td-sk i{position:relative;display:block;height:100%}
+.td-sk em{position:absolute;left:0;top:0;bottom:0;background:rgba(255,255,255,.22)}
+.td-tok-rose{margin-left:3px;font-size:9px;color:#7fe0a0;vertical-align:2px}
 .td-sk-teach i{background:#d8c08a}
 .td-sk-upkeep i{background:#9be07f}
 .td-sk-service i{background:#c9e8ff}
@@ -121,3 +124,15 @@
 .td-place{-webkit-user-select:none;user-select:none}
 /* 预览变体时清单收矮，场景里的预览露在清单上面（镜头同时把设施挪过去） */
 .td-place-wrap .td-place.td-place-preview{max-height:min(36%,calc(100% - 300px))}
+/* 赛事（W2）：地点清单顶上一格，附加目标此刻的进度；行标题旁的小牌（临时岗位、报名） */
+.td-place-event{display:flex;flex-direction:column;gap:4px;padding:8px 10px;background:rgba(215,255,60,.12);border-left:3px solid #d7ff3c;font:600 12px/1.3 var(--td-text,sans-serif);color:#dfe6ef}
+.td-place-event b{color:#fff;font-size:13px}
+.td-place-event ul,.td-place-prep ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+.td-place-event li,.td-place-prep li{display:flex;gap:6px;align-items:baseline}
+.td-place-event li em,.td-place-prep li em{font-style:normal;margin-left:auto;font-variant-numeric:tabular-nums;color:#c9d3e0}
+.td-goal-met{color:#9be07f}
+.td-place-prep{display:flex;flex-direction:column;gap:4px;padding:8px 10px;background:rgba(255,255,255,.06);font:600 12px/1.3 var(--td-text,sans-serif);color:#dfe6ef}
+.td-place-prep b{color:#fff;font-size:13px}
+.td-place-prep .td-prep-done{color:#9be07f}
+.td-place-prep p{margin:0;color:#c9d3e0;font-weight:500}
+.td-row-badge{display:inline-block;margin-left:6px;padding:1px 5px;background:#d7ff3c;color:#14223a;font:700 10px/1.3 var(--td-text,sans-serif);vertical-align:middle}

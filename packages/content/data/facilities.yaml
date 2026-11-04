@@ -115,3 +115,13 @@
     cleared: { quality: -1 }
     restored: { courts: 1, quality: 20, upkeep_week: 300, decay_day: 2, drops_to: worn }
     worn: { upkeep_week: 100 }
+  # 表演赛筹备的两期（W2，orders/prep_lights.yaml、prep_media.yaml）：
+  # 夜场灯：重建以后开出夜场（st1_night），电费每周 +$30；赞助和转播：赞助商每周付 $150，中心球场哪一档都付
+  upgrades:
+    night_lights: { states: { restored: { upkeep_week: 30 } } }
+    broadcast:
+      states:
+        ruined: { income_week: 150 }
+        cleared: { income_week: 150 }
+        restored: { income_week: 150 }
+        worn: { income_week: 150 }

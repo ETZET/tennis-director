@@ -1,4 +1,4 @@
-# 第二个招聘日（b）：一个体能师，一个大学打完还想再拼一次的球员。
+# 第二个招聘日（b，度假之路多半是这一拨）：一个体能师（泳池、理疗），一个大学打完还想再拼一次的球员。
 id: iw_hiring_day_2b
 act: indian_wells
 source: consequence
@@ -7,19 +7,20 @@ pause: true
 countdown: 1d
 location: clubhouse
 who: applicants
+# 选路（GM-14，W2 门评审加强）：第三个招聘日青训之路八成是 a 拨（Walt 教练、Luca 球员），度假之路八成是 b 拨（Lily 前台、Teodora 穿线师）
 options:
   A:
     effects:
       - { hire: kofi_mensah }
       # 下一个招聘日来哪一拨人，按这一局的种子抽（docs/design/people.md「招聘日怎么出人」）
-      - { flag: iw_hiring_day_3_b, set: true, chance: 0.5 }
+      - { flag: iw_hiring_day_3_b, set: true, chance: "route.s2 == \"youth\" ? 0.2 : (route.s2 == \"resort\" ? 0.8 : 0.5)" }
       - { schedule: iw_hiring_day_3, in: 14d, if: { not: { flag: iw_hiring_day_3_b } } }
       - { schedule: iw_hiring_day_3b, in: 14d, if: { flag: iw_hiring_day_3_b } }
   B:
     effects:
       - { hire: amara_okafor }
       # 下一个招聘日来哪一拨人，按这一局的种子抽（docs/design/people.md「招聘日怎么出人」）
-      - { flag: iw_hiring_day_3_b, set: true, chance: 0.5 }
+      - { flag: iw_hiring_day_3_b, set: true, chance: "route.s2 == \"youth\" ? 0.2 : (route.s2 == \"resort\" ? 0.8 : 0.5)" }
       - { schedule: iw_hiring_day_3, in: 14d, if: { not: { flag: iw_hiring_day_3_b } } }
       - { schedule: iw_hiring_day_3b, in: 14d, if: { flag: iw_hiring_day_3_b } }
   C:
@@ -27,7 +28,7 @@ options:
       # 不招：省下工资，活还是那几个人干
       - { log: log.no_hire }
       # 下一个招聘日来哪一拨人，按这一局的种子抽（docs/design/people.md「招聘日怎么出人」）
-      - { flag: iw_hiring_day_3_b, set: true, chance: 0.5 }
+      - { flag: iw_hiring_day_3_b, set: true, chance: "route.s2 == \"youth\" ? 0.2 : (route.s2 == \"resort\" ? 0.8 : 0.5)" }
       - { schedule: iw_hiring_day_3, in: 14d, if: { not: { flag: iw_hiring_day_3_b } } }
       - { schedule: iw_hiring_day_3b, in: 14d, if: { flag: iw_hiring_day_3_b } }
 default: { then: C }

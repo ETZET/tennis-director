@@ -40,6 +40,10 @@ export class Session {
   place: string | null = null;
   /** 地点清单里点开预览的变体行（UI-11）：哪张工单、哪个变体；清单一关就清掉（只是画面） */
   preview: { order: string; variant: string } | null = null;
+  /** 选路卡上点过一次的选项（W2）：镜头先转过去、叠上预览，再点一次才定；换卡就清掉（只是画面） */
+  routePick: { uid: number; option: OptionKey } | null = null;
+  /** 结局卡（W4）显示分数还是"看总结"（只是画面） */
+  endView: 'score' | 'summary' = 'score';
   private queue: Command[] = [];
 
   constructor(
@@ -84,6 +88,7 @@ export class Session {
   choose(uid: number, option: OptionKey): boolean {
     const st = optionStatus(this.s, worldOf(this.s, this.content), uid).find((x) => x.key === option);
     if (!st?.available) return false;
+    this.routePick = null;
     this.send({ type: 'chooseOption', uid, option });
     return true;
   }

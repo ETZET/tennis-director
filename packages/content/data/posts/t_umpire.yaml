@@ -1,0 +1,12 @@
+# 临时岗位 · 裁判（GM-10）：比赛日坐裁判椅、管签表。要懂球的人（教学）；只在接下的赛事比赛日开。
+id: t_umpire
+act: indian_wells
+at: outer_1
+skill: teach
+cycle: 1h
+hours: [9, 17]
+effects:
+  - { stat: reputation, add: "0.03 + worker.skill / 2000" }
+# 比赛日一整天的比赛磨场地（W2 复验 P1）：赛事前后要有人维护
+wear: 0.5
+performance: match

@@ -1,0 +1,19 @@
+# ★4 选路（GM-14）：南停车场改成观赛坡、在东南角长出新地（赛事广场），还是把东南天上那座带旧网柱的小岛接过来（学院岛）？
+# 开地在 W5 接上；W2 先给效果：赛事广场先搭起观赛坡，表演赛成功率 +5%；
+# 学院岛先挂出招生牌，学院课每圈多 $2、青少年赛进四强 +10%。
+id: iw_route_s4
+act: indian_wells
+source: milestone
+tone: neutral
+location: entrance
+who: dale
+countdown: 1d
+pause: true
+options:
+  A:
+    effects:
+      - { route: s4, set: event_plaza }
+  B:
+    effects:
+      - { route: s4, set: academy_isle }
+default: { then: A }

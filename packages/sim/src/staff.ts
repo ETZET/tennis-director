@@ -1,6 +1,8 @@
 import { minutes, type Order, type Post, type SkillKind } from '@td/content';
 import { clamp } from '@td/shared';
-import { applyEffects, type Ctx, run, setStat } from './effects';
+import { applyEffects, type Ctx, checkPlotOpen, run, setStat } from './effects';
+import { growStaff, noteRecords, noteSkill } from './growth';
+import { plotAllows, plotOrderPaused } from './plots';
 import { rand } from './rng';
 import {
   DIRECTOR,
@@ -12,7 +14,8 @@ import {
   type PlaqueRow,
   weekdayOf,
 } from './state';
-import { isRestored, isStaff, num, remodeling, stateDef, test } from './vars';
+import { eventPostOpen, tournamentOrder, tournamentOrderDone, trackEventMinute } from './tournaments';
+import { isRestored, isStaff, num, prepProgress, remodeling, stateDef, test } from './vars';
 import { haltWalk, leaveJob, walkTo } from './walk';
 import type { World } from './world';
 
@@ -22,7 +25,7 @@ import type { World } from './world';
  * - 持续岗位：有人坐着、在它的时段里、条件满足时一圈一圈地转，每圈结算一次效果。有时段的岗位是"需求"，
  *   时段里每分钟都计入本周服务率的分母，有人在岗才计入分子。被拉走：这一圈作废，已算的服务分钟退回去。
  * - 一次性工单：拖人上去开工（第一个人到场时扣材料费），可以多人一起；被拉走进度保留；做满就结算。
- * - 设施状况：收盘时按 decay_day × 季节倍数衰减；岗位每圈的 wear 额外磨损；维护岗位和工单修复。
+ * - 设施状况：收盘时按 decay_day × 季节倍数衰减（今天有人守着再乘 rules.staffed_decay）；岗位每圈的 wear 额外磨损；维护岗位和工单修复。
  */
 
 /** 人在某项能力上的值（底子，不算特质） */
@@ -51,8 +54,8 @@ export function eligible(w: World, id: string, t: Post | Order): boolean {
   return !!d && ((!!d.kind && t.only.includes(d.kind)) || d.traits.some((x) => t.only?.includes(x)));
 }
 
-/** 工单的能力门槛（LG-14 的 worker）：底子（不算特质）每一项都够才行 */
-export function meetsWorker(s: GameState, id: string, o: Order): boolean {
+/** 工单（LG-14）和岗位（W3）的能力门槛 worker：底子（不算特质）每一项都够才行 */
+export function meetsWorker(s: GameState, id: string, o: Post | Order): boolean {
   if (!o.worker) return true;
   const p = s.people[id];
   if (!p) return false;
@@ -68,19 +71,36 @@ export const orderFacility = (w: World, o: Order): string | undefined => w.facil
 /** 工单可选的变体（没有变体是空表；第一个是默认） */
 export const orderVariants = (o: Order): string[] => Object.keys(o.variants ?? {});
 
-/**
- * 这张变体工单现在算哪个变体：开了工就是锁定的那个；还没开工是玩家最后拖向的那个；都没有就是第一个。
- * 没有变体的工单是 null。
- */
-export function orderVariant(s: GameState, o: Order): string | null {
-  if (!o.variants) return null;
-  return s.orders[o.id]?.variant ?? s.picks?.[o.id] ?? orderVariants(o)[0] ?? null;
+/** 此刻能选的变体（W2：变体可以写 when，例如按选的路先开）；给了 w 才看条件 */
+export function openVariants(s: GameState, w: World, o: Order): string[] {
+  return orderVariants(o).filter((v) => test(s, w, o.variants?.[v]?.when));
 }
 
-/** 某个变体（不写就按 orderVariant）的材料费和工作量 */
-export function orderCost(s: GameState, o: Order, variant?: string | null): number {
+/**
+ * 这张变体工单现在算哪个变体：开了工就是锁定的那个；还没开工是玩家最后拖向的那个；都没有就是第一个
+ * （给了 w 时是第一个此刻能选的）。没有变体的工单是 null。
+ */
+export function orderVariant(s: GameState, o: Order, w?: World): string | null {
+  if (!o.variants) return null;
+  const first = (w ? openVariants(s, w, o)[0] : undefined) ?? orderVariants(o)[0] ?? null;
+  return s.orders[o.id]?.variant ?? s.picks?.[o.id] ?? first;
+}
+
+/** 某个变体（不写就按 orderVariant）的材料费和工作量；赛事的报名工单按赛事的报名费（LG-11） */
+export function orderCost(s: GameState, o: Order, variant?: string | null, w?: World): number {
+  const fee = w?.tournamentOf.get(o.id)?.fee;
+  if (fee) return fee;
   const v = variant === undefined ? orderVariant(s, o) : variant;
   return (v ? o.variants?.[v]?.cost : undefined) ?? o.cost;
+}
+
+/** 至少几个人到场才开工（W2 的 min_crew；不写是 1） */
+export function minCrew(s: GameState, w: World, o: Order): number {
+  if (o.min_crew === undefined) return 1;
+  const saved = s.rng;
+  const v = Math.max(1, Math.round(num(s, w, o.min_crew)));
+  s.rng = saved;
+  return v;
 }
 export function orderWork(s: GameState, o: Order, variant?: string | null): number {
   const v = variant === undefined ? orderVariant(s, o) : variant;
@@ -95,9 +115,15 @@ export const speedOf = (skill: number): number => 0.5 + skill / 100;
 
 const hourNow = (s: GameState): number => minuteOfDay(s.t) / 60;
 
-/** 岗位现在存不存在（条件满足；所在的设施在改造时不开） */
+/**
+ * 岗位现在存不存在（条件满足；所在的设施在改造时不开）。赛事（LG-11）：临时岗位只在接下的赛事比赛日存在，
+ * 赛事 closes 的岗位比赛日整天不开。
+ */
 export const postExists = (s: GameState, w: World, p: Post): boolean =>
-  !remodeling(s, w.facilityAt.get(p.at) ?? '') && test(s, w, p.when);
+  !remodeling(s, w.facilityAt.get(p.at) ?? '') &&
+  eventPostOpen(s, w, p.id) !== false &&
+  plotAllows(s, w, p.id, p.at) &&
+  test(s, w, p.when);
 
 /** 岗位现在在不在它的时段里（没有时段的岗位营业时间都算） */
 export function postInHours(s: GameState, p: Post): boolean {
@@ -131,10 +157,18 @@ export const crewOf = (s: GameState, order: string): string[] =>
 
 /* ---------------- 工单什么时候出现 ---------------- */
 
-export type OrderBlock = 'cooldown' | 'done' | 'cost' | 'crew' | null;
+/** early：外出赛事的工单出现了、要到比赛那天才能开工（LG-11） */
+export type OrderBlock = 'cooldown' | 'done' | 'cost' | 'crew' | 'early' | null;
 
 export function orderVisible(s: GameState, w: World, o: Order): boolean {
-  if (o.once && (s.orderLog.done[o.id] ?? 0) > 0) return false;
+  // 赛事的报名工单由日历决定什么时候出现（冷却、once 不管）
+  const t = w.tournamentOf.get(o.id);
+  if (t) return tournamentOrder(s, w, t, o).visible && plotAllows(s, w, o.id, o.at);
+  // 地块（W5）：清理工单只在施工时有、只做一次；地块上的工单要开了才有
+  if (!plotAllows(s, w, o.id, o.at)) return false;
+  if (w.plotOrders.has(o.id) && (s.orderLog.done[o.id] ?? 0) > 0) return false;
+  // 分期筹备的每一期只做一次
+  if ((o.once || o.prep) && (s.orderLog.done[o.id] ?? 0) > 0) return false;
   if ((s.orderLog.cooldowns[o.id] ?? -1) > s.t) return false;
   const f = orderFacility(w, o);
   if (f && remodeling(s, f)) return false;
@@ -214,6 +248,14 @@ export interface OrderStatus {
   /** 升级工单装哪个升级、改造工单换成哪个变体 */
   upgrade: string | null;
   remodel: string | null;
+  /** W2：此刻能选的变体（变体的 when）；至少几个人到场才开工；赛事的报名工单是哪项赛事；分期筹备是哪一组 */
+  openVariants: string[] | null;
+  minCrew: number;
+  tournament: string | null;
+  prep: string | null;
+  /** W5：清理工单是哪块地的；工地停工（主办赛事的比赛日）时不走进度 */
+  plot: string | null;
+  paused: boolean;
 }
 
 /**
@@ -246,17 +288,21 @@ export function orderStatus(s: GameState, w: World, o: Order): OrderStatus {
   const st = s.orders[o.id];
   const crew = crewOf(s, o.id);
   const work = orderWork(s, o);
-  const cost = orderCost(s, o);
+  const cost = orderCost(s, o, undefined, w);
   const visible = orderVisible(s, w, o);
+  const tour = w.tournamentOf.get(o.id);
+  const early = !!tour && visible && tournamentOrder(s, w, tour, o).early;
   const blocked: OrderBlock = !visible
     ? (s.orderLog.cooldowns[o.id] ?? -1) > s.t
       ? 'cooldown'
       : 'done'
-    : !st?.started && cost > 0 && cost > (s.stats.cash ?? 0)
-      ? 'cost'
-      : crew.length >= o.crew
-        ? 'crew'
-        : null;
+    : early
+      ? 'early'
+      : !st?.started && cost > 0 && cost > (s.stats.cash ?? 0)
+        ? 'cost'
+        : crew.length >= o.crew
+          ? 'crew'
+          : null;
   return {
     id: o.id,
     at: o.at,
@@ -271,11 +317,17 @@ export function orderStatus(s: GameState, w: World, o: Order): OrderStatus {
     work,
     chance: checkChance(s, w, o),
     variants: o.variants ? orderVariants(o) : null,
-    variant: orderVariant(s, o),
+    variant: orderVariant(s, o, w),
     locked: !!st?.variant,
     worker: o.worker ?? null,
     upgrade: o.upgrade ?? null,
     remodel: o.remodel ?? null,
+    openVariants: o.variants ? openVariants(s, w, o) : null,
+    minCrew: minCrew(s, w, o),
+    tournament: tour?.id ?? null,
+    prep: o.prep ?? null,
+    plot: w.plotOrders.get(o.id)?.plot ?? null,
+    paused: plotOrderPaused(s, w, o.id),
   };
 }
 
@@ -295,6 +347,7 @@ export type AssignBlock =
   | 'skill'
   | 'variant'
   | 'gone'
+  | 'early'
   | 'cost'
   | 'crew'
   | 'same'
@@ -321,18 +374,28 @@ export function canAssign(
     if (!order0?.variants || !(variant in order0.variants)) return 'variant';
     const locked = s.orders[target]?.variant;
     if (locked && locked !== variant) return 'variant';
+    if (!locked && !test(s, w, order0.variants[variant]?.when)) return 'variant';
   }
   // 已经在这张变体工单上、只是换一行（还没开工）：算改选变体
   if (p.job === target && !(variant !== undefined && !s.orders[target] && s.picks?.[target] !== variant)) return 'same';
   const post = w.posts.get(target);
-  if (post) return !eligible(w, person, post) ? 'only' : postExists(s, w, post) ? null : 'gone';
+  if (post)
+    return !eligible(w, person, post)
+      ? 'only'
+      : !meetsWorker(s, person, post)
+        ? 'skill'
+        : postExists(s, w, post)
+          ? null
+          : 'gone';
   const order = w.orders.get(target);
   if (!order) return 'target';
   if (!eligible(w, person, order)) return 'only';
   if (!meetsWorker(s, person, order)) return 'skill';
   if (!orderVisible(s, w, order)) return 'gone';
+  const tour = w.tournamentOf.get(target);
+  if (tour && tournamentOrder(s, w, tour, order).early) return 'early';
   const started = !!s.orders[target]?.started;
-  const cost = orderCost(s, order, variant ?? orderVariant(s, order));
+  const cost = orderCost(s, order, variant ?? orderVariant(s, order, w), w);
   if (!started && cost > 0 && cost > (s.stats.cash ?? 0)) return 'cost';
   if (p.job !== target && crewOf(s, target).length >= order.crew) return 'crew';
   return null;
@@ -344,12 +407,19 @@ export function canAssign(
  */
 export function assign(ctx: Ctx, person: string, target: string | null, learn = false, variant?: string): boolean {
   const { s, w } = ctx;
-  if (canAssign(s, w, person, target, variant) !== null) return false;
+  const block = canAssign(s, w, person, target, variant);
+  // 玩家把人拖到他已经在的岗位上（例如习惯带他来的）：算"就守这儿"，守着的岗位换成它
+  if (block === 'same' && learn && target) {
+    const tp = w.posts.get(target);
+    const p = s.people[person];
+    if (tp && p) p.pin = pinnable(w, tp) ? target : null;
+  }
+  if (block !== null) return false;
   // 变体工单还没开工：记下玩家拖向的变体（第一个人到场时锁定）
   const vo = target ? w.orders.get(target) : undefined;
   if (vo?.variants && !s.orders[vo.id]) {
     s.picks ??= {};
-    s.picks[vo.id] = variant ?? s.picks[vo.id] ?? (orderVariants(vo)[0] as string);
+    s.picks[vo.id] = variant ?? s.picks[vo.id] ?? (orderVariant(s, vo, w) as string);
     if (s.people[person]?.job === target) {
       ctx.events.push({ type: 'assigned', person, target });
       return true; // 只是换了一行
@@ -357,8 +427,20 @@ export function assign(ctx: Ctx, person: string, target: string | null, learn = 
   }
   // 玩家亲手派的才记进习惯；叫停就把手上那个岗位从习惯里拿掉
   if (learn) learnRoutine(s, w, person, target);
-  leaveJob(ctx, person);
   const p = s.people[person] as PersonState;
+  // 人-13：从岗位上派去工单，记下原来的岗位（工单做完回去）；从工单派去另一张工单，原来的岗位照旧记着
+  const prevJob = p.job;
+  if (target && w.orders.has(target)) p.back = prevJob && w.posts.has(prevJob) ? prevJob : (p.back ?? null);
+  else p.back = null;
+  // 守着的岗位（pin，W2 试玩）：玩家亲手派到"随时"岗位或赛事临时岗位上就守着它；玩家派去别处、叫停就不守了。
+  // 习惯、做完工单回去（不是玩家亲手派的）不动它；派去工单时原来守着的岗位就是 back，做完回去接着守
+  if (target === null) p.pin = null;
+  else if (learn) {
+    const tp = w.posts.get(target);
+    if (tp) p.pin = pinnable(w, tp) ? target : null;
+    else if (p.pin && p.pin !== p.back) p.pin = null;
+  }
+  leaveJob(ctx, person);
   if (target === null) {
     // 叫停：走在路上的人不再去原来的地方，走到脚下这段路近的那头站住（walk.ts haltWalk）
     haltWalk(ctx, person);
@@ -369,6 +451,8 @@ export function assign(ctx: Ctx, person: string, target: string | null, learn = 
   if (post) {
     const prev = occupant(s, target);
     if (prev) {
+      const pp = s.people[prev] as PersonState;
+      if (pp.pin === target) pp.pin = null;
       leaveJob(ctx, prev);
       ctx.events.push({ type: 'assigned', person: prev, target: null });
     }
@@ -381,6 +465,9 @@ export function assign(ctx: Ctx, person: string, target: string | null, learn = 
 }
 
 /* ---------------- 习惯（ADR 0014） ---------------- */
+
+/** 玩家亲手派上去就一直守着的岗位：没有时段的"随时"岗位（维护），赛事的临时岗位（这一期的每个比赛日） */
+export const pinnable = (w: World, p: Post): boolean => !p.hours || w.eventPosts.has(p.id);
 
 /** 一个人最多记住几个岗位 */
 export const ROUTINE_MAX = 4;
@@ -405,6 +492,7 @@ export function learnRoutine(s: GameState, w: World, person: string, target: str
   }
   const post = w.posts.get(target);
   if (!post) return; // 工单是一次性的，不进习惯
+  if (w.eventPosts.has(target)) return; // 赛事的临时岗位只开那几天，也不进习惯
   for (const q of Object.values(s.people)) if (q.routine) q.routine = q.routine.filter((x) => x !== target);
   p.routine = [
     target,
@@ -415,35 +503,39 @@ export function learnRoutine(s: GameState, w: World, person: string, target: str
   ].slice(0, ROUTINE_MAX);
 }
 
-/** 班开始后这么多分钟内，在做工单的人会放下工单去上班（工单进度留着，下了班回来接着干） */
-const ROUTINE_SHIFT_START = 30;
-
 /**
  * 现在这个人按习惯该去哪儿（null = 留在原地）：
+ * 0. 在做工单（人-13）：不动，做完以前不被习惯拉走（做完回到原来的岗位，见 finishOrder）。
+ * 0'. 守着的岗位（pin）：在上面而且它开着（"随时"岗位一直算开着）就不动；不在上面（被事件叫走办完了、
+ *    临时岗位第二天开门）而它此刻开着、空着、离结束还有 45 分钟以上 → 回去。临时岗位过了时段照下面的习惯走，
+ *    下一个比赛日到点再回来。
  * 1. 在开着的班上：不动。
- * 2. 有个记住的班此刻开着、空着、离结束还有 45 分钟以上 → 去上班。在做工单的人只在班刚开始时去（记下工单，下班回来）。
- * 3. 手上没活（工单做完、班关了、闲着）：回到为上班暂停的工单；再不然去记住的"随时"岗位（维护）。
+ * 2. 有个记住的班此刻开着、空着、离结束还有 45 分钟以上 → 去上班。
+ * 3. 手上没活（班关了、闲着）：去记给他的工单（效果 task）；再不然去记住的"随时"岗位（维护）。
  */
 export function routineTarget(s: GameState, w: World, id: string): string | null {
   const p = s.people[id];
   if (!p?.hired || p.errand || p.walk) return null;
   const cur = p.job ? w.posts.get(p.job) : undefined;
-  const onOrder = !!p.job && !cur;
+  if (p.job && !cur) return null;
   const open = (x: Post) => postInHours(s, x) && postExists(s, w, x);
-  if (cur?.hours && open(cur)) return null;
   const free = (x: Post) => {
     const who = occupant(s, x.id);
     return who === null || who === id;
   };
   const now = minuteOfDay(s.t);
   const left = (x: Post) => (x.hours ? x.hours[1] * 60 - now : Number.POSITIVE_INFINITY);
+  const pin = p.pin ? w.posts.get(p.pin) : undefined;
+  if (pin && open(pin)) {
+    if (pin.id === p.job) return null;
+    if (free(pin) && left(pin) >= ROUTINE_MIN_LEFT) return pin.id;
+  }
+  if (cur?.hours && open(cur)) return null;
   for (const x of p.routine ?? []) {
     const post = w.posts.get(x);
     if (!post?.hours || post.id === p.job || !open(post) || !free(post) || left(post) < ROUTINE_MIN_LEFT) continue;
-    if (onOrder && now - post.hours[0] * 60 >= ROUTINE_SHIFT_START) continue;
     return post.id;
   }
-  if (onOrder) return null;
   if (cur && !cur.hours && open(cur)) return null;
   const back = p.resume ? w.orders.get(p.resume) : undefined;
   if (back && canAssign(s, w, id, back.id) === null) return back.id;
@@ -463,12 +555,16 @@ function routineSystem(ctx: Ctx): void {
   const { s, w } = ctx;
   if (minuteOfDay(s.t) % 10 !== 0) return;
   for (const id of staffIds(s, w)) {
+    const p = s.people[id] as PersonState;
+    // 守着的岗位没了（设施掉档、赛事收了）：不再守，回到习惯（准则：岗位关了就回习惯）
+    if (p.pin) {
+      const pp = w.posts.get(p.pin);
+      if (!pp || !postExists(s, w, pp)) p.pin = null;
+    }
     const t = routineTarget(s, w, id);
     if (!t) continue;
-    const p = s.people[id] as PersonState;
     const job = p.job;
-    if (job && w.orders.has(job)) p.resume = job;
-    else if (job && w.posts.has(job)) delete s.posts[job];
+    if (job && w.posts.has(job)) delete s.posts[job];
     if (t === p.resume) p.resume = null;
     if (assign(ctx, id, t)) ctx.events.push({ type: 'routine', person: id, target: t });
   }
@@ -486,10 +582,16 @@ function condAdd(ctx: Ctx, anchor: string, delta: number, out?: EffectRecord[]):
   if (out && v !== before) out.push({ kind: 'condition', facility: f, delta: v - before });
 }
 
-/** 总监干完一圈或一张工单，那项能力涨一点（有上限）：总监没有情绪，能力随游戏慢慢成长 */
+/**
+ * 干完一圈或一张工单，那项能力涨一点（有上限）。总监：director_growth、上限 director_skill_cap，一直开着
+ * （总监没有情绪，能力随游戏慢慢成长）。员工：W3 的成长（growth.ts，growth.enabled 才涨，上限是潜力）。
+ */
 function grow(ctx: Ctx, person: string, k: SkillKind): void {
   const { s, w } = ctx;
-  if (person !== DIRECTOR) return;
+  if (person !== DIRECTOR) {
+    growStaff(ctx, person, k);
+    return;
+  }
   const p = s.people[person];
   if (!p) return;
   const cap = w.act.rules.director_skill_cap;
@@ -500,6 +602,8 @@ function grow(ctx: Ctx, person: string, k: SkillKind): void {
   else p[k] = v;
   if (Math.floor(v / 10) > Math.floor(before / 10))
     ctx.events.push({ type: 'directorGrew', skill: k, value: Math.floor(v / 10) * 10 });
+  // W3：成长打开时总监也发 skill_up、也能开出解锁（涨的规则照旧，不另加 growth.rate）
+  noteSkill(ctx, person, k, before);
 }
 
 function finishCycle(ctx: Ctx, post: Post, person: string): void {
@@ -508,8 +612,11 @@ function finishCycle(ctx: Ctx, post: Post, person: string): void {
   const entry = (s.ledger[post.id] ??= { person, cycles: 0, effects: [] });
   entry.person = person;
   entry.cycles += 1;
+  const wk = (s.week.cycles ??= {});
+  wk[post.id] = (wk[post.id] ?? 0) + 1;
   const out: EffectRecord[] = [];
   applyEffects({ ...ctx, vars: { 'worker.skill': skill }, worker: person }, post.effects, -1, out);
+  noteRecords(ctx, out);
   if (post.wear) condAdd(ctx, post.at, -post.wear);
   if (post.restore) condAdd(ctx, post.at, post.restore * speedOf(skill), out);
   // 同一种效果合并成一条，收盘时写进日志
@@ -542,6 +649,7 @@ function jobIndex(s: GameState): Map<string, string[]> {
 
 function postSystem(ctx: Ctx, jobs: Map<string, string[]>): void {
   const { s, w } = ctx;
+  const anyEvent = Object.keys(s.events ?? {}).length > 0;
   for (const post of w.posts.values()) {
     const person = jobs.get(post.id)?.[0] ?? null;
     // 先看便宜的（时段、有没有人），再求条件
@@ -557,6 +665,8 @@ function postSystem(ctx: Ctx, jobs: Map<string, string[]>): void {
       s.week.demand += 1;
       if (busy) s.week.served += 1;
       else s.week.missed[post.id] = (s.week.missed[post.id] ?? 0) + 1;
+      // 赛事那几天（LG-11）：附加目标看这一场的服务率、临时岗位的到岗率
+      if (anyEvent) trackEventMinute(s, w, post.id, demand, busy);
     }
     if (!busy) {
       // 时段过了、条件没了、人走了：这一圈作废（被拉走的情况已经在 leaveJob 里结算过）
@@ -594,6 +704,7 @@ function finishOrder(ctx: Ctx, o: Order): void {
     null,
     effects,
   );
+  noteRecords(ctx, entry.effects);
   if (o.restore) condAdd(ctx, o.at, o.restore, entry.effects);
   if (f && variant) entry.effects.push({ kind: 'variant', facility: f, variant });
   if (f && o.upgrade && !s.upgrades[f]?.includes(o.upgrade)) {
@@ -639,13 +750,68 @@ function finishOrder(ctx: Ctx, o: Order): void {
     else s.repairs[f].work += orderWork(s, o, variant);
   }
   s.orderLog.done[o.id] = (s.orderLog.done[o.id] ?? 0) + 1;
-  if (o.cooldown) s.orderLog.cooldowns[o.id] = s.t + minutes(o.cooldown);
+  if (o.cooldown && !w.tournamentOf.has(o.id)) s.orderLog.cooldowns[o.id] = s.t + minutes(o.cooldown);
+  // 分期筹备（W2）：一期做完，画面把这一期立起来
+  if (o.prep) {
+    const total = w.prep.get(o.prep)?.length ?? 1;
+    ctx.events.push({
+      type: 'prep_done',
+      group: o.prep,
+      order: o.id,
+      done: Math.round(prepProgress(s, w, o.prep) * total),
+      total,
+    });
+  }
   for (const id of crew) {
     const p = s.people[id];
     if (p) p.job = null;
     grow(ctx, id, o.skill);
   }
   ctx.events.push({ type: 'orderFinished', order: o.id, people: crew, ...(success === undefined ? {} : { success }) });
+  // 赛事（LG-11）：主办赛事的报名做完 = 接下这一期；外出赛事做完当场结算
+  if (w.tournamentOf.has(o.id)) tournamentOrderDone(ctx, o, lead, crew);
+  // 人-13：做完回到派去之前的岗位（还开着、空着的话），不然闲着
+  for (const id of crew) backToPost(ctx, id, o.id);
+  // 地块（W5）：最后一张清理工单做完就开地
+  const plot = w.plotOrders.get(o.id);
+  if (plot) checkPlotOpen(ctx, plot.plot);
+}
+
+/**
+ * 人-13（W2）：工单做完或作废，这个人回到派去之前的岗位——它此刻存在、在时段里（或者是"随时"的岗位）、没人坐。
+ * 回不去就闲着（之后照习惯走）。
+ */
+function backToPost(ctx: Ctx, id: string, order: string): void {
+  const { s, w } = ctx;
+  const p = s.people[id];
+  if (!p) return;
+  p.job = null;
+  const back = p.back ? w.posts.get(p.back) : undefined;
+  p.back = null;
+  if (!back || !postExists(s, w, back) || (back.hours && !postInHours(s, back))) return;
+  const who = occupant(s, back.id);
+  if (who && who !== id) return;
+  if (assign(ctx, id, back.id)) ctx.events.push({ type: 'returned', person: id, post: back.id, order });
+}
+
+/**
+ * 每分钟（W2）：坐在已经不存在的岗位上的人放下来闲着，发 released 说明为什么（设施掉档、改造停用、赛事收了或占了场）。
+ * 这一圈直接作废（岗位没了，不算"被拉走"）。之后照习惯走（岗位回来了，习惯会带他回去）。
+ */
+function releaseSystem(ctx: Ctx): void {
+  const { s, w } = ctx;
+  for (const id in s.people) {
+    const p = s.people[id] as PersonState;
+    if (!p.hired || !p.job) continue;
+    const post = w.posts.get(p.job);
+    if (!post || postExists(s, w, post)) continue;
+    const f = w.facilityAt.get(post.at) ?? null;
+    const reason = f && remodeling(s, f) ? 'remodel' : eventPostOpen(s, w, post.id) === false ? 'event' : 'closed';
+    delete s.posts[post.id];
+    if (p.pin === post.id) p.pin = null;
+    leaveJob(ctx, id);
+    ctx.events.push({ type: 'released', person: id, post: post.id, facility: f, reason });
+  }
 }
 
 function orderSystem(ctx: Ctx, jobs: Map<string, string[]>): void {
@@ -659,10 +825,7 @@ function orderSystem(ctx: Ctx, jobs: Map<string, string[]>): void {
     if (!orderVisible(s, w, o)) {
       if (st || crew.length) {
         delete s.orders[o.id];
-        for (const id of crew) {
-          const p = s.people[id];
-          if (p) p.job = null;
-        }
+        for (const id of crew) backToPost(ctx, id, o.id);
         // 锁定了变体却没修成（设施还是开局的样子）：变体也作废
         const f = orderFacility(w, o);
         if (st?.variant && f && s.facilities[f] === w.act.facilities[f]) delete s.variants[f];
@@ -672,17 +835,18 @@ function orderSystem(ctx: Ctx, jobs: Map<string, string[]>): void {
     }
     const here = crew.filter((id) => working(s, w, id));
     if (!here.length) continue;
+    // 人不够（W2 的 min_crew，例如双打要两名球员）：等着，不开工、不走进度
+    if (o.min_crew !== undefined && here.length < minCrew(s, w, o)) continue;
+    // 工地停工（W5：接下的主办赛事的比赛日）：人在那儿等着，不开工、不走进度
+    if (plotOrderPaused(s, w, o.id)) continue;
     const f = orderFacility(w, o);
     let state = st;
     if (!state) {
       // 第一个人到场：扣材料费开工；钱不够就开不了，人闲下来。变体工单在这一刻锁定变体（LG-14）
-      const variant = orderVariant(s, o);
-      const cost = orderCost(s, o, variant);
+      const variant = orderVariant(s, o, w);
+      const cost = orderCost(s, o, variant, w);
       if (cost > 0 && cost > (s.stats.cash ?? 0)) {
-        for (const id of crew) {
-          const p = s.people[id];
-          if (p) p.job = null;
-        }
+        for (const id of crew) backToPost(ctx, id, o.id);
         continue;
       }
       if (cost) setStat(ctx, 'cash', (s.stats.cash ?? 0) - cost);
@@ -751,6 +915,7 @@ function remodelSystem(ctx: Ctx): void {
 
 export function staffSystem(ctx: Ctx): void {
   remodelSystem(ctx);
+  releaseSystem(ctx);
   errandSystem(ctx);
   routineSystem(ctx);
   idleSystem(ctx);
@@ -761,14 +926,39 @@ export function staffSystem(ctx: Ctx): void {
 
 /* ---------------- 收盘：衰减、今天的岗位账、夜里 ---------------- */
 
-/** 设施按天衰减（准则 6：没人管的地方慢慢变旧；季节倍数：初秋落叶多） */
+/**
+ * 今天有人守着的设施（准则 6"有人守的地方维持住"）：今天有人在它的任何一个岗位上干完过至少一圈
+ * （今天的岗位账 s.ledger，收盘写日志之前读）。
+ */
+export function staffedToday(s: GameState, w: World): Set<string> {
+  const out = new Set<string>();
+  for (const [post, e] of Object.entries(s.ledger)) {
+    const f = e.cycles > 0 ? w.facilityAt.get(w.posts.get(post)?.at ?? '') : undefined;
+    if (f) out.add(f);
+  }
+  return out;
+}
+
+/**
+ * 这处设施今晚收盘掉多少状况：decay_day × 季节倍数，今天有人守着再乘 rules.staffed_decay（默认 0.5）；
+ * 改造停用期间不掉。staffed 不给就按今天的岗位账算（界面预告"明天会不会掉档"也用它）。
+ */
+export function dayDecay(s: GameState, w: World, id: string, seasonDecay: number, staffed?: Set<string>): number {
+  if (remodeling(s, id)) return 0;
+  const d = stateDef(s, w, id)?.decay_day ?? 0;
+  if (!d) return 0;
+  const on = (staffed ?? staffedToday(s, w)).has(id);
+  return d * seasonDecay * (on ? w.act.rules.staffed_decay : 1);
+}
+
+/** 设施按天衰减（准则 6：没人管的地方慢慢变旧、有人守的掉得慢；季节倍数：初秋落叶多）。要在 closeLedger 之前调 */
 export function decayDay(ctx: Ctx, seasonDecay: number): void {
   const { s, w } = ctx;
+  const staffed = staffedToday(s, w);
   for (const id of Object.keys(s.facilities)) {
-    // 改造停用期间不掉状况
-    const d = remodeling(s, id) ? 0 : (stateDef(s, w, id)?.decay_day ?? 0);
+    const d = dayDecay(s, w, id, seasonDecay, staffed);
     if (!d) continue;
-    s.condition[id] = clamp((s.condition[id] ?? 100) - d * seasonDecay, 0, 100);
+    s.condition[id] = clamp((s.condition[id] ?? 100) - d, 0, 100);
   }
 }
 
@@ -812,4 +1002,31 @@ export function overnight(ctx: Ctx): void {
     if (p.errand) p.errand = null;
   }
   s.posts = {};
+}
+
+/* ---------------- 分期筹备（W2） ---------------- */
+
+export interface PrepStatus {
+  group: string;
+  /** 每一期：哪张工单、做完没有、材料费 */
+  phases: { order: string; done: boolean; cost: number }[];
+  done: number;
+  total: number;
+  /** 还没做的几期加起来的材料费（地点牌上的"总价"） */
+  costLeft: number;
+}
+
+/** 一组分期筹备（例如表演赛四期）的进度：地点牌从 ★3 起挂出四期和总价 */
+export function prepStatus(s: GameState, w: World, group: string): PrepStatus {
+  const phases = (w.prep.get(group) ?? []).flatMap((id) => {
+    const o = w.orders.get(id);
+    return o ? [{ order: id, done: (s.orderLog.done[id] ?? 0) > 0, cost: orderCost(s, o, undefined, w) }] : [];
+  });
+  return {
+    group,
+    phases,
+    done: phases.filter((x) => x.done).length,
+    total: phases.length,
+    costLeft: phases.filter((x) => !x.done).reduce((a, x) => a + x.cost, 0),
+  };
 }
