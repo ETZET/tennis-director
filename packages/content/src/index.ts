@@ -14,10 +14,13 @@ export {
   COMPUTED_VARS,
   type CompileResult,
   type ContentIssue,
+  CYCLES_VAR,
   compileContent,
   formatIssues,
   HIRED_VAR,
   PERSON_ATTRS,
+  PREP_VAR,
+  ROUTE_VAR,
   VARIANT_VAR,
   WORKER,
 } from './compile';

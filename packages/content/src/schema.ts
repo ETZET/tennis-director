@@ -22,6 +22,8 @@ export type Cond =
   | { facility: string; is: string }
   | { variant: string; is: string }
   | { upgrade: string; has: string }
+  | { route: string; is: string }
+  | { prep: string; done?: boolean }
   | { assigned: string; at?: string }
   | { day: { gte?: number; lte?: number } }
   | { hour: { gte?: number; lte?: number } }
@@ -52,6 +54,10 @@ export const cond: z.ZodType<Cond> = z.lazy(() =>
     z.strictObject({ variant: id, is: id }),
     /** 设施装上了这个升级（LG-14） */
     z.strictObject({ upgrade: id, has: id }),
+    /** 这一处选路（LG-11 / W2：s2、s3、s4）选了哪条路；is: none = 还没选 */
+    z.strictObject({ route: id, is: id }),
+    /** 一组分期筹备工单（order 的 prep）是不是都做完了；done: false = 还没都做完 */
+    z.strictObject({ prep: id, done: z.boolean().optional() }),
     /** 这个人正在干活（站在岗位或工单上）；带 at 时还要求在那个地点 */
     z.strictObject({ assigned: id, at: id.optional() }),
     z.strictObject({ day: z.strictObject({ gte: z.number().optional(), lte: z.number().optional() }) }),
@@ -110,6 +116,8 @@ export const effect = z.union([
   z.strictObject({ ...gate, task: id, who: id }),
   /** 奖杯 +n（LG-10：办成一次主办赛事、或者在外出赛事里赢下来）；变量 trophies */
   z.strictObject({ ...gate, trophy: z.number().int().min(1) }),
+  /** 选路（W2）：记下这一处（s2 / s3 / s4）选了哪条路；已经选过就不再改。变量 route.<处>，条件 { route, is } */
+  z.strictObject({ ...gate, route: id, set: id }),
 ]);
 export type Effect = z.infer<typeof effect>;
 
@@ -142,7 +150,8 @@ export const card = z.strictObject({
   tone: z.enum(['crisis', 'relief', 'comedy', 'neutral']).default('neutral'),
   /** 抽卡的前置条件（阈值和随机卡） */
   when: cond.optional(),
-  weight: z.number().min(0).default(1),
+  /** 抽卡权重：数或表达式（例如按选的路调招聘日的权重：route.s2 == "youth" ? 2 : 1） */
+  weight: amount.default(1),
   cooldown: duration.optional(),
   /** 只出现一次（里程碑、日历、后果卡默认只出现一次） */
   once: z.boolean().optional(),
@@ -403,6 +412,8 @@ export const order = z.strictObject({
         cost: z.number().min(0).optional(),
         work: duration.optional(),
         effects: z.array(effect).optional(),
+        /** 这个变体什么时候能选（例如按选的路先开）；不满足时这一行不能拖（canAssign 给 'variant'） */
+        when: cond.optional(),
       }),
     )
     .optional(),
@@ -414,8 +425,67 @@ export const order = z.strictObject({
    */
   remodel: id.optional(),
   closed_for: duration.optional(),
+  /**
+   * 至少几个人到场才开工（W2：★3 起地区赛的双打要两名球员）：数或表达式。人不够时不扣材料费、不走进度。
+   */
+  min_crew: amount.optional(),
+  /**
+   * 分期筹备（W2：表演赛四期）：这张工单是哪一组的一期。同一组的工单各做一次；
+   * 变量 prep.<组> = 做完的比例 0..1，条件 { prep: <组> } = 都做完了。
+   */
+  prep: id.optional(),
 });
 export type Order = z.infer<typeof order>;
+
+/* ---------------- 赛事日历（LG-11） ---------------- */
+
+/** 附加目标：赛事结束时判定。if 和 chance 是表达式，可以用 event.* 变量（这一场的服务率、临时岗位到岗率……） */
+export const tournamentGoal = z.strictObject({
+  id,
+  if: z.string().optional(),
+  chance: amount.optional(),
+  reward: z.array(effect).default([]),
+});
+export type TournamentGoal = z.infer<typeof tournamentGoal>;
+
+export const WEEKDAY = z.number().int().min(0).max(6);
+
+/**
+ * 地图日历上的一项赛事（LG-11）。日期 = 第几周（weeks，或 every 每隔几周）的星期几（days，0 = 周一），时段 hours。
+ * - 主办（host）：报名工单 order 提前 lead 出现在 at 的地点牌上，做完就算接下；到日子开出临时岗位 posts，
+ *   closes 里的岗位当天整天不开；当天下雨（rain_spoils，主办默认是）报名费白花、什么都没有。
+ * - 外出（away）：工单 order 提前 lead 出现，但要到比赛那天才能开工；做完就判定。
+ * 结束时给 reward，再逐个判定附加目标 goals。第二次起奖励按 repeat.scale 打折、目标换成 repeat.goals。
+ */
+export const tournament = z.strictObject({
+  id,
+  kind: z.enum(['host', 'away']),
+  at: id,
+  weeks: z.array(z.number().int().min(1)).optional(),
+  every: z
+    .strictObject({ weeks: z.number().int().min(1), from: z.number().int().min(1), until: z.number().int().optional() })
+    .optional(),
+  days: z.array(WEEKDAY).min(1).default([5]),
+  hours: z.tuple([z.number().min(0).max(24), z.number().min(0).max(24)]).default([9, 17]),
+  /** 参赛条件（星级、设施……）：报名工单出现、开工都要满足 */
+  when: cond.optional(),
+  /** 报名费：就是报名工单的材料费（开工时扣） */
+  fee: z.number().min(0).default(0),
+  order: id,
+  /** 报名工单提前多久出现 */
+  lead: duration.default('7d'),
+  posts: z.array(id).default([]),
+  closes: z.array(id).default([]),
+  rain_spoils: z.boolean().optional(),
+  /** 认场地：这场赛事按这处设施的变体叫不同的名字（文案 tournaments.<id>.variants.<变体>），奖励在效果的 if 里分 */
+  variant_of: id.optional(),
+  reward: z.array(effect).default([]),
+  goals: z.array(tournamentGoal).default([]),
+  repeat: z
+    .strictObject({ scale: z.number().min(0).max(1).default(0.5), goals: z.array(tournamentGoal).optional() })
+    .default({ scale: 0.5 }),
+});
+export type Tournament = z.infer<typeof tournament>;
 
 /* ---------------- 幕 ---------------- */
 
@@ -487,9 +557,20 @@ export const act = z.strictObject({
    * 全部满足就升星（只往上，不往回掉）；opens 是升上来开出的机制（文案在 stars.opens.<键>，内容里用 stars >= N 去开）。
    */
   stars: z
-    .array(z.strictObject({ requires: z.record(id, cond), opens: z.array(id).default([]) }))
+    .array(
+      z.strictObject({
+        requires: z.record(id, cond),
+        opens: z.array(id).default([]),
+        /** 升上这一星时打开的卡（W2 的选路卡：一天倒计时，不选按默认） */
+        card: id.optional(),
+      }),
+    )
     .max(5)
     .optional(),
+  /** 选路（W2）：处 → 可选的路（第一条是路 A，也是机器人和默认的选择）；文案 routes.<处>.<路> */
+  routes: z.record(id, z.array(id).min(2)).optional(),
+  /** 赛事日历（LG-11） */
+  tournaments: z.array(tournament).optional(),
   /** 每天固定开的活动（例如下午的青少年课） */
   daily: z.array(z.strictObject({ hour: z.number(), activity: id, if: cond.optional() })).default([]),
   /** 季节：从第几天开始（第一个从第 1 天开始）；decay 是这一季设施衰减的倍数（初秋落叶多） */

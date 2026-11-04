@@ -159,6 +159,12 @@ export function applyEffects(ctx: Ctx, effects: readonly Effect[], entryId: numb
     } else if ('trophy' in e) {
       s.trophies = (s.trophies ?? 0) + e.trophy;
       out.push({ kind: 'trophy', delta: e.trophy });
+    } else if ('route' in e) {
+      // 选路（W2）：一处只选一次
+      if (s.routes?.[e.route]) continue;
+      (s.routes ??= {})[e.route] = e.set;
+      out.push({ kind: 'route', slot: e.route, route: e.set });
+      ctx.events.push({ type: 'route_chosen', slot: e.route, route: e.set });
     } else if ('task' in e) {
       // 把一张工单记给某人（ADR 0014 的 resume）：他手上的班或活结束、闲下来时，习惯系统让他自己走过去开工
       const p = s.people[e.who];
@@ -190,7 +196,9 @@ export function checkStars(ctx: Ctx): void {
     const lv = levels[stars];
     if (!lv || !Object.values(lv.requires).every((c) => test(s, w, c))) return;
     s.stars = stars + 1;
-    run(ctx, { kind: 'star', stars: s.stars, opens: [...lv.opens] }, null, []);
+    const entry = run(ctx, { kind: 'star', stars: s.stars, opens: [...lv.opens] }, null, []);
     ctx.events.push({ type: 'star_up', stars: s.stars, opens: [...lv.opens] });
+    // 升星带一张卡（W2 的选路卡）：下一分钟打开，因果链指向这次升星
+    if (lv.card) s.cards.scheduled.push({ card: lv.card, at: s.t, cause: entry.id });
   }
 }

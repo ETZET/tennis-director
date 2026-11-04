@@ -118,6 +118,15 @@ export const remodeling = (s: GameState, id: string): boolean => !!s.remodels?.[
 export const isRestored = (s: GameState, w: World, id: string): boolean =>
   s.facilities[id] !== w.act.facilities[id] && !remodeling(s, id) && (stateDef(s, w, id)?.quality ?? 0) > 0;
 
+/** 分期筹备（W2）：这一组工单做完了几成 0..1（没有这一组是 0） */
+export function prepProgress(s: GameState, w: World, group: string): number {
+  const ids = w.prep.get(group);
+  if (!ids?.length) return 0;
+  let n = 0;
+  for (const id of ids) if ((s.orderLog.done[id] ?? 0) > 0) n++;
+  return n / ids.length;
+}
+
 /** 修好了几处（变量 restored） */
 export function restoredCount(s: GameState, w: World): number {
   let n = 0;
@@ -236,6 +245,15 @@ export function makeEnv(s: GameState, w: World, extra: Record<string, Value> = {
           return s.trophies ?? 0;
         case 'variant':
           return s.variants?.[rest] ?? '';
+        case 'route':
+          return s.routes?.[rest] ?? '';
+        case 'prep':
+          return prepProgress(s, w, rest);
+        case 'cycles':
+          return s.week.cycles?.[rest] ?? 0;
+        case 'event':
+          // 赛事结算以外读到 0（结算时由 extra 提供，tournaments.ts）
+          return 0;
         case 'quiet_days':
           return (s.t - (s.cards.lastOpened ?? 0)) / 1440;
         case 'wages_week':
@@ -276,6 +294,8 @@ export function test(s: GameState, w: World, c: Cond | undefined): boolean {
   if ('facility' in c) return s.facilities[c.facility] === c.is;
   if ('variant' in c) return (s.variants?.[c.variant] ?? 'none') === c.is;
   if ('upgrade' in c) return !!s.upgrades?.[c.upgrade]?.includes(c.has);
+  if ('route' in c) return (s.routes?.[c.route] ?? 'none') === c.is;
+  if ('prep' in c) return prepProgress(s, w, c.prep) >= 1 === (c.done ?? true);
   if ('assigned' in c) {
     const p = s.people[c.assigned];
     return !!p?.job && !p.walk && (c.at === undefined || p.at === c.at);

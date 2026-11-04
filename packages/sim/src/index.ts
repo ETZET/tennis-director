@@ -25,9 +25,11 @@ export {
   crewOf,
   eligible,
   meetsWorker,
+  minCrew,
   type OrderBlock,
   type OrderStatus,
   occupant,
+  openVariants,
   orderCost,
   orderFacility,
   orderLead,
@@ -36,9 +38,11 @@ export {
   orderVariants,
   orderWork,
   type PostStatus,
+  type PrepStatus,
   postDemand,
   postExists,
   postStatus,
+  prepStatus,
   ROUTINE_MAX,
   remodelMinutes,
   routineTarget,
@@ -52,6 +56,14 @@ export { type StarItem, type StarStatus, starStatus } from './stars';
 export * from './state';
 export { seasonOn } from './systems';
 export {
+  currentEdition,
+  eventLive,
+  goalsFor,
+  repeatOf,
+  type TournamentStatus,
+  tournamentStatus,
+} from './tournaments';
+export {
   coachAttention,
   coachPresent,
   conditionFactor,
@@ -61,6 +73,7 @@ export {
   isRestored,
   isStaff,
   num,
+  prepProgress,
   qualityTarget,
   remodeling,
   restoredCount,
@@ -71,6 +84,6 @@ export {
   wagesWeek,
 } from './vars';
 export { shortestRoute, walkEta } from './walk';
-export { type World, worldFor } from './world';
+export { type Edition, type World, worldFor } from './world';
 
 export const SIM_VERSION = 2;

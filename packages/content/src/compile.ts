@@ -20,6 +20,7 @@ import {
   person,
   post,
   stat,
+  type Tournament,
   trait,
 } from './schema';
 
@@ -83,11 +84,27 @@ export const COMPUTED_VARS = [
   'stars',
   /** 奖杯数（LG-10）：效果 { trophy: n } 加 */
   'trophies',
+  /**
+   * 赛事（LG-11）：只在赛事结算（奖励和附加目标的 if、chance）时有值，别处读到 0。
+   * service_rate：赛事那几天时段里全园的服务率；staffed：临时岗位有人的比例；skill：报名工单上那项能力最高的人的值；
+   * crew：报名工单上干过的人数；repeat：这是第几次再参加（第一次是 0）。
+   */
+  'event.service_rate',
+  'event.staffed',
+  'event.skill',
+  'event.crew',
+  'event.repeat',
 ] as const;
 /** 设施状况变量：condition.<设施 id> = 0..100 */
 export const CONDITION_VAR = /^condition\.([a-z][a-z0-9_]*)$/;
 /** 变体变量：variant.<设施 id> = 修成（或者正在修成）的变体 id，没选过是 ''（LG-14） */
 export const VARIANT_VAR = /^variant\.([a-z][a-z0-9_]*)$/;
+/** 选路变量（W2）：route.<处> = 选了哪条路，没选是 '' */
+export const ROUTE_VAR = /^route\.([a-z][a-z0-9_]*)$/;
+/** 分期筹备变量（W2）：prep.<组> = 这一组工单做完的比例 0..1 */
+export const PREP_VAR = /^prep\.([a-z][a-z0-9_]*)$/;
+/** 岗位这一周转了几圈（W2）：cycles.<岗位> */
+export const CYCLES_VAR = /^cycles\.([a-z][a-z0-9_]*)$/;
 /** 在职人数变量：hired.<作用或特质> = 在职的人里作用是它、或者带着这个特质的有几个 */
 export const HIRED_VAR = /^hired\.([a-z][a-z0-9_]*)$/;
 export const PERSON_ATTRS = ['skill', 'upkeep', 'service', 'play', 'morale', 'fatigue', 'talent', 'hired'] as const;
@@ -210,6 +227,12 @@ export function compileContent(files: Record<string, string>): CompileResult {
     cards.set(c.id, c);
   }
   const anchors = new Set(b.acts.flatMap((a) => a.anchors));
+  /** 选路的处 → 可选的路（W2）；分期筹备的组（W2） */
+  const routeSlots = new Map<string, Set<string>>();
+  for (const a of b.acts)
+    for (const [k, v] of Object.entries(a.routes ?? {}))
+      routeSlots.set(k, new Set([...(routeSlots.get(k) ?? []), ...v]));
+  const prepGroups = new Set(b.orders.flatMap((o) => (o.prep ? [o.prep] : [])));
   const langs = Object.keys(b.i18n);
   if (!langs.length) err('i18n/', 'no language files');
 
@@ -242,6 +265,17 @@ export function compileContent(files: Record<string, string>): CompileResult {
       walkEffects(effs, (e) => {
         if ('flag' in e) flagWrites.add(e.flag);
       });
+  const tournamentEffects = (t: Tournament): (readonly Effect[])[] => [
+    t.reward,
+    ...[...t.goals, ...(t.repeat.goals ?? [])].map((g) => g.reward),
+  ];
+  const allTournaments = b.acts.flatMap((a) => a.tournaments ?? []);
+  const tournamentOrders = new Set(allTournaments.map((t) => t.order));
+  for (const t of allTournaments)
+    for (const effs of tournamentEffects(t))
+      walkEffects(effs, (e) => {
+        if ('flag' in e) flagWrites.add(e.flag);
+      });
 
   /* ---------- 表达式 ---------- */
   const knownVar = (p: string): boolean => {
@@ -250,6 +284,12 @@ export function compileContent(files: Record<string, string>): CompileResult {
     if (cv) return facilities.has(cv[1] as string);
     const vv = VARIANT_VAR.exec(p);
     if (vv) return !!facilities.get(vv[1] as string)?.variants;
+    const rv = ROUTE_VAR.exec(p);
+    if (rv) return routeSlots.has(rv[1] as string);
+    const pv = PREP_VAR.exec(p);
+    if (pv) return prepGroups.has(pv[1] as string);
+    const yv = CYCLES_VAR.exec(p);
+    if (yv) return b.posts.some((x) => x.id === yv[1]);
     const hv = HIRED_VAR.exec(p);
     if (hv) return (PERSON_KINDS as readonly string[]).includes(hv[1] as string) || traits.has(hv[1] as string);
     const [head, a, attr] = p.split('.');
@@ -303,6 +343,12 @@ export function compileContent(files: Record<string, string>): CompileResult {
       if (!f) err(file, `${where}: unknown facility '${c.upgrade}'`);
       else if (!(c.has in (f.upgrades ?? {}))) err(file, `${where}: facility '${c.upgrade}' has no upgrade '${c.has}'`);
     }
+    if ('route' in c) {
+      const r = routeSlots.get(c.route);
+      if (!r) err(file, `${where}: unknown route slot '${c.route}'`);
+      else if (c.is !== 'none' && !r.has(c.is)) err(file, `${where}: route slot '${c.route}' has no route '${c.is}'`);
+    }
+    if ('prep' in c && !prepGroups.has(c.prep)) err(file, `${where}: no order has prep '${c.prep}'`);
     if ('assigned' in c) {
       if (!people.has(c.assigned)) err(file, `${where}: unknown person '${c.assigned}'`);
       if (c.at && !anchors.has(c.at)) err(file, `${where}: unknown anchor '${c.at}'`);
@@ -354,6 +400,11 @@ export function compileContent(files: Record<string, string>): CompileResult {
         if (!people.has(e.who)) err(file, `${w}: unknown person '${e.who}'`);
         if (!b.orders.some((o) => o.id === e.task)) err(file, `${w}: unknown order '${e.task}'`);
       }
+      if ('route' in e) {
+        const r = routeSlots.get(e.route);
+        if (!r) err(file, `${w}: unknown route slot '${e.route}'`);
+        else if (!r.has(e.set)) err(file, `${w}: route slot '${e.route}' has no route '${e.set}'`);
+      }
       if ('log' in e) needText(file, e.log);
       if ('endAct' in e) {
         needText(file, `endings.${e.ending}.title`);
@@ -372,6 +423,7 @@ export function compileContent(files: Record<string, string>): CompileResult {
     if ((c.source === 'threshold' || c.source === 'random') && !c.when)
       err(file, `${c.source} cards need a 'when' condition`);
     checkCond(file, c.when, 'when');
+    checkExpr(file, c.weight, 'weight');
     const keys = OPTION_KEYS.filter((k) => c.options[k]);
     if (!keys.length) err(file, 'a card needs at least one option');
     if (c.countdown && !c.default) err(file, 'a card with a countdown needs a default outcome');
@@ -453,7 +505,15 @@ export function compileContent(files: Record<string, string>): CompileResult {
       checkEffects(file, o.onSuccess, 'onSuccess', true);
       checkEffects(file, o.onFail, 'onFail', true);
       if (o.restore && !b.facilities.some((f) => f.anchor === o.at)) err(file, 'restore: no facility at this anchor');
-      if (!o.effects.length && !o.onSuccess.length && !o.restore && !o.upgrade && !o.remodel && !o.variants)
+      if (
+        !o.effects.length &&
+        !o.onSuccess.length &&
+        !o.restore &&
+        !o.upgrade &&
+        !o.remodel &&
+        !o.variants &&
+        !tournamentOrders.has(o.id)
+      )
         warn(file, 'order has no effects');
       // 修复变体、升级、改造（LG-14）：都落在这个地点的设施上
       const kinds = [o.variants, o.upgrade, o.remodel].filter((x) => x !== undefined).length;
@@ -466,6 +526,7 @@ export function compileContent(files: Record<string, string>): CompileResult {
           if (!fac.variants || !(v in fac.variants)) err(file, `variants: facility '${fac.id}' has no variant '${v}'`);
           if (x.work) minutes(x.work);
           checkEffects(file, x.effects ?? [], `variants.${v}.effects`, true);
+          checkCond(file, x.when, `variants.${v}.when`);
         }
       }
       if (o.upgrade && fac && !(o.upgrade in (fac.upgrades ?? {})))
@@ -478,6 +539,14 @@ export function compileContent(files: Record<string, string>): CompileResult {
       }
       for (const [k, v] of Object.entries(o.worker ?? {}))
         if (v !== undefined && (v < 0 || v > 100)) err(file, `worker.${k}: ${v} is outside 0..100`);
+      checkExpr(file, o.min_crew, 'min_crew');
+      if (typeof o.min_crew === 'number' && o.min_crew > o.crew)
+        err(file, `min_crew ${o.min_crew} is more than crew ${o.crew}`);
+      // 分期筹备（W2）：每一期只做一次，文案 prep.<组>
+      if (o.prep) {
+        if (o.cooldown) warn(file, 'prep orders are done once; cooldown is ignored');
+        needText(file, `prep.${o.prep}`);
+      }
     }
   }
   for (const p of b.people) {
@@ -645,6 +714,61 @@ export function compileContent(files: Record<string, string>): CompileResult {
         needText(file, `stars.items.${k}`);
       }
       for (const k of lv.opens) needText(file, `stars.opens.${k}`);
+      if (lv.card && !cards.has(lv.card)) err(file, `stars[${i}].card: unknown card '${lv.card}'`);
+    }
+    // 选路（W2）：每一处的每条路要有文案
+    for (const [k, v] of Object.entries(a.routes ?? {})) {
+      if (new Set(v).size !== v.length) err(file, `routes.${k}: duplicate route`);
+      for (const r of v) needText(file, `routes.${k}.${r}`);
+    }
+    // 赛事日历（LG-11）
+    const tids = new Set<string>();
+    const tOrders = new Set<string>();
+    for (const [i, t] of (a.tournaments ?? []).entries()) {
+      const w = `tournaments[${i}] '${t.id}'`;
+      if (tids.has(t.id)) err(file, `${w}: duplicate tournament id`);
+      tids.add(t.id);
+      if (!aAnchors.has(t.at)) err(file, `${w}.at: unknown anchor '${t.at}'`);
+      if (!t.weeks === !t.every) err(file, `${w}: give exactly one of weeks or every`);
+      if (t.hours[0] >= t.hours[1]) err(file, `${w}.hours: start must be before end`);
+      if (t.hours[0] < a.hours.open || t.hours[1] > a.hours.close)
+        err(file, `${w}.hours: must be inside opening hours ${a.hours.open}–${a.hours.close}`);
+      minutes(t.lead);
+      const o = b.orders.find((x) => x.id === t.order);
+      if (!o) err(file, `${w}.order: unknown order '${t.order}'`);
+      else {
+        if (o.act !== a.id) err(file, `${w}.order: '${t.order}' belongs to act '${o.act}'`);
+        if (o.at !== t.at) err(file, `${w}.order: '${t.order}' is at '${o.at}', not '${t.at}'`);
+        if (tOrders.has(o.id)) err(file, `${w}.order: '${o.id}' is already another tournament's order`);
+        if (o.cooldown || o.once)
+          warn(file, `${w}.order: the calendar decides when '${o.id}' shows; cooldown/once are ignored`);
+        if (t.fee && o.cost) warn(file, `${w}: both fee and order cost are set; the fee wins`);
+        tOrders.add(o.id);
+      }
+      for (const p of t.posts) {
+        const post = b.posts.find((x) => x.id === p);
+        if (!post) err(file, `${w}.posts: unknown post '${p}'`);
+        else if (!post.hours) err(file, `${w}.posts: temporary post '${p}' needs hours`);
+      }
+      if (t.kind === 'away' && t.posts.length) err(file, `${w}: away tournaments have no temporary posts`);
+      for (const p of t.closes) if (!b.posts.some((x) => x.id === p)) err(file, `${w}.closes: unknown post '${p}'`);
+      checkCond(file, t.when, `${w}.when`);
+      checkEffects(file, t.reward, `${w}.reward`);
+      const goals = [...t.goals, ...(t.repeat.goals ?? [])];
+      const gids = new Set<string>();
+      for (const g of goals) {
+        checkExpr(file, g.if, `${w}.goals.${g.id}.if`);
+        checkExpr(file, g.chance, `${w}.goals.${g.id}.chance`);
+        checkEffects(file, g.reward, `${w}.goals.${g.id}.reward`);
+        if (!gids.has(g.id)) needText(file, `tournaments.${t.id}.goals.${g.id}`);
+        gids.add(g.id);
+      }
+      if (t.variant_of) {
+        const f = facilities.get(t.variant_of);
+        if (!f?.variants) err(file, `${w}.variant_of: facility '${t.variant_of}' has no variants`);
+        else for (const v of Object.keys(f.variants)) needText(file, `tournaments.${t.id}.variants.${v}`);
+      }
+      needText(file, `tournaments.${t.id}.title`);
     }
     if (a.rules.lose_if) {
       checkCond(file, a.rules.lose_if.when, 'rules.lose_if');
@@ -674,6 +798,8 @@ export function compileContent(files: Record<string, string>): CompileResult {
   for (const a of b.activities) scheduleTargets(a.effects);
   for (const a of b.posts) scheduleTargets(a.effects);
   for (const a of b.orders) for (const effs of orderEffects(a)) scheduleTargets(effs);
+  for (const t of allTournaments) for (const effs of tournamentEffects(t)) scheduleTargets(effs);
+  for (const a of b.acts) for (const lv of a.stars ?? []) if (lv.card) reachable.add(lv.card);
   for (const c of b.cards)
     if (!reachable.has(c.id)) warn(`events/${c.act}/${c.id}.yaml`, `card '${c.id}' is never scheduled by anything`);
 

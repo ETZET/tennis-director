@@ -5,6 +5,7 @@ import { weightedPick } from './rng';
 import { closeLedger, decayDay, gradeDrop, overnight, staffSystem } from './staff';
 import { checkStars } from './stars';
 import { at, dayOf, minuteOfDay, weekdayOf } from './state';
+import { rainCheck, tournamentSystem } from './tournaments';
 import { num, qualityTarget, test } from './vars';
 import { walkSystem } from './walk';
 import { bookDay, settleWeek } from './week';
@@ -12,7 +13,7 @@ import type { World } from './world';
 
 /**
  * 每个 tick 按固定顺序执行的系统，每个只负责一件事（ADR 0012）：
- * 日历 → 员工走路 → 改造期满 → 岗位和工单 → 活动 → 质量 → 星级 → 事件 → 导演。
+ * 日历 → 赛事 → 员工走路 → 改造期满 → 放下没了岗位的人 → 岗位和工单 → 活动 → 质量 → 星级 → 事件 → 导演。
  * 收盘时：今天的岗位账 → 衰减 → 经济（按天记账）→（周日）周结算（一条因果日志）→ 掉档。
  */
 
@@ -99,6 +100,8 @@ export function recomputeDerived(ctx: Ctx): void {
 function closeDay(ctx: Ctx): void {
   const { s, w } = ctx;
   const day = dayOf(s.t);
+  // 赛事收赛在关门那一刻的（时段写到关门）：今天就结算，不等明早
+  tournamentSystem(ctx);
   closeLedger(ctx);
   decayDay(ctx, w.act.seasons.find((x) => x.id === s.season)?.decay ?? 1);
   // 钱按天记账、老写法的每日漂移（week.ts，GM-1：不每天各写一条日志）
@@ -164,6 +167,8 @@ export function openDay(ctx: Ctx, day: number, fromMinute = 0): void {
     if (pick) s.weather = pick;
     ctx.events.push({ type: 'weather', weather: s.weather });
   }
+  // 赛事（LG-11）：接下的主办赛事今天比赛、又下雨，就办不成
+  rainCheck(ctx);
   for (const d of w.act.daily) {
     const start = at(day, d.hour);
     if (start < s.t || minuteOfDay(start) < fromMinute) continue;
@@ -189,6 +194,7 @@ export function tick(ctx: Ctx): void {
   const { s, w } = ctx;
   if (s.outcome) return;
   openScheduled(ctx); // 日历和后续事件
+  tournamentSystem(ctx); // 赛事：开赛、收赛结算（LG-11）
   staffSystem(ctx); // 岗位转圈、工单推进、办事
   activitySystem(ctx); // 活动开始、结算
   qualitySystem(ctx); // 项目质量

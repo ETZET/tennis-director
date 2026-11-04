@@ -421,17 +421,36 @@ describe('习惯（ADR 0014）', () => {
 });
 
 describe('习惯：工单和班次（第二轮试玩 S4、S7）', () => {
-  it('在做工单的人班一开始就去上班，下了班回去接着做工单；按习惯换班不记"白干了"', () => {
+  it('人-13：派去工单的人做完以前不被习惯拉走（第二天看场开门也不去）；做完回到原来的岗位，关着就闲着、第二天照习惯去', () => {
     const s = quiet(court1(fresh()));
     advance(s, CONTENT, [assign('director', 'o1_rental')], 0);
-    // 总监白天看场；15 点关门后没别的班，派他去修外场 2–3（12 小时的活）
+    // 总监白天看场；15 点关门后派他去修外场 2–3（12 小时的活）
     expect(until(s, (x) => minuteOfDay(x.t) >= 15 * 60, 8 * 60)).toBe(true);
     advance(s, CONTENT, [assign('director', 'o23_repair')], 0);
-    // 第二天 8 点看场开门：放下工单去上班，15 点后回来接着修
-    expect(until(s, (x) => dayOf(x.t) === 2 && x.people.director?.job === 'o1_rental', 30 * 60)).toBe(true);
-    expect(s.people.director?.resume).toBe('o23_repair');
-    expect(until(s, (x) => x.people.director?.job === 'o23_repair', 9 * 60)).toBe(true);
-    expect(minuteOfDay(s.t)).toBeGreaterThanOrEqual(15 * 60);
+    expect(s.people.director?.back).toBe('o1_rental');
+    // 第二天 9 点：看场早就开门了，他还在修
+    expect(until(s, (x) => dayOf(x.t) === 2 && minuteOfDay(x.t) >= 9 * 60, 30 * 60)).toBe(true);
+    expect(s.people.director?.job).toBe('o23_repair');
+    // 修完（第二天傍晚，看场已经关门）：回不去，闲着
+    expect(until(s, (x) => (x.orderLog.done.o23_repair ?? 0) > 0, 30 * 60)).toBe(true);
+    expect(s.people.director?.job).toBeNull();
+    expect(s.people.director?.back).toBeNull();
+    // 第三天 8 点照习惯回去看场
+    expect(until(s, (x) => x.people.director?.job === 'o1_rental', 24 * 60)).toBe(true);
+    expect(dayOf(s.t)).toBe(3);
+  });
+  it('人-13：从开着的岗位派去一张小工单，做完当场走回原来的岗位（发 returned）', () => {
+    const s = quiet(court1(fresh()));
+    s.condition.outer_1 = 30; // 冒出清理工单
+    advance(s, CONTENT, [assign('director', 'o1_rental')], 60);
+    expect(s.people.director?.job).toBe('o1_rental');
+    advance(s, CONTENT, [assign('director', 'o1_tidy')], 0);
+    const events: string[] = [];
+    for (let i = 0; i < 6 * 60 && !(s.orderLog.done.o1_tidy ?? 0); i++)
+      events.push(...advance(s, CONTENT, [], 1).events.map((e) => e.type));
+    expect(events).toContain('returned');
+    expect(s.people.director?.job).toBe('o1_rental');
+    expect(minuteOfDay(s.t)).toBeLessThan(15 * 60);
   });
   it('换班时关了门的岗位不发 postInterrupted', () => {
     const s = quiet(court1(fresh()));

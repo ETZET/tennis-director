@@ -151,6 +151,20 @@ export const MIGRATIONS: Record<number, Migration> = {
     state.version = 8;
     return { ...save, version: 8, state };
   },
+  // 8 → 9（W2：赛事日历 LG-11、选路、人-13）：没有选过路、没有接下的赛事和参赛记录；
+  // 每个人加上"派去工单之前的岗位"（旧档里在做工单的人做完以后闲着，和以前一样）
+  8: (save) => {
+    const state = { ...(save.state as Record<string, unknown>) };
+    state.routes ??= {};
+    state.events ??= {};
+    state.tournaments ??= {};
+    const people: Record<string, Record<string, unknown>> = {};
+    for (const [id, p] of Object.entries((state.people as Record<string, Record<string, unknown>>) ?? {}))
+      people[id] = { back: null, ...p };
+    state.people = people;
+    state.version = 9;
+    return { ...save, version: 9, state };
+  },
 };
 
 export class SaveError extends Error {}

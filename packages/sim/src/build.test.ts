@@ -382,7 +382,6 @@ describe('存档和确定性（LG-14、LG-10）', () => {
     for (const k of ['variants', 'upgrades', 'remodels', 'picks', 'plaque', 'stars', 'trophies']) delete old.state[k];
     const { save } = fromSave(old);
     expect(save.version).toBe(SAVE_VERSION);
-    expect(SAVE_VERSION).toBe(8);
     expect(save.state).toMatchObject({
       variants: {},
       upgrades: {},

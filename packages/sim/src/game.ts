@@ -66,6 +66,9 @@ export function newGame(content: ContentBundle, o: NewGameOptions): GameState {
     plaque: [],
     stars: 0,
     trophies: 0,
+    routes: {},
+    events: {},
+    tournaments: {},
     // 开局没有"上周"：服务率无从谈起，算 0，周结算的服务项不算（GM-1）
     week: {
       demand: 0,

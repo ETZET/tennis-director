@@ -6,7 +6,7 @@ import type { OptionKey } from '@td/content';
  */
 
 /** 存档格式版本；改了格式就加一个迁移函数（见 save.ts） */
-export const SAVE_VERSION = 8;
+export const SAVE_VERSION = 9;
 
 export interface PersonState {
   id: string;
@@ -34,8 +34,13 @@ export interface PersonState {
    * 手上的岗位过了时段、工单做完、或者闲着时，自己走去其中此刻开着、空着的那个。
    */
   routine: string[];
-  /** 为了上班暂停的工单（ADR 0014）：下了班回去接着干；玩家亲手派活或叫停时清掉 */
+  /** 记给他的工单（效果 task）：闲下来就自己走过去开工；玩家亲手派活或叫停时清掉 */
   resume?: string | null;
+  /**
+   * 人-13（W2）：从岗位上被派去做工单时，记下原来的岗位。工单做完（或作废）回到这个岗位——它还开着、空着的话；
+   * 不然就闲着。派去工单的人做完以前不被习惯拉走。
+   */
+  back?: string | null;
   /** 连续闲了多少营业分钟（没有岗位或工单、没在走路、没在办事）；有活就清零。导演和卡用它（idle_days） */
   idleMin?: number;
 }
@@ -113,6 +118,17 @@ export type Cause =
   | { kind: 'remodel'; facility: string; variant: string }
   /** 升星（LG-10）：几星、开出了什么 */
   | { kind: 'star'; stars: number; opens: string[] }
+  /**
+   * 赛事结算（LG-11）：办完（done，附加目标各自达成没有、第几次参加、奖励打几折），或者下雨办不成（spoiled）
+   */
+  | {
+      kind: 'tournament';
+      tournament: string;
+      result: 'done' | 'spoiled';
+      goals: Record<string, boolean>;
+      repeat: number;
+      scale: number;
+    }
   | { kind: 'debug'; what: string };
 
 /** 一周的钱（每天收盘按天折算记进现金，周日收盘合成一条讲给玩家） */
@@ -137,6 +153,8 @@ export interface WeekState {
   traitRep: number;
   /** 这一周开始时的质量 */
   q0: number;
+  /** 每个岗位这一周转了几圈（变量 cycles.<岗位>；W2，旧存档没有） */
+  cycles?: Record<string, number>;
 }
 
 export interface WeekSettlement {
@@ -178,6 +196,8 @@ export type EffectRecord =
   | { kind: 'remodel'; facility: string; variant: string; until: number }
   | { kind: 'plaque'; facility: string; leader: string }
   | { kind: 'trophy'; delta: number }
+  /** 选路（W2） */
+  | { kind: 'route'; slot: string; route: string }
   | { kind: 'end'; result: 'won' | 'lost'; ending: string };
 
 export interface OpenCard {
@@ -205,6 +225,31 @@ export interface RunningActivity {
   end: number;
   started: boolean;
   cause: number | null;
+}
+
+/** 一场接下了的赛事（LG-11）：这一期的时间，和赛事那几天时段里的账 */
+export interface EventRun {
+  /** 第一天开赛、最后一天收赛的时刻（绝对分钟） */
+  start: number;
+  end: number;
+  /** 赛事那几天时段里全园有需求的岗位分钟、其中有人在岗的分钟 */
+  demand: number;
+  served: number;
+  /** 临时岗位的时段分钟、其中有人在岗的分钟 */
+  need: number;
+  staffed: number;
+  /** 报名工单上那项能力最高的人的值，和干过的人 */
+  skill: number;
+  crew: string[];
+  /** 已经发过"开赛"事件的那一天（第几天） */
+  live?: number;
+}
+
+/** 一项赛事办过几次（LG-11：第二次起奖励打折、目标换一个） */
+export interface TournamentLog {
+  entries: number;
+  /** 上一次结算的时刻 */
+  last: number;
 }
 
 export interface GameState {
@@ -249,6 +294,12 @@ export interface GameState {
   stars: number;
   /** 奖杯数（LG-10） */
   trophies: number;
+  /** 选路（W2）：处（s2 / s3 / s4）→ 选的路 */
+  routes: Record<string, string>;
+  /** 赛事（LG-11）：接下了、还没结算的那一期（赛事 id → 这一期） */
+  events: Record<string, EventRun>;
+  /** 赛事 id → 办过几次 */
+  tournaments: Record<string, TournamentLog>;
   /** 本周的账（周日收盘结算、写成一条因果日志，然后清零） */
   week: WeekState;
   /**

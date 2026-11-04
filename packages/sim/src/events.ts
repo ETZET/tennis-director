@@ -43,6 +43,30 @@ export type SimEvent =
   | ({ type: 'plaque_added' } & PlaqueRow)
   /** 升星（LG-10）：画面转到大门，快讯列出开了什么 */
   | { type: 'star_up'; stars: number; opens: string[] }
+  /** 赛事（LG-11）：主办赛事接下了（报名工单做完）；比赛日开赛（画面布置、临时岗位开出来）；下雨办不成；结算 */
+  | { type: 'tournament_entered'; tournament: string; at: string; start: number; end: number }
+  | { type: 'tournament_live'; tournament: string; at: string; posts: string[] }
+  | { type: 'tournament_spoiled'; tournament: string; at: string; reason: 'rain' }
+  | {
+      type: 'tournament_done';
+      tournament: string;
+      at: string;
+      goals: { id: string; met: boolean }[];
+      /** 第几次参加（0 = 第一次）、奖励打几折 */
+      repeat: number;
+      scale: number;
+    }
+  /** 选路（W2）：这一处选了哪条路（倒计时到了按默认的也发） */
+  | { type: 'route_chosen'; slot: string; route: string }
+  /** 分期筹备（W2）：一期做完了，这一组做完了几期 */
+  | { type: 'prep_done'; group: string; order: string; done: number; total: number }
+  /**
+   * 岗位没了，坐在上面的人放下来闲着（W2）：设施掉档（closed）、改造停用（remodel）、赛事的临时岗位收了或者
+   * 比赛日占了场（event）。界面用它讲"为什么闲着"。
+   */
+  | { type: 'released'; person: string; post: string; facility: string | null; reason: 'closed' | 'remodel' | 'event' }
+  /** 人-13（W2）：工单做完（或作废），回到派去之前的岗位 */
+  | { type: 'returned'; person: string; post: string; order: string }
   | { type: 'errandStarted'; person: string; at: string; minutes: number }
   | { type: 'errandFinished'; person: string }
   | { type: 'log'; entry: CausalEntry }
