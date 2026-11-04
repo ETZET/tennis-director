@@ -73,3 +73,17 @@
 - **B 组的小游戏**是一个新的操作层，不是卡也不是拖人；按准则 1 它是"直接和场景里的东西互动"，应该不冲突，但要防止变成每天必做的流水线（准则 4 的"偶发、有分量"）。
 
 选中以后，冲突的那条准则要先写 ADR 再改。
+
+## 第二轮（2026-11-04）：01 / 06 / 08 / 11 精修
+
+制作人选了 01 球具店、06 场地养护、08 拖人 2.0、11 社交媒体，要求画面贴合主游戏、提升手感和 UI。第二轮放进 `apps/sandbox`，用游戏真正的 `@td/iso` 引擎和 HUD 风格重做（简报 `tools/brief-r2.md`，共用样式和手感工具 `apps/sandbox/src/demos/kit/`）：
+
+| 页面 | 代码 | 说明 |
+| --- | --- | --- |
+| `apps/sandbox/demos.html` | — | 第二轮总览 |
+| `demo-shop.html` | `src/demos/shop/` | 全屏 3/4 俯视的店，3× 整数放大（制作人反馈"太糊"后重做） |
+| `demo-court.html` | `src/demos/court/` | 真实 Palm Oasis 地图上的会员场、红土场、青训场 |
+| `demo-staff.html` | `src/demos/staff/` | 真实地图西半边 6 个岗位，Dale / Rosa / Ben / Jess / Gus |
+| `demo-social.html` | `src/demos/social/` | 上半真实地图，下半像素手机 |
+
+每个 demo 第二轮的改动在 `demos/<NN>/notes-r2.md`。本地看：`pnpm dev` 后打开 `/demos.html`。
