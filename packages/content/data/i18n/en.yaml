@@ -496,11 +496,11 @@ prep:
   exhibition: Exhibition build-up
 # Staff growth (W3): what a person who got good enough opens up (shown in the news and the cause log)
 unlocks:
-  junior_coach: "A coach good enough for the juniors: semifinal chances at the junior regional +20%"
-  night_clay_care: "Night care for the clay: a weekly work order on the clay courts"
-  member_referrals: "Member referrals: the front desk keeps 10 more members"
-  open_division: "A higher division at the regional open: double the entry fee, double the prize"
-  weekend_camp: "Weekend camp on the academy courts: a coach and a second teacher (coaching 60+) on weekend mornings"
+  junior_coach: "Junior coaching (better semifinal odds at the junior regional; academy lessons earn more and sign up more families)"
+  night_clay_care: "Night care for the clay (a weekly work order on the clay courts)"
+  member_referrals: "Member referrals (room for 10 more members)"
+  open_division: "The higher division at the regional open (double entry fee, double prize)"
+  weekend_camp: "Weekend camp at the academy (two people with coaching 60+, weekend mornings)"
 
 ui:
   route:
@@ -591,7 +591,7 @@ ui:
     trend: { falling: Falling, recovering: Recovering, flat: Flat, bottomed: Bottomed out }
     next: Coming up
     done: Done
-    rose: Got better today
+    rose: Got better recently
   week: "Wk {n}"
   weather: { sun: Sunny, cloud: Cloudy, rain: Rain · outdoor courts closed, wind: Windy }
   days: { "0": Mon, "1": Tue, "2": Wed, "3": Thu, "4": Fri, "5": Sat, "6": Sun }
@@ -608,6 +608,9 @@ ui:
     closed: "Closed {time}"
     min_crew: "Needs {n} on site"
     trophy: "Trophy +{n}"
+    prize: "Prize ${n}"
+    unlock_extra: "{what} · {tag}"
+    unlock_bonus: "{tag}: {goal} +{n} pts"
   attr: { skill: coaching, upkeep: upkeep, service: service, play: play, morale: morale, fatigue: fatigue }
   then: "Then: {what}"
   ctx:
@@ -637,6 +640,8 @@ ui:
     courts: Courts open
     director: Director style
     seed: Seed
+    member_cap: Members cap
+    cap_plus: "+{n} {what}"
   activity: "{title} · {time} left"
   end:
     again: Play again
@@ -722,6 +727,12 @@ ui:
     tour_again: "entry #{n} · rewards ×{k}"
     prep_done: "{group}: {what} is ready ({done}/{total})"
     prep_all: "{group}: {what} is ready, all four phases done"
+    tour_late: "Too late for the {title}: the sign-up wasn't done before it started · not entered{lost}"
+    tour_late_lost: " · the ${n} spent is lost"
+    coach_hired: "{name} is the new head coach (just hired) · {from} stays on as staff"
+    coach_hired_first: "{name} is the head coach (just hired)"
+    coach_left: "{from} left · {name} takes over as head coach"
+    coach_vacant: "{from} left · the club has no head coach now"
   status:
     empty: "{n} posts have customers waiting and nobody there"
     covered: Every busy spot has someone right now
@@ -758,6 +769,11 @@ ui:
     remodel: "Being remodelled into “{variant}” · reopens in {time}"
     min_crew: "{n}/{need} on site · starts when everyone is here"
     tour_host: "Starts {when} · fee ${fee} · finish it to sign up"
+    unlock_need: "Opens after “{what}” · needs {needs}"
+    unlock_item: "a {who} with {skill} {n}+ (best now {best})"
+    unlock_item_any: "someone with {skill} {n}+ (best now {best})"
+    unlock_item_none: "a {who} with {skill} {n}+ (none on staff yet)"
+    unlocked_idle: "“{what}” unlocked · shows up here when it's needed"
     tour_away_early: "Leaves {when} · fee ${fee} · send people on the day"
     tour_away_now: "Leaves today · fee ${fee}"
     tour_signup: "Sign-up opens {open} · plays {when}"
@@ -807,6 +823,7 @@ ui:
     speed: "Working at {n}%"
     you_coming: "On the way · {time}"
   # 员工成长（W3）和结局卡（W4，UI-10）
+  unlock_tag: { junior_coach: Junior coaching, night_clay_care: Night clay care, member_referrals: Member referrals, open_division: "Higher division ×2", weekend_camp: Weekend camp }
   grow:
     potential: "Potential: {list}"
     pair: "{skill} {from} → {to}"
@@ -814,6 +831,8 @@ ui:
     unlock: "{name} reached {skill} {n} — {what} unlocked"
     unlock_plain: "{what} unlocked ({names})"
     because: "{names} got good enough"
+    reach: "can reach {skill} {n} → {what}"
+    reach_now: "{skill} {n} already → {what}"
   ending:
     topic: Season one · final score
     title: The season is scored

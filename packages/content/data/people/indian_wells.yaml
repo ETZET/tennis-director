@@ -60,7 +60,9 @@
     morale: 85,
     wage_week: 260,
     traits: [eager, college],
-    potential: { teach: 74 },
+    # W3 门试玩（P3）：她是来当教练的，能涨的只有教学；服务截在现在的 40（以前默认 +15，招聘卡的潜力一行
+    # 写着"服务 40 → 55"，和卡上的教学、球技对不上）。球技 45 是陪打地区赛双打的底子，不按干活涨
+    potential: { teach: 74, service: 40 },
   }
 - {
     id: gus_moreno,
@@ -181,8 +183,10 @@
     role: candidate,
     kind: crew,
     skill: 20,
-    upkeep: 58,
-    service: 45,
+    # W3 门试玩（P2d）：招聘日 4c 上 Diego（$100）看起来样样比他强。Marco 是"现在就能用"的那个：维护 64、服务 50，
+    # 来了就能守场、守前台；潜力 76 / 62，过得了夜间养护和职业场地升级的 75。比 Diego 贵，但不用等他开窍
+    upkeep: 64,
+    service: 50,
     morale: 70,
     wage_week: 230,
     traits: [bilingual, night_owl],
@@ -229,7 +233,8 @@
     service: 30,
     play: 60,
     morale: 75,
-    wage_week: 100,
+    # W3 门试玩（P2d）：$100 太便宜，和 Marco 比没有代价；改成和 Amara 差不多（他来得晚、要等开窍）
+    wage_week: 140,
     traits: [desert_born, late_bloomer],
     potential: { play: 80 },
   }

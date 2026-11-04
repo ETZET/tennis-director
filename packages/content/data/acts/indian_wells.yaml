@@ -315,17 +315,26 @@ daily: []
 growth:
   enabled: true
   rate: 0.1
+  # W3 门评审：分项涨幅（growth.rates）。0.1 一样快时维护工 3–11 天、前台 4–15 天就涨满，教练 45 → 65 要 9–10 周。
+  # 目标：每种钥匙大约第 6–12 周开出来。维护工一天约 12 圈、前台约 10 圈、教练每个工作日 3–5 圈（课时短）：
+  # Rosa 62 → 75 约 5 周、Ben 55 → 70 约 5 周、Lily 66 → 70 约 1–2 周；稳定上课的 Dale 45 → 65 约 5–6 周（第 8–9 周），
+  # 课排得少的约第 12 周；Jess 56 → 65 来了约 2–3 周。球技不按 rate 涨（训练岗位的效果，见 posts/pr_training.yaml）
+  rates: { teach: 0.12, upkeep: 0.05, service: 0.06 }
   headroom: 15
   traits: { late_bloomer: 10 }
   skills: [teach, upkeep, service]
   step: 5
   unlocks:
-    # 教练教学 ≥ 65：带青少年赛时学员进四强 +20 个百分点（tournaments.junior_regional 的 chance 读 unlocked.junior_coach）
+    # 教练教学 ≥ 65：带青少年赛时学员进四强 +20 个百分点（tournaments.junior_regional 的 chance 读 unlocked.junior_coach）；
+    # 学院课每节 +$3、多招一点会员（posts/pr_academy.yaml）。W3 门评审：中位第 82–87 天才开（多半是 Dale），
+    # 青少年赛只有第 8、12 周，开了以后还赶得上一场的局不到四分之一——只读赛事的话这把钥匙大多什么都没开
     - key: junior_coach
       need: [{ skill: teach, gte: 65, who: coach }]
     # 维护工维护 ≥ 75：红土场"夜间养护"工单（orders/o23_night_care.yaml）
+    # W3 门评审：只在保留红土的局开（硬地的局夜间养护工单永远不出现，以前照样上快讯"开出了"）；硬地的 75 维护工照旧开得了职业硬地升级
     - key: night_clay_care
       need: [{ skill: upkeep, gte: 75, who: crew }]
+      when: { variant: outer_23, is: clay }
     # 前台服务 ≥ 70：会员推荐，会员上限 +10（rules.member_cap 读 unlocked.member_referrals）
     - key: member_referrals
       need: [{ skill: service, gte: 70, who: special }]

@@ -496,11 +496,11 @@ prep:
   exhibition: 表演赛筹备
 # 员工成长（W3）：有人练到了门槛，开出了什么（快讯和因果日志里显示）
 unlocks:
-  junior_coach: 教练够格带青少年了：地区青少年赛进四强的把握 +20%
-  night_clay_care: 红土场夜间养护：红土场上每周一次的工单
-  member_referrals: 会员推荐：前台多留住 10 个会员
-  open_division: 地区业余赛升到高一级组别：报名费翻倍，奖金翻倍
-  weekend_camp: 青训场周末训练营：一名教练和另一个能带课的人（教学 ≥ 60）周末上午一起带
+  junior_coach: 青少年带教（地区青少年赛进四强的把握 +20 个百分点；学院课多收一点、多招一点会员）
+  night_clay_care: 红土场夜间养护（红土场上每周一次的工单）
+  member_referrals: 会员推荐（会员上限 +10）
+  open_division: 地区业余赛的高一级组别（报名费翻倍，奖金翻倍）
+  weekend_camp: 青训场周末训练营（两个教学 ≥ 60 的人，周末上午）
 
 ui:
   route:
@@ -591,7 +591,7 @@ ui:
     trend: { falling: 在下滑, recovering: 在回升, flat: 持平, bottomed: 见底了 }
     next: 接下来
     done: 做完了
-    rose: 今天有长进
+    rose: 这几天有长进
   week: "第 {n} 周"
   weather: { sun: 晴, cloud: 多云, rain: 下雨 · 露天场地关闭, wind: 大风 }
   days: { "0": 一, "1": 二, "2": 三, "3": 四, "4": 五, "5": 六, "6": 日 }
@@ -608,6 +608,9 @@ ui:
     closed: "停用 {time}"
     min_crew: "至少 {n} 人到场"
     trophy: "奖杯 +{n}"
+    prize: "奖金 ${n}"
+    unlock_extra: "{what} · {tag}"
+    unlock_bonus: "{tag}：{goal}把握 +{n} 个百分点"
   attr: { skill: 教学, upkeep: 维护, service: 服务, play: 球技, morale: 士气, fatigue: 疲劳 }
   then: "之后：{what}"
   ctx:
@@ -637,6 +640,8 @@ ui:
     courts: 开放场地
     director: 导演风格
     seed: 种子
+    member_cap: 会员上限
+    cap_plus: "{what} +{n}"
   activity: "{title} · 还剩 {time}"
   end:
     again: 再来一局
@@ -712,6 +717,12 @@ ui:
     tour_again: "第 {n} 次参加 · 奖励 ×{k}"
     prep_done: "{group}：{what}做好了（{done}/{total}）"
     prep_all: "{group}：{what}做好了，四期都齐了"
+    tour_late: "没赶上{title}：开赛前报名没办完 · 没报上名{lost}"
+    tour_late_lost: " · 花掉的 ${n} 拿不回来"
+    coach_hired: "{name}接任主教练（新招来的）· {from}留下当员工"
+    coach_hired_first: "{name}当上主教练（新招来的）"
+    coach_left: "{from}走了 · {name}接任主教练"
+    coach_vacant: "{from}走了 · 会所现在没有主教练"
   status:
     empty: "{n} 个岗位有客人在等，没人管"
     covered: 此刻有客人的地方都有人
@@ -748,6 +759,11 @@ ui:
     remodel: "正在改造成“{variant}” · {time}后重新开放"
     min_crew: "到场 {n}/{need} 人，人齐了才开工"
     tour_host: "{when}开赛 · 报名费 ${fee} · 做完就算报上名"
+    unlock_need: "开出“{what}”以后才有 · 要{needs}"
+    unlock_item: "{who}的{skill}到 {n}（现在最高 {best}）"
+    unlock_item_any: "有人{skill}到 {n}（现在最高 {best}）"
+    unlock_item_none: "{who}的{skill}到 {n}（还没有{who}）"
+    unlocked_idle: "“{what}”已经开出 · 需要的时候会出现在这里"
     tour_away_early: "{when}出发 · 报名费 ${fee} · 那天才能派人"
     tour_away_now: "今天出发 · 报名费 ${fee}"
     tour_signup: "{open}开始报名 · {when}比赛"
@@ -797,6 +813,7 @@ ui:
     speed: "干活速度 {n}%"
     you_coming: "在路上 · 还要 {time}"
   # 员工成长（W3）和结局卡（W4，UI-10）
+  unlock_tag: { junior_coach: 青少年带教, night_clay_care: 红土夜间养护, member_referrals: 会员推荐, open_division: "高一级组别 ×2", weekend_camp: 周末训练营 }
   grow:
     potential: "潜力：{list}"
     pair: "{skill} {from} → {to}"
@@ -804,6 +821,8 @@ ui:
     unlock: "{name}的{skill}到了 {n}——开出了{what}"
     unlock_plain: "开出了{what}（{names}）"
     because: "{names}的本事够了"
+    reach: "能练到{skill} {n} → {what}"
+    reach_now: "{skill}已有 {n} → {what}"
   ending:
     topic: 第一季 · 结算
     title: 这一季打分了
