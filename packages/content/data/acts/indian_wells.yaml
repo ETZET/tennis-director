@@ -190,7 +190,7 @@ routes:
 # - golf_west 施工时泳池那边吵（posts/st2_*.yaml 每圈少 $3）；
 # - se_corner 按赛事广场施工、车挪走以后少一个停车场（rules.week.members 每周少来 2 人）。
 # 开了以后：南场多两片场（会员上限 +24、质量 +6、看场岗位离得远，要有人守）；绿洲草坪是周末度假客（小屋管家，水费按圈扣，
-# 会员上限不涨，质量 +5）；赛事广场让表演赛把握 +10%、门票 +$2000、邀请赛 +$500、赞助商的横幅卡不用等匹克球场、
+# 会员上限不涨，质量 +5）；赛事广场让表演赛把握 +4%、门票 +$2000、邀请赛 +$500、赞助商的横幅卡不用等匹克球场、
 # 周末赞助展台；学院岛是驻岛教练和宿舍（会员 +6，学院课每圈 +$2），起风天关桥，表演赛不会更快。
 # 数字由机器人校准（人-17），见 docs/balance/indian-wells.md"地块"和设计文档"地图怎么长大 · W5 定稿"。
 plots:
@@ -432,10 +432,13 @@ ending:
     service: { of: "max(0, round(service_season * 100) - 50)", per: 150 }
     early: { of: "ending.exhibition * ending.days_early", per: 30 }
     cash: { of: "min(5000, max(0, stat.cash - 3000))", per: 0.1 }
+  # W5 门评审：开地（每局都开，选路卡逼着选一块）让 good / average / novice 中位约 −500 / −800 / −900，
+  # S 15500 / A 13800 / B 11800 下 good 只剩 15.5% S、average 中位掉进 B。整体下调约 500，回到 W4 定档的份额
+  # （good S/A 约 88%，average A/B 约 78%，novice B/C 约 78%）。
   grades:
-    - { grade: S, gte: 15500 }
-    - { grade: A, gte: 13800 }
-    - { grade: B, gte: 11800 }
+    - { grade: S, gte: 15000 }
+    - { grade: A, gte: 13300 }
+    - { grade: B, gte: 11400 }
     - { grade: C, gte: 6000 }
     - { grade: D, gte: 0 }
   season2:

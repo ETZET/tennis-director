@@ -1,28 +1,28 @@
 # 机器人跑局报告 · indian_wells
 
-导演 steady · 内容版本 774f1d0e · 共 1400 局
+导演 steady · 内容版本 60f24867 · 共 1400 局
 
 | 机器人 | 局数 | 平均分 | 中位分 | 提前结算 | 平均天数 | 卡死 | 平均质量 | 平均会员 | 平均声望 | 平均现金 | 平均复原 | 每局耗时 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| greedy | 200 | 15950 | 16000 | 99.5% | 83.1 | 0 | 100.0 | 139.0 | 100.0 | $10412 | 8.0/8 | 918.1 ms |
-| random | 200 | 1913 | 1668 | 0.0% | 110.0 | 0 | 55.1 | 54.2 | 22.2 | $1117 | 3.5/8 | 674.4 ms |
-| cautious | 200 | 5915 | 5943 | 0.0% | 112.0 | 0 | 100.0 | 122.2 | 99.1 | $3519 | 7.0/8 | 1087.6 ms |
-| idle | 200 | 15 | 15 | 0.0% | 112.0 | 0 | 7.8 | 0.0 | 3.0 | $621 | 0.0/8 | 517.1 ms |
-| good | 200 | 14415 | 14420 | 96.0% | 91.7 | 0 | 100.0 | 129.1 | 100.0 | $9627 | 8.0/8 | 783.5 ms |
-| average | 200 | 13604 | 13565 | 90.0% | 95.5 | 0 | 100.0 | 129.0 | 99.9 | $10246 | 8.0/8 | 921.0 ms |
-| novice | 200 | 12032 | 12242 | 73.5% | 102.1 | 0 | 100.0 | 128.7 | 100.0 | $10170 | 8.0/8 | 1042.7 ms |
+| greedy | 200 | 15950 | 16000 | 99.5% | 83.1 | 0 | 100.0 | 139.0 | 100.0 | $10412 | 8.0/8 | 2319.2 ms |
+| random | 200 | 1913 | 1668 | 0.0% | 110.0 | 0 | 55.1 | 54.2 | 22.2 | $1117 | 3.5/8 | 924.7 ms |
+| cautious | 200 | 5915 | 5943 | 0.0% | 112.0 | 0 | 100.0 | 122.2 | 99.1 | $3519 | 7.0/8 | 1243.5 ms |
+| idle | 200 | 15 | 15 | 0.0% | 112.0 | 0 | 7.8 | 0.0 | 3.0 | $621 | 0.0/8 | 583.0 ms |
+| good | 200 | 14415 | 14420 | 96.0% | 91.7 | 0 | 100.0 | 129.1 | 100.0 | $9627 | 8.0/8 | 877.6 ms |
+| average | 200 | 13604 | 13565 | 90.0% | 95.5 | 0 | 100.0 | 129.0 | 99.9 | $10246 | 8.0/8 | 936.3 ms |
+| novice | 200 | 12032 | 12242 | 73.5% | 102.1 | 0 | 100.0 | 128.7 | 100.0 | $10170 | 8.0/8 | 971.8 ms |
 
 ## 打分（结局方案 A）
 
 | 机器人 | 10% 分位 | 中位 | 90% 分位 | 评语档 | 分项平均 |
 | --- | --- | --- | --- | --- | --- |
-| greedy | 15100 | 16000 | 16750 | S 79.5%，A 18.5%，B 1.5%，C 0.5%，D 0.0% | stars 3992，trophies 1526，members 500，reputation 500，unlocks 574，exhibition 1493，pace 3466，service 2534，early 866，cash 500 |
+| greedy | 15100 | 16000 | 16750 | S 93.0%，A 6.5%，B 0.0%，C 0.5%，D 0.0% | stars 3992，trophies 1526，members 500，reputation 500，unlocks 574，exhibition 1493，pace 3466，service 2534，early 866，cash 500 |
 | random | 1035 | 1668 | 2874 | S 0.0%，A 0.0%，B 0.0%，C 0.0%，D 94.0%，bankrupt 6.0% | stars 1145，trophies 211，members 281，reputation 114，unlocks 118，exhibition 0，pace 0，service 26，early 0，cash 18 |
 | cautious | 5595 | 5943 | 6311 | S 0.0%，A 0.0%，B 0.0%，C 38.5%，D 61.5% | stars 3164，trophies 1464，members 500，reputation 495，unlocks 216，exhibition 0，pace 0，service 0，early 0，cash 76 |
 | idle | 15 | 15 | 15 | S 0.0%，A 0.0%，B 0.0%，C 0.0%，D 100.0% | stars 0，trophies 0，members 0，reputation 15，unlocks 0，exhibition 0，pace 0，service 0，early 0，cash 0 |
-| good | 13150 | 14420 | 15900 | S 15.5%，A 59.0%，B 22.5%，C 3.0%，D 0.0% | stars 4000，trophies 1557，members 500，reputation 500，unlocks 518，exhibition 1500，pace 2539，service 2204，early 610，cash 487 |
-| average | 12170 | 13565 | 15500 | S 10.0%，A 35.5%，B 46.0%，C 8.5%，D 0.0% | stars 3992，trophies 1626，members 499，reputation 500，unlocks 512，exhibition 1485，pace 2182，service 1826，early 494，cash 489 |
-| novice | 9579 | 12242 | 14320 | S 0.5%，A 14.0%，B 50.0%，C 35.5%，D 0.0% | stars 3900，trophies 1562，members 499，reputation 500，unlocks 538，exhibition 1358，pace 1481，service 1429，early 298，cash 468 |
+| good | 13150 | 14420 | 15900 | S 27.0%，A 61.5%，B 10.0%，C 1.5%，D 0.0% | stars 4000，trophies 1557，members 500，reputation 500，unlocks 518，exhibition 1500，pace 2539，service 2204，early 610，cash 487 |
+| average | 12170 | 13565 | 15500 | S 16.5%，A 45.0%，B 32.5%，C 6.0%，D 0.0% | stars 3992，trophies 1626，members 499，reputation 500，unlocks 512，exhibition 1485，pace 2182，service 1826，early 494，cash 489 |
+| novice | 9579 | 12242 | 14320 | S 3.0%，A 19.5%，B 50.0%，C 27.5%，D 0.0% | stars 3900，trophies 1562，members 499，reputation 500，unlocks 538，exhibition 1358，pace 1481，service 1429，early 298，cash 468 |
 
 ## 结局分布
 
@@ -97,6 +97,22 @@
 | iw_arrival | 100.0% |
 
 **从未出现的卡：** iw_deadline
+
+## 分数档（W5 门设计评审，手工附录）
+
+模拟没改，只改了 `ending.grades`：开地每局都要付，good / average / novice 中位比不开地低约 500 / 800 / 900，旧档（S 15500 / A 13800 / B 11800）下
+good 只剩 15.5% S、average 中位（13565）掉进 B。整体下调约 500：S ≥ 15000、A ≥ 13300、B ≥ 11400、C ≥ 6000。
+
+| 机器人 | 旧档 | 新档 | W4 定档时（开地以前） |
+| --- | --- | --- | --- |
+| good | S 15.5 / A 59 / B 22.5 / C 3 | S 27 / A 61.5 / B 10 / C 1.5 | S 30 / A 58 / B 10 / C 2 |
+| average | S 10 / A 35.5 / B 46 / C 8.5 | S 16.5 / A 45 / B 32.5 / C 6 | S 21 / A 48 / B 27 / C 4 |
+| novice | S 0.5 / A 14 / B 50 / C 35.5 | S 3 / A 19.5 / B 50 / C 27.5 | S 5.5 / A 27.5 / B 45.5 / C 21.5 |
+| greedy | S 79.5 / A 18.5 | S 93 / A 6.5 | S 93.5 / A 6 |
+| cautious | C 38.5 / D 61.5 | 不变 | C 64.5 / D 35.5 |
+
+good S/A 88.5%、average A/B 77.5%、novice B/C 77.5%，回到 W4 定档的意图。cautious、random、idle 不变（C 的门槛 6000 没动）。
+下面"地块"附录里"档的门槛没动"那一段说的是这次以前。
 
 ## 地块（W5 GM-15，手工附录）
 

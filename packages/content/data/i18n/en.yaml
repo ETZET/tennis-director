@@ -230,16 +230,16 @@ events:
       B: "Resort: the resort pool opens first (a physio-room clubhouse can switch to a café); more service and fitness staff apply; busier weekends"
   iw_route_s3:
     title: Hal Brooks is closing the west holes
-    body: 'Hal Brooks runs the golf course past the south wall, and it has been dying for years: the west fairways went yellow, the bunkers spilled over. "I''m shutting the west holes. The strip is yours if you want it, the bricked-up south gate included. Pave it for courts, or keep my pond and put up cabins." Whatever you pick starts building now: the clearance jobs appear on the new site. If you don''t choose by tomorrow, Dale picks the courts.'
+    body: 'Hal Brooks runs the golf course past the south wall, and it has been dying for years: the west fairways went yellow, the bunkers spilled over. "I''m shutting the west holes. The strip is yours if you want it, the bricked-up south gate included. Pave it for courts, or keep my pond and put up cabins." Whatever you pick starts building now: the clearance jobs appear on the new site. On his way out Hal adds: "No answer by tomorrow and I''ll take it you want courts."'
     options:
-      A: "South courts: fill the pond, two new courts (members cap +24, quality +6); 5 jobs, about $3100; 47 min from the clubhouse, 105 from the gate; someone has to be posted there"
-      B: "Oasis lawn: keep the pond, three cabins and a small pool court (weekend resort guests, a cabin host post, quality +5); 3 jobs, about $2300; 46 min from the clubhouse; water and heat cost every cabin shift; members cap unchanged"
+      A: "South courts: fill the pond, two new courts (members cap +24, quality +6); 5 jobs, $1000 in all; 47 min from the clubhouse, 105 from the gate; someone has to be posted there"
+      B: "Oasis lawn: keep the pond, three cabins and a small pool court (weekend resort guests, a cabin host post, quality +5); 3 jobs, $850 in all; 46 min from the clubhouse; water and heat cost every cabin shift; members cap unchanged"
   iw_route_s4:
     title: Where does the island grow?
     body: 'A resort club needs room, and the only way out is the southeast corner. Turn the south car park into a viewing slope and grow new land for the cars, or haul in the little sky island with the two old net posts and bridge over to it? Whatever you pick starts building now. If you don''t choose by tomorrow, Dale picks the plaza.'
     options:
-      A: "Event plaza: viewing slope and shade sail (exhibition +10% and +$2000 at the gate, invitational +$500, the sponsor comes sooner, a weekend sponsor booth); 4 jobs, about $2800; 12 min from the gate, 78 from the clubhouse; no south car park while it builds"
-      B: "Academy isle: dock the island, build a bridge, a dorm and a practice court (boarding students: a resident coach post, members +6, academy lessons +$2; juniors' semifinal +10% now); 4 jobs, about $3500; 91 min from the gate, 158 from the clubhouse; the bridge shuts on windy days; the exhibition gets no faster"
+      A: "Event plaza: viewing slope and shade sail (exhibition +4% and +$2000 at the gate, invitational +$500, the sponsor comes sooner, a weekend sponsor booth); 4 jobs, $1000 in all; 12 min from the gate, 78 from the clubhouse; no south car park while it builds"
+      B: "Academy isle: dock the island, build a bridge, a dorm and a practice court (boarding students: a $1200 term deposit, a resident coach post, members +6, academy lessons +$2; juniors' semifinal +10% now); 4 jobs, $900 in all; 91 min from the gate, 158 from the clubhouse; the bridge shuts on windy days; the exhibition gets no faster"
   iw_ending:
     title: The stands are still full. Hand in the books?
     body: 'The exhibition is over and the investors are waiting in the front row. "We can score the season today, and finishing early counts in your favour. Or keep running until day 112: one more cup, more time for your people to grow. But those weeks go on the service record too, and a slack rota drags it down. The wind season does not wait for anyone."'
@@ -336,22 +336,22 @@ orders:
   ch_repair: { title: "Repair the clubhouse", note: "Roof, windows, water and power", locked: "Get the members' court back first" }
   ch_fix: { title: "The clubhouse is leaking again", note: "Roof, A/C or pipes" }
   flyers: { title: "Hand out flyers in town", note: "Once a week" }
-  sc_gate: { title: "Knock down the bricked-up south gate", note: "$100, three people, a morning; 47 min from the clubhouse" }
-  sc_bunkers: { title: "Clear the golf bunkers", note: "$200, up to four people", locked: "Open the south gate first" }
-  sc_fill: { title: "Fill in the pond", note: "$700, up to four people; no going back", locked: "Open the south gate first" }
-  sc_pave: { title: "Lay two hard courts", note: "$1600, up to three people", locked: "Clear the bunkers and fill the pond first" }
-  sc_nets: { title: "Nets and lights for the south courts", note: "$500, two people; the courts open when it's done", locked: "Lay the courts first" }
-  ol_paths: { title: "Clear the bunkers, lay paths round the pond", note: "$200, three people; 46 min from the clubhouse" }
-  ol_cabins: { title: "Build three cabins by the pond", note: "$1300, up to four people", locked: "Lay the paths first" }
-  ol_pool: { title: "Small pool court, water hooked up", note: "$800, up to three people", locked: "Lay the paths first" }
+  sc_gate: { title: "Knock down the bricked-up south gate", note: "Free, three people, a morning; 47 min from the clubhouse" }
+  sc_bunkers: { title: "Clear the golf bunkers", note: "Up to four people", locked: "Open the south gate first" }
+  sc_fill: { title: "Fill in the pond", note: "Up to four people; no going back", locked: "Open the south gate first" }
+  sc_pave: { title: "Lay two hard courts", note: "Up to three people", locked: "Clear the bunkers and fill the pond first" }
+  sc_nets: { title: "Nets and lights for the south courts", note: "Two people; the courts open when it's done", locked: "Lay the courts first" }
+  ol_paths: { title: "Clear the bunkers, lay paths round the pond", note: "Three people; 46 min from the clubhouse" }
+  ol_cabins: { title: "Build three cabins by the pond", note: "Up to four people", locked: "Lay the paths first" }
+  ol_pool: { title: "Small pool court, water hooked up", note: "Up to three people", locked: "Lay the paths first" }
   ep_cars: { title: "Move the cars off the south car park", note: "Free, two people; no south car park until the plaza opens" }
-  ep_fill: { title: "Grow new ground in the southeast corner", note: "$1000, up to five people", locked: "Move the cars first" }
-  ep_slope: { title: "Viewing slope and shade sail", note: "$1400, up to four people", locked: "Move the cars first" }
-  ep_lot: { title: "Paint the new car park, link the drive", note: "$400, three people; the plaza opens when it's done", locked: "Grow the new ground first" }
-  ai_dock: { title: "Haul in the sky island", note: "$500, up to four people; 91 min from the gate, 158 from the clubhouse" }
-  ai_bridge: { title: "Build the bridge", note: "$1500, up to five people", locked: "Dock the island first" }
-  ai_dorm: { title: "Build the dorm", note: "$1000, up to four people", locked: "Build the bridge first" }
-  ai_court: { title: "Practice court between the old net posts", note: "$500, three people", locked: "Build the bridge first" }
+  ep_fill: { title: "Grow new ground in the southeast corner", note: "Up to five people", locked: "Move the cars first" }
+  ep_slope: { title: "Viewing slope and shade sail", note: "Up to four people", locked: "Move the cars first" }
+  ep_lot: { title: "Paint the new car park, link the drive", note: "Three people; the plaza opens when it's done", locked: "Grow the new ground first" }
+  ai_dock: { title: "Haul in the sky island", note: "Up to four people; 91 min from the gate, 158 from the clubhouse" }
+  ai_bridge: { title: "Build the bridge", note: "Up to five people", locked: "Dock the island first" }
+  ai_dorm: { title: "Build the dorm", note: "Up to four people", locked: "Build the bridge first" }
+  ai_court: { title: "Practice court between the old net posts", note: "Three people", locked: "Build the bridge first" }
   pz_repair: { title: "Repair the Circle of Palms", note: "Unblock the fountain, replant the palms", locked: "Repair the clubhouse first" }
   pz_tidy: { title: "The fountain is blocked", note: "Clear it" }
   st3_dig: { title: "Dig out the pickleball courts", note: "Five people, several days", locked: "Open the academy courts and the clubhouse first" }
@@ -563,11 +563,11 @@ route_notes:
     youth: { costs: "Resort-side builds wait until ★3; fewer service and fitness staff apply" }
     resort: { costs: "Academy-side builds wait until ★3; fewer coaches apply" }
   s3:
-    south_courts: { opens: "Two more courts: members cap +24, quality +6; on cup days and weekends members play there instead of the members' court", costs: "5 clearance jobs, about $3100; 47 min from the clubhouse, 105 from the gate: someone has to be posted there or it earns nothing; the pool loses a little while it builds; the pond is gone for good" }
-    oasis_lawn: { opens: "Weekend resort guests: a well-paid cabin host post Fri–Sun; quality +5, reputation +3", costs: "3 clearance jobs, about $2300; 46 min from the clubhouse; water and heat cost $3 a shift ($6 in spring); members cap unchanged; the rest of the golf course goes to a hotel developer" }
+    south_courts: { opens: "Two more courts: members cap +24, quality +6; on cup days and weekends members play there instead of the members' court", costs: "5 clearance jobs, $1000 in all; 47 min from the clubhouse, 105 from the gate: someone has to be posted there or it earns nothing; the pool loses a little while it builds; the pond is gone for good" }
+    oasis_lawn: { opens: "Weekend resort guests: a well-paid cabin host post Fri–Sun; quality +5, reputation +3", costs: "3 clearance jobs, $850 in all; 46 min from the clubhouse; water and heat cost $3 a shift ($6 in spring); members cap unchanged; the rest of the golf course goes to a hotel developer" }
   s4:
-    event_plaza: { opens: "Exhibition +10% and +$2000 at the gate; invitational +$500; the bank's banner card doesn't wait for the pickleball courts; a weekend sponsor booth", costs: "4 clearance jobs, about $2800, right before the exhibition; 12 min from the gate, 78 from the clubhouse; no south car park while it builds (2 fewer new members a week)" }
-    academy_isle: { opens: "Boarding students: a resident coach post every day, a dorm, members +6, academy lessons +$2; juniors' semifinal +10% from today", costs: "4 clearance jobs, about $3500; 91 min from the gate, 158 from the clubhouse; the bridge shuts on windy days; the exhibition gets no faster" }
+    event_plaza: { opens: "Exhibition +4% and +$2000 at the gate; invitational +$500; the bank's banner card doesn't wait for the pickleball courts; a weekend sponsor booth", costs: "4 clearance jobs, $1000 in all, right before the exhibition; 12 min from the gate, 78 from the clubhouse; no south car park while it builds (2 fewer new members a week)" }
+    academy_isle: { opens: "Boarding students: a $1200 term deposit, a resident coach post every day, a dorm, members +6, academy lessons +$2; juniors' semifinal +10% from today", costs: "4 clearance jobs, $900 in all; 91 min from the gate, 158 from the clubhouse; the bridge shuts on windy days; the exhibition gets no faster" }
 # Phased build-ups (W2)
 prep:
   exhibition: Exhibition build-up
@@ -779,6 +779,7 @@ ui:
     tournament: "the {title} wrapped up"
     tournament_spoiled: "it rained on the {title}"
   wire:
+    clear_next: "{names} finished “{order}” — drag them to “{next}” next"
     grew: "The director's {skill} reached {n}"
     interrupted: "{name} was pulled off “{post}”; that round was lost"
     routine_post: "{name} went back to {post} (routine) · left {from}"
@@ -827,8 +828,12 @@ ui:
     waiting: "{what} · waiting for customers"
     walking: "To {what} · {time}"
     errand: "Away at {place} · {time}"
+    halt: "{what} · paused for the tournament"
   place:
     rain: Closed today — it is raining
+    wind: The bridge is closed today (wind)
+    order_done: Done
+    order_halt: "Paused for the tournament · {p}%"
     condition_low: "Condition {n} · counts half for quality; below {limit} on Sunday it loses a grade"
     condition: "Condition {n} · loses a grade if below {limit} at Sunday close"
     worn: "Lost a grade · jobs here are stopped until someone does the Reopen job"
@@ -875,6 +880,8 @@ ui:
     target: No such post
     only: Only certain people can do this
     gone: Not open right now
+    wind: The bridge is closed today (wind)
+    rain: Closed today — it is raining
     cost: Not enough cash for materials
     crew: Already full
     skill: Not skilled enough for this
@@ -900,12 +907,15 @@ ui:
     order_on: "{names} working · {p}%"
     order_paused: "Paused · {p}% (progress kept)"
     order_new: Not started
+    order_done: Done — this job is finished
+    order_halt: "Paused for the tournament · {p}% · the crew waits on site"
     walk: "{time} walk"
     here: Right here
     leaves: "leaves “{what}”"
     speed: "Working at {n}%"
     you_coming: "On the way · {time}"
   # 员工成长（W3）和结局卡（W4，UI-10）
+  season_short: { spring: Windy spring }
   unlock_tag: { junior_coach: Junior coaching, night_clay_care: Night clay care, member_referrals: Member referrals, open_division: "Higher division ×2", weekend_camp: Weekend camp }
   grow:
     potential: "Potential: {list}"
