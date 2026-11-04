@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="icon" href="data:,">
+<title>玩法 demo 第二轮 · Tennis Director</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600;700&family=Silkscreen:wght@400;700&family=ZCOOL+QingKe+HuangYou&display=swap">
+<style>:root{--navy:#14223a;--panel:#1d2f4e;--optic:#d8c08a;--green:#2f7a49;--paper:#f3ecdc;--coral:#ff8a6b;--f:"Pixelify Sans","ZCOOL QingKe HuangYou","Noto Sans SC",sans-serif}*{box-sizing:border-box}body{background:var(--navy);color:var(--paper);font:15px/1.5 var(--f);margin:0}main{max-width:420px;margin:0 auto;padding:18px 14px 40px}h1{margin:0 0 4px;font-size:22px}.lead{opacity:.85;margin:0 0 14px}a.card{color:inherit;background:var(--panel);border-top:5px solid var(--green);margin:14px 0;text-decoration:none;display:block;box-shadow:2px 2px #00000059}a.card:active{transform:translateY(2px)}.shots{background:#0a111e;grid-template-columns:1fr 1fr;gap:2px;display:grid}.shots img{aspect-ratio:390/844;object-fit:cover;object-position:top;background:#2a3a58;width:100%;display:block}.b{padding:10px 12px 12px}.t{font-size:17px;font-weight:700}.n{color:var(--optic);margin-right:6px}.go{background:var(--optic);min-height:44px;color:var(--navy);justify-content:center;align-items:center;margin-top:8px;font-weight:700;display:flex}</style>
+</head>
+<body>
+<main>
+  <h1>玩法 demo · 第二轮</h1>
+  <p class="lead">01 / 06 / 08 / 11 用游戏的真实像素引擎（@td/iso）和 HUD 风格重做，打磨了手感和界面。第一轮的原型在 docs/lab/2026-11-04-playability/。</p>
+  <div id="list"></div>
+</main>
+<script>
+const D=[['shop','01','球具店：货架和定价','定价、货架位置、天气涨价，在真实的会所像素里开店。'],
+['court','06','场地养护：扫沙、滚压、画线','在 Palm Oasis 的会员场上亲手扫沙、画线、挂网。'],
+['staff','08','拖人 2.0：匹配度和反馈','真实地图上拖员工：拿起来有手感，落点前预览，放错会抱怨。'],
+['social','11','社交媒体：评分和口碑','俱乐部画面里冒出评论，拖到回复、补偿、举报；取景拍照发帖。']];
+document.getElementById('list').innerHTML=D.map(([id,n,t,q])=>`<a class="card" href="demo-${id}.html">
+<div class="shots"><img src="shots/${id}-1.png" alt="" onerror="this.style.visibility='hidden'"><img src="shots/${id}-2.png" alt="" onerror="this.style.visibility='hidden'"></div>
+<div class="b"><div class="t"><span class="n">${n}</span>${t}</div><div>${q}</div><div class="go">▶ 玩</div></div></a>`).join('');
+</script>
+</body>
+</html>
