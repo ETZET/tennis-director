@@ -4,8 +4,12 @@ import { advance, type Command, type LoggedCommand, newGame } from './game';
 import {
   canAssign,
   eligible,
+  meetsWorker,
   occupant,
+  orderCost,
   orderStatus,
+  orderVariant,
+  orderVariants,
   postDemand,
   postExists,
   skillOf,
@@ -161,7 +165,12 @@ interface StaffStyle {
   demandValue: number;
   /** 看走眼：给每个岗位或工单的价值乘一个系数（普通玩家用；不给就是看得准） */
   misjudge?: (target: string) => number;
+  /** 变体工单还没开工时选哪个变体（LG-14）；不给就是第一个 */
+  pickVariant?: (order: string, variants: string[]) => string;
 }
+
+/** 升级（LG-14）的价值：比不上修好一处（开新岗位），但值得做 */
+const UPGRADE_VALUE = 40;
 
 /**
  * 机器人怎么排人：每个人挑一个"值得去"的地方——
@@ -193,14 +202,22 @@ function staffCommands(s: GameState, w: World, st: StaffStyle): Command[] {
     } else value = 2; // 随时能干、不修东西的岗位（球员自己练球）：闲着不如去
     options.push({ target: p.id, at: p.at, skill: p.skill, value: value * (st.misjudge?.(p.id) ?? 1), crew: 1 });
   }
+  const variantOf = new Map<string, string>();
   for (const o of w.orders.values()) {
     const os = orderStatus(s, w, o);
     if (!os.visible || os.blocked === 'cost') continue;
-    if (!os.started && o.cost > 0 && (s.stats.cash ?? 0) - o.cost < st.reserve) continue;
+    // 变体工单还没锁定：机器人自己挑一个（按它的那个变体算钱和效果）
+    let variant = orderVariant(s, o);
+    if (o.variants && !os.locked && st.pickVariant) variant = st.pickVariant(o.id, orderVariants(o));
+    if (variant && !os.locked) variantOf.set(o.id, variant);
+    const cost = orderCost(s, o, variant);
+    if (!os.started && cost > 0 && (s.stats.cash ?? 0) - cost < st.reserve) continue;
     if (os.chance !== null && os.chance < st.minChance) continue;
     const p = os.chance ?? 1;
     let value = effectScore(o.effects) + effectScore(o.onSuccess, p) + effectScore(o.onFail, 1 - p) + o.restore / 4;
-    value -= o.cost * (WEIGHT.cash ?? 0);
+    if (variant) value += effectScore(o.variants?.[variant]?.effects ?? []);
+    if (o.upgrade) value += UPGRADE_VALUE;
+    value -= cost * (WEIGHT.cash ?? 0);
     // 按工时折算（开平方）：大工程也值得一点一点干
     value = value / Math.max(1, Math.sqrt(minutes(o.work) / 60)) + (os.started ? 4 : 0);
     value *= st.misjudge?.(o.id) ?? 1;
@@ -221,6 +238,7 @@ function staffCommands(s: GameState, w: World, st: StaffStyle): Command[] {
     for (const o of options) {
       const def = w.posts.get(o.target) ?? w.orders.get(o.target);
       if (def && !eligible(w, id, def)) continue;
+      if (def && 'work' in def && !meetsWorker(s, id, def)) continue;
       const fit = 0.4 + skillOf(pp, o.skill) / 80;
       const walk = walkEta(s, w, id, o.at) ?? 60;
       let score = o.value * fit - walk / 30;
@@ -246,8 +264,9 @@ function staffCommands(s: GameState, w: World, st: StaffStyle): Command[] {
     if (taken && taken !== x.person && !pairs.some((p) => p.person === taken)) continue;
     busy.add(x.person);
     used.set(x.o.target, n + 1);
-    if (s.people[x.person]?.job !== x.o.target && canAssign(s, w, x.person, x.o.target) === null)
-      cmds.push({ type: 'assign', person: x.person, target: x.o.target });
+    const variant = variantOf.get(x.o.target);
+    if (s.people[x.person]?.job !== x.o.target && canAssign(s, w, x.person, x.o.target, variant) === null)
+      cmds.push({ type: 'assign', person: x.person, target: x.o.target, ...(variant ? { variant } : {}) });
   }
   return cmds;
 }
@@ -345,6 +364,8 @@ export function humanBot(seed: number, profile: HumanProfile, name = 'human'): B
   const gauss = () => Math.sqrt(-2 * Math.log(1 - r())) * Math.cos(2 * Math.PI * r());
   const cardAt = new Map<number, number>();
   const judged = new Map<string, number>();
+  /** 变体工单：这个人一旦想好修成哪个就不改（LG-14） */
+  const picks = new Map<string, string>();
   let day = -1;
   let checks: number[] = [];
   let pending = false;
@@ -392,10 +413,19 @@ export function humanBot(seed: number, profile: HumanProfile, name = 'human'): B
         if (m === undefined) judged.set(target, (m = Math.exp(gauss() * profile.noise)));
         return m;
       };
-      return staffCommands(s, w, { reserve: profile.reserve, minChance: 0.3, demandValue: 6, misjudge }).slice(
-        0,
-        profile.drags,
-      );
+      const pickVariant = (order: string, variants: string[]) => {
+        let v = picks.get(order);
+        if (v === undefined || !variants.includes(v))
+          picks.set(order, (v = variants[Math.floor(r() * variants.length)] ?? ''));
+        return v;
+      };
+      return staffCommands(s, w, {
+        reserve: profile.reserve,
+        minChance: 0.3,
+        demandValue: 6,
+        misjudge,
+        pickVariant,
+      }).slice(0, profile.drags);
     },
   };
 }

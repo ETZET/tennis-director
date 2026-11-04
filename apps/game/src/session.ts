@@ -20,6 +20,7 @@ import {
  * - 没有卡开着、有需求的岗位都有人、没人在走路或开工时，时间再快 2 倍（PACE.idleSpeedup）。
  * - 玩家的命令先排队，下一帧和这一帧该走的分钟一起交给 advance()；暂停时命令也立刻生效。
  * - 拖人：先点（或长按拖起）一个人，再点岗位或工单；拿起来的人记在 picked 上，时间不停。
+ * - 变体工单（LG-14）：拖到哪一行就带上那一行的 variant。
  * - 模拟发出 requestPause（例如要紧的卡打开）就自动暂停。
  */
 
@@ -37,6 +38,8 @@ export class Session {
   sheet: string | null = null;
   /** 打开的地点清单（点了地点牌，ADR 0013） */
   place: string | null = null;
+  /** 地点清单里点开预览的变体行（UI-11）：哪张工单、哪个变体；清单一关就清掉（只是画面） */
+  preview: { order: string; variant: string } | null = null;
   private queue: Command[] = [];
 
   constructor(
@@ -86,11 +89,12 @@ export class Session {
   }
 
   /** 把一个人派到岗位或工单上（null = 叫他停下来）；放下以后手上就空了 */
-  assign(person: string, target: string | null): void {
+  assign(person: string, target: string | null, variant?: string): void {
     this.picked = null;
     this.sheet = null;
     this.place = null;
-    this.send({ type: 'assign', person, target });
+    this.preview = null;
+    this.send({ type: 'assign', person, target, ...(variant ? { variant } : {}) });
   }
 
   /** 推进 dt 秒真实时间。返回这一帧的领域事件。 */

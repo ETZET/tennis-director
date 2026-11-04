@@ -1,0 +1,15 @@
+# 赛事级红土（升级 tournament_clay，GM-13）：重新筛土、压实、换白线，装记分牌和场边伞。
+# 只有底子维护 ≥ 75 的人干得了（准则 5：人是钥匙）。质量和看场收入上去，但更娇气：维护费高、掉得快一点。
+id: o23_pro_clay
+act: indian_wells
+at: outer_23
+skill: upkeep
+work: 6h
+cost: 400
+crew: 2
+when: { facility: outer_23, is: playable }
+upgrade: tournament_clay
+worker: { upkeep: 75 }
+effects:
+  - { stat: reputation, add: 2 }
+performance: workday

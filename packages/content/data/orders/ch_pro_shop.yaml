@@ -1,0 +1,14 @@
+# 球拍专卖店（升级 pro_shop，GM-13）：会所一角摆上球拍架、挂店招。要一名服务 ≥ 65 的人布置和进货。
+# 开出 ch_shop 岗位（会员越多卖得越多），但又多一个要人守的位子；维护费也多一点。
+id: ch_pro_shop
+act: indian_wells
+at: clubhouse
+skill: service
+work: 4h
+cost: 500
+crew: 1
+when: { facility: clubhouse, is: open }
+upgrade: pro_shop
+worker: { service: 65 }
+effects:
+  - { stat: reputation, add: 1 }

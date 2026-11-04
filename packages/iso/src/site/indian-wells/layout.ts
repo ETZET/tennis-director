@@ -229,3 +229,25 @@ export function walkMinutes(a: string, b: string): number | null {
   const l = routeLine(a, b);
   return l ? Math.max(1, Math.round(polylineLength(l) / WALK_METERS_PER_MINUTE)) : null;
 }
+
+/* ---------------- 变体的球场（Site.courtsFor；画法见 ground.ts 的 paintStadium3Variant） ---------------- */
+
+/**
+ * stadium_3 修成 pickle4：围场里 2×2 四片小匹克球场（中心同 ground.ts 的 PICK4）。
+ * 网沿 x 拉，底线到底线沿 z，所以场地坐标系转 90°（局部 x 朝世界 -z）；
+ * 每片的范围就是画出来的那一格（世界 x 方向半宽 4、z 方向半长 4.4）。
+ */
+export const F_PK4: readonly CourtFrame[] = (
+  [
+    [40, 1.6],
+    [48, 1.6],
+    [40, 10.4],
+    [48, 10.4],
+  ] as const
+).map(([x, z]) => new CourtFrame(x, 0, z, Math.PI / 2, 4.4, 4));
+
+/**
+ * stadium_3 修成 tennis2：两片缩小的网球场，画在原来两片匹克球场的位置和范围上（网沿 z，同 F_PB1 / F_PB2）。
+ * 单独给两个实例，方便以后单独调尺寸。
+ */
+export const F_TN2: readonly CourtFrame[] = [F_PB1, F_PB2].map((f) => new CourtFrame(f.ox, 0, f.oz, f.a, f.hx, f.hz));

@@ -2,8 +2,17 @@ import { minutes, type Order, type Post, type SkillKind } from '@td/content';
 import { clamp } from '@td/shared';
 import { applyEffects, type Ctx, run, setStat } from './effects';
 import { rand } from './rng';
-import { DIRECTOR, type EffectRecord, type GameState, minuteOfDay, type PersonState, weekdayOf } from './state';
-import { isStaff, num, test } from './vars';
+import {
+  DIRECTOR,
+  dayOf,
+  type EffectRecord,
+  type GameState,
+  minuteOfDay,
+  type PersonState,
+  type PlaqueRow,
+  weekdayOf,
+} from './state';
+import { isRestored, isStaff, num, remodeling, stateDef, test } from './vars';
 import { haltWalk, leaveJob, walkTo } from './walk';
 import type { World } from './world';
 
@@ -42,13 +51,53 @@ export function eligible(w: World, id: string, t: Post | Order): boolean {
   return !!d && ((!!d.kind && t.only.includes(d.kind)) || d.traits.some((x) => t.only?.includes(x)));
 }
 
+/** 工单的能力门槛（LG-14 的 worker）：底子（不算特质）每一项都够才行 */
+export function meetsWorker(s: GameState, id: string, o: Order): boolean {
+  if (!o.worker) return true;
+  const p = s.people[id];
+  if (!p) return false;
+  for (const [k, v] of Object.entries(o.worker)) if (v !== undefined && skillOf(p, k as SkillKind) < v) return false;
+  return true;
+}
+
+/* ---------------- 修复变体、升级、改造（LG-14） ---------------- */
+
+/** 工单落在哪处设施上（这个地点的设施） */
+export const orderFacility = (w: World, o: Order): string | undefined => w.facilityAt.get(o.at);
+
+/** 工单可选的变体（没有变体是空表；第一个是默认） */
+export const orderVariants = (o: Order): string[] => Object.keys(o.variants ?? {});
+
+/**
+ * 这张变体工单现在算哪个变体：开了工就是锁定的那个；还没开工是玩家最后拖向的那个；都没有就是第一个。
+ * 没有变体的工单是 null。
+ */
+export function orderVariant(s: GameState, o: Order): string | null {
+  if (!o.variants) return null;
+  return s.orders[o.id]?.variant ?? s.picks?.[o.id] ?? orderVariants(o)[0] ?? null;
+}
+
+/** 某个变体（不写就按 orderVariant）的材料费和工作量 */
+export function orderCost(s: GameState, o: Order, variant?: string | null): number {
+  const v = variant === undefined ? orderVariant(s, o) : variant;
+  return (v ? o.variants?.[v]?.cost : undefined) ?? o.cost;
+}
+export function orderWork(s: GameState, o: Order, variant?: string | null): number {
+  const v = variant === undefined ? orderVariant(s, o) : variant;
+  return minutes((v ? o.variants?.[v]?.work : undefined) ?? o.work);
+}
+
+/** 改造停用多久（游戏分钟）：不写是一周 */
+export const remodelMinutes = (o: Order): number => minutes(o.closed_for ?? '7d');
+
 /** 能力换算成速度：能力 50 的人是 1 倍 */
 export const speedOf = (skill: number): number => 0.5 + skill / 100;
 
 const hourNow = (s: GameState): number => minuteOfDay(s.t) / 60;
 
-/** 岗位现在存不存在（条件满足） */
-export const postExists = (s: GameState, w: World, p: Post): boolean => test(s, w, p.when);
+/** 岗位现在存不存在（条件满足；所在的设施在改造时不开） */
+export const postExists = (s: GameState, w: World, p: Post): boolean =>
+  !remodeling(s, w.facilityAt.get(p.at) ?? '') && test(s, w, p.when);
 
 /** 岗位现在在不在它的时段里（没有时段的岗位营业时间都算） */
 export function postInHours(s: GameState, p: Post): boolean {
@@ -87,6 +136,17 @@ export type OrderBlock = 'cooldown' | 'done' | 'cost' | 'crew' | null;
 export function orderVisible(s: GameState, w: World, o: Order): boolean {
   if (o.once && (s.orderLog.done[o.id] ?? 0) > 0) return false;
   if ((s.orderLog.cooldowns[o.id] ?? -1) > s.t) return false;
+  const f = orderFacility(w, o);
+  if (f && remodeling(s, f)) return false;
+  if (f && o.upgrade) {
+    if (s.upgrades?.[f]?.includes(o.upgrade)) return false;
+    const only = w.facilities.get(f)?.upgrades?.[o.upgrade]?.variant;
+    if (only && s.variants?.[f] !== only) return false;
+  }
+  if (f && o.remodel) {
+    const v = s.variants?.[f];
+    if (!v || v === o.remodel) return false;
+  }
   return test(s, w, o.when);
 }
 
@@ -145,6 +205,15 @@ export interface OrderStatus {
   work: number;
   /** 有判定的工单：成功率 */
   chance: number | null;
+  /** 修复变体（LG-14）：可选的变体（没有是 null）、现在算哪个（锁定的、拖向的或默认的）、锁定了没有 */
+  variants: string[] | null;
+  variant: string | null;
+  locked: boolean;
+  /** 能力门槛（worker）：要哪项能力、至少多少；没有是 null */
+  worker: Partial<Record<SkillKind, number>> | null;
+  /** 升级工单装哪个升级、改造工单换成哪个变体 */
+  upgrade: string | null;
+  remodel: string | null;
 }
 
 /**
@@ -153,7 +222,7 @@ export interface OrderStatus {
  */
 export function orderLead(s: GameState, w: World, o: Order): { id: string | null; skill: number } {
   const crew = crewOf(s, o.id);
-  const pool = crew.length ? crew : staffIds(s, w).filter((id) => eligible(w, id, o));
+  const pool = crew.length ? crew : staffIds(s, w).filter((id) => eligible(w, id, o) && meetsWorker(s, id, o));
   let best: { id: string | null; skill: number } = { id: null, skill: 0 };
   for (const id of pool) {
     const v = workSkill(s, w, id, o.skill);
@@ -176,13 +245,14 @@ function checkChance(s: GameState, w: World, o: Order): number | null {
 export function orderStatus(s: GameState, w: World, o: Order): OrderStatus {
   const st = s.orders[o.id];
   const crew = crewOf(s, o.id);
-  const work = minutes(o.work);
+  const work = orderWork(s, o);
+  const cost = orderCost(s, o);
   const visible = orderVisible(s, w, o);
   const blocked: OrderBlock = !visible
     ? (s.orderLog.cooldowns[o.id] ?? -1) > s.t
       ? 'cooldown'
       : 'done'
-    : !st?.started && o.cost > 0 && o.cost > (s.stats.cash ?? 0)
+    : !st?.started && cost > 0 && cost > (s.stats.cash ?? 0)
       ? 'cost'
       : crew.length >= o.crew
         ? 'crew'
@@ -195,11 +265,17 @@ export function orderStatus(s: GameState, w: World, o: Order): OrderStatus {
     blocked,
     crew,
     maxCrew: o.crew,
-    cost: o.cost,
+    cost,
     started: !!st?.started,
     progress: (st?.progress ?? 0) / work,
     work,
     chance: checkChance(s, w, o),
+    variants: o.variants ? orderVariants(o) : null,
+    variant: orderVariant(s, o),
+    locked: !!st?.variant,
+    worker: o.worker ?? null,
+    upgrade: o.upgrade ?? null,
+    remodel: o.remodel ?? null,
   };
 }
 
@@ -208,25 +284,57 @@ export const staffIds = (s: GameState, w: World): string[] => Object.keys(s.peop
 
 /* ---------------- 命令：指派 ---------------- */
 
-export type AssignBlock = 'person' | 'busy' | 'target' | 'only' | 'gone' | 'cost' | 'crew' | 'same' | null;
+/**
+ * 指派不了的原因。skill：能力不到工单的 worker 门槛；variant：变体不是这张工单的，或者工单已经锁定了另一个变体。
+ */
+export type AssignBlock =
+  | 'person'
+  | 'busy'
+  | 'target'
+  | 'only'
+  | 'skill'
+  | 'variant'
+  | 'gone'
+  | 'cost'
+  | 'crew'
+  | 'same'
+  | null;
 
-/** 能不能把 person 派到 target（null 表示叫他停下来） */
-export function canAssign(s: GameState, w: World, person: string, target: string | null): AssignBlock {
+/**
+ * 能不能把 person 派到 target（null 表示叫他停下来）。variant：把人拖到变体工单的哪一行上（不写就按
+ * 已经锁定的、上次拖向的、或者第一个变体）。
+ */
+export function canAssign(
+  s: GameState,
+  w: World,
+  person: string,
+  target: string | null,
+  variant?: string,
+): AssignBlock {
   const p = s.people[person];
   if (!p || !isStaff(s, w, person)) return 'person';
   // 事件派去办的事还没办完，叫不回来（选项的代价就是总监的这段时间）
   if (p.errand) return 'busy';
   if (target === null) return p.job ? null : 'same';
-  if (p.job === target) return 'same';
+  const order0 = w.orders.get(target);
+  if (variant !== undefined) {
+    if (!order0?.variants || !(variant in order0.variants)) return 'variant';
+    const locked = s.orders[target]?.variant;
+    if (locked && locked !== variant) return 'variant';
+  }
+  // 已经在这张变体工单上、只是换一行（还没开工）：算改选变体
+  if (p.job === target && !(variant !== undefined && !s.orders[target] && s.picks?.[target] !== variant)) return 'same';
   const post = w.posts.get(target);
   if (post) return !eligible(w, person, post) ? 'only' : postExists(s, w, post) ? null : 'gone';
   const order = w.orders.get(target);
   if (!order) return 'target';
   if (!eligible(w, person, order)) return 'only';
-  const st = orderStatus(s, w, order);
-  if (!st.visible) return 'gone';
-  if (st.blocked === 'cost') return 'cost';
-  if (st.crew.length >= order.crew) return 'crew';
+  if (!meetsWorker(s, person, order)) return 'skill';
+  if (!orderVisible(s, w, order)) return 'gone';
+  const started = !!s.orders[target]?.started;
+  const cost = orderCost(s, order, variant ?? orderVariant(s, order));
+  if (!started && cost > 0 && cost > (s.stats.cash ?? 0)) return 'cost';
+  if (p.job !== target && crewOf(s, target).length >= order.crew) return 'crew';
   return null;
 }
 
@@ -234,9 +342,19 @@ export function canAssign(s: GameState, w: World, person: string, target: string
  * 把一个人派到岗位或工单上：放下手上的事（持续岗位这一圈作废），走过去，到了就开始干。
  * 拖到有人的岗位上：原来的人让出来、原地闲着（这一圈同样作废）。
  */
-export function assign(ctx: Ctx, person: string, target: string | null, learn = false): boolean {
+export function assign(ctx: Ctx, person: string, target: string | null, learn = false, variant?: string): boolean {
   const { s, w } = ctx;
-  if (canAssign(s, w, person, target) !== null) return false;
+  if (canAssign(s, w, person, target, variant) !== null) return false;
+  // 变体工单还没开工：记下玩家拖向的变体（第一个人到场时锁定）
+  const vo = target ? w.orders.get(target) : undefined;
+  if (vo?.variants && !s.orders[vo.id]) {
+    s.picks ??= {};
+    s.picks[vo.id] = variant ?? s.picks[vo.id] ?? (orderVariants(vo)[0] as string);
+    if (s.people[person]?.job === target) {
+      ctx.events.push({ type: 'assigned', person, target });
+      return true; // 只是换了一行
+    }
+  }
   // 玩家亲手派的才记进习惯；叫停就把手上那个岗位从习惯里拿掉
   if (learn) learnRoutine(s, w, person, target);
   leaveJob(ctx, person);
@@ -458,10 +576,18 @@ function finishOrder(ctx: Ctx, o: Order): void {
   const { s, w } = ctx;
   const crew = crewOf(s, o.id);
   const lead = orderLead(s, w, o);
+  const st = s.orders[o.id];
+  const f = orderFacility(w, o);
+  const wasRestored = !!f && isRestored(s, w, f);
+  const variant = st?.variant ?? null;
   delete s.orders[o.id];
   let success: boolean | undefined;
   if (o.check) success = rand(s) < (checkChance(s, w, o) ?? 1);
-  const effects = [...o.effects, ...(success === undefined ? [] : success ? o.onSuccess : o.onFail)];
+  const effects = [
+    ...o.effects,
+    ...((variant && o.variants?.[variant]?.effects) || []),
+    ...(success === undefined ? [] : success ? o.onSuccess : o.onFail),
+  ];
   const entry = run(
     { ...ctx, vars: { 'worker.skill': lead.skill }, ...(lead.id ? { worker: lead.id } : {}) },
     { kind: 'order', order: o.id, people: crew, ...(success === undefined ? {} : { success }) },
@@ -469,6 +595,49 @@ function finishOrder(ctx: Ctx, o: Order): void {
     effects,
   );
   if (o.restore) condAdd(ctx, o.at, o.restore, entry.effects);
+  if (f && variant) entry.effects.push({ kind: 'variant', facility: f, variant });
+  if (f && o.upgrade && !s.upgrades[f]?.includes(o.upgrade)) {
+    (s.upgrades[f] ??= []).push(o.upgrade);
+    entry.effects.push({ kind: 'upgrade', facility: f, upgrade: o.upgrade });
+    ctx.events.push({ type: 'upgrade_done', facility: f, upgrade: o.upgrade, order: o.id });
+  }
+  if (f && o.remodel) {
+    const until = s.t + remodelMinutes(o);
+    s.remodels[f] = { variant: o.remodel, until };
+    entry.effects.push({ kind: 'remodel', facility: f, variant: o.remodel, until });
+    ctx.events.push({ type: 'remodel_started', facility: f, variant: o.remodel, until });
+  }
+  // 牌匾（LG-14）：一处设施第一次修好，大门的牌匾自动记一行——谁带队（做得最多的人）、第几天
+  // 带队和一起干的人按这处设施第一次修好之前所有工单上的工作量算（s.repairs：挖沙、铺场这样分几张工单修的，
+  // 中途停工、换人接着干的，都一起记）；没有累计的旧存档退回这张工单的 by
+  if (f && !wasRestored && isRestored(s, w, f) && !s.plaque.some((r) => r.facility === f)) {
+    const credit = s.repairs?.[f];
+    const by = credit?.by ?? st?.by ?? {};
+    const people = [...new Set([...Object.keys(by), ...crew])].sort(
+      (a, b) => (by[b] ?? 0) - (by[a] ?? 0) || a.localeCompare(b),
+    );
+    const leader = people[0] ?? lead.id;
+    if (leader) {
+      const row: PlaqueRow = {
+        facility: f,
+        ...(s.variants[f] ? { variant: s.variants[f] } : {}),
+        leader,
+        crew: people,
+        day: dayOf(s.t),
+        minutes: credit?.mins ?? st?.mins ?? 0,
+        work: (credit?.work ?? 0) + orderWork(s, o, variant),
+        order: o.id,
+      };
+      s.plaque.push(row);
+      entry.effects.push({ kind: 'plaque', facility: f, leader });
+      ctx.events.push({ type: 'plaque_added', ...row });
+    }
+  }
+  if (f && s.repairs?.[f]) {
+    // 记过牌匾了，累计用完；还没修好（中间那一步，例如挖完沙）就把这张工单的名义工作量记上，接着累计
+    if (s.plaque.some((r) => r.facility === f)) delete s.repairs[f];
+    else s.repairs[f].work += orderWork(s, o, variant);
+  }
   s.orderLog.done[o.id] = (s.orderLog.done[o.id] ?? 0) + 1;
   if (o.cooldown) s.orderLog.cooldowns[o.id] = s.t + minutes(o.cooldown);
   for (const id of crew) {
@@ -494,28 +663,53 @@ function orderSystem(ctx: Ctx, jobs: Map<string, string[]>): void {
           const p = s.people[id];
           if (p) p.job = null;
         }
+        // 锁定了变体却没修成（设施还是开局的样子）：变体也作废
+        const f = orderFacility(w, o);
+        if (st?.variant && f && s.facilities[f] === w.act.facilities[f]) delete s.variants[f];
         if (st) ctx.events.push({ type: 'orderCancelled', order: o.id });
       }
       continue;
     }
     const here = crew.filter((id) => working(s, w, id));
     if (!here.length) continue;
+    const f = orderFacility(w, o);
     let state = st;
     if (!state) {
-      // 第一个人到场：扣材料费开工；钱不够就开不了，人闲下来
-      if (o.cost > 0 && o.cost > (s.stats.cash ?? 0)) {
+      // 第一个人到场：扣材料费开工；钱不够就开不了，人闲下来。变体工单在这一刻锁定变体（LG-14）
+      const variant = orderVariant(s, o);
+      const cost = orderCost(s, o, variant);
+      if (cost > 0 && cost > (s.stats.cash ?? 0)) {
         for (const id of crew) {
           const p = s.people[id];
           if (p) p.job = null;
         }
         continue;
       }
-      if (o.cost) setStat(ctx, 'cash', (s.stats.cash ?? 0) - o.cost);
-      state = s.orders[o.id] = { progress: 0, started: true };
+      if (cost) setStat(ctx, 'cash', (s.stats.cash ?? 0) - cost);
+      state = s.orders[o.id] = { progress: 0, started: true, by: {}, mins: 0 };
+      if (variant && f) {
+        state.variant = variant;
+        delete s.picks[o.id];
+        s.variants[f] = variant;
+        ctx.events.push({ type: 'variant_locked', facility: f, variant, order: o.id });
+      }
       ctx.events.push({ type: 'orderStarted', order: o.id, at: o.at, performance: o.performance ?? null });
     }
-    for (const id of here) state.progress += speedOf(workSkill(s, w, id, o.skill));
-    if (state.progress >= minutes(o.work)) finishOrder(ctx, o);
+    // 这处设施还没上过牌匾：工作量也记到设施上（跨工单、跨停工累计，牌匾按它定带队）
+    const credit =
+      f && !s.plaque.some((r) => r.facility === f)
+        ? ((s.repairs ??= {})[f] ??= { by: {}, mins: 0, work: 0 })
+        : undefined;
+    for (const id of here) {
+      const v = speedOf(workSkill(s, w, id, o.skill));
+      state.progress += v;
+      const by = (state.by ??= {});
+      by[id] = (by[id] ?? 0) + v;
+      if (credit) credit.by[id] = (credit.by[id] ?? 0) + v;
+    }
+    state.mins = (state.mins ?? 0) + 1;
+    if (credit) credit.mins += 1;
+    if (state.progress >= orderWork(s, o)) finishOrder(ctx, o);
   }
 }
 
@@ -540,7 +734,23 @@ function idleSystem(ctx: Ctx): void {
   }
 }
 
+/** 改造期满（LG-14）：换成新变体；只给旧变体的升级拆掉；写一条因果日志 */
+function remodelSystem(ctx: Ctx): void {
+  const { s, w } = ctx;
+  for (const [f, r] of Object.entries(s.remodels)) {
+    if (r.until > s.t) continue;
+    delete s.remodels[f];
+    s.variants[f] = r.variant;
+    const ups = w.facilities.get(f)?.upgrades ?? {};
+    if (s.upgrades[f]) s.upgrades[f] = s.upgrades[f].filter((u) => !ups[u]?.variant || ups[u]?.variant === r.variant);
+    const entry = run(ctx, { kind: 'remodel', facility: f, variant: r.variant }, null, []);
+    entry.effects.push({ kind: 'variant', facility: f, variant: r.variant });
+    ctx.events.push({ type: 'remodel_done', facility: f, variant: r.variant });
+  }
+}
+
 export function staffSystem(ctx: Ctx): void {
+  remodelSystem(ctx);
   errandSystem(ctx);
   routineSystem(ctx);
   idleSystem(ctx);
@@ -554,8 +764,9 @@ export function staffSystem(ctx: Ctx): void {
 /** 设施按天衰减（准则 6：没人管的地方慢慢变旧；季节倍数：初秋落叶多） */
 export function decayDay(ctx: Ctx, seasonDecay: number): void {
   const { s, w } = ctx;
-  for (const [id, state] of Object.entries(s.facilities)) {
-    const d = w.facilities.get(id)?.states[state]?.decay_day ?? 0;
+  for (const id of Object.keys(s.facilities)) {
+    // 改造停用期间不掉状况
+    const d = remodeling(s, id) ? 0 : (stateDef(s, w, id)?.decay_day ?? 0);
     if (!d) continue;
     s.condition[id] = clamp((s.condition[id] ?? 100) - d * seasonDecay, 0, 100);
   }
@@ -571,7 +782,7 @@ export function gradeDrop(ctx: Ctx): void {
   const limit = w.act.rules.grade_drop_below;
   if (!limit) return;
   for (const [id, state] of Object.entries(s.facilities)) {
-    const to = w.facilities.get(id)?.states[state]?.drops_to;
+    const to = remodeling(s, id) ? undefined : stateDef(s, w, id)?.drops_to;
     const c = s.condition[id] ?? 100;
     if (!to || c >= limit) continue;
     run(ctx, { kind: 'wear', facility: id, condition: Math.round(c) }, null, [{ facility: id, set: to }]);

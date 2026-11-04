@@ -1,0 +1,14 @@
+# 场边大屏（升级 video_wall，GM-13）：回放、慢动作、学员看板。要一名教学 ≥ 65 的教练装调、编课。
+# 学院和训练营每节课多挣一点、质量上去；维护费每周多 $15。
+id: pr_video_wall
+act: indian_wells
+at: practice
+skill: teach
+work: 4h
+cost: 500
+crew: 1
+when: { facility: practice, is: open }
+upgrade: video_wall
+worker: { teach: 65 }
+effects:
+  - { stat: reputation, add: 1 }

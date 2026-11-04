@@ -9,7 +9,9 @@ countdown: 1d
 when:
   all:
     - { expr: "quiet_days >= 7" }
-    - { day: { gte: 45, lte: 105 } }
+    # 匹克球的老会员去了 La Quinta（iw_pickle_noise 选 C）：那边的主教练来得更早
+    - { any: [{ day: { gte: 45 } }, { flag: pickle_feud }] }
+    - { day: { lte: 105 } }
     - { expr: "courts_open >= 3" }
     - { stat: members, gte: 10 }
 location: outer_23

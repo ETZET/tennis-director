@@ -46,6 +46,17 @@ export function createText(content: ContentBundle, lang: Lang): Text {
 
   const duration = (min: number) => {
     const m = Math.max(0, Math.round(min));
+    // 一天以上按天说（"停用 7 天"，不说"168 小时"）：天数 + 不满一天的整小时，分钟不再细说
+    if (m >= 1440) {
+      let d = Math.floor(m / 1440);
+      let hr = Math.round((m % 1440) / 60);
+      if (hr === 24) {
+        d++;
+        hr = 0;
+      }
+      if (zh) return hr ? `${d} 天 ${hr} 小时` : `${d} 天`;
+      return hr ? `${d}d ${hr}h` : `${d}d`;
+    }
     const h = Math.floor(m / 60);
     if (zh) return h ? (m % 60 ? `${h} 小时 ${m % 60} 分` : `${h} 小时`) : `${m} 分钟`;
     return h ? (m % 60 ? `${h}h ${String(m % 60).padStart(2, '0')}m` : `${h}h`) : `${m} min`;
@@ -86,8 +97,20 @@ export function createText(content: ContentBundle, lang: Lang): Text {
         if (Math.abs(e.delta) < 1) return null;
         return `${tr(`ui.fac.${e.facility}`, e.facility)} ${tr('ui.condition')} ${signed(e.delta)}`;
       }
+      case 'upgrade':
+        return fmt('ui.log.upgrade', {
+          what: tr(`upgrades.${e.facility}.${e.upgrade}`, e.upgrade).split(' · ')[0] ?? e.upgrade,
+          place: tr(`ui.fac.${e.facility}`, e.facility),
+        });
+      case 'remodel':
+        return fmt('ui.log.remodel', {
+          place: tr(`ui.fac.${e.facility}`, e.facility),
+          what: tr(`variants.${e.facility}.${e.variant}`, e.variant).split(' · ')[0] ?? e.variant,
+        });
+      case 'trophy':
+        return fmt('ui.log.trophy', { n: signed(e.delta) });
       default:
-        // flag、schedule 是幕后的账，不讲给玩家
+        // flag、schedule 是幕后的账，不讲给玩家；变体锁定、牌匾由快讯单独讲
         return null;
     }
   };
@@ -151,6 +174,13 @@ export function createText(content: ContentBundle, lang: Lang): Text {
         return tr('ui.because.wear')
           .replace('{place}', tr(`ui.fac.${c.facility}`, c.facility))
           .replace('{n}', String(c.condition));
+      case 'star':
+        return fmt('ui.because.star', { n: c.stars });
+      case 'remodel':
+        return fmt('ui.because.remodel', {
+          place: tr(`ui.fac.${c.facility}`, c.facility),
+          what: tr(`variants.${c.facility}.${c.variant}`, c.variant).split(' · ')[0] ?? c.variant,
+        });
       case 'debug':
         return zh ? `调试：${c.what}` : `debug: ${c.what}`;
       default:
@@ -218,6 +248,11 @@ export function createText(content: ContentBundle, lang: Lang): Text {
 
   const so = (e: CausalEntry): string | null => {
     if (e.cause.kind === 'week') return settled(e);
+    // 升星这条日志没有数值变动：讲开出了什么
+    if (e.cause.kind === 'star') {
+      const list = e.cause.opens.map((k) => tr(`stars.opens.${k}`, k)).join(zh ? '、' : ', ');
+      return list ? fmt('ui.stars.opens', { list }) : tr('ui.stars.sign');
+    }
     const parts = e.effects.map(effect).filter((x): x is string => !!x);
     return parts.length ? parts.join(zh ? '，' : ', ') : null;
   };

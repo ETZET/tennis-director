@@ -1,0 +1,17 @@
+# 青训场 · 晨间训练营（变体 bootcamp，GM-13）：工作日早上 8–11 点，上班前来练体能和步法的成年人。
+# 和下午的课不撞时间：一个教练早上带营、下午上课；但每小时挣得比学院少，标志桶和跑道磨场地。
+id: pr_bootcamp
+act: indian_wells
+at: practice
+skill: teach
+cycle: 1h
+hours: [8, 11]
+days: [0, 1, 2, 3, 4]
+when: { all: [{ facility: practice, is: open }, { variant: practice, is: bootcamp }] }
+effects:
+  - { stat: cash, add: "round(12 * (0.6 + worker.skill / 100) * clamp(0.5 + stat.members / 40, 0.5, 2))" }
+  - { stat: cash, add: 5, if: { upgrade: practice, has: video_wall } }
+  - { stat: members, add: 1, chance: 0.07 }
+  - { stat: reputation, add: 0.02 }
+wear: 1.5
+performance: lesson

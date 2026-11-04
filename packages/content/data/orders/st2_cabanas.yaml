@@ -1,0 +1,13 @@
+# 小木屋一排（升级 cabanas，GM-13）：沿池边再搭一排。周末的小木屋服务、恢复池都多挣一点；维护费每周多 $20。
+id: st2_cabanas
+act: indian_wells
+at: stadium_2
+skill: upkeep
+work: 6h
+cost: 800
+crew: 3
+when: { facility: stadium_2, is: open }
+upgrade: cabanas
+effects:
+  - { stat: reputation, add: 1 }
+performance: workday

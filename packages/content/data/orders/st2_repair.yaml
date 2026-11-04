@@ -14,3 +14,7 @@ effects:
   - { stat: reputation, add: 4 }
   - { log: log.stadium_2_open }
 performance: contractor
+# 修成什么（GM-13）：度假泳池（躺椅、小木屋），还是冷水恢复池（便宜、快、给球员用）
+variants:
+  resort: {}
+  recovery: { cost: 3800, work: 20h }

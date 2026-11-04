@@ -17,3 +17,7 @@ effects:
   - { stat: reputation, add: 3 }
   - { log: log.clubhouse_open }
 performance: workday
+# 修成什么（GM-13）：露台咖啡吧，还是白色的理疗间（按摩床、冰桶）
+variants:
+  cafe: {}
+  physio: {}

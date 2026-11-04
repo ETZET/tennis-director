@@ -41,6 +41,13 @@ endings:
     body: 俱乐部发不出工资，投资方叫停了修复。大门又锁上了。
 
 events:
+  iw_pickle_noise:
+    title: 太吵了，还少了一片场
+    body: 三位在这儿打了二十年网球的老会员在匹克球场边等你："啪、啪、啪，一整个周末。为了这个还拆了一片网球场。"有几个人已经在说去 La Quinta 了。
+    options:
+      A: 装隔音板、换静音拍（$450）
+      B: 开个会员会，讲清楚分时段（你亲自去 3 小时，不一定谈得拢）
+      C: 过阵子就习惯了
   iw_investor_check:
     title: 投资方来看进度
     body: 投资方的人站在大门口。离他们给的期限只剩三周了。
@@ -78,7 +85,7 @@ events:
       B: 发一段声明
   iw_sponsor:
     title: 银行的横幅
-    body: 本地一家银行看到匹克球场开了，想在围网上挂一圈横幅，出价不低。
+    body: 本地一家银行看到俱乐部又热闹起来，想在围网上挂一圈横幅，出价不低。
     options:
       A: 收下
       B: 婉拒
@@ -195,6 +202,9 @@ log:
   no_hire: 这次没招人，活还是那几个人干
   tournament_won: 你的球员在外面赢了一站比赛，带回了奖金
   tournament_lost: 你的球员这站输了，不过长了见识
+  cup_hosted: 月度内赛办完了，奖杯放进了会所的柜子
+  invitational_won: 邀请赛看台坐满了：一座奖杯，还有奖金
+  invitational_flop: 邀请赛冷场了，报名费白花了
 
 posts:
   o1_rental: { title: "会员场 · 看场", note: "每天 8–15 点，附近的人来打球" }
@@ -221,6 +231,15 @@ posts:
   st3_ballkids: { title: "匹克球场 · 球童", note: "周末联赛 9–17 点，只有球童能干" }
   pr_training: { title: "青训场 · 自己练球", note: "只有球员能用；随时可以练，球技慢慢涨" }
   o23_training: { title: "红土场 · 自己练球", note: "青训场修好之前的去处，涨得慢一点" }
+  ch_cafe: { title: 会所 · 露台咖啡吧, note: 每天 11–15 点；会员越多生意越好 }
+  ch_physio: { title: 会所 · 理疗室, note: 工作日 12–17 点，只有体能师能坐 }
+  ch_shop: { title: 会所 · 球拍专卖店, note: 有人看店就开门；会员越多卖得越多 }
+  pr_bootcamp: { title: 青训场 · 晨间训练营, note: 工作日 8–11 点；不和下午的课撞时间 }
+  pz_bar: { title: 棕榈喷泉 · 夜场吧台, note: 每天 17–20 点，串灯下面 }
+  st3_open: { title: 网球场 · 周末开放日, note: 周末 9–17 点，两片标准网球场 }
+  st3_night: { title: 球场 · 灯下夜场, note: 周五周六 17–20 点，联赛灯下 }
+  st2_plunge: { title: 泳池 · 冷水恢复池, note: 工作日 16–20 点，练完球来泡 }
+
 orders:
   o1_sweep: { title: "扫会员场的沙", note: "不花钱，两个人一个上午" }
   o1_net: { title: "给会员场换网", note: "$120，一个人一小时", locked: "先把沙扫掉" }
@@ -252,8 +271,83 @@ orders:
   st1_reopen: { title: "重开中心球场", note: "掉档了：修大屏、清看台，$450" }
   st1_clear: { title: "清理中心球场", note: "搬走塌下来的东北角看台", locked: "先让泳池开放" }
   st1_rebuild: { title: "重建 中心球场", note: "整局最大的一笔", locked: "先清理 中心球场" }
-  st1_exhibition: { title: "办表演赛", note: "声望 50 以上，一群人张罗一整天", locked: "中心球场重建完成、声望 50 以上" }
-  pl_tournament: { title: "出去打一站比赛", note: "只有球员能去，一周一次；球技越高越可能赢" }
+  st1_exhibition: { title: "办表演赛", note: "六个人张罗一整天；声望越高越容易办成", locked: "★4，中心球场重建完成" }
+  pl_tournament: { title: "出去打一站比赛", note: "只有球员能去，一周一次；球技越高越可能赢；★2 起赢了算奖杯" }
+  o23_pro_clay: { title: 赛事级红土, note: $400；要一名维护 ≥ 75 的人。场地更好，也更娇气, locked: 红土场开放、保留了红土 }
+  o23_pro_hard: { title: 职业硬地, note: $350；要一名维护 ≥ 75 的人。掉得更慢, locked: 球场开放、改成了硬地 }
+  ch_pro_shop: { title: 开一间球拍专卖店, note: $500；要一名服务 ≥ 65 的人。有空的人去站柜台，站着就有进账, locked: 会所开张 }
+  st3_lights: { title: 立联赛灯, note: $600；周五周六开夜场，电费每周 +$25, locked: 球场开放 }
+  pr_video_wall: { title: 场边大屏, note: $500；要一名教学 ≥ 65 的教练。课挣得多一点, locked: 青训场开放 }
+  pz_misters: { title: 装喷雾杆, note: $400；午餐和傍晚的客人坐得住, locked: 棕榈喷泉开放 }
+  st2_cabanas: { title: 再搭一排小木屋, note: $800；泳池的服务岗位多挣一点, locked: 泳池开放 }
+  ch_to_cafe: { title: 理疗室改成咖啡吧, note: $700；会所停用一周 }
+  ch_to_physio: { title: 咖啡吧改成理疗室, note: $900；会所停用一周 }
+  st3_to_tennis2: { title: 改回两片网球场, note: $1400；停用一周。老会员高兴，联赛的人走了 }
+  st3_to_pickle4: { title: 改成四片匹克球, note: $1000；停用一周。联赛收入高，老会员不满 }
+  cup_monthly: { title: 办月度内赛, note: $60，两个人半天；四周一次。奖杯一座, locked: ★1，而且有两块修好的场地 }
+  inv_clay: { title: 办邀请赛, note: $800，四个人一整天；下雨就白办。保留红土的更容易办成（+10%）, locked: ★3；青训场旁的两片场、会所、棕榈喷泉都开着 }
+
+# 修复变体（GM-13）：名字，和每个变体换来什么、付出什么（variant_notes，给地点清单用）
+variants:
+  outer_23: { clay: 保留红土, hard: 改成硬地 }
+  clubhouse: { cafe: 露台咖啡吧, physio: 理疗室 }
+  stadium_3: { pickle4: 四片匹克球, tennis2: 两片网球场 }
+  practice: { academy: 青少年学院, bootcamp: 晨间训练营 }
+  plaza: { nightlife: 夜场吧台, shade_lawn: 遮阳观赛坡 }
+  stadium_2: { resort: 度假泳池, recovery: 冷水恢复池 }
+variant_notes:
+  outer_23:
+    clay: { gives: 球员涨得快；能装赛事级红土；邀请赛更容易办成, costs: 掉得快，维护每周 $35 }
+    hard: { gives: 掉得慢，维护每周 $20；能装职业硬地, costs: 修要 $1000；质量 −1，球员练得慢一点 }
+  clubhouse:
+    cafe: { gives: 午餐咖啡吧；会员上限 +25, costs: 维护每周 $75 }
+    physio: { gives: 体能师的理疗岗位；球员练得快；质量 +4，掉得慢, costs: 会员上限只 +15；没有午餐咖啡吧 }
+  stadium_3:
+    pickle4: { gives: 周末联赛：周末挣得多, costs: 老会员不满：声望 −2，过几天来找你 }
+    tennis2: { gives: 多一片网球场：会员上限 +12，网球身份, costs: 修要 $2700；周末开放日只挣一半左右 }
+  practice:
+    academy: { gives: 下午的青少年学院，每天 4 小时；发球机还能加钱, costs: 修要 $800；和下午的课撞时间 }
+    bootcamp: { gives: 工作日早上 8–11 点：教练下午还能上课；修要 $600；入会的人多一点, costs: 每天只有 3 小时，发球机不加钱；掉得快，质量 −1 }
+  plaza:
+    nightlife: { gives: 天天开的夜场吧台：晚上最挣钱, costs: 修要 $2200；维护每周 $70，掉得快，质量 −1 }
+    shade_lawn: { gives: 质量 +3，午餐多挣，掉得慢；表演赛 +5%, costs: 晚上只开周四到周日，挣得少 }
+  stadium_2:
+    resort: { gives: 周末的小木屋服务：最挣钱的岗位, costs: 维护每周 $140 }
+    recovery: { gives: 修要 $3800、更快；维护每周 $100；外出比赛胜率 +10%, costs: 工作日的冷水池挣得少得多；质量 −2 }
+upgrades:
+  outer_23: { tournament_clay: 赛事级红土, pro_hard: 职业硬地 }
+  clubhouse: { pro_shop: 球拍专卖店 }
+  stadium_3: { league_lights: 联赛灯 }
+  practice: { video_wall: 场边大屏 }
+  plaza: { misters: 喷雾杆 }
+  stadium_2: { cabanas: 小木屋一排 }
+# 俱乐部星级（GM-9）：名字、清单里的每一条、每一星开出什么
+stars:
+  names: { "0": 废墟, "1": 能打球了, "2": 会所开张, "3": 社区俱乐部, "4": 度假名园, "5": 沙漠名园 }
+  items:
+    court: 会员场能打
+    members_5: 会员 5 人
+    clubhouse: 会所开张
+    restored_3: 修好 3 处
+    members_20: 会员 20 人
+    cup_once: 办成过 1 次内赛
+    restored_6: 修好 6 处
+    members_45: 会员 45 人（第 12 周起 36）
+    rep_45: 声望 45（第 12 周起 36）
+    trophies_2: 奖杯 2 座
+    restored_7: 修好 7 处
+    members_70: 会员 70 人（第 12 周起 56）
+    rep_60: 声望 60（第 12 周起 48）
+    invitational: 办成过邀请赛（第 12 周起奖杯 4 座也算）
+    exhibition: 在中心球场办成表演赛
+  opens:
+    internal_cup: 月度内赛
+    regional: 地区赛：赢了算奖杯
+    invitational: 邀请赛（保留红土更容易办成）
+    sponsor: 赞助位
+    exhibition_prep: 中心球场挂出表演赛筹备
+    exhibition: 能办表演赛了
+    finale: 这一季的总结算
 
 seasons:
   autumn: 秋天
@@ -319,6 +413,7 @@ who:
   sponsor: { name: 沙漠储蓄银行, role: 本地的银行 }
   lender: { name: Coachella Valley 信用社, role: 信贷员 }
   rival_coach: { name: La Quinta 网球俱乐部, role: 他们的主教练 }
+  old_members: { name: 老会员们, role: 在这几片场上打了二十年 }
 roles:
   director: 总监
   coach: 主教练
@@ -329,6 +424,31 @@ roles:
   rival: 对手
 
 ui:
+  # 星级（UI-8）：状态条的星级格和点开的清单
+  stars:
+    label: "下一星差 {n} 项"
+    full: 星已满
+    title: "升到 ★{n} 还要"
+    title_full: "俱乐部已经 ★{n}"
+    opens: "升上来开出：{list}"
+    foot: "已复原 {n}/{total} · 离投资方期限还有 {days} 天"
+    restored: "已复原 {n}/{total}"
+    sign: 大门的星级牌上又亮了一颗星
+  # 修复变体（UI-11）：修复工单下面一个变体一行
+  variant:
+    hint: 点一种看修好的样子 · 把人拖到那一行就按它开工
+    locked: 已经定了 · 按这一种开工了
+    courts: "{n} 片场地"
+    quality: "质量 {n}"
+    income: "+${n}/周"
+    upkeep: "维护费 ${n}/周"
+    decay: "每天磨损 {n}"
+    rain_ok: 下雨也能打
+    rain_no: 下雨关门
+  log:
+    upgrade: "{place}装上了{what}"
+    remodel: "{place}停用，改成“{what}”"
+    trophy: "奖杯 {n}"
   hud:
     quality: 质量
     members: 会员
@@ -376,6 +496,8 @@ ui:
     worker: 在岗的人
     chance: "成功率 {p}%"
     cost: "−${n}"
+    needs: "{skill} {n}+"
+    closed: "停用 {time}"
   attr: { skill: 教学, upkeep: 维护, service: 服务, play: 球技, morale: 士气, fatigue: 疲劳 }
   then: "之后：{what}"
   ctx:
@@ -444,14 +566,25 @@ ui:
     wear: "{place}状况只剩 {n}，周日收盘时没撑住"
     worked: （成了）
     failed: （没成）
+    star: "俱乐部升到了 ★{n}"
+    remodel: "{place}改成“{what}”的工程完工了"
   wire:
     grew: "总监的{skill}能力到 {n} 了"
     interrupted: "{name}被叫离“{post}”，这一圈白干了"
+    routine_order: "{name}按习惯回{post}了 · {order}停在 {p}%"
+    routine_post: "{name}按习惯回{post}了 · 放下了{from}"
     week: "第 {n} 周结算 · {rate} · {what}"
     week_rate: "服务率 {n}%"
     week_none: 还没有客人
     worn: "{place}状况跌到 {n}：周日收盘时低于 {limit} 就掉档，岗位停开"
     dropping: "{place}状况 {n}，明天（周日）收盘前不维护就掉档"
+    star_up: "★{n}！大门的星级牌上又亮了一颗星{opens}"
+    star_opens: "，开出了{list}"
+    variant_locked: "{place}按“{variant}”开工了，这条路就这么定了"
+    plaque: "{name}带头修好了{place}（第 {day} 天），名字刻上了大门的牌匾{faster}"
+    plaque_faster: "，几个人一起比一个人干快了 {time}"
+    remodel_started: "{place}停用改造成“{variant}”，{time}后重新开放"
+    remodel_done: "{place}改成“{variant}”，重新开放了"
   status:
     empty: "{n} 个岗位有客人在等，没人管"
     covered: 此刻有客人的地方都有人
@@ -481,9 +614,12 @@ ui:
     order_new: "{cost}{time} · 还没开工"
     order_on: "{names}在干 · {p}%"
     order_paused: "停工 · {p}%"
+    order_paused_routine: "停工 · {p}% · 人按习惯走了"
+    sends_variant: "按“{variant}”"
     order_wait: "{p}% · 等人到场"
     coming: "在路上：{list}"
     coming_one: "{name} {time}"
+    remodel: "正在改造成“{variant}” · {time}后重新开放"
   why:
     person: 不能指派
     busy: 正在办事，叫不回来
@@ -492,6 +628,9 @@ ui:
     gone: 现在开不了
     cost: 现金不够买料
     crew: 人已经够了
+    skill: 能力不够干这个
+    skill_min: "要{skill} {n} 以上（只看底子，不算特质）"
+    variant: 已经按另一种开工了
   sheet:
     daily: 每天
     anytime: 随时可以干

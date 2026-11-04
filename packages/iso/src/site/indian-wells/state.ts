@@ -68,6 +68,32 @@ export const FACILITY_STATES: Readonly<Record<Facility, readonly string[]>> = Ob
   FACILITIES.map((f) => [f, Object.keys(LOOKS[f])]),
 ) as unknown as Record<Facility, readonly string[]>;
 
+/**
+ * 修复变体（wave1-contract.md「变体」）：每处设施修成什么样。没设（null）就是原来的样子（和以前一个像素不差）。
+ * 第一个是变体 A。outer_1、stadium_1 不分叉。
+ */
+export const VARIANTS: Readonly<Partial<Record<Facility, readonly string[]>>> = {
+  outer_23: ['clay', 'hard'],
+  clubhouse: ['cafe', 'physio'],
+  stadium_3: ['pickle4', 'tennis2'],
+  practice: ['academy', 'bootcamp'],
+  plaza: ['nightlife', 'shade_lawn'],
+  stadium_2: ['resort', 'recovery'],
+};
+
+/** 升级（每处一个；only = 只在这个变体上有） */
+export const UPGRADES: Readonly<Partial<Record<Facility, readonly { id: string; only?: string }[]>>> = {
+  outer_23: [
+    { id: 'tournament_clay', only: 'clay' },
+    { id: 'pro_hard', only: 'hard' },
+  ],
+  clubhouse: [{ id: 'pro_shop' }],
+  stadium_3: [{ id: 'league_lights' }],
+  practice: [{ id: 'video_wall' }],
+  plaza: [{ id: 'misters' }],
+  stadium_2: [{ id: 'cabanas' }],
+};
+
 type Rect = { x0: number; x1: number; z0: number; z1: number };
 
 /** 每处设施修好以后长草的地方（和旧版 overlays.ts 的 LAWNS 一致） */
@@ -92,10 +118,28 @@ export class Facilities {
   readonly progress: number;
   /** 样片的全局档位 1 荒废 / 2 修复中 / 3 全面复原（只给公共部分用） */
   readonly level: 1 | 2 | 3;
+  /** 设施 → 变体（没设的不在表里） */
+  readonly variants: Readonly<Record<string, string>>;
+  /** 设施 → 开着的升级 */
+  readonly upgrades: Readonly<Record<string, readonly string[]>>;
   private readonly grassRects: { r: Rect; g: number }[] = [];
 
-  constructor(states: Readonly<Record<string, string>>) {
+  constructor(
+    states: Readonly<Record<string, string>>,
+    variants: Readonly<Record<string, string | null | undefined>> = {},
+    upgrades: Readonly<Record<string, readonly string[] | undefined>> = {},
+  ) {
     this.states = { ...states };
+    const vs: Record<string, string> = {};
+    const us: Record<string, readonly string[]> = {};
+    for (const f of FACILITIES) {
+      const v = variants[f];
+      if (v && VARIANTS[f]?.includes(v)) vs[f] = v;
+      const list = (upgrades[f] ?? []).filter((u) => UPGRADES[f]?.some((d) => d.id === u)).sort();
+      if (list.length) us[f] = list;
+    }
+    this.variants = vs;
+    this.upgrades = us;
     let sum = 0;
     for (const f of FACILITIES) {
       const l = this.look(f);
@@ -123,6 +167,20 @@ export class Facilities {
     return this.states[f] ?? INITIAL_STATES[f];
   }
 
+  /** 这处设施的变体（没设 = null，画原来的样子） */
+  variant(f: Facility): string | null {
+    return this.variants[f] ?? null;
+  }
+  /**
+   * 这个升级在画面上有没有：开着、设施修好过（fresh / worn），而且和当前变体对得上
+   * （tournament_clay 只在红土上、pro_hard 只在硬地上；没设变体时按变体 A 算）
+   */
+  up(f: Facility, id: string): boolean {
+    if (!this.ok(f) || !this.upgrades[f]?.includes(id)) return false;
+    const d = UPGRADES[f]?.find((u) => u.id === id);
+    return !d?.only || d.only === (this.variant(f) ?? VARIANTS[f]?.[0]);
+  }
+
   /** 该处的草有多绿 0..1（修好的设施周围长草，7 米羽化，样片的 grassAmt） */
   grassAmt(x: number, z: number): number {
     let best = 0;
@@ -136,6 +194,10 @@ export class Facilities {
 
   /** 状态快照的键（缓存地面贴图用） */
   key(): string {
-    return FACILITIES.map((f) => this.state(f)).join('|');
+    return FACILITIES.map((f) => {
+      const v = this.variants[f];
+      const u = this.upgrades[f];
+      return `${this.state(f)}${v ? `:${v}` : ''}${u ? `+${u.join('+')}` : ''}`;
+    }).join('|');
   }
 }

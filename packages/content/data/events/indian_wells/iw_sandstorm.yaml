@@ -3,8 +3,8 @@ id: iw_sandstorm
 act: indian_wells
 source: random
 tone: crisis
-cooldown: 5d
-max_shown: 4
+cooldown: 14d
+max_shown: 3
 countdown: 2h
 when:
   all:

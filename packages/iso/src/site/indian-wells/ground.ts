@@ -85,9 +85,11 @@ export const C = {
   pond2: ph('#7fd0ea'),
   faded: ph('#b3aa9a'),
   pickle: ph('#2f5f8f'),
+  tileA: ph('#eef3ee'),
+  tileB: ph('#d3e6e2'),
 } as const;
 
-type CourtKind = 'center' | 'practice' | 'member' | 'clay' | 'pickle';
+type CourtKind = 'center' | 'practice' | 'member' | 'clay' | 'pickle' | 'hard' | 'hardPro' | 'tennis2' | 'pickleB';
 /** 场面的样子：fresh 新、faded 能打的旧场、worn 掉档、cleared 清理过的旧场（不积沙）、ruin 荒废 */
 export type CourtLook = 'fresh' | 'faded' | 'worn' | 'cleared' | 'ruin';
 
@@ -97,7 +99,27 @@ const CP: Record<CourtKind, { i: string; o: string }> = {
   member: { i: '#3f86c9', o: '#3e9c86' },
   clay: { i: '#d36b3d', o: '#c45d34' },
   pickle: { i: '#34a3ad', o: '#2f5f8f' },
+  // 变体：红土改硬地（亮蓝场心、薄荷绿外场）；硬地升级成赛事场（外场换成 Indian Wells 的紫色）
+  hard: { i: '#3a6fd8', o: '#2f8a6e' },
+  hardPro: { i: '#3a6fd8', o: '#6a4fa0' },
+  // 匹克球场恢复成两片网球场（绿场心、深青外场）；四片匹克球的另一种场心色
+  tennis2: { i: '#4fa760', o: '#2f6a8a' },
+  pickleB: { i: '#5fb3e0', o: '#2f5f8f' },
 };
+
+/**
+ * 场地的尺寸（变体用；不给就是标准网球场 / 匹克球场）：L 半长、Wd 半宽（双打）、Ws 单打半宽、sv 发球线、
+ * kit 匹克球"厨房"线；rot 场地沿 z 放（u、v 对调）；brush 红土刷出来的条纹（赛事升级）
+ */
+interface CourtDims {
+  L?: number;
+  Wd?: number;
+  Ws?: number;
+  sv?: number;
+  kit?: number;
+  rot?: boolean;
+  brush?: boolean;
+}
 
 /** 设施的场面档位 */
 export function courtLook(fac: Facilities, f: Facility): CourtLook {
@@ -108,26 +130,28 @@ export function courtLook(fac: Facilities, f: Facility): CourtLook {
 
 type FrameLike = Pick<CourtFrame, 'ox' | 'oz' | 'hx' | 'hz'>;
 
-function paintCourt(g: GroundLike, F: FrameLike, kind: CourtKind, look: CourtLook): void {
-  const pick = kind === 'pickle';
+function paintCourt(g: GroundLike, F: FrameLike, kind: CourtKind, look: CourtLook, dm: CourtDims = {}): void {
+  const pick = kind === 'pickle' || kind === 'pickleB';
   const pal = CP[kind];
   const ci = ph(pal.i);
   const co = ph(pal.o);
-  const L = pick ? 6.705 : 11.885;
-  const Wd = pick ? 3.05 : 5.485;
-  const Ws = 4.115;
-  const sv = 6.4;
+  const L = dm.L ?? (pick ? 6.705 : 11.885);
+  const Wd = dm.Wd ?? (pick ? 3.05 : 5.485);
+  const Ws = dm.Ws ?? 4.115;
+  const sv = dm.sv ?? 6.4;
+  const kit = dm.kit ?? 2.13;
   const lw = 0.16;
   const seed = (F.ox * 7 + F.oz * 13) | 0;
   const clay = kind === 'clay';
   g.paintRect(F.ox - F.hx, F.ox + F.hx, F.oz - F.hz, F.oz + F.hz, (x, z) => {
-    const u = x - F.ox;
-    const v = z - F.oz;
+    const u = dm.rot ? z - F.oz : x - F.ox;
+    const v = dm.rot ? x - F.ox : z - F.oz;
     const au = Math.abs(u);
     const av = Math.abs(v);
     const inside = au <= L && av <= Wd;
     let c = inside ? ci : co;
-    if (pick && inside && au < 2.13) c = mulP(ci, 0.88);
+    if (pick && inside && au < kit) c = mulP(ci, 0.88);
+    if (dm.brush && inside && (Math.floor(v * 1.6) & 1) === 0) c = mulP(c, 0.94);
     let ln = (Math.abs(au - L) < lw && av <= Wd + lw) || (Math.abs(av - Wd) < lw && au <= L + lw);
     if (!pick)
       ln =
@@ -136,7 +160,7 @@ function paintCourt(g: GroundLike, F: FrameLike, kind: CourtKind, look: CourtLoo
         (Math.abs(au - sv) < lw && av <= Ws) ||
         (av < lw && au <= sv) ||
         (av < lw && au > L - 0.45 && au <= L);
-    else ln = ln || (Math.abs(au - 2.13) < lw && av <= Wd) || (av < lw && au >= 2.13 && au <= L);
+    else ln = ln || (Math.abs(au - kit) < lw && av <= Wd) || (av < lw && au >= kit && au <= L);
     const n = hash(Math.floor(x * 5), Math.floor(z * 5), seed);
     if (look === 'fresh') {
       c = clay ? mulP(c, 0.95 + n * 0.1) : mulP(c, 0.97 + n * 0.05);
@@ -163,6 +187,98 @@ function paintCourt(g: GroundLike, F: FrameLike, kind: CourtKind, look: CourtLoo
       if (dr > 0.6) base = mixP(base, C.sand, clamp((dr - 0.6) * 7, 0, 1));
     }
     return base;
+  });
+}
+
+/** 匹克球场的四片小场（2×2，沿 z 放）的中心 */
+export const PICK4: readonly (readonly [number, number])[] = [
+  [40, 1.6],
+  [48, 1.6],
+  [40, 10.4],
+  [48, 10.4],
+];
+
+/** 匹克球场的变体：四片匹克球（2×2，两种场心色）/ 两片网球场（缩小的网球场线） */
+function paintStadium3Variant(g: GroundLike, v: string, look: CourtLook): void {
+  const outer = v === 'tennis2' ? ph(CP.tennis2.o) : C.pickle;
+  g.paintRect(PICKLE.x0, PICKLE.x1, PICKLE.z0, PICKLE.z1, () => (look === 'worn' ? mixP(outer, C.faded, 0.35) : outer));
+  if (v === 'tennis2')
+    for (const F of [F_PB1, F_PB2]) paintCourt(g, F, 'tennis2', look, { L: 7.3, Wd: 3.35, Ws: 2.55, sv: 3.95 });
+  else
+    PICK4.forEach(([x, z], i) => {
+      paintCourt(g, { ox: x, oz: z, hx: 4, hz: 4.4 }, i === 0 || i === 3 ? 'pickle' : 'pickleB', look, {
+        rot: true,
+        L: 3.7,
+        Wd: 1.75,
+        kit: 1.1,
+      });
+    });
+}
+
+/** 青训的变体：学院（橙色的小场线、黄色靶圈）/ 训练营（一圈红色跑道、黄色敏捷梯） */
+function paintPracticeVariant(g: GroundLike, fac: Facilities, look: CourtLook): void {
+  if (look !== 'fresh' && look !== 'worn') return;
+  const v = fac.variant('practice');
+  if (!v) return;
+  const worn = look === 'worn';
+  const L = 11.885;
+  const Wd = 5.485;
+  for (const F of [F_P1, F_P2]) {
+    if (v === 'academy') {
+      const orange = worn ? mixP(ph('#f08a3a'), C.faded, 0.4) : ph('#f08a3a');
+      const yellow = worn ? mixP(ph('#f6dc4a'), C.faded, 0.4) : ph('#f6dc4a');
+      g.paintRect(F.ox - L, F.ox + L, F.oz - Wd, F.oz + Wd, (x, z) => {
+        const u = Math.abs(x - F.ox);
+        const w = Math.abs(z - F.oz);
+        // 红球小场：横着的两块（每边一块 5.5 × 3.6）
+        if ((Math.abs(u - 5.5) < 0.12 && w <= 3.6) || (Math.abs(w - 3.6) < 0.12 && u <= 5.5)) return orange;
+        // 底线附近的四个靶圈
+        for (const tz of [-3, 3]) {
+          const d = Math.hypot(u - 9.3, w - Math.abs(tz));
+          if (Math.abs(d - 0.75) < 0.14 || d < 0.22) return yellow;
+        }
+        return 0;
+      });
+    } else {
+      const red = worn ? mixP(ph('#c8553d'), C.faded, 0.4) : ph('#c8553d');
+      const red2 = mulP(red, 0.9);
+      const white = worn ? mixP(C.white, C.faded, 0.4) : C.white;
+      const yel = worn ? mixP(ph('#f0c53c'), C.faded, 0.4) : ph('#f0c53c');
+      // 圆角跑道：内圈 (L + 1.6, Wd + 1.3)，宽 1.3 米，中间一条白色虚线
+      const ax = L + 1.6;
+      const az = Wd + 1.3;
+      const R0 = 1.4;
+      const tw = 1.3;
+      g.paintRect(F.ox - F.hx, F.ox + F.hx, F.oz - F.hz, F.oz + F.hz, (x, z) => {
+        const u = Math.abs(x - F.ox);
+        const w = Math.abs(z - F.oz);
+        const qx = Math.max(0, u - (ax - R0));
+        const qz = Math.max(0, w - (az - R0));
+        const d = Math.hypot(qx, qz) - R0;
+        if (d >= 0 && d < tw) {
+          if (Math.abs(d - tw / 2) < 0.07 && Math.floor((x + z) * 1.5) & 1) return white;
+          return d < tw / 2 ? red : red2;
+        }
+        // 东头底线外的敏捷梯
+        const e = x - F.ox;
+        if (e > L + 0.25 && e < L + 1.25 && w < 2.6) {
+          if (Math.abs(e - (L + 0.25)) < 0.08 || Math.abs(e - (L + 1.25)) < 0.08) return yel;
+          if (Math.abs(((w + 0.225) % 0.45) - 0.225) < 0.05) return yel;
+        }
+        return 0;
+      });
+    }
+  }
+}
+
+/** 夜场：喷泉南边一块紫红青三色的舞池 */
+function paintDanceFloor(g: GroundLike, worn: boolean): void {
+  const cols = ['#c2408f', '#5a3a8a', '#2fb5c8', '#f0c53c'].map((c) => (worn ? mixP(ph(c), C.faded, 0.45) : ph(c)));
+  g.paintRect(38.4, 46.8, -16.4, -12.6, (x, z) => {
+    const i = Math.floor((x - 38.4) / 1.2);
+    const j = Math.floor((z + 16.4) / 1.2);
+    if (x < 38.55 || x > 46.65 || z < -16.25 || z > -12.75) return ph('#2a2238');
+    return cols[Math.floor(hash(i, j, 57) * 4) % 4] as number;
   });
 }
 
@@ -233,8 +349,11 @@ export function paintGround(g: GroundLike, fac: Facilities, casts: readonly Cast
   });
   // 露台（会所）、广场（喷泉）、池畔（泳池）
   const club = fac.look('clubhouse');
+  // 理疗室：露台换成白、浅青的地砖
+  const physio = (club === 'fresh' || club === 'worn') && fac.variant('clubhouse') === 'physio';
   g.paintRect(TERRACE.x0, TERRACE.x1, TERRACE.z0, TERRACE.z1, (x, z, _c, i, j) => {
     let v = (Math.floor(x / 1.2) + Math.floor(z / 1.2)) & 1 ? C.terr : C.terr2;
+    if (physio) v = (Math.floor(x / 1.2) + Math.floor(z / 1.2)) & 1 ? C.tileA : C.tileB;
     if (club !== 'fresh') {
       const ruin = club === 'ruin';
       v = mixP(v, C.faded, ruin ? 0.45 : 0.25);
@@ -299,18 +418,35 @@ export function paintGround(g: GroundLike, fac: Facilities, casts: readonly Cast
   paintCourt(g, F_P1, 'practice', pr);
   paintCourt(g, F_P2, 'practice', pr);
   paintCourt(g, F_O1, 'member', o1);
-  paintCourt(g, F_O2, 'clay', o23);
-  paintCourt(g, F_O3, 'clay', o23);
-  g.paintRect(PICKLE.x0, PICKLE.x1, PICKLE.z0, PICKLE.z1, (x, z) => {
-    let v: number = C.pickle;
-    if (pb !== 'fresh') {
-      v = mixP(v, C.faded, pb === 'faded' || pb === 'worn' ? 0.35 : 0.6);
-      if (pb === 'ruin' && fbm(x * 0.2, z * 0.2, 24) > 0.58) v = mixP(v, C.sand, 0.6);
-    }
-    return v;
-  });
-  paintCourt(g, F_PB1, 'pickle', pb);
-  paintCourt(g, F_PB2, 'pickle', pb);
+  const v23 = o23 === 'fresh' || o23 === 'worn' ? fac.variant('outer_23') : null;
+  if (v23) {
+    // 变体：红土（赛事升级刷条纹）/ 硬地（赛事升级换紫色外场）
+    const hard = v23 === 'hard';
+    const pro = fac.up('outer_23', hard ? 'pro_hard' : 'tournament_clay');
+    const kind: CourtKind = hard ? (pro ? 'hardPro' : 'hard') : 'clay';
+    paintCourt(g, F_O2, kind, o23, { brush: pro && !hard });
+    paintCourt(g, F_O3, kind, o23, { brush: pro && !hard });
+  } else {
+    paintCourt(g, F_O2, 'clay', o23);
+    paintCourt(g, F_O3, 'clay', o23);
+  }
+  paintPracticeVariant(g, fac, pr);
+  const v3 = pb === 'fresh' || pb === 'worn' ? fac.variant('stadium_3') : null;
+  if (v3) paintStadium3Variant(g, v3, pb);
+  else
+    g.paintRect(PICKLE.x0, PICKLE.x1, PICKLE.z0, PICKLE.z1, (x, z) => {
+      let v: number = C.pickle;
+      if (pb !== 'fresh') {
+        v = mixP(v, C.faded, pb === 'faded' || pb === 'worn' ? 0.35 : 0.6);
+        if (pb === 'ruin' && fbm(x * 0.2, z * 0.2, 24) > 0.58) v = mixP(v, C.sand, 0.6);
+      }
+      return v;
+    });
+  if (!v3) {
+    paintCourt(g, F_PB1, 'pickle', pb);
+    paintCourt(g, F_PB2, 'pickle', pb);
+  }
+  if ((plz === 'fresh' || plz === 'worn') && fac.variant('plaza') === 'nightlife') paintDanceFloor(g, plz === 'worn');
   // 匹克球场埋在沙里（buried）：大半个场子是沙丘
   if (pb === 'ruin')
     g.paintRect(PICKLE.x0, PICKLE.x1, PICKLE.z0, PICKLE.z1, (x, z, c) => {

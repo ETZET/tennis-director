@@ -24,16 +24,23 @@ export {
   canAssign,
   crewOf,
   eligible,
+  meetsWorker,
   type OrderBlock,
   type OrderStatus,
   occupant,
+  orderCost,
+  orderFacility,
   orderLead,
   orderStatus,
+  orderVariant,
+  orderVariants,
+  orderWork,
   type PostStatus,
   postDemand,
   postExists,
   postStatus,
   ROUTINE_MAX,
+  remodelMinutes,
   routineTarget,
   skillOf,
   speedOf,
@@ -41,6 +48,7 @@ export {
   working,
   workSkill,
 } from './staff';
+export { type StarItem, type StarStatus, starStatus } from './stars';
 export * from './state';
 export { seasonOn } from './systems';
 export {
@@ -50,11 +58,15 @@ export {
   facilityTotals,
   hasDemand,
   hiredWith,
+  isRestored,
   isStaff,
   num,
   qualityTarget,
+  remodeling,
+  restoredCount,
   servicePass,
   serviceRate,
+  stateDef,
   test as testCond,
   wagesWeek,
 } from './vars';

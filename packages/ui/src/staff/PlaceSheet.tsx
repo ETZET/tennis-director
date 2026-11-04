@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'preact/hooks';
 import { STR } from '../hud/strings';
 import type { HudActions, PlaceSheetData } from '../hud/types';
 import { Chips } from './Chips';
@@ -8,10 +9,13 @@ import './staff.css';
  * 一行就是一处落点：拿着人点它（或把人拖到它上面）派过去；没拿人点它看说明。
  */
 export function PlaceSheet({ p, actions }: { p: PlaceSheetData; actions: HudActions }) {
+  // 正在预览一个变体：清单收矮一点，让场景里的预览露出来（镜头也会把设施挪到清单上面，main.ts）
+  const previewing = p.rows.some((r) => r.variants?.some((v) => v.previewing));
   return (
+    // 外层不接指针（.td-hud>* 默认接），只有点空白关清单的遮罩和清单本身接：员工条露在外面，能从那儿把人拖到一行上
     <div class="td-sheet-wrap td-place-wrap">
       <button type="button" class="td-sheet-scrim" aria-label={STR.close} onClick={() => actions.closeSheet?.(true)} />
-      <section class="td-sheet td-place" aria-label={p.title}>
+      <section class={`td-sheet td-place${previewing ? ' td-place-preview' : ''}`} aria-label={p.title}>
         <header>
           <b>{p.title}</b>
           <button type="button" class="td-sheet-x" aria-label={STR.close} onClick={() => actions.closeSheet?.(true)}>
@@ -81,6 +85,7 @@ export function PlaceSheet({ p, actions }: { p: PlaceSheetData; actions: HudActi
                     {r.locked ? '' : r.fit && !r.fit.blocked ? (r.fit.here ? STR.stop : STR.send) : '›'}
                   </span>
                 </button>
+                {r.variants?.length ? <Variants r={r} actions={actions} /> : null}
               </li>
             ))}
           </ul>
@@ -89,5 +94,50 @@ export function PlaceSheet({ p, actions }: { p: PlaceSheetData; actions: HudActi
         )}
       </section>
     </div>
+  );
+}
+
+/**
+ * 修复变体（UI-11）：工单下面一个变体一行（名字、取舍一句话、换来和付出）。
+ * 没拿人时点一行在场景里叠预览、再点关掉；拿着人点它（或把人拖到它上面）就按这个变体开工。
+ * 锁定以后只剩锁定的那一行。不加面板：清单本身就是落点。
+ */
+function Variants({ r, actions }: { r: PlaceSheetData['rows'][number]; actions: HudActions }) {
+  // 清单收矮以后，把正在预览的那一行滚到看得见的地方
+  const on = useRef<HTMLButtonElement>(null);
+  const pv = r.variants?.find((v) => v.previewing)?.id ?? null;
+  useEffect(() => {
+    if (pv) on.current?.scrollIntoView({ block: 'nearest' });
+  }, [pv]);
+  return (
+    <ul class="td-variants">
+      {(r.variants ?? []).map((v) => (
+        <li key={v.id}>
+          <button
+            type="button"
+            ref={v.previewing ? on : undefined}
+            data-target={r.id}
+            data-variant={v.id}
+            aria-pressed={v.previewing ? 'true' : 'false'}
+            class={`td-variant${v.picked ? ' td-variant-picked' : ''}${v.locked ? ' td-variant-locked' : ''}${
+              v.previewing ? ' td-variant-on' : ''
+            }${v.fit ? (v.fit.blocked ? ' td-row-blocked' : ' td-row-fit') : ''}`}
+            onClick={() => actions.variant?.(r.id, v.id)}
+          >
+            <span class="td-variant-mark" aria-hidden="true">
+              {v.locked ? '✓' : v.picked ? '●' : '○'}
+            </span>
+            <span class="td-row-text">
+              <b>{v.name}</b>
+              {v.fit ? <span>{v.fit.text}</span> : v.line ? <span>{v.line}</span> : null}
+              {v.gives && !v.fit?.blocked ? <span class="td-variant-gives">＋ {v.gives}</span> : null}
+              {v.costs && !v.fit?.blocked ? <span class="td-variant-costs">－ {v.costs}</span> : null}
+              {v.chips?.length && !v.fit?.blocked ? <Chips chips={v.chips} /> : null}
+            </span>
+            <span class="td-row-go">{v.fit && !v.fit.blocked ? STR.send : v.previewing ? '◉' : '◌'}</span>
+          </button>
+        </li>
+      ))}
+    </ul>
   );
 }

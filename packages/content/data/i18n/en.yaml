@@ -41,6 +41,13 @@ endings:
     body: The garden can't make payroll and the investors stop the restoration. The gates are locked again.
 
 events:
+  iw_pickle_noise:
+    title: Too loud, one court short
+    body: "Three members who have played here for twenty years are waiting by the pickleball courts. \"Pop, pop, pop, all weekend. And we lost a tennis court for it.\" More of them are talking about La Quinta."
+    options:
+      A: Acoustic panels and quiet paddles ($450)
+      B: Hold a members' meeting about time slots (you, 3 hours; it may not work)
+      C: They'll get used to it
   iw_investor_check:
     title: The investors visit
     body: The investors are at the main gate. Three weeks are left before their deadline.
@@ -78,7 +85,7 @@ events:
       B: Send a statement
   iw_sponsor:
     title: The bank's banner
-    body: A local bank saw the pickleball courts reopen and wants to hang banners all along the fence. The offer is good.
+    body: A local bank has seen the club come back to life and wants to hang banners all along the fence. The offer is good.
     options:
       A: Take it
       B: Decline
@@ -195,6 +202,9 @@ log:
   no_hire: No hire this time; the same people do the work
   tournament_won: Your player won a tournament and brought home the prize money
   tournament_lost: Your player went out early this time, but learned something
+  cup_hosted: The monthly club cup is done; a trophy goes in the clubhouse case
+  invitational_won: The invitational filled the stands; a trophy and the prize money
+  invitational_flop: The invitational fell flat; the entry fee is gone
 
 posts:
   o1_rental: { title: "Members' court · Court desk", note: "Daily 8–15, locals come to play" }
@@ -221,6 +231,15 @@ posts:
   st3_ballkids: { title: "Pickleball · Ball kids", note: "Weekend league 9–17, ball kids only" }
   pr_training: { title: "Academy · Training", note: "Players only; train any time, play slowly improves" }
   o23_training: { title: "Clay courts · Training", note: "Where players train until the academy courts are fixed; slower" }
+  ch_cafe: { title: "Clubhouse · Patio café", note: "Daily 11–15; busier with more members" }
+  ch_physio: { title: "Clubhouse · Physio room", note: "Weekdays 12–17, fitness coaches only" }
+  ch_shop: { title: "Clubhouse · Pro shop", note: "Open whenever someone minds it; sells more with more members" }
+  pr_bootcamp: { title: "Academy · Morning bootcamp", note: "Weekdays 8–11; doesn't clash with afternoon lessons" }
+  pz_bar: { title: "Circle of Palms · Evening bar", note: "Daily 17–20 under the string lights" }
+  st3_open: { title: "Tennis courts · Weekend open play", note: "Weekends 9–17, two full tennis courts" }
+  st3_night: { title: "Courts · Night session", note: "Fri–Sat 17–20 under the league lights" }
+  st2_plunge: { title: "Pool · Cold plunge", note: "Weekdays 16–20, after training" }
+
 orders:
   o1_sweep: { title: "Sweep the sand off the members' court", note: "Free; two people, one morning" }
   o1_net: { title: "New net for the members' court", note: "$120, one person, one hour", locked: "Sweep the sand first" }
@@ -252,8 +271,83 @@ orders:
   st1_reopen: { title: "Reopen the Stadium", note: "It lost its grade: fix the big screen, clear the stands, $450" }
   st1_clear: { title: "Clear the Stadium", note: "Haul away the collapsed northeast stands", locked: "Open the pool first" }
   st1_rebuild: { title: "Rebuild the Stadium", note: "The biggest job of the game", locked: "Clear the Stadium first" }
-  st1_exhibition: { title: "Hold the exhibition", note: "Reputation 50+, a crew for a whole day", locked: "Stadium rebuilt and reputation 50+" }
-  pl_tournament: { title: "Play a tournament", note: "Players only, once a week; the better they play, the likelier a win" }
+  st1_exhibition: { title: "Hold the exhibition", note: "Six people for a whole day; the higher the reputation, the better the odds", locked: "★4 and the Stadium rebuilt" }
+  pl_tournament: { title: "Play a tournament", note: "Players only, once a week; the better they play, the likelier a win; from ★2 a win brings home a trophy" }
+  o23_pro_clay: { title: "Tournament clay", note: "$400; needs someone with upkeep 75+. Better courts, but fussier", locked: "Clay courts open, kept as clay" }
+  o23_pro_hard: { title: "Pro hard courts", note: "$350; needs someone with upkeep 75+. Wears even slower", locked: "Courts open, rebuilt as hard courts" }
+  ch_pro_shop: { title: "Open a pro shop", note: "$500; needs someone with service 65+. Anyone free can mind the counter; it earns while they do", locked: "Clubhouse open" }
+  st3_lights: { title: "Put up league lights", note: "$600; night sessions Fri–Sat, power bill +$25/week", locked: "Courts open" }
+  pr_video_wall: { title: "Courtside video wall", note: "$500; needs a coach with coaching 65+. Lessons earn more", locked: "Academy courts open" }
+  pz_misters: { title: "Install misters", note: "$400; guests stay longer at lunch and in the evening", locked: "Circle of Palms open" }
+  st2_cabanas: { title: "Build a row of cabanas", note: "$800; more from the pool's paid service", locked: "Pool open" }
+  ch_to_cafe: { title: "Turn the physio room into a café", note: "$700; the clubhouse closes for a week" }
+  ch_to_physio: { title: "Turn the café into a physio room", note: "$900; the clubhouse closes for a week" }
+  st3_to_tennis2: { title: "Back to two tennis courts", note: "$1400; closed for a week. The old members will be pleased, the league leaves" }
+  st3_to_pickle4: { title: "Convert to four pickleball courts", note: "$1000; closed for a week. League money, unhappy old members" }
+  cup_monthly: { title: "Host the monthly club cup", note: "$60, two people, half a day; every four weeks. A trophy", locked: "★1 and two repaired courts" }
+  inv_clay: { title: "Host the invitational", note: "$800, four people, a whole day; rain spoils it. Clay courts make it likelier (+10%)", locked: "★3; the courts by the academy, clubhouse and Circle of Palms open" }
+
+# Repair variants (GM-13): the name, and what each one gives and costs (variant_notes, for the location list)
+variants:
+  outer_23: { clay: Keep the clay, hard: Rebuild as hard courts }
+  clubhouse: { cafe: Patio café, physio: Physio room }
+  stadium_3: { pickle4: Four pickleball courts, tennis2: Two tennis courts }
+  practice: { academy: Junior academy, bootcamp: Morning bootcamp }
+  plaza: { nightlife: Evening bar, shade_lawn: Shaded viewing lawn }
+  stadium_2: { resort: Resort pool, recovery: Cold plunge }
+variant_notes:
+  outer_23:
+    clay: { gives: "Players improve faster; tournament clay; the invitational goes better", costs: "Wears fast, upkeep $35/week" }
+    hard: { gives: "Wears slowly, upkeep $20/week; pro hard upgrade", costs: "$1000 to build; quality −1, players train slower" }
+  clubhouse:
+    cafe: { gives: "Lunch café; members cap +25", costs: "Upkeep $75/week" }
+    physio: { gives: "Physio post for a fitness coach; players train faster; quality +4, wears slowly", costs: "Members cap only +15; no lunch café" }
+  stadium_3:
+    pickle4: { gives: "Weekend league: big weekend money", costs: "Old members are upset: reputation −2, then they come to see you" }
+    tennis2: { gives: "A second tennis court: members cap +12, tennis identity", costs: "$2700 to build; weekend open play earns about half" }
+  practice:
+    academy: { gives: "Afternoon junior academy, 4 h a day; the ball machine adds to it", costs: "$800 to build; clashes with the afternoon lessons" }
+    bootcamp: { gives: "Weekday mornings 8–11: the coach can still teach afternoons; $600 to build; more sign-ups", costs: "Only 3 h a day, no ball-machine bonus; wears faster, quality −1" }
+  plaza:
+    nightlife: { gives: "Evening bar every day: the most evening money", costs: "$2200 to build; upkeep $70/week, wears faster, quality −1" }
+    shade_lawn: { gives: "Quality +3, lunch earns more, wears slowly; exhibition +5%", costs: "Evenings only Thu–Sun, and they earn less" }
+  stadium_2:
+    resort: { gives: "Weekend cabana service: the best-paid post", costs: "Upkeep $140/week" }
+    recovery: { gives: "$3800 and quicker to build; upkeep $100/week; tournament wins +10%", costs: "Weekday cold plunge earns much less; quality −2" }
+upgrades:
+  outer_23: { tournament_clay: Tournament clay, pro_hard: Pro hard courts }
+  clubhouse: { pro_shop: Pro shop }
+  stadium_3: { league_lights: League lights }
+  practice: { video_wall: Video wall }
+  plaza: { misters: Misters }
+  stadium_2: { cabanas: Cabanas }
+# Club stars (GM-9): names, checklist items, and what each star opens
+stars:
+  names: { "0": Ruins, "1": Courts are back, "2": Clubhouse open, "3": Community club, "4": Resort club, "5": Desert landmark }
+  items:
+    court: The members' court is playable
+    members_5: 5 members
+    clubhouse: The clubhouse is open
+    restored_3: 3 places repaired
+    members_20: 20 members
+    cup_once: Host a club cup once
+    restored_6: 6 places repaired
+    members_45: 45 members (36 from week 12)
+    rep_45: Reputation 45 (36 from week 12)
+    trophies_2: 2 trophies
+    restored_7: 7 places repaired
+    members_70: 70 members (56 from week 12)
+    rep_60: Reputation 60 (48 from week 12)
+    invitational: Host the invitational (or 4 trophies from week 12)
+    exhibition: Hold the exhibition in the Stadium
+  opens:
+    internal_cup: The monthly club cup
+    regional: "Regional tournaments: a win brings home a trophy"
+    invitational: The invitational (clay courts help)
+    sponsor: A sponsor slot
+    exhibition_prep: The exhibition build-up shows on the Stadium
+    exhibition: The exhibition can be held
+    finale: The season's final tally
 
 seasons:
   autumn: Autumn
@@ -319,6 +413,7 @@ who:
   sponsor: { name: Desert Savings Bank, role: A local bank }
   lender: { name: Coachella Valley Credit Union, role: A loan officer }
   rival_coach: { name: La Quinta Racquet Club, role: Their head coach }
+  old_members: { name: The old members, role: Twenty years on these courts }
 roles:
   director: Director
   coach: Head coach
@@ -329,6 +424,31 @@ roles:
   rival: Rival
 
 ui:
+  # Star rating (UI-8): the status strip cell and its checklist
+  stars:
+    label: "Next ★: {n} to go"
+    full: All stars
+    title: "To reach ★{n}"
+    title_full: "The club is at ★{n}"
+    opens: "Unlocks: {list}"
+    foot: "Restored {n}/{total} · investor deadline in {days} days"
+    restored: "Restored {n}/{total}"
+    sign: A new star on the gate sign
+  # Repair options (UI-11): one row per option under a repair job
+  variant:
+    hint: Tap an option to preview it · drag someone onto one to start
+    locked: Locked in · work started this way
+    courts: "{n} courts"
+    quality: "Quality {n}"
+    income: "+${n}/wk"
+    upkeep: "Upkeep ${n}/wk"
+    decay: "Wears {n}/day"
+    rain_ok: Playable in rain
+    rain_no: Closed in rain
+  log:
+    upgrade: "{what} installed at {place}"
+    remodel: "{place} closed to become “{what}”"
+    trophy: "Trophies {n}"
   hud:
     quality: Quality
     members: Members
@@ -376,6 +496,8 @@ ui:
     worker: Whoever works here
     chance: "{p}% chance"
     cost: "−${n}"
+    needs: "{skill} {n}+"
+    closed: "Closed {time}"
   attr: { skill: coaching, upkeep: upkeep, service: service, play: play, morale: morale, fatigue: fatigue }
   then: "Then: {what}"
   ctx:
@@ -454,14 +576,25 @@ ui:
     wear: "{place} was down to condition {n} at Sunday close"
     worked: " (it worked)"
     failed: " (it didn't work)"
+    star: "the club reached ★{n}"
+    remodel: "the {place} remodel into “{what}” finished"
   wire:
     grew: "The director's {skill} reached {n}"
     interrupted: "{name} was pulled off “{post}”; that round was lost"
+    routine_order: "{name} went back to {post} (routine) · {order} paused at {p}%"
+    routine_post: "{name} went back to {post} (routine) · left {from}"
     week: "Week {n} settled · {rate} · {what}"
     week_rate: "service {n}%"
     week_none: no customers yet
     worn: "{place} condition down to {n}: below {limit} at Sunday close it loses a grade and its jobs stop"
     dropping: "{place} condition {n}: without upkeep it loses a grade at close tomorrow (Sunday)"
+    star_up: "★{n}! The club earned a new star on the gate sign{opens}"
+    star_opens: " · unlocks {list}"
+    variant_locked: "{place}: work started as “{variant}” — that choice is locked in"
+    plaque: "{name} led the {place} repair (day {day}) · name added to the gate plaque{faster}"
+    plaque_faster: " · the crew beat one person by {time}"
+    remodel_started: "{place} closed to become “{variant}” · reopens in {time}"
+    remodel_done: "{place} reopened as “{variant}”"
   status:
     empty: "{n} posts have customers waiting and nobody there"
     covered: Every busy spot has someone right now
@@ -491,9 +624,12 @@ ui:
     order_new: "{cost}{time} · not started"
     order_on: "{names} working · {p}%"
     order_paused: "Paused · {p}%"
+    order_paused_routine: "Paused · {p}% · crew left (routine)"
+    sends_variant: "As “{variant}”"
     order_wait: "{p}% · waiting for crew"
     coming: "On the way: {list}"
     coming_one: "{name} {time}"
+    remodel: "Being remodelled into “{variant}” · reopens in {time}"
   why:
     person: Can't be assigned
     busy: Away on an errand
@@ -502,6 +638,9 @@ ui:
     gone: Not open right now
     cost: Not enough cash for materials
     crew: Already full
+    skill: Not skilled enough for this
+    skill_min: "Needs {skill} {n}+ (own skill, traits don't count)"
+    variant: Work already started as the other option
   sheet:
     daily: Daily
     anytime: Any time

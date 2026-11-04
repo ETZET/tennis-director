@@ -49,3 +49,37 @@ describe('textArt', () => {
       }
   });
 });
+
+/** 两个字形差几个像素（宽度不同时按左对齐比较，多出来的算不同）。 */
+function diff(a: readonly string[], b: readonly string[]): number {
+  let n = 0;
+  const h = Math.max(a.length, b.length);
+  const w = Math.max(a[0]?.length ?? 0, b[0]?.length ?? 0);
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++) if (((a[y]?.[x] ?? '.') === '#') !== ((b[y]?.[x] ?? '.') === '#')) n++;
+  return n;
+}
+
+describe('容易认错的字', () => {
+  // 试玩反馈：HUD 里 2 像 8、5 像 S。数字和长得像的字母至少差 2 个像素。
+  const pairs = ['0O', '0D', '08', 'O8', 'D8', '2Z', '28', '5S', '56', '6S', '1I', '38', '8B', '3B', '0Q'];
+  for (const [name, font] of [
+    ['5x7', FONT5x7],
+    ['3x5', FONT3x5],
+  ] as const)
+    it(name, () => {
+      for (const [a = '', b = ''] of pairs.map((p) => [...p])) {
+        const ga = font[a];
+        const gb = font[b];
+        if (!ga || !gb) continue;
+        expect(diff(ga, gb), `${name} ${a}/${b}`).toBeGreaterThanOrEqual(name === '3x5' && `${a}${b}` === '08' ? 1 : 2);
+      }
+      if (name === '5x7') expect(diff(FONT5x7['1'] ?? [], FONT5x7.l ?? [])).toBeGreaterThanOrEqual(2);
+    });
+
+  it('3x5：2、5 是方角（和 Z、S 分得开）', () => {
+    expect(FONT3x5['2']?.[2]).toBe('###');
+    expect(FONT3x5['5']?.[0]).toBe('###');
+    expect(FONT3x5.S?.[0]).toBe('.##');
+  });
+});

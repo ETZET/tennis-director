@@ -1,0 +1,16 @@
+# 匹克球场 · 网球开放日（变体 tennis2，GM-13）：周六周日 9–17 点，两片标准网球场对会员开放。
+# 比匹克球联赛挣得少，但来的是打网球的人：入会的多一点，口碑也稳。
+id: st3_open
+act: indian_wells
+at: stadium_3
+skill: service
+cycle: 1h
+hours: [9, 17]
+days: [5, 6]
+when: { all: [{ facility: stadium_3, is: open }, { variant: stadium_3, is: tennis2 }] }
+effects:
+  - { stat: cash, add: "round(8 * (0.6 + worker.skill / 100) * (1 + stat.reputation / 120))" }
+  - { stat: members, add: 1, chance: 0.05 }
+  - { stat: reputation, add: 0.04 }
+wear: 0.8
+performance: open_play

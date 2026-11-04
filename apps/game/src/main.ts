@@ -2,6 +2,7 @@ import { createIsoWorld, type IsoCameraPose, indianWells, type Site, setPeopleVi
 import { clamp } from '@td/shared';
 import { CONTENT, type ContentBundle, canAssign, DIRECTOR, type SimEvent, worldOf } from '@td/sim';
 import { type HudActions, mountHud, setHudStrings } from '@td/ui';
+import { variantSite } from './courts';
 import { createDebug } from './debug';
 import { GameLabels } from './labels';
 import { clearAutosave, downloadSave, readAutosave, writeAutosave } from './persist';
@@ -104,7 +105,7 @@ const hudActions: HudActions = {
   },
   drop: (person, x, y) => {
     const t = targetAt(x, y);
-    if (t && 'target' in t) assignTo(person, t.target);
+    if (t && 'target' in t) assignTo(person, t.target, t.variant);
     else if (t) tapPlace(t.place, person);
     else {
       session.picked = null;
@@ -121,22 +122,25 @@ const hudActions: HudActions = {
     draw();
   },
   target: (id) => tapTarget(id),
+  variant: (order, v) => tapVariant(order, v),
 };
 /** 屏幕上 (x, y) 那儿是地点清单的哪一行，或者哪块地点牌 */
-function targetAt(x: number, y: number): { target: string } | { place: string } | null {
+function targetAt(x: number, y: number): { target: string; variant?: string } | { place: string } | null {
   for (const el of document.elementsFromPoint(x, y)) {
     const h = el as HTMLElement;
-    const t = h.closest?.<HTMLElement>('[data-target]')?.dataset.target;
-    if (t) return { target: t };
+    const row = h.closest?.<HTMLElement>('[data-target]');
+    const t = row?.dataset.target;
+    // 变体行（UI-11）：落在哪一行就按哪个变体开工
+    if (t) return row?.dataset.variant ? { target: t, variant: row.dataset.variant } : { target: t };
     const a = h.closest?.<HTMLElement>('[data-place]')?.dataset.place;
     if (a) return { place: a };
   }
   return null;
 }
-function assignTo(person: string, target: string): void {
+function assignTo(person: string, target: string, variant?: string): void {
   const w = worldOf(session.s, content);
-  if (canAssign(session.s, w, person, target) === null) {
-    session.assign(person, target);
+  if (canAssign(session.s, w, person, target, variant) === null) {
+    session.assign(person, target, variant);
     pump([]);
   } else {
     // 派不过去（例如钱不够买料）：打开说明，让玩家看到为什么
@@ -159,7 +163,32 @@ function answer(key: 1 | 2 | 3): void {
   if (opt && session.choose(o.uid, opt)) pump([]);
 }
 
-const draw = () => ui.update(projector.snapshot(session));
+const draw = () => {
+  syncPreview();
+  ui.update(projector.snapshot(session));
+};
+
+/**
+ * 变体预览（UI-11）：只在地点清单开着、点了一个变体行时叠在设施上；清单关了、换了地点、工单开工锁定了就收掉。
+ * 只是画面，不进模拟。
+ */
+let previewKey = '';
+function syncPreview(): void {
+  const p = session.preview;
+  const w = worldOf(session.s, content);
+  const o = p ? w.orders.get(p.order) : undefined;
+  const f = o ? (w.facilityAt.get(o.at) ?? null) : null;
+  // 卡开着时地点清单让开（Hud），预览也跟着收起
+  const shown = session.place === o?.at && !session.sheet && !session.s.cards.open.length && !session.s.outcome;
+  const live = !!p && !!o && !!f && shown && !session.s.orders[o.id]?.variant;
+  if (!live) session.preview = null;
+  const key = live && p ? `${f}:${p.variant}` : '';
+  if (key === previewKey) return;
+  const was = previewKey.split(':')[0] || null;
+  previewKey = key;
+  if (live && p) scene.preview(f, p.variant);
+  else if (was) scene.preview(was, null);
+}
 
 /* ---------- 地点牌、岗位和工单的标记 ---------- */
 const labels = new GameLabels($('labels'), camera);
@@ -176,8 +205,14 @@ const ground = (a: string, dy: number) => () => {
  * 盖住站着的人），所以牌子指向地点本身——有球场的地方指场地远端的边（中心正上方那一段），
  * 引线不穿过场上的人；其他地方指地点中心。
  */
+/** 球场按当前变体（courts.ts）：地点牌指向修成以后的那几块场地 */
+const courtSite = variantSite(
+  site,
+  () => session?.s ?? null,
+  () => content,
+);
 const footprint = (a: string): { x: number; z: number }[][] => {
-  const frs = site.courts[a];
+  const frs = courtSite.courts[a];
   if (frs?.length)
     return frs.map((f) =>
       [
@@ -337,7 +372,10 @@ function addHubs(c: ContentBundle): void {
 function tapPlace(a: string, person: string | null = session.picked): void {
   if (person) {
     const fits = projector.placeFits(session, a, person);
-    if (fits.length === 1 && fits[0]) {
+    // 只有一项能接的活就直接派；但还没定变体的修复工单要先在清单里挑一行（UI-11）
+    const o = fits[0] ? worldOf(session.s, content).orders.get(fits[0]) : undefined;
+    const choose = !!o?.variants && !session.s.orders[o.id]?.variant;
+    if (fits.length === 1 && fits[0] && !choose) {
       assignTo(person, fits[0]);
       return;
     }
@@ -350,6 +388,16 @@ function tapPlace(a: string, person: string | null = session.picked): void {
   }
   session.place = a;
   session.sheet = null;
+  draw();
+}
+/** 点地点清单里的变体行：拿着人就按这个变体开工，没拿就开 / 关这个变体的预览 */
+function tapVariant(order: string, variant: string): void {
+  if (session.picked) {
+    assignTo(session.picked, order, variant);
+    return;
+  }
+  const p = session.preview;
+  session.preview = p?.order === order && p.variant === variant ? null : { order, variant };
   draw();
 }
 function tapTarget(id: string): void {
@@ -420,20 +468,66 @@ window.addEventListener('keydown', (e) => {
   }
 });
 
-/* ---------- 卡片的镜头：新卡来了，镜头慢慢移到它发生的地方；玩家一拖画面就不再跟 ---------- */
-let focusSeq = -1;
+/*
+ * ---------- 镜头跟随：新卡、升星、修好一处（scene.focus），地点清单里预览变体（设施） ----------
+ * 镜头慢慢移过去，把那一点放在画面上没被 HUD 挡住的那一段中间（上面是记分牌，下面是员工条、卡片或地点清单）。
+ * 玩家一拖画面就不再跟。
+ */
+let focusKey = '';
 container.addEventListener('pointerdown', () => camera.setFollow(false));
+/** 屏幕上没被 HUD 挡住的那一段（CSS 像素）：上沿是记分牌的下沿，下沿是 bottomEl 的上沿 */
+function visibleBand(bottomEl: Element | null): { top: number; bottom: number } {
+  const H = container.clientHeight;
+  let top = 0;
+  for (const el of document.querySelectorAll('.td-top,.td-strip-wrap')) {
+    const r = el.getBoundingClientRect();
+    if (r.height && r.top < H / 3) top = Math.max(top, r.bottom);
+  }
+  let bottom = H;
+  const lows = bottomEl ? [bottomEl] : [...document.querySelectorAll('.td-card,.td-staff-row,.td-wire')];
+  for (const el of lows) {
+    const r = el.getBoundingClientRect();
+    if (r.height && r.top > H / 3) bottom = Math.min(bottom, r.top);
+  }
+  return bottom - top < 80 ? { top: 0, bottom: H } : { top, bottom };
+}
+/**
+ * 让世界里的点 (x, y, z) 落在屏幕 band 的正中，镜头目标该在哪儿。
+ * 平移是线性的：此刻目标点投在 C、这一点投在 P，想让它到 D，目标就挪到此刻投在 C + (P − D) 的地面点。
+ */
+function aimAt(x: number, y: number, z: number, band: { top: number; bottom: number }): { x: number; z: number } {
+  const P = camera.project(x, y, z);
+  const C = camera.project(camera.smooth.tx, 0, camera.smooth.tz);
+  const D = { x: container.clientWidth / 2, y: (band.top + band.bottom) / 2 };
+  return camera.unproject(C.x + P.x - D.x, C.y + P.y - D.y);
+}
+/** 预览变体时对准的设施（UI-11）：设施在地点清单上面那一段里 */
+function previewFocus(): { key: string; x: number; y: number; z: number; sheet: Element | null } | null {
+  const p = session.preview;
+  const sheet = document.querySelector('.td-place');
+  if (!p || !sheet) return null;
+  const o = worldOf(session.s, content).orders.get(p.order);
+  const c = o ? (site.anchors[o.at] ?? site.stands[o.at]) : undefined;
+  if (!o || !c) return null;
+  return { key: `pv:${p.order}:${p.variant}`, x: c.x, y: site.groundY(c.x, c.z), z: c.z, sheet };
+}
 function followFocus(): { x: number; z: number } | null {
-  const f = scene.focus();
-  if (!f) {
+  const pv = previewFocus();
+  const f = pv ? null : scene.focus();
+  const key = pv ? pv.key : f ? `f:${f.seq}` : '';
+  if (!pv && !f) {
+    focusKey = '';
     if (camera.following) camera.setFollow(false);
     return null;
   }
-  if (f.seq !== focusSeq) {
-    focusSeq = f.seq;
+  if (key !== focusKey) {
+    focusKey = key;
     camera.setFollow(true);
   }
-  return camera.following ? f : null;
+  if (!camera.following) return null;
+  if (pv) return aimAt(pv.x, pv.y, pv.z, visibleBand(pv.sheet));
+  if (!f) return null;
+  return aimAt(f.x, site.groundY(f.x, f.z) + (f.y ?? 0), f.z, visibleBand(null));
 }
 
 /*
@@ -487,6 +581,8 @@ function frame(ts: number) {
   const pr = stage.view.proj;
   setPeopleView(pr.ang, pr.k, pr.spriteScale);
   // 淡出的时候不更新场景（停在晚上那一帧）；黑透了再一次摆到第二天早上
+  // 黑屏淡入淡出时玩家看不见画面：升星先排着，亮了再演
+  scene.setWatching(!night);
   if (night?.phase !== 'out') scene.update(session.s, session.time, dt, session.paused);
   stage.render(dt, scene.showNow());
   // 拉远看整座岛时地点牌缩成小圆点（旧版按 4 CSS 像素每米；等距默认 k = 3 时约 3 px/m）
@@ -589,8 +685,10 @@ declare global {
       world: () => typeof stage;
       fastForward: (max: number) => { minutes: number; stop: string };
       answer: (key: 1 | 2 | 3) => void;
-      /** 把人派到岗位或工单上（null 叫他停下来）；返回 null，或者为什么没成 */
-      assign: (person: string, target: string | null) => string | null;
+      /** 把人派到岗位或工单上（null 叫他停下来；variant：变体工单的哪一行）；返回 null，或者为什么没成 */
+      assign: (person: string, target: string | null, variant?: string) => string | null;
+      /** 点地点清单里的变体行（和手指点一样：拿着人就派，没拿就开 / 关预览） */
+      tapVariant: (order: string, variant: string) => void;
       /** 员工条的数据 */
       staff: () => unknown;
       /** 某个岗位或工单的说明（和点开时看到的一样） */
@@ -621,11 +719,11 @@ window.__td = {
   world: () => stage,
   fastForward,
   answer,
-  assign: (person, target) => {
+  assign: (person, target, variant) => {
     const w = worldOf(session.s, content);
-    const why = canAssign(session.s, w, person, target);
+    const why = canAssign(session.s, w, person, target, variant);
     if (why !== null) return `rejected: ${why}`;
-    session.assign(person, target);
+    session.assign(person, target, variant);
     pump([]);
     return null;
   },
@@ -643,6 +741,7 @@ window.__td = {
     })),
   ],
   tap: (t) => ((content.acts[0]?.anchors ?? []).includes(t) ? tapPlace(t) : tapTarget(t)),
+  tapVariant,
   pick: (p) => hudActions.pick?.(p),
   close: () => {
     session.picked = null;

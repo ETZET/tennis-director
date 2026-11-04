@@ -1,0 +1,15 @@
+# 职业硬地（升级 pro_hard，GM-13）：换成职业赛用的面层、新线、记分牌。
+# 只有底子维护 ≥ 75 的人干得了。更耐用（掉得更慢），成人班报名的人多；维护费高一点。
+id: o23_pro_hard
+act: indian_wells
+at: outer_23
+skill: upkeep
+work: 5h
+cost: 350
+crew: 2
+when: { facility: outer_23, is: playable }
+upgrade: pro_hard
+worker: { upkeep: 75 }
+effects:
+  - { stat: reputation, add: 2 }
+performance: workday

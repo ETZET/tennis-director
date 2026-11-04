@@ -1,0 +1,17 @@
+# 改造匹克球场（GM-13）：两片网球场重新划线、换网，改成四片匹克球。联赛收入高，老会员又要不满。停用一周。
+# 现实里 Indian Wells 一家度假村就把一片网球场改成了四片匹克球。
+id: st3_to_pickle4
+act: indian_wells
+at: stadium_3
+skill: upkeep
+work: 4h
+cost: 1000
+crew: 3
+when: { facility: stadium_3, is: open }
+remodel: pickle4
+closed_for: 7d
+effects:
+  - { stat: reputation, add: -2 }
+  # 停用一周以后才开张：老会员那张卡（只来一次）
+  - { schedule: iw_pickle_noise, in: 10d }
+performance: contractor

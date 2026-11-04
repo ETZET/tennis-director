@@ -1,0 +1,24 @@
+# 月度内赛（P1 最小版，LG-10）：★1 开，在会员场办一天会员内部赛。办完一次隔四周再办（设计文档"赛事阶梯"）。
+# 先不钉死在第 3、7、11、15 周的周末：错过一期就要等四周，各档玩家的 ★3 会挤在同一天（GM-9 校准）；P2 做日历时再定。
+# 要至少两块修好的场地；办成了算"办成过 1 次内赛"（★2 要），奖杯 +1（★3 要 2 座）。
+# 完整的日历和签到、裁判两个临时岗位留给 P2。
+id: cup_monthly
+act: indian_wells
+at: outer_1
+skill: service
+work: 4h
+cost: 60
+crew: 2
+cooldown: 28d
+when:
+  all:
+    - { expr: "stars >= 1" }
+    - { expr: "courts_built >= 2" }
+    - { any: [{ facility: outer_1, is: playable }, { facility: outer_1, is: resurfaced }] }
+effects:
+  - { trophy: 1 }
+  - { flag: hosted_cup, set: true }
+  - { stat: reputation, add: 2 }
+  - { stat: members, add: 2 }
+  - { log: log.cup_hosted }
+performance: match

@@ -11,7 +11,9 @@ import {
   F_P2,
   F_PB1,
   F_PB2,
+  F_PK4,
   F_S1,
+  F_TN2,
   GROUNDS,
   groundY,
   LAWN,
@@ -24,10 +26,34 @@ import { buildIndianWells, createFacilityOverlays, createSky } from './overlays'
 export { SLAB } from './ground';
 export * from './layout';
 export { buildIndianWells, createFacilityOverlays } from './overlays';
-export { FACILITIES, FACILITY_STATES, type Facility, INITIAL_STATES, type Look, RESTORED_STATES } from './state';
+export type { PlaqueRow } from './plaque';
+export {
+  FACILITIES,
+  FACILITY_STATES,
+  type Facility,
+  INITIAL_STATES,
+  type Look,
+  RESTORED_STATES,
+  UPGRADES,
+  VARIANTS,
+} from './state';
 
 /** 球员草坪：烧烤会、开放日之类不在球场上的演出（喷泉那一带的景观，归 plaza） */
 const PLAZA_GROUND = new CourtFrame((LAWN.x0 + LAWN.x1) / 2, 0, (LAWN.z0 + LAWN.z1) / 2, 0, 9.5, 8.7);
+
+/** 每个地点原来的球场（没设变体时） */
+const COURTS: Readonly<Record<string, readonly CourtFrame[]>> = {
+  stadium_1: [F_S1],
+  stadium_3: [F_PB1, F_PB2],
+  practice: [F_P1, F_P2],
+  outer_1: [F_O1],
+  outer_23: [F_O2, F_O3],
+};
+
+/** 变体改了场地画法的地点（outer_23 的 clay / hard 只换颜色，场地不变） */
+const VARIANT_COURTS: Readonly<Record<string, Readonly<Record<string, readonly CourtFrame[]>>>> = {
+  stadium_3: { pickle4: F_PK4, tennis2: F_TN2 },
+};
 
 /** 围墙的中心（默认镜头对着它） */
 const CLUB = { x: (GROUNDS.x0 + GROUNDS.x1) / 2, z: (GROUNDS.z0 + GROUNDS.z1) / 2 };
@@ -52,13 +78,8 @@ export const INDIAN_WELLS: Site = {
   anchors: ANCHORS,
   stands: STANDS,
   routeLine,
-  courts: {
-    stadium_1: [F_S1],
-    stadium_3: [F_PB1, F_PB2],
-    practice: [F_P1, F_P2],
-    outer_1: [F_O1],
-    outer_23: [F_O2, F_O3],
-  },
+  courts: COURTS,
+  courtsFor: (anchor, variant) => (variant ? VARIANT_COURTS[anchor]?.[variant] : undefined) ?? COURTS[anchor] ?? [],
   grounds: { plaza: PLAZA_GROUND },
   build: (w: IsoWorld) => buildIndianWells(w),
   createOverlays: (w: IsoWorld) => createFacilityOverlays(w),

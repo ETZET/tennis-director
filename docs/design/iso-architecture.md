@@ -150,7 +150,15 @@ interface Site {
   readonly courts: Record<string, readonly CourtFrame[]>;  // 地点 → 球场
   readonly grounds: Record<string, CourtFrame>;            // 地点 → 不是球场的空地
   build(w: IsoWorld): void;                                // 地面贴图 + 静态节点；种子随机流，顺序就是画面
-  createOverlays(w: IsoWorld): { set(facility: string, state: string): void; wear?(facility: string, amount: number): void; flush?(): void };   // flush：立刻做掉排着的重建（截图、测试用）
+  createOverlays(w: IsoWorld): {
+    set(facility: string, state: string): void;
+    wear?(facility: string, amount: number): void;
+    flush?(): void;                                          // 立刻做掉排着的重建（截图、测试用）
+    variant?(facility: string, variant: string | null): void; // 修复变体（wave1-contract.md），影响 fresh / worn 各档；null = 原样
+    preview?(facility: string, variant: string | null): void; // 现在的样子上叠变体修好后的幽灵（Bayer 约 45% + 浅青 + 虚线框）；null 关
+    upgrade?(facility: string, upgrade: string, on: boolean): void; // 升级画在变体上面（没修好、变体不对时不画）
+    plaque?(rows: readonly { facility: string; leader: string; day: number }[]): void; // 大门南侧的铜牌，一行一处
+  };
   createSky(w: IsoWorld): { update(dt: number, now: number, rain: number, wind?: number): void };
 }
 ```

@@ -1,0 +1,12 @@
+# 改造会所（GM-13）：咖啡吧改成理疗室。器械贵一点；停用一周，期满换成理疗室（前台和会所的岗位这一周都不开）。
+id: ch_to_physio
+act: indian_wells
+at: clubhouse
+skill: upkeep
+work: 4h
+cost: 900
+crew: 2
+when: { facility: clubhouse, is: open }
+remodel: physio
+closed_for: 7d
+performance: workday

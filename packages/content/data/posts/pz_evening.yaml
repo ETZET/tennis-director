@@ -6,8 +6,9 @@ skill: service
 cycle: 1h
 hours: [17, 20]
 days: [3, 4, 5, 6]
-when: { facility: plaza, is: open }
+when: { all: [{ facility: plaza, is: open }, { not: { variant: plaza, is: nightlife } }] }
 effects:
   - { stat: cash, add: "round(8 * (0.6 + worker.skill / 100) * clamp(0.5 + stat.members / 40, 0.5, 2))" }
   - { stat: members, add: 1, chance: 0.04 }
+  - { stat: cash, add: 3, if: { upgrade: plaza, has: misters } }
 wear: 0.5

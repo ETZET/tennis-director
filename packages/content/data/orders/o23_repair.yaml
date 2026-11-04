@@ -16,3 +16,7 @@ effects:
   - { facility: outer_23, set: playable }
   - { stat: reputation, add: 2 }
 performance: workday
+# 修成什么（GM-13）：红土照原样耙平；硬地要铺沥青和面层，贵一点、慢一点
+variants:
+  clay: {}
+  hard: { cost: 1000, work: 13h }

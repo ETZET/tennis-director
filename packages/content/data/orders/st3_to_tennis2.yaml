@@ -1,0 +1,15 @@
+# 改造匹克球场（GM-13）：四片匹克球拆了，铺回两片标准网球场。老会员高兴，联赛的人走了。停用一周。
+# 现实里 Boise 打完噪音官司也是这么改回去的。
+id: st3_to_tennis2
+act: indian_wells
+at: stadium_3
+skill: upkeep
+work: 6h
+cost: 1400
+crew: 3
+when: { facility: stadium_3, is: open }
+remodel: tennis2
+closed_for: 7d
+effects:
+  - { stat: reputation, add: 2 }
+performance: contractor

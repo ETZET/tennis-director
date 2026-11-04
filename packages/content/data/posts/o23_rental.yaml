@@ -7,7 +7,10 @@ cycle: 1h
 hours: [8, 17]
 when: { facility: outer_23, is: playable }
 effects:
-  - { stat: cash, add: "round(5 * (0.6 + worker.skill / 100) * (1 + stat.reputation / 120))" }
+  # 红土、硬地看场挣得一样多（GM-13）；赛事级红土再多一点
+  - { stat: cash, add: "round(6 * (0.6 + worker.skill / 100) * (1 + stat.reputation / 120))" }
+  - { stat: cash, add: 2, if: { upgrade: outer_23, has: tournament_clay } }
+  - { stat: cash, add: 1, if: { upgrade: outer_23, has: pro_hard } }
   - { stat: members, add: 1, chance: 0.04 }
 wear: 0.8
 performance: open_play

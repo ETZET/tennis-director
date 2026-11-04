@@ -1,0 +1,15 @@
+# 会所 · 理疗室（变体 physio，GM-13）：工作日 12–17 点，只有体能师能坐（特质 trainer）。
+# 按摩、冰敷、拉伸：会员和球员都来，口碑涨得快。没招到体能师时这个岗位不存在，不算需求。
+id: ch_physio
+act: indian_wells
+at: clubhouse
+skill: teach
+cycle: 1h
+hours: [12, 17]
+days: [0, 1, 2, 3, 4]
+when: { all: [{ facility: clubhouse, is: open }, { variant: clubhouse, is: physio }, { expr: "hired.trainer >= 1" }] }
+only: [trainer]
+effects:
+  - { stat: cash, add: "round(9 * (0.6 + worker.skill / 100) * clamp(0.5 + stat.members / 40, 0.5, 2))" }
+  - { stat: members, add: 1, chance: 0.04 }
+  - { stat: reputation, add: 0.04 }

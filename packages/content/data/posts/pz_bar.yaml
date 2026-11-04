@@ -1,0 +1,14 @@
+# 棕榈喷泉 · 夜场吧台（变体 nightlife，GM-13）：每天 17–20 点，串灯一亮，打完球的人留下来喝一杯。
+# 比周末晚上的小聚会挣得多、天天开，但要天天有人站吧台。
+id: pz_bar
+act: indian_wells
+at: plaza
+skill: service
+cycle: 1h
+hours: [17, 20]
+when: { all: [{ facility: plaza, is: open }, { variant: plaza, is: nightlife }] }
+effects:
+  - { stat: cash, add: "round(10 * (0.6 + worker.skill / 100) * (1 + stat.reputation / 120))" }
+  - { stat: cash, add: 3, if: { upgrade: plaza, has: misters } }
+  - { stat: members, add: 1, chance: 0.03 }
+wear: 1

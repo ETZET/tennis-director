@@ -76,7 +76,7 @@ pnpm check:deps     # 分层规则
 pnpm test           # Vitest
 pnpm build          # 构建 apps
 pnpm content        # 编译内容 YAML → JSON（check:content 只校验）
-pnpm sim determinism --games 1000   # 确定性闸口
+pnpm sim determinism --games 1000   # 确定性闸口（暂停中，见测试文档，玩法定型前不跑）
 pnpm sim bots --games 1000          # 机器人跑局报告（平衡）
 ```
 

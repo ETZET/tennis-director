@@ -5,7 +5,7 @@ source: threshold
 tone: neutral
 once: true
 countdown: 1d
-when: { facility: stadium_3, is: open }
+when: { all: [{ facility: stadium_3, is: open }, { expr: "stars >= 3" }] }
 location: stadium_3
 who: sponsor
 options:

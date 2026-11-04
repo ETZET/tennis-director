@@ -6,7 +6,7 @@ import type { OptionKey } from '@td/content';
  */
 
 /** 存档格式版本；改了格式就加一个迁移函数（见 save.ts） */
-export const SAVE_VERSION = 7;
+export const SAVE_VERSION = 8;
 
 export interface PersonState {
   id: string;
@@ -57,6 +57,34 @@ export interface PostState {
 export interface OrderState {
   progress: number;
   started: boolean;
+  /** 修复变体（LG-14）：开工时锁定的变体 */
+  variant?: string;
+  /** 每个人做了多少工作量（牌匾的带队 = 做得最多的人） */
+  by?: Record<string, number>;
+  /** 有人在干的分钟数（快讯讲"几个小时修完"） */
+  mins?: number;
+}
+
+/** 大门牌匾上的一行（LG-14）：修好一处自动记一行，玩家不用输入 */
+export interface PlaqueRow {
+  facility: string;
+  variant?: string;
+  /** 带队：修这处设施（第一次修好之前的所有工单）做得最多的人 */
+  leader: string;
+  /** 一起干的人（按做的多少排，带队在最前） */
+  crew: string[];
+  day: number;
+  /** 有人在干的分钟数，和工单的名义工作量（能力 50 的一个人要干多久） */
+  minutes: number;
+  work: number;
+  /** 哪张工单 */
+  order: string;
+}
+
+/** 正在改造的设施（LG-14）：停用到 until，然后换成 variant */
+export interface RemodelState {
+  variant: string;
+  until: number;
 }
 
 /** 因果日志里的一条：什么原因、产生了哪些效果、由哪一条引出 */
@@ -81,6 +109,10 @@ export type Cause =
   | { kind: 'order'; order: string; people: string[]; success?: boolean }
   /** 周日收盘时状况低于掉档阈值，设施掉了一档（准则 6） */
   | { kind: 'wear'; facility: string; condition: number }
+  /** 改造停用期满，换成了新变体（LG-14） */
+  | { kind: 'remodel'; facility: string; variant: string }
+  /** 升星（LG-10）：几星、开出了什么 */
+  | { kind: 'star'; stars: number; opens: string[] }
   | { kind: 'debug'; what: string };
 
 /** 一周的钱（每天收盘按天折算记进现金，周日收盘合成一条讲给玩家） */
@@ -140,6 +172,12 @@ export type EffectRecord =
   | { kind: 'errand'; person: string; at: string; minutes: number }
   | { kind: 'task'; person: string; order: string }
   | { kind: 'condition'; facility: string; delta: number }
+  /** 修复变体锁定、升级装上、改造开始（LG-14） */
+  | { kind: 'variant'; facility: string; variant: string }
+  | { kind: 'upgrade'; facility: string; upgrade: string }
+  | { kind: 'remodel'; facility: string; variant: string; until: number }
+  | { kind: 'plaque'; facility: string; leader: string }
+  | { kind: 'trophy'; delta: number }
   | { kind: 'end'; result: 'won' | 'lost'; ending: string };
 
 export interface OpenCard {
@@ -192,6 +230,25 @@ export interface GameState {
   orderLog: { cooldowns: Record<string, number>; done: Record<string, number> };
   /** 设施状况 0..100 */
   condition: Record<string, number>;
+  /** 设施 → 修成（或正在修成）的变体（LG-14）；没选过变体的设施不在表里 */
+  variants: Record<string, string>;
+  /** 设施 → 装上的升级（按装上的先后） */
+  upgrades: Record<string, string[]>;
+  /** 正在改造（停用中）的设施 */
+  remodels: Record<string, RemodelState>;
+  /** 还没开工的变体工单：玩家把人拖到了哪个变体上（工单 → 变体）；开工时锁定、从这里拿掉 */
+  picks: Record<string, string>;
+  /** 大门牌匾（LG-14） */
+  plaque: PlaqueRow[];
+  /**
+   * 还没上牌匾的设施：修它的所有工单上每人做了多少工作量、有人在干的分钟数、已经做完的那几张工单的名义工作量。
+   * 跨工单（挖沙 → 铺场）、跨停工累计；记上牌匾就拿掉。旧存档没有这一项，用到时补上。
+   */
+  repairs?: Record<string, { by: Record<string, number>; mins: number; work: number }>;
+  /** 星级 0..5（LG-10）：达到过的最高星，不往回掉 */
+  stars: number;
+  /** 奖杯数（LG-10） */
+  trophies: number;
   /** 本周的账（周日收盘结算、写成一条因果日志，然后清零） */
   week: WeekState;
   /**

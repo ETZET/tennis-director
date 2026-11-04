@@ -322,9 +322,14 @@ const FONT: Record<string, string> = {
   ' ': '000000000000000',
 };
 
-/** 在平面 x=x 上从 z0 往 +z 写一行字（大门门楣） */
+/**
+ * 在平面 x=x 上 z0 往 +z 那一段写一行字（大门门楣）。
+ * 字总是从屏幕左往右读：镜头转到 +z 朝屏幕左边的时候，整行在同一段 z 里倒过来排（不然看到的是镜像字）。
+ */
 export function drawText(r: DrawContext, s: string, x: number, y: number, z0: number, size: number, c: number): void {
   const px = size / 5;
+  const span = s.length * px * 4 - px;
+  const flip = r.P(x, y, z0 + 1)[0] < r.P(x, y, z0)[0];
   let z = z0;
   for (const ch of s) {
     const g = FONT[ch];
@@ -332,15 +337,17 @@ export function drawText(r: DrawContext, s: string, x: number, y: number, z0: nu
       for (let row = 0; row < 5; row++)
         for (let q = 0; q < 3; q++)
           if (g[row * 3 + q] === '1') {
-            const zz = z + q * px;
+            const zq = z + q * px;
+            const zz = flip ? 2 * z0 + span - zq - px : zq;
             const yy = y + (4 - row) * px * 0.9;
-            const a = r.P(x, yy + px * 0.9, zz);
-            const b = r.P(x, yy, zz + px);
-            r.rect(
-              Math.min(a[0], b[0]),
-              a[1],
-              Math.max(1, Math.round(Math.abs(b[0] - a[0]))),
-              Math.max(1, Math.round(b[1] - a[1] + 0.5)),
+            // 每个字像素是门楣平面上的一小块平行四边形（跟着门楣斜，字不会被剪成锯齿）
+            r.wpoly(
+              [
+                [x, yy, zz],
+                [x, yy, zz + px],
+                [x, yy + px * 0.9, zz + px],
+                [x, yy + px * 0.9, zz],
+              ],
               c,
             );
           }
