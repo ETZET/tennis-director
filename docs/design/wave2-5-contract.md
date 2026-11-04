@@ -404,3 +404,91 @@ ending:
 - `pnpm sim bots`：地图写了 ending 时报告出平均分、中位分、提前结算比例，和每个机器人的 10% / 中位 / 90% 分位、评语档比例（破产记 `bankrupt`）、分项平均；没写时照旧出通关率。
 - `balance.test.ts`：`mode: score` 时按分数档（greedy 前两档 ≥ 80%、cautious 没有最高档、random 前两档 ≤ 20%、idle 全是最后一档）；没写时照旧按通关率。
 - 校准（按当时内容、在内存里打开初值 ending、20 局）：greedy 中位 12347、90% 分位 12630（S 门槛 13000 时 A 95% / S 5%，初值降到 12500 让好局能拿 S），good 11945、average 12038、novice 11579（A 为主），cautious 7425（B 85%），random 3491（D 为主，破产 20%），idle 92（D）。
+
+---
+
+## W5 最终 schema（模拟一路已实现：LG-15 地块；以这一节为准）
+
+**默认关着**：地图不写 `plots` 时和以前完全一样（没有地块状态，所有地点都能用，路不变）。W5 内容一路打开它。
+存档版本 **12**（11 → 12 有迁移：补 `plots: {}`）。
+
+### 内容：地图的 `plots`（`acts/<地图>.yaml`）
+
+```yaml
+anchors: [..., south_courts, oasis_lawn, event_plaza, academy_isle]   # 新锚点一开始就在（导航只加不挪）
+nav:                                    # 新锚点和每个地点之间都要有边（game.test 照画面查分钟数），分钟数照 art17 的步行表
+  - [entrance, south_courts, 105]
+  # ...
+plots:
+  - id: golf_west
+    route: s3                           # 哪一处选路决定它；选了哪条路就按同名的变体开工
+    season: 1                           # 默认 1；2 = 开第二季时按 ending.land[route] 里第一个有变体的路开工（数据钩子）
+    pause_on_events: true               # 默认 true：接下的主办赛事的比赛日，清理工单不走进度（人在那儿等）
+    variants:
+      south_courts:                     # = routes.s3 里的一条路
+        anchor: south_courts            # 新锚点（不能有设施、不能有人开局站在那儿、不能被别的地块用）
+        orders: [sc_clear, sc_fill, sc_pave]   # 清理工单：开工时一起冒出来，隐含只做一次（cooldown 不看）；3–5 张（不在这个范围给警告）
+        start: [{ flag: gw_noise, set: true }]  # 可选：开工时执行一次
+        opens:
+          posts: [sc_rental, sc_lesson] # 开地以后才有（不用再写 when）
+          orders: [sc_tidy]
+          effects: [{ stat: reputation, add: 2 }]   # 开地时执行一次
+      oasis_lawn:
+        anchor: oasis_lawn
+        orders: [ol_dig, ol_cabins, ol_pool]
+  - id: se_corner
+    route: s4
+    variants:
+      event_plaza: { anchor: event_plaza, orders: [...] }
+      academy_isle: { anchor: academy_isle, orders: [...] }
+```
+
+- **工单放在哪**：清理工单放在这个变体的锚点上（或者旧地点上）；不能放在别的地块的锚点上。
+- **地块锚点上的东西**：施工时只有它的清理工单；开了以后那里的岗位、工单才有（`opens` 里没列的也一样，按地点挡）。`opens` 里列的岗位和工单放在哪儿都行，都要开了才有。
+- **施工的副作用**交给内容：条件 `{ plot: golf_west, is: building }` 或变量 `plot.golf_west == "building"` 写进岗位效果、质量项、卡的条件（例如施工噪音让泳池的满意度打折）。
+- 编译器校验：路的处和变体对得上；锚点在 `anchors` 里、直接连着至少一个旧地点；新地不能成为两个旧地点之间的近路（经过它比旧边快 1 分钟以上就报错）；清理工单和开出来的岗位、工单存在、属于这张地图、只被一处用、不是赛事的报名工单；`start`、`opens.effects` 的效果；同一块地各变体到旧地点的平均步行分钟差超过 ±10% 给**警告**（se_corner 的两个变体差很多，平衡交给机器人）。清理工单没有效果不再警告。
+- 路断不断在岛边：`game.test.ts` 按画面的折线查（每块地的每个变体，从每个地点走过去，折线都在长大后的地台上，站位离岛边 ≥ 2 米）；内容写了 `plots` 时还查变体的锚点和画面 `PLOT_ANCHORS` 一致。地块的新锚点在 `LAND_STANDS` / `LAND_ANCHORS` 里有站位和中心就算（不在 `Site.stands` 里）。
+
+### 行为
+
+- `locked`（不在 `s.plots` 里）→ `building`：选路效果 `{ route: s3, set: south_courts }` 让 `route: s3`、`season: 1`、有这个变体的地块开工；或者效果 `{ plot: se_corner, build: academy_isle }`（地块还是 locked 才生效）；或者第二季开局。开工写一条日志（挂在选路那一条下），执行 `start`，发 `plot_building`。
+- `building` → `open`：这个变体的清理工单都做完一次（做最后一张的那一分钟），写一条日志（挂在开工那一条下），执行 `opens.effects`，发 `plot_open`。
+- **导航**：地块的锚点只当终点、不当中转站（`walk.ts` 的最短路不从它们中间穿过），所以旧地点之间的路和分钟数一条不变；走去新地按直连的边。
+- 停工：`pause_on_events` 的地块在接下的主办赛事的比赛日（整天）不走进度、不扣材料费，人留在原地等。
+- 第二季：`startSeason2` 时 `season: 2` 的地块按 `ending.land[route]`（第一季没选的路）里第一个在 `variants` 里的路开工；开工和开地的时刻跟着时钟平移。
+
+### 条件和变量
+
+| 写法 | 意思 |
+| --- | --- |
+| `{ plot: golf_west, is: open }` | 地块的阶段：`locked` / `building` / `open` |
+| `{ plot: golf_west, is: south_courts }` | 按这个变体开了工（施工中或者开了） |
+| `plot.golf_west` | `'locked'` / `'building'` / `'open'` |
+
+### 状态（`GameState`，版本 12）
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `plots` | `Record<plot, PlotState>` | 开了工的地块：`{ state: 'building' \| 'open', variant, since, opened: number \| null, cause }`；locked 的不在表里 |
+
+### 领域事件和日志
+
+```ts
+{ type: 'plot_building'; plot; variant; anchor; orders }   // 画面 land(plot, 'building', variant, 0)
+{ type: 'plot_open'; plot; variant; anchor }               // 画面 land(plot, 'open', variant)；镜头飞过去停一拍
+```
+
+因果日志：`cause: { kind: 'plot', plot, variant, state: 'building' | 'open' }`；引出它的那一条（选路、效果、第二季）里记一笔 `{ kind: 'plot', plot, variant, state }`。
+
+### 给界面和游戏的函数（`@td/sim`）
+
+- `placeAvailable(s, w, anchor)`：这个地点在不在地图上（画不画地点牌、能不能往那儿拖人）。不在地块上的地点一直 true；地块上的地点在它的变体**开工以后**就是 true（施工中只有清理工单）。
+- `placeOpen(s, w, anchor)`：开了没有（地块上的岗位要开了才有）。
+- `plotStatus(s, w)` → 每块地 `{ id, route, season, state, variant, anchor, orders: { id, done, progress }[], done, total, progress（按工作量 0..1，开了是 1）, paused, since, opened }`（画面 `land(plot, state, variant, progress)`）。
+- `plotPhase(s, plot)`、`plotPaused(s, w, plot)`、`plotOrderPaused(s, w, order)`、`plotAllows(s, w, target, at)`；`w.plots`、`w.plotAt`（锚点 → 地块和变体）、`w.plotOrders`（清理工单 → 地块和变体）、`w.plotOpens`。
+- `orderStatus` 多了 `plot`（清理工单是哪块地的）、`paused`（停工）。没开的地块上的岗位 `postStatus.exists` 是 false，工单 `visible` 是 false，`canAssign` 给 `'gone'`。
+
+### 机器人和报告
+
+- 清理工单：每块地一共值 240 分（按张数分摊，和别的工单一样再按工时开平方折算）；停工时不去。
+- `pnpm sim bots`：地图写了 `plots` 时多一节"地块"：每个机器人每块地开工、开地的局数比例，各变体的比例，开地的中位天数、施工的中位天数。

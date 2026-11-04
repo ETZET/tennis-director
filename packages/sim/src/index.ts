@@ -25,6 +25,16 @@ export {
 } from './ending';
 export type { SimEvent } from './events';
 export * from './game';
+export {
+  type PlotStatus,
+  placeAvailable,
+  placeOpen,
+  plotAllows,
+  plotOrderPaused,
+  plotPaused,
+  plotPhase,
+  plotStatus,
+} from './plots';
 export { growthOf, potentialOf } from './potential';
 export * from './save';
 export {
@@ -94,6 +104,6 @@ export {
   wagesWeek,
 } from './vars';
 export { shortestRoute, walkEta } from './walk';
-export { type Edition, type World, worldFor } from './world';
+export { type Edition, type PlotRef, type World, worldFor } from './world';
 
 export const SIM_VERSION = 2;

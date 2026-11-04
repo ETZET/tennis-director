@@ -34,6 +34,14 @@ export interface BotSummary {
   /** 星级（LG-10）：平均几星、平均奖杯、★n 第一次升上来的天数（中位，没升上来的局不算）和升上来的局数 */
   stars: { avg: number; trophies: number; day: Record<number, { median: number; games: number }> };
   /**
+   * 地块（W5）：地块 → 开工的局数、开地的局数、开地的天数（中位，没开的局不算）、开工后到开地的天数（中位）、
+   * 各变体开工的局数。地图没写 plots 时是空的
+   */
+  plots: Record<
+    string,
+    { started: number; opened: number; openDay: number; buildDays: number; variants: Record<string, number> }
+  >;
+  /**
    * 结局方案 A（W4）：地图写了 ending（mode: score）才有。总分的平均、分位、评语档的局数比例（破产没结算的局记 bankrupt）、
    * 提前结算（表演赛以后马上结算）的局数比例、结算的局里每一项的平均分
    */
@@ -100,7 +108,9 @@ export function botReport(
       msPerGame: 0,
       variants: {},
       stars: { avg: 0, trophies: 0, day: {} },
+      plots: {},
     };
+    const plotDays: Record<string, { open: number[]; build: number[] }> = {};
     const starDays: Record<number, number[]> = {};
     const totals: number[] = [];
     const grades: Record<string, number> = Object.fromEntries((ending?.grades ?? []).map((g) => [g.grade, 0]));
@@ -123,6 +133,17 @@ export function botReport(
       sum.stars.trophies += (r.state.trophies ?? 0) / o.games;
       for (const e of r.state.log)
         if (e.cause.kind === 'star') (starDays[e.cause.stars] ??= []).push(Math.floor(e.t / 1440) + 1);
+      for (const [id, p] of Object.entries(r.state.plots ?? {})) {
+        const x = (sum.plots[id] ??= { started: 0, opened: 0, openDay: 0, buildDays: 0, variants: {} });
+        const d = (plotDays[id] ??= { open: [], build: [] });
+        x.started++;
+        x.variants[p.variant] = (x.variants[p.variant] ?? 0) + 1;
+        if (p.opened !== null) {
+          x.opened++;
+          d.open.push(Math.floor(p.opened / 1440) + 1);
+          d.build.push((p.opened - p.since) / 1440);
+        }
+      }
       const st = r.state.ending?.settlement;
       if (ending && st) {
         totals.push(st.total);
@@ -148,6 +169,13 @@ export function botReport(
     for (const [n, days] of Object.entries(starDays)) {
       const d = [...days].sort((a, b) => a - b);
       sum.stars.day[Number(n)] = { median: d[Math.floor((d.length - 1) / 2)] ?? 0, games: d.length };
+    }
+    const median = (xs: number[]) => [...xs].sort((a, b) => a - b)[Math.floor((xs.length - 1) / 2)] ?? 0;
+    for (const [id, d] of Object.entries(plotDays)) {
+      const x = sum.plots[id];
+      if (!x) continue;
+      x.openDay = median(d.open);
+      x.buildDays = Math.round(median(d.build) * 10) / 10;
     }
     sum.winRate = sum.wins / o.games;
     sum.msPerGame = (performance.now() - t0) / o.games;
@@ -230,6 +258,25 @@ export function reportMarkdown(r: Report): string {
           Object.entries(b.stars.day)
             .map(([n, x]) => `★${n} 中位第 ${x.median} 天（${pct(x.games / b.games)} 的局升上来）`)
             .join('，') || '没有升星'
+        }`,
+      );
+  }
+  if (r.bots.some((b) => Object.keys(b.plots).length)) {
+    lines.push('', '## 地块（W5）', '');
+    for (const b of r.bots)
+      lines.push(
+        `- ${b.bot}：${
+          Object.entries(b.plots)
+            .sort(([a], [c]) => a.localeCompare(c))
+            .map(
+              ([id, x]) =>
+                `${id} 开工 ${pct(x.started / b.games)}（${Object.entries(x.variants)
+                  .map(([v, n]) => `${v} ${pct(n / b.games)}`)
+                  .join('、')}），开地 ${pct(x.opened / b.games)}${
+                  x.opened ? `，中位第 ${x.openDay} 天、施工 ${x.buildDays} 天` : ''
+                }`,
+            )
+            .join('；') || '—'
         }`,
       );
   }

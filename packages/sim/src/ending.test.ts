@@ -202,7 +202,7 @@ describe('W4 ending plan A (score)', () => {
   });
 
   it('save version bump: a version-10 save migrates to an empty first-season ending', () => {
-    expect(SAVE_VERSION).toBe(11);
+    expect(SAVE_VERSION).toBeGreaterThanOrEqual(11);
     const s = newGame(FIX, { seed: 3 });
     const old = toSave(s, []) as unknown as Record<string, unknown>;
     const st = old.state as Record<string, unknown>;
@@ -211,7 +211,7 @@ describe('W4 ending plan A (score)', () => {
     old.version = 10;
     expect(MIGRATIONS[10]).toBeDefined();
     const { save } = fromSave(old);
-    expect(save.version).toBe(11);
+    expect(save.version).toBe(SAVE_VERSION);
     expect(save.state.ending).toEqual({ season: 1, exhibition: null, settlement: null, goal: null, land: {} });
     // 结算后的存档读回来一样
     const t = jump(FIX, 112, 17);

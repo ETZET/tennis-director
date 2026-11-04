@@ -74,6 +74,7 @@ export function newGame(content: ContentBundle, o: NewGameOptions): GameState {
     tournaments: {},
     unlocks: {},
     ending: { season: 1, exhibition: null, settlement: null, goal: null, land: {} },
+    plots: {},
     // 开局没有"上周"：服务率无从谈起，算 0，周结算的服务项不算（GM-1）
     week: {
       demand: 0,

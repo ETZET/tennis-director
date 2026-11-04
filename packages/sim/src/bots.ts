@@ -187,6 +187,8 @@ const UPGRADE_VALUE = 40;
 const TROPHY_VALUE = 25;
 const GOAL_ODDS = 0.6;
 const EVENT_POST_BONUS = 1.5;
+/** 地块（W5）：开地会开出新的岗位，这块地的清理工单一共值这么多（按张数分摊），比修好一处设施略高 */
+const PLOT_VALUE = 240;
 
 /** 一项赛事这一期值多少：奖励 + 附加目标（按六成把握），第二次起打折 */
 function tournamentValue(s: GameState, t: Tournament): number {
@@ -235,7 +237,7 @@ function staffCommands(s: GameState, w: World, st: StaffStyle): Command[] {
   const variantOf = new Map<string, string>();
   for (const o of w.orders.values()) {
     const os = orderStatus(s, w, o);
-    if (!os.visible || os.blocked === 'cost' || os.blocked === 'early') continue;
+    if (!os.visible || os.blocked === 'cost' || os.blocked === 'early' || os.paused) continue;
     // 人不够（双打要两名球员）就不去
     if (os.minCrew > 1 && staffIds(s, w).filter((id) => eligible(w, id, o)).length < os.minCrew) continue;
     // 变体工单还没锁定：机器人自己挑一个（按它的那个变体算钱和效果）
@@ -251,6 +253,8 @@ function staffCommands(s: GameState, w: World, st: StaffStyle): Command[] {
     if (o.upgrade) value += UPGRADE_VALUE;
     const tour = w.tournamentOf.get(o.id);
     if (tour) value += tournamentValue(s, tour);
+    const plot = w.plotOrders.get(o.id);
+    if (plot) value += PLOT_VALUE / Math.max(1, w.plots.get(plot.plot)?.variants[plot.variant]?.orders.length ?? 1);
     value -= cost * (WEIGHT.cash ?? 0);
     // 按工时折算（开平方）：大工程也值得一点一点干
     value = value / Math.max(1, Math.sqrt(minutes(o.work) / 60)) + (os.started ? 4 : 0);

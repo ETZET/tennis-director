@@ -43,6 +43,8 @@ function computeRoute(w: World, from: string, to: string): { route: string[]; mi
     }
     todo.delete(cur);
     if (cur === to) break;
+    // 地块的锚点（W5）只当终点、不当中转站：新地不改旧地点之间的路（导航只加不挪）
+    if (cur !== from && w.plotAt.has(cur)) continue;
     for (const [nb, m] of w.nav.get(cur) ?? []) {
       const nd = best + m;
       if (nd < (dist.get(nb) ?? Number.POSITIVE_INFINITY)) {

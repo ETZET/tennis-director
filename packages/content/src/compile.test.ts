@@ -407,6 +407,113 @@ describe('内容编译', () => {
     expect(m).toMatch(/missing text 'ending.goals.moon_landing'/);
   });
 
+  it('地块（W5）：每块地的每个变体走一遍（锚点、导航边、近路、清理工单、开出来的岗位），写错都报错', () => {
+    const ok = files();
+    // 步行分钟数照画面的表（art17 land-walk-minutes）
+    const SC: Record<string, number> = {
+      entrance: 105,
+      parking: 117,
+      plaza: 96,
+      clubhouse: 47,
+      stadium_1: 71,
+      stadium_2: 36,
+      stadium_3: 81,
+      practice: 54,
+      outer_1: 54,
+      outer_23: 54,
+    };
+    const OL: Record<string, number> = Object.fromEntries(Object.entries(SC).map(([k, v]) => [k, v - 1]));
+    OL.practice = 54;
+    OL.outer_1 = 54;
+    OL.outer_23 = 54;
+    const order = (id: string, at: string) =>
+      stringify({ id, act: 'indian_wells', at, skill: 'upkeep', work: '2h', crew: 2, effects: [] });
+    for (const id of ['gw_clear', 'gw_fill', 'gw_pave']) ok[`orders/${id}.yaml`] = order(id, 'south_courts');
+    for (const id of ['gw_dig', 'gw_cabins', 'gw_pool']) ok[`orders/${id}.yaml`] = order(id, 'oasis_lawn');
+    ok['posts/sc_rental.yaml'] = stringify({
+      id: 'sc_rental',
+      act: 'indian_wells',
+      at: 'south_courts',
+      skill: 'service',
+      hours: [8, 15],
+      cycle: '1h',
+      effects: [],
+    });
+    const text = (y: Yaml) => {
+      y.anchors.south_courts = 'South courts';
+      y.anchors.oasis_lawn = 'Oasis lawn';
+      for (const id of ['gw_clear', 'gw_fill', 'gw_pave', 'gw_dig', 'gw_cabins', 'gw_pool'])
+        y.orders[id] = { title: id, note: id };
+      y.posts.sc_rental = { title: 'South courts desk', note: 'Daily' };
+    };
+    editYaml(ok, 'i18n/zh.yaml', text);
+    editYaml(ok, 'i18n/en.yaml', text);
+    editYaml(ok, 'acts/indian_wells.yaml', (y) => {
+      y.anchors.push('south_courts', 'oasis_lawn');
+      for (const [k, v] of Object.entries(SC)) y.nav.push([k, 'south_courts', v]);
+      for (const [k, v] of Object.entries(OL)) y.nav.push([k, 'oasis_lawn', v]);
+      y.nav.push(['south_courts', 'oasis_lawn', 6]);
+      y.plots = [
+        {
+          id: 'golf_west',
+          route: 's3',
+          variants: {
+            south_courts: {
+              anchor: 'south_courts',
+              orders: ['gw_clear', 'gw_fill', 'gw_pave'],
+              start: [{ stat: 'quality', add: -1 }],
+              opens: { posts: ['sc_rental'], effects: [{ flag: 'south_open', set: true }] },
+            },
+            oasis_lawn: { anchor: 'oasis_lawn', orders: ['gw_dig', 'gw_cabins', 'gw_pool'] },
+          },
+        },
+      ];
+      y.rules.derived_terms = y.rules.derived_terms ?? {};
+    });
+    editYaml(ok, 'posts/o1_rental.yaml', (y) => {
+      y.when = { all: [y.when ?? { expr: 'true' }, { not: { plot: 'golf_west', is: 'building' } }] };
+    });
+    const before = new Set(msgs(compileContent(files())).split('\n'));
+    const known = (r: ReturnType<typeof compileContent>, kind: 'errors' | 'warnings' = 'errors') =>
+      msgs(r, kind)
+        .split('\n')
+        .filter((x) => x && !before.has(x));
+    const good = compileContent(ok);
+    expect(known(good)).toEqual([]);
+    expect(good.bundle?.acts[0]?.plots?.[0]?.season).toBe(1);
+
+    const bad = structuredClone(ok);
+    editYaml(bad, 'acts/indian_wells.yaml', (y) => {
+      y.nav = y.nav.filter((e: [string, string, number]) => e[1] !== 'oasis_lawn' && e[0] !== 'oasis_lawn');
+      y.nav.push(['south_courts', 'oasis_lawn', 6]);
+      // 近路：经过南场比旧路快
+      y.nav = y.nav.map((e: [string, string, number]) =>
+        e[0] === 'entrance' && e[1] === 'south_courts' ? [e[0], e[1], 5] : e,
+      );
+      y.plots[0].variants.south_courts.orders.push('o1_sweep', 'gw_nope');
+      y.plots[0].variants.oasis_lawn.orders = ['gw_dig', 'gw_clear'];
+      y.plots[0].variants.academy_isle = { anchor: 'academy_isle', orders: ['gw_pool'] };
+      y.plots[0].variants.south_courts.opens.effects.push({ plot: 'golf_west', build: 'nope' });
+    });
+    editYaml(bad, 'posts/o1_rental.yaml', (y) => {
+      y.when = { plot: 'golf_east', is: 'open' };
+    });
+    editYaml(bad, 'posts/o1_lesson.yaml', (y) => {
+      y.when = { plot: 'golf_west', is: 'half_done' };
+    });
+    const m = known(compileContent(bad)).join('\n');
+    expect(m).toMatch(/unknown plot 'golf_east'/);
+    expect(m).toMatch(/not 'half_done'/);
+    expect(m).toMatch(/'oasis_lawn' has no nav edge to an existing place/);
+    expect(m).toMatch(/entrance → south_courts → \w+ .* beats the old path/);
+    expect(m).toMatch(/unknown order 'gw_nope'/);
+    expect(m).toMatch(/'gw_clear' is already used by/);
+    expect(m).toMatch(/route slot 's3' has no route 'academy_isle'/);
+    expect(m).toMatch(/'academy_isle' is not in anchors/);
+    expect(m).toMatch(/plot 'golf_west' has no variant 'nope'/);
+    expect(known(compileContent(bad), 'warnings').join('\n')).toMatch(/oasis_lawn.orders: 2 clearance orders/);
+  });
+
   it('文件名必须和 id 一致', () => {
     const f = files();
     f['events/indian_wells/iw_spons.yaml'] = f['events/indian_wells/iw_sponsor.yaml'] as string;

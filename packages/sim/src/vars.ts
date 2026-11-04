@@ -270,6 +270,8 @@ export function makeEnv(s: GameState, w: World, extra: Record<string, Value> = {
           return s.variants?.[rest] ?? '';
         case 'route':
           return s.routes?.[rest] ?? '';
+        case 'plot':
+          return s.plots?.[rest]?.state ?? 'locked';
         case 'prep':
           return prepProgress(s, w, rest);
         case 'best':
@@ -326,6 +328,13 @@ export function test(s: GameState, w: World, c: Cond | undefined): boolean {
   if ('variant' in c) return (s.variants?.[c.variant] ?? 'none') === c.is;
   if ('upgrade' in c) return !!s.upgrades?.[c.upgrade]?.includes(c.has);
   if ('route' in c) return (s.routes?.[c.route] ?? 'none') === c.is;
+  if ('plot' in c) {
+    // 地块（W5）：is 是阶段（locked / building / open），或者变体（按它开了工、或者开了）
+    const st = s.plots?.[c.plot];
+    return c.is === 'locked' || c.is === 'building' || c.is === 'open'
+      ? (st?.state ?? 'locked') === c.is
+      : st?.variant === c.is;
+  }
   if ('prep' in c) return prepProgress(s, w, c.prep) >= 1 === (c.done ?? true);
   if ('skilled' in c) return anySkilled(s, w, c.skilled, c.gte, c.who);
   if ('unlocked' in c) return !!s.unlocks?.[c.unlocked];

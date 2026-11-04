@@ -181,6 +181,13 @@ export const MIGRATIONS: Record<number, Migration> = {
     state.version = 11;
     return { ...save, version: 11, state };
   },
+  // 11 → 12（W5 地块，LG-15）：没有开工的地块（地块开关在内容里：地图写了 plots 才有地块）
+  11: (save) => {
+    const state = { ...(save.state as Record<string, unknown>) };
+    state.plots ??= {};
+    state.version = 12;
+    return { ...save, version: 12, state };
+  },
 };
 
 export class SaveError extends Error {}

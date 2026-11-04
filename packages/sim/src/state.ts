@@ -6,7 +6,7 @@ import type { OptionKey } from '@td/content';
  */
 
 /** 存档格式版本；改了格式就加一个迁移函数（见 save.ts） */
-export const SAVE_VERSION = 11;
+export const SAVE_VERSION = 12;
 
 export interface PersonState {
   id: string;
@@ -134,6 +134,8 @@ export type Cause =
   /** 结局（W4，LG-13）：结算打分（分项、总分、评语）；开第二季 */
   | ({ kind: 'settlement' } & Settlement)
   | { kind: 'season'; season: number; goal: string }
+  /** 地块（W5，LG-15）：开工（选路、效果或者第二季带出来的），或者清理工单都做完、开地 */
+  | { kind: 'plot'; plot: string; variant: string; state: 'building' | 'open' }
   | { kind: 'debug'; what: string };
 
 /** 一周的钱（每天收盘按天折算记进现金，周日收盘合成一条讲给玩家） */
@@ -203,6 +205,8 @@ export type EffectRecord =
   | { kind: 'trophy'; delta: number }
   /** 选路（W2） */
   | { kind: 'route'; slot: string; route: string }
+  /** 地块开工、开地（W5） */
+  | { kind: 'plot'; plot: string; variant: string; state: 'building' | 'open' }
   | { kind: 'end'; result: OutcomeResult; ending: string };
 
 export interface OpenCard {
@@ -285,6 +289,17 @@ export interface EndingState {
   land: Record<string, string[]>;
 }
 
+/** 一块地（W5，LG-15）：按哪个变体在施工、或者已经开了；还没开工（locked）的地块不在表里 */
+export interface PlotState {
+  state: 'building' | 'open';
+  variant: string;
+  /** 开工的时刻、开地的时刻（还在施工是 null） */
+  since: number;
+  opened: number | null;
+  /** 开工那一条因果日志（开地的日志挂在它下面） */
+  cause: number | null;
+}
+
 /** 一项赛事办过几次（LG-11：第二次起奖励打折、目标换一个） */
 export interface TournamentLog {
   entries: number;
@@ -344,6 +359,8 @@ export interface GameState {
   unlocks: Record<string, { person: string; t: number }>;
   /** 结局（W4，LG-13）：地图没写 ending 时一直是初始值 */
   ending: EndingState;
+  /** 地块（W5，LG-15）：地块 id → 施工或已开；地图没写 plots 时一直是空的 */
+  plots: Record<string, PlotState>;
   /** 本周的账（周日收盘结算、写成一条因果日志，然后清零） */
   week: WeekState;
   /**

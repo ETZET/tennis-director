@@ -1,4 +1,4 @@
-import { type Ctx, endingOf, endingState, run, scoreOf } from './effects';
+import { type Ctx, endingOf, endingState, run, scoreOf, startPlot } from './effects';
 import { overnight } from './staff';
 import { at, dayOf, type GameState, type ScoreItem, type Settlement } from './state';
 import { openDay, recomputeDerived } from './systems';
@@ -45,6 +45,10 @@ export function startSeason2(ctx: Ctx): boolean {
   rebase(s.orderLog.cooldowns);
   for (const r of Object.values(s.remodels)) r.until = back(r.until);
   for (const x of Object.values(s.tournaments)) x.last = back(x.last);
+  for (const x of Object.values(s.plots ?? {})) {
+    x.since = back(x.since);
+    if (x.opened !== null) x.opened = back(x.opened);
+  }
   s.cards.open = [];
   s.cards.scheduled = [];
   s.cards.lastOpened = back(s.cards.lastOpened ?? 0);
@@ -65,6 +69,12 @@ export function startSeason2(ctx: Ctx): boolean {
   const entry = run(ctx, { kind: 'season', season: 2, goal: e.season2.goal }, null, []);
   ctx.events.push({ type: 'season_two', goal: e.season2.goal, land: structuredClone(land) });
   for (const c of e.season2.start_cards) s.cards.scheduled.push({ card: c, at: s.t, cause: entry.id });
+  // 地块（W5）：第二季的地块按第一季没选的路开工（这一处留下的路里第一个有变体的）
+  for (const p of w.plots.values()) {
+    if (p.season !== 2) continue;
+    const v = (land[p.route] ?? []).find((r) => p.variants[r]);
+    if (v) startPlot(ctx, p.id, v, entry.id, entry.effects);
+  }
   openDay(ctx, start.day, Math.round(start.hour * 60));
   recomputeDerived(ctx);
   return true;

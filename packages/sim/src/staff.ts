@@ -1,7 +1,8 @@
 import { minutes, type Order, type Post, type SkillKind } from '@td/content';
 import { clamp } from '@td/shared';
-import { applyEffects, type Ctx, run, setStat } from './effects';
+import { applyEffects, type Ctx, checkPlotOpen, run, setStat } from './effects';
 import { growStaff, noteRecords, noteSkill } from './growth';
+import { plotAllows, plotOrderPaused } from './plots';
 import { rand } from './rng';
 import {
   DIRECTOR,
@@ -119,7 +120,10 @@ const hourNow = (s: GameState): number => minuteOfDay(s.t) / 60;
  * 赛事 closes 的岗位比赛日整天不开。
  */
 export const postExists = (s: GameState, w: World, p: Post): boolean =>
-  !remodeling(s, w.facilityAt.get(p.at) ?? '') && eventPostOpen(s, w, p.id) !== false && test(s, w, p.when);
+  !remodeling(s, w.facilityAt.get(p.at) ?? '') &&
+  eventPostOpen(s, w, p.id) !== false &&
+  plotAllows(s, w, p.id, p.at) &&
+  test(s, w, p.when);
 
 /** 岗位现在在不在它的时段里（没有时段的岗位营业时间都算） */
 export function postInHours(s: GameState, p: Post): boolean {
@@ -159,7 +163,10 @@ export type OrderBlock = 'cooldown' | 'done' | 'cost' | 'crew' | 'early' | null;
 export function orderVisible(s: GameState, w: World, o: Order): boolean {
   // 赛事的报名工单由日历决定什么时候出现（冷却、once 不管）
   const t = w.tournamentOf.get(o.id);
-  if (t) return tournamentOrder(s, w, t, o).visible;
+  if (t) return tournamentOrder(s, w, t, o).visible && plotAllows(s, w, o.id, o.at);
+  // 地块（W5）：清理工单只在施工时有、只做一次；地块上的工单要开了才有
+  if (!plotAllows(s, w, o.id, o.at)) return false;
+  if (w.plotOrders.has(o.id) && (s.orderLog.done[o.id] ?? 0) > 0) return false;
   // 分期筹备的每一期只做一次
   if ((o.once || o.prep) && (s.orderLog.done[o.id] ?? 0) > 0) return false;
   if ((s.orderLog.cooldowns[o.id] ?? -1) > s.t) return false;
@@ -246,6 +253,9 @@ export interface OrderStatus {
   minCrew: number;
   tournament: string | null;
   prep: string | null;
+  /** W5：清理工单是哪块地的；工地停工（主办赛事的比赛日）时不走进度 */
+  plot: string | null;
+  paused: boolean;
 }
 
 /**
@@ -316,6 +326,8 @@ export function orderStatus(s: GameState, w: World, o: Order): OrderStatus {
     minCrew: minCrew(s, w, o),
     tournament: tour?.id ?? null,
     prep: o.prep ?? null,
+    plot: w.plotOrders.get(o.id)?.plot ?? null,
+    paused: plotOrderPaused(s, w, o.id),
   };
 }
 
@@ -727,6 +739,9 @@ function finishOrder(ctx: Ctx, o: Order): void {
   if (w.tournamentOf.has(o.id)) tournamentOrderDone(ctx, o, lead, crew);
   // 人-13：做完回到派去之前的岗位（还开着、空着的话），不然闲着
   for (const id of crew) backToPost(ctx, id, o.id);
+  // 地块（W5）：最后一张清理工单做完就开地
+  const plot = w.plotOrders.get(o.id);
+  if (plot) checkPlotOpen(ctx, plot.plot);
 }
 
 /**
@@ -788,6 +803,8 @@ function orderSystem(ctx: Ctx, jobs: Map<string, string[]>): void {
     if (!here.length) continue;
     // 人不够（W2 的 min_crew，例如双打要两名球员）：等着，不开工、不走进度
     if (o.min_crew !== undefined && here.length < minCrew(s, w, o)) continue;
+    // 工地停工（W5：接下的主办赛事的比赛日）：人在那儿等着，不开工、不走进度
+    if (plotOrderPaused(s, w, o.id)) continue;
     const f = orderFacility(w, o);
     let state = st;
     if (!state) {

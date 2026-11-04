@@ -45,15 +45,19 @@ describe('Indian Wells map ↔ content nav', () => {
     const inside = (x: number, z: number, m: number) =>
       rects.some((r) => x >= r.x0 + m && x <= r.x1 - m && z >= r.z0 + m && z <= r.z1 - m);
     for (const p of act?.plots ?? [])
-      for (const [variant, v] of Object.entries(p.variants)) {
+      for (const [variant, v] of Object.entries(p.variants))
         expect(indianWells.PLOT_ANCHORS[p.id]?.[variant], `${p.id}.${variant}`).toBe(v.anchor);
-        const stand = land[v.anchor];
-        expect(stand, v.anchor).toBeDefined();
-        if (stand) expect(inside(stand.x, stand.z, 2), `${v.anchor} stand is at the island edge`).toBe(true);
-        for (const b of act?.anchors ?? []) {
-          if (b === v.anchor) continue;
-          const line = site.routeLine(b, v.anchor) ?? [];
-          expect(line.length, `${b}–${v.anchor}`).toBeGreaterThan(1);
+    // 画面里每块地的每个变体（内容还没写地块时也查）：站位不在岛边，从每个地点走过去都在地台上
+    const places = [...Object.keys(site.stands), ...Object.keys(land)];
+    for (const vs of Object.values(indianWells.PLOT_ANCHORS))
+      for (const anchor of Object.values(vs)) {
+        const stand = land[anchor];
+        expect(stand, anchor).toBeDefined();
+        if (stand) expect(inside(stand.x, stand.z, 2), `${anchor} stand is at the island edge`).toBe(true);
+        for (const b of places) {
+          if (b === anchor) continue;
+          const line = site.routeLine(b, anchor) ?? [];
+          expect(line.length, `${b}–${anchor}`).toBeGreaterThan(1);
           for (let i = 1; i < line.length; i++) {
             const a0 = line[i - 1] as { x: number; z: number };
             const a1 = line[i] as { x: number; z: number };
@@ -61,7 +65,7 @@ describe('Indian Wells map ↔ content nav', () => {
             for (let k = 0; k <= n; k++) {
               const x = a0.x + ((a1.x - a0.x) * k) / Math.max(1, n);
               const z = a0.z + ((a1.z - a0.z) * k) / Math.max(1, n);
-              expect(inside(x, z, 0), `${b}–${v.anchor} leaves the slab at (${x.toFixed(1)}, ${z.toFixed(1)})`).toBe(
+              expect(inside(x, z, 0), `${b}–${anchor} leaves the slab at (${x.toFixed(1)}, ${z.toFixed(1)})`).toBe(
                 true,
               );
             }

@@ -65,6 +65,9 @@ export type SimEvent =
     }
   /** 选路（W2）：这一处选了哪条路（倒计时到了按默认的也发） */
   | { type: 'route_chosen'; slot: string; route: string }
+  /** 地块（W5）：开工（清理工单冒出来；画面 land(plot, 'building', variant, 0)）、开地（画面 land(plot, 'open', variant)，镜头飞过去） */
+  | { type: 'plot_building'; plot: string; variant: string; anchor: string; orders: string[] }
+  | { type: 'plot_open'; plot: string; variant: string; anchor: string }
   /** 分期筹备（W2）：一期做完了，这一组做完了几期 */
   | { type: 'prep_done'; group: string; order: string; done: number; total: number }
   /**

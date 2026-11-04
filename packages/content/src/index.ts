@@ -19,6 +19,7 @@ export {
   formatIssues,
   HIRED_VAR,
   PERSON_ATTRS,
+  PLOT_VAR,
   PREP_VAR,
   ROUTE_VAR,
   UNLOCKED_VAR,

@@ -17,6 +17,7 @@ import {
   type Order,
   order,
   PERSON_KINDS,
+  PLOT_STATES,
   person,
   post,
   stat,
@@ -118,6 +119,8 @@ export const CONDITION_VAR = /^condition\.([a-z][a-z0-9_]*)$/;
 export const VARIANT_VAR = /^variant\.([a-z][a-z0-9_]*)$/;
 /** 选路变量（W2）：route.<处> = 选了哪条路，没选是 '' */
 export const ROUTE_VAR = /^route\.([a-z][a-z0-9_]*)$/;
+/** 地块变量（W5）：plot.<地块> = locked / building / open */
+export const PLOT_VAR = /^plot\.([a-z][a-z0-9_]*)$/;
 /** 分期筹备变量（W2）：prep.<组> = 这一组工单做完的比例 0..1 */
 export const PREP_VAR = /^prep\.([a-z][a-z0-9_]*)$/;
 /** 岗位这一周转了几圈（W2）：cycles.<岗位> */
@@ -252,6 +255,9 @@ export function compileContent(files: Record<string, string>): CompileResult {
     for (const [k, v] of Object.entries(a.routes ?? {}))
       routeSlots.set(k, new Set([...(routeSlots.get(k) ?? []), ...v]));
   const prepGroups = new Set(b.orders.flatMap((o) => (o.prep ? [o.prep] : [])));
+  /** 地块（W5）：地块 id → 变体 id */
+  const plotDefs = new Map<string, Set<string>>();
+  for (const a of b.acts) for (const p of a.plots ?? []) plotDefs.set(p.id, new Set(Object.keys(p.variants)));
   /** 成长解锁的键（W3） */
   const unlockKeys = new Set(b.acts.flatMap((a) => (a.growth?.unlocks ?? []).map((u) => u.key)));
   const isTag = (k: string) => (PERSON_KINDS as readonly string[]).includes(k) || traits.has(k);
@@ -296,8 +302,18 @@ export function compileContent(files: Record<string, string>): CompileResult {
       walkEffects(u.effects, (e) => {
         if ('flag' in e) flagWrites.add(e.flag);
       });
+  for (const a of b.acts)
+    for (const p of a.plots ?? [])
+      for (const v of Object.values(p.variants))
+        walkEffects([...v.start, ...v.opens.effects], (e) => {
+          if ('flag' in e) flagWrites.add(e.flag);
+        });
   const allTournaments = b.acts.flatMap((a) => a.tournaments ?? []);
   const tournamentOrders = new Set(allTournaments.map((t) => t.order));
+  /** 地块的清理工单（W5）：做完它本身就是效果（开地） */
+  const clearanceOrders = new Set(
+    b.acts.flatMap((a) => (a.plots ?? []).flatMap((p) => Object.values(p.variants).flatMap((v) => v.orders))),
+  );
   for (const t of allTournaments)
     for (const effs of tournamentEffects(t))
       walkEffects(effs, (e) => {
@@ -313,6 +329,8 @@ export function compileContent(files: Record<string, string>): CompileResult {
     if (vv) return !!facilities.get(vv[1] as string)?.variants;
     const rv = ROUTE_VAR.exec(p);
     if (rv) return routeSlots.has(rv[1] as string);
+    const lv = PLOT_VAR.exec(p);
+    if (lv) return plotDefs.has(lv[1] as string);
     const pv = PREP_VAR.exec(p);
     if (pv) return prepGroups.has(pv[1] as string);
     const yv = CYCLES_VAR.exec(p);
@@ -377,6 +395,12 @@ export function compileContent(files: Record<string, string>): CompileResult {
       if (!r) err(file, `${where}: unknown route slot '${c.route}'`);
       else if (c.is !== 'none' && !r.has(c.is)) err(file, `${where}: route slot '${c.route}' has no route '${c.is}'`);
     }
+    if ('plot' in c) {
+      const v = plotDefs.get(c.plot);
+      if (!v) err(file, `${where}: unknown plot '${c.plot}'`);
+      else if (!(PLOT_STATES as readonly string[]).includes(c.is) && !v.has(c.is))
+        err(file, `${where}: plot '${c.plot}' is locked / building / open or one of its variants, not '${c.is}'`);
+    }
     if ('prep' in c && !prepGroups.has(c.prep)) err(file, `${where}: no order has prep '${c.prep}'`);
     if ('skilled' in c && c.who && !isTag(c.who))
       err(file, `${where}: who '${c.who}' is neither a person kind nor a trait`);
@@ -436,6 +460,11 @@ export function compileContent(files: Record<string, string>): CompileResult {
         const r = routeSlots.get(e.route);
         if (!r) err(file, `${w}: unknown route slot '${e.route}'`);
         else if (!r.has(e.set)) err(file, `${w}: route slot '${e.route}' has no route '${e.set}'`);
+      }
+      if ('build' in e) {
+        const v = plotDefs.get(e.plot);
+        if (!v) err(file, `${w}: unknown plot '${e.plot}'`);
+        else if (!v.has(e.build)) err(file, `${w}: plot '${e.plot}' has no variant '${e.build}'`);
       }
       if ('log' in e) needText(file, e.log);
       if ('endAct' in e) {
@@ -546,7 +575,8 @@ export function compileContent(files: Record<string, string>): CompileResult {
         !o.upgrade &&
         !o.remodel &&
         !o.variants &&
-        !tournamentOrders.has(o.id)
+        !tournamentOrders.has(o.id) &&
+        !clearanceOrders.has(o.id)
       )
         warn(file, 'order has no effects');
       // 修复变体、升级、改造（LG-14）：都落在这个地点的设施上
@@ -662,6 +692,118 @@ export function compileContent(files: Record<string, string>): CompileResult {
     checkExpr(file, d.pressure, 'pressure');
     for (const [k, v] of Object.entries(d.weights)) checkExpr(file, v, `weights.${k}`);
   }
+
+  /* ---------- 地块（W5，LG-15） ---------- */
+  /**
+   * 每块地的每个变体走一遍：锚点在地图里、直接连着旧的地点（地块的锚点只当终点，不当中转站）、
+   * 不当旧地点之间的近路（导航只加不挪）、清理工单和开出来的岗位都在这块地或者旧地点上。
+   * 路断不断在岛边是画面的事（game.test 按 Site 的折线查）。
+   */
+  const checkPlots = (file: string, a: Act) => {
+    const plots = a.plots ?? [];
+    if (!plots.length) return;
+    const aAnchors = new Set(a.anchors);
+    const plotAnchor = new Map<string, string>();
+    for (const p of plots) for (const v of Object.values(p.variants)) plotAnchor.set(v.anchor, p.id);
+    const base = a.anchors.filter((n) => !plotAnchor.has(n));
+    const edge = new Map<string, number>();
+    for (const [x, y, m] of a.nav) {
+      const k = x < y ? `${x}|${y}` : `${y}|${x}`;
+      if (edge.has(k)) err(file, `nav: duplicate edge ${x}–${y}`);
+      edge.set(k, m);
+    }
+    const mins = (x: string, y: string) => edge.get(x < y ? `${x}|${y}` : `${y}|${x}`);
+    const ids = new Set<string>();
+    const used = new Map<string, string>();
+    const tOrders = new Set((a.tournaments ?? []).map((t) => t.order));
+    const facilityAnchors = new Set(b.facilities.map((f) => f.anchor));
+    for (const p of plots) {
+      const w = `plots '${p.id}'`;
+      if (ids.has(p.id)) err(file, `${w}: duplicate plot id`);
+      ids.add(p.id);
+      const routes = a.routes?.[p.route];
+      if (!routes) err(file, `${w}.route: unknown route slot '${p.route}'`);
+      if (!Object.keys(p.variants).length) err(file, `${w}: needs at least one variant`);
+      const avg: number[] = [];
+      for (const [vid, v] of Object.entries(p.variants)) {
+        const wv = `${w}.variants.${vid}`;
+        if (routes && !routes.includes(vid)) err(file, `${wv}: route slot '${p.route}' has no route '${vid}'`);
+        if (!aAnchors.has(v.anchor)) {
+          err(file, `${wv}.anchor: '${v.anchor}' is not in anchors (new places stay in content from the start)`);
+          continue;
+        }
+        if (plotAnchor.get(v.anchor) !== p.id) err(file, `${wv}.anchor: '${v.anchor}' is used by another plot`);
+        if (facilityAnchors.has(v.anchor)) err(file, `${wv}.anchor: '${v.anchor}' already has a facility`);
+        if (a.people.some((x) => x.at === v.anchor)) err(file, `${wv}.anchor: someone starts on '${v.anchor}'`);
+        // 走得到：直接连着旧的地点（地块的锚点不当中转站），分钟数是正的
+        const links = base.map((n) => mins(n, v.anchor));
+        if (!links.some((m) => m !== undefined))
+          err(file, `${wv}.anchor: '${v.anchor}' has no nav edge to an existing place`);
+        const known = links.filter((m): m is number => m !== undefined);
+        if (known.length) avg.push(known.reduce((x, y) => x + y, 0) / known.length);
+        // 导航只加不挪：新地不能成为两个旧地点之间的近路
+        for (const [i, x] of base.entries())
+          for (const y of base.slice(i + 1)) {
+            const direct = mins(x, y);
+            const mx = mins(x, v.anchor);
+            const my = mins(v.anchor, y);
+            if (direct !== undefined && mx !== undefined && my !== undefined && mx + my < direct - 1)
+              err(file, `${wv}: going ${x} → ${v.anchor} → ${y} (${mx + my} min) beats the old path (${direct} min)`);
+          }
+        if (v.orders.length < 3 || v.orders.length > 5)
+          warn(file, `${wv}.orders: ${v.orders.length} clearance orders (the design asks for 3–5)`);
+        const placed = (kind: string, at: string, tid: string) => {
+          if (at !== v.anchor && plotAnchor.has(at))
+            err(file, `${wv}.${kind}: '${tid}' is at '${at}', another plot's place`);
+        };
+        for (const oid of v.orders) {
+          const o = b.orders.find((x) => x.id === oid);
+          if (!o) {
+            err(file, `${wv}.orders: unknown order '${oid}'`);
+            continue;
+          }
+          if (o.act !== a.id) err(file, `${wv}.orders: '${oid}' belongs to act '${o.act}'`);
+          if (used.has(oid)) err(file, `${wv}.orders: '${oid}' is already used by ${used.get(oid)}`);
+          used.set(oid, wv);
+          if (tOrders.has(oid)) err(file, `${wv}.orders: '${oid}' is a tournament's order`);
+          if (o.cooldown) warn(file, `${wv}.orders: clearance orders are done once; '${oid}' cooldown is ignored`);
+          placed('orders', o.at, oid);
+        }
+        for (const pid of v.opens.posts) {
+          const post = b.posts.find((x) => x.id === pid);
+          if (!post) err(file, `${wv}.opens.posts: unknown post '${pid}'`);
+          else {
+            if (post.act !== a.id) err(file, `${wv}.opens.posts: '${pid}' belongs to act '${post.act}'`);
+            placed('opens.posts', post.at, pid);
+          }
+          if (used.has(pid)) err(file, `${wv}.opens.posts: '${pid}' is already used by ${used.get(pid)}`);
+          used.set(pid, wv);
+        }
+        for (const oid of v.opens.orders) {
+          const o = b.orders.find((x) => x.id === oid);
+          if (!o) err(file, `${wv}.opens.orders: unknown order '${oid}'`);
+          else {
+            if (o.act !== a.id) err(file, `${wv}.opens.orders: '${oid}' belongs to act '${o.act}'`);
+            placed('opens.orders', o.at, oid);
+          }
+          if (used.has(oid)) err(file, `${wv}.opens.orders: '${oid}' is already used by ${used.get(oid)}`);
+          used.set(oid, wv);
+        }
+        checkEffects(file, v.start, `${wv}.start`);
+        checkEffects(file, v.opens.effects, `${wv}.opens.effects`);
+      }
+      // ADR 0021：同一块地的各个变体，到旧地点的平均步行分钟差在 ±10% 以内（只提醒，平衡交给机器人）
+      if (avg.length > 1) {
+        const lo = Math.min(...avg);
+        const hi = Math.max(...avg);
+        if (hi > lo * 1.1)
+          warn(
+            file,
+            `${w}: variants differ in average walk (${lo.toFixed(0)}–${hi.toFixed(0)} min, more than ±10%); check the bots`,
+          );
+      }
+    }
+  };
 
   /* ---------- 幕 ---------- */
   for (const a of b.acts) {
@@ -810,6 +952,7 @@ export function compileContent(files: Record<string, string>): CompileResult {
       }
       needText(file, `tournaments.${t.id}.title`);
     }
+    checkPlots(file, a);
     // 员工成长（W3）
     if (a.growth) {
       for (const t of Object.keys(a.growth.traits))

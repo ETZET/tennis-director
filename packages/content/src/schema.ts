@@ -27,6 +27,7 @@ export type Cond =
   | { variant: string; is: string }
   | { upgrade: string; has: string }
   | { route: string; is: string }
+  | { plot: string; is: string }
   | { prep: string; done?: boolean }
   | { skilled: SkillKind; gte: number; who?: string }
   | { unlocked: string }
@@ -62,6 +63,10 @@ export const cond: z.ZodType<Cond> = z.lazy(() =>
     z.strictObject({ upgrade: id, has: id }),
     /** 这一处选路（LG-11 / W2：s2、s3、s4）选了哪条路；is: none = 还没选 */
     z.strictObject({ route: id, is: id }),
+    /**
+     * 地块（W5，LG-15）：is 是 locked / building / open，或者变体 id（= 按这个变体在施工或者已经开了）
+     */
+    z.strictObject({ plot: id, is: id }),
     /** 一组分期筹备工单（order 的 prep）是不是都做完了；done: false = 还没都做完 */
     z.strictObject({ prep: id, done: z.boolean().optional() }),
     /**
@@ -136,6 +141,11 @@ export const effect = z.union([
    * 别处什么都不做。
    */
   z.strictObject({ ...gate, settle: z.literal(true) }),
+  /**
+   * 地块（W5，LG-15）：按这个变体开始施工（地块还是 locked 时才生效；冒出它的清理工单）。
+   * 选路（route）会自动让对应的地块开工，这个效果给第二季和特别的卡用
+   */
+  z.strictObject({ ...gate, plot: id, build: id }),
 ]);
 export type Effect = z.infer<typeof effect>;
 
@@ -615,6 +625,48 @@ export const ending = z.strictObject({
 });
 export type Ending = z.infer<typeof ending>;
 
+/* ---------------- 地块（W5，LG-15，ADR 0021） ---------------- */
+
+export const PLOT_STATES = ['locked', 'building', 'open'] as const;
+export type PlotPhase = (typeof PLOT_STATES)[number];
+
+/**
+ * 地块的一个变体（= 一条路）：新锚点、3–5 张清理工单（做完最后一张就开地）、开工时和开地时的效果、
+ * 开地以后才有的岗位和工单（不用再写 when）。
+ */
+export const plotVariant = z.strictObject({
+  /** 新锚点：一直在内容的 anchors 和 nav 里（导航只加不挪），地块没开时这里的岗位不开、工单不出现 */
+  anchor: id,
+  /** 清理工单：开工时一起冒出来（隐含 once），都做完就开地 */
+  orders: z.array(id).min(1),
+  /** 开工时执行一次 */
+  start: z.array(effect).default([]),
+  opens: z
+    .strictObject({
+      /** 开地以后才存在的岗位和工单（隐含"这块地按这个变体开了"） */
+      posts: z.array(id).default([]),
+      orders: z.array(id).default([]),
+      /** 开地时执行一次 */
+      effects: z.array(effect).default([]),
+    })
+    .default({ posts: [], orders: [], effects: [] }),
+});
+export type PlotVariant = z.infer<typeof plotVariant>;
+
+export const plot = z.strictObject({
+  id,
+  /** 哪一处选路决定它（s3 / s4）：选了哪条路就按同名的变体开工 */
+  route: id,
+  /**
+   * 第几季开：1 = 第一季选路时开工；2 = 开第二季时，按第一季没选的路（ending.land）里第一个有变体的开工
+   */
+  season: z.union([z.literal(1), z.literal(2)]).default(1),
+  /** 接下的主办赛事的比赛日，工地停工（清理工单不走进度） */
+  pause_on_events: z.boolean().default(true),
+  variants: z.record(id, plotVariant),
+});
+export type Plot = z.infer<typeof plot>;
+
 /* ---------------- 幕 ---------------- */
 
 export const act = z.strictObject({
@@ -703,6 +755,8 @@ export const act = z.strictObject({
   growth: growth.optional(),
   /** 结局方案 A（W4，LG-13）：不写 = 以前的行为 */
   ending: ending.optional(),
+  /** 地块（W5，LG-15）：不写 = 地图不长大（和以前一样） */
+  plots: z.array(plot).optional(),
   /** 每天固定开的活动（例如下午的青少年课） */
   daily: z.array(z.strictObject({ hour: z.number(), activity: id, if: cond.optional() })).default([]),
   /** 季节：从第几天开始（第一个从第 1 天开始）；decay 是这一季设施衰减的倍数（初秋落叶多） */

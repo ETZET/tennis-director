@@ -7,6 +7,7 @@ import type {
   Facility,
   Order,
   Person,
+  Plot,
   Post,
   Stat,
   Tournament,
@@ -44,7 +45,21 @@ export interface World {
   readonly closedBy: ReadonlyMap<string, readonly Tournament[]>;
   /** 分期筹备（W2）：组 → 这一组的工单 id */
   readonly prep: ReadonlyMap<string, readonly string[]>;
+  /**
+   * 地块（W5，LG-15）：地块、锚点 → 哪块地的哪些变体、清理工单 → 地块和变体、开地以后才有的岗位和工单 → 地块和变体。
+   * 地图没写 plots 时都是空的。
+   */
+  readonly plots: ReadonlyMap<string, Plot>;
+  readonly plotAt: ReadonlyMap<string, PlotRef & { variants: readonly string[] }>;
+  readonly plotOrders: ReadonlyMap<string, PlotRef>;
+  readonly plotOpens: ReadonlyMap<string, PlotRef>;
   expr(src: string): CompiledExpr;
+}
+
+/** 一块地的一个变体 */
+export interface PlotRef {
+  plot: string;
+  variant: string;
 }
 
 /** 赛事的一期（LG-11）：报名从 signup 起，start 开赛，end 收赛；days 是开赛的那几天（第几天） */
@@ -111,6 +126,18 @@ export function worldFor(content: ContentBundle, actId: string, directorId?: str
   const orders = (content.orders ?? []).filter((x) => x.act === act.id);
   const prep = new Map<string, string[]>();
   for (const o of orders) if (o.prep) prep.set(o.prep, [...(prep.get(o.prep) ?? []), o.id]);
+  const plots = act.plots ?? [];
+  const plotAt = new Map<string, PlotRef & { variants: string[] }>();
+  const plotOrders = new Map<string, PlotRef>();
+  const plotOpens = new Map<string, PlotRef>();
+  for (const p of plots)
+    for (const [variant, v] of Object.entries(p.variants)) {
+      const hit = plotAt.get(v.anchor);
+      if (hit) hit.variants.push(variant);
+      else plotAt.set(v.anchor, { plot: p.id, variant, variants: [variant] });
+      for (const o of v.orders) plotOrders.set(o, { plot: p.id, variant });
+      for (const x of [...v.opens.posts, ...v.opens.orders]) plotOpens.set(x, { plot: p.id, variant });
+    }
   const w: World = {
     content,
     act,
@@ -131,6 +158,10 @@ export function worldFor(content: ContentBundle, actId: string, directorId?: str
     eventPosts,
     closedBy,
     prep,
+    plots: byId(plots),
+    plotAt,
+    plotOrders,
+    plotOpens,
     expr(src) {
       let e = exprs.get(src);
       if (!e) exprs.set(src, (e = compileExpr(src)));

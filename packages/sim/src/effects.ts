@@ -181,6 +181,11 @@ export function applyEffects(ctx: Ctx, effects: readonly Effect[], entryId: numb
       (s.routes ??= {})[e.route] = e.set;
       out.push({ kind: 'route', slot: e.route, route: e.set });
       ctx.events.push({ type: 'route_chosen', slot: e.route, route: e.set });
+      // 地块（W5）：这一处的路决定的第一季地块，按同名的变体开工
+      for (const p of w.plots.values())
+        if (p.route === e.route && p.season === 1 && p.variants[e.set]) startPlot(ctx, p.id, e.set, entryId, out);
+    } else if ('build' in e) {
+      startPlot(ctx, e.plot, e.build, entryId, out);
     } else if ('settle' in e) {
       // 结局卡的"马上结算"（W4）：结局没打开、或者已经结算过时什么都不做
       settle(ctx, 'early', entryId);
@@ -192,6 +197,50 @@ export function applyEffects(ctx: Ctx, effects: readonly Effect[], entryId: numb
       out.push({ kind: 'task', person: e.who, order: e.task });
     }
   }
+}
+
+/* ---------------- 地块（W5，LG-15；只读的查询在 plots.ts） ---------------- */
+
+/**
+ * 地块按 variant 开工：还没开工（locked）才生效。写一条挂在 parent 下的日志（执行变体的 start 效果），
+ * 在 out（引出它的那一条）里记一笔；清理工单从这一刻起出现。清理工单碰巧都做过了（第二季）就直接开地。
+ */
+export function startPlot(
+  ctx: Ctx,
+  plot: string,
+  variant: string,
+  parent: number | null,
+  out?: EffectRecord[],
+): boolean {
+  const { s, w } = ctx;
+  const p = w.plots.get(plot);
+  const v = p?.variants[variant];
+  if (!p || !v || s.plots?.[plot]) return false;
+  const entry = logEntry(ctx, { kind: 'plot', plot, variant, state: 'building' }, parent, []);
+  (s.plots ??= {})[plot] = { state: 'building', variant, since: s.t, opened: null, cause: entry.id };
+  const rec: EffectRecord = { kind: 'plot', plot, variant, state: 'building' };
+  out?.push(rec);
+  entry.effects.push(rec);
+  ctx.events.push({ type: 'plot_building', plot, variant, anchor: v.anchor, orders: [...v.orders] });
+  applyEffects(ctx, v.start, entry.id, entry.effects);
+  checkPlotOpen(ctx, plot);
+  return true;
+}
+
+/** 施工中的地块：这个变体的清理工单都做完了就开地（执行 opens.effects，发 plot_open） */
+export function checkPlotOpen(ctx: Ctx, plot: string): boolean {
+  const { s, w } = ctx;
+  const st = s.plots?.[plot];
+  const v = st ? w.plots.get(plot)?.variants[st.variant] : undefined;
+  if (!st || !v || st.state !== 'building') return false;
+  if (!v.orders.every((o) => (s.orderLog.done[o] ?? 0) > 0)) return false;
+  st.state = 'open';
+  st.opened = s.t;
+  const entry = logEntry(ctx, { kind: 'plot', plot, variant: st.variant, state: 'open' }, st.cause, []);
+  entry.effects.push({ kind: 'plot', plot, variant: st.variant, state: 'open' });
+  ctx.events.push({ type: 'plot_open', plot, variant: st.variant, anchor: v.anchor });
+  applyEffects(ctx, v.opens.effects, entry.id, entry.effects);
+  return true;
 }
 
 /** 执行效果并写一条日志；返回日志条目。 */
