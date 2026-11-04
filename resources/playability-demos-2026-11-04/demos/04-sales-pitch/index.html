@@ -1,0 +1,750 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>推销台：看人下菜碟</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+html,body{height:100%;background:#3a2c33;overflow:hidden;touch-action:none}
+body{display:flex;align-items:center;justify-content:center;font-family:-apple-system,"PingFang SC","Noto Sans SC","Microsoft YaHei",sans-serif;font-weight:700;color:#2a1f2b}
+#phone{position:relative;width:390px;height:min(844px,100dvh);background:#e8c88a;display:flex;flex-direction:column;overflow:hidden;touch-action:none}
+@media (min-width:500px){#phone{border-radius:28px;box-shadow:0 0 0 8px #1b1418,0 20px 60px #0008}}
+button{font:inherit;color:inherit;border:3px solid #5a3d2b;background:#fff4dc;border-radius:12px;box-shadow:0 3px 0 #5a3d2b;cursor:pointer;touch-action:none}
+button:active{transform:translateY(2px);box-shadow:0 1px 0 #5a3d2b}
+button:disabled{opacity:.45}
+#top{height:48px;flex:none;display:flex;align-items:center;gap:6px;padding:0 6px;background:#5a3d2b;color:#fff4dc}
+#top button{color:#2a1f2b;width:44px;height:38px;font-size:18px;padding:0;border-width:2px;box-shadow:0 2px 0 #2a1f2b}
+#hud{flex:1;display:flex;justify-content:space-around;font-size:13px}
+#hud b{display:inline-block;font-size:16px;color:#f2b134;min-width:20px}
+#hud b.bump{animation:bump .4s}
+@keyframes bump{0%{transform:scale(1)}40%{transform:scale(1.5)}100%{transform:scale(1)}}
+#stage{position:relative;width:390px;height:330px;flex:none;overflow:hidden}
+#stage.shake{animation:shake .35s}
+#stage.bigshake{animation:shake .25s 3}
+@keyframes shake{0%,100%{transform:translate(0,0)}20%{transform:translate(-5px,2px)}40%{transform:translate(5px,-2px)}60%{transform:translate(-3px,1px)}80%{transform:translate(3px,0)}}
+#cv{width:390px;height:330px;image-rendering:pixelated;image-rendering:crisp-edges;display:block}
+#flash{position:absolute;inset:0;pointer-events:none;opacity:0}
+#flash.on{animation:flash .45s}
+@keyframes flash{0%{opacity:.65}100%{opacity:0}}
+#bars{position:absolute;right:6px;top:8px;width:150px;background:#fff4dcee;border:2px solid #5a3d2b;border-radius:10px;padding:5px 7px;font-size:11px}
+.bar{display:flex;align-items:center;gap:5px;margin:2px 0}
+.bar span{width:28px}
+.track{flex:1;height:11px;background:#2a1f2b33;border:2px solid #2a1f2b;border-radius:6px;overflow:hidden}
+.fillb{height:100%;width:0;transition:width .45s cubic-bezier(.3,1.6,.6,1)}
+#bInt .fillb{background:#3fae5a}
+#bSus .fillb{background:#d94a3a}
+#bPat .fillb{background:#f2b134;transition:width .2s linear}
+#bSus.hot .track{animation:hot .5s infinite}
+@keyframes hot{50%{background:#d94a3a88}}
+#tag:empty{display:none}
+#tag{position:absolute;left:6px;top:8px;background:#2a1f2bcc;color:#fff4dc;font-size:12px;padding:4px 8px;border-radius:8px;max-width:200px}
+#bubble{position:absolute;left:176px;top:84px;max-width:150px;background:#fff;border:3px solid #2a1f2b;border-radius:12px;padding:6px 9px;font-size:14px;line-height:1.3;opacity:0;transform:scale(.6);transform-origin:0 100%;transition:opacity .15s,transform .2s cubic-bezier(.3,1.7,.6,1)}
+#bubble.on{opacity:1;transform:scale(1)}
+#bubble:after{content:"";position:absolute;left:-12px;bottom:10px;border:7px solid transparent;border-right:9px solid #2a1f2b}
+#emote{position:absolute;font-size:30px;left:100px;top:76px;opacity:0;transition:opacity .15s}
+#emote.on{animation:pop .5s}
+@keyframes fadein{0%{opacity:0;transform:translateX(-12px)}100%{opacity:1}}
+@keyframes pop{0%{transform:scale(.2) translateY(10px)}50%{transform:scale(1.4)}100%{transform:scale(1)}}
+#fx{position:absolute;inset:0;pointer-events:none}
+.float{position:absolute;font-size:17px;font-weight:900;-webkit-text-stroke:1px #2a1f2b;text-shadow:0 2px 0 #2a1f2b;animation:rise 1.2s forwards;white-space:nowrap}
+@keyframes rise{0%{transform:translateY(0) scale(.6);opacity:1}20%{transform:translateY(-8px) scale(1.25)}100%{transform:translateY(-46px) scale(1);opacity:0}}
+.coin{position:absolute;width:10px;height:10px;background:#f2b134;border:2px solid #2a1f2b;border-radius:50%}
+#clues{flex:none;min-height:36px;display:flex;flex-wrap:wrap;gap:4px;align-items:center;padding:4px 8px;background:#c9a36a;border-top:3px solid #5a3d2b}
+#clues .lab{font-size:12px;color:#5a3d2b}
+.clue{font-size:12px;background:#fff4dc;border:2px solid #5a3d2b;border-radius:8px;padding:2px 6px;animation:pop .35s backwards}
+#say{flex:none;min-height:40px;padding:6px 10px;font-size:13px;line-height:1.35;background:#fff4dc;border-top:3px solid #5a3d2b;border-bottom:3px solid #5a3d2b;color:#5a3d2b}
+#say i{font-style:normal;color:#2a1f2b}
+#panel{flex:1;padding:8px 8px 12px;display:flex;flex-direction:column;justify-content:flex-end;gap:8px;min-height:0}
+.ph{display:flex;justify-content:space-between;align-items:center;font-size:13px;color:#5a3d2b}
+.dots b{display:inline-block;width:13px;height:13px;border-radius:50%;border:2px solid #5a3d2b;margin-left:3px;background:#f2b134}
+.dots b.off{background:transparent}
+#hand{display:grid;grid-template-columns:1fr 1fr;grid-auto-rows:minmax(88px,108px);align-content:center;gap:8px;flex:1;min-height:0}
+.card{position:relative;text-align:left;padding:8px 9px;display:flex;flex-direction:column;gap:4px;background:#fffaf0;transition:transform .35s,opacity .35s;min-height:44px}
+.card .nm{font-size:16px;line-height:1.15;padding-right:34px}
+.card .ln{font-size:11px;font-weight:600;color:#5a3d2b;line-height:1.3}
+.card .kd{position:absolute;right:5px;top:6px;font-size:11px;color:#fff;padding:1px 5px;border-radius:6px;border:2px solid #2a1f2b}
+.card.fly{transform:translateY(-260px) scale(.3) rotate(-12deg);opacity:0}
+.k-true{background:#3fae5a}.k-exag{background:#e8892c}.k-lie{background:#d94a3a}.k-promo{background:#3f6fb0}.k-gift{background:#8a5ab0}.k-flat{background:#d9709a}
+.big{height:56px;font-size:19px;flex:none}
+.gold{background:#f2b134}
+.red{background:#f0a090}
+.green{background:#9fdc9a}
+#prods{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;flex:none}
+#prods button{height:58px;font-size:14px;padding:2px;line-height:1.2}
+#prods button small{display:block;font-size:11px;color:#5a3d2b}
+#prods button.sel{background:#f2b134}
+#priceBox{display:flex;align-items:baseline;justify-content:center;gap:10px;flex:none}
+#priceBig{font-size:34px;font-weight:900;color:#2a1f2b}
+#priceSub{font-size:12px;color:#5a3d2b}
+#faceHint{font-size:28px;width:38px;text-align:center}
+#slider{position:relative;height:64px;flex:none;touch-action:none}
+#strack{position:absolute;left:22px;right:22px;top:22px;height:18px;border:3px solid #2a1f2b;border-radius:10px;background:linear-gradient(90deg,#9fdc9a,#f2b134 45%,#d94a3a)}
+#knob{position:absolute;top:-17px;width:46px;height:46px;margin-left:-23px;border-radius:50%;background:#fff4dc;border:3px solid #2a1f2b;box-shadow:0 3px 0 #2a1f2b;display:flex;align-items:center;justify-content:center;font-size:18px}
+.tick{position:absolute;top:44px;font-size:11px;color:#5a3d2b;transform:translateX(-50%)}
+.row{display:flex;gap:8px;flex:none}
+.row button{flex:1}
+.result{background:#fff4dc;border:3px solid #5a3d2b;border-radius:14px;padding:10px 12px;display:flex;flex-direction:column;gap:6px;animation:pop .35s}
+.result h3{font-size:20px}
+.result .st{font-size:15px;color:#c88a14}
+.result .q{font-size:13px;color:#5a3d2b}
+.result .rv{font-size:12px;background:#2a1f2b;color:#fff4dc;border-radius:8px;padding:6px 8px;line-height:1.5}
+.ov{position:absolute;inset:0;background:#2a1f2bcc;display:flex;align-items:center;justify-content:center;z-index:20;padding:18px}
+.ov.hide{display:none}
+.box{background:#fff4dc;border:4px solid #5a3d2b;border-radius:16px;padding:18px;width:100%;max-height:100%;overflow:auto;box-shadow:0 5px 0 #5a3d2b}
+.box h1{font-size:26px;margin-bottom:4px}
+.box h2{font-size:16px;margin:10px 0 4px}
+.box p,.box li{font-size:14px;line-height:1.5;font-weight:600}
+.box ul{padding-left:18px}
+.box .big{width:100%;margin-top:14px}
+.paper{background:#f4f1e8;font-family:Georgia,"Songti SC",serif;border:3px solid #2a1f2b}
+.paper .mast{font-size:22px;letter-spacing:2px;text-align:center;border-bottom:3px double #2a1f2b;padding-bottom:4px}
+.paper .hl{font-size:22px;margin:10px 0;line-height:1.3}
+.wk{font-size:13px;padding:5px 0;border-bottom:1px dashed #c9a36a;animation:fadein .4s backwards;display:flex;justify-content:space-between;gap:8px}
+.pos{color:#3fae5a}.neg{color:#d94a3a}
+.title{font-size:28px;color:#c8643c;text-align:center;margin:6px 0}
+.stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;text-align:center;margin:8px 0}
+.stats div{background:#fff;border:2px solid #5a3d2b;border-radius:10px;padding:6px 2px;font-size:11px}
+.stats b{display:block;font-size:19px}
+</style>
+</head>
+<body>
+<div id="phone">
+  <div id="top">
+    <button id="mute">🔊</button>
+    <div id="hud"><span>客人 <b id="hCust">0/7</b></span><span>营收 <b id="hRev">$0</b></span><span>诚信 <b id="hHon">100</b></span></div>
+    <button id="help">?</button>
+  </div>
+  <div id="stage">
+    <canvas id="cv" width="130" height="110"></canvas>
+    <div id="tag"></div>
+    <div id="bars">
+      <div class="bar" id="bInt"><span>兴趣</span><div class="track"><div class="fillb"></div></div></div>
+      <div class="bar" id="bSus"><span>怀疑</span><div class="track"><div class="fillb"></div></div></div>
+      <div class="bar" id="bPat"><span>耐心</span><div class="track"><div class="fillb"></div></div></div>
+    </div>
+    <div id="bubble"></div>
+    <div id="emote"></div>
+    <div id="fx"></div>
+    <div id="flash"></div>
+  </div>
+  <div id="clues"></div>
+  <div id="say"></div>
+  <div id="panel"></div>
+
+  <div class="ov" id="startOv"><div class="box">
+    <h1>推销台：看人下菜碟</h1>
+    <p style="color:#5a3d2b">Palm Oasis 网球俱乐部 · 前台 · 今天来了 7 位客人</p>
+    <h2>怎么玩</h2>
+    <ul>
+      <li>看客人的<b>穿戴线索</b>，猜他有多少钱、想要什么、精不精明。</li>
+      <li>每位客人最多出 <b>3 张话术卡</b>：拉高<b>兴趣</b>，别让<b>怀疑</b>爆表。谎话最好用，也最危险。</li>
+      <li>选一样商品，<b>拖动价格</b>报价；看他的脸色，能宰就宰，宰狠了会被记住。</li>
+    </ul>
+    <button class="big gold" id="startBtn">开门营业</button>
+  </div></div>
+
+  <div class="ov hide" id="helpOv"><div class="box">
+    <h1>设计说明</h1>
+    <h2>在测什么</h2>
+    <p>支柱 A（钱从哪来）+ B（总监亲手干）：把"卖会籍"从一个数字变成一场和具体的人的博弈。每 20–40 秒一个决定（出哪张卡、卖什么、报多少），每局有"宰到了"（高尔夫土豪）和"搞砸了"（被伪装的记者抓到撒谎）。</p>
+    <h2>取舍在哪</h2>
+    <ul>
+      <li><b>谎话卡</b>：兴趣涨得最多、对谁都管用；但怀疑涨，精明的人涨得更狠，一周后可能被拆穿 → 差评、退款。</li>
+      <li><b>实话卡</b>：要读对人才有用（孩子卡只对带孩子的），降怀疑，诚信分涨，可能带来转介绍。</li>
+      <li><b>限时八折</b>：省心的兴趣，但报价封顶八折价——对土豪就是白扔钱。</li>
+      <li><b>免费体验课</b>：花 $30（Dale 的时间），稳涨兴趣。</li>
+      <li><b>报价</b>：高了被还价、再推会恼；低了当场成交，但会告诉你"他本来愿意出多少"。卖得太贵，一周后可能退会。</li>
+    </ul>
+    <p style="margin-top:8px">每局随机：客人顺序、预算和精明度有浮动、发到手的卡不同。</p>
+    <button class="big" id="helpClose">关掉</button>
+  </div></div>
+
+  <div class="ov hide" id="revealOv"><div class="box paper" id="revealBox"></div></div>
+  <div class="ov hide" id="endOv"><div class="box" id="endBox"></div></div>
+</div>
+
+<script>
+'use strict';
+// ---------- 基础 ----------
+const Q = new URLSearchParams(location.search);
+const FAST = Q.has('fast') ? 6 : 1;
+const SEED = Q.has('seed') ? +Q.get('seed') : (Date.now() % 1e9);
+function mulberry(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+let rng = mulberry(SEED);
+const R = (a,b)=>a+rng()*(b-a);
+const pick = a=>a[Math.floor(rng()*a.length)];
+const shuffle = a=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(rng()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+const $ = id=>document.getElementById(id);
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const money = n=>(n<0?'-$':'$')+Math.abs(Math.round(n)).toLocaleString('en-US');
+function tap(el, fn){ el.addEventListener('pointerdown', e=>{ e.preventDefault(); initAudio(); fn(e); }); }
+
+// ---------- 声音 ----------
+let AC=null, muted=false;
+function initAudio(){ if(!AC){ try{ AC=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} } }
+function beep(f=600,d=.08,type='square',vol=.06,slide=0){
+  if(muted||!AC) return;
+  const t=AC.currentTime, o=AC.createOscillator(), g=AC.createGain();
+  o.type=type; o.frequency.setValueAtTime(f,t); if(slide) o.frequency.linearRampToValueAtTime(f+slide,t+d);
+  g.gain.setValueAtTime(vol,t); g.gain.exponentialRampToValueAtTime(.001,t+d);
+  o.connect(g); g.connect(AC.destination); o.start(t); o.stop(t+d+.02);
+}
+const SFX={
+  card:()=>beep(520,.06,'square',.05,200),
+  up:()=>{beep(660,.07);setTimeout(()=>beep(880,.09),60)},
+  sus:()=>beep(180,.18,'sawtooth',.06,-60),
+  cash:()=>{beep(990,.06,'square',.06);setTimeout(()=>beep(1320,.14,'square',.06),70)},
+  big:()=>{[660,880,1100,1320].forEach((f,i)=>setTimeout(()=>beep(f,.1,'square',.06),i*70))},
+  bad:()=>{beep(220,.2,'sawtooth',.08,-80);setTimeout(()=>beep(140,.3,'sawtooth',.08,-40),160)},
+  slam:()=>beep(90,.25,'square',.1,-40),
+  tick:()=>beep(1200,.02,'square',.025),
+  write:()=>{beep(2400,.03,'triangle',.03);setTimeout(()=>beep(2600,.03,'triangle',.03),70)},
+};
+tap($('mute'),()=>{ muted=!muted; $('mute').textContent=muted?'🔇':'🔊'; });
+
+// ---------- 数据 ----------
+const NEEDS={learn:'想学球',social:'想社交',face:'想要面子',cheap:'只想便宜'};
+const PRODUCTS={
+  year:{name:'年卡',price:900,step:10},
+  month:{name:'月卡',price:90,step:5},
+  coach:{name:'私教课包',price:360,step:10},
+  racket:{name:'球拍',price:160,step:5},
+};
+const FIT={
+  learn:{coach:1.25,racket:.9,month:.7,year:.5},
+  social:{year:1.15,month:1.0,coach:.5,racket:.4},
+  face:{year:1.2,racket:1.1,coach:.8,month:.5},
+  cheap:{month:1.1,racket:.55,coach:.5,year:.35},
+};
+const KIND={true:'实话',exag:'夸张',lie:'谎话',promo:'促销',gift:'送',flat:'恭维'};
+const CARDS=[
+  {id:'celeb',name:'名人也在这打',kind:'exag',line:'“上周还有职业选手来这儿练球。”',int:{face:30,social:20,learn:12,cheap:0},sus:20},
+  {id:'sale',name:'限时八折',kind:'promo',line:'“今天签就八折。”报价封顶八折价',int:{cheap:36,social:12,learn:12,face:-8},sus:4},
+  {id:'kid',name:'孩子的未来',kind:'true',line:'“小孩学网球，专注力和体格都上来。”',special:'kid'},
+  {id:'last2',name:'只剩最后两个名额',kind:'lie',line:'“这个月只剩最后两个名额了。”',int:{face:34,social:34,learn:34,cheap:26},sus:32},
+  {id:'trial',name:'免费体验课',kind:'gift',line:'“先让 Dale 带你打一节。”花 $30',int:{learn:32,cheap:22,social:12,face:6},sus:-6,cost:30},
+  {id:'honest',name:'老实说……',kind:'true',line:'“场地还在修，但教练是真心教。”',special:'honest'},
+  {id:'party',name:'周五会员派对',kind:'true',line:'“每周五晚上烧烤配双打。”',int:{social:32,face:14,learn:4,cheap:2},sus:0},
+  {id:'flatter',name:'您一看就是高手',kind:'flat',line:'“您这身板，一看就会打。”',int:{face:32,social:8,learn:4,cheap:0},sus:12},
+  {id:'quinta',name:'比 La Quinta 划算',kind:'true',line:'“同样的钱，我们多一块红土场。”',special:'quinta'},
+  {id:'wimb',name:'Dale 打过温网',kind:'lie',line:'“我们的教练 Dale 打过温布尔登。”',int:{learn:32,face:26,social:10,cheap:4},sus:38},
+  {id:'view',name:'看得见雪山',kind:'true',line:'“打完球坐在棕榈树下看圣哈辛托山。”',int:{social:18,face:16,learn:4,cheap:4},sus:0},
+];
+const ARCH={
+  golfer:{tag:'穿 Polo 衫的大叔',name:'Chad',he:'他',need:'face',budget:3.0,savvy:.15,pat:46,
+    skin:'#ffdbac',hair:'#d9b44a',top:'#f08aa8',pants:'#f4f1e8',shoes:'#ffffff',acc:['visor','collar','watch'],
+    clues:['高尔夫 Polo 衫','金表','崭新球鞋'],greet:'朋友说你们这儿还行？我平时打高尔夫，网球……试试呗。',
+    good:'贵才配得上我，哈！',bad:'你当我是冤大头？'},
+  critic:{tag:'戴墨镜的女士',name:'Marisol',he:'她',need:'social',budget:1.0,savvy:1.0,pat:40,critic:true,
+    skin:'#c68642',hair:'#2a1f2b',top:'#8a8f98',pants:'#4a4f5a',shoes:'#5a3d2b',acc:['longhair','shades','notebook'],
+    clues:['墨镜不摘','小本子','问得很细'],greet:'随便看看。你们的场地……多久维护一次？',
+    good:'服务还算实在。',bad:'我听够了。'},
+  parent:{tag:'带孩子的妈妈',name:'Linda',he:'她',need:'learn',budget:1.25,savvy:.5,pat:38,kid:true,
+    skin:'#f1c27d',hair:'#8a5a35',top:'#4fc3d9',pants:'#3f6fb0',shoes:'#f4f1e8',acc:['ponytail','kid'],
+    clues:['带着孩子','运动水壶'],greet:'他最近天天看网球比赛，非要来学。',
+    good:'孩子开心就好。',bad:'当着孩子的面也胡说？'},
+  snowbird:{tag:'晒伤的加拿大老头',name:'Gordon',he:'他',need:'social',budget:1.6,savvy:.3,pat:44,
+    skin:'#f4a07a',hair:'#e8e8e0',top:'#3fae9a',pants:'#c9a36a',shoes:'#8a5a35',acc:['sunburn','hawaii'],
+    clues:['晒得通红','夏威夷衫','退休了'],greet:'冬天来沙漠躲雪的！想找几个一起打球的老伙计。',
+    good:'Lovely，老伙计们会喜欢这儿。',bad:'Sorry，可我不傻。'},
+  bargain:{tag:'拿着传单的人',name:'Kevin',he:'他',need:'cheap',budget:.85,savvy:.75,pat:36,
+    skin:'#ffdbac',hair:'#2a1f2b',top:'#f4f1e8',pants:'#3f6fb0',shoes:'#4a4f5a',acc:['flyer','glasses'],
+    clues:['La Quinta 的传单','一直在算账'],greet:'La Quinta 那边一个月 $79。你们呢？',
+    good:'行，算你便宜。',bad:'我去 La Quinta 了。'},
+  student:{tag:'背包的大学生',name:'Maya',he:'她',need:'cheap',budget:.5,savvy:.4,pat:34,
+    skin:'#8d5524',hair:'#2a1f2b',top:'#d94a3a',pants:'#4a4f5a',shoes:'#9b8f7a',acc:['oldshoes','backpack','longhair'],
+    clues:['旧球鞋','背包','学生证挂绳'],greet:'我……就想有个地方练发球。别太贵。',
+    good:'省下来的钱买泡面！',bad:'骗学生，真行。'},
+  oldpro:{tag:'戴发带的老球友',name:'Hank',he:'他',need:'social',budget:1.05,savvy:.85,pat:40,
+    skin:'#c68642',hair:'#b0b0a8',top:'#f4f1e8',pants:'#f4f1e8',shoes:'#f4f1e8',acc:['headband','oldracket'],
+    clues:['发带','磨旧的球拍','小腿很结实'],greet:'我打了四十年球。你们这儿有像样的对手吗？',
+    good:'有对手就行。',bad:'糊弄外行去吧。'},
+  influencer:{tag:'举着手机的年轻人',name:'Tiffany',he:'她',need:'face',budget:1.35,savvy:.5,pat:36,
+    skin:'#ffdbac',hair:'#f2b134',top:'#f4f1e8',pants:'#d9709a',shoes:'#ffffff',acc:['longhair','headshades','phone'],
+    clues:['名牌墨镜架头顶','一直在自拍','两万粉丝'],greet:'你们这儿出片吗？我有两万粉丝哦。',
+    good:'今晚就发帖！',bad:'我要拍视频曝光你们。'},
+};
+const N_CUST=7;
+
+// ---------- 状态 ----------
+let G;
+function newGame(){
+  rng = mulberry(G ? Math.floor(Math.random()*1e9) : SEED);
+  let rest=shuffle(['parent','snowbird','bargain','student','oldpro','influencer']).slice(0,5);
+  let order=shuffle(['golfer',...rest]);
+  const ci=2+Math.floor(rng()*4); order.splice(ci,0,'critic');
+  G={order,idx:-1,rev:0,honesty:100,reviews:[],sales:[],log:[],deck:[],clock:0,phase:'idle',c:null,lock:0,articles:[],stormed:0};
+  updHud();
+}
+let timers=[];
+function after(ms,fn){ timers.push({t:G.clock+ms,fn}); }
+
+function makeCust(key){
+  const a=ARCH[key];
+  return {key,a,need:a.need,budget:a.budget*R(.85,1.15),savvy:clamp(a.savvy+R(-.08,.08),0,1),
+    interest:Math.round(R(22,38)),sus:Math.round(10+a.savvy*18),pat:a.pat,patMax:a.pat,
+    x:-40,tx:34,flip:false,walk:false,frame:0,ft:0,expr:'neutral',exprT:0,write:0,
+    lies:[],played:[],honest:false,product:null,W:0,pushes:0,discount:false,bias:R(-.08,.08),
+    mult:1,mmax:3,kidBob:0};
+}
+
+// ---------- 画面 ----------
+const cv=$('cv'), ctx=cv.getContext('2d');
+ctx.imageSmoothingEnabled=false;
+const INK='#2a1f2b';
+const BODY=[
+'.....OOOOOO.....','....OHHHHHHO....','...OHHHHHHHHO...','...OHHHHHHHHO...','...OHSSSSSSHO...',
+'...OSSSSSSSSO...','...OSSSSSSSSO...','...OSSSSSSSSO...','...OSSSSSSSSO...','....OSSSSSSO....',
+'.....OOSSOO.....','....OTTTTTTO....','..OOTTTTTTTTOO..','.OTTTTTTTTTTTTO.','.OTTOTTTTTTOTTO.',
+'.OTTOTTTTTTOTTO.','.OTTOTTTTTTOTTO.','.OSSOTTTTTTOSSO.','.OSSOTTTTTTOSSO.','..OO.OTTTTO.OO..',
+'....OPPPPPPO....','....OPPPPPPO....','....OPPPPPPO....','....OPPOOPPO....','....OPPOOPPO....',
+'....OPPOOPPO....','....OPPOOPPO....','....OPPOOPPO....','....OSSOOSSO....','...OBBBOOBBBO...',
+'...OBBBOOBBBO...','...OOOOOOOOOO...'];
+const WALK_LEGS=[
+'....OPPOOPPO....','...OPPO..OPPO...','...OPPO..OPPO...','..OPPO....OPPO..','..OPPO....OPPO..',
+'..OSSO....OSSO..','.OBBBO....OBBBO.','.OBBBO....OBBBO.','.OOOOO....OOOOO.'];
+const KID=[
+'..OOOO..','.OHHHHO.','.OSSSSO.','.OSSSSO.','..OSSO..','.OTTTTO.','OTTTTTTO','OSTTTTSO',
+'.OTTTTO.','.OPPPPO.','.OPOOPO.','.OPOOPO.','.OBOOBO.','.OOOOOO.'];
+function shade(hex,k){ const n=parseInt(hex.slice(1),16); let r=n>>16,g=n>>8&255,b=n&255;
+  r=clamp(Math.round(r*k),0,255);g=clamp(Math.round(g*k),0,255);b=clamp(Math.round(b*k),0,255);
+  return '#'+((1<<24)|(r<<16)|(g<<8)|b).toString(16).slice(1); }
+function mix(a,b,t){ const A=parseInt(a.slice(1),16),B=parseInt(b.slice(1),16);
+  const f=(s)=>Math.round(((A>>s)&255)*(1-t)+((B>>s)&255)*t);
+  return '#'+((1<<24)|(f(16)<<16)|(f(8)<<8)|f(0)).toString(16).slice(1); }
+
+function drawPerson(c, ox, oy){
+  const a=c.a, S=2, flip=c.flip;
+  const P=(gx,gy,col)=>{ if(!col) return; const x=flip?15-gx:gx; ctx.fillStyle=col; ctx.fillRect(ox+x*S, oy+gy*S, S, S); };
+  let skin=a.skin; if(c.expr==='angry') skin=mix(skin,'#e05040',.35);
+  const pal={O:INK,S:skin,H:a.hair,T:a.top,P:a.pants,B:a.shoes};
+  const walking=c.walk && c.frame%2===1;
+  for(let y=0;y<32;y++){
+    const row = (walking && y>=23) ? WALK_LEGS[y-23] : BODY[y];
+    for(let x=0;x<16;x++){ const ch=row[x]; if(ch!=='.') P(x,y,pal[ch]); }
+  }
+  // 上衣暗面
+  for(let y=13;y<19;y++){ P(10,y,shade(a.top,.85)); }
+  const acc=a.acc;
+  if(acc.includes('longhair')){ for(let y=4;y<12;y++){P(3,y,a.hair);P(12,y,a.hair);} P(2,6,INK);P(2,7,INK);P(2,8,INK);P(2,9,INK);P(2,10,INK);P(13,6,INK);P(13,7,INK);P(13,8,INK);P(13,9,INK);P(13,10,INK);P(3,12,INK);P(12,12,INK); }
+  if(acc.includes('ponytail')){ P(1,2,INK);P(2,2,a.hair);P(1,3,INK);P(2,3,a.hair);P(1,4,a.hair);P(0,4,INK);P(1,5,INK); }
+  if(acc.includes('visor')){ for(let x=4;x<12;x++)P(x,3,'#f4f1e8'); P(4,2,'#f4f1e8');P(11,2,'#f4f1e8'); for(let x=10;x<15;x++)P(x,4,'#f4f1e8'); P(15,4,INK); for(let x=12;x<15;x++)P(x,5,INK); P(3,3,INK);P(12,3,INK); }
+  if(acc.includes('collar')){ P(5,11,'#fff');P(6,11,'#fff');P(9,11,'#fff');P(10,11,'#fff');P(7,11,skin);P(8,11,skin);P(7,12,skin);P(8,12,shade(a.top,.7)); }
+  if(acc.includes('watch')){ P(2,17,'#f2b134');P(3,17,'#ffe27a');P(1,17,INK); }
+  if(acc.includes('sunburn')){ P(8,7,'#d94a3a');P(5,7,'#e0603c');P(10,7,'#e0603c');P(2,17,'#e0603c');P(13,17,'#e0603c'); }
+  if(acc.includes('hawaii')){ [[3,13],[7,14],[11,13],[5,16],[9,17],[2,15],[13,15],[7,18]].forEach(([x,y])=>P(x,y,(x+y)%2?'#f2b134':'#fff4dc')); }
+  if(acc.includes('flyer')){ for(let y=14;y<20;y++)for(let x=13;x<17;x++)P(x,y,(x===13||x===16||y===14||y===19)?INK:'#fff'); P(14,15,'#d94a3a');P(15,15,'#d94a3a');P(14,17,'#3f6fb0');P(15,17,'#3f6fb0');P(14,18,'#c9a36a'); }
+  if(acc.includes('notebook')){ for(let y=15;y<20;y++)for(let x=0;x<4;x++)P(x,y,(x===0||y===15||y===19||x===3)?INK:'#8a5a35'); P(1,16,'#fff');P(2,16,'#fff');P(1,17,'#fff');
+    if(c.write>0){ const k=Math.floor(G.clock/90)%3; P(2+k%2,14+(k===1?1:0),'#f2b134'); P(3,13,INK);} }
+  if(acc.includes('oldshoes')){ P(5,29,a.skin);P(10,30,'#c9a36a');P(4,30,'#6a6050');P(11,29,'#6a6050'); }
+  if(acc.includes('backpack')){ for(let y=12;y<19;y++){P(5,y,'#3c7d3a');P(10,y,'#3c7d3a');} P(12,10,'#3c7d3a');P(13,10,INK); }
+  if(acc.includes('headband')){ for(let x=4;x<12;x++)P(x,4,'#d94a3a'); P(3,4,INK);P(12,4,INK); }
+  if(acc.includes('oldracket')){ // 右手的旧球拍
+    for(let y=6;y<14;y++){P(14,y,INK);P(17,y,INK);} for(let x=15;x<17;x++){P(x,5,INK);P(x,14,INK);}
+    for(let y=6;y<14;y++){P(15,y,y%2?'#e8e0c0':'#c8643c');P(16,y,y%2?'#c8643c':'#e8e0c0');}
+    P(15,15,'#8a5a35');P(15,16,'#8a5a35');P(14,17,'#8a5a35');P(14,15,INK);P(16,15,INK);P(16,16,INK);
+  }
+  if(acc.includes('headshades')){ for(let x=4;x<12;x++)P(x,2,'#2a1f2b'); P(5,2,'#8ec9e8');P(10,2,'#8ec9e8'); }
+  if(acc.includes('phone')){ for(let y=13;y<17;y++){P(13,y,INK);P(14,y,INK);} P(13,14,'#8ec9e8');P(14,14,'#cfe8f4');P(13,15,'#8ec9e8'); }
+  // 脸
+  const E=INK, e=c.expr;
+  const shadesOn=acc.includes('shades');
+  if(acc.includes('glasses')){ const L='#cfe8f4'; [[5,6],[6,6],[9,6],[10,6],[5,7],[6,7],[9,7],[10,7]].forEach(([x,y])=>P(x,y,L)); [[4,6],[4,7],[7,6],[8,6],[11,6],[11,7],[5,5],[6,5],[9,5],[10,5]].forEach(([x,y])=>P(x,y,INK)); P(6,7,E);P(9,7,E); P(5,6,'#fff');P(10,6,'#fff');
+    if(e==='angry'){P(5,4,E);P(10,4,E);} if(e==='sus'){P(9,4,E);P(10,4,E);} }
+  else if(!shadesOn){
+    if(e==='sus'){ P(5,6,E);P(6,6,E);P(9,5,E);P(9,6,E);P(9,4,E);P(10,4,E); }
+    else if(e==='angry'){ P(5,4,E);P(6,5,E);P(10,4,E);P(9,5,E);P(6,6,E);P(9,6,E); }
+    else if(e==='happy'){ P(5,6,E);P(6,5,E);P(7,6,E);P(8,6,E);P(9,5,E);P(10,6,E); }
+    else { P(6,5,E);P(6,6,E);P(9,5,E);P(9,6,E); }
+  } else {
+    for(let x=4;x<12;x++)P(x,6,INK); P(5,5,INK);P(6,5,INK);P(9,5,INK);P(10,5,INK); P(5,6,'#8ec9e8'); P(10,6,'#8ec9e8');
+    if(e==='angry'){P(5,4,E);P(10,4,E);} if(e==='sus'){P(9,4,E);P(10,4,E);}
+  }
+  if(e==='happy'){ P(6,8,E);P(9,8,E);P(7,9,E);P(8,9,E);P(4,7,'#f08a8a');P(11,7,'#f08a8a'); }
+  else if(e==='angry'){ P(7,8,E);P(8,8,E);P(6,9,E);P(9,9,E); }
+  else if(e==='doubt'){ P(6,8,E);P(7,8,'#fff');P(8,8,'#fff');P(9,8,E);P(6,9,E);P(9,9,E); }
+  else if(e==='sus'){ P(8,8,E);P(9,8,E); }
+  else if(e==='shock'){ P(7,8,E);P(8,8,E);P(7,9,E);P(8,9,E); }
+  else { P(7,8,E);P(8,8,E); }
+}
+function drawKid(c, ox, oy){
+  const S=2, pal={O:INK,S:'#f1c27d',H:'#8a5a35',T:'#f2b134',P:'#3f6fb0',B:'#fff'};
+  const hop = (c.walk? c.frame%2 : (Math.floor(G.clock/400)%5===0?1:0));
+  oy -= hop*S;
+  for(let y=0;y<14;y++)for(let x=0;x<8;x++){const ch=KID[y][x]; if(ch!=='.'){ const xx=c.flip?7-x:x; ctx.fillStyle=pal[ch]; ctx.fillRect(ox+xx*S,oy+y*S,S,S);} }
+  ctx.fillStyle=INK; ctx.fillRect(ox+(c.flip?2:10),oy+4,2,2); ctx.fillRect(ox+(c.flip?10:2),oy+4,2,2);
+  // 玩具球拍
+  const rx=c.flip?ox-4:ox+15; ctx.fillStyle=INK; ctx.fillRect(rx,oy+6,6,7); ctx.fillStyle='#f4f1e8'; ctx.fillRect(rx+1,oy+7,4,5); ctx.fillStyle='#8a5a35'; ctx.fillRect(rx+2,oy+13,2,4);
+}
+let tw={x:-10,on:false};
+function drawScene(){
+  const t=G?G.clock:0;
+  // 墙
+  ctx.fillStyle='#f3dfb5'; ctx.fillRect(0,0,130,72);
+  ctx.fillStyle='#e8c88a'; for(let x=0;x<130;x+=6) ctx.fillRect(x,0,1,72);
+  // 窗
+  ctx.fillStyle=INK; ctx.fillRect(4,6,66,42);
+  ctx.fillStyle='#8ec9e8'; ctx.fillRect(6,8,62,38);
+  ctx.fillStyle='#f2b134'; ctx.fillRect(54,12,6,6); ctx.fillStyle='#ffe27a'; ctx.fillRect(55,13,4,4);
+  const cx=((t/400)%90)-20; ctx.fillStyle='#fff'; ctx.fillRect(6+((cx+80)%62),14,10,3); ctx.fillRect(8+((cx+80)%62),12,6,2);
+  ctx.fillStyle='#b98a6a'; for(let x=6;x<68;x++){ const h=8+Math.round(5*Math.sin(x*.18)+3*Math.sin(x*.41)); ctx.fillRect(x,46-h,1,h); }
+  ctx.fillStyle='#fff4dc'; for(let x=6;x<68;x++){ const h=8+Math.round(5*Math.sin(x*.18)+3*Math.sin(x*.41)); if(h>13) ctx.fillRect(x,46-h,1,2); }
+  ctx.fillStyle='#e8c88a'; ctx.fillRect(6,40,62,6);
+  // 窗外棕榈
+  ctx.fillStyle='#8a5a35'; ctx.fillRect(20,24,2,16);
+  ctx.fillStyle='#3c7d3a'; [[14,22,8,2],[22,22,8,2],[16,20,10,2],[12,24,4,2],[28,24,4,2],[19,18,4,2]].forEach(r=>ctx.fillRect(...r));
+  // 风滚草
+  if(!tw.on && Math.random()<.002){ tw={x:4,on:true}; }
+  if(tw.on){ tw.x+=.25*FAST; const y=40-Math.abs(Math.sin(tw.x*.3))*3; ctx.fillStyle='#a8753a'; ctx.fillRect(Math.round(6+tw.x),Math.round(y),4,4); ctx.fillStyle='#c9a36a'; ctx.fillRect(Math.round(7+tw.x),Math.round(y+1),2,2); if(tw.x>58) tw.on=false; }
+  ctx.fillStyle='#fff4dc'; ctx.fillRect(36,6,2,42); ctx.fillRect(4,26,66,2);
+  // 墙上球拍架
+  ctx.fillStyle='#8a5a35'; ctx.fillRect(80,8,46,3);
+  ['#d94a3a','#3f6fb0','#f2b134'].forEach((col,i)=>{ const x=84+i*14; ctx.fillStyle=INK; ctx.fillRect(x,11,8,10); ctx.fillStyle=col; ctx.fillRect(x+1,12,6,8); ctx.fillStyle='#f4f1e8'; ctx.fillRect(x+2,13,4,6); ctx.fillStyle=INK; ctx.fillRect(x+3,21,2,6); });
+  // 海报
+  ctx.fillStyle=INK; ctx.fillRect(82,32,40,22); ctx.fillStyle='#4fc3d9'; ctx.fillRect(83,33,38,20);
+  ctx.fillStyle='#f2b134'; ctx.fillRect(110,35,6,6); ctx.fillStyle='#3c7d3a'; ctx.fillRect(88,40,8,2); ctx.fillRect(86,38,4,2); ctx.fillRect(94,38,4,2); ctx.fillStyle='#8a5a35'; ctx.fillRect(91,42,2,9);
+  ctx.fillStyle='#f4f1e8'; ctx.fillRect(98,46,20,1); ctx.fillRect(98,49,14,1);
+  // 地板
+  for(let y=72;y<110;y+=6) for(let x=0;x<130;x+=6){ ctx.fillStyle=((x+y)/6)%2?'#e8c88a':'#d8b47a'; ctx.fillRect(x,y,6,6); }
+  ctx.fillStyle='#c9a36a'; ctx.fillRect(0,72,130,2);
+  // 门
+  ctx.fillStyle=INK; ctx.fillRect(0,50,4,24); ctx.fillStyle='#8a5a35'; ctx.fillRect(0,51,3,22);
+  // 盆栽
+  ctx.fillStyle='#a8453a'; ctx.fillRect(70,64,8,8); ctx.fillStyle='#3c7d3a'; ctx.fillRect(68,56,4,8); ctx.fillRect(74,54,4,10); ctx.fillRect(71,52,3,6);
+}
+function drawCounter(){
+  // 前台（在右侧，压在人物前面一点）
+  ctx.fillStyle=INK; ctx.fillRect(86,66,44,44);
+  ctx.fillStyle='#8a5a35'; ctx.fillRect(88,72,42,38);
+  ctx.fillStyle='#a8703f'; ctx.fillRect(86,66,44,6); ctx.fillStyle='#c48a52'; ctx.fillRect(87,67,43,2);
+  ctx.fillStyle='#6e4426'; for(let x=92;x<130;x+=10) ctx.fillRect(x,76,1,30);
+  // 收银机
+  ctx.fillStyle=INK; ctx.fillRect(108,54,18,13); ctx.fillStyle='#4a4f5a'; ctx.fillRect(109,55,16,11); ctx.fillStyle='#3fae5a'; ctx.fillRect(111,57,10,4);
+  if(G && G.cashT>0){ ctx.fillStyle='#f2b134'; ctx.fillRect(111,57,10,4); }
+  // 铃
+  ctx.fillStyle='#f2b134'; ctx.fillRect(94,62,6,4); ctx.fillStyle=INK; ctx.fillRect(96,60,2,2); ctx.fillRect(93,66,8,1);
+  // 价目牌
+  ctx.fillStyle='#fff4dc'; ctx.fillRect(90,78,16,10); ctx.fillStyle=INK; ctx.fillRect(92,80,12,1); ctx.fillRect(92,83,8,1); ctx.fillRect(92,86,10,1);
+}
+function render(){
+  drawScene();
+  const c=G&&G.c;
+  if(c && c.x>-40 && c.x<140){
+    const ox=Math.round(c.x), oy=40;
+    ctx.fillStyle='#00000022'; ctx.fillRect(ox+4,oy+62,26,3);
+    if(c.a.kid){ const kx=c.flip?ox+30:ox-18; ctx.fillStyle='#00000022'; ctx.fillRect(kx+2,100,14,2); drawKid(c,kx,73); }
+    drawPerson(c,ox,oy);
+  }
+  drawCounter();
+}
+
+// ---------- HUD / 效果 ----------
+function updHud(){
+  const n=Math.max(0,(G.idx+1)); bumpSet('hCust',`${Math.min(n,N_CUST)}/${N_CUST}`);
+  bumpSet('hRev',money(G.rev)); bumpSet('hHon',String(Math.round(G.honesty)));
+  const c=G.c; if(!c) return;
+  $('bInt').querySelector('.fillb').style.width=clamp(c.interest,0,100)+'%';
+  $('bSus').querySelector('.fillb').style.width=clamp(c.sus,0,100)+'%';
+  $('bSus').classList.toggle('hot',c.sus>=70);
+}
+function bumpSet(id,v){ const el=$(id); if(el.textContent!==v){ el.textContent=v; el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); } }
+function floatText(txt,col,x,y){ const d=document.createElement('div'); d.className='float'; d.textContent=txt; d.style.color=col; d.style.left=x+'px'; d.style.top=y+'px'; $('fx').appendChild(d); setTimeout(()=>d.remove(),1300); }
+function coins(n){ for(let i=0;i<n;i++){ const d=document.createElement('div'); d.className='coin'; const x0=345,y0=170; d.style.left=x0+'px'; d.style.top=y0+'px'; $('fx').appendChild(d);
+  const dx=R(-120,30), dy=R(-120,-40); d.animate([{transform:'translate(0,0)'},{transform:`translate(${dx}px,${dy}px)`,offset:.5},{transform:`translate(${dx*0.3+(-150)}px,${-220}px)`,opacity:0}],{duration:900+i*40,easing:'ease-out'}); setTimeout(()=>d.remove(),1100+i*40);} }
+function shake(big){ const s=$('stage'); s.classList.remove('shake','bigshake'); void s.offsetWidth; s.classList.add(big?'bigshake':'shake'); }
+function flash(col){ const f=$('flash'); f.style.background=col; f.classList.remove('on'); void f.offsetWidth; f.classList.add('on'); }
+let bubT=0;
+function bubble(txt,ms=2600){ const b=$('bubble'); b.textContent=txt; b.classList.add('on'); clearTimeout(bubT); bubT=setTimeout(()=>b.classList.remove('on'),ms/Math.sqrt(FAST)); }
+function emote(ch){ const e=$('emote'); e.textContent=ch; e.style.opacity=1; e.classList.remove('on'); void e.offsetWidth; e.classList.add('on'); clearTimeout(emote.t); emote.t=setTimeout(()=>e.style.opacity=0,1800/Math.sqrt(FAST)); const c=G.c; if(c) e.style.left=(Math.round(c.x)*3+(c.flip?20:52))+'px'; }
+function say(html){ $('say').innerHTML=html; }
+function setExpr(c,e,ms){ c.expr=e; c.exprT=ms||0; }
+function baseExpr(c){ if(c.sus>=70) return 'sus'; if(c.interest>=70) return 'happy'; if(c.interest<20) return 'doubt'; return 'neutral'; }
+
+// ---------- 流程 ----------
+function nextCustomer(){
+  G.idx++;
+  $('emote').style.opacity=0;
+  if(G.idx>=N_CUST){ endGame(); return; }
+  const c=makeCust(G.order[G.idx]); G.c=c; G.phase='enter';
+  c.x=-40; c.tx=28; c.walk=true; c.flip=false;
+  c.onArrive=()=>{ G.phase='pitch'; bubble(c.a.greet,3400); dealHand(); renderPitch(); SFX.tick(); };
+  $('tag').textContent=c.a.tag; $('clues').innerHTML='<span class="lab">你注意到：</span>';
+  c.a.clues.forEach((t,i)=>{ const s=document.createElement('span'); s.className='clue'; s.textContent=t; s.style.animationDelay=(.3+i*.25)/FAST+'s'; $('clues').appendChild(s); });
+  say(`<i>叮铃——</i>第 ${G.idx+1} 位客人推门进来。`); beep(1500,.12,'triangle',.05); setTimeout(()=>beep(1900,.2,'triangle',.04),110);
+  $('panel').innerHTML='<div class="ph" style="justify-content:center;flex:1">……</div>';
+  updHud(); $('bPat').querySelector('.fillb').style.width='100%';
+}
+function dealHand(){
+  if(G.deck.length<4) G.deck=shuffle(CARDS.map(c=>c.id).filter(id=>!G.deck.includes(id))).concat(G.deck);
+  G.hand=G.deck.splice(-4,4).map(id=>CARDS.find(c=>c.id===id)); G.plays=0;
+}
+function renderPitch(){
+  const p=$('panel'); const left=3-G.plays;
+  p.innerHTML=`<div class="ph"><span>出一张话术卡（最多 3 张）</span><span class="dots">嘴皮子${[0,1,2].map(i=>`<b class="${i<left?'':'off'}"></b>`).join('')}</span></div><div id="hand"></div><button class="big gold" id="goHaggle">直接开价 →</button>`;
+  G.hand.forEach((cd,i)=>{ if(!cd){ $('hand').appendChild(document.createElement('div')); return; } const b=document.createElement('button'); b.className='card'; b.dataset.i=i;
+    b.innerHTML=`<span class="kd k-${cd.kind}">${KIND[cd.kind]}</span><span class="nm">${cd.name}</span><span class="ln">${cd.line}</span>`;
+    tap(b,()=>playCard(i,b)); $('hand').appendChild(b); });
+  tap($('goHaggle'),()=>{ if(G.phase==='pitch'&&!G.lock) startHaggle(); });
+}
+function addSus(c,v){ const before=c.sus; c.sus=clamp(c.sus+v,0,100); return c.sus-before; }
+function playCard(i,el){
+  const c=G.c; if(G.phase!=='pitch'||G.lock) return;
+  const cd=G.hand[i]; if(!cd) return;
+  G.lock=1; SFX.card(); el.classList.add('fly');
+  say(`你：<i>${cd.line.split('”')[0]}”</i>`);
+  let dI=0,dS=0,line=null;
+  const lieMul=(cd.kind==='lie'||cd.kind==='exag'||cd.kind==='flat')?(1-.5*c.savvy):1;
+  const susMul=.3+1.2*c.savvy;
+  if(cd.special==='kid'){ if(c.a.kid){dI=40;dS=-5;line='……对，他就是需要这个。';} else {dI=-6;dS=8*susMul;line='我……没孩子啊。';} }
+  else if(cd.special==='honest'){ dI=6+16*c.savvy; dS=-28; c.honest=true; line=c.savvy>.6?'嗯，说实话的人不多了。':'哦……还挺实在。'; }
+  else if(cd.special==='quinta'){ if(c.a.acc.includes('flyer')){dI=34;line='多一块红土场？有点意思。';} else {dI=4;dS=4*susMul;line='La Quinta？没听说过。';} }
+  else { dI=(cd.int[c.need]||0)*lieMul; dS=cd.sus>0?cd.sus*susMul:cd.sus; }
+  if(c.sus>=60 && dI>0) dI*=.5;
+  dI=Math.round(dI+R(-3,3)); dS=Math.round(dS);
+  if(cd.cost){ G.rev-=cd.cost; floatText('-$'+cd.cost,'#d94a3a',300,300); G.log.push({t:'trial'}); }
+  if(cd.id==='sale'){ c.discount=true; }
+  if(cd.kind==='lie'){ G.honesty=clamp(G.honesty-12,0,100); c.lies.push(cd); }
+  if(cd.kind==='exag'){ G.honesty=clamp(G.honesty-6,0,100); c.lies.push(cd); }
+  if(cd.special==='honest'){ G.honesty=clamp(G.honesty+5,0,100); }
+  c.played.push(cd.id);
+  G.hand[i]=null; G.plays++;
+  after(380,()=>{
+    c.interest=clamp(c.interest+dI,0,100); const realS=addSus(c,dS);
+    if(dI) floatText((dI>0?'+':'')+dI+' 兴趣',dI>0?'#3fae5a':'#d94a3a',168,14);
+    if(realS) setTimeout(()=>floatText((realS>0?'+':'')+realS+' 怀疑',realS>0?'#d94a3a':'#4fc3d9',168,40),150);
+    if(!line){ if(realS>=25) line=pick(['真的假的？','你确定？','……这话你跟几个人说过？']);
+      else if(dI>=24) line=pick(['哦？说下去。','这个我喜欢！','听起来不错嘛。']);
+      else if(dI>=10) line=pick(['嗯，还行。','然后呢？','有点意思。']);
+      else if(dI<=0) line=pick(['这跟我有什么关系？','嗯……','所以呢？']);
+      else line=pick(['哦。','嗯哼。']); }
+    if(c.key==='golfer'&&cd.id==='sale') line='打折？我看起来像缺钱的吗？';
+    if(c.sus>=100){ updHud(); storm(); return; }
+    if(realS>=20){ setExpr(c,'sus',1400); emote('🤨'); SFX.sus(); shake(false); }
+    else if(dI>=20){ setExpr(c,'happy',1400); emote(pick(['😍','😃','✨'])); SFX.up(); flash('#f2b13455'); }
+    else if(dI<=0){ setExpr(c,'doubt',1200); emote('😒'); beep(300,.1,'triangle',.05); }
+    else { setExpr(c,'neutral',0); emote('🙂'); beep(700,.05); }
+    if(c.a.critic && c.lies.length && (cd.kind==='lie'||cd.kind==='exag')){ c.write=1600; setTimeout(()=>{ say('<i>（她低头在小本子上写了几个字。）</i>'); SFX.write(); },500); }
+    bubble(line); updHud();
+    after(450,()=>{ G.lock=0; if(G.phase!=='pitch') return; if(G.plays>=3) startHaggle(); else renderPitch(); });
+  });
+}
+function startHaggle(){
+  const c=G.c; G.phase='haggle'; G.lock=0;
+  bubble(pick(['那……要多少钱？','说吧，什么价？','你打算卖我什么？']));
+  const p=$('panel');
+  p.innerHTML=`<div class="ph"><span>卖什么？（换商品花 2 秒耐心）</span>${c.discount?'<span style="color:#3f6fb0">已承诺八折</span>':''}</div>
+  <div id="prods">${Object.entries(PRODUCTS).map(([k,v])=>`<button data-k="${k}">${v.name}<small>标价 $${v.price}</small></button>`).join('')}</div>
+  <div id="priceBox"><span id="faceHint">🤔</span><span id="priceBig">—</span><span id="priceSub">先选商品</span></div>
+  <div id="slider"><div id="strack"><div id="knob">↔</div></div></div>
+  <button class="big gold" id="offerBtn" disabled>报价</button>`;
+  p.querySelectorAll('#prods button').forEach(b=>tap(b,()=>selectProduct(b.dataset.k)));
+  tap($('offerBtn'),offer);
+  setupSlider();
+  $('knob').style.display='none';
+}
+function computeW(c){
+  const pr=PRODUCTS[c.product], fit=FIT[c.need][c.product];
+  let W=pr.price*c.budget*fit*(.5+c.interest/100)*(1-Math.max(0,c.sus-30)/140);
+  if(c.interest<25) W*=.6;
+  c.W=Math.min(W,pr.price*3.2)*Math.pow(.96,c.pushes);
+}
+function selectProduct(k){
+  const c=G.c; if(G.phase!=='haggle') return;
+  if(c.product && c.product!==k){ c.pat=Math.max(1,c.pat-2); }
+  c.product=k; computeW(c); SFX.tick();
+  document.querySelectorAll('#prods button').forEach(b=>b.classList.toggle('sel',b.dataset.k===k));
+  const fit=FIT[c.need][k];
+  if(fit>=1.1){ setExpr(c,'happy',1200); emote('😃'); bubble(pick(['这个我感兴趣。','对，就是这个！'])); }
+  else if(fit>=.8){ setExpr(c,'neutral',0); emote('🤔'); bubble('嗯……也行吧。'); }
+  else { setExpr(c,'doubt',1400); emote('😕'); bubble(pick(['我要这个干嘛？','这不是我想要的。'])); }
+  c.mmax=c.discount?1.0:3.0;
+  setMult(c.mmax>=1? 1 : c.mmax);
+  $('knob').style.display='flex'; $('offerBtn').disabled=false;
+}
+const MMIN=.5;
+function tFromM(m,mmax){ return Math.log(m/MMIN)/Math.log(mmax/MMIN); }
+function mFromT(t,mmax){ return MMIN*Math.pow(mmax/MMIN,t); }
+function actualPrice(c){ const pr=PRODUCTS[c.product]; const raw=pr.price*c.mult*(c.discount?.8:1); return Math.max(pr.step,Math.round(raw/pr.step)*pr.step); }
+function setMult(m){
+  const c=G.c; c.mult=clamp(m,MMIN,c.mmax);
+  const t=tFromM(c.mult,c.mmax); $('knob').style.left=(t*100)+'%';
+  const p=actualPrice(c), pr=PRODUCTS[c.product];
+  $('priceBig').textContent=money(p);
+  $('priceSub').textContent=`标价 $${pr.price} · ${(p/pr.price).toFixed(1)}×${c.discount?'（八折后）':''}`;
+  // 读脸
+  const ratio=p/c.W+c.bias; let f,em;
+  if(c.savvy>=.8 && ratio>.6 && ratio<1.4){ f='neutral'; em='😶'; }
+  else if(c.key==='golfer' && ratio<1.08){ f='happy'; em='😎'; }
+  else if(ratio<.75){ f='happy'; em='😀'; } else if(ratio<.98){ f='neutral'; em='🙂'; } else if(ratio<1.2){ f='doubt'; em='😬'; } else { f='angry'; em='😠'; }
+  if(c.expr!==f && G.phase==='haggle'){ c.expr=f; c.exprT=0; }
+  $('faceHint').textContent=em;
+  if(G.lastP!==p){ G.lastP=p; SFX.tick(); }
+}
+function setupSlider(){
+  const tr=$('strack'), sl=$('slider'); let drag=false;
+  const at=e=>{ const r=tr.getBoundingClientRect(); const t=clamp((e.clientX-r.left)/r.width,0,1); setMult(mFromT(t,G.c.mmax)); };
+  sl.addEventListener('pointerdown',e=>{ if(!G.c.product||G.phase!=='haggle') return; e.preventDefault(); drag=true; sl.setPointerCapture(e.pointerId); at(e); });
+  sl.addEventListener('pointermove',e=>{ if(drag) at(e); });
+  const up=()=>{ drag=false; }; sl.addEventListener('pointerup',up); sl.addEventListener('pointercancel',up);
+}
+function offer(){
+  const c=G.c; if(G.phase!=='haggle'||!c.product) return;
+  computeW(c);
+  const p=actualPrice(c);
+  if(p<=c.W){ deal(p); return; }
+  const over=p/c.W, susMul=.3+1.2*c.savvy;
+  const ds=addSus(c,Math.round((over>1.5?16:7)*susMul*(c.key==='golfer'?.3:1)));
+  if(ds) floatText('+'+ds+' 怀疑','#d94a3a',168,40);
+  updHud();
+  if(c.sus>=100){ storm(); return; }
+  if(c.pushes>=2){ walkAway(c.key==='golfer'?'算了，我回高尔夫球场了。':'算了，我再看看别家。'); return; }
+  const cp=Math.min(p-PRODUCTS[c.product].step, Math.round(c.W*(.8+.14*(1-c.savvy))/PRODUCTS[c.product].step)*PRODUCTS[c.product].step);
+  G.phase='counter'; G.counter=cp;
+  setExpr(c,over>1.3?'angry':'doubt',0); emote(over>1.3?'😤':'🤨'); SFX.sus(); if(over>1.3) shake(false);
+  bubble(over>1.6?`${money(p)}？你疯了吧。${money(cp)}，最多了。`:`${money(p)}？贵了。${money(cp)} 怎么样？`,4000);
+  $('panel').innerHTML=`<div class="ph"><span>${c.a.he}还价了</span><span>再推会更恼，最多推 2 次</span></div>
+  <div class="result" style="text-align:center"><div class="q">你报 ${money(p)}</div><h3>${c.a.he}说：${money(cp)}</h3></div>
+  <button class="big green" id="acc">成交 ${money(cp)}</button>
+  <div class="row"><button class="big red" id="push">再推一把</button><button class="big" id="quit">不卖了</button></div>`;
+  tap($('acc'),()=>{ if(G.phase==='counter') deal(cp); });
+  tap($('push'),()=>{ if(G.phase!=='counter') return; c.pushes++; c.pat=Math.max(1,c.pat-4); const d=addSus(c,Math.round(6*susMul)); if(d) floatText('+'+d+' 怀疑','#d94a3a',168,40); updHud(); if(c.sus>=100){storm();return;} const k=c.product, m=c.mult; startHaggle(); selectProduct(k); setMult(m); bubble(pick(['……你还想怎样？','我时间很宝贵。','啧。'])); emote('😤'); });
+  tap($('quit'),()=>{ if(G.phase==='counter') walkAway('那就算了。'); });
+}
+function stars(n){ return '★'.repeat(n)+'☆'.repeat(5-n); }
+function deal(p){
+  const c=G.c; G.phase='leave'; computeW(c);
+  const pr=PRODUCTS[c.product];
+  G.rev+=p; G.cashT=900;
+  const squeeze=p/c.W;
+  let st=4; if(!c.lies.length) st++; if(p>1.6*pr.price) st--; if(c.sus>60) st--; if(c.key==='golfer') st=5; st=clamp(st,1,5);
+  const quote = st>=4 ? c.a.good : pick(['还行吧。','希望物有所值。','感觉有点贵……']);
+  const sale={key:c.key,c,p,product:c.product,lies:c.lies.slice(),honest:c.honest&&!c.lies.length,st,quote,name:c.a.name};
+  G.sales.push(sale); G.reviews.push(sale);
+  setExpr(c,'happy',0); emote(squeeze>=.9?'🤑':'🤝');
+  if(squeeze>=.9 && p>=pr.price*1.3){ SFX.big(); flash('#f2b13499'); coins(14); floatText('+'+money(p)+' 宰到了！','#f2b134',150,150); shake(false); }
+  else { SFX.cash(); flash('#3fae5a55'); coins(6); floatText('+'+money(p),'#3fae5a',190,150); }
+  bubble(st>=4?c.a.good:'行吧，就这样。');
+  updHud();
+  const left=Math.max(0,c.W-p);
+  let note= squeeze>=.9 ? `<span class="pos">榨干了：${c.a.he}心里价位就是 ${money(c.W)}。</span>`
+    : `<span class="neg">${c.a.he}本来愿意出 ${money(c.W)}——你少赚了 ${money(left)}。</span>`;
+  showResult(`成交！${pr.name} ${money(p)}`,stars(st)+` “${quote}”`,note);
+}
+function walkAway(line){
+  const c=G.c; G.phase='leave'; setExpr(c,'doubt',0); emote('💨'); bubble(line); beep(400,.15,'triangle',.05,-200);
+  showResult('没成交',`${c.a.he}礼貌地走了。`,'<span class="neg">这位客人什么也没买。</span>');
+}
+function storm(){
+  const c=G.c; G.phase='leave'; G.stormed++;
+  setExpr(c,'angry',0); emote('💢'); SFX.bad(); flash('#d94a3a88'); shake(true); setTimeout(SFX.slam,700);
+  bubble(c.a.bad+(c.a.critic?'':' 我要写差评！'),3000);
+  const st=1, quote=c.a.critic?'（她没在网上评价。她有更大的平台。）':pick(['前台满嘴跑火车，一星。','别信他们说的任何一句话。','骗子俱乐部。']);
+  G.reviews.push({key:c.key,c,st,quote,name:c.a.name,stormed:true});
+  floatText('★ 差评','#d94a3a',150,120);
+  showResult('被气走了！','<span style="color:#d94a3a">★☆☆☆☆</span> “'+quote+'”','<span class="neg">怀疑爆表。'+c.a.he+'摔门而出。</span>');
+}
+function showResult(h,st,note){
+  const c=G.c;
+  const lvl=v=>v>=2?'很高':v>=1.2?'中上':v>=.8?'一般':'很紧';
+  const sv=c.savvy>=.75?'很精':c.savvy>=.45?'一般':'好糊弄';
+  G.lock=1;
+  $('panel').innerHTML=`<div class="result"><h3>${h}</h3><div class="st">${st}</div><div class="q">${note}</div>
+  <div class="rv">${c.a.critic?'她':c.a.he}其实：<b style="color:#f2b134">${NEEDS[c.need]}</b> · 预算${lvl(c.budget)} · 精明度${sv}</div></div>
+  <button class="big gold" id="nextBtn" disabled>${G.idx+1>=N_CUST?'打烊，看结算 →':'下一位 →'}</button>`;
+  after(900,()=>{ c.flip=true; c.tx=-44; c.walk=true; c.onArrive=()=>{ G.lock=0; const b=$('nextBtn'); if(b) b.disabled=false; if(c.a.critic) revealCritic(); }; });
+  tap($('nextBtn'),()=>{ if(!$('nextBtn').disabled && G.phase==='leave' && $('revealOv').classList.contains('hide')) nextCustomer(); });
+}
+function revealCritic(){
+  const c=G.c, L=c.lies.length; const stormed=G.reviews.some(r=>r.key==='critic'&&r.stormed);
+  let hl,body,delta,cls;
+  if(stormed){ hl='Palm Oasis 前台：张口就来'; body=`本报记者 Marisol Vega 暗访沙漠新开的网球俱乐部。前台在三分钟内说了 ${L} 句不实之词，记者愤而离开。`; delta=-900; cls='neg'; SFX.bad(); shake(true); }
+  else if(L>0){ hl='Palm Oasis：推销有点浮夸'; body=`暗访记者在小本子上记下了 ${L} 句"不太对劲"的话术。场地尚可，前台话术需要收敛。`; delta=-350; cls='neg'; SFX.sus(); }
+  else { hl='沙漠里难得的实在人'; body='本报记者暗访 Palm Oasis：前台没有夸大其词，"像是真想把俱乐部做好"。'; delta=600; cls='pos'; SFX.big(); flash('#f2b13488'); }
+  G.articles.push({hl,delta});
+  $('revealBox').innerHTML=`<div class="mast">THE DESERT SUN</div><p style="font-size:12px;text-align:center">《沙漠太阳报》· 生活版</p>
+  <p style="margin-top:10px;font-size:14px">原来那位戴墨镜的女士，是本地报纸的记者。</p>
+  <div class="hl">「${hl}」</div><p>${body}</p>
+  <p class="${cls}" style="margin-top:8px;font-size:16px">一周后客流 ${delta>0?'+':''}${money(delta)}</p>
+  <button class="big gold" id="revOk">知道了</button>`;
+  $('revealOv').classList.remove('hide');
+  tap($('revOk'),()=>{ $('revealOv').classList.add('hide'); });
+}
+function timeout(){
+  const c=G.c; G.phase='leave'; setExpr(c,'doubt',0); emote('⌛'); beep(300,.2,'triangle',.05,-100);
+  bubble(c.interest>=50?'我还有事，下次再说吧。':'……我先走了。');
+  showResult('客人等不及走了','你说太久了。','<span class="neg">耐心耗尽，没成交。</span>');
+}
+function endGame(){
+  G.phase='end'; G.c=null; $('tag').textContent=''; $('clues').innerHTML=''; say('打烊了。一周后……');
+  $('panel').innerHTML='';
+  const wk=[];
+  G.sales.forEach(s=>{
+    let found=null;
+    for(const l of s.lies){ const pr=(l.kind==='lie'?.3:.15)+.55*s.c.savvy; if(rng()<Math.min(.9,pr)){ found=l; break; } }
+    if(found){ s.st=1; s.quote= found.id==='last2'?'说只剩两个名额，我去了一看全是空场。':found.id==='wimb'?'Dale 根本没打过温网，我查了。':'哪来的职业选手？骗人。';
+      const refund=(s.product!=='racket')?Math.round(s.p*.5):0;
+      wk.push({t:`${s.name} 发现"${found.name}"是假的，留了一星${refund?'，要求退一半':''}。`,d:-refund}); return; }
+    if(s.key!=='golfer' && s.p>1.6*PRODUCTS[s.product].price && rng()<.4){ const refund=Math.round(s.p*.5); s.st=Math.min(s.st,2); s.quote='回家一查，被宰了。'; wk.push({t:`${s.name} 回家越想越亏，退了一半钱。`,d:-refund}); return; }
+    if(s.honest && rng()<.6){ const v=Math.round(R(90,220)/10)*10; wk.push({t:`${s.name} 介绍了朋友来办卡。`,d:v}); }
+    if(s.key==='golfer' && s.p>=PRODUCTS[s.product].price*2){ wk.push({t:`Chad 在高尔夫球会到处炫耀他的${PRODUCTS[s.product].name}有多贵。`,d:0}); }
+  });
+  G.articles.forEach(a=>wk.push({t:`《沙漠太阳报》「${a.hl}」`,d:a.delta}));
+  if(!wk.length) wk.push({t:'风平浪静的一周。',d:0});
+  const base=G.rev; const net=base+wk.reduce((a,w)=>a+w.d,0);
+  const avg=G.reviews.length?G.reviews.reduce((a,r)=>a+r.st,0)/G.reviews.length:0;
+  const hon=Math.round(G.honesty), crit=G.articles[0];
+  let title,line;
+  const rich=net>=4000;
+  if(crit && crit.delta<=-900){ title='上了头版的沙漠骗子'; line='全城都知道 Palm Oasis 的前台会撒谎了。你的名字比俱乐部还出名。'; }
+  else if(rich && hon>=70){ title='金牌销售'; line='你看得准、开得狠，还不用撒谎——Dale 说他干了三十年没见过这样的。'; }
+  else if(rich){ title='沙漠奸商（很有钱）'; line='钱包鼓了，口碑薄了。你是那种能把沙子卖给沙漠的总监。'; }
+  else if(hon>=70){ title='老实巴交的总监'; line='没人说你坏话，也没人觉得你会做生意。下回看准土豪，敢开价。'; }
+  else { title='两头落空的推销员'; line='谎也撒了，钱也没赚到。客人们记住的是你的嘴，不是你的场地。'; }
+  $('endBox').innerHTML=`<h1 style="text-align:center">打烊结算</h1>
+  <div class="title">「${title}」</div><p style="text-align:center;color:#5a3d2b">${line}</p>
+  <div class="stats"><div>净营收<b>${money(net)}</b></div><div>诚信<b>${hon}</b></div><div>平均评价<b>${avg.toFixed(1)}★</b></div></div>
+  <h2>一周后……</h2><div>${wk.map((w,i)=>`<div class="wk" style="animation-delay:${.2+i*.35}s"><span>${w.t}</span><b class="${w.d>0?'pos':w.d<0?'neg':''}">${w.d?(w.d>0?'+':'')+money(w.d):''}</b></div>`).join('')}</div>
+  <h2>客人留言</h2><div>${G.reviews.map(r=>`<div class="wk"><span>${r.name}：“${r.quote}”</span><b style="color:#c88a14;white-space:nowrap">${stars(r.st)}</b></div>`).join('')||'<p>没人留言。</p>'}</div>
+  <p style="font-size:12px;color:#5a3d2b;margin-top:6px">当天营收 ${money(base)}（含体验课成本）· 被气走 ${G.stormed} 位</p>
+  <button class="big gold" id="again">再来一局</button>`;
+  $('endOv').classList.remove('hide');
+  if(net>=4000) SFX.big(); else SFX.bad();
+  tap($('again'),()=>{ $('endOv').classList.add('hide'); newGame(); nextCustomer(); });
+}
+
+// ---------- 主循环 ----------
+let last=performance.now();
+function loop(ts){
+  const dt=Math.min(50,ts-last)*FAST; last=ts;
+  if(G){
+    G.clock+=dt;
+    const due=timers.filter(t=>t.t<=G.clock); timers=timers.filter(t=>t.t>G.clock); due.forEach(t=>t.fn());
+    if(G.cashT>0) G.cashT-=dt;
+    const c=G.c;
+    if(c){
+      if(c.walk){ const sp=.045*dt; const d=c.tx-c.x; if(Math.abs(d)<=sp){ c.x=c.tx; c.walk=false; const f=c.onArrive; c.onArrive=null; if(f) f(); } else c.x+=Math.sign(d)*sp;
+        c.ft+=dt; if(c.ft>140){ c.ft=0; c.frame++; } }
+      if(c.exprT>0){ c.exprT-=dt; if(c.exprT<=0 && G.phase==='pitch') c.expr=baseExpr(c); }
+      if(c.write>0) c.write-=dt;
+      if((G.phase==='pitch'||G.phase==='haggle'||G.phase==='counter') && !G.lock && $('helpOv').classList.contains('hide')){
+        c.pat-=dt/1000; $('bPat').querySelector('.fillb').style.width=clamp(c.pat/c.patMax*100,0,100)+'%';
+        if(c.pat<=0) timeout();
+      }
+    }
+  }
+  render();
+  requestAnimationFrame(loop);
+}
+// ---------- 启动 ----------
+tap($('help'),()=>$('helpOv').classList.toggle('hide'));
+tap($('helpClose'),()=>$('helpOv').classList.add('hide'));
+tap($('startBtn'),()=>{ $('startOv').classList.add('hide'); nextCustomer(); });
+newGame();
+G.c=makeCust('golfer'); G.c.x=28; G.c.expr='happy';
+updHud(); say('前台。今天会来 7 位客人。');
+window.__state=()=>({phase:G.phase,lock:G.lock,idx:G.idx,rev:G.rev,c:G.c&&{key:G.c.key,need:G.c.need,interest:G.c.interest,sus:G.c.sus,W:G.c.W}});
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
