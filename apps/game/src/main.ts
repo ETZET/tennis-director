@@ -468,20 +468,66 @@ window.addEventListener('keydown', (e) => {
   }
 });
 
-/* ---------- 卡片的镜头：新卡来了，镜头慢慢移到它发生的地方；玩家一拖画面就不再跟 ---------- */
-let focusSeq = -1;
+/*
+ * ---------- 镜头跟随：新卡、升星、修好一处（scene.focus），地点清单里预览变体（设施） ----------
+ * 镜头慢慢移过去，把那一点放在画面上没被 HUD 挡住的那一段中间（上面是记分牌，下面是员工条、卡片或地点清单）。
+ * 玩家一拖画面就不再跟。
+ */
+let focusKey = '';
 container.addEventListener('pointerdown', () => camera.setFollow(false));
+/** 屏幕上没被 HUD 挡住的那一段（CSS 像素）：上沿是记分牌的下沿，下沿是 bottomEl 的上沿 */
+function visibleBand(bottomEl: Element | null): { top: number; bottom: number } {
+  const H = container.clientHeight;
+  let top = 0;
+  for (const el of document.querySelectorAll('.td-top,.td-strip-wrap')) {
+    const r = el.getBoundingClientRect();
+    if (r.height && r.top < H / 3) top = Math.max(top, r.bottom);
+  }
+  let bottom = H;
+  const lows = bottomEl ? [bottomEl] : [...document.querySelectorAll('.td-card,.td-staff-row,.td-wire')];
+  for (const el of lows) {
+    const r = el.getBoundingClientRect();
+    if (r.height && r.top > H / 3) bottom = Math.min(bottom, r.top);
+  }
+  return bottom - top < 80 ? { top: 0, bottom: H } : { top, bottom };
+}
+/**
+ * 让世界里的点 (x, y, z) 落在屏幕 band 的正中，镜头目标该在哪儿。
+ * 平移是线性的：此刻目标点投在 C、这一点投在 P，想让它到 D，目标就挪到此刻投在 C + (P − D) 的地面点。
+ */
+function aimAt(x: number, y: number, z: number, band: { top: number; bottom: number }): { x: number; z: number } {
+  const P = camera.project(x, y, z);
+  const C = camera.project(camera.smooth.tx, 0, camera.smooth.tz);
+  const D = { x: container.clientWidth / 2, y: (band.top + band.bottom) / 2 };
+  return camera.unproject(C.x + P.x - D.x, C.y + P.y - D.y);
+}
+/** 预览变体时对准的设施（UI-11）：设施在地点清单上面那一段里 */
+function previewFocus(): { key: string; x: number; y: number; z: number; sheet: Element | null } | null {
+  const p = session.preview;
+  const sheet = document.querySelector('.td-place');
+  if (!p || !sheet) return null;
+  const o = worldOf(session.s, content).orders.get(p.order);
+  const c = o ? (site.anchors[o.at] ?? site.stands[o.at]) : undefined;
+  if (!o || !c) return null;
+  return { key: `pv:${p.order}:${p.variant}`, x: c.x, y: site.groundY(c.x, c.z), z: c.z, sheet };
+}
 function followFocus(): { x: number; z: number } | null {
-  const f = scene.focus();
-  if (!f) {
+  const pv = previewFocus();
+  const f = pv ? null : scene.focus();
+  const key = pv ? pv.key : f ? `f:${f.seq}` : '';
+  if (!pv && !f) {
+    focusKey = '';
     if (camera.following) camera.setFollow(false);
     return null;
   }
-  if (f.seq !== focusSeq) {
-    focusSeq = f.seq;
+  if (key !== focusKey) {
+    focusKey = key;
     camera.setFollow(true);
   }
-  return camera.following ? f : null;
+  if (!camera.following) return null;
+  if (pv) return aimAt(pv.x, pv.y, pv.z, visibleBand(pv.sheet));
+  if (!f) return null;
+  return aimAt(f.x, site.groundY(f.x, f.z) + (f.y ?? 0), f.z, visibleBand(null));
 }
 
 /*
@@ -535,6 +581,8 @@ function frame(ts: number) {
   const pr = stage.view.proj;
   setPeopleView(pr.ang, pr.k, pr.spriteScale);
   // 淡出的时候不更新场景（停在晚上那一帧）；黑透了再一次摆到第二天早上
+  // 黑屏淡入淡出时玩家看不见画面：升星先排着，亮了再演
+  scene.setWatching(!night);
   if (night?.phase !== 'out') scene.update(session.s, session.time, dt, session.paused);
   stage.render(dt, scene.showNow());
   // 拉远看整座岛时地点牌缩成小圆点（旧版按 4 CSS 像素每米；等距默认 k = 3 时约 3 px/m）

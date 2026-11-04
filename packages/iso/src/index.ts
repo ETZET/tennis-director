@@ -20,5 +20,5 @@ export * from './people/poses';
 export * from './people/view';
 export * from './site';
 export * as indianWells from './site/indian-wells';
-export { createStarSign, type StarSign } from './site/indian-wells/stars';
+export { createStarSign, STAR_SIGN_AT, type StarSign } from './site/indian-wells/stars';
 export * from './world/frame';

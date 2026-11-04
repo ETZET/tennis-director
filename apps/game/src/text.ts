@@ -46,6 +46,17 @@ export function createText(content: ContentBundle, lang: Lang): Text {
 
   const duration = (min: number) => {
     const m = Math.max(0, Math.round(min));
+    // 一天以上按天说（"停用 7 天"，不说"168 小时"）：天数 + 不满一天的整小时，分钟不再细说
+    if (m >= 1440) {
+      let d = Math.floor(m / 1440);
+      let hr = Math.round((m % 1440) / 60);
+      if (hr === 24) {
+        d++;
+        hr = 0;
+      }
+      if (zh) return hr ? `${d} 天 ${hr} 小时` : `${d} 天`;
+      return hr ? `${d}d ${hr}h` : `${d}d`;
+    }
     const h = Math.floor(m / 60);
     if (zh) return h ? (m % 60 ? `${h} 小时 ${m % 60} 分` : `${h} 小时`) : `${m} 分钟`;
     return h ? (m % 60 ? `${h}h ${String(m % 60).padStart(2, '0')}m` : `${h}h`) : `${m} min`;

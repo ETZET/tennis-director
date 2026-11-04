@@ -15,6 +15,7 @@ import {
   Scheduler,
   type Site,
   type Sprite,
+  STAR_SIGN_AT,
 } from '@td/iso';
 import { clamp, lerp, mulberry32, type XZ } from '@td/shared';
 import {
@@ -252,8 +253,16 @@ interface Perf {
 export interface CameraFocus {
   x: number;
   z: number;
+  /** 要对准的高度（米，默认地面）：升星牌是立着的牌子，对准牌面中间 */
+  y?: number;
   seq: number;
 }
+
+/** 升星的镜头：先转过去（0.9 秒后点亮新星），亮了以后再停这么久，期间卡片不抢镜头（真实秒） */
+const STAR_LIGHT_WAIT = 0.9;
+const STAR_HOLD = 2.5;
+/** 升星牌牌面中间离地多高（米） */
+const STAR_SIGN_LIFT = 3;
 
 /** 画面里员工走路的速度（米 / 真实秒）：从站位走到岗位上的位子、赶上路线；离得远就小跑 */
 export const STAFF_WALK = 2.6;
@@ -296,6 +305,11 @@ export interface GameScene {
   directorHead(): { x: number; y: number; z: number };
   /** 卡片发生的地方：给相机一个镜头 */
   focus(): CameraFocus | null;
+  /**
+   * 玩家此刻看得见画面吗（夜里黑屏淡入淡出时为 false）。升星在看不见的时候发生（夜里跳天、快进），
+   * 先排着，等看得见了（第二天早上淡入以后）再演。
+   */
+  setWatching(on: boolean): void;
   /** 地点清单里点了变体行：在设施上叠这个变体修好后的预览；null 关掉（UI-11，只是画面） */
   preview(facility: string | null, variant: string | null): void;
   readonly showNow: () => number;
@@ -328,6 +342,11 @@ export function createGameScene(stage: IsoWorld, content0: ContentBundle, site0:
   let starsShown = -1;
   /** 升星：等镜头转到大门再点亮新星（真实秒，暂停时也走） */
   let starPending: { n: number; wait: number } | null = null;
+  /** 排着还没演的升星（几星）：玩家看不见画面时发生的，等看得见了再演 */
+  let starQueued: number | null = null;
+  let watching = true;
+  /** 真实秒（暂停时也走）：升星镜头的计时 */
+  let realNow = 0;
   /** 牌匾上刻的名字：内容里的原名（3×5 小字只排大写字母和数字） */
   const leaderName = (id: string) => content.people.find((p) => p.id === id)?.name ?? id;
   function applyLooks(s: GameState, force = false): void {
@@ -348,7 +367,7 @@ export function createGameScene(stage: IsoWorld, content0: ContentBundle, site0:
       plaqueN = rows.length;
       overlays.plaque?.(rows.map((r) => ({ facility: r.facility, leader: leaderName(r.leader), day: r.day })));
     }
-    if (force || (starsShown !== (s.stars ?? 0) && !starPending)) {
+    if (force || (starsShown !== (s.stars ?? 0) && !starPending && starQueued === null)) {
       starsShown = s.stars ?? 0;
       setStars(starsShown, false);
     }
@@ -518,6 +537,9 @@ export function createGameScene(stage: IsoWorld, content0: ContentBundle, site0:
     running.clear();
     for (const p of [...borrowed]) giveBack(p);
     starPending = null;
+    starQueued = null;
+    starUntil = 0;
+    deferred = null;
     applyLooks(s, true);
     life.reset();
     const w = worldOf(s, content);
@@ -1037,9 +1059,23 @@ export function createGameScene(stage: IsoWorld, content0: ContentBundle, site0:
   let focusUntil = 0;
   let focusSeq = 0;
   let previewOn: string | null = null;
+  /** 升星镜头停到什么时候（realNow）；这之前来的卡先记着，停完再转过去 */
+  let starUntil = 0;
+  let deferred: { at: string; secs: number } | null = null;
   const focusOn = (at: string, secs: number) => {
+    if (realNow < starUntil) {
+      deferred = { at, secs };
+      return;
+    }
     focusAnchor = at;
     focusUntil = sched.now + secs;
+    focusSeq++;
+  };
+  /** 开演升星：镜头转到星级牌，0.9 秒后点亮新星，再停 2.5 秒 */
+  const playStar = (n: number) => {
+    starPending = { n, wait: STAR_LIGHT_WAIT };
+    starUntil = realNow + STAR_LIGHT_WAIT + STAR_HOLD;
+    focusAnchor = null;
     focusSeq++;
   };
 
@@ -1070,9 +1106,9 @@ export function createGameScene(stage: IsoWorld, content0: ContentBundle, site0:
           const loc = c?.stage?.anchor ?? c?.location;
           if (loc) focusOn(loc, 6);
         } else if (e.type === 'star_up') {
-          // 升星是一个时刻（game-design.md）：镜头转到大门，到了再点亮新星
-          focusOn('entrance', 5);
-          starPending = { n: e.stars, wait: 0.9 };
+          // 升星是一个时刻（game-design.md）：镜头转到星级牌，到了再点亮新星。
+          // 先排着：夜里跳天、快进时发生的，等玩家看得见画面了再演（update 里开演）
+          starQueued = Math.max(starQueued ?? 0, e.stars);
         } else if (e.type === 'weather') {
           // 天气由模拟决定：雨天下雨，其他天放晴
           if (e.weather === 'rain') rain.start();
@@ -1121,6 +1157,17 @@ export function createGameScene(stage: IsoWorld, content0: ContentBundle, site0:
       life.update(s, adv);
       // 变体、升级、牌匾、星级：和模拟状态对一下（读档、改造期满、解锁变体都靠这一步跟上）
       applyLooks(s);
+      realNow += dt;
+      if (starQueued !== null && watching && !starPending) {
+        playStar(starQueued);
+        starQueued = null;
+      }
+      // 升星镜头停完了：停的时候来的卡这才把镜头要过去
+      if (deferred && realNow >= starUntil) {
+        const d = deferred;
+        deferred = null;
+        focusOn(d.at, d.secs);
+      }
       if (starPending) {
         starPending.wait -= dt;
         if (starPending.wait <= 0) {
@@ -1160,7 +1207,11 @@ export function createGameScene(stage: IsoWorld, content0: ContentBundle, site0:
       previewOn = variant ? facility : null;
       if (facility) overlays.preview?.(facility, variant);
     },
+    setWatching(on) {
+      watching = on;
+    },
     focus() {
+      if (realNow < starUntil) return { x: STAR_SIGN_AT.x, z: STAR_SIGN_AT.z, y: STAR_SIGN_LIFT, seq: focusSeq };
       if (!focusAnchor || sched.now > focusUntil) return null;
       const p = site.anchors[focusAnchor] ?? STANDS[focusAnchor];
       return p ? { x: p.x, z: p.z, seq: focusSeq } : null;

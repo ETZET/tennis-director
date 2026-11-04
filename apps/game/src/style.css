@@ -10,8 +10,8 @@
   --optic:#d8c08a;
   --green:#2f7a49;
   --paper:#f3ecdc;
-  --f-cond:'Pixelify Sans','ZCOOL QingKe HuangYou','Noto Sans SC',monospace;
-  --f-text:'Pixelify Sans','ZCOOL QingKe HuangYou','Noto Sans SC',sans-serif;
+  --f-cond:'TD Digits','Pixelify Sans','ZCOOL QingKe HuangYou','Noto Sans SC',monospace;
+  --f-text:'TD Digits','Pixelify Sans','ZCOOL QingKe HuangYou','Noto Sans SC',sans-serif;
   --f-label:'Silkscreen','ZCOOL QingKe HuangYou','Courier New',monospace;
 }
 html,body{height:100%;margin:0}

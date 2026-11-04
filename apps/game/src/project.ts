@@ -4,6 +4,7 @@ import {
   type CausalEntry,
   type ContentBundle,
   canAssign,
+  crewOf,
   DIRECTOR,
   type Effect,
   facilityTotals,
@@ -74,6 +75,10 @@ export class Projector {
   /** 已经在快讯里提醒过"快撑不住了"的设施（回到 40 以上再清掉） */
   private readonly worn = new Set<string>();
   private lastSample = -1;
+  /** 上一批事件处理完时每个人手上的活：习惯把人调走时，好说出他放下了什么 */
+  private readonly lastJob = new Map<string, string | null>();
+  /** 被习惯调走、停在半路的工单（工单 → 谁走的）：地点清单里那一行写"人走了（习惯）" */
+  private readonly leftByRoutine = new Map<string, string>();
 
   constructor(
     private content: ContentBundle,
@@ -199,6 +204,29 @@ export class Projector {
       } else if (e.type === 'directorGrew') {
         // 总监在长进：让玩家看见（核心玩法决定）
         this.push(s.t, T.fmt('ui.wire.grew', { skill: T.tr(`ui.skill.${e.skill}`), n: e.value }), false);
+      } else if (e.type === 'routine') {
+        // 习惯（ADR 0014）每天早上把人调回他的班：模拟照旧（人-13），但要让玩家看见他放下了什么
+        const w = worldOf(s, this.content);
+        const prev = this.lastJob.get(e.person) ?? null;
+        const post = T.tr(`posts.${e.target}.title`, e.target);
+        const name = T.personName(e.person);
+        const order = prev ? w.orders.get(prev) : undefined;
+        const st = order && s.orders[order.id] ? orderStatus(s, w, order) : undefined;
+        const left = prev ? w.posts.get(prev) : undefined;
+        if (order && st && st.progress < 1 && !st.crew.length) {
+          this.leftByRoutine.set(order.id, e.person);
+          this.push(
+            s.t,
+            T.fmt('ui.wire.routine_order', {
+              name,
+              post,
+              order: this.targetTitle(order.id),
+              p: Math.round(st.progress * 100),
+            }),
+            true,
+          );
+        } else if (left && !left.hours && left.id !== e.target)
+          this.push(s.t, T.fmt('ui.wire.routine_post', { name, post, from: this.targetTitle(left.id) }), false);
       } else if (e.type === 'postInterrupted') {
         // 拉走持续岗位的代价要让玩家看见
         this.push(
@@ -208,6 +236,10 @@ export class Projector {
         );
       }
     }
+    for (const [id, p] of Object.entries(s.people)) this.lastJob.set(id, p.hired ? (p.job ?? null) : null);
+    // 有人回来接着干、或者工单做完收掉了：不再写"人走了"
+    for (const o of [...this.leftByRoutine.keys()])
+      if (!s.orders[o] || crewOf(s, o).length) this.leftByRoutine.delete(o);
   }
 
   /** 变体的名字（文案 variants.<设施>.<变体>，" · " 后面是取舍一句话） */
@@ -1051,14 +1083,22 @@ export class Projector {
       const line = st.crew.length
         ? this.orderLine(s, o, st.crew, st.progress)
         : st.started
-          ? T.fmt('ui.place.order_paused', { p: Math.round(st.progress * 100) })
+          ? this.leftByRoutine.has(o.id)
+            ? T.fmt('ui.place.order_paused_routine', { p: Math.round(st.progress * 100) })
+            : T.fmt('ui.place.order_paused', { p: Math.round(st.progress * 100) })
           : st.variants && !picked
             ? T.tr('ui.variant.hint')
             : T.fmt('ui.place.order_new', {
                 cost: st.cost ? `$${st.cost} · ` : '',
                 time: T.duration(st.work),
               });
-      const fit = fitOf(o.id, o.at, o.skill);
+      let fit = fitOf(o.id, o.at, o.skill);
+      // 变体工单的标题行也能直接派：写明按哪个变体（玩家最后选的那行，没选过就是第一个）
+      if (fit && !fit.blocked && !fit.here && st.variants && !st.locked && st.variant && fac)
+        fit = {
+          ...fit,
+          text: `${T.fmt('ui.place.sends_variant', { variant: this.variantName(fac, st.variant) })} · ${fit.text}`,
+        };
       const variants = st.variants ? this.variantRows(session, o) : null;
       rows.push({
         id: o.id,
@@ -1079,6 +1119,13 @@ export class Projector {
       if (o.at !== anchor || orderStatus(s, w, o).visible) continue;
       if (o.once && (s.orderLog.done[o.id] ?? 0) > 0) continue;
       if ((s.orderLog.cooldowns[o.id] ?? -1) > s.t) continue;
+      // 已经装上的升级、和现在的变体对不上的升级、已经改成的样子：不是"还没开出来"，不再挂一行（改造期满后也按新变体重看）
+      if (fac && o.upgrade) {
+        if (s.upgrades?.[fac]?.includes(o.upgrade)) continue;
+        const only = w.facilities.get(fac)?.upgrades?.[o.upgrade]?.variant;
+        if (only && s.variants?.[fac] && s.variants[fac] !== only) continue;
+      }
+      if (fac && o.remodel && s.variants?.[fac] === o.remodel) continue;
       const how = T.tr(`orders.${o.id}.locked`, '');
       if (!how) continue;
       rows.push({

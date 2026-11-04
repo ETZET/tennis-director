@@ -116,3 +116,8 @@
 .td-variant .td-row-text>span.td-variant-gives{color:#9be07f}
 .td-variant .td-row-text>span.td-variant-costs{color:#ffb39c}
 .td-variant .td-row-text b{white-space:normal}
+/* 地点清单的外层铺满全屏但不接指针（盖过 .td-hud>* 的 auto）：遮罩下面露出员工条，拖人能从员工条拖到清单的一行上 */
+.td-hud>.td-sheet-wrap{pointer-events:none}
+.td-place{-webkit-user-select:none;user-select:none}
+/* 预览变体时清单收矮，场景里的预览露在清单上面（镜头同时把设施挪过去） */
+.td-place-wrap .td-place.td-place-preview{max-height:min(36%,calc(100% - 300px))}
