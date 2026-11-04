@@ -149,7 +149,7 @@ describe('内容编译', () => {
     edit('facilities.yaml', (y) => {
       const o23 = y.find((x: { id: string }) => x.id === 'outer_23');
       o23.variants = { clay: {}, hard: { states: { playable: { decay_day: 2, quality: 12 } } } };
-      o23.upgrades = { tournament_clay: { variant: 'clay', states: { playable: { quality: 3 } } } };
+      o23.upgrades = { ...o23.upgrades, tournament_clay: { variant: 'clay', states: { playable: { quality: 3 } } } };
     });
     edit('orders/o23_repair.yaml', (y) => {
       y.variants = { clay: {}, hard: { cost: 1200, work: '14h', effects: [{ stat: 'reputation', add: 1 }] } };
@@ -205,11 +205,18 @@ describe('内容编译', () => {
     });
     for (const l of ['en', 'zh'])
       edit(`i18n/${l}.yaml`, (y) => {
-        y.variants = { outer_23: { clay: 'Clay', hard: 'Hard' } };
-        y.upgrades = { outer_23: { tournament_clay: 'Tournament clay' } };
+        // 和真实内容（GM-13、GM-9）合并：真实内容里别的设施的变体、升级、星级文案也还在
+        y.variants = { ...y.variants, outer_23: { clay: 'Clay', hard: 'Hard' } };
+        y.upgrades = { ...y.upgrades, outer_23: { ...y.upgrades?.outer_23, tournament_clay: 'Tournament clay' } };
         y.stars = {
-          items: { members_5: '5 members', hosted_cup: 'Host a cup', trophy_1: '1 trophy', members_20: '20 members' },
-          opens: { internal_cup: 'Monthly cup', regional: 'Regionals' },
+          items: {
+            ...y.stars?.items,
+            members_5: '5 members',
+            hosted_cup: 'Host a cup',
+            trophy_1: '1 trophy',
+            members_20: '20 members',
+          },
+          opens: { ...y.stars?.opens, internal_cup: 'Monthly cup', regional: 'Regionals' },
         };
         for (const id of ['o23_pro', 'o23_remodel', 'cup']) y.orders[id] = { title: id, note: id };
         y.posts.o23_hard_league = { title: 'League', note: 'League' };
@@ -248,7 +255,7 @@ describe('内容编译', () => {
     });
     edit('acts/indian_wells.yaml', (y) => {
       y.stars[0].requires.members_5 = { upgrade: 'outer_23', has: 'nope' };
-      y.stars[1].opens.push('sponsor');
+      y.stars[1].opens.push('no_such_opening');
     });
     const m = msgs(compileContent(f));
     expect(m).toMatch(/variants: facility 'outer_23' has no variant 'grass'/);
@@ -259,7 +266,7 @@ describe('内容编译', () => {
     expect(m).toMatch(/unknown variable 'variant.outer_1'/);
     expect(m).toMatch(/outer_23.variants.hard: unknown state 'paved'/);
     expect(m).toMatch(/facility 'outer_23' has no upgrade 'nope'/);
-    expect(m).toMatch(/missing text 'stars.opens.sponsor'/);
+    expect(m).toMatch(/missing text 'stars.opens.no_such_opening'/);
   });
 
   it('文件名必须和 id 一致', () => {

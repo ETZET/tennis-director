@@ -6,8 +6,9 @@ skill: service
 cycle: 1h
 hours: [10, 18]
 days: [4, 5, 6]
-when: { facility: stadium_2, is: open }
+when: { all: [{ facility: stadium_2, is: open }, { not: { variant: stadium_2, is: recovery } }] }
 effects:
   - { stat: cash, add: "round(22 * (0.6 + worker.skill / 100) * (1 + stat.reputation / 120))" }
   - { stat: reputation, add: 0.05 }
+  - { stat: cash, add: 8, if: { upgrade: stadium_2, has: cabanas } }
 wear: 1

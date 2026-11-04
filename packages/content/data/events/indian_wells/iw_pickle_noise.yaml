@@ -1,0 +1,34 @@
+# 匹克球场修成四片匹克球三天后（GM-13，st3_court 的 pickle4 变体安排）：老会员来找你，说噪音太吵、网球场少了一片。
+# 匹克球是真的两难（设计文档"修复分叉"）：选哪项都留痕——隔音要钱，开会要总监的时间而且不一定谈得拢，
+# 不理会走几个会员、La Quinta 的人来得更早（iw_rival_club 认 pickle_feud）。
+id: iw_pickle_noise
+act: indian_wells
+source: consequence
+tone: crisis
+once: true
+countdown: 1d
+when: { all: [{ variant: stadium_3, is: pickle4 }, { facility: stadium_3, is: open }] }
+location: stadium_3
+who: old_members
+options:
+  A:
+    # 装隔音板、换静音拍：花钱，老会员满意，联赛照办
+    cost: 450
+    effects:
+      - { stat: reputation, add: 1 }
+      - { flag: pickle_quiet, set: true }
+  B:
+    # 总监亲自在会所开个会员会，讲清楚分时段：要半天，谈不谈得拢看名气
+    errand: { at: clubhouse, for: 3h }
+    check: { chance: "clamp(0.4 + stat.reputation / 100, 0.4, 0.85)" }
+    onSuccess:
+      - { stat: reputation, add: 2 }
+    onFail:
+      - { stat: members, add: -3 }
+  C:
+    # 不理会：几个打了二十年网球的老会员去了 La Quinta，那边的主教练也听说了
+    effects:
+      - { stat: members, add: -5 }
+      - { stat: reputation, add: -2 }
+      - { flag: pickle_feud, set: true }
+default: { then: C }

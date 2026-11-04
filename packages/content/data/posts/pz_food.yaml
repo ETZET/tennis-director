@@ -9,4 +9,7 @@ when: { facility: plaza, is: open }
 effects:
   - { stat: cash, add: "round(7 * (0.6 + worker.skill / 100) * clamp(0.5 + stat.members / 40, 0.5, 2))" }
   - { stat: reputation, add: 0.01 }
+  # 遮阳观赛坡（GM-13）：棚子外面也坐得住；喷雾杆再凉一点
+  - { stat: cash, add: 2, if: { variant: plaza, is: shade_lawn } }
+  - { stat: cash, add: 3, if: { upgrade: plaza, has: misters } }
 wear: 0.5

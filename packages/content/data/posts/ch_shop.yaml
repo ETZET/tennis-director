@@ -1,0 +1,11 @@
+# 会所 · 球拍专卖店（升级 pro_shop，GM-13）：有人看店就开门，卖球拍、球和线；会员越多卖得越多。
+# 没有固定时段、不算需求（没人看就关着，不拉低服务率）：给手上有空的人一个挣钱的去处，但人一直站在这儿就不在别处。
+id: ch_shop
+act: indian_wells
+at: clubhouse
+skill: service
+cycle: 1h
+when: { all: [{ facility: clubhouse, is: open }, { upgrade: clubhouse, has: pro_shop }] }
+effects:
+  - { stat: cash, add: "round(2 * (0.6 + worker.skill / 100) * clamp(0.5 + stat.members / 40, 0.5, 2))" }
+  - { stat: reputation, add: 0.01 }

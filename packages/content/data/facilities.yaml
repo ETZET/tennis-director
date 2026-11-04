@@ -22,12 +22,30 @@
     ruined: {}
     playable: { courts: 2, quality: 9, upkeep_week: 30, decay_day: 5, drops_to: worn }
     worn: { upkeep_week: 10 }
+  # 变体（LG-14、GM-13）：第一个是默认变体。覆盖写在状态上，岗位按变体开（posts/o23_*.yaml 的 when 和效果）。
+  # 红土：球员在红土上练得快、质量高一点、红土邀请赛更容易办成，但掉得快、维护费高（要有人一直耙）
+  # 硬地：修的时候贵一点，之后好养护（掉得慢、维护费低），质量低一点、练球慢一点；能装职业硬地
+  variants:
+    clay: { states: { playable: { decay_day: 6, upkeep_week: 35 } } }
+    hard: { states: { playable: { quality: 8, decay_day: 3, upkeep_week: 20 } } }
+  # 升级：赛事级红土要一名底子维护 ≥ 75 的人（orders/o23_pro_clay.yaml）；职业硬地同样（o23_pro_hard.yaml）
+  upgrades:
+    tournament_clay: { variant: clay, states: { playable: { quality: 4, upkeep_week: 15, decay_day: 1 } } }
+    pro_hard: { variant: hard, states: { playable: { quality: 3, upkeep_week: 10, decay_day: -1 } } }
 - id: practice
   anchor: practice
   states:
     ruined: {}
     open: { courts: 2, quality: 7, upkeep_week: 30, decay_day: 4, drops_to: worn }
     worn: { upkeep_week: 10 }
+  # 学院：下午的青少年学院（收入高、带家长入会，发球机加成）；晨间训练营：工作日早上 8–11 点的成人营，
+  # 和下午的课不撞时间（一个教练两头上），修得便宜，但每小时挣得少、场地磨得快、质量低一点
+  variants:
+    academy: {}
+    bootcamp: { states: { open: { quality: 6, decay_day: 5 } } }
+  # 场边大屏：回放、学员看板。要一名教学 ≥ 65 的教练装调（orders/pr_video_wall.yaml）
+  upgrades:
+    video_wall: { states: { open: { quality: 4, upkeep_week: 15 } } }
 - id: clubhouse
   anchor: clubhouse
   states:
@@ -36,12 +54,28 @@
     open: { quality: 8, upkeep_week: 60, decay_day: 1.5, drops_to: worn }
     # 又漏又停电：前台关门
     worn: { upkeep_week: 20 }
+  # 咖啡吧：露台午餐（ch_cafe 岗位）、会员上限 +25（理疗室 +15，见 acts 的 member_cap），维护费高一点
+  # 理疗室：质量高、掉得慢（人少、不进食物）、球员练球恢复快（pr_training、o23_training），只有体能师能坐的理疗岗位（ch_physio）
+  variants:
+    cafe: { states: { open: { upkeep_week: 75 } } }
+    physio: { states: { open: { quality: 12, decay_day: 1 } } }
+  # 球拍专卖店：要一名服务 ≥ 65 的人布置（orders/ch_pro_shop.yaml）；开出 ch_shop 岗位
+  upgrades:
+    pro_shop: { states: { open: { quality: 2, upkeep_week: 15 } } }
 - id: plaza
   anchor: plaza
   states:
     dry: { quality: -2 }
     open: { quality: 6, upkeep_week: 50, decay_day: 2.5, drops_to: worn }
     worn: { upkeep_week: 15 }
+  # 夜场：串灯和吧台，每天傍晚的酒吧（pz_bar）挣得多，但费电、掉得快、质量低一点
+  # 遮阳观赛坡：遮阳帆和草坡，午餐摊多挣一点、掉得慢、质量高；表演赛看台不够时有地方坐（表演赛判定 +5%）
+  variants:
+    nightlife: { states: { open: { quality: 5, upkeep_week: 70, decay_day: 3.5 } } }
+    shade_lawn: { states: { open: { quality: 9, decay_day: 2 } } }
+  # 喷雾杆：沙漠的午后凉一点，午餐和傍晚的客人坐得住
+  upgrades:
+    misters: { states: { open: { quality: 3, upkeep_week: 10 } } }
 - id: stadium_3
   anchor: stadium_3
   states:
@@ -50,6 +84,14 @@
     dug: {}
     open: { courts: 1, quality: 8, upkeep_week: 80, decay_day: 4, drops_to: worn }
     worn: { upkeep_week: 25 }
+  # 四片匹克球：周末联赛挣得多（st3_league），但老会员不满（修成时声望 −2，三天后来一张卡 iw_pickle_noise）
+  # 两片网球场：多一块网球场（会员上限 +12、开放场地），周末只有网球开放日（st3_open），挣得少
+  variants:
+    pickle4: {}
+    tennis2: { states: { open: { courts: 2, quality: 9 } } }
+  # 联赛灯：灯杆一装，周五周六傍晚开夜场（st3_night），电费也上来了
+  upgrades:
+    league_lights: { states: { open: { quality: 1, upkeep_week: 25 } } }
 - id: stadium_2
   anchor: stadium_2
   states:
@@ -57,6 +99,14 @@
     # 泳池不是球场：不算场地数（会员上限按场地算），质量和收入从岗位来
     open: { quality: 12, upkeep_week: 140, decay_day: 3, drops_to: worn }
     worn: { upkeep_week: 45 }
+  # 度假：躺椅、小木屋，周末的小木屋服务（st2_events）是全场最挣钱的岗位，维护费也最高
+  # 冷水恢复池：修得便宜、维护费低，挣得少（st2_plunge）；球员外出比赛的胜率 +10%（pl_tournament）
+  variants:
+    resort: {}
+    recovery: { states: { open: { quality: 10, upkeep_week: 100 } } }
+  # 小木屋一排：多租几间，周末的服务更挣钱
+  upgrades:
+    cabanas: { states: { open: { quality: 2, upkeep_week: 20 } } }
 - id: stadium_1
   anchor: stadium_1
   states:

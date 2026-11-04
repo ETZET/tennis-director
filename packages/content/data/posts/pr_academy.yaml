@@ -6,10 +6,11 @@ skill: teach
 cycle: 1h
 hours: [14, 18]
 days: [0, 1, 2, 3, 4]
-when: { facility: practice, is: open }
+when: { all: [{ facility: practice, is: open }, { not: { variant: practice, is: bootcamp } }] }
 effects:
   - { stat: cash, add: "round(12 * (0.6 + worker.skill / 100) * clamp(0.5 + stat.members / 40, 0.5, 2)) + (flag.ball_machine ? 4 : 0)" }
   - { stat: members, add: 1, chance: 0.05 }
   - { stat: reputation, add: 0.03 }
+  - { stat: cash, add: 5, if: { upgrade: practice, has: video_wall } }
 wear: 1
 performance: lesson

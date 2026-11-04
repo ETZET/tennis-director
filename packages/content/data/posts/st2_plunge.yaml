@@ -1,0 +1,16 @@
+# 泳池 · 冷水恢复池（变体 recovery，GM-13）：工作日 16–20 点，练完球、打完联赛的人来泡冷水、做拉伸。
+# 挣得比周末的小木屋少，但天天有人来，口碑涨得稳；小木屋一排装上以后有地方歇。
+id: st2_plunge
+act: indian_wells
+at: stadium_2
+skill: service
+cycle: 1h
+hours: [16, 20]
+days: [0, 1, 2, 3, 4]
+when: { all: [{ facility: stadium_2, is: open }, { variant: stadium_2, is: recovery }] }
+effects:
+  - { stat: cash, add: "round(10 * (0.6 + worker.skill / 100) * clamp(0.5 + stat.members / 40, 0.5, 2))" }
+  - { stat: cash, add: 4, if: { upgrade: stadium_2, has: cabanas } }
+  - { stat: members, add: 1, chance: 0.03 }
+  - { stat: reputation, add: 0.05 }
+wear: 0.5

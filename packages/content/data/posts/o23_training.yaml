@@ -7,6 +7,7 @@ cycle: 1h
 when: { all: [{ facility: outer_23, is: playable }, { expr: "hired.player >= 1" }] }
 only: [player]
 effects:
-  - { person: worker, add: { play: 0.06 } }
+  # 红土上练得慢而扎实、涨得快一点；硬地慢一点；会所修成理疗室时恢复得快、多练一截（GM-13）
+  - { person: worker, add: { play: "(variant.outer_23 == \"hard\" ? 0.05 : 0.07) + (variant.clubhouse == \"physio\" ? 0.03 : 0)" } }
 wear: 0.5
 performance: open_play

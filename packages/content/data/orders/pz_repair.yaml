@@ -13,3 +13,7 @@ effects:
   - { facility: plaza, set: open }
   - { stat: reputation, add: 3 }
 performance: workday
+# 修成什么（GM-13）：串灯和吧台，还是遮阳帆和草坡
+variants:
+  nightlife: { cost: 2200 }
+  shade_lawn: { work: 13h }

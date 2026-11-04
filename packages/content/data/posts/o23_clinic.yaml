@@ -10,5 +10,7 @@ when: { facility: outer_23, is: playable }
 effects:
   - { stat: cash, add: "round(10 * (0.6 + worker.skill / 100) * clamp(0.5 + stat.members / 40, 0.5, 2))" }
   - { stat: reputation, add: 0.02 }
+  # 职业硬地（GM-13）：硬地赛季的成人班报名的人多
+  - { stat: cash, add: 4, if: { upgrade: outer_23, has: pro_hard } }
 wear: 1
 performance: lesson

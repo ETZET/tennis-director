@@ -1,0 +1,13 @@
+# 联赛灯（升级 league_lights，GM-13）：立四根灯杆。周五周六傍晚开夜场（st3_night）；电费每周多 $25。
+id: st3_lights
+act: indian_wells
+at: stadium_3
+skill: upkeep
+work: 6h
+cost: 600
+crew: 2
+when: { facility: stadium_3, is: open }
+upgrade: league_lights
+effects:
+  - { stat: reputation, add: 1 }
+performance: workday

@@ -13,3 +13,7 @@ effects:
   - { facility: practice, set: open }
   - { stat: reputation, add: 2 }
 performance: workday
+# 修成什么（GM-13）：学院要发球机位、学员看板；晨间训练营只要标志桶、跑道和几件器械，便宜
+variants:
+  academy: {}
+  bootcamp: { cost: 600, work: 9h }

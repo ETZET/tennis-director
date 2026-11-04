@@ -1,5 +1,5 @@
 {
- "version": "b5f5c891",
+ "version": "0f55cb13",
  "stats": [
   {
    "id": "cash",
@@ -122,6 +122,47 @@
      "upkeep_week": 10,
      "decay_day": 0
     }
+   },
+   "variants": {
+    "clay": {
+     "states": {
+      "playable": {
+       "upkeep_week": 35,
+       "decay_day": 6
+      }
+     }
+    },
+    "hard": {
+     "states": {
+      "playable": {
+       "quality": 8,
+       "upkeep_week": 20,
+       "decay_day": 3
+      }
+     }
+    }
+   },
+   "upgrades": {
+    "tournament_clay": {
+     "variant": "clay",
+     "states": {
+      "playable": {
+       "quality": 4,
+       "upkeep_week": 15,
+       "decay_day": 1
+      }
+     }
+    },
+    "pro_hard": {
+     "variant": "hard",
+     "states": {
+      "playable": {
+       "quality": 3,
+       "upkeep_week": 10,
+       "decay_day": -1
+      }
+     }
+    }
    }
   },
   {
@@ -152,6 +193,27 @@
      "income_week": 0,
      "upkeep_week": 10,
      "decay_day": 0
+    }
+   },
+   "variants": {
+    "academy": {},
+    "bootcamp": {
+     "states": {
+      "open": {
+       "quality": 6,
+       "decay_day": 5
+      }
+     }
+    }
+   },
+   "upgrades": {
+    "video_wall": {
+     "states": {
+      "open": {
+       "quality": 4,
+       "upkeep_week": 15
+      }
+     }
     }
    }
   },
@@ -184,6 +246,33 @@
      "upkeep_week": 20,
      "decay_day": 0
     }
+   },
+   "variants": {
+    "cafe": {
+     "states": {
+      "open": {
+       "upkeep_week": 75
+      }
+     }
+    },
+    "physio": {
+     "states": {
+      "open": {
+       "quality": 12,
+       "decay_day": 1
+      }
+     }
+    }
+   },
+   "upgrades": {
+    "pro_shop": {
+     "states": {
+      "open": {
+       "quality": 2,
+       "upkeep_week": 15
+      }
+     }
+    }
    }
   },
   {
@@ -214,6 +303,35 @@
      "income_week": 0,
      "upkeep_week": 15,
      "decay_day": 0
+    }
+   },
+   "variants": {
+    "nightlife": {
+     "states": {
+      "open": {
+       "quality": 5,
+       "upkeep_week": 70,
+       "decay_day": 3.5
+      }
+     }
+    },
+    "shade_lawn": {
+     "states": {
+      "open": {
+       "quality": 9,
+       "decay_day": 2
+      }
+     }
+    }
+   },
+   "upgrades": {
+    "misters": {
+     "states": {
+      "open": {
+       "quality": 3,
+       "upkeep_week": 10
+      }
+     }
     }
    }
   },
@@ -254,6 +372,27 @@
      "upkeep_week": 25,
      "decay_day": 0
     }
+   },
+   "variants": {
+    "pickle4": {},
+    "tennis2": {
+     "states": {
+      "open": {
+       "courts": 2,
+       "quality": 9
+      }
+     }
+    }
+   },
+   "upgrades": {
+    "league_lights": {
+     "states": {
+      "open": {
+       "quality": 1,
+       "upkeep_week": 25
+      }
+     }
+    }
    }
   },
   {
@@ -284,6 +423,27 @@
      "income_week": 0,
      "upkeep_week": 45,
      "decay_day": 0
+    }
+   },
+   "variants": {
+    "resort": {},
+    "recovery": {
+     "states": {
+      "open": {
+       "quality": 10,
+       "upkeep_week": 100
+      }
+     }
+    }
+   },
+   "upgrades": {
+    "cabanas": {
+     "states": {
+      "open": {
+       "quality": 2,
+       "upkeep_week": 20
+      }
+     }
     }
    }
   },
@@ -841,6 +1001,48 @@
  "activities": [],
  "posts": [
   {
+   "id": "ch_cafe",
+   "act": "indian_wells",
+   "at": "clubhouse",
+   "skill": "service",
+   "cycle": "1h",
+   "hours": [
+    11,
+    15
+   ],
+   "when": {
+    "all": [
+     {
+      "facility": "clubhouse",
+      "is": "open"
+     },
+     {
+      "not": {
+       "variant": "clubhouse",
+       "is": "physio"
+      }
+     }
+    ]
+   },
+   "effects": [
+    {
+     "stat": "cash",
+     "add": "round(6 * (0.6 + worker.skill / 100) * clamp(0.5 + stat.members / 40, 0.5, 2))"
+    },
+    {
+     "chance": 0.02,
+     "stat": "members",
+     "add": 1
+    },
+    {
+     "stat": "reputation",
+     "add": 0.01
+    }
+   ],
+   "wear": 0.3,
+   "restore": 0
+  },
+  {
    "id": "ch_desk",
    "act": "indian_wells",
    "at": "clubhouse",
@@ -863,6 +1065,90 @@
      "chance": "0.03 + worker.skill / 2000",
      "stat": "members",
      "add": 1
+    },
+    {
+     "stat": "reputation",
+     "add": 0.01
+    }
+   ],
+   "wear": 0,
+   "restore": 0
+  },
+  {
+   "id": "ch_physio",
+   "act": "indian_wells",
+   "at": "clubhouse",
+   "skill": "teach",
+   "cycle": "1h",
+   "hours": [
+    12,
+    17
+   ],
+   "days": [
+    0,
+    1,
+    2,
+    3,
+    4
+   ],
+   "when": {
+    "all": [
+     {
+      "facility": "clubhouse",
+      "is": "open"
+     },
+     {
+      "variant": "clubhouse",
+      "is": "physio"
+     },
+     {
+      "expr": "hired.trainer >= 1"
+     }
+    ]
+   },
+   "effects": [
+    {
+     "stat": "cash",
+     "add": "round(9 * (0.6 + worker.skill / 100) * clamp(0.5 + stat.members / 40, 0.5, 2))"
+    },
+    {
+     "chance": 0.04,
+     "stat": "members",
+     "add": 1
+    },
+    {
+     "stat": "reputation",
+     "add": 0.04
+    }
+   ],
+   "wear": 0,
+   "restore": 0,
+   "only": [
+    "trainer"
+   ]
+  },
+  {
+   "id": "ch_shop",
+   "act": "indian_wells",
+   "at": "clubhouse",
+   "skill": "service",
+   "cycle": "1h",
+   "when": {
+    "all": [
+     {
+      "facility": "clubhouse",
+      "is": "open"
+     },
+     {
+      "upgrade": "clubhouse",
+      "has": "pro_shop"
+     }
+    ]
+   },
+   "effects": [
+    {
+     "stat": "cash",
+     "add": "round(2 * (0.6 + worker.skill / 100) * clamp(0.5 + stat.members / 40, 0.5, 2))"
     },
     {
      "stat": "reputation",
@@ -1044,6 +1330,14 @@
     {
      "stat": "reputation",
      "add": 0.02
+    },
+    {
+     "if": {
+      "upgrade": "outer_23",
+      "has": "pro_hard"
+     },
+     "stat": "cash",
+     "add": 4
     }
    ],
    "wear": 1,
@@ -1067,7 +1361,23 @@
    "effects": [
     {
      "stat": "cash",
-     "add": "round(5 * (0.6 + worker.skill / 100) * (1 + stat.reputation / 120))"
+     "add": "round(6 * (0.6 + worker.skill / 100) * (1 + stat.reputation / 120))"
+    },
+    {
+     "if": {
+      "upgrade": "outer_23",
+      "has": "tournament_clay"
+     },
+     "stat": "cash",
+     "add": 2
+    },
+    {
+     "if": {
+      "upgrade": "outer_23",
+      "has": "pro_hard"
+     },
+     "stat": "cash",
+     "add": 1
     },
     {
      "chance": 0.04,
@@ -1100,7 +1410,7 @@
     {
      "person": "worker",
      "add": {
-      "play": 0.06
+      "play": "(variant.outer_23 == \"hard\" ? 0.05 : 0.07) + (variant.clubhouse == \"physio\" ? 0.03 : 0)"
      }
     }
    ],
@@ -1143,8 +1453,18 @@
     4
    ],
    "when": {
-    "facility": "practice",
-    "is": "open"
+    "all": [
+     {
+      "facility": "practice",
+      "is": "open"
+     },
+     {
+      "not": {
+       "variant": "practice",
+       "is": "bootcamp"
+      }
+     }
+    ]
    },
    "effects": [
     {
@@ -1159,9 +1479,73 @@
     {
      "stat": "reputation",
      "add": 0.03
+    },
+    {
+     "if": {
+      "upgrade": "practice",
+      "has": "video_wall"
+     },
+     "stat": "cash",
+     "add": 5
     }
    ],
    "wear": 1,
+   "restore": 0,
+   "performance": "lesson"
+  },
+  {
+   "id": "pr_bootcamp",
+   "act": "indian_wells",
+   "at": "practice",
+   "skill": "teach",
+   "cycle": "1h",
+   "hours": [
+    8,
+    11
+   ],
+   "days": [
+    0,
+    1,
+    2,
+    3,
+    4
+   ],
+   "when": {
+    "all": [
+     {
+      "facility": "practice",
+      "is": "open"
+     },
+     {
+      "variant": "practice",
+      "is": "bootcamp"
+     }
+    ]
+   },
+   "effects": [
+    {
+     "stat": "cash",
+     "add": "round(12 * (0.6 + worker.skill / 100) * clamp(0.5 + stat.members / 40, 0.5, 2))"
+    },
+    {
+     "if": {
+      "upgrade": "practice",
+      "has": "video_wall"
+     },
+     "stat": "cash",
+     "add": 5
+    },
+    {
+     "chance": 0.07,
+     "stat": "members",
+     "add": 1
+    },
+    {
+     "stat": "reputation",
+     "add": 0.02
+    }
+   ],
+   "wear": 1.5,
    "restore": 0,
    "performance": "lesson"
   },
@@ -1236,7 +1620,7 @@
     {
      "person": "worker",
      "add": {
-      "play": 0.1
+      "play": "0.1 + (variant.clubhouse == \"physio\" ? 0.04 : 0)"
      }
     }
    ],
@@ -1290,6 +1674,50 @@
    "performance": "open_play"
   },
   {
+   "id": "pz_bar",
+   "act": "indian_wells",
+   "at": "plaza",
+   "skill": "service",
+   "cycle": "1h",
+   "hours": [
+    17,
+    20
+   ],
+   "when": {
+    "all": [
+     {
+      "facility": "plaza",
+      "is": "open"
+     },
+     {
+      "variant": "plaza",
+      "is": "nightlife"
+     }
+    ]
+   },
+   "effects": [
+    {
+     "stat": "cash",
+     "add": "round(10 * (0.6 + worker.skill / 100) * (1 + stat.reputation / 120))"
+    },
+    {
+     "if": {
+      "upgrade": "plaza",
+      "has": "misters"
+     },
+     "stat": "cash",
+     "add": 3
+    },
+    {
+     "chance": 0.03,
+     "stat": "members",
+     "add": 1
+    }
+   ],
+   "wear": 1,
+   "restore": 0
+  },
+  {
    "id": "pz_evening",
    "act": "indian_wells",
    "at": "plaza",
@@ -1306,8 +1734,18 @@
     6
    ],
    "when": {
-    "facility": "plaza",
-    "is": "open"
+    "all": [
+     {
+      "facility": "plaza",
+      "is": "open"
+     },
+     {
+      "not": {
+       "variant": "plaza",
+       "is": "nightlife"
+      }
+     }
+    ]
    },
    "effects": [
     {
@@ -1318,6 +1756,14 @@
      "chance": 0.04,
      "stat": "members",
      "add": 1
+    },
+    {
+     "if": {
+      "upgrade": "plaza",
+      "has": "misters"
+     },
+     "stat": "cash",
+     "add": 3
     }
    ],
    "wear": 0.5,
@@ -1345,6 +1791,22 @@
     {
      "stat": "reputation",
      "add": 0.01
+    },
+    {
+     "if": {
+      "variant": "plaza",
+      "is": "shade_lawn"
+     },
+     "stat": "cash",
+     "add": 2
+    },
+    {
+     "if": {
+      "upgrade": "plaza",
+      "has": "misters"
+     },
+     "stat": "cash",
+     "add": 3
     }
    ],
    "wear": 0.5,
@@ -1394,8 +1856,18 @@
     6
    ],
    "when": {
-    "facility": "stadium_2",
-    "is": "open"
+    "all": [
+     {
+      "facility": "stadium_2",
+      "is": "open"
+     },
+     {
+      "not": {
+       "variant": "stadium_2",
+       "is": "recovery"
+      }
+     }
+    ]
    },
    "effects": [
     {
@@ -1405,9 +1877,72 @@
     {
      "stat": "reputation",
      "add": 0.05
+    },
+    {
+     "if": {
+      "upgrade": "stadium_2",
+      "has": "cabanas"
+     },
+     "stat": "cash",
+     "add": 8
     }
    ],
    "wear": 1,
+   "restore": 0
+  },
+  {
+   "id": "st2_plunge",
+   "act": "indian_wells",
+   "at": "stadium_2",
+   "skill": "service",
+   "cycle": "1h",
+   "hours": [
+    16,
+    20
+   ],
+   "days": [
+    0,
+    1,
+    2,
+    3,
+    4
+   ],
+   "when": {
+    "all": [
+     {
+      "facility": "stadium_2",
+      "is": "open"
+     },
+     {
+      "variant": "stadium_2",
+      "is": "recovery"
+     }
+    ]
+   },
+   "effects": [
+    {
+     "stat": "cash",
+     "add": "round(10 * (0.6 + worker.skill / 100) * clamp(0.5 + stat.members / 40, 0.5, 2))"
+    },
+    {
+     "if": {
+      "upgrade": "stadium_2",
+      "has": "cabanas"
+     },
+     "stat": "cash",
+     "add": 4
+    },
+    {
+     "chance": 0.03,
+     "stat": "members",
+     "add": 1
+    },
+    {
+     "stat": "reputation",
+     "add": 0.05
+    }
+   ],
+   "wear": 0.5,
    "restore": 0
   },
   {
@@ -1515,8 +2050,18 @@
     6
    ],
    "when": {
-    "facility": "stadium_3",
-    "is": "open"
+    "all": [
+     {
+      "facility": "stadium_3",
+      "is": "open"
+     },
+     {
+      "not": {
+       "variant": "stadium_3",
+       "is": "tennis2"
+      }
+     }
+    ]
    },
    "effects": [
     {
@@ -1531,6 +2076,109 @@
    "wear": 1,
    "restore": 0,
    "performance": "pickleball"
+  },
+  {
+   "id": "st3_night",
+   "act": "indian_wells",
+   "at": "stadium_3",
+   "skill": "service",
+   "cycle": "1h",
+   "hours": [
+    17,
+    20
+   ],
+   "days": [
+    4,
+    5
+   ],
+   "when": {
+    "all": [
+     {
+      "facility": "stadium_3",
+      "is": "open"
+     },
+     {
+      "upgrade": "stadium_3",
+      "has": "league_lights"
+     }
+    ]
+   },
+   "effects": [
+    {
+     "stat": "cash",
+     "add": "round((variant.stadium_3 == \"tennis2\" ? 8 : 14) * (0.6 + worker.skill / 100) * (1 + stat.reputation / 120))"
+    },
+    {
+     "stat": "reputation",
+     "add": 0.02
+    },
+    {
+     "if": {
+      "all": [
+       {
+        "not": {
+         "variant": "stadium_3",
+         "is": "tennis2"
+        }
+       },
+       {
+        "not": {
+         "flag": "pickle_quiet"
+        }
+       }
+      ]
+     },
+     "stat": "reputation",
+     "add": -0.04
+    }
+   ],
+   "wear": 0.8,
+   "restore": 0
+  },
+  {
+   "id": "st3_open",
+   "act": "indian_wells",
+   "at": "stadium_3",
+   "skill": "service",
+   "cycle": "1h",
+   "hours": [
+    9,
+    17
+   ],
+   "days": [
+    5,
+    6
+   ],
+   "when": {
+    "all": [
+     {
+      "facility": "stadium_3",
+      "is": "open"
+     },
+     {
+      "variant": "stadium_3",
+      "is": "tennis2"
+     }
+    ]
+   },
+   "effects": [
+    {
+     "stat": "cash",
+     "add": "round(8 * (0.6 + worker.skill / 100) * (1 + stat.reputation / 120))"
+    },
+    {
+     "chance": 0.05,
+     "stat": "members",
+     "add": 1
+    },
+    {
+     "stat": "reputation",
+     "add": 0.04
+    }
+   ],
+   "wear": 0.8,
+   "restore": 0,
+   "performance": "open_play"
   },
   {
    "id": "st3_upkeep",
@@ -1572,6 +2220,33 @@
    "effects": [],
    "onSuccess": [],
    "onFail": []
+  },
+  {
+   "id": "ch_pro_shop",
+   "act": "indian_wells",
+   "at": "clubhouse",
+   "skill": "service",
+   "work": "4h",
+   "cost": 500,
+   "when": {
+    "facility": "clubhouse",
+    "is": "open"
+   },
+   "crew": 1,
+   "once": false,
+   "restore": 0,
+   "effects": [
+    {
+     "stat": "reputation",
+     "add": 1
+    }
+   ],
+   "onSuccess": [],
+   "onFail": [],
+   "worker": {
+    "service": 65
+   },
+   "upgrade": "pro_shop"
   },
   {
    "id": "ch_reopen",
@@ -1646,7 +2321,110 @@
    ],
    "onSuccess": [],
    "onFail": [],
-   "performance": "workday"
+   "performance": "workday",
+   "variants": {
+    "cafe": {},
+    "physio": {}
+   }
+  },
+  {
+   "id": "ch_to_cafe",
+   "act": "indian_wells",
+   "at": "clubhouse",
+   "skill": "upkeep",
+   "work": "4h",
+   "cost": 700,
+   "when": {
+    "facility": "clubhouse",
+    "is": "open"
+   },
+   "crew": 2,
+   "once": false,
+   "restore": 0,
+   "effects": [],
+   "onSuccess": [],
+   "onFail": [],
+   "performance": "workday",
+   "remodel": "cafe",
+   "closed_for": "7d"
+  },
+  {
+   "id": "ch_to_physio",
+   "act": "indian_wells",
+   "at": "clubhouse",
+   "skill": "upkeep",
+   "work": "4h",
+   "cost": 900,
+   "when": {
+    "facility": "clubhouse",
+    "is": "open"
+   },
+   "crew": 2,
+   "once": false,
+   "restore": 0,
+   "effects": [],
+   "onSuccess": [],
+   "onFail": [],
+   "performance": "workday",
+   "remodel": "physio",
+   "closed_for": "7d"
+  },
+  {
+   "id": "cup_monthly",
+   "act": "indian_wells",
+   "at": "outer_1",
+   "skill": "service",
+   "work": "4h",
+   "cost": 60,
+   "when": {
+    "all": [
+     {
+      "expr": "stars >= 1"
+     },
+     {
+      "expr": "courts_built >= 2"
+     },
+     {
+      "any": [
+       {
+        "facility": "outer_1",
+        "is": "playable"
+       },
+       {
+        "facility": "outer_1",
+        "is": "resurfaced"
+       }
+      ]
+     }
+    ]
+   },
+   "crew": 2,
+   "cooldown": "28d",
+   "once": false,
+   "restore": 0,
+   "effects": [
+    {
+     "trophy": 1
+    },
+    {
+     "flag": "hosted_cup",
+     "set": true
+    },
+    {
+     "stat": "reputation",
+     "add": 2
+    },
+    {
+     "stat": "members",
+     "add": 2
+    },
+    {
+     "log": "log.cup_hosted"
+    }
+   ],
+   "onSuccess": [],
+   "onFail": [],
+   "performance": "match"
   },
   {
    "id": "flyers",
@@ -1672,6 +2450,71 @@
    ],
    "onSuccess": [],
    "onFail": []
+  },
+  {
+   "id": "inv_clay",
+   "act": "indian_wells",
+   "at": "outer_23",
+   "skill": "service",
+   "work": "8h",
+   "cost": 800,
+   "when": {
+    "all": [
+     {
+      "expr": "stars >= 3"
+     },
+     {
+      "facility": "outer_23",
+      "is": "playable"
+     },
+     {
+      "facility": "clubhouse",
+      "is": "open"
+     },
+     {
+      "facility": "plaza",
+      "is": "open"
+     }
+    ]
+   },
+   "crew": 4,
+   "cooldown": "21d",
+   "once": false,
+   "restore": 0,
+   "check": {
+    "chance": "weather == \"rain\" ? 0.1 : clamp(0.45 + stat.reputation / 200 + (variant.outer_23 == \"clay\" ? 0.1 : 0), 0.1, 0.9)"
+   },
+   "effects": [],
+   "onSuccess": [
+    {
+     "stat": "cash",
+     "add": 2000
+    },
+    {
+     "stat": "reputation",
+     "add": 6
+    },
+    {
+     "trophy": 1
+    },
+    {
+     "flag": "hosted_invitational",
+     "set": true
+    },
+    {
+     "log": "log.invitational_won"
+    }
+   ],
+   "onFail": [
+    {
+     "stat": "reputation",
+     "add": -2
+    },
+    {
+     "log": "log.invitational_flop"
+    }
+   ],
+   "performance": "match"
   },
   {
    "id": "o1_net",
@@ -1844,6 +2687,62 @@
    "onFail": []
   },
   {
+   "id": "o23_pro_clay",
+   "act": "indian_wells",
+   "at": "outer_23",
+   "skill": "upkeep",
+   "work": "6h",
+   "cost": 400,
+   "when": {
+    "facility": "outer_23",
+    "is": "playable"
+   },
+   "crew": 2,
+   "once": false,
+   "restore": 0,
+   "effects": [
+    {
+     "stat": "reputation",
+     "add": 2
+    }
+   ],
+   "onSuccess": [],
+   "onFail": [],
+   "performance": "workday",
+   "worker": {
+    "upkeep": 75
+   },
+   "upgrade": "tournament_clay"
+  },
+  {
+   "id": "o23_pro_hard",
+   "act": "indian_wells",
+   "at": "outer_23",
+   "skill": "upkeep",
+   "work": "5h",
+   "cost": 350,
+   "when": {
+    "facility": "outer_23",
+    "is": "playable"
+   },
+   "crew": 2,
+   "once": false,
+   "restore": 0,
+   "effects": [
+    {
+     "stat": "reputation",
+     "add": 2
+    }
+   ],
+   "onSuccess": [],
+   "onFail": [],
+   "performance": "workday",
+   "worker": {
+    "upkeep": 75
+   },
+   "upgrade": "pro_hard"
+  },
+  {
    "id": "o23_reopen",
    "act": "indian_wells",
    "at": "outer_23",
@@ -1913,7 +2812,14 @@
    ],
    "onSuccess": [],
    "onFail": [],
-   "performance": "workday"
+   "performance": "workday",
+   "variants": {
+    "clay": {},
+    "hard": {
+     "cost": 1000,
+     "work": "13h"
+    }
+   }
   },
   {
    "id": "o23_tidy",
@@ -1955,7 +2861,7 @@
    "once": false,
    "restore": 0,
    "check": {
-    "chance": "clamp(0.1 + (worker.skill - 50) / 45, 0.05, 0.85)"
+    "chance": "clamp(0.1 + (worker.skill - 50) / 45 + (variant.stadium_2 == \"recovery\" ? 0.1 : 0), 0.05, 0.9)"
    },
    "effects": [
     {
@@ -1977,6 +2883,9 @@
     {
      "stat": "reputation",
      "add": 4
+    },
+    {
+     "trophy": 1
     },
     {
      "log": "log.tournament_won"
@@ -2096,7 +3005,14 @@
    ],
    "onSuccess": [],
    "onFail": [],
-   "performance": "workday"
+   "performance": "workday",
+   "variants": {
+    "academy": {},
+    "bootcamp": {
+     "cost": 600,
+     "work": "9h"
+    }
+   }
   },
   {
    "id": "pr_tidy",
@@ -2122,6 +3038,53 @@
    "effects": [],
    "onSuccess": [],
    "onFail": []
+  },
+  {
+   "id": "pr_video_wall",
+   "act": "indian_wells",
+   "at": "practice",
+   "skill": "teach",
+   "work": "4h",
+   "cost": 500,
+   "when": {
+    "facility": "practice",
+    "is": "open"
+   },
+   "crew": 1,
+   "once": false,
+   "restore": 0,
+   "effects": [
+    {
+     "stat": "reputation",
+     "add": 1
+    }
+   ],
+   "onSuccess": [],
+   "onFail": [],
+   "worker": {
+    "teach": 65
+   },
+   "upgrade": "video_wall"
+  },
+  {
+   "id": "pz_misters",
+   "act": "indian_wells",
+   "at": "plaza",
+   "skill": "upkeep",
+   "work": "3h",
+   "cost": 400,
+   "when": {
+    "facility": "plaza",
+    "is": "open"
+   },
+   "crew": 2,
+   "once": false,
+   "restore": 0,
+   "effects": [],
+   "onSuccess": [],
+   "onFail": [],
+   "performance": "workday",
+   "upgrade": "misters"
   },
   {
    "id": "pz_reopen",
@@ -2189,7 +3152,15 @@
    ],
    "onSuccess": [],
    "onFail": [],
-   "performance": "workday"
+   "performance": "workday",
+   "variants": {
+    "nightlife": {
+     "cost": 2200
+    },
+    "shade_lawn": {
+     "work": "13h"
+    }
+   }
   },
   {
    "id": "pz_tidy",
@@ -2272,6 +3243,9 @@
      {
       "stat": "reputation",
       "gte": 50
+     },
+     {
+      "expr": "stars >= 4"
      }
     ]
    },
@@ -2280,13 +3254,17 @@
    "once": false,
    "restore": 0,
    "check": {
-    "chance": "clamp(0.3 + (stat.reputation - 50) / 80 + (stat.quality - 60) / 100 + (flag.dale_umpire ? 0.05 : 0) + min(hired.legend, 1) * 0.05, 0.15, 0.85)"
+    "chance": "clamp(0.3 + (stat.reputation - 50) / 80 + (stat.quality - 60) / 100 + (flag.dale_umpire ? 0.05 : 0) + min(hired.legend, 1) * 0.05 + (variant.plaza == \"shade_lawn\" ? 0.05 : 0), 0.15, 0.85)"
    },
    "effects": [],
    "onSuccess": [
     {
      "stat": "cash",
      "add": 6000
+    },
+    {
+     "flag": "exhibition_done",
+     "set": true
     },
     {
      "endAct": "won",
@@ -2364,6 +3342,31 @@
    "performance": "workday"
   },
   {
+   "id": "st2_cabanas",
+   "act": "indian_wells",
+   "at": "stadium_2",
+   "skill": "upkeep",
+   "work": "6h",
+   "cost": 800,
+   "when": {
+    "facility": "stadium_2",
+    "is": "open"
+   },
+   "crew": 3,
+   "once": false,
+   "restore": 0,
+   "effects": [
+    {
+     "stat": "reputation",
+     "add": 1
+    }
+   ],
+   "onSuccess": [],
+   "onFail": [],
+   "performance": "workday",
+   "upgrade": "cabanas"
+  },
+  {
    "id": "st2_reopen",
    "act": "indian_wells",
    "at": "stadium_2",
@@ -2432,7 +3435,14 @@
    ],
    "onSuccess": [],
    "onFail": [],
-   "performance": "contractor"
+   "performance": "contractor",
+   "variants": {
+    "resort": {},
+    "recovery": {
+     "cost": 3800,
+     "work": "20h"
+    }
+   }
   },
   {
    "id": "st2_tidy",
@@ -2488,7 +3498,31 @@
    ],
    "onSuccess": [],
    "onFail": [],
-   "performance": "contractor"
+   "performance": "contractor",
+   "variants": {
+    "pickle4": {
+     "effects": [
+      {
+       "stat": "reputation",
+       "add": -2
+      },
+      {
+       "schedule": "iw_pickle_noise",
+       "in": "3d"
+      }
+     ]
+    },
+    "tennis2": {
+     "cost": 2700,
+     "work": "10h",
+     "effects": [
+      {
+       "stat": "reputation",
+       "add": 1
+      }
+     ]
+    }
+   }
   },
   {
    "id": "st3_dig",
@@ -2543,6 +3577,31 @@
    "performance": "workday"
   },
   {
+   "id": "st3_lights",
+   "act": "indian_wells",
+   "at": "stadium_3",
+   "skill": "upkeep",
+   "work": "6h",
+   "cost": 600,
+   "when": {
+    "facility": "stadium_3",
+    "is": "open"
+   },
+   "crew": 2,
+   "once": false,
+   "restore": 0,
+   "effects": [
+    {
+     "stat": "reputation",
+     "add": 1
+    }
+   ],
+   "onSuccess": [],
+   "onFail": [],
+   "performance": "workday",
+   "upgrade": "league_lights"
+  },
+  {
    "id": "st3_reopen",
    "act": "indian_wells",
    "at": "stadium_3",
@@ -2590,6 +3649,62 @@
    "effects": [],
    "onSuccess": [],
    "onFail": []
+  },
+  {
+   "id": "st3_to_pickle4",
+   "act": "indian_wells",
+   "at": "stadium_3",
+   "skill": "upkeep",
+   "work": "4h",
+   "cost": 1000,
+   "when": {
+    "facility": "stadium_3",
+    "is": "open"
+   },
+   "crew": 3,
+   "once": false,
+   "restore": 0,
+   "effects": [
+    {
+     "stat": "reputation",
+     "add": -2
+    },
+    {
+     "schedule": "iw_pickle_noise",
+     "in": "10d"
+    }
+   ],
+   "onSuccess": [],
+   "onFail": [],
+   "performance": "contractor",
+   "remodel": "pickle4",
+   "closed_for": "7d"
+  },
+  {
+   "id": "st3_to_tennis2",
+   "act": "indian_wells",
+   "at": "stadium_3",
+   "skill": "upkeep",
+   "work": "6h",
+   "cost": 1400,
+   "when": {
+    "facility": "stadium_3",
+    "is": "open"
+   },
+   "crew": 3,
+   "once": false,
+   "restore": 0,
+   "effects": [
+    {
+     "stat": "reputation",
+     "add": 2
+    }
+   ],
+   "onSuccess": [],
+   "onFail": [],
+   "performance": "contractor",
+   "remodel": "tennis2",
+   "closed_for": "7d"
   }
  ],
  "acts": [
@@ -2916,7 +4031,7 @@
       "restored": "restored * 0.15"
      },
      "members": "max(0, round(courts_built * service_rate + service_demand * ((stat.quality - 30) / 12 + stat.reputation / 30)))",
-     "member_cap": "courts_built * 12 + (facility.clubhouse == \"open\" ? 15 : 0)",
+     "member_cap": "courts_built * 12 + (facility.clubhouse == \"open\" ? (variant.clubhouse == \"cafe\" ? 25 : 15) : 0)",
      "service_pass": 0.5
     },
     "dues_week": 12,
@@ -2936,6 +4051,109 @@
     "director_skill_cap": 80,
     "grade_drop_below": 15
    },
+   "stars": [
+    {
+     "requires": {
+      "court": {
+       "any": [
+        {
+         "facility": "outer_1",
+         "is": "playable"
+        },
+        {
+         "facility": "outer_1",
+         "is": "resurfaced"
+        }
+       ]
+      },
+      "members_5": {
+       "stat": "members",
+       "gte": 5
+      }
+     },
+     "opens": [
+      "internal_cup"
+     ]
+    },
+    {
+     "requires": {
+      "clubhouse": {
+       "facility": "clubhouse",
+       "is": "open"
+      },
+      "restored_3": {
+       "expr": "restored >= 3"
+      },
+      "members_20": {
+       "stat": "members",
+       "gte": 20
+      },
+      "cup_once": {
+       "flag": "hosted_cup"
+      }
+     },
+     "opens": [
+      "regional"
+     ]
+    },
+    {
+     "requires": {
+      "restored_6": {
+       "expr": "restored >= 6"
+      },
+      "members_45": {
+       "expr": "stat.members >= (day >= 78 ? 36 : 45)"
+      },
+      "rep_45": {
+       "expr": "stat.reputation >= (day >= 78 ? 36 : 45)"
+      },
+      "trophies_2": {
+       "expr": "trophies >= 2"
+      }
+     },
+     "opens": [
+      "invitational",
+      "sponsor",
+      "exhibition_prep"
+     ]
+    },
+    {
+     "requires": {
+      "restored_7": {
+       "expr": "restored >= 7"
+      },
+      "members_70": {
+       "expr": "stat.members >= (day >= 78 ? 56 : 70)"
+      },
+      "rep_60": {
+       "expr": "stat.reputation >= (day >= 78 ? 48 : 60)"
+      },
+      "invitational": {
+       "any": [
+        {
+         "flag": "hosted_invitational"
+        },
+        {
+         "expr": "day >= 78 && trophies >= 4"
+        }
+       ]
+      }
+     },
+     "opens": [
+      "exhibition"
+     ]
+    },
+    {
+     "requires": {
+      "exhibition": {
+       "flag": "exhibition_done"
+      }
+     },
+     "opens": [
+      "finale"
+     ]
+    }
+   ],
    "daily": [],
    "seasons": [
     {
@@ -4367,6 +5585,91 @@
    }
   },
   {
+   "id": "iw_pickle_noise",
+   "act": "indian_wells",
+   "source": "consequence",
+   "tone": "crisis",
+   "when": {
+    "all": [
+     {
+      "variant": "stadium_3",
+      "is": "pickle4"
+     },
+     {
+      "facility": "stadium_3",
+      "is": "open"
+     }
+    ]
+   },
+   "weight": 1,
+   "once": true,
+   "countdown": "1d",
+   "pause": false,
+   "location": "stadium_3",
+   "who": "old_members",
+   "options": {
+    "A": {
+     "cost": 450,
+     "effects": [
+      {
+       "stat": "reputation",
+       "add": 1
+      },
+      {
+       "flag": "pickle_quiet",
+       "set": true
+      }
+     ],
+     "onSuccess": [],
+     "onFail": []
+    },
+    "B": {
+     "errand": {
+      "at": "clubhouse",
+      "for": "3h"
+     },
+     "effects": [],
+     "check": {
+      "chance": "clamp(0.4 + stat.reputation / 100, 0.4, 0.85)"
+     },
+     "onSuccess": [
+      {
+       "stat": "reputation",
+       "add": 2
+      }
+     ],
+     "onFail": [
+      {
+       "stat": "members",
+       "add": -3
+      }
+     ]
+    },
+    "C": {
+     "effects": [
+      {
+       "stat": "members",
+       "add": -5
+      },
+      {
+       "stat": "reputation",
+       "add": -2
+      },
+      {
+       "flag": "pickle_feud",
+       "set": true
+      }
+     ],
+     "onSuccess": [],
+     "onFail": []
+    }
+   },
+   "default": {
+    "then": "C",
+    "extra": []
+   }
+  },
+  {
    "id": "iw_reporter",
    "act": "indian_wells",
    "source": "threshold",
@@ -4427,8 +5730,19 @@
       "expr": "quiet_days >= 7"
      },
      {
+      "any": [
+       {
+        "day": {
+         "gte": 45
+        }
+       },
+       {
+        "flag": "pickle_feud"
+       }
+      ]
+     },
+     {
       "day": {
-       "gte": 45,
        "lte": 105
       }
      },
@@ -4663,6 +5977,11 @@
    "endings.deadline.body": "The investors' sixteen weeks are over and the exhibition never happened. The restoration stops and the gates are locked again.",
    "endings.bankrupt.title": "Out of money",
    "endings.bankrupt.body": "The garden can't make payroll and the investors stop the restoration. The gates are locked again.",
+   "events.iw_pickle_noise.title": "Too loud, one court short",
+   "events.iw_pickle_noise.body": "Three members who have played here for twenty years are waiting by the pickleball courts. \"Pop, pop, pop, all weekend. And we lost a tennis court for it.\" More of them are talking about La Quinta.",
+   "events.iw_pickle_noise.options.A": "Acoustic panels and quiet paddles ($450)",
+   "events.iw_pickle_noise.options.B": "Hold a members' meeting about time slots (you, 3 hours; it may not work)",
+   "events.iw_pickle_noise.options.C": "They'll get used to it",
    "events.iw_investor_check.title": "The investors visit",
    "events.iw_investor_check.body": "The investors are at the main gate. Three weeks are left before their deadline.",
    "events.iw_investor_check.options.A": "I'll show you around myself",
@@ -4771,6 +6090,9 @@
    "log.no_hire": "No hire this time; the same people do the work",
    "log.tournament_won": "Your player won a tournament and brought home the prize money",
    "log.tournament_lost": "Your player went out early this time, but learned something",
+   "log.cup_hosted": "The monthly club cup is done; a trophy goes in the clubhouse case",
+   "log.invitational_won": "The clay invitational filled the stands; a trophy and the prize money",
+   "log.invitational_flop": "The invitational fell flat; the entry fee is gone",
    "posts.o1_rental.title": "Members' court · Court desk",
    "posts.o1_rental.note": "Daily 8–15, locals come to play",
    "posts.o1_lesson.title": "Members' court · Afternoon lessons",
@@ -4819,6 +6141,22 @@
    "posts.pr_training.note": "Players only; train any time, play slowly improves",
    "posts.o23_training.title": "Clay courts · Training",
    "posts.o23_training.note": "Where players train until the academy courts are fixed; slower",
+   "posts.ch_cafe.title": "Clubhouse · Patio café",
+   "posts.ch_cafe.note": "Daily 11–15; busier with more members",
+   "posts.ch_physio.title": "Clubhouse · Physio room",
+   "posts.ch_physio.note": "Weekdays 12–17, fitness coaches only",
+   "posts.ch_shop.title": "Clubhouse · Pro shop",
+   "posts.ch_shop.note": "Open whenever someone minds it; sells more with more members",
+   "posts.pr_bootcamp.title": "Academy · Morning bootcamp",
+   "posts.pr_bootcamp.note": "Weekdays 8–11; doesn't clash with afternoon lessons",
+   "posts.pz_bar.title": "Circle of Palms · Evening bar",
+   "posts.pz_bar.note": "Daily 17–20 under the string lights",
+   "posts.st3_open.title": "Tennis courts · Weekend open play",
+   "posts.st3_open.note": "Weekends 9–17, two full tennis courts",
+   "posts.st3_night.title": "Courts · Night session",
+   "posts.st3_night.note": "Fri–Sat 17–20 under the league lights",
+   "posts.st2_plunge.title": "Pool · Cold plunge",
+   "posts.st2_plunge.note": "Weekdays 16–20, after training",
    "orders.o1_sweep.title": "Sweep the sand off the members' court",
    "orders.o1_sweep.note": "Free; two people, one morning",
    "orders.o1_net.title": "New net for the members' court",
@@ -4893,9 +6231,115 @@
    "orders.st1_rebuild.locked": "Clear the Stadium first",
    "orders.st1_exhibition.title": "Hold the exhibition",
    "orders.st1_exhibition.note": "Reputation 50+, a crew for a whole day",
-   "orders.st1_exhibition.locked": "Stadium rebuilt and reputation 50+",
+   "orders.st1_exhibition.locked": "★4, Stadium rebuilt and reputation 50+",
    "orders.pl_tournament.title": "Play a tournament",
    "orders.pl_tournament.note": "Players only, once a week; the better they play, the likelier a win",
+   "orders.o23_pro_clay.title": "Tournament clay",
+   "orders.o23_pro_clay.note": "$500; needs someone with upkeep 75+. Better courts, but fussier",
+   "orders.o23_pro_clay.locked": "Clay courts open, kept as clay",
+   "orders.o23_pro_hard.title": "Pro hard courts",
+   "orders.o23_pro_hard.note": "$450; needs someone with upkeep 75+. Wears even slower",
+   "orders.o23_pro_hard.locked": "Courts open, rebuilt as hard courts",
+   "orders.ch_pro_shop.title": "Open a pro shop",
+   "orders.ch_pro_shop.note": "$600; needs someone with service 65+. Another desk to staff",
+   "orders.ch_pro_shop.locked": "Clubhouse open",
+   "orders.st3_lights.title": "Put up league lights",
+   "orders.st3_lights.note": "$700; night sessions Fri–Sat, power bill +$25/week",
+   "orders.st3_lights.locked": "Courts open",
+   "orders.pr_video_wall.title": "Courtside video wall",
+   "orders.pr_video_wall.note": "$800; needs a coach with coaching 65+. Lessons earn more",
+   "orders.pr_video_wall.locked": "Academy courts open",
+   "orders.pz_misters.title": "Install misters",
+   "orders.pz_misters.note": "$500; guests stay longer at lunch and in the evening",
+   "orders.pz_misters.locked": "Circle of Palms open",
+   "orders.st2_cabanas.title": "Build a row of cabanas",
+   "orders.st2_cabanas.note": "$900; more from the pool's paid service",
+   "orders.st2_cabanas.locked": "Pool open",
+   "orders.ch_to_cafe.title": "Turn the physio room back into a café",
+   "orders.ch_to_cafe.note": "$700; the clubhouse closes for a week",
+   "orders.ch_to_physio.title": "Turn the café into a physio room",
+   "orders.ch_to_physio.note": "$900; the clubhouse closes for a week",
+   "orders.st3_to_tennis2.title": "Back to two tennis courts",
+   "orders.st3_to_tennis2.note": "$1400; closed for a week. The old members will be pleased, the league leaves",
+   "orders.st3_to_pickle4.title": "Convert to four pickleball courts",
+   "orders.st3_to_pickle4.note": "$1000; closed for a week. League money, unhappy old members",
+   "orders.cup_monthly.title": "Host the monthly club cup",
+   "orders.cup_monthly.note": "$60, two people, half a day; every four weeks. A trophy",
+   "orders.cup_monthly.locked": "★1 and two repaired courts",
+   "orders.inv_clay.title": "Host the clay invitational",
+   "orders.inv_clay.note": "$800, four people, a whole day; rain spoils it. Kept clay helps",
+   "orders.inv_clay.locked": "★3; clay courts, clubhouse and Circle of Palms open",
+   "variants.outer_23.clay": "Keep the clay",
+   "variants.outer_23.hard": "Rebuild as hard courts",
+   "variants.clubhouse.cafe": "Patio café",
+   "variants.clubhouse.physio": "Physio room",
+   "variants.stadium_3.pickle4": "Four pickleball courts",
+   "variants.stadium_3.tennis2": "Two tennis courts",
+   "variants.practice.academy": "Junior academy",
+   "variants.practice.bootcamp": "Morning bootcamp",
+   "variants.plaza.nightlife": "Evening bar",
+   "variants.plaza.shade_lawn": "Shaded viewing lawn",
+   "variants.stadium_2.resort": "Resort pool",
+   "variants.stadium_2.recovery": "Cold plunge",
+   "variant_notes.outer_23.clay.gives": "Players improve faster; tournament clay; the invitational goes better",
+   "variant_notes.outer_23.clay.costs": "Wears fast, upkeep $35/week",
+   "variant_notes.outer_23.hard.gives": "Wears slowly, upkeep $20/week; pro hard upgrade",
+   "variant_notes.outer_23.hard.costs": "$1000 to build; quality −1, players train slower",
+   "variant_notes.clubhouse.cafe.gives": "Lunch café; members cap +25",
+   "variant_notes.clubhouse.cafe.costs": "Upkeep $75/week",
+   "variant_notes.clubhouse.physio.gives": "Physio post for a fitness coach; players train faster; quality +4, wears slowly",
+   "variant_notes.clubhouse.physio.costs": "Members cap only +15; no lunch café",
+   "variant_notes.stadium_3.pickle4.gives": "Weekend league: the best weekend money",
+   "variant_notes.stadium_3.pickle4.costs": "Old members are upset: reputation −2, then they come to see you",
+   "variant_notes.stadium_3.tennis2.gives": "A second tennis court: members cap +12, tennis identity",
+   "variant_notes.stadium_3.tennis2.costs": "$2700 to build; weekend open play earns about half",
+   "variant_notes.practice.academy.gives": "Afternoon junior academy: earns most, parents join",
+   "variant_notes.practice.academy.costs": "Clashes with afternoon lessons",
+   "variant_notes.practice.bootcamp.gives": "Weekday mornings 8–11, cheaper to build ($600)",
+   "variant_notes.practice.bootcamp.costs": "Earns less an hour, wears faster, quality −2",
+   "variant_notes.plaza.nightlife.gives": "Evening bar every day",
+   "variant_notes.plaza.nightlife.costs": "$2200 to build; upkeep $70/week, wears faster",
+   "variant_notes.plaza.shade_lawn.gives": "Lunch earns more, wears slowly; exhibition +5%",
+   "variant_notes.plaza.shade_lawn.costs": "Only weekend evenings",
+   "variant_notes.stadium_2.resort.gives": "Weekend cabana service: the best-paid post",
+   "variant_notes.stadium_2.resort.costs": "Upkeep $140/week",
+   "variant_notes.stadium_2.recovery.gives": "$3800 and quicker to build; upkeep $100/week; tournament wins +10%",
+   "variant_notes.stadium_2.recovery.costs": "Weekday cold plunge earns less",
+   "upgrades.outer_23.tournament_clay": "Tournament clay",
+   "upgrades.outer_23.pro_hard": "Pro hard courts",
+   "upgrades.clubhouse.pro_shop": "Pro shop",
+   "upgrades.stadium_3.league_lights": "League lights",
+   "upgrades.practice.video_wall": "Video wall",
+   "upgrades.plaza.misters": "Misters",
+   "upgrades.stadium_2.cabanas": "Cabanas",
+   "stars.names.0": "Ruins",
+   "stars.names.1": "Courts are back",
+   "stars.names.2": "Clubhouse open",
+   "stars.names.3": "Community club",
+   "stars.names.4": "Resort club",
+   "stars.names.5": "Desert landmark",
+   "stars.items.court": "The members' court is playable",
+   "stars.items.members_5": "5 members",
+   "stars.items.clubhouse": "The clubhouse is open",
+   "stars.items.restored_3": "3 places repaired",
+   "stars.items.members_20": "20 members",
+   "stars.items.cup_once": "Host a club cup once",
+   "stars.items.restored_6": "6 places repaired",
+   "stars.items.members_45": "45 members (36 from week 12)",
+   "stars.items.rep_45": "Reputation 45 (36 from week 12)",
+   "stars.items.trophies_2": "2 trophies",
+   "stars.items.restored_7": "7 places repaired",
+   "stars.items.members_70": "70 members (56 from week 12)",
+   "stars.items.rep_60": "Reputation 60 (48 from week 12)",
+   "stars.items.invitational": "Host the invitational (or 4 trophies from week 12)",
+   "stars.items.exhibition": "Hold the exhibition in the Stadium",
+   "stars.opens.internal_cup": "The monthly club cup",
+   "stars.opens.regional": "Regional tournaments",
+   "stars.opens.invitational": "The clay invitational",
+   "stars.opens.sponsor": "A sponsor slot",
+   "stars.opens.exhibition_prep": "The exhibition build-up shows on the Stadium",
+   "stars.opens.exhibition": "The exhibition can be held",
+   "stars.opens.finale": "The season's final tally",
    "seasons.autumn": "Autumn",
    "seasons.winter": "Winter",
    "seasons.spring": "Spring · windy season",
@@ -4975,6 +6419,8 @@
    "who.lender.role": "A loan officer",
    "who.rival_coach.name": "La Quinta Racquet Club",
    "who.rival_coach.role": "Their head coach",
+   "who.old_members.name": "The old members",
+   "who.old_members.role": "Twenty years on these courts",
    "roles.director": "Director",
    "roles.coach": "Head coach",
    "roles.junior": "Junior player",
@@ -4982,6 +6428,26 @@
    "roles.candidate": "Applicant",
    "roles.staff": "Staff",
    "roles.rival": "Rival",
+   "ui.stars.label": "Next ★: {n} to go",
+   "ui.stars.full": "All stars",
+   "ui.stars.title": "To reach ★{n}",
+   "ui.stars.title_full": "The club is at ★{n}",
+   "ui.stars.opens": "Unlocks: {list}",
+   "ui.stars.foot": "Restored {n}/{total} · investor deadline in {days} days",
+   "ui.stars.restored": "Restored {n}/{total}",
+   "ui.stars.sign": "A new star on the gate sign",
+   "ui.variant.hint": "Tap an option to preview it · drag someone onto one to start",
+   "ui.variant.locked": "Locked in · work started this way",
+   "ui.variant.courts": "{n} courts",
+   "ui.variant.quality": "Quality {n}",
+   "ui.variant.income": "+${n}/wk",
+   "ui.variant.upkeep": "Upkeep ${n}/wk",
+   "ui.variant.decay": "Wears {n}/day",
+   "ui.variant.rain_ok": "Playable in rain",
+   "ui.variant.rain_no": "Closed in rain",
+   "ui.log.upgrade": "{what} installed at {place}",
+   "ui.log.remodel": "{place} closed to become “{what}”",
+   "ui.log.trophy": "Trophies {n}",
    "ui.hud.quality": "Quality",
    "ui.hud.members": "Members",
    "ui.hud.courtsOpen": "Courts open",
@@ -5039,6 +6505,8 @@
    "ui.chip.worker": "Whoever works here",
    "ui.chip.chance": "{p}% chance",
    "ui.chip.cost": "−${n}",
+   "ui.chip.needs": "{skill} {n}+",
+   "ui.chip.closed": "Closed {time}",
    "ui.attr.skill": "coaching",
    "ui.attr.upkeep": "upkeep",
    "ui.attr.service": "service",
@@ -5116,6 +6584,8 @@
    "ui.because.wear": "{place} was down to condition {n} at Sunday close",
    "ui.because.worked": " (it worked)",
    "ui.because.failed": " (it didn't work)",
+   "ui.because.star": "the club reached ★{n}",
+   "ui.because.remodel": "the {place} remodel into “{what}” finished",
    "ui.wire.grew": "The director's {skill} reached {n}",
    "ui.wire.interrupted": "{name} was pulled off “{post}”; that round was lost",
    "ui.wire.week": "Week {n} settled · {rate} · {what}",
@@ -5123,6 +6593,13 @@
    "ui.wire.week_none": "no customers yet",
    "ui.wire.worn": "{place} condition down to {n}: below {limit} at Sunday close it loses a grade and its jobs stop",
    "ui.wire.dropping": "{place} condition {n}: without upkeep it loses a grade at close tomorrow (Sunday)",
+   "ui.wire.star_up": "★{n}! The club earned a new star on the gate sign{opens}",
+   "ui.wire.star_opens": " · unlocks {list}",
+   "ui.wire.variant_locked": "{place}: work started as “{variant}” — that choice is locked in",
+   "ui.wire.plaque": "{name} led the {place} repair (day {day}) · name added to the gate plaque{faster}",
+   "ui.wire.plaque_faster": " · the crew beat one person by {time}",
+   "ui.wire.remodel_started": "{place} closed to become “{variant}” · reopens in {time}",
+   "ui.wire.remodel_done": "{place} reopened as “{variant}”",
    "ui.status.empty": "{n} posts have customers waiting and nobody there",
    "ui.status.covered": "Every busy spot has someone right now",
    "ui.status.quiet": "No customers waiting right now",
@@ -5152,6 +6629,7 @@
    "ui.place.order_wait": "{p}% · waiting for crew",
    "ui.place.coming": "On the way: {list}",
    "ui.place.coming_one": "{name} {time}",
+   "ui.place.remodel": "Being remodelled into “{variant}” · reopens in {time}",
    "ui.why.person": "Can't be assigned",
    "ui.why.busy": "Away on an errand",
    "ui.why.target": "No such post",
@@ -5159,6 +6637,9 @@
    "ui.why.gone": "Not open right now",
    "ui.why.cost": "Not enough cash for materials",
    "ui.why.crew": "Already full",
+   "ui.why.skill": "Not skilled enough for this",
+   "ui.why.skill_min": "Needs {skill} {n}+ (own skill, traits don't count)",
+   "ui.why.variant": "Work already started as the other option",
    "ui.sheet.daily": "Daily",
    "ui.sheet.anytime": "Any time",
    "ui.sheet.cycle": "{time} per round",
@@ -5233,6 +6714,11 @@
    "endings.deadline.body": "投资方给的十六周到了，表演赛还没办成。修复停了，大门又锁上了。",
    "endings.bankrupt.title": "钱花光了",
    "endings.bankrupt.body": "俱乐部发不出工资，投资方叫停了修复。大门又锁上了。",
+   "events.iw_pickle_noise.title": "太吵了，还少了一片场",
+   "events.iw_pickle_noise.body": "三位在这儿打了二十年网球的老会员在匹克球场边等你：\"啪、啪、啪，一整个周末。为了这个还拆了一片网球场。\"有几个人已经在说去 La Quinta 了。",
+   "events.iw_pickle_noise.options.A": "装隔音板、换静音拍（$450）",
+   "events.iw_pickle_noise.options.B": "开个会员会，讲清楚分时段（你亲自去 3 小时，不一定谈得拢）",
+   "events.iw_pickle_noise.options.C": "过阵子就习惯了",
    "events.iw_investor_check.title": "投资方来看进度",
    "events.iw_investor_check.body": "投资方的人站在大门口。离他们给的期限只剩三周了。",
    "events.iw_investor_check.options.A": "我亲自带你们转",
@@ -5341,6 +6827,9 @@
    "log.no_hire": "这次没招人，活还是那几个人干",
    "log.tournament_won": "你的球员在外面赢了一站比赛，带回了奖金",
    "log.tournament_lost": "你的球员这站输了，不过长了见识",
+   "log.cup_hosted": "月度内赛办完了，奖杯放进了会所的柜子",
+   "log.invitational_won": "红土邀请赛看台坐满了：一座奖杯，还有奖金",
+   "log.invitational_flop": "邀请赛冷场了，报名费白花了",
    "posts.o1_rental.title": "会员场 · 看场",
    "posts.o1_rental.note": "每天 8–15 点，附近的人来打球",
    "posts.o1_lesson.title": "会员场 · 下午的课",
@@ -5389,6 +6878,22 @@
    "posts.pr_training.note": "只有球员能用；随时可以练，球技慢慢涨",
    "posts.o23_training.title": "红土场 · 自己练球",
    "posts.o23_training.note": "青训场修好之前的去处，涨得慢一点",
+   "posts.ch_cafe.title": "会所 · 露台咖啡吧",
+   "posts.ch_cafe.note": "每天 11–15 点；会员越多生意越好",
+   "posts.ch_physio.title": "会所 · 理疗室",
+   "posts.ch_physio.note": "工作日 12–17 点，只有体能师能坐",
+   "posts.ch_shop.title": "会所 · 球拍专卖店",
+   "posts.ch_shop.note": "有人看店就开门；会员越多卖得越多",
+   "posts.pr_bootcamp.title": "青训场 · 晨间训练营",
+   "posts.pr_bootcamp.note": "工作日 8–11 点；不和下午的课撞时间",
+   "posts.pz_bar.title": "棕榈喷泉 · 夜场吧台",
+   "posts.pz_bar.note": "每天 17–20 点，串灯下面",
+   "posts.st3_open.title": "网球场 · 周末开放日",
+   "posts.st3_open.note": "周末 9–17 点，两片标准网球场",
+   "posts.st3_night.title": "球场 · 灯下夜场",
+   "posts.st3_night.note": "周五周六 17–20 点，联赛灯下",
+   "posts.st2_plunge.title": "泳池 · 冷水恢复池",
+   "posts.st2_plunge.note": "工作日 16–20 点，练完球来泡",
    "orders.o1_sweep.title": "扫会员场的沙",
    "orders.o1_sweep.note": "不花钱，两个人一个上午",
    "orders.o1_net.title": "给会员场换网",
@@ -5463,9 +6968,115 @@
    "orders.st1_rebuild.locked": "先清理 中心球场",
    "orders.st1_exhibition.title": "办表演赛",
    "orders.st1_exhibition.note": "声望 50 以上，一群人张罗一整天",
-   "orders.st1_exhibition.locked": "中心球场重建完成、声望 50 以上",
+   "orders.st1_exhibition.locked": "★4、中心球场重建完成、声望 50 以上",
    "orders.pl_tournament.title": "出去打一站比赛",
    "orders.pl_tournament.note": "只有球员能去，一周一次；球技越高越可能赢",
+   "orders.o23_pro_clay.title": "赛事级红土",
+   "orders.o23_pro_clay.note": "$500；要一名维护 ≥ 75 的人。场地更好，也更娇气",
+   "orders.o23_pro_clay.locked": "红土场开放、保留了红土",
+   "orders.o23_pro_hard.title": "职业硬地",
+   "orders.o23_pro_hard.note": "$450；要一名维护 ≥ 75 的人。掉得更慢",
+   "orders.o23_pro_hard.locked": "球场开放、改成了硬地",
+   "orders.ch_pro_shop.title": "开一间球拍专卖店",
+   "orders.ch_pro_shop.note": "$600；要一名服务 ≥ 65 的人。又多一个要人守的位子",
+   "orders.ch_pro_shop.locked": "会所开张",
+   "orders.st3_lights.title": "立联赛灯",
+   "orders.st3_lights.note": "$700；周五周六开夜场，电费每周 +$25",
+   "orders.st3_lights.locked": "球场开放",
+   "orders.pr_video_wall.title": "场边大屏",
+   "orders.pr_video_wall.note": "$800；要一名教学 ≥ 65 的教练。课挣得多一点",
+   "orders.pr_video_wall.locked": "青训场开放",
+   "orders.pz_misters.title": "装喷雾杆",
+   "orders.pz_misters.note": "$500；午餐和傍晚的客人坐得住",
+   "orders.pz_misters.locked": "棕榈喷泉开放",
+   "orders.st2_cabanas.title": "再搭一排小木屋",
+   "orders.st2_cabanas.note": "$900；泳池的服务岗位多挣一点",
+   "orders.st2_cabanas.locked": "泳池开放",
+   "orders.ch_to_cafe.title": "理疗室改回咖啡吧",
+   "orders.ch_to_cafe.note": "$700；会所停用一周",
+   "orders.ch_to_physio.title": "咖啡吧改成理疗室",
+   "orders.ch_to_physio.note": "$900；会所停用一周",
+   "orders.st3_to_tennis2.title": "改回两片网球场",
+   "orders.st3_to_tennis2.note": "$1400；停用一周。老会员高兴，联赛的人走了",
+   "orders.st3_to_pickle4.title": "改成四片匹克球",
+   "orders.st3_to_pickle4.note": "$1000；停用一周。联赛收入高，老会员不满",
+   "orders.cup_monthly.title": "办月度内赛",
+   "orders.cup_monthly.note": "$60，两个人半天；四周一次。奖杯一座",
+   "orders.cup_monthly.locked": "★1，而且有两块修好的场地",
+   "orders.inv_clay.title": "办红土邀请赛",
+   "orders.inv_clay.note": "$800，四个人一整天；下雨就白办。保留红土更容易办成",
+   "orders.inv_clay.locked": "★3；红土场、会所、棕榈喷泉都开着",
+   "variants.outer_23.clay": "保留红土",
+   "variants.outer_23.hard": "改成硬地",
+   "variants.clubhouse.cafe": "露台咖啡吧",
+   "variants.clubhouse.physio": "理疗室",
+   "variants.stadium_3.pickle4": "四片匹克球",
+   "variants.stadium_3.tennis2": "两片网球场",
+   "variants.practice.academy": "青少年学院",
+   "variants.practice.bootcamp": "晨间训练营",
+   "variants.plaza.nightlife": "夜场吧台",
+   "variants.plaza.shade_lawn": "遮阳观赛坡",
+   "variants.stadium_2.resort": "度假泳池",
+   "variants.stadium_2.recovery": "冷水恢复池",
+   "variant_notes.outer_23.clay.gives": "球员涨得快；能装赛事级红土；邀请赛更容易办成",
+   "variant_notes.outer_23.clay.costs": "掉得快，维护每周 $35",
+   "variant_notes.outer_23.hard.gives": "掉得慢，维护每周 $20；能装职业硬地",
+   "variant_notes.outer_23.hard.costs": "修要 $1000；质量 −1，球员练得慢一点",
+   "variant_notes.clubhouse.cafe.gives": "午餐咖啡吧；会员上限 +25",
+   "variant_notes.clubhouse.cafe.costs": "维护每周 $75",
+   "variant_notes.clubhouse.physio.gives": "体能师的理疗岗位；球员练得快；质量 +4，掉得慢",
+   "variant_notes.clubhouse.physio.costs": "会员上限只 +15；没有午餐咖啡吧",
+   "variant_notes.stadium_3.pickle4.gives": "周末联赛：周末最挣钱",
+   "variant_notes.stadium_3.pickle4.costs": "老会员不满：声望 −2，过几天来找你",
+   "variant_notes.stadium_3.tennis2.gives": "多一片网球场：会员上限 +12，网球身份",
+   "variant_notes.stadium_3.tennis2.costs": "修要 $2700；周末开放日只挣一半左右",
+   "variant_notes.practice.academy.gives": "下午的青少年学院：挣得最多，家长入会",
+   "variant_notes.practice.academy.costs": "和下午的课撞时间",
+   "variant_notes.practice.bootcamp.gives": "工作日早上 8–11 点，修得便宜（$600）",
+   "variant_notes.practice.bootcamp.costs": "每小时挣得少，掉得快，质量 −2",
+   "variant_notes.plaza.nightlife.gives": "天天开的夜场吧台",
+   "variant_notes.plaza.nightlife.costs": "修要 $2200；维护每周 $70，掉得快",
+   "variant_notes.plaza.shade_lawn.gives": "午餐多挣，掉得慢；表演赛 +5%",
+   "variant_notes.plaza.shade_lawn.costs": "只有周末晚上",
+   "variant_notes.stadium_2.resort.gives": "周末的小木屋服务：最挣钱的岗位",
+   "variant_notes.stadium_2.resort.costs": "维护每周 $140",
+   "variant_notes.stadium_2.recovery.gives": "修要 $3800、更快；维护每周 $100；外出比赛胜率 +10%",
+   "variant_notes.stadium_2.recovery.costs": "工作日的冷水池挣得少",
+   "upgrades.outer_23.tournament_clay": "赛事级红土",
+   "upgrades.outer_23.pro_hard": "职业硬地",
+   "upgrades.clubhouse.pro_shop": "球拍专卖店",
+   "upgrades.stadium_3.league_lights": "联赛灯",
+   "upgrades.practice.video_wall": "场边大屏",
+   "upgrades.plaza.misters": "喷雾杆",
+   "upgrades.stadium_2.cabanas": "小木屋一排",
+   "stars.names.0": "废墟",
+   "stars.names.1": "能打球了",
+   "stars.names.2": "会所开张",
+   "stars.names.3": "社区俱乐部",
+   "stars.names.4": "度假名园",
+   "stars.names.5": "沙漠名园",
+   "stars.items.court": "会员场能打",
+   "stars.items.members_5": "会员 5 人",
+   "stars.items.clubhouse": "会所开张",
+   "stars.items.restored_3": "修好 3 处",
+   "stars.items.members_20": "会员 20 人",
+   "stars.items.cup_once": "办成过 1 次内赛",
+   "stars.items.restored_6": "修好 6 处",
+   "stars.items.members_45": "会员 45 人（第 12 周起 36）",
+   "stars.items.rep_45": "声望 45（第 12 周起 36）",
+   "stars.items.trophies_2": "奖杯 2 座",
+   "stars.items.restored_7": "修好 7 处",
+   "stars.items.members_70": "会员 70 人（第 12 周起 56）",
+   "stars.items.rep_60": "声望 60（第 12 周起 48）",
+   "stars.items.invitational": "办成过邀请赛（第 12 周起奖杯 4 座也算）",
+   "stars.items.exhibition": "在中心球场办成表演赛",
+   "stars.opens.internal_cup": "月度内赛",
+   "stars.opens.regional": "地区赛",
+   "stars.opens.invitational": "红土邀请赛",
+   "stars.opens.sponsor": "赞助位",
+   "stars.opens.exhibition_prep": "中心球场挂出表演赛筹备",
+   "stars.opens.exhibition": "能办表演赛了",
+   "stars.opens.finale": "这一季的总结算",
    "seasons.autumn": "秋天",
    "seasons.winter": "冬天",
    "seasons.spring": "春天 · 风季",
@@ -5545,6 +7156,8 @@
    "who.lender.role": "信贷员",
    "who.rival_coach.name": "La Quinta 网球俱乐部",
    "who.rival_coach.role": "他们的主教练",
+   "who.old_members.name": "老会员们",
+   "who.old_members.role": "在这几片场上打了二十年",
    "roles.director": "总监",
    "roles.coach": "主教练",
    "roles.junior": "青少年球员",
@@ -5552,6 +7165,26 @@
    "roles.candidate": "应聘者",
    "roles.staff": "员工",
    "roles.rival": "对手",
+   "ui.stars.label": "下一星差 {n} 项",
+   "ui.stars.full": "星已满",
+   "ui.stars.title": "升到 ★{n} 还要",
+   "ui.stars.title_full": "俱乐部已经 ★{n}",
+   "ui.stars.opens": "升上来开出：{list}",
+   "ui.stars.foot": "已复原 {n}/{total} · 离投资方期限还有 {days} 天",
+   "ui.stars.restored": "已复原 {n}/{total}",
+   "ui.stars.sign": "大门的星级牌上又亮了一颗星",
+   "ui.variant.hint": "点一种看修好的样子 · 把人拖到那一行就按它开工",
+   "ui.variant.locked": "已经定了 · 按这一种开工了",
+   "ui.variant.courts": "{n} 片场地",
+   "ui.variant.quality": "质量 {n}",
+   "ui.variant.income": "+${n}/周",
+   "ui.variant.upkeep": "维护费 ${n}/周",
+   "ui.variant.decay": "每天磨损 {n}",
+   "ui.variant.rain_ok": "下雨也能打",
+   "ui.variant.rain_no": "下雨关门",
+   "ui.log.upgrade": "{place}装上了{what}",
+   "ui.log.remodel": "{place}停用，改成“{what}”",
+   "ui.log.trophy": "奖杯 {n}",
    "ui.hud.quality": "质量",
    "ui.hud.members": "会员",
    "ui.hud.courtsOpen": "开放场地",
@@ -5609,6 +7242,8 @@
    "ui.chip.worker": "在岗的人",
    "ui.chip.chance": "成功率 {p}%",
    "ui.chip.cost": "−${n}",
+   "ui.chip.needs": "{skill} {n}+",
+   "ui.chip.closed": "停用 {time}",
    "ui.attr.skill": "教学",
    "ui.attr.upkeep": "维护",
    "ui.attr.service": "服务",
@@ -5686,6 +7321,8 @@
    "ui.because.wear": "{place}状况只剩 {n}，周日收盘时没撑住",
    "ui.because.worked": "（成了）",
    "ui.because.failed": "（没成）",
+   "ui.because.star": "俱乐部升到了 ★{n}",
+   "ui.because.remodel": "{place}改成“{what}”的工程完工了",
    "ui.wire.grew": "总监的{skill}能力到 {n} 了",
    "ui.wire.interrupted": "{name}被叫离“{post}”，这一圈白干了",
    "ui.wire.week": "第 {n} 周结算 · {rate} · {what}",
@@ -5693,6 +7330,13 @@
    "ui.wire.week_none": "还没有客人",
    "ui.wire.worn": "{place}状况跌到 {n}：周日收盘时低于 {limit} 就掉档，岗位停开",
    "ui.wire.dropping": "{place}状况 {n}，明天（周日）收盘前不维护就掉档",
+   "ui.wire.star_up": "★{n}！大门的星级牌上又亮了一颗星{opens}",
+   "ui.wire.star_opens": "，开出了{list}",
+   "ui.wire.variant_locked": "{place}按“{variant}”开工了，这条路就这么定了",
+   "ui.wire.plaque": "{name}带头修好了{place}（第 {day} 天），名字刻上了大门的牌匾{faster}",
+   "ui.wire.plaque_faster": "，几个人一起比一个人干快了 {time}",
+   "ui.wire.remodel_started": "{place}停用改造成“{variant}”，{time}后重新开放",
+   "ui.wire.remodel_done": "{place}改成“{variant}”，重新开放了",
    "ui.status.empty": "{n} 个岗位有客人在等，没人管",
    "ui.status.covered": "此刻有客人的地方都有人",
    "ui.status.quiet": "此刻没有岗位有客人",
@@ -5722,6 +7366,7 @@
    "ui.place.order_wait": "{p}% · 等人到场",
    "ui.place.coming": "在路上：{list}",
    "ui.place.coming_one": "{name} {time}",
+   "ui.place.remodel": "正在改造成“{variant}” · {time}后重新开放",
    "ui.why.person": "不能指派",
    "ui.why.busy": "正在办事，叫不回来",
    "ui.why.target": "没有这个岗位",
@@ -5729,6 +7374,9 @@
    "ui.why.gone": "现在开不了",
    "ui.why.cost": "现金不够买料",
    "ui.why.crew": "人已经够了",
+   "ui.why.skill": "能力不够干这个",
+   "ui.why.skill_min": "要{skill} {n} 以上（只看底子，不算特质）",
+   "ui.why.variant": "已经按另一种开工了",
    "ui.sheet.daily": "每天",
    "ui.sheet.anytime": "随时可以干",
    "ui.sheet.cycle": "一圈 {time}",

@@ -1,0 +1,12 @@
+# 改造会所（GM-13）：理疗室拆了改回咖啡吧。花钱、停用一周（前台和会所的岗位都不开），期满换成咖啡吧。
+id: ch_to_cafe
+act: indian_wells
+at: clubhouse
+skill: upkeep
+work: 4h
+cost: 700
+crew: 2
+when: { facility: clubhouse, is: open }
+remodel: cafe
+closed_for: 7d
+performance: workday

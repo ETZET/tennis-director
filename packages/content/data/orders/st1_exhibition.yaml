@@ -1,6 +1,6 @@
 # 在 中心球场 办一场表演赛：要有名气（声望 50 以上）才请得动人，要一群人张罗一整天。
 # 来不来得了人看名气和场子好不好（判定）：办成了就通关；冷场了亏一笔，一周后可以再办。
-# Dale 坐裁判椅 +5%；俱乐部里有一位退役名将（特质 legend）站台 +5%。
+# Dale 坐裁判椅 +5%；棕榈喷泉修成遮阳观赛坡 +5%（GM-13）；俱乐部里有一位退役名将（特质 legend）站台 +5%。
 id: st1_exhibition
 act: indian_wells
 at: stadium_1
@@ -9,10 +9,13 @@ work: 8h
 cost: 3000
 crew: 6
 cooldown: 7d
-when: { all: [{ facility: stadium_1, is: restored }, { stat: reputation, gte: 50 }] }
-check: { chance: "clamp(0.3 + (stat.reputation - 50) / 80 + (stat.quality - 60) / 100 + (flag.dale_umpire ? 0.05 : 0) + min(hired.legend, 1) * 0.05, 0.15, 0.85)" }
+# ★4 以后才办得成（LG-10、GM-9）
+when: { all: [{ facility: stadium_1, is: restored }, { stat: reputation, gte: 50 }, { expr: "stars >= 4" }] }
+check: { chance: "clamp(0.3 + (stat.reputation - 50) / 80 + (stat.quality - 60) / 100 + (flag.dale_umpire ? 0.05 : 0) + min(hired.legend, 1) * 0.05 + (variant.plaza == \"shade_lawn\" ? 0.05 : 0), 0.15, 0.85)" }
 onSuccess:
   - { stat: cash, add: 6000 }
+  # ★5 的条（GM-9）
+  - { flag: exhibition_done, set: true }
   - { endAct: won, ending: exhibition }
 onFail:
   - { stat: cash, add: 800 }

@@ -201,6 +201,9 @@ describe('修复就是解锁（ADR 0015）', () => {
     s.facilities.stadium_1 = 'restored';
     expect(vis('st1_exhibition')).toBe(false);
     s.stats.reputation = 50;
+    expect(vis('st1_exhibition')).toBe(false);
+    // 表演赛要 ★4（GM-9）
+    s.stars = 4;
     expect(vis('st1_exhibition')).toBe(true);
   });
 
@@ -208,6 +211,7 @@ describe('修复就是解锁（ADR 0015）', () => {
     const s = quiet(court1(fresh()));
     s.facilities.stadium_1 = 'restored';
     s.stats.reputation = 60;
+    s.stars = 4;
     for (const id of ['director', 'dale']) (s.people[id] as { at: string }).at = 'stadium_1';
     advance(s, CONTENT, [assign('director', 'st1_exhibition'), assign('dale', 'st1_exhibition')], 0);
     expect(until(s, (x) => x.outcome !== null)).toBe(true);

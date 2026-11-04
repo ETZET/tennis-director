@@ -14,3 +14,14 @@ effects:
   - { stat: reputation, add: 4 }
   - { log: log.stadium_3_open }
 performance: contractor
+# 修成什么（GM-13）：四片匹克球（联赛收入高，但老会员不满），还是两片标准网球场（多一块网球场、周末挣得少）
+variants:
+  pickle4:
+    effects:
+      - { stat: reputation, add: -2 }
+      - { schedule: iw_pickle_noise, in: 3d }
+  tennis2:
+    cost: 2700
+    work: 10h
+    effects:
+      - { stat: reputation, add: 1 }

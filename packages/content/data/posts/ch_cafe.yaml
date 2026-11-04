@@ -1,0 +1,13 @@
+# 会所 · 露台咖啡吧（变体 cafe，GM-13）：11–15 点，打完球的人在遮阳伞下吃午饭。会员多了生意才好。
+id: ch_cafe
+act: indian_wells
+at: clubhouse
+skill: service
+cycle: 1h
+hours: [11, 15]
+when: { all: [{ facility: clubhouse, is: open }, { not: { variant: clubhouse, is: physio } }] }
+effects:
+  - { stat: cash, add: "round(6 * (0.6 + worker.skill / 100) * clamp(0.5 + stat.members / 40, 0.5, 2))" }
+  - { stat: members, add: 1, chance: 0.02 }
+  - { stat: reputation, add: 0.01 }
+wear: 0.3

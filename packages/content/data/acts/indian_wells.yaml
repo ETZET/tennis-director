@@ -87,6 +87,45 @@ weather:
   winter: { sun: 5, cloud: 3, rain: 1, wind: 1 }
   spring: { sun: 5, cloud: 1, rain: 0.2, wind: 3 }
 start_cards: [iw_arrival]
+# 星级（ADR 0020，LG-10，GM-9）：第 i 项是升到 ★(i+1) 的清单，全部满足才升，只往上不往回掉。
+# 条 id 的文案在 stars.items.<id>，opens 的文案在 stars.opens.<键>。
+# 橡皮筋：第 12 周（第 78 天）起 ★3、★4 的会员和声望门槛 ×0.8；★4 的"办成过邀请赛"也可以用"奖杯 ≥ 4"代替。
+# 校准目标（设计文档"怎么算做成了"）：good / average / novice 到 ★3 的中位约第 50 / 58 / 66 天；结果见 docs/balance/indian-wells.md。
+# GM-9 校准：设计表的初值（★3 修好 5 处、声望 30；★4 声望 50）让三档机器人都在第 40–52 天到 ★3（会员、声望、修好 5 处
+# 第 30–45 天就齐了，只剩奖杯卡着）；改成 ★3 修好 6 处、声望 45，★4 声望 60。
+# 校准用 sim-cli 的普通玩家机器人 good / average / novice（humanBot，HUMAN_TIERS 0.85 / 0.5 / 0.15）；greedy、cautious 每个 tick 都排人，
+# 不像真人，只看平衡闸口。200 局：★3 中位第 49 / 54 / 58 天，★4 第 60 / 65 / 68 天。
+stars:
+  # ★1 能打球了
+  - requires:
+      court: { any: [{ facility: outer_1, is: playable }, { facility: outer_1, is: resurfaced }] }
+      members_5: { stat: members, gte: 5 }
+    opens: [internal_cup]
+  # ★2 会所开张
+  - requires:
+      clubhouse: { facility: clubhouse, is: open }
+      restored_3: { expr: "restored >= 3" }
+      members_20: { stat: members, gte: 20 }
+      cup_once: { flag: hosted_cup }
+    opens: [regional]
+  # ★3 社区俱乐部
+  - requires:
+      restored_6: { expr: "restored >= 6" }
+      members_45: { expr: "stat.members >= (day >= 78 ? 36 : 45)" }
+      rep_45: { expr: "stat.reputation >= (day >= 78 ? 36 : 45)" }
+      trophies_2: { expr: "trophies >= 2" }
+    opens: [invitational, sponsor, exhibition_prep]
+  # ★4 度假名园
+  - requires:
+      restored_7: { expr: "restored >= 7" }
+      members_70: { expr: "stat.members >= (day >= 78 ? 56 : 70)" }
+      rep_60: { expr: "stat.reputation >= (day >= 78 ? 48 : 60)" }
+      invitational: { any: [{ flag: hosted_invitational }, { expr: "day >= 78 && trophies >= 4" }] }
+    opens: [exhibition]
+  # ★5 沙漠名园
+  - requires:
+      exhibition: { flag: exhibition_done }
+    opens: [finale]
 # 投资方给了 16 周：第 13 周来看一次进度，第 112 天收盘前还没办成表演赛就停工
 calendar:
   - { day: 85, hour: 10, card: iw_investor_check }
@@ -114,8 +153,9 @@ rules:
     members: >-
       max(0, round(courts_built * service_rate + service_demand * ((stat.quality - 30) / 12 + stat.reputation / 30)))
     # 会员有上限：每块修好的场地撑得起 12 个会员（下雨天场地关门，但会员不会因此退会），会所开了再多 15 个；超出的人周末就不续了
+    # 会所修成咖啡吧（GM-13）多撑 10 个：有地方坐、有东西吃，会员才愿意续；理疗室（和没选过变体的旧存档）还是 15
     member_cap: >-
-      courts_built * 12 + (facility.clubhouse == "open" ? 15 : 0)
+      courts_built * 12 + (facility.clubhouse == "open" ? (variant.clubhouse == "cafe" ? 25 : 15) : 0)
   dues_week: 12
   derived:
     service: round(service_rate * 100)

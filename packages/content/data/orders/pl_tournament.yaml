@@ -10,13 +10,16 @@ crew: 1
 cooldown: 6d
 when: { expr: "hired.player >= 1" }
 only: [player]
-check: { chance: "clamp(0.1 + (worker.skill - 50) / 45, 0.05, 0.85)" }
+# 泳池修成冷水恢复池（GM-13）：球员恢复得好，胜率 +10%
+check: { chance: "clamp(0.1 + (worker.skill - 50) / 45 + (variant.stadium_2 == \"recovery\" ? 0.1 : 0), 0.05, 0.9)" }
 effects:
   - { stat: reputation, add: 1 }
   - { person: worker, add: { play: 1 } }
 onSuccess:
   - { stat: cash, add: 600 }
   - { stat: reputation, add: 4 }
+  # 赢一站算一座奖杯（LG-10，★3 要 2 座）
+  - { trophy: 1 }
   - { log: log.tournament_won }
 onFail:
   - { log: log.tournament_lost }
