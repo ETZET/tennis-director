@@ -1,0 +1,12 @@
+# 绿洲草坪（★3 地块 golf_west，路 s3 = oasis_lawn，W5 GM-15）第 1 张：清掉沙坑、沿着水塘铺小径（水塘留着）。
+# 绿洲草坪离会所走 46 分钟、离大门 104 分钟。
+id: ol_paths
+act: indian_wells
+at: oasis_lawn
+skill: upkeep
+work: 5h
+cost: 50
+crew: 3
+effects:
+  - { flag: ol_paths, set: true }
+performance: workday

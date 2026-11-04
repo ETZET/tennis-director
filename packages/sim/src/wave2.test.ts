@@ -418,7 +418,7 @@ describe('存档和机器人（W2）', () => {
       expect(stateHash(again)).toBe(stateHash(r.state));
       expect(JSON.parse(JSON.stringify(r.state))).toEqual(r.state);
     }
-  });
+  }, 30_000); // 机器人跑整局，CI 和并行跑时慢
 });
 
 describe('内容编译（W2 schema）', () => {

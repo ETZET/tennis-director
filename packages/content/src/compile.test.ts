@@ -456,10 +456,17 @@ describe('内容编译', () => {
     editYaml(ok, 'i18n/zh.yaml', text);
     editYaml(ok, 'i18n/en.yaml', text);
     editYaml(ok, 'acts/indian_wells.yaml', (y) => {
-      y.anchors.push('south_courts', 'oasis_lawn');
-      for (const [k, v] of Object.entries(SC)) y.nav.push([k, 'south_courts', v]);
-      for (const [k, v] of Object.entries(OL)) y.nav.push([k, 'oasis_lawn', v]);
-      y.nav.push(['south_courts', 'oasis_lawn', 6]);
+      // 内容里已经有地块（W5 GM-15）时只补缺的：锚点、导航边不重复，golf_west 换成这里的替身，其余地块留着
+      for (const n of ['south_courts', 'oasis_lawn']) if (!y.anchors.includes(n)) y.anchors.push(n);
+      const has = (x: string, z: string) =>
+        y.nav.some((e: [string, string, number]) => (e[0] === x && e[1] === z) || (e[0] === z && e[1] === x));
+      const add = (x: string, z: string, m: number) => {
+        if (!has(x, z)) y.nav.push([x, z, m]);
+      };
+      for (const [k, v] of Object.entries(SC)) add(k, 'south_courts', v);
+      for (const [k, v] of Object.entries(OL)) add(k, 'oasis_lawn', v);
+      add('south_courts', 'oasis_lawn', 6);
+      const others = (y.plots ?? []).filter((p: { id: string }) => p.id !== 'golf_west');
       y.plots = [
         {
           id: 'golf_west',
@@ -474,6 +481,7 @@ describe('内容编译', () => {
             oasis_lawn: { anchor: 'oasis_lawn', orders: ['gw_dig', 'gw_cabins', 'gw_pool'] },
           },
         },
+        ...others,
       ];
       y.rules.derived_terms = y.rules.derived_terms ?? {};
     });
@@ -516,7 +524,8 @@ describe('内容编译', () => {
     expect(m).toMatch(/unknown order 'gw_nope'/);
     expect(m).toMatch(/'gw_clear' is already used by/);
     expect(m).toMatch(/route slot 's3' has no route 'academy_isle'/);
-    expect(m).toMatch(/'academy_isle' is not in anchors/);
+    // 内容写了 se_corner 以后 academy_isle 已经是锚点（归另一块地）
+    expect(m).toMatch(/'academy_isle' (is not in anchors|is used by another plot)/);
     expect(m).toMatch(/plot 'golf_west' has no variant 'nope'/);
     expect(known(compileContent(bad), 'warnings').join('\n')).toMatch(/oasis_lawn.orders: 2 clearance orders/);
   });

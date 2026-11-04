@@ -1,0 +1,12 @@
+# 南场第 2 张：清掉高尔夫西段漫出来的沙坑，把球道推平。
+id: sc_bunkers
+act: indian_wells
+at: south_courts
+skill: upkeep
+work: 8h
+cost: 100
+crew: 4
+when: { flag: gw_gate_open }
+effects:
+  - { flag: gw_bunkers, set: true }
+performance: workday

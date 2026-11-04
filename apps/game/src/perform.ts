@@ -65,7 +65,13 @@ export function planPerformance(performance: string, anchor: string | undefined,
 
 /** 演出的区域：地点上的第一块球场，或地点上的空地 */
 export function areaFrame(site: Site, area: PerformArea, anchor: string): CourtFrame | null {
-  return (area === 'court' ? site.courts[anchor]?.[0] : site.grounds[anchor]) ?? null;
+  // 地块上的新地点（W5）：没有球场的（绿洲草坪、赛事广场）施工、接待的演出落在那块空地上
+  const land = !!site.land?.anchors[anchor];
+  return (
+    (area === 'court'
+      ? (site.courts[anchor]?.[0] ?? (land ? site.grounds[anchor] : undefined))
+      : site.grounds[anchor]) ?? null
+  );
 }
 
 export interface PerformInput {

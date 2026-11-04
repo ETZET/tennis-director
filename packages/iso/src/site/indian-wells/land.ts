@@ -132,6 +132,61 @@ const step = (p: number, a: number, b: number) => clamp((p - a) / (b - a), 0, 1)
 /** 学院岛：施工前四分之一是"往下落、靠过来"，之后靠岸 */
 const DOCK_AT = 0.25;
 
+/**
+ * 施工画面跟着工单走：模拟给的 progress 是按工作量算的总进度（plotStatus），工单有先后，一张张做。
+ * 每个变体照内容里工单的顺序和工作量（小时，和 content 的 orders/*.yaml 一致）列一遍，每张工单做完时画面走到第几成。
+ * 画面里各阶段的门槛都按这里的"画面进度"写：例如南场在"铺两片硬地"开工之前不会出现场地。
+ */
+const STAGES: Readonly<Record<string, readonly (readonly [work: number, art: number])[]>> = {
+  // 拆门 → 清沙坑 → 填塘 → 铺硬地 → 网和灯
+  south_courts: [
+    [3, 0.2],
+    [8, 0.28],
+    [8, 0.35],
+    [10, 0.88],
+    [4, 1],
+  ],
+  // 清场铺小路 → 三间小屋 → 小泳池
+  oasis_lawn: [
+    [5, 0.3],
+    [12, 0.75],
+    [6, 1],
+  ],
+  // 挪车 → 长出新地 → 观赛坡和遮阳棚 → 新停车场和路
+  event_plaza: [
+    [2, 0.1],
+    [12, 0.4],
+    [10, 0.85],
+    [4, 1],
+  ],
+  // 拖岛靠岸 → 桥 → 宿舍 → 练习场
+  academy_isle: [
+    [4, DOCK_AT],
+    [8, 0.55],
+    [6, 0.85],
+    [4, 1],
+  ],
+};
+
+/** 按工作量的总进度 → 画面进度（分段线性；没列的变体原样） */
+export function stageProgress(variant: string, p: number): number {
+  const st = STAGES[variant];
+  if (!st) return p;
+  const total = st.reduce((a, [w]) => a + w, 0);
+  let w0 = 0;
+  let a0 = 0;
+  for (const [w, a] of st) {
+    const w1 = w0 + w / total;
+    if (p <= w1 + 1e-9) return a0 + (a - a0) * clamp((p - w0) / Math.max(1e-9, w1 - w0), 0, 1);
+    w0 = w1;
+    a0 = a;
+  }
+  return 1;
+}
+
+/** 赛事广场：挪完车（第一张工单）才长出新地、旧停车场才空 */
+const EP_GROW = 0.1;
+
 export function createLand(world: LandWorld, opts: LandOptions = {}): LandLayer {
   const wx: Weather = opts.weather ?? { wind: 0.3, rain: 0 };
   const plots: Record<Plot, PlotLook> = {
@@ -183,7 +238,8 @@ export function createLand(world: LandWorld, opts: LandOptions = {}): LandLayer 
   const slabFor = (P: Record<Plot, PlotLook>): Rect[] => {
     const rs: Rect[] = [SLAB];
     const se = P.se_corner;
-    if (se.state !== 'locked' && se.variant === 'event_plaza') rs.push(...SE_GROW);
+    if (se.variant === 'event_plaza' && (se.state === 'open' || (se.state === 'building' && se.p >= EP_GROW)))
+      rs.push(...SE_GROW);
     if (se.variant === 'academy_isle' && (se.state === 'open' || (se.state === 'building' && se.p >= DOCK_AT)))
       rs.push(ISLE_DOCK);
     return rs;
@@ -201,7 +257,8 @@ export function createLand(world: LandWorld, opts: LandOptions = {}): LandLayer 
     };
     const se = plots.se_corner;
     const hide: Rect[] = [];
-    if (se.state !== 'locked' && se.variant === 'event_plaza') hide.push(LOT_S, SE_ROAD);
+    if (se.variant === 'event_plaza' && (se.state === 'open' || (se.state === 'building' && se.p >= EP_GROW)))
+      hide.push(LOT_S, SE_ROAD);
     if (se.state !== 'locked' && se.variant === 'academy_isle') hide.push(SE_ROAD);
     if (taken) hide.push(GOLF_WEST);
     FORE.hide = hide;
@@ -217,7 +274,11 @@ export function createLand(world: LandWorld, opts: LandOptions = {}): LandLayer 
       FORE.isle = {
         // 东南角走了赛事广场：学院岛那条路没了，天上的小岛飘走（留着的话它正好浮在新停车场前面，
         // 底下的尖像是新地台倒挂下来的一块）
-        show: !(se.variant === 'event_plaza' && se.state !== 'locked'),
+        // 预览东南角的两条路时先把它收起来：赛事广场的预览里它本来就不在了，学院岛的预览画在靠岸的位置（留着会压在预览底下）
+        show: !(
+          (se.variant === 'event_plaza' && se.state !== 'locked') ||
+          (se.state === 'locked' && preview?.plot === 'se_corner')
+        ),
         x0: ISLE_FLOAT.x0,
         z0: ISLE_FLOAT.z0,
         y: ISLE_FLOAT.y,
@@ -367,7 +428,7 @@ export function createLand(world: LandWorld, opts: LandOptions = {}): LandLayer 
       const next: PlotLook = {
         state: v ? state : 'locked',
         variant: v,
-        p: state === 'building' ? q(progress) : state === 'open' ? 1 : 0,
+        p: state === 'building' ? stageProgress(v ?? '', q(progress)) : state === 'open' ? 1 : 0,
       };
       const cur = plots[plot];
       if (cur.state === next.state && cur.variant === next.variant && cur.p === next.p) return;
@@ -533,8 +594,17 @@ function paintPlot(g: PaintTarget, plot: Plot, L: PlotLook): void {
   if (plot === 'golf_west') {
     const W = GOLF_WEST;
     if (L.variant === 'south_courts') {
-      paintCleared(g, open ? 1 : step(p, 0, 0.35) * 1.1, false);
-      if (open || p > 0.3)
+      paintCleared(g, open ? 1 : step(p, 0.2, 0.28) * 1.1, false);
+      // 填塘：泥塘一格格填成平整的土
+      if (!open && p > 0.28) {
+        const f = step(p, 0.28, 0.35);
+        g.paintRect(GOLF_POND.x - 12, GOLF_POND.x + 12, GOLF_POND.z - 7, GOLF_POND.z + 7, (x, z, _c, i, j) => {
+          const pond = Math.hypot((x - GOLF_POND.x) * 0.6, z - GOLF_POND.z) < 4.5 + fbm(x * 0.08, z * 0.08, 4) * 2;
+          if (!pond || hash(i >> 1, j >> 1, 135) > f) return 0;
+          return hash(i, j, 136) > 0.6 ? C.dirt : C.sand2;
+        });
+      }
+      if (open || p > 0.35)
         g.paintRect(W.x0 + 0.4, W.x1 - 1, 58.6, 78.6, (x, z, c, i, j) =>
           open ? lawnAt(x, z, i, j) : p > 0.75 ? mixP(c, lawnAt(x, z, i, j), step(p, 0.75, 0.95)) : 0,
         );
@@ -543,7 +613,7 @@ function paintPlot(g: PaintTarget, plot: Plot, L: PlotLook): void {
         [F_SC2, 0.5],
       ] as const) {
         if (!open && p < a) continue;
-        const surf = open ? 1 : step(p, a + 0.25, a + 0.4);
+        const surf = open ? 1 : step(p, a + 0.2, a + 0.33);
         paintCourtL(g, F, { inner: LC.hardI, outer: LC.hardO, look: surf > 0 ? 'new' : 'pad', fill: surf });
       }
       if (open || p > 0.5) paintSouthWalk(g, !open);
@@ -562,7 +632,7 @@ function paintPlot(g: PaintTarget, plot: Plot, L: PlotLook): void {
         return !open && Math.abs(((x + 200) % 2.4) - 1.2) > 1.15 ? mixP(v, c, 0.4) : v;
       });
       // 水塘：石头砌的边、清水、睡莲
-      const clean = open ? 1 : step(p, 0.2, 0.6);
+      const clean = open ? 1 : step(p, 0.1, 0.3);
       g.paintRect(
         GOLF_POND.x - GOLF_POND.rx - 1.5,
         GOLF_POND.x + GOLF_POND.rx + 1.5,
@@ -582,7 +652,7 @@ function paintPlot(g: PaintTarget, plot: Plot, L: PlotLook): void {
         },
       );
       // 石板小路：南门 → 塘边一圈 → 三间小屋、小泳池
-      if (open || p > 0.6) {
+      if (open || p > 0.22) {
         const ring = (x: number, z: number) =>
           Math.abs(Math.hypot((x - GOLF_POND.x) / (GOLF_POND.rx + 1.6), (z - GOLF_POND.z) / (GOLF_POND.rz + 1.6)) - 1);
         const links: [number, number, number, number][] = [
@@ -613,14 +683,14 @@ function paintPlot(g: PaintTarget, plot: Plot, L: PlotLook): void {
       // 小泳池庭院
       const D = OASIS_DECK;
       const P = OASIS_POOL;
-      if (open || p > 0.3)
+      if (open || p > 0.75)
         g.paintRect(D.x0, D.x1, D.z0, D.z1, (x, z, _c, i, j) => {
           const inPool = x > P.x0 && x < P.x1 && z > P.z0 && z < P.z1;
-          if (!open && p < 0.6) return inPool ? (hash(i, j, 132) > 0.5 ? LC.mud : LC.mud2) : mixP(C.dirt, LC.pad, 0.4);
+          if (!open && p < 0.85) return inPool ? (hash(i, j, 132) > 0.5 ? LC.mud : LC.mud2) : mixP(C.dirt, LC.pad, 0.4);
           if (inPool) {
             const rim = x < P.x0 + 0.35 || x > P.x1 - 0.35 || z < P.z0 + 0.35 || z > P.z1 - 0.35;
             if (rim) return LC.line;
-            return open || p > 0.85 ? (hash(i >> 1, j >> 1, 133) > 0.88 ? LC.water2 : LC.water) : LC.pad2;
+            return open || p > 0.93 ? (hash(i >> 1, j >> 1, 133) > 0.88 ? LC.water2 : LC.water) : LC.pad2;
           }
           return (Math.floor(x / 0.8) + Math.floor(z / 0.8)) & 1 ? LC.tile : LC.tile2;
         });
@@ -650,13 +720,13 @@ function paintPlot(g: PaintTarget, plot: Plot, L: PlotLook): void {
         });
     // 观赛坡底下：先刮掉旧沥青，启用后铺广场砖
     g.paintRect(SLOPE.x0, SLOPE.x1, SLOPE.z0, SLOPE.z1, (x, z, c, i, j) => {
-      if (!open && p < 0.25) return 0;
-      if (!open && p < 0.6) return hash(i, j, 141) > 0.5 ? C.dirt : mixP(c, C.sand2, 0.6);
+      if (!open && p < 0.4) return 0;
+      if (!open && p < 0.62) return hash(i, j, 141) > 0.5 ? C.dirt : mixP(c, C.sand2, 0.6);
       const d = Math.floor(x / 1.5) + Math.floor(z / 1.5);
       return d & 1 ? C.plaza : C.plaza2;
     });
     // 路：沿岛东边往南，接到新停车场；沥青从北往南一段段铺
-    const paved = open ? 1e9 : SE_ROAD.z0 + step(p, 0.15, 0.8) * (SE_ROAD.z1 - SE_ROAD.z0);
+    const paved = open ? 1e9 : SE_ROAD.z0 + step(p, 0.86, 0.98) * (SE_ROAD.z1 - SE_ROAD.z0);
     const road = (x: number, z: number, i: number, j: number) => {
       if (z > paved) return hash(i, j, 142) > 0.5 ? C.dirt : C.sand2;
       const mid = Math.abs(x - (SE_ROAD.x0 + SE_ROAD.x1) / 2) < 0.12 && (z + 200) % 3 < 1.5;
@@ -670,8 +740,8 @@ function paintPlot(g: PaintTarget, plot: Plot, L: PlotLook): void {
     g.paintRect(LOT_NEW.x1, SE_ROAD.x1, LOT_NEW.z0 + 1, LOT_NEW.z0 + 6, (x, z, _c, i, j) =>
       road(x, Math.min(z, SE_ROAD.z1 - 1), i, j),
     );
-    if (open || p > 0.8) paintStalls(g, LOT_NEW, open);
-    else if (p > 0.5)
+    if (open || p > 0.92) paintStalls(g, LOT_NEW, open);
+    else if (p > 0.3)
       g.paintRect(LOT_NEW.x0, LOT_NEW.x1, LOT_NEW.z0, LOT_NEW.z1, (_x, _z, _c, i, j) =>
         hash(i, j, 145) > 0.5 ? C.dirt : C.sand2,
       );
@@ -690,7 +760,7 @@ function paintPlot(g: PaintTarget, plot: Plot, L: PlotLook): void {
     g.paintRect(cx - 1.2, cx + 1.2, 0, 82, (x, z, _c, i, j) => pathAt(x, z, i, j, !open));
   }
   if (open || p >= DOCK_AT) {
-    const fresh = open || p > 0.85;
+    const fresh = open || p > 0.9;
     g.paintRect(ISLE_DOCK.x0, ISLE_DOCK.x1, ISLE_DOCK.z0, ISLE_DOCK.z1, (x, z, c) =>
       c ? isleTop(x - ISLE_DOCK.x0, z - ISLE_DOCK.z0, fresh) : 0,
     );
@@ -767,13 +837,13 @@ function southCourts(K: SiteKit, L: PlotLook): void {
   const W = GOLF_WEST;
   if (!open) {
     fenceAround(K, { x0: W.x0 + 0.6, x1: W.x1 - 0.4, z0: W.z0 + 0.8, z1: W.z1 - 0.6 }, 'esw');
-    if (p < 0.3) {
-      mat(K, -41.5, 54.5, 'bricks');
+    if (p < 0.3) mat(K, -41.5, 54.5, 'bricks');
+    if (p > 0.15 && p < 0.33) {
       K.sandPile(-26, 62, 2.2);
       K.sandPile(-33, 70, 1.6);
     }
-    if (p < 0.5) digger(K, -27, 66, -1);
-    if (p >= 0.3 && p < 0.85) {
+    if (p > 0.15 && p < 0.45) digger(K, -27, 66, -1);
+    if (p >= 0.35 && p < 0.9) {
       mat(K, -55, 56.6, 'pallet');
       mat(K, -8, 56.6, 'pipes');
       mat(K, -20, 56.6, 'roll');
@@ -785,9 +855,9 @@ function southCourts(K: SiteKit, L: PlotLook): void {
       [-39, 57.5],
     ] as const)
       K.cone(x, z);
-    if (p > 0.7) courtLights(K, F_SC1, false, true);
-    if (p > 0.82) courtLights(K, F_SC2, false, true);
-    if (p > 0.88)
+    if (p > 0.9) courtLights(K, F_SC1, false, true);
+    if (p > 0.94) courtLights(K, F_SC2, false, true);
+    if (p > 0.96)
       K.fenceRect(
         F_SC1.ox - F_SC1.hx,
         F_SC1.ox + F_SC1.hx,
@@ -836,7 +906,7 @@ function oasisLawn(K: SiteKit, L: PlotLook): void {
   const p = open ? 1 : L.p;
   const W = GOLF_WEST;
   CABINS.forEach((cb, i) => {
-    const built = open ? 1 : step(p, 0.2 + i * 0.1, 0.75 + i * 0.08);
+    const built = open ? 1 : step(p, 0.3 + i * 0.1, 0.55 + i * 0.1);
     if (built <= 0) return;
     const face = cb.z < GOLF_POND.z ? 1 : -1;
     if (built >= 0.85)
@@ -851,7 +921,7 @@ function oasisLawn(K: SiteKit, L: PlotLook): void {
     if (open) K.lampAt({ x: cb.x, z: cb.z + face * (cb.d / 2 + 1), r: 4, i: 0.5 });
   });
   const P = OASIS_POOL;
-  if (open || p > 0.9) {
+  if (open || p > 0.96) {
     K.umbrella(P.x0 - 1.8, P.z0 + 0.6, 1.2, '#e2463c', '#ffffff');
     K.umbrella(P.x1 + 2, P.z1 + 1.2, 1.2, '#2f7fd8', '#ffffff');
     for (const x of [P.x0 + 1, P.x0 + 2.6, P.x0 + 4.2])
@@ -908,8 +978,8 @@ function eventPlaza(K: SiteKit, L: PlotLook): void {
   const p = open ? 1 : L.p;
   const S = SLOPE;
   // 观赛坡：五级台阶朝北看大屏
-  const rise = open ? 1 : step(p, 0.25, 0.6);
-  const grass = open || p > 0.75;
+  const rise = open ? 1 : step(p, 0.4, 0.62);
+  const grass = open || p > 0.78;
   if (rise > 0)
     for (let i = 0; i < 5; i++) {
       const z0 = 10 + i * 3.2;
@@ -920,8 +990,8 @@ function eventPlaza(K: SiteKit, L: PlotLook): void {
       );
     }
   const C0 = { x0: S.x0 + 2.5, x1: S.x1 - 2.5, z0: 12, z1: 24.5 };
-  const masts = open ? 1 : step(p, 0.45, 0.65);
-  const sail = open ? 1 : step(p, 0.8, 0.98);
+  const masts = open ? 1 : step(p, 0.55, 0.72);
+  const sail = open ? 1 : step(p, 0.72, 0.85);
   if (masts > 0) {
     if (sail > 0.5) K.cast({ x0: C0.x0, x1: C0.x1, z0: C0.z0 + 2, z1: C0.z1, h: 4 });
     K.add(bx(C0.x0 - 2, C0.x1 + 2, C0.z0 - 1.5, C0.z1 + 1.5, 0, 8.5), (r) => canopy(r, C0, masts, sail));
@@ -988,7 +1058,7 @@ function eventPlaza(K: SiteKit, L: PlotLook): void {
       mat(K, 92, 34, 'pipes');
       mat(K, 92, 38, 'bricks');
     }
-    if (p < 0.6)
+    if (p >= EP_GROW && p < 0.45)
       for (let i = 0; i < 8; i++) {
         const x = 68 + i * 4;
         K.add(bx(x - 0.2, x + 0.2, 99 - 0.2, 99 + 0.2, 0, 1), (r) => stake(r, x, 99));
@@ -1017,13 +1087,13 @@ function academyIsle(K: SiteKit, L: PlotLook): void {
     K.cone(102, 80);
     return;
   }
-  const len = open ? 1 : step(p, DOCK_AT, 0.7);
+  const len = open ? 1 : step(p, DOCK_AT, 0.55);
   K.add(bx(B.x - B.w / 2 - 0.3, B.x + B.w / 2 + 0.3, B.z0, B.z1, -9, 2.4), (r) =>
     bridge(r, B.x, B.z0, B.z1, B.w, len, open),
   );
   if (open) for (const z of [B.z0 + 0.4, B.z1 - 0.4]) K.lampAt({ x: B.x, z, r: 4.5, i: 0.6 });
   const D = DORM;
-  const built = open ? 1 : step(p, 0.45, 0.98);
+  const built = open ? 1 : step(p, 0.55, 0.85);
   if (built > 0) {
     if (built >= 0.7) K.cast({ x0: D.x0, x1: D.x1, z0: D.z0, z1: D.z1, h: 6.5 });
     K.add(bx(D.x0 - 1, D.x1 + 1, D.z0 - 1, D.z1 + 1.4, 0, 8), (r) => {

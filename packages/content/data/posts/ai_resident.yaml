@@ -1,0 +1,15 @@
+# 学院岛 · 驻岛教练（★4 学院岛开地以后，W5 GM-15）：寄宿学员住在岛上，有教练在就一直练。没有固定时段、不算需求：
+# 寄宿学费每圈挣得多，但只在有人常驻时才有——岛离青训场 147 分钟、离会所 158 分钟，派过去的人基本就住在岛上了，
+# 不在别处干活。起风天关桥，这个岗位不开。
+# 校准（GM-15）：第一版是工作日 9–14 点的需求岗位，机器人走不过去、整季服务率掉 1–2 个点，学院岛的分数比赛事广场低 500–800。
+id: ai_resident
+act: indian_wells
+at: academy_isle
+skill: teach
+cycle: 1h
+when: { not: { weather: wind } }
+effects:
+  - { stat: cash, add: "round(12 * (0.6 + worker.skill / 100) * (1 + stat.reputation / 120))" }
+  - { stat: members, add: 1, chance: 0.03 }
+  - { stat: reputation, add: 0.04 }
+performance: lesson

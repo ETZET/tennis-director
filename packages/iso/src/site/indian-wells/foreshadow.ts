@@ -320,7 +320,8 @@ export function foreshadowStatics(lv: number): Node[] {
         r,
         R,
         I.y,
-        Math.min(4.5, Math.max(0.6, I.y - 0.3)),
+        // 土层厚度：天上 4.5 米；落到 8 米以下以后慢慢加厚到和地台一样（靠岸那一刻底边对上地台的 7 米，不跳）
+        I.y >= 8 ? 4.5 : 4.5 + (I.y + 7.2 - 4.5) * (1 - I.y / 8),
         (x, z) => {
           const i = Math.min(W - 1, Math.max(0, Math.floor((x - R.x0) / TS)));
           const j = Math.max(0, Math.floor((z - R.z0) / TS));
@@ -341,6 +342,15 @@ export function foreshadowStatics(lv: number): Node[] {
       y1: ISLE_FLOAT.y + 3,
     },
   );
+  // 包围盒跟着岛走（施工时岛从天上落下、往西北靠岸；固定在天上那个位置的话，镜头转到岸边时岛被裁掉、排序也不对）
+  Object.defineProperty(isle, 'bounds', {
+    get: () => {
+      const I = FORE.isle;
+      return { x0: I.x0 - 3, x1: I.x0 + W_ISLE + 6, z0: I.z0, z1: I.z0 + D_ISLE + 5, y0: 0, y1: I.y + 3 };
+    },
+    set: () => {},
+    configurable: true,
+  });
   isle.name = 'foreshadow:isle';
   out.push(isle);
   // 高尔夫西段：关掉的洞，旗杆一周比一周歪；荒到一半起有风滚草

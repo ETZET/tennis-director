@@ -427,19 +427,22 @@ function addHubs(c: ContentBundle): void {
             )
             .join('');
           const o = h.orders;
+          // 工地停工（主办赛事的比赛日，W5）：⚒ 换成 ⏸，牌子上一眼看出不是在干活
           const orders = o.n
-            ? `<span class="hb-o${o.crew ? ' hb-on' : ''}${h.ready ? ' hb-ready' : ''}">${o.skills.map((k) => `<i class="hb-${k}"></i>`).join('')}⚒${o.progress !== null ? `${Math.round(o.progress * 100)}%` : o.n > 1 ? o.n : ''}</span>`
+            ? `<span class="hb-o${o.crew ? ' hb-on' : ''}${h.ready ? ' hb-ready' : ''}${o.paused ? ' hb-halt' : ''}">${o.skills.map((k) => `<i class="hb-${k}"></i>`).join('')}${o.paused ? '⏸' : '⚒'}<em class="hb-n">${o.progress !== null ? `${Math.round(o.progress * 100)}%` : o.n > 1 ? o.n : ''}</em></span>`
             : '';
+          // 岗位今天被天气关了（下雨、起风关桥）：挂个天气记号，点开清单看原因
+          const shut = h.shut ? `<span class="hb-shut">${h.shut === 'wind' ? '≋' : '☂'}</span>` : '';
           const name = `<b>${esc(text.anchor(a))}</b>`;
           // 设施快撑不住了：红色 ! 加状况（第二轮试玩 S3）
           const worn = h.worn !== null ? `<span class="hb-worn">!${h.worn}</span>` : '';
-          return `${name}${worn}${posts}${orders}`;
+          return `${name}${worn}${shut}${posts}${orders}`;
         },
         cls: () => {
           const h = hubOf(a);
           const need = h?.posts.some((p) => p.need);
           const f = placeFlags(a);
-          return `hub${beatOn(a) ? ' hub-beat' : ''}${f.here ? ' hub-here' : ''}${f.dest ? ' hub-dest' : ''}${f.card ? ' hub-card' : ''}${need ? ' hub-need' : ''}${h?.fit === 'fit' ? ' tg-fit' : h?.fit === 'nofit' ? ' tg-nofit' : ''}${session.place === a ? ' hub-open' : ''}`;
+          return `hub${h?.orders.n ? ' hub-has-o' : ''}${beatOn(a) ? ' hub-beat' : ''}${f.here ? ' hub-here' : ''}${f.dest ? ' hub-dest' : ''}${f.card ? ' hub-card' : ''}${need ? ' hub-need' : ''}${h?.fit === 'fit' ? ' tg-fit' : h?.fit === 'nofit' ? ' tg-nofit' : ''}${session.place === a ? ' hub-open' : ''}`;
         },
       },
       () => tapPlace(a),
@@ -691,8 +694,8 @@ function reach(p: { x: number; z: number } | null): void {
 }
 const landAnchor = (a: string | null | undefined) => (a ? (site.land?.anchors[a] ?? null) : null);
 /** 新地启用的镜头（W5）：飞过去之前镜头的目标点；停完飞回来，飞回来这一段到什么时候（performance.now） */
-let flyBack: { key: string; tx: number; tz: number } | null = null;
-let returning: { tx: number; tz: number; until: number } | null = null;
+let flyBack: { key: string; tx: number; tz: number; zoom: number } | null = null;
+let returning: { tx: number; tz: number; zoom: number; until: number } | null = null;
 function followFocus(): { x: number; z: number } | null {
   const pt = pointFocus();
   const rf = pt?.key.startsWith('rt:') ? projector.routeFocus(session) : null;
@@ -712,7 +715,10 @@ function followFocus(): { x: number; z: number } | null {
   const key = pv ? pv.key : f ? `f:${f.seq}` : '';
   if (flyBack && key !== flyBack.key) {
     // 新地的镜头停完了：飞回原来的地方（玩家中途拖过画面就不回；接着有别的镜头也不回）
-    if (camera.following && !pv && !f) returning = { tx: flyBack.tx, tz: flyBack.tz, until: performance.now() + 2500 };
+    if (camera.following && !pv && !f) {
+      returning = { tx: flyBack.tx, tz: flyBack.tz, zoom: flyBack.zoom, until: performance.now() + 2500 };
+      camera.target.zoom = flyBack.zoom;
+    }
     flyBack = null;
   }
   if (!pv && !f) {
@@ -725,7 +731,11 @@ function followFocus(): { x: number; z: number } | null {
   }
   returning = null;
   if (key !== focusKey) {
-    if (f?.land) flyBack = { key, tx: camera.target.tx, tz: camera.target.tz };
+    if (f?.land) {
+      flyBack = { key, tx: camera.target.tx, tz: camera.target.tz, zoom: camera.target.zoom };
+      // 地图给了这块地的缩放：整块新地进画面（W5 美术评审：赛事广场的新地和停车场原来在屏幕外）
+      if (f.zoom) camera.target.zoom = clamp(f.zoom, camera.limits.zoom[0], camera.limits.zoom[1]);
+    }
     focusKey = key;
     camera.setFollow(true);
   }
@@ -811,7 +821,7 @@ function frame(ts: number) {
 /* ---------- 开局：有自动存档就接着玩（?new 或 ?seed= 开新局） ---------- */
 async function boot(): Promise<void> {
   const save = params.has('new') || params.has('seed') ? null : await readAutosave(content.version);
-  begin(save ? new Session(content, save.state, save.commands) : freshSession());
+  begin(save ? new Session(content, save.state, save.commands).holdForCards() : freshSession());
   requestAnimationFrame(frame);
 }
 void boot();

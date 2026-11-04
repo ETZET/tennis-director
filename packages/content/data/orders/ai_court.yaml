@@ -1,0 +1,10 @@
+# 学院岛第 4 张：两根旧网柱中间重新铺一块练习场。宿舍、练习场都做完学院岛开张（地块 se_corner 开地）。
+id: ai_court
+act: indian_wells
+at: academy_isle
+skill: upkeep
+work: 4h
+cost: 100
+crew: 3
+when: { flag: isle_bridge }
+performance: workday

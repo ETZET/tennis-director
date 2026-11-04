@@ -1,0 +1,12 @@
+# 南场第 4 张：铺两片硬地（沙坑清完、水塘填平以后）。
+id: sc_pave
+act: indian_wells
+at: south_courts
+skill: upkeep
+work: 10h
+cost: 500
+crew: 3
+when: { all: [{ flag: gw_bunkers }, { flag: gw_pond_filled }] }
+effects:
+  - { flag: gw_paved, set: true }
+performance: contractor

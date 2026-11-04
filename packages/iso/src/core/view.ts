@@ -800,7 +800,7 @@ export class IsoView {
     const y0 = -this.slabDepth;
     const walls: { d: number; nx: number; nz: number; pts: [number, number, number][] }[] = [];
     for (const w of this.outline) {
-      if (!r.vis(w.nx, w.nz)) continue;
+      if (!r.vis(w.nx, w.nz) || this.bayWall(w)) continue;
       // 四个角的顺序和 Raster.box 的侧面一样（pts[3] → pts[2] 是上沿，地层着色器按它算）
       const pts: [number, number, number][] =
         w.nx === 1
@@ -834,6 +834,36 @@ export class IsoView {
     }
     walls.sort((a, b) => a.d - b.d);
     for (const w of walls) r.wpoly(w.pts, r.col('#b98a58', faceF(w.nx, w.nz)), sideSh(w.nx, w.nz, w.pts));
+  }
+
+  /**
+   * 隔着地面才看得见的内角墙：几块拼成的地台在某个内角只看得见一面墙、而且这面墙的墙底被镜头前面的地面挡住
+   * （墙底在屏幕上的那个像素，反投影到地面上落在地台里）。远处这种墙只露出贴着地面的一个三角，
+   * 背景的荒原和地面一个颜色，看起来像地上挖了个坑；不画它，远边就和地台本来的远边一样融进荒原。
+   * 墙上取 9 个点，四个以上（墙底）被挡住才不画（近处的长墙、隔着一道缝的小岛的墙照画）。
+   */
+  private bayWall(w: SlabWall): boolean {
+    const pr = this.proj;
+    const rs = this.slabRects;
+    // 镜头方向（水平面上 depth 增大的方向）
+    let dx = pr.m0 + pr.m2;
+    let dz = pr.m1 + pr.m3;
+    const dl = Math.hypot(dx, dz) || 1;
+    dx /= dl;
+    dz /= dl;
+    const drop = this.slabDepth * pr.k * HV;
+    let hid = 0;
+    for (let i = 0; i < 9; i++) {
+      const f = (i + 0.5) / 9;
+      const mx = w.x0 + (w.x1 - w.x0) * f + w.nx * 0.05;
+      const mz = w.z0 + (w.z1 - w.z0) * f + w.nz * 0.05;
+      // 墙底那个像素在屏幕上落到镜头前方多远的地面上：那里是地台就被挡住了
+      const u = drop / Math.max(1e-6, pr.sy(mx + dx, 0, mz + dz) - pr.sy(mx, 0, mz));
+      const gx = mx + dx * u;
+      const gz = mz + dz * u;
+      if (rs.some((R) => gx > R.x0 && gx < R.x1 && gz > R.z0 && gz < R.z1)) hid++;
+    }
+    return hid >= 4;
   }
 
   /**

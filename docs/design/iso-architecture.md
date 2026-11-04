@@ -239,3 +239,6 @@ function buildDiorama(world: DioramaWorld, meta: ActivityMeta, C: Conditions, se
 - `@td/iso` 不依赖 three、preact、`@td/ui`、`@td/content`（`pnpm check:deps` 检查）。核心（graph、raster、proj、draw、art、ground、daylight）不碰 DOM，
   能在 node 里测；只有 `view.ts`、`camera.ts`、`world.ts` 碰画布、指针和窗口事件。
 - 注释和文档用中文，代码风格照现有（Biome）。
+
+
+- 多块拼合的地台：远侧的内角墙如果大半个底边被前面的地面挡住，就不画（否则隔着缺口看像地上的坑）；单一矩形的地台画法不变。

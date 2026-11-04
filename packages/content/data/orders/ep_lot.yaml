@@ -1,0 +1,10 @@
+# 赛事广场最后一张：新地上画车位、接车道。都做完广场开张（地块 se_corner 开地），停车场回来。
+id: ep_lot
+act: indian_wells
+at: event_plaza
+skill: upkeep
+work: 4h
+cost: 200
+crew: 3
+when: { flag: ep_ground }
+performance: workday

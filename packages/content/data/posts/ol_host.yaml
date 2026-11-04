@@ -1,0 +1,16 @@
+# 绿洲草坪 · 小屋管家（★3 绿洲草坪开地以后，W5 GM-15）：周五到周日 11–17 点，Palm Springs 来的周末度假客住水塘边的三间小屋。
+# 每圈收入高，但沙漠里的水费和空调是按住进来的客人算的：每圈扣 $3，风季（春天）热起来再扣 $3。
+# 和泳池的小木屋服务同一个时段，抢同一批会服务的人。度假之路（★2 resort）来的酒店客人多一点。
+id: ol_host
+act: indian_wells
+at: oasis_lawn
+skill: service
+cycle: 1h
+hours: [11, 17]
+days: [4, 5, 6]
+effects:
+  - { stat: cash, add: "round(20 * (0.6 + worker.skill / 100) * (1 + stat.reputation / 120))" }
+  - { stat: cash, add: -3 }
+  - { stat: cash, add: -3, if: { season: spring } }
+  - { stat: cash, add: 3, if: { route: s2, is: resort } }
+  - { stat: reputation, add: 0.05 }

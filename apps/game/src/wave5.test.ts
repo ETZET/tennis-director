@@ -10,7 +10,7 @@ import { createText } from './text';
 /**
  * W5 地图长大（UI-12 + 地块接进游戏）：新地点的坐标经 Site.land 并进来；地点牌只在 placeAvailable 时有、
  * 施工时只有清理工单、开了才有岗位；没写 anchors.<id> 的新地点借路名。
- * 内容还没写地块，这里在内存里给 Indian Wells 补一块 golf_west（和 sim 的 plots.test.ts 同一套做法）。
+ * 内容写了地块（W5 GM-15）就直接用内容；没写时在内存里给 Indian Wells 补一块 golf_west（和 sim 的 plots.test.ts 同一套做法）。
  */
 const NEW_NAV: Record<string, Record<string, number>> = {
   south_courts: { entrance: 105, clubhouse: 47, stadium_2: 36, plaza: 96 },
@@ -18,6 +18,7 @@ const NEW_NAV: Record<string, Record<string, number>> = {
 };
 
 function fixture(): ContentBundle {
+  if (CONTENT.acts.find((x) => x.id === 'indian_wells')?.plots?.some((p) => p.id === 'golf_west')) return CONTENT;
   const c = structuredClone(CONTENT) as ContentBundle;
   c.version = `${CONTENT.version}-ui-w5`;
   const a = c.acts.find((x) => x.id === 'indian_wells');
@@ -64,6 +65,13 @@ function fixture(): ContentBundle {
 }
 
 const FIX = fixture();
+/** golf_west 的南场变体：清理工单、开出来的岗位（内容或者上面的替身） */
+const SC = (() => {
+  const v = FIX.acts.find((x) => x.id === 'indian_wells')?.plots?.find((p) => p.id === 'golf_west')
+    ?.variants.south_courts;
+  if (!v) throw new Error('no golf_west.south_courts');
+  return v;
+})();
 const quiet = (): GameState => {
   const s = newGame(FIX, { seed: 5 });
   s.t = at(3, 10);
@@ -76,7 +84,7 @@ const build = (s: GameState, state: 'building' | 'open') => {
   s.plots = {
     golf_west: { state, variant: 'south_courts', since: s.t, opened: state === 'open' ? s.t : null, cause: 0 },
   };
-  if (state === 'open') for (const id of ['gw_clear', 'gw_fill', 'gw_pave']) s.orderLog.done[id] = 1;
+  if (state === 'open') for (const id of SC.orders) s.orderLog.done[id] = 1;
 };
 
 describe('W5 land in the game', () => {
@@ -118,12 +126,64 @@ describe('W5 land in the game', () => {
     expect(placeAvailable(s, w, 'oasis_lawn')).toBe(false);
     session.picked = 'dale';
     const h = p.hub(session, 'south_courts');
-    expect(h?.orders.n).toBe(3);
+    // 清理工单可以有先后（内容里拆了门才能清沙坑），至少第一张挂出来，不多于这个变体的张数
+    expect(h?.orders.n ?? 0).toBeGreaterThanOrEqual(1);
+    expect(h?.orders.n ?? 0).toBeLessThanOrEqual(SC.orders.length);
     expect(h?.posts).toEqual([]);
     build(s, 'open');
     expect(placeOpen(s, w, 'south_courts')).toBe(true);
     const h2 = p.hub(session, 'south_courts');
     expect(h2?.orders.n).toBe(0);
-    expect(h2?.posts.length).toBe(1);
+    expect(h2?.posts.length).toBe(SC.opens.posts.length);
+  });
+});
+
+describe('W5 gate: clearance list, pauses, wind', () => {
+  it('a finished clearance job shows as done (never locked) and the list goes once the land opens', () => {
+    const s = quiet();
+    const p = new Projector(FIX, createText(FIX, 'en'));
+    const session = new Session(FIX, s);
+    build(s, 'building');
+    const first = SC.orders[0] as string;
+    s.orderLog.done[first] = 1;
+    const rows = p.placeSheet(session, 'south_courts').rows;
+    const row = rows.find((r) => r.id === first);
+    expect(row?.done).toBe(true);
+    expect(row?.locked).toBeUndefined();
+    expect(p.sheet(session, first)?.status).toBe(FIX.i18n.en?.['ui.sheet.order_done']);
+    build(s, 'open');
+    const after = p.placeSheet(session, 'south_courts').rows;
+    for (const id of SC.orders) expect(after.some((r) => r.id === id)).toBe(false);
+  });
+
+  it('wind-closed posts say why instead of a silent "gone"', () => {
+    const post = FIX.posts.find((x) => x.id === 'ai_resident');
+    const se = FIX.acts[0]?.plots?.find((x) => x.id === 'se_corner');
+    if (!post || !se?.variants.academy_isle) return;
+    const s = quiet();
+    const p = new Projector(FIX, createText(FIX, 'en'));
+    const session = new Session(FIX, s);
+    s.plots = { se_corner: { state: 'open', variant: 'academy_isle', since: s.t, opened: s.t, cause: 0 } };
+    s.weather = 'wind';
+    const wind = FIX.i18n.en?.['ui.why.wind'];
+    const rows = p.placeSheet(session, 'academy_isle').rows;
+    expect(rows.find((r) => r.id === 'ai_resident')?.line).toBe(FIX.i18n.en?.['ui.place.wind']);
+    const sheet = p.sheet(session, 'ai_resident');
+    expect(sheet?.status).toBe(wind);
+    expect(sheet?.people.every((x) => x.disabled === wind)).toBe(true);
+    expect(p.hub(session, 'academy_isle')?.shut).toBe('wind');
+  });
+
+  it('reloading with a pausing card open keeps the clock stopped', () => {
+    const s = quiet();
+    const w = worldOf(s, FIX);
+    const card = [...w.cards.values()].find((c) => c.pause);
+    if (!card) return;
+    s.cards.open = [
+      { uid: 1, card: card.id, opened: s.t, expires: null, cause: 0 } as GameState['cards']['open'][number],
+    ];
+    expect(new Session(FIX, s).holdForCards().paused).toBe(true);
+    s.cards.open = [];
+    expect(new Session(FIX, s).holdForCards().paused).toBe(false);
   });
 });

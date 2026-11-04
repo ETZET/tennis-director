@@ -29,6 +29,7 @@ import {
   orderStatus,
   orderWork,
   type Post,
+  plotOrderPaused,
   postExists,
   postStatus,
   potentialOf,
@@ -269,6 +270,26 @@ export class Projector {
             }),
             false,
           );
+      } else if (e.type === 'orderFinished') {
+        // 地块的一张清理工单做完了（W5）：模拟不排队，人会回原来的岗位；快讯提醒还有下一张，拖过去接着干
+        const w = worldOf(s, this.content);
+        const ref = w.plotOrders.get(e.order);
+        const ps = ref ? s.plots?.[ref.plot] : undefined;
+        if (ref && ps?.state === 'building' && e.people.length) {
+          const next = (w.plots.get(ref.plot)?.variants[ps.variant]?.orders ?? [])
+            .map((id) => w.orders.get(id))
+            .find((o) => o && o.id !== e.order && orderStatus(s, w, o).visible);
+          if (next)
+            this.push(
+              s.t,
+              T.fmt('ui.wire.clear_next', {
+                names: e.people.map((x) => T.personName(x)).join(T.lang === 'zh' ? '、' : ', '),
+                order: this.targetTitle(e.order),
+                next: this.targetTitle(next.id),
+              }),
+              true,
+            );
+        }
       } else if (e.type === 'returned') {
         // 人-13：工单做完（或作废），回到派去之前的岗位
         this.push(
@@ -759,6 +780,11 @@ export class Projector {
     const T = this.text;
     const { here, coming } = this.split(s, crew, o.at);
     const p = Math.round(progress * 100);
+    // 主办赛事的比赛日工地停工（W5）：人在那儿等，进度不走
+    if (plotOrderPaused(s, worldOf(s, this.content), o.id)) {
+      const halt = T.fmt('ui.place.order_halt', { p });
+      return coming.length ? `${halt} · ${this.comingLine(coming)}` : halt;
+    }
     const head = here.length
       ? T.fmt('ui.place.order_on', { names: here.map((x) => T.personName(x)).join(T.lang === 'zh' ? '、' : ', '), p })
       : T.fmt('ui.place.order_wait', { p });
@@ -1049,7 +1075,8 @@ export class Projector {
     const week = Math.floor(Math.floor(s.t / 1440) / 7) + 1;
     const service = hasDemand(s) ? Math.round(serviceRate(s) * 100) : null;
     return {
-      label: `${T.tr(`seasons.${s.season}`, '')} · ${T.fmt('ui.week', { n: week })}`,
+      // 手机上的季节牌放不下"Spring · windy season · Wk 11"（英文换成三行）：有短写就用短写（W5 门）
+      label: `${T.tr(`ui.season_short.${s.season}`, '') || T.tr(`seasons.${s.season}`, '')} · ${T.fmt('ui.week', { n: week })}`,
       // 晴天入夜（画面 18:15 起转黄昏，18:45 以后天黑）画月亮，不画太阳（QA P3）
       weather: s.weather === 'sun' && (s.t % 1440 >= 18.75 * 60 || s.t % 1440 < 6 * 60) ? 'night' : s.weather,
       weatherLabel: T.tr(`ui.weather.${s.weather}`),
@@ -1103,7 +1130,8 @@ export class Projector {
     return [...w.orders.values()]
       .filter((o) => {
         const st = orderStatus(s, w, o);
-        return st.visible && st.blocked === null && st.crew.length === 0;
+        // 停工的清理工单（主办赛事的比赛日）不当"下一步"提示
+        return st.visible && st.blocked === null && st.crew.length === 0 && !st.paused;
       })
       .sort((a, b) => Number(repair(b)) - Number(repair(a)) || a.cost - b.cost || a.id.localeCompare(b.id));
   }
@@ -1166,6 +1194,7 @@ export class Projector {
     const order = w.orders.get(p.job);
     if (order) {
       const st = orderStatus(s, w, order);
+      if (st.paused) return { text: T.fmt('ui.staff.halt', { what: this.short(p.job) }), state: 'waiting' };
       return { text: `${this.targetTitle(p.job)} · ${Math.round(st.progress * 100)}%`, state: 'working' };
     }
     return { text: this.targetTitle(p.job), state: 'working' };
@@ -1428,9 +1457,26 @@ export class Projector {
     return this.text.tr(`upgrades.${facility}.${upgrade}`, upgrade).split(' · ')[0] ?? upgrade;
   }
 
+  /**
+   * 这个岗位今天是不是被天气关了：下雨关户外岗位，起风关桥（学院岛的岗位写了 not weather wind；W5 门）。
+   * 晴天会有、今天没有才算（地块没开、时段不对这些不算天气）。
+   */
+  private shutBy(s: GameState, w: World, p: Post): 'rain' | 'wind' | null {
+    if (s.weather !== 'rain' && s.weather !== 'wind') return null;
+    if (postExists(s, w, p) || !postExists({ ...s, weather: 'sun' }, w, p)) return null;
+    return s.weather;
+  }
+
   /** 派不过去的原因；能力门槛写出要哪项、多少（canAssign 的 'skill'） */
   private why(block: AssignBlock, target: string, s?: GameState): string {
     const T = this.text;
+    // 岗位今天被天气关了（起风关桥、下雨）：写真正的原因，不只是"现在不开"
+    if (block === 'gone' && s) {
+      const w = worldOf(s, this.content);
+      const post = w.posts.get(target);
+      const shut = post ? this.shutBy(s, w, post) : null;
+      if (shut) return T.tr(`ui.why.${shut}`);
+    }
     // 外出赛事开赛以前：报名工单挂出来了，但要等比赛那天才能出发
     if (block === 'early' && s) {
       const t = worldOf(s, this.content).tournamentOf.get(target);
@@ -1473,19 +1519,27 @@ export class Projector {
                 name: T.personName(st.person),
                 time: T.duration(this.split(s, [st.person], post.at).coming[0]?.eta ?? 0),
               })
-        : st.demand && st.inHours
-          ? T.tr('ui.sheet.post_empty_now')
-          : T.tr('ui.sheet.post_empty');
+        : !st.exists && this.shutBy(s, w, post)
+          ? T.tr(`ui.why.${this.shutBy(s, w, post)}`)
+          : st.demand && st.inHours
+            ? T.tr('ui.sheet.post_empty_now')
+            : T.tr('ui.sheet.post_empty');
     } else {
       const o = order as Order;
       const st = orderStatus(s, w, o);
       chips = this.orderChips(s, o);
       progress = st.progress;
-      status = st.crew.length
-        ? this.orderLine(s, o, st.crew, st.progress)
-        : st.started
-          ? T.fmt('ui.sheet.order_paused', { p: Math.round(st.progress * 100) })
-          : T.tr('ui.sheet.order_new');
+      const doneClear = !!st.plot && (s.orderLog.done[o.id] ?? 0) > 0;
+      status = doneClear
+        ? T.tr('ui.sheet.order_done')
+        : st.paused
+          ? T.fmt('ui.sheet.order_halt', { p: Math.round(st.progress * 100) })
+          : st.crew.length
+            ? this.orderLine(s, o, st.crew, st.progress)
+            : st.started
+              ? T.fmt('ui.sheet.order_paused', { p: Math.round(st.progress * 100) })
+              : T.tr('ui.sheet.order_new');
+      if (doneClear) progress = 1;
     }
     const skill: SkillKind = def.skill;
     const people = staffIds(s, w)
@@ -1563,8 +1617,11 @@ export class Projector {
       on: boolean;
       soon: boolean;
     }[];
-    orders: { n: number; skills: SkillKind[]; progress: number | null; crew: number };
+    /** paused：这儿的清理工单今天停工（主办赛事的比赛日，W5） */
+    orders: { n: number; skills: SkillKind[]; progress: number | null; crew: number; paused: boolean };
     fit: 'none' | 'fit' | 'nofit';
+    /** 这儿的岗位今天被天气关了（下雨、起风关桥）：牌子照样立着，点开清单看原因 */
+    shut: 'rain' | 'wind' | null;
     /** 这儿的设施状况低于 30 时的值（地点牌上挂红色 !） */
     worn: number | null;
     /** 有人闲着、"下一步"的活就在这儿：工单格亮起来（e7 的轻提示） */
@@ -1573,7 +1630,9 @@ export class Projector {
     const { s } = session;
     const w = worldOf(s, this.content);
     const { posts, orders } = this.placeTargets(session, anchor);
-    if (!posts.length && !orders.length) return null;
+    let shut: 'rain' | 'wind' | null = null;
+    for (const p of w.posts.values()) if (p.at === anchor) shut ??= this.shutBy(s, w, p);
+    if (!posts.length && !orders.length && !shut) return null;
     const pp = posts
       .map((p) => {
         const st = postStatus(s, w, p);
@@ -1601,8 +1660,10 @@ export class Projector {
       .map(({ show: _, ...p }) => p);
     let best: number | null = null;
     let crew = 0;
+    let paused = false;
     for (const o of orders) {
       const st = orderStatus(s, w, o);
+      if (st.paused) paused = true;
       if (st.started) best = Math.max(best ?? 0, st.progress);
       // 牌上的工单格只在有人到场开工时亮（路上的人不算）
       crew += st.crew.filter((x) => working(s, w, x)).length;
@@ -1615,8 +1676,9 @@ export class Projector {
         : 'nofit';
     return {
       posts: pp,
-      orders: { n: orders.length, skills: [...new Set(orders.map((o) => o.skill))], progress: best, crew },
+      orders: { n: orders.length, skills: [...new Set(orders.map((o) => o.skill))], progress: best, crew, paused },
       fit,
+      shut,
       worn: this.lowAt(s, anchor),
       // 只亮"下一步"那一处（修复优先、便宜的优先），不把所有能干的活都点亮
       ready: !picked && this.anyIdle(s) && this.readyOrders(s)[0]?.at === anchor,
@@ -1740,16 +1802,18 @@ export class Projector {
         ? short
           ? `${this.orderLine(s, o, st.crew, st.progress)} · ${T.fmt('ui.place.min_crew', { n: st.crew.length, need: st.minCrew })}`
           : this.orderLine(s, o, st.crew, st.progress)
-        : st.started
-          ? T.fmt('ui.place.order_paused', { p: Math.round(st.progress * 100) })
-          : ts
-            ? this.tourLine(s, ts)
-            : st.variants && !picked
-              ? T.tr('ui.variant.hint')
-              : T.fmt('ui.place.order_new', {
-                  cost: st.cost ? `$${st.cost} · ` : '',
-                  time: T.duration(st.work),
-                });
+        : st.paused
+          ? T.fmt('ui.place.order_halt', { p: Math.round(st.progress * 100) })
+          : st.started
+            ? T.fmt('ui.place.order_paused', { p: Math.round(st.progress * 100) })
+            : ts
+              ? this.tourLine(s, ts)
+              : st.variants && !picked
+                ? T.tr('ui.variant.hint')
+                : T.fmt('ui.place.order_new', {
+                    cost: st.cost ? `$${st.cost} · ` : '',
+                    time: T.duration(st.work),
+                  });
       let fit = fitOf(o.id, o.at, o.skill);
       // 变体工单的标题行也能直接派：写明按哪个变体（玩家最后选的那行，没选过就是第一个）
       if (fit && !fit.blocked && !fit.here && st.variants && !st.locked && st.variant && fac)
@@ -1776,6 +1840,25 @@ export class Projector {
     // 还没开出来的工单（ADR 0015）：告诉玩家修好什么就能开出它，排在最后
     for (const o of w.orders.values()) {
       if (o.at !== anchor || orderStatus(s, w, o).visible) continue;
+      // 地块的清理工单（W5）：隐含只做一次。施工中做完的一张打勾留着（不挂锁），开了地（或不是这个变体）整组不再出现
+      const clear = w.plotOrders.get(o.id);
+      if (clear) {
+        const ps = s.plots?.[clear.plot];
+        if (ps?.state !== 'building' || ps.variant !== clear.variant) continue;
+        if ((s.orderLog.done[o.id] ?? 0) > 0) {
+          rows.push({
+            id: o.id,
+            kind: 'order',
+            skill: o.skill,
+            title: this.targetTitle(o.id),
+            line: T.tr('ui.place.order_done'),
+            faces: [],
+            done: true,
+            rank: 10,
+          });
+          continue;
+        }
+      }
       if (o.once && (s.orderLog.done[o.id] ?? 0) > 0) continue;
       // 分期筹备做完的一期：筹备格里已经打了勾，不再当成"还没开出来"挂一行锁
       if ((s.orderLog.done[o.id] ?? 0) > 0 && [...w.prep.values()].some((ids) => ids.includes(o.id))) continue;
@@ -1812,21 +1895,21 @@ export class Projector {
         rank: 9,
       });
     }
-    // 下雨关掉的户外岗位：留一行说明，免得拖过去没反应还不知道为什么（第二轮试玩 S11）
-    if (s.weather === 'rain')
-      for (const p of w.posts.values()) {
-        if (p.at !== anchor || postExists(s, w, p) || !postExists({ ...s, weather: 'sun' }, w, p)) continue;
+    // 下雨关掉的户外岗位、起风关了桥的岛上岗位：留一行说明，免得拖过去没反应还不知道为什么（第二轮试玩 S11、W5 门）
+    for (const p of w.posts.values()) {
+      const shut = p.at === anchor ? this.shutBy(s, w, p) : null;
+      if (shut)
         rows.push({
           id: p.id,
           kind: 'post',
           skill: p.skill,
           title: this.short(p.id),
-          line: T.tr('ui.place.rain'),
+          line: T.tr(`ui.place.${shut}`),
           faces: [],
           locked: true,
           rank: 8,
         });
-      }
+    }
     // 比赛日占了场的岗位：留一行说明（和下雨一样）
     for (const p of w.posts.values()) {
       if (p.at !== anchor || !w.closedBy.get(p.id)?.some((t) => this.eventToday(s, t.id))) continue;

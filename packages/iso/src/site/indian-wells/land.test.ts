@@ -101,3 +101,24 @@ describe('land layer', () => {
     resetForeshadow();
   });
 });
+
+/** 施工画面跟着工单走（stageProgress）：每张工单做完时画面到的那一成，单调、两头对上 */
+describe('land stage progress', () => {
+  it('maps work progress to the art timeline piecewise, monotonic, 0 → 0 and 1 → 1', async () => {
+    const { stageProgress } = await import('./land');
+    for (const v of ['south_courts', 'oasis_lawn', 'event_plaza', 'academy_isle']) {
+      expect(stageProgress(v, 0)).toBe(0);
+      expect(stageProgress(v, 1)).toBeCloseTo(1);
+      let last = -1;
+      for (let p = 0; p <= 1.0001; p += 0.01) {
+        const a = stageProgress(v, p);
+        expect(a).toBeGreaterThanOrEqual(last - 1e-9);
+        last = a;
+      }
+    }
+    // 南场：拆门、清沙坑、填塘做完（3 + 8 + 8 = 19 / 33 小时）才走到"铺硬地"的门槛（0.35）
+    expect(stageProgress('south_courts', 18 / 33)).toBeLessThan(0.35);
+    expect(stageProgress('south_courts', 19 / 33)).toBeCloseTo(0.35);
+    expect(stageProgress('unknown', 0.4)).toBe(0.4);
+  });
+});

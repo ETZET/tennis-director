@@ -1,0 +1,12 @@
+# 学院岛（★4 地块 se_corner，路 s4 = academy_isle，W5 GM-15）第 1 张：把东南天上那座带两根旧网柱的小岛拉靠岸、拴好锚索。
+# 学院岛离大门 91 分钟、离会所 158 分钟、离青训场 147 分钟：这一路的每张工单都是一趟很远的路。
+id: ai_dock
+act: indian_wells
+at: academy_isle
+skill: upkeep
+work: 4h
+cost: 100
+crew: 4
+effects:
+  - { flag: isle_docked, set: true }
+performance: workday

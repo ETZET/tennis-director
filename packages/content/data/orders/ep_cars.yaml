@@ -1,0 +1,12 @@
+# 赛事广场（★4 地块 se_corner，路 s4 = event_plaza，W5 GM-15）第 1 张：把南停车场的车挪走、拉起围挡。
+# 从这一刻到广场开张，南停车场不能停车，来的人少一点（周结算的会员项，见 acts 的 rules.week.members）。
+# 赛事广场离大门 12 分钟、离会所 78 分钟。
+id: ep_cars
+act: indian_wells
+at: event_plaza
+skill: service
+work: 2h
+cost: 0
+crew: 2
+effects:
+  - { flag: ep_cleared, set: true }

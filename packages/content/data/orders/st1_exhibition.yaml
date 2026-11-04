@@ -14,13 +14,15 @@ cooldown: 7d
 # 冷场以后还要一周后能再办
 when: { all: [{ facility: stadium_1, is: restored }, { expr: "stars >= 4" }, { not: { flag: exhibition_done } }] }
 # 表演赛四期筹备（W2）是加成不是门槛：不筹备最多七成五把握；看台 +8%、夜场灯 +4%、球童和服务 +10%；
-# ★4 选了赛事广场（route s4 = event_plaza）再 +5%（观赛坡先搭起来了）。
-check: { chance: "clamp(0.3 + (stat.reputation - 50) / 80 + (stat.quality - 60) / 100 + (flag.dale_umpire ? 0.05 : 0) + min(hired.legend, 1) * 0.05 + (variant.plaza == \"shade_lawn\" ? 0.05 : 0), 0.15, 0.75) + (flag.prep_stands ? 0.08 : 0) + (flag.prep_lights ? 0.04 : 0) + (flag.prep_service ? 0.1 : 0) + (route.s4 == \"event_plaza\" ? 0.05 : 0)" }
+# ★4 选了赛事广场、广场开了（W5 地块 se_corner）再 +4%：观赛坡和遮阳棚坐得下、看得见。
+check: { chance: "clamp(0.3 + (stat.reputation - 50) / 80 + (stat.quality - 60) / 100 + (flag.dale_umpire ? 0.05 : 0) + min(hired.legend, 1) * 0.05 + (variant.plaza == \"shade_lawn\" ? 0.05 : 0), 0.15, 0.75) + (flag.prep_stands ? 0.08 : 0) + (flag.prep_lights ? 0.04 : 0) + (flag.prep_service ? 0.1 : 0) + (plot.se_corner == \"open\" && route.s4 == \"event_plaza\" ? 0.04 : 0)" }
 onSuccess:
   - { stat: cash, add: 6000 }
   # 筹备的回报：看台多卖票，转播费
   - { stat: cash, add: 1500, if: { flag: prep_stands } }
   - { stat: cash, add: 1000, if: { upgrade: stadium_1, has: broadcast } }
+  # 赛事广场开了（W5）：到场上限更高，门票多卖
+  - { stat: cash, add: 2000, if: { all: [{ plot: se_corner, is: open }, { plot: se_corner, is: event_plaza }] } }
   # ★5 的条（GM-9）
   - { flag: exhibition_done, set: true }
   - { endAct: won, ending: exhibition }

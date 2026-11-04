@@ -1,5 +1,5 @@
 {
- "version": "c4b6e2c6",
+ "version": "60f24867",
  "stats": [
   {
    "id": "cash",
@@ -1096,6 +1096,61 @@
  "activities": [],
  "posts": [
   {
+   "id": "ai_dorm_host",
+   "act": "indian_wells",
+   "at": "academy_isle",
+   "skill": "service",
+   "cycle": "1h",
+   "when": {
+    "not": {
+     "weather": "wind"
+    }
+   },
+   "effects": [
+    {
+     "stat": "cash",
+     "add": "round(4 * (0.6 + worker.skill / 100))"
+    },
+    {
+     "chance": 0.04,
+     "stat": "members",
+     "add": 1
+    }
+   ],
+   "wear": 0,
+   "restore": 0
+  },
+  {
+   "id": "ai_resident",
+   "act": "indian_wells",
+   "at": "academy_isle",
+   "skill": "teach",
+   "cycle": "1h",
+   "when": {
+    "not": {
+     "weather": "wind"
+    }
+   },
+   "effects": [
+    {
+     "stat": "cash",
+     "add": "round(12 * (0.6 + worker.skill / 100) * (1 + stat.reputation / 120))"
+    },
+    {
+     "chance": 0.03,
+     "stat": "members",
+     "add": 1
+    },
+    {
+     "stat": "reputation",
+     "add": 0.04
+    }
+   ],
+   "wear": 0,
+   "restore": 0,
+   "performance": "lesson"
+  },
+  {
    "id": "ch_cafe",
    "act": "indian_wells",
    "at": "clubhouse",
@@ -1308,6 +1363,33 @@
    "effects": [],
    "wear": 0,
    "restore": 4
+  },
+  {
+   "id": "ep_booth",
+   "act": "indian_wells",
+   "at": "event_plaza",
+   "skill": "service",
+   "cycle": "1h",
+   "hours": [
+    10,
+    17
+   ],
+   "days": [
+    5,
+    6
+   ],
+   "effects": [
+    {
+     "stat": "cash",
+     "add": "round(12 * (0.6 + worker.skill / 100) * (1 + stat.reputation / 120))"
+    },
+    {
+     "stat": "reputation",
+     "add": 0.04
+    }
+   ],
+   "wear": 0,
+   "restore": 0
   },
   {
    "id": "o1_lesson",
@@ -1575,6 +1657,53 @@
    "restore": 4
   },
   {
+   "id": "ol_host",
+   "act": "indian_wells",
+   "at": "oasis_lawn",
+   "skill": "service",
+   "cycle": "1h",
+   "hours": [
+    11,
+    17
+   ],
+   "days": [
+    4,
+    5,
+    6
+   ],
+   "effects": [
+    {
+     "stat": "cash",
+     "add": "round(20 * (0.6 + worker.skill / 100) * (1 + stat.reputation / 120))"
+    },
+    {
+     "stat": "cash",
+     "add": -3
+    },
+    {
+     "if": {
+      "season": "spring"
+     },
+     "stat": "cash",
+     "add": -3
+    },
+    {
+     "if": {
+      "route": "s2",
+      "is": "resort"
+     },
+     "stat": "cash",
+     "add": 3
+    },
+    {
+     "stat": "reputation",
+     "add": 0.05
+    }
+   ],
+   "wear": 0,
+   "restore": 0
+  },
+  {
    "id": "pr_academy",
    "act": "indian_wells",
    "at": "practice",
@@ -1629,8 +1758,16 @@
     },
     {
      "if": {
-      "route": "s4",
-      "is": "academy_isle"
+      "all": [
+       {
+        "plot": "se_corner",
+        "is": "open"
+       },
+       {
+        "plot": "se_corner",
+        "is": "academy_isle"
+       }
+      ]
      },
      "stat": "cash",
      "add": 2
@@ -1724,8 +1861,16 @@
     },
     {
      "if": {
-      "route": "s4",
-      "is": "academy_isle"
+      "all": [
+       {
+        "plot": "se_corner",
+        "is": "open"
+       },
+       {
+        "plot": "se_corner",
+        "is": "academy_isle"
+       }
+      ]
      },
      "stat": "cash",
      "add": 2
@@ -2075,6 +2220,60 @@
    "restore": 4
   },
   {
+   "id": "sc_league",
+   "act": "indian_wells",
+   "at": "south_courts",
+   "skill": "service",
+   "cycle": "1h",
+   "hours": [
+    9,
+    17
+   ],
+   "days": [
+    5,
+    6
+   ],
+   "effects": [
+    {
+     "stat": "cash",
+     "add": "round(12 * (0.6 + worker.skill / 100) * (1 + stat.reputation / 120))"
+    },
+    {
+     "chance": 0.05,
+     "stat": "members",
+     "add": 1
+    },
+    {
+     "stat": "reputation",
+     "add": 0.03
+    }
+   ],
+   "wear": 0,
+   "restore": 0,
+   "performance": "open_play"
+  },
+  {
+   "id": "sc_rental",
+   "act": "indian_wells",
+   "at": "south_courts",
+   "skill": "service",
+   "cycle": "1h",
+   "effects": [
+    {
+     "stat": "cash",
+     "add": "round(5 * (0.6 + worker.skill / 100) * (1 + stat.reputation / 120))"
+    },
+    {
+     "chance": 0.03,
+     "stat": "members",
+     "add": 1
+    }
+   ],
+   "wear": 0,
+   "restore": 0,
+   "performance": "open_play"
+  },
+  {
    "id": "st1_night",
    "act": "indian_wells",
    "at": "stadium_1",
@@ -2174,6 +2373,14 @@
      },
      "stat": "cash",
      "add": 8
+    },
+    {
+     "if": {
+      "plot": "golf_west",
+      "is": "building"
+     },
+     "stat": "cash",
+     "add": -3
     }
    ],
    "wear": 0.05,
@@ -2229,6 +2436,14 @@
     {
      "stat": "reputation",
      "add": 0.05
+    },
+    {
+     "if": {
+      "plot": "golf_west",
+      "is": "building"
+     },
+     "stat": "cash",
+     "add": -3
     }
    ],
    "wear": 0.025,
@@ -2263,6 +2478,14 @@
     {
      "stat": "reputation",
      "add": 0.04
+    },
+    {
+     "if": {
+      "plot": "golf_west",
+      "is": "building"
+     },
+     "stat": "cash",
+     "add": -3
     }
    ],
    "wear": 0.025,
@@ -2582,6 +2805,85 @@
  ],
  "orders": [
   {
+   "id": "ai_bridge",
+   "act": "indian_wells",
+   "at": "academy_isle",
+   "skill": "upkeep",
+   "work": "8h",
+   "cost": 400,
+   "when": {
+    "flag": "isle_docked"
+   },
+   "crew": 5,
+   "once": false,
+   "restore": 0,
+   "effects": [
+    {
+     "flag": "isle_bridge",
+     "set": true
+    }
+   ],
+   "onSuccess": [],
+   "onFail": [],
+   "performance": "contractor"
+  },
+  {
+   "id": "ai_court",
+   "act": "indian_wells",
+   "at": "academy_isle",
+   "skill": "upkeep",
+   "work": "4h",
+   "cost": 100,
+   "when": {
+    "flag": "isle_bridge"
+   },
+   "crew": 3,
+   "once": false,
+   "restore": 0,
+   "effects": [],
+   "onSuccess": [],
+   "onFail": [],
+   "performance": "workday"
+  },
+  {
+   "id": "ai_dock",
+   "act": "indian_wells",
+   "at": "academy_isle",
+   "skill": "upkeep",
+   "work": "4h",
+   "cost": 100,
+   "crew": 4,
+   "once": false,
+   "restore": 0,
+   "effects": [
+    {
+     "flag": "isle_docked",
+     "set": true
+    }
+   ],
+   "onSuccess": [],
+   "onFail": [],
+   "performance": "workday"
+  },
+  {
+   "id": "ai_dorm",
+   "act": "indian_wells",
+   "at": "academy_isle",
+   "skill": "upkeep",
+   "work": "6h",
+   "cost": 300,
+   "when": {
+    "flag": "isle_bridge"
+   },
+   "crew": 4,
+   "once": false,
+   "restore": 0,
+   "effects": [],
+   "onSuccess": [],
+   "onFail": [],
+   "performance": "contractor"
+  },
+  {
    "id": "ch_fix",
    "act": "indian_wells",
    "at": "clubhouse",
@@ -2810,6 +3112,84 @@
    "onSuccess": [],
    "onFail": [],
    "performance": "match"
+  },
+  {
+   "id": "ep_cars",
+   "act": "indian_wells",
+   "at": "event_plaza",
+   "skill": "service",
+   "work": "2h",
+   "cost": 0,
+   "crew": 2,
+   "once": false,
+   "restore": 0,
+   "effects": [
+    {
+     "flag": "ep_cleared",
+     "set": true
+    }
+   ],
+   "onSuccess": [],
+   "onFail": []
+  },
+  {
+   "id": "ep_fill",
+   "act": "indian_wells",
+   "at": "event_plaza",
+   "skill": "upkeep",
+   "work": "12h",
+   "cost": 300,
+   "when": {
+    "flag": "ep_cleared"
+   },
+   "crew": 5,
+   "once": false,
+   "restore": 0,
+   "effects": [
+    {
+     "flag": "ep_ground",
+     "set": true
+    }
+   ],
+   "onSuccess": [],
+   "onFail": [],
+   "performance": "contractor"
+  },
+  {
+   "id": "ep_lot",
+   "act": "indian_wells",
+   "at": "event_plaza",
+   "skill": "upkeep",
+   "work": "4h",
+   "cost": 200,
+   "when": {
+    "flag": "ep_ground"
+   },
+   "crew": 3,
+   "once": false,
+   "restore": 0,
+   "effects": [],
+   "onSuccess": [],
+   "onFail": [],
+   "performance": "workday"
+  },
+  {
+   "id": "ep_slope",
+   "act": "indian_wells",
+   "at": "event_plaza",
+   "skill": "upkeep",
+   "work": "10h",
+   "cost": 500,
+   "when": {
+    "flag": "ep_cleared"
+   },
+   "crew": 4,
+   "once": false,
+   "restore": 0,
+   "effects": [],
+   "onSuccess": [],
+   "onFail": [],
+   "performance": "contractor"
   },
   {
    "id": "flyers",
@@ -3270,6 +3650,62 @@
    "onSuccess": [],
    "onFail": [],
    "performance": "match"
+  },
+  {
+   "id": "ol_cabins",
+   "act": "indian_wells",
+   "at": "oasis_lawn",
+   "skill": "upkeep",
+   "work": "12h",
+   "cost": 500,
+   "when": {
+    "flag": "ol_paths"
+   },
+   "crew": 4,
+   "once": false,
+   "restore": 0,
+   "effects": [],
+   "onSuccess": [],
+   "onFail": [],
+   "performance": "contractor"
+  },
+  {
+   "id": "ol_paths",
+   "act": "indian_wells",
+   "at": "oasis_lawn",
+   "skill": "upkeep",
+   "work": "5h",
+   "cost": 50,
+   "crew": 3,
+   "once": false,
+   "restore": 0,
+   "effects": [
+    {
+     "flag": "ol_paths",
+     "set": true
+    }
+   ],
+   "onSuccess": [],
+   "onFail": [],
+   "performance": "workday"
+  },
+  {
+   "id": "ol_pool",
+   "act": "indian_wells",
+   "at": "oasis_lawn",
+   "skill": "upkeep",
+   "work": "6h",
+   "cost": 300,
+   "when": {
+    "flag": "ol_paths"
+   },
+   "crew": 3,
+   "once": false,
+   "restore": 0,
+   "effects": [],
+   "onSuccess": [],
+   "onFail": [],
+   "performance": "workday"
   },
   {
    "id": "pl_tournament",
@@ -3801,6 +4237,127 @@
    "min_crew": "stars >= 3 ? 2 : 1"
   },
   {
+   "id": "sc_bunkers",
+   "act": "indian_wells",
+   "at": "south_courts",
+   "skill": "upkeep",
+   "work": "8h",
+   "cost": 100,
+   "when": {
+    "flag": "gw_gate_open"
+   },
+   "crew": 4,
+   "once": false,
+   "restore": 0,
+   "effects": [
+    {
+     "flag": "gw_bunkers",
+     "set": true
+    }
+   ],
+   "onSuccess": [],
+   "onFail": [],
+   "performance": "workday"
+  },
+  {
+   "id": "sc_fill",
+   "act": "indian_wells",
+   "at": "south_courts",
+   "skill": "upkeep",
+   "work": "8h",
+   "cost": 200,
+   "when": {
+    "flag": "gw_gate_open"
+   },
+   "crew": 4,
+   "once": false,
+   "restore": 0,
+   "effects": [
+    {
+     "flag": "gw_pond_filled",
+     "set": true
+    },
+    {
+     "flag": "hal_pond_filled",
+     "set": true
+    },
+    {
+     "log": "log.pond_filled"
+    }
+   ],
+   "onSuccess": [],
+   "onFail": [],
+   "performance": "contractor"
+  },
+  {
+   "id": "sc_gate",
+   "act": "indian_wells",
+   "at": "south_courts",
+   "skill": "upkeep",
+   "work": "3h",
+   "cost": 0,
+   "crew": 3,
+   "once": false,
+   "restore": 0,
+   "effects": [
+    {
+     "flag": "gw_gate_open",
+     "set": true
+    }
+   ],
+   "onSuccess": [],
+   "onFail": [],
+   "performance": "workday"
+  },
+  {
+   "id": "sc_nets",
+   "act": "indian_wells",
+   "at": "south_courts",
+   "skill": "upkeep",
+   "work": "4h",
+   "cost": 200,
+   "when": {
+    "flag": "gw_paved"
+   },
+   "crew": 2,
+   "once": false,
+   "restore": 0,
+   "effects": [],
+   "onSuccess": [],
+   "onFail": [],
+   "performance": "workday"
+  },
+  {
+   "id": "sc_pave",
+   "act": "indian_wells",
+   "at": "south_courts",
+   "skill": "upkeep",
+   "work": "10h",
+   "cost": 500,
+   "when": {
+    "all": [
+     {
+      "flag": "gw_bunkers"
+     },
+     {
+      "flag": "gw_pond_filled"
+     }
+    ]
+   },
+   "crew": 3,
+   "once": false,
+   "restore": 0,
+   "effects": [
+    {
+     "flag": "gw_paved",
+     "set": true
+    }
+   ],
+   "onSuccess": [],
+   "onFail": [],
+   "performance": "contractor"
+  },
+  {
    "id": "st1_clear",
    "act": "indian_wells",
    "at": "stadium_1",
@@ -3868,7 +4425,7 @@
    "once": false,
    "restore": 0,
    "check": {
-    "chance": "clamp(0.3 + (stat.reputation - 50) / 80 + (stat.quality - 60) / 100 + (flag.dale_umpire ? 0.05 : 0) + min(hired.legend, 1) * 0.05 + (variant.plaza == \"shade_lawn\" ? 0.05 : 0), 0.15, 0.75) + (flag.prep_stands ? 0.08 : 0) + (flag.prep_lights ? 0.04 : 0) + (flag.prep_service ? 0.1 : 0) + (route.s4 == \"event_plaza\" ? 0.05 : 0)"
+    "chance": "clamp(0.3 + (stat.reputation - 50) / 80 + (stat.quality - 60) / 100 + (flag.dale_umpire ? 0.05 : 0) + min(hired.legend, 1) * 0.05 + (variant.plaza == \"shade_lawn\" ? 0.05 : 0), 0.15, 0.75) + (flag.prep_stands ? 0.08 : 0) + (flag.prep_lights ? 0.04 : 0) + (flag.prep_service ? 0.1 : 0) + (plot.se_corner == \"open\" && route.s4 == \"event_plaza\" ? 0.04 : 0)"
    },
    "effects": [],
    "onSuccess": [
@@ -3890,6 +4447,22 @@
      },
      "stat": "cash",
      "add": 1000
+    },
+    {
+     "if": {
+      "all": [
+       {
+        "plot": "se_corner",
+        "is": "open"
+       },
+       {
+        "plot": "se_corner",
+        "is": "event_plaza"
+       }
+      ]
+     },
+     "stat": "cash",
+     "add": 2000
     },
     {
      "flag": "exhibition_done",
@@ -4412,7 +4985,11 @@
     "stadium_3",
     "practice",
     "outer_1",
-    "outer_23"
+    "outer_23",
+    "south_courts",
+    "oasis_lawn",
+    "event_plaza",
+    "academy_isle"
    ],
    "nav": [
     [
@@ -4639,6 +5216,236 @@
      "outer_1",
      "outer_23",
      5
+    ],
+    [
+     "entrance",
+     "south_courts",
+     105
+    ],
+    [
+     "parking",
+     "south_courts",
+     117
+    ],
+    [
+     "plaza",
+     "south_courts",
+     96
+    ],
+    [
+     "clubhouse",
+     "south_courts",
+     47
+    ],
+    [
+     "stadium_1",
+     "south_courts",
+     71
+    ],
+    [
+     "stadium_2",
+     "south_courts",
+     36
+    ],
+    [
+     "stadium_3",
+     "south_courts",
+     81
+    ],
+    [
+     "practice",
+     "south_courts",
+     54
+    ],
+    [
+     "outer_1",
+     "south_courts",
+     54
+    ],
+    [
+     "outer_23",
+     "south_courts",
+     54
+    ],
+    [
+     "south_courts",
+     "oasis_lawn",
+     6
+    ],
+    [
+     "south_courts",
+     "event_plaza",
+     116
+    ],
+    [
+     "south_courts",
+     "academy_isle",
+     196
+    ],
+    [
+     "entrance",
+     "oasis_lawn",
+     104
+    ],
+    [
+     "parking",
+     "oasis_lawn",
+     116
+    ],
+    [
+     "plaza",
+     "oasis_lawn",
+     95
+    ],
+    [
+     "clubhouse",
+     "oasis_lawn",
+     46
+    ],
+    [
+     "stadium_1",
+     "oasis_lawn",
+     70
+    ],
+    [
+     "stadium_2",
+     "oasis_lawn",
+     35
+    ],
+    [
+     "stadium_3",
+     "oasis_lawn",
+     80
+    ],
+    [
+     "practice",
+     "oasis_lawn",
+     54
+    ],
+    [
+     "outer_1",
+     "oasis_lawn",
+     54
+    ],
+    [
+     "outer_23",
+     "oasis_lawn",
+     54
+    ],
+    [
+     "oasis_lawn",
+     "event_plaza",
+     116
+    ],
+    [
+     "oasis_lawn",
+     "academy_isle",
+     196
+    ],
+    [
+     "entrance",
+     "event_plaza",
+     12
+    ],
+    [
+     "parking",
+     "event_plaza",
+     12
+    ],
+    [
+     "plaza",
+     "event_plaza",
+     37
+    ],
+    [
+     "clubhouse",
+     "event_plaza",
+     78
+    ],
+    [
+     "stadium_1",
+     "event_plaza",
+     56
+    ],
+    [
+     "stadium_2",
+     "event_plaza",
+     85
+    ],
+    [
+     "stadium_3",
+     "event_plaza",
+     38
+    ],
+    [
+     "practice",
+     "event_plaza",
+     67
+    ],
+    [
+     "outer_1",
+     "event_plaza",
+     67
+    ],
+    [
+     "outer_23",
+     "event_plaza",
+     67
+    ],
+    [
+     "event_plaza",
+     "academy_isle",
+     92
+    ],
+    [
+     "entrance",
+     "academy_isle",
+     91
+    ],
+    [
+     "parking",
+     "academy_isle",
+     92
+    ],
+    [
+     "plaza",
+     "academy_isle",
+     117
+    ],
+    [
+     "clubhouse",
+     "academy_isle",
+     158
+    ],
+    [
+     "stadium_1",
+     "academy_isle",
+     136
+    ],
+    [
+     "stadium_2",
+     "academy_isle",
+     165
+    ],
+    [
+     "stadium_3",
+     "academy_isle",
+     118
+    ],
+    [
+     "practice",
+     "academy_isle",
+     147
+    ],
+    [
+     "outer_1",
+     "academy_isle",
+     147
+    ],
+    [
+     "outer_23",
+     "academy_isle",
+     147
     ]
    ],
    "start_cards": [
@@ -4664,7 +5471,8 @@
      "courts": "courts_open * 2",
      "service": "stat.service * 0.2",
      "coach": "coach.skill * 0.15 * coach.attention",
-     "gear": "flag.ball_machine ? 4 : 0"
+     "gear": "flag.ball_machine ? 4 : 0",
+     "land": "(plot.golf_west == \"open\" ? (route.s3 == \"south_courts\" ? 6 : 5) : 0) + (plot.se_corner == \"open\" ? 4 : 0)"
     },
     "quality_rate": 0.15,
     "member_drift": "0",
@@ -4675,8 +5483,8 @@
       "quality": "service_demand * (stat.quality - 50) / 25",
       "restored": "restored * 0.15"
      },
-     "members": "max(0, round(courts_built * service_rate + service_demand * ((stat.quality - 30) / 12 + stat.reputation / 30)))",
-     "member_cap": "courts_built * 12 + (facility.clubhouse == \"open\" ? (variant.clubhouse == \"cafe\" ? 25 : 15) : 0) + unlocked.member_referrals * 10",
+     "members": "max(0, round(courts_built * service_rate + service_demand * ((stat.quality - 30) / 12 + stat.reputation / 30)) - (plot.se_corner == \"building\" && route.s4 == \"event_plaza\" && flag.ep_cleared ? 2 : 0))",
+     "member_cap": "courts_built * 12 + (facility.clubhouse == \"open\" ? (variant.clubhouse == \"cafe\" ? 25 : 15) : 0) + unlocked.member_referrals * 10 + (plot.golf_west == \"open\" && route.s3 == \"south_courts\" ? 24 : 0)",
      "member_loss_max": "max(8, stat.members * 0.25)",
      "service_pass": 0.5
     },
@@ -5173,6 +5981,22 @@
        },
        "stat": "cash",
        "add": 600
+      },
+      {
+       "if": {
+        "all": [
+         {
+          "plot": "se_corner",
+          "is": "open"
+         },
+         {
+          "plot": "se_corner",
+          "is": "event_plaza"
+         }
+        ]
+       },
+       "stat": "cash",
+       "add": 500
       }
      ],
      "goals": [
@@ -5474,15 +6298,15 @@
     "grades": [
      {
       "grade": "S",
-      "gte": 15500
+      "gte": 15000
      },
      {
       "grade": "A",
-      "gte": 13800
+      "gte": 13300
      },
      {
       "grade": "B",
-      "gte": 11800
+      "gte": 11400
      },
      {
       "grade": "C",
@@ -5498,6 +6322,154 @@
      "start_cards": []
     }
    },
+   "plots": [
+    {
+     "id": "golf_west",
+     "route": "s3",
+     "season": 1,
+     "pause_on_events": true,
+     "variants": {
+      "south_courts": {
+       "anchor": "south_courts",
+       "orders": [
+        "sc_gate",
+        "sc_bunkers",
+        "sc_fill",
+        "sc_pave",
+        "sc_nets"
+       ],
+       "start": [
+        {
+         "log": "log.golf_west_building"
+        }
+       ],
+       "opens": {
+        "posts": [
+         "sc_league",
+         "sc_rental"
+        ],
+        "orders": [],
+        "effects": [
+         {
+          "stat": "reputation",
+          "add": 2
+         },
+         {
+          "log": "log.south_courts_open"
+         }
+        ]
+       }
+      },
+      "oasis_lawn": {
+       "anchor": "oasis_lawn",
+       "orders": [
+        "ol_paths",
+        "ol_cabins",
+        "ol_pool"
+       ],
+       "start": [
+        {
+         "log": "log.golf_west_building"
+        }
+       ],
+       "opens": {
+        "posts": [
+         "ol_host"
+        ],
+        "orders": [],
+        "effects": [
+         {
+          "stat": "reputation",
+          "add": 3
+         },
+         {
+          "flag": "golf_developer",
+          "set": true
+         },
+         {
+          "log": "log.oasis_lawn_open"
+         }
+        ]
+       }
+      }
+     }
+    },
+    {
+     "id": "se_corner",
+     "route": "s4",
+     "season": 1,
+     "pause_on_events": true,
+     "variants": {
+      "event_plaza": {
+       "anchor": "event_plaza",
+       "orders": [
+        "ep_cars",
+        "ep_fill",
+        "ep_slope",
+        "ep_lot"
+       ],
+       "start": [
+        {
+         "log": "log.se_corner_building"
+        }
+       ],
+       "opens": {
+        "posts": [
+         "ep_booth"
+        ],
+        "orders": [],
+        "effects": [
+         {
+          "stat": "reputation",
+          "add": 3
+         },
+         {
+          "log": "log.event_plaza_open"
+         }
+        ]
+       }
+      },
+      "academy_isle": {
+       "anchor": "academy_isle",
+       "orders": [
+        "ai_dock",
+        "ai_bridge",
+        "ai_dorm",
+        "ai_court"
+       ],
+       "start": [
+        {
+         "log": "log.se_corner_building"
+        }
+       ],
+       "opens": {
+        "posts": [
+         "ai_resident",
+         "ai_dorm_host"
+        ],
+        "orders": [],
+        "effects": [
+         {
+          "stat": "cash",
+          "add": 1200
+         },
+         {
+          "stat": "members",
+          "add": 6
+         },
+         {
+          "stat": "reputation",
+          "add": 3
+         },
+         {
+          "log": "log.academy_isle_open"
+         }
+        ]
+       }
+      }
+     }
+    }
+   ],
    "daily": [],
    "seasons": [
     {
@@ -8701,21 +9673,13 @@
    "countdown": "1d",
    "pause": true,
    "location": "entrance",
-   "who": "dale",
+   "who": "hal",
    "options": {
     "A": {
      "effects": [
       {
        "route": "s3",
        "set": "south_courts"
-      },
-      {
-       "stat": "cash",
-       "add": -300
-      },
-      {
-       "stat": "members",
-       "add": 4
       }
      ],
      "onSuccess": [],
@@ -8726,14 +9690,6 @@
       {
        "route": "s3",
        "set": "oasis_lawn"
-      },
-      {
-       "stat": "cash",
-       "add": -300
-      },
-      {
-       "stat": "reputation",
-       "add": 3
       }
      ],
      "onSuccess": [],
@@ -8867,11 +9823,27 @@
    "when": {
     "all": [
      {
-      "facility": "stadium_3",
-      "is": "open"
+      "expr": "stars >= 3"
      },
      {
-      "expr": "stars >= 3"
+      "any": [
+       {
+        "facility": "stadium_3",
+        "is": "open"
+       },
+       {
+        "all": [
+         {
+          "plot": "se_corner",
+          "is": "open"
+         },
+         {
+          "plot": "se_corner",
+          "is": "event_plaza"
+         }
+        ]
+       }
+      ]
      }
     ]
    },
@@ -8935,6 +9907,10 @@
    "anchors.practice": "Academy courts",
    "anchors.outer_1": "Members' court",
    "anchors.outer_23": "Clay courts",
+   "anchors.south_courts": "South courts",
+   "anchors.oasis_lawn": "Oasis lawn",
+   "anchors.event_plaza": "Event plaza",
+   "anchors.academy_isle": "Academy isle",
    "anchors.outer_23.hard": "Hard courts",
    "anchors.stadium_3.tennis2": "Twin courts",
    "facilities.outer_1.sanded": "Members' court · buried in sand",
@@ -9098,14 +10074,14 @@
    "events.iw_route_s2.body": "The clubhouse is open and Dale stands at the gate with the old brochure. \"Families with kids, or hotel guests from Palm Springs? We can't chase both at once.\" If you don't choose by tomorrow, Dale picks the academy.",
    "events.iw_route_s2.options.A": "Youth: the academy opens first (a café clubhouse can switch to a physio room); more coaches apply; academy lessons earn more",
    "events.iw_route_s2.options.B": "Resort: the resort pool opens first (a physio-room clubhouse can switch to a café); more service and fitness staff apply; busier weekends",
-   "events.iw_route_s3.title": "Hal Brooks offers the golf strip",
-   "events.iw_route_s3.body": "Hal Brooks, who owns the dead golf course next door, will give up its west strip. \"Pave it for courts, or keep the pond and put up cabins. Your call.\" The survey costs $300 either way. If you don't choose by tomorrow, Dale picks the courts.",
-   "events.iw_route_s3.options.A": "South courts: two new courts on the golf strip (now: weekend games there, members +4)",
-   "events.iw_route_s3.options.B": "Oasis lawn: keep the pond, cabins and a small pool court (now: picnic lawn, reputation +3)",
+   "events.iw_route_s3.title": "Hal Brooks is closing the west holes",
+   "events.iw_route_s3.body": "Hal Brooks runs the golf course past the south wall, and it has been dying for years: the west fairways went yellow, the bunkers spilled over. \"I'm shutting the west holes. The strip is yours if you want it, the bricked-up south gate included. Pave it for courts, or keep my pond and put up cabins.\" Whatever you pick starts building now: the clearance jobs appear on the new site. On his way out Hal adds: \"No answer by tomorrow and I'll take it you want courts.\"",
+   "events.iw_route_s3.options.A": "South courts: fill the pond, two new courts (members cap +24, quality +6); 5 jobs, $1000 in all; 47 min from the clubhouse, 105 from the gate; someone has to be posted there",
+   "events.iw_route_s3.options.B": "Oasis lawn: keep the pond, three cabins and a small pool court (weekend resort guests, a cabin host post, quality +5); 3 jobs, $850 in all; 46 min from the clubhouse; water and heat cost every cabin shift; members cap unchanged",
    "events.iw_route_s4.title": "Where does the island grow?",
-   "events.iw_route_s4.body": "A resort club needs room. Turn the south car park into a viewing slope and grow new land in the southeast, or bridge over to the little sky island with the two old net posts? If you don't choose by tomorrow, Dale picks the plaza.",
-   "events.iw_route_s4.options.A": "Event plaza: a viewing slope for big matches (now: exhibition +5%)",
-   "events.iw_route_s4.options.B": "Academy isle: a bridge to the island academy (now: academy lessons +$2, junior semifinal +10%)",
+   "events.iw_route_s4.body": "A resort club needs room, and the only way out is the southeast corner. Turn the south car park into a viewing slope and grow new land for the cars, or haul in the little sky island with the two old net posts and bridge over to it? Whatever you pick starts building now. If you don't choose by tomorrow, Dale picks the plaza.",
+   "events.iw_route_s4.options.A": "Event plaza: viewing slope and shade sail (exhibition +4% and +$2000 at the gate, invitational +$500, the sponsor comes sooner, a weekend sponsor booth); 4 jobs, $1000 in all; 12 min from the gate, 78 from the clubhouse; no south car park while it builds",
+   "events.iw_route_s4.options.B": "Academy isle: dock the island, build a bridge, a dorm and a practice court (boarding students: a $1200 term deposit, a resident coach post, members +6, academy lessons +$2; juniors' semifinal +10% now); 4 jobs, $900 in all; 91 min from the gate, 158 from the clubhouse; the bridge shuts on windy days; the exhibition gets no faster",
    "events.iw_ending.title": "The stands are still full. Hand in the books?",
    "events.iw_ending.body": "The exhibition is over and the investors are waiting in the front row. \"We can score the season today, and finishing early counts in your favour. Or keep running until day 112: one more cup, more time for your people to grow. But those weeks go on the service record too, and a slack rota drags it down. The wind season does not wait for anyone.\"",
    "events.iw_ending.options.A": "Settle now: score the season today, with a bonus for every day early",
@@ -9126,6 +10102,13 @@
    "log.sand_covered": "The courts were covered in time",
    "log.exhibition_flop": "The exhibition fell flat: the stands were half empty. Try again in a week",
    "log.no_hire": "No hire this time; the same people do the work",
+   "log.golf_west_building": "The west golf strip is a building site now; the pool hears every truck",
+   "log.pond_filled": "The pond is filled in. Hal Brooks watched from the cart path and said nothing",
+   "log.south_courts_open": "The south courts are open, two more courts behind the old south gate",
+   "log.oasis_lawn_open": "The oasis lawn is open. Hal sold the rest of his fairways to a hotel developer; next season you have a neighbour",
+   "log.se_corner_building": "The southeast corner is a building site now",
+   "log.event_plaza_open": "The event plaza is open, a viewing slope and shade sail where the south car park was",
+   "log.academy_isle_open": "The academy isle is docked and bridged; the first boarding students move in",
    "log.tournament_won": "Your player won a tournament and brought home the prize money",
    "log.tournament_lost": "Your player went out early this time, but learned something",
    "log.cup_hosted": "The monthly club cup is done; a trophy goes in the clubhouse case",
@@ -9161,6 +10144,18 @@
    "posts.pz_evening.note": "Thu–Sun 17–20",
    "posts.pz_upkeep.title": "Circle of Palms · Upkeep",
    "posts.pz_upkeep.note": "Clean the fountain, sweep the sand",
+   "posts.sc_league.title": "South courts · Weekend league",
+   "posts.sc_league.note": "Sat–Sun 9–17; league and cup-day members play here, not on the members' court; far away, so someone has to be posted there",
+   "posts.sc_rental.title": "South courts · Open courts",
+   "posts.sc_rental.note": "Any time; earns only while someone is there (47 min from the clubhouse)",
+   "posts.ol_host.title": "Oasis lawn · Cabin host",
+   "posts.ol_host.note": "Fri–Sun 11–17, weekend resort guests; water and heat cost every shift",
+   "posts.ep_booth.title": "Event plaza · Sponsor booth",
+   "posts.ep_booth.note": "Sat–Sun 10–17, under the shade sail",
+   "posts.ai_resident.title": "Academy isle · Resident coach",
+   "posts.ai_resident.note": "Any time; boarding students; earns only while someone lives out there; closed on windy days",
+   "posts.ai_dorm_host.title": "Academy isle · Dorm",
+   "posts.ai_dorm_host.note": "Any time; boarders and visiting parents; closed on windy days",
    "posts.st3_league.title": "Pickleball · Weekend league",
    "posts.st3_league.note": "Weekends 9–17",
    "posts.st3_upkeep.title": "Pickleball · Upkeep",
@@ -9239,6 +10234,50 @@
    "orders.ch_fix.note": "Roof, A/C or pipes",
    "orders.flyers.title": "Hand out flyers in town",
    "orders.flyers.note": "Once a week",
+   "orders.sc_gate.title": "Knock down the bricked-up south gate",
+   "orders.sc_gate.note": "Free, three people, a morning; 47 min from the clubhouse",
+   "orders.sc_bunkers.title": "Clear the golf bunkers",
+   "orders.sc_bunkers.note": "Up to four people",
+   "orders.sc_bunkers.locked": "Open the south gate first",
+   "orders.sc_fill.title": "Fill in the pond",
+   "orders.sc_fill.note": "Up to four people; no going back",
+   "orders.sc_fill.locked": "Open the south gate first",
+   "orders.sc_pave.title": "Lay two hard courts",
+   "orders.sc_pave.note": "Up to three people",
+   "orders.sc_pave.locked": "Clear the bunkers and fill the pond first",
+   "orders.sc_nets.title": "Nets and lights for the south courts",
+   "orders.sc_nets.note": "Two people; the courts open when it's done",
+   "orders.sc_nets.locked": "Lay the courts first",
+   "orders.ol_paths.title": "Clear the bunkers, lay paths round the pond",
+   "orders.ol_paths.note": "Three people; 46 min from the clubhouse",
+   "orders.ol_cabins.title": "Build three cabins by the pond",
+   "orders.ol_cabins.note": "Up to four people",
+   "orders.ol_cabins.locked": "Lay the paths first",
+   "orders.ol_pool.title": "Small pool court, water hooked up",
+   "orders.ol_pool.note": "Up to three people",
+   "orders.ol_pool.locked": "Lay the paths first",
+   "orders.ep_cars.title": "Move the cars off the south car park",
+   "orders.ep_cars.note": "Free, two people; no south car park until the plaza opens",
+   "orders.ep_fill.title": "Grow new ground in the southeast corner",
+   "orders.ep_fill.note": "Up to five people",
+   "orders.ep_fill.locked": "Move the cars first",
+   "orders.ep_slope.title": "Viewing slope and shade sail",
+   "orders.ep_slope.note": "Up to four people",
+   "orders.ep_slope.locked": "Move the cars first",
+   "orders.ep_lot.title": "Paint the new car park, link the drive",
+   "orders.ep_lot.note": "Three people; the plaza opens when it's done",
+   "orders.ep_lot.locked": "Grow the new ground first",
+   "orders.ai_dock.title": "Haul in the sky island",
+   "orders.ai_dock.note": "Up to four people; 91 min from the gate, 158 from the clubhouse",
+   "orders.ai_bridge.title": "Build the bridge",
+   "orders.ai_bridge.note": "Up to five people",
+   "orders.ai_bridge.locked": "Dock the island first",
+   "orders.ai_dorm.title": "Build the dorm",
+   "orders.ai_dorm.note": "Up to four people",
+   "orders.ai_dorm.locked": "Build the bridge first",
+   "orders.ai_court.title": "Practice court between the old net posts",
+   "orders.ai_court.note": "Three people",
+   "orders.ai_court.locked": "Build the bridge first",
    "orders.pz_repair.title": "Repair the Circle of Palms",
    "orders.pz_repair.note": "Unblock the fountain, replant the palms",
    "orders.pz_repair.locked": "Repair the clubhouse first",
@@ -9484,6 +10523,8 @@
    "traits.trainer.note": "Can run the fitness class at the practice courts",
    "traits.ball_kid.name": "Ball kid",
    "traits.ball_kid.note": "Can work as a ball kid at pickleball league days",
+   "who.hal.name": "Hal Brooks",
+   "who.hal.role": "Owns the golf course next door",
    "who.investors.name": "The investors",
    "who.investors.role": "The people paying for the restoration",
    "who.applicants.name": "Applicants",
@@ -9535,6 +10576,14 @@
    "routes.s4.academy_isle": "Academy isle",
    "route_notes.s2.youth.costs": "Resort-side builds wait until ★3; fewer service and fitness staff apply",
    "route_notes.s2.resort.costs": "Academy-side builds wait until ★3; fewer coaches apply",
+   "route_notes.s3.south_courts.opens": "Two more courts: members cap +24, quality +6; on cup days and weekends members play there instead of the members' court",
+   "route_notes.s3.south_courts.costs": "5 clearance jobs, $1000 in all; 47 min from the clubhouse, 105 from the gate: someone has to be posted there or it earns nothing; the pool loses a little while it builds; the pond is gone for good",
+   "route_notes.s3.oasis_lawn.opens": "Weekend resort guests: a well-paid cabin host post Fri–Sun; quality +5, reputation +3",
+   "route_notes.s3.oasis_lawn.costs": "3 clearance jobs, $850 in all; 46 min from the clubhouse; water and heat cost $3 a shift ($6 in spring); members cap unchanged; the rest of the golf course goes to a hotel developer",
+   "route_notes.s4.event_plaza.opens": "Exhibition +4% and +$2000 at the gate; invitational +$500; the bank's banner card doesn't wait for the pickleball courts; a weekend sponsor booth",
+   "route_notes.s4.event_plaza.costs": "4 clearance jobs, $1000 in all, right before the exhibition; 12 min from the gate, 78 from the clubhouse; no south car park while it builds (2 fewer new members a week)",
+   "route_notes.s4.academy_isle.opens": "Boarding students: a $1200 term deposit, a resident coach post every day, a dorm, members +6, academy lessons +$2; juniors' semifinal +10% from today",
+   "route_notes.s4.academy_isle.costs": "4 clearance jobs, $900 in all; 91 min from the gate, 158 from the clubhouse; the bridge shuts on windy days; the exhibition gets no faster",
    "prep.exhibition": "Exhibition build-up",
    "unlocks.junior_coach": "Junior coaching (better semifinal odds at the junior regional; academy lessons earn more and sign up more families)",
    "unlocks.night_clay_care": "Night care for the clay (a weekly work order on the clay courts)",
@@ -9735,6 +10784,7 @@
    "ui.terms.quality": "quality",
    "ui.terms.restored": "repairs",
    "ui.terms.traits": "staff traits",
+   "ui.terms.land": "new land",
    "ui.task_log": "{name} will take on {what} when free",
    "ui.because.default_pick": "{name} picked “{option}” when time ran out",
    "ui.because.post": "{name} worked {n} rounds on “{post}”",
@@ -9746,6 +10796,7 @@
    "ui.because.remodel": "the {place} remodel into “{what}” finished",
    "ui.because.tournament": "the {title} wrapped up",
    "ui.because.tournament_spoiled": "it rained on the {title}",
+   "ui.wire.clear_next": "{names} finished “{order}” — drag them to “{next}” next",
    "ui.wire.grew": "The director's {skill} reached {n}",
    "ui.wire.interrupted": "{name} was pulled off “{post}”; that round was lost",
    "ui.wire.routine_post": "{name} went back to {post} (routine) · left {from}",
@@ -9792,7 +10843,11 @@
    "ui.staff.waiting": "{what} · waiting for customers",
    "ui.staff.walking": "To {what} · {time}",
    "ui.staff.errand": "Away at {place} · {time}",
+   "ui.staff.halt": "{what} · paused for the tournament",
    "ui.place.rain": "Closed today — it is raining",
+   "ui.place.wind": "The bridge is closed today (wind)",
+   "ui.place.order_done": "Done",
+   "ui.place.order_halt": "Paused for the tournament · {p}%",
    "ui.place.condition_low": "Condition {n} · counts half for quality; below {limit} on Sunday it loses a grade",
    "ui.place.condition": "Condition {n} · loses a grade if below {limit} at Sunday close",
    "ui.place.worn": "Lost a grade · jobs here are stopped until someone does the Reopen job",
@@ -9838,6 +10893,8 @@
    "ui.why.target": "No such post",
    "ui.why.only": "Only certain people can do this",
    "ui.why.gone": "Not open right now",
+   "ui.why.wind": "The bridge is closed today (wind)",
+   "ui.why.rain": "Closed today — it is raining",
    "ui.why.cost": "Not enough cash for materials",
    "ui.why.crew": "Already full",
    "ui.why.skill": "Not skilled enough for this",
@@ -9862,11 +10919,14 @@
    "ui.sheet.order_on": "{names} working · {p}%",
    "ui.sheet.order_paused": "Paused · {p}% (progress kept)",
    "ui.sheet.order_new": "Not started",
+   "ui.sheet.order_done": "Done — this job is finished",
+   "ui.sheet.order_halt": "Paused for the tournament · {p}% · the crew waits on site",
    "ui.sheet.walk": "{time} walk",
    "ui.sheet.here": "Right here",
    "ui.sheet.leaves": "leaves “{what}”",
    "ui.sheet.speed": "Working at {n}%",
    "ui.sheet.you_coming": "On the way · {time}",
+   "ui.season_short.spring": "Windy spring",
    "ui.unlock_tag.junior_coach": "Junior coaching",
    "ui.unlock_tag.night_clay_care": "Night clay care",
    "ui.unlock_tag.member_referrals": "Member referrals",
@@ -9945,6 +11005,10 @@
    "anchors.practice": "青训场",
    "anchors.outer_1": "会员场",
    "anchors.outer_23": "红土场",
+   "anchors.south_courts": "南场",
+   "anchors.oasis_lawn": "绿洲草坪",
+   "anchors.event_plaza": "赛事广场",
+   "anchors.academy_isle": "学院岛",
    "anchors.outer_23.hard": "硬地场",
    "anchors.stadium_3.tennis2": "双片网球场",
    "facilities.outer_1.sanded": "会员场 · 被沙埋了",
@@ -10108,14 +11172,14 @@
    "events.iw_route_s2.body": "会所开张了，Dale 拿着那本旧宣传册站在大门口：\"带孩子的家庭，还是 Palm Springs 酒店来的客人？两头一起追不过来。\"明天还不定，Dale 就按青训来。",
    "events.iw_route_s2.options.A": "青训之路：学院先开（会所是咖啡吧的话，可以改成理疗室）；来应聘的教练多；学院课多挣一点",
    "events.iw_route_s2.options.B": "度假之路：度假泳池先开（会所是理疗室的话，可以改成咖啡吧）；来应聘的服务、体能人员多；周末客人多",
-   "events.iw_route_s3.title": "Hal Brooks 让出高尔夫西段",
-   "events.iw_route_s3.body": "隔壁荒掉的高尔夫球场老板 Hal Brooks 愿意让出西段：\"铺成球场，还是留着水塘盖小屋，你定。\"两边都要付 $300 测量费。明天还不定，Dale 就按南场来。",
-   "events.iw_route_s3.options.A": "南场：在高尔夫西段铺两片新场（现在：先在那儿办周末对打，会员 +4）",
-   "events.iw_route_s3.options.B": "绿洲草坪：留下水塘，盖小屋和小泳池庭院（现在：水塘边先收拾成野餐地，声望 +3）",
+   "events.iw_route_s3.title": "Hal Brooks 要关掉西边几个洞",
+   "events.iw_route_s3.body": "南墙外那片高尔夫球场一年不如一年：西边的球道黄了，沙坑漫了出来。老板 Hal Brooks 找上门：\"西边几个洞我不开了。那一段归你，连那道砌死的南门一起。铺成球场，还是留着我的水塘盖小屋，你定。\"选了哪条，那块地马上开工，清理工单挂在新地的地点牌上。Hal 临走补了一句：\"明天还不定，我就当你要铺球场。\"",
+   "events.iw_route_s3.options.A": "南场：填掉水塘，铺两片新场（会员上限 +24、质量 +6）；5 张工单，共 $1000；离会所 47 分钟、离大门 105 分钟，要有人守着",
+   "events.iw_route_s3.options.B": "绿洲草坪：留下水塘，盖三间小屋和小泳池庭院（周末度假客、小屋管家岗位、质量 +5）；3 张工单，共 $850；离会所 46 分钟；水费和空调按圈扣；会员上限不涨",
    "events.iw_route_s4.title": "岛往哪边长？",
-   "events.iw_route_s4.body": "度假名园要地方。把南停车场改成观赛坡、在东南角长出新地，还是搭一座桥，把东南天上那座带两根旧网柱的小岛接过来？明天还不定，Dale 就按赛事广场来。",
-   "events.iw_route_s4.options.A": "赛事广场：大比赛的观赛坡（现在：表演赛成功率 +5%）",
-   "events.iw_route_s4.options.B": "学院岛：搭桥接上岛上的学院（现在：学院课每圈 +$2，青少年赛进四强 +10%）",
+   "events.iw_route_s4.body": "度假名园要地方，能往外长的只有东南角。把南停车场改成观赛坡、在东南角长出新地放车，还是把东南天上那座带两根旧网柱的小岛拉靠岸、搭一座桥过去？选了哪条马上开工。明天还不定，Dale 就按赛事广场来。",
+   "events.iw_route_s4.options.A": "赛事广场：观赛坡和大遮阳棚（表演赛 +4%、门票 +$2000，邀请赛 +$500，赞助商来得早，周末赞助展台）；4 张工单，共 $1000；离大门 12 分钟、离会所 78 分钟；施工期间没有南停车场",
+   "events.iw_route_s4.options.B": "学院岛：小岛靠岸，搭桥、宿舍、练习场（寄宿学员：学员押金 $1200、驻岛教练岗位、会员 +6、学院课每圈 +$2；青少年赛四强 +10% 马上就有）；4 张工单，共 $900；离大门 91 分钟、离会所 158 分钟；起风天关桥；表演赛不会变快",
    "events.iw_ending.title": "看台还没散，现在交账吗？",
    "events.iw_ending.body": "表演赛散场了，投资方还坐在第一排等你。\"今天就可以给这一季打分，提前交卷算你的。也可以接着干到第 112 天：还有一场内赛，你的人也还能再长一截——可这几周的服务也记在账上，排不好人就往下掉。风季不等人。\"",
    "events.iw_ending.options.A": "马上结算：今天就打分，每提前一天有奖励",
@@ -10136,6 +11200,13 @@
    "log.sand_covered": "场地盖住了，沙没灌进来",
    "log.exhibition_flop": "表演赛冷场了：看台上稀稀拉拉，一周后再试一次",
    "log.no_hire": "这次没招人，活还是那几个人干",
+   "log.golf_west_building": "高尔夫西段开工了，泳池那边听得见每一辆卡车",
+   "log.pond_filled": "水塘填平了。Hal Brooks 站在球车道上看着，一句话没说",
+   "log.south_courts_open": "南场开张：老南门后面又多了两片场",
+   "log.oasis_lawn_open": "绿洲草坪开张。Hal 把剩下的球道卖给了酒店开发商，下一季多一个邻居",
+   "log.se_corner_building": "东南角开工了",
+   "log.event_plaza_open": "赛事广场开张：南停车场的地方立起了观赛坡和大遮阳棚",
+   "log.academy_isle_open": "学院岛靠岸、桥通了，第一批寄宿学员搬了进来",
    "log.tournament_won": "你的球员在外面赢了一站比赛，带回了奖金",
    "log.tournament_lost": "你的球员这站输了，不过长了见识",
    "log.cup_hosted": "月度内赛办完了，奖杯放进了会所的柜子",
@@ -10171,6 +11242,18 @@
    "posts.pz_evening.note": "周四到周日 17–20 点",
    "posts.pz_upkeep.title": "棕榈喷泉 · 维护",
    "posts.pz_upkeep.note": "清喷泉、扫沙",
+   "posts.sc_league.title": "南场 · 周末联赛",
+   "posts.sc_league.note": "周六周日 9–17 点；联赛和内赛那天的会员到这儿打，不挤会员场；离得远，要有人守着",
+   "posts.sc_rental.title": "南场 · 开放场",
+   "posts.sc_rental.note": "随时可以干；有人在才有收入（离会所 47 分钟）",
+   "posts.ol_host.title": "绿洲草坪 · 小屋管家",
+   "posts.ol_host.note": "周五到周日 11–17 点，周末度假客；水费和空调按圈扣",
+   "posts.ep_booth.title": "赛事广场 · 赞助展台",
+   "posts.ep_booth.note": "周六周日 10–17 点，大遮阳棚下",
+   "posts.ai_resident.title": "学院岛 · 驻岛教练",
+   "posts.ai_resident.note": "随时可以干；寄宿学员；有人常驻才有收入；起风天关桥",
+   "posts.ai_dorm_host.title": "学院岛 · 宿舍",
+   "posts.ai_dorm_host.note": "随时可以干；寄宿学员和来探望的家长；起风天关桥",
    "posts.st3_league.title": "匹克球场 · 周末联赛",
    "posts.st3_league.note": "周末 9–17 点",
    "posts.st3_upkeep.title": "匹克球场 · 维护",
@@ -10249,6 +11332,50 @@
    "orders.ch_fix.note": "屋顶、空调、水管",
    "orders.flyers.title": "去镇上发传单",
    "orders.flyers.note": "一周一次",
+   "orders.sc_gate.title": "拆掉砌死的南门",
+   "orders.sc_gate.note": "不花钱，三个人一个上午；离会所 47 分钟",
+   "orders.sc_bunkers.title": "清掉高尔夫的沙坑",
+   "orders.sc_bunkers.note": "最多四个人",
+   "orders.sc_bunkers.locked": "先拆掉南门",
+   "orders.sc_fill.title": "填掉水塘",
+   "orders.sc_fill.note": "最多四个人；填了就回不去",
+   "orders.sc_fill.locked": "先拆掉南门",
+   "orders.sc_pave.title": "铺两片硬地",
+   "orders.sc_pave.note": "最多三个人",
+   "orders.sc_pave.locked": "先清沙坑、填水塘",
+   "orders.sc_nets.title": "南场立网、接灯",
+   "orders.sc_nets.note": "两个人；做完南场开张",
+   "orders.sc_nets.locked": "先铺好场地",
+   "orders.ol_paths.title": "清沙坑、沿水塘铺小径",
+   "orders.ol_paths.note": "三个人；离会所 46 分钟",
+   "orders.ol_cabins.title": "水塘边盖三间小屋",
+   "orders.ol_cabins.note": "最多四个人",
+   "orders.ol_cabins.locked": "先铺好小径",
+   "orders.ol_pool.title": "小泳池庭院、接上水",
+   "orders.ol_pool.note": "最多三个人",
+   "orders.ol_pool.locked": "先铺好小径",
+   "orders.ep_cars.title": "把车挪出南停车场",
+   "orders.ep_cars.note": "不花钱，两个人；广场开张前没有南停车场",
+   "orders.ep_fill.title": "在东南角填出新地",
+   "orders.ep_fill.note": "最多五个人",
+   "orders.ep_fill.locked": "先把车挪走",
+   "orders.ep_slope.title": "观赛坡和大遮阳棚",
+   "orders.ep_slope.note": "最多四个人",
+   "orders.ep_slope.locked": "先把车挪走",
+   "orders.ep_lot.title": "新车位、接车道",
+   "orders.ep_lot.note": "三个人；做完广场开张",
+   "orders.ep_lot.locked": "先填出新地",
+   "orders.ai_dock.title": "把天上的小岛拉靠岸",
+   "orders.ai_dock.note": "最多四个人；离大门 91 分钟、离会所 158 分钟",
+   "orders.ai_bridge.title": "搭桥",
+   "orders.ai_bridge.note": "最多五个人",
+   "orders.ai_bridge.locked": "先让小岛靠岸",
+   "orders.ai_dorm.title": "盖宿舍",
+   "orders.ai_dorm.note": "最多四个人",
+   "orders.ai_dorm.locked": "先搭好桥",
+   "orders.ai_court.title": "旧网柱中间铺练习场",
+   "orders.ai_court.note": "三个人",
+   "orders.ai_court.locked": "先搭好桥",
    "orders.pz_repair.title": "修棕榈喷泉",
    "orders.pz_repair.note": "通喷泉、补种棕榈",
    "orders.pz_repair.locked": "先修好会所",
@@ -10494,6 +11621,8 @@
    "traits.trainer.note": "能带青训场的体能课",
    "traits.ball_kid.name": "球童",
    "traits.ball_kid.note": "能在匹克球场的联赛当球童",
+   "who.hal.name": "Hal Brooks",
+   "who.hal.role": "隔壁高尔夫球场的老板",
    "who.investors.name": "投资方",
    "who.investors.role": "出钱修复俱乐部的人",
    "who.applicants.name": "应聘者",
@@ -10545,6 +11674,14 @@
    "routes.s4.academy_isle": "学院岛",
    "route_notes.s2.youth.costs": "度假那边的修法要等到 ★3；来应聘的服务、体能人员少",
    "route_notes.s2.resort.costs": "青训那边的修法要等到 ★3；来应聘的教练少",
+   "route_notes.s3.south_courts.opens": "多两片场：会员上限 +24、质量 +6；内赛和周末会员到南场打，不挤会员场",
+   "route_notes.s3.south_courts.costs": "5 张清理工单，共 $1000；离会所 47 分钟、离大门 105 分钟：没人守就没收入；施工时泳池那边少挣一点；水塘填了就回不去",
+   "route_notes.s3.oasis_lawn.opens": "周末度假客：周五到周日的小屋管家，每圈挣得多；质量 +5、声望 +3",
+   "route_notes.s3.oasis_lawn.costs": "3 张清理工单，共 $850；离会所 46 分钟；水费和空调每圈 $3（春天 $6）；会员上限不涨；剩下的高尔夫卖给酒店开发商",
+   "route_notes.s4.event_plaza.opens": "表演赛 +4%、门票 +$2000；邀请赛 +$500；银行的横幅卡不用等匹克球场；周末赞助展台",
+   "route_notes.s4.event_plaza.costs": "4 张清理工单，共 $1000，压在表演赛前；离大门 12 分钟、离会所 78 分钟；施工期间没有南停车场（每周少来 2 个会员）",
+   "route_notes.s4.academy_isle.opens": "寄宿学员：学员押金 $1200，天天有的驻岛教练岗位、宿舍，会员 +6，学院课每圈 +$2；青少年赛四强 +10% 马上就有",
+   "route_notes.s4.academy_isle.costs": "4 张清理工单，共 $900；离大门 91 分钟、离会所 158 分钟；起风天关桥；表演赛不会变快",
    "prep.exhibition": "表演赛筹备",
    "unlocks.junior_coach": "青少年带教（地区青少年赛进四强的把握 +20 个百分点；学院课多收一点、多招一点会员）",
    "unlocks.night_clay_care": "红土场夜间养护（红土场上每周一次的工单）",
@@ -10745,6 +11882,7 @@
    "ui.terms.quality": "质量",
    "ui.terms.restored": "修复",
    "ui.terms.traits": "员工特质",
+   "ui.terms.land": "新地",
    "ui.task_log": "{name}闲下来就去做{what}",
    "ui.because.default_pick": "时间到了，{name}选了“{option}”",
    "ui.because.post": "{name}在“{post}”干了 {n} 圈",
@@ -10756,6 +11894,7 @@
    "ui.because.remodel": "{place}改成“{what}”的工程完工了",
    "ui.because.tournament": "{title}收赛",
    "ui.because.tournament_spoiled": "{title}那天下雨",
+   "ui.wire.clear_next": "{names}做完了“{order}”——把人拖到下一项“{next}”",
    "ui.wire.grew": "总监的{skill}能力到 {n} 了",
    "ui.wire.interrupted": "{name}被叫离“{post}”，这一圈白干了",
    "ui.wire.routine_post": "{name}按习惯回{post}了 · 放下了{from}",
@@ -10802,7 +11941,11 @@
    "ui.staff.waiting": "{what} · 等客人",
    "ui.staff.walking": "去{what} · {time}",
    "ui.staff.errand": "在{place}办事 · {time}",
+   "ui.staff.halt": "{what} · 赛事停工",
    "ui.place.rain": "下雨，户外的这一项今天关门",
+   "ui.place.wind": "今天起风，桥关了",
+   "ui.place.order_done": "已完成",
+   "ui.place.order_halt": "赛事期间停工 · {p}%",
    "ui.place.condition_low": "状况 {n} · 质量减半；周日收盘低于 {limit} 就掉档",
    "ui.place.condition": "状况 {n} · 周日收盘低于 {limit} 会掉档",
    "ui.place.worn": "已掉档 · 这里的岗位停了，做“重开”工单才回来",
@@ -10848,6 +11991,8 @@
    "ui.why.target": "没有这个岗位",
    "ui.why.only": "这个活只收特定的人",
    "ui.why.gone": "现在开不了",
+   "ui.why.wind": "今天起风，桥关了",
+   "ui.why.rain": "下雨，户外的这一项今天关门",
    "ui.why.cost": "现金不够买料",
    "ui.why.crew": "人已经够了",
    "ui.why.skill": "能力不够干这个",
@@ -10872,11 +12017,14 @@
    "ui.sheet.order_on": "{names}在干 · {p}%",
    "ui.sheet.order_paused": "停工了 · {p}%（进度留着）",
    "ui.sheet.order_new": "还没开工",
+   "ui.sheet.order_done": "已完成，这项活做完了",
+   "ui.sheet.order_halt": "赛事期间停工 · {p}% · 人在现场等着",
    "ui.sheet.walk": "走过去 {time}",
    "ui.sheet.here": "就在这儿",
    "ui.sheet.leaves": "会放下“{what}”",
    "ui.sheet.speed": "干活速度 {n}%",
    "ui.sheet.you_coming": "在路上 · 还要 {time}",
+   "ui.season_short.spring": "春天 · 风季",
    "ui.unlock_tag.junior_coach": "青少年带教",
    "ui.unlock_tag.night_clay_care": "红土夜间养护",
    "ui.unlock_tag.member_referrals": "会员推荐",

@@ -1,0 +1,15 @@
+# 南场 · 周末联赛（★3 南场开地以后，W5 GM-15）：周六周日 9–17 点，周末联赛和月度内赛那天的会员都到南场来打，不挤会员场。
+# 离会所 47 分钟、离大门 105 分钟：没人守在这儿就没有收入，而且时段里没人算服务率的缺口（南场的人手代价）。
+id: sc_league
+act: indian_wells
+at: south_courts
+skill: service
+cycle: 1h
+hours: [9, 17]
+days: [5, 6]
+effects:
+  - { stat: cash, add: "round(12 * (0.6 + worker.skill / 100) * (1 + stat.reputation / 120))" }
+  - { stat: members, add: 1, chance: 0.05 }
+  - { stat: reputation, add: 0.03 }
+wear: 0
+performance: open_play

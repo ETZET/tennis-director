@@ -263,7 +263,8 @@
   .td-hud .td-bug-name{font-size:17px}
   .td-chip{font-size:10px;padding:2px 6px 1px}
   .td-hud .td-strip-wrap{left:auto;right:auto;top:auto}
-  .td-card{max-height:calc(100% - 250px)}
+  /* 卡顶不压住标题卡下面的数据条（标题卡两行 + 数据条约到 192px；W5 门：英文结算卡盖住了数据条） */
+  .td-card{max-height:calc(100% - 84px - 212px - env(safe-area-inset-bottom,0px))}
   /* 局中状态行很长（"4 个岗位有客人在等"）：手机上只占一行，多的用省略号，标题卡不再长成三四行（QA P3） */
   .td-chip.td-where{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;flex:1 1 140px;min-width:0}
 }

@@ -1,0 +1,11 @@
+# 学院岛 · 宿舍（★4 学院岛开地以后，W5 GM-15）：照看寄宿学员、接待来探望的家长。没有固定时段、不算需求：
+# 有人在就有一点收入、家长里有人入会。起风天关桥。
+id: ai_dorm_host
+act: indian_wells
+at: academy_isle
+skill: service
+cycle: 1h
+when: { not: { weather: wind } }
+effects:
+  - { stat: cash, add: "round(4 * (0.6 + worker.skill / 100))" }
+  - { stat: members, add: 1, chance: 0.04 }

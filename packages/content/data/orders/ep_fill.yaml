@@ -1,0 +1,12 @@
+# 赛事广场第 2 张：在东南角填出一块新地，给挪过去的车位。
+id: ep_fill
+act: indian_wells
+at: event_plaza
+skill: upkeep
+work: 12h
+cost: 300
+crew: 5
+when: { flag: ep_cleared }
+effects:
+  - { flag: ep_ground, set: true }
+performance: contractor

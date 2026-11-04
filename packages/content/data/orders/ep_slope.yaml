@@ -1,0 +1,10 @@
+# 赛事广场第 3 张：原来的停车场改成观赛坡，搭大遮阳棚。
+id: ep_slope
+act: indian_wells
+at: event_plaza
+skill: upkeep
+work: 10h
+cost: 500
+crew: 4
+when: { flag: ep_cleared }
+performance: contractor
