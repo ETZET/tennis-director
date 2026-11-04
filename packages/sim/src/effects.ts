@@ -1,6 +1,7 @@
 import { type Effect, minutes, type Person, WORKER } from '@td/content';
 import { clamp, type Value } from '@td/shared';
 import type { SimEvent } from './events';
+import { capWorkerGain } from './potential';
 import { rand } from './rng';
 import type { CausalEntry, Cause, EffectRecord, GameState } from './state';
 import { num, test } from './vars';
@@ -135,7 +136,11 @@ export function applyEffects(ctx: Ctx, effects: readonly Effect[], entryId: numb
         const v = e.add[attr];
         if (v === undefined) continue;
         const before = p[attr];
-        p[attr] = clamp(before + num(s, w, v, ctx.vars), 0, 100);
+        let after = clamp(before + num(s, w, v, ctx.vars), 0, 100);
+        // W3：干活涨的能力（person: worker，例如球员的训练）截在潜力上；成长关着时不截。跨门槛的 skill_up 由 staff.ts 补发
+        const k = attr === 'skill' ? 'teach' : attr === 'morale' || attr === 'fatigue' ? null : attr;
+        if (k && e.person === WORKER) after = capWorkerGain(w, who, k, before, after);
+        p[attr] = after;
         const delta = p[attr] - before;
         if (delta !== 0) out.push({ kind: 'person', person: who, attr, delta });
       }

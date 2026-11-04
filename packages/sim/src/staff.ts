@@ -1,6 +1,7 @@
 import { minutes, type Order, type Post, type SkillKind } from '@td/content';
 import { clamp } from '@td/shared';
 import { applyEffects, type Ctx, run, setStat } from './effects';
+import { growStaff, noteRecords, noteSkill } from './growth';
 import { rand } from './rng';
 import {
   DIRECTOR,
@@ -52,8 +53,8 @@ export function eligible(w: World, id: string, t: Post | Order): boolean {
   return !!d && ((!!d.kind && t.only.includes(d.kind)) || d.traits.some((x) => t.only?.includes(x)));
 }
 
-/** 工单的能力门槛（LG-14 的 worker）：底子（不算特质）每一项都够才行 */
-export function meetsWorker(s: GameState, id: string, o: Order): boolean {
+/** 工单（LG-14）和岗位（W3）的能力门槛 worker：底子（不算特质）每一项都够才行 */
+export function meetsWorker(s: GameState, id: string, o: Post | Order): boolean {
   if (!o.worker) return true;
   const p = s.people[id];
   if (!p) return false;
@@ -366,7 +367,14 @@ export function canAssign(
   // 已经在这张变体工单上、只是换一行（还没开工）：算改选变体
   if (p.job === target && !(variant !== undefined && !s.orders[target] && s.picks?.[target] !== variant)) return 'same';
   const post = w.posts.get(target);
-  if (post) return !eligible(w, person, post) ? 'only' : postExists(s, w, post) ? null : 'gone';
+  if (post)
+    return !eligible(w, person, post)
+      ? 'only'
+      : !meetsWorker(s, person, post)
+        ? 'skill'
+        : postExists(s, w, post)
+          ? null
+          : 'gone';
   const order = w.orders.get(target);
   if (!order) return 'target';
   if (!eligible(w, person, order)) return 'only';
@@ -529,10 +537,16 @@ function condAdd(ctx: Ctx, anchor: string, delta: number, out?: EffectRecord[]):
   if (out && v !== before) out.push({ kind: 'condition', facility: f, delta: v - before });
 }
 
-/** 总监干完一圈或一张工单，那项能力涨一点（有上限）：总监没有情绪，能力随游戏慢慢成长 */
+/**
+ * 干完一圈或一张工单，那项能力涨一点（有上限）。总监：director_growth、上限 director_skill_cap，一直开着
+ * （总监没有情绪，能力随游戏慢慢成长）。员工：W3 的成长（growth.ts，growth.enabled 才涨，上限是潜力）。
+ */
 function grow(ctx: Ctx, person: string, k: SkillKind): void {
   const { s, w } = ctx;
-  if (person !== DIRECTOR) return;
+  if (person !== DIRECTOR) {
+    growStaff(ctx, person, k);
+    return;
+  }
   const p = s.people[person];
   if (!p) return;
   const cap = w.act.rules.director_skill_cap;
@@ -543,6 +557,8 @@ function grow(ctx: Ctx, person: string, k: SkillKind): void {
   else p[k] = v;
   if (Math.floor(v / 10) > Math.floor(before / 10))
     ctx.events.push({ type: 'directorGrew', skill: k, value: Math.floor(v / 10) * 10 });
+  // W3：成长打开时总监也发 skill_up、也能开出解锁（涨的规则照旧，不另加 growth.rate）
+  noteSkill(ctx, person, k, before);
 }
 
 function finishCycle(ctx: Ctx, post: Post, person: string): void {
@@ -555,6 +571,7 @@ function finishCycle(ctx: Ctx, post: Post, person: string): void {
   wk[post.id] = (wk[post.id] ?? 0) + 1;
   const out: EffectRecord[] = [];
   applyEffects({ ...ctx, vars: { 'worker.skill': skill }, worker: person }, post.effects, -1, out);
+  noteRecords(ctx, out);
   if (post.wear) condAdd(ctx, post.at, -post.wear);
   if (post.restore) condAdd(ctx, post.at, post.restore * speedOf(skill), out);
   // 同一种效果合并成一条，收盘时写进日志
@@ -642,6 +659,7 @@ function finishOrder(ctx: Ctx, o: Order): void {
     null,
     effects,
   );
+  noteRecords(ctx, entry.effects);
   if (o.restore) condAdd(ctx, o.at, o.restore, entry.effects);
   if (f && variant) entry.effects.push({ kind: 'variant', facility: f, variant });
   if (f && o.upgrade && !s.upgrades[f]?.includes(o.upgrade)) {

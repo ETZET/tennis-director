@@ -26,6 +26,13 @@ export type SimEvent =
   | { type: 'postCycle'; post: string; person: string }
   /** 总监的一项能力跨过了一个整十（核心玩法决定：总监没有情绪，能力随干活慢慢涨） */
   | { type: 'directorGrew'; skill: SkillKind; value: number }
+  /**
+   * 员工成长（W3，LG-12）：一项能力跨过了门槛（step 的整数倍、或者某条解锁的 gte）；value 是门槛本身。
+   * 只在 growth.enabled 时发；总监照旧也发 directorGrew
+   */
+  | { type: 'skill_up'; person: string; skill: SkillKind; value: number }
+  /** 成长解锁开出来了（W3）：key 是 growth.unlocks 的键，person 是开出它的人 */
+  | { type: 'unlock'; person: string; key: string }
   | { type: 'postInterrupted'; post: string; person: string; lost: number }
   | { type: 'orderStarted'; order: string; at: string; performance: string | null }
   | { type: 'orderFinished'; order: string; people: string[]; success?: boolean }

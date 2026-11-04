@@ -94,6 +94,14 @@ export const COMPUTED_VARS = [
   'event.skill',
   'event.crew',
   'event.repeat',
+  /**
+   * 员工成长（W3）：在职、能指派的人里（含总监）这项能力底子最高的值（不算特质）。
+   * 内容里"有没有一个维护 ≥ 75 的人"用条件 { skilled: upkeep, gte: 75 } 更直白，要比大小、算概率时用它
+   */
+  'best.teach',
+  'best.upkeep',
+  'best.service',
+  'best.play',
 ] as const;
 /** 设施状况变量：condition.<设施 id> = 0..100 */
 export const CONDITION_VAR = /^condition\.([a-z][a-z0-9_]*)$/;
@@ -105,6 +113,8 @@ export const ROUTE_VAR = /^route\.([a-z][a-z0-9_]*)$/;
 export const PREP_VAR = /^prep\.([a-z][a-z0-9_]*)$/;
 /** 岗位这一周转了几圈（W2）：cycles.<岗位> */
 export const CYCLES_VAR = /^cycles\.([a-z][a-z0-9_]*)$/;
+/** 成长解锁变量（W3）：unlocked.<键> = 1（开出来了）或 0 */
+export const UNLOCKED_VAR = /^unlocked\.([a-z][a-z0-9_]*)$/;
 /** 在职人数变量：hired.<作用或特质> = 在职的人里作用是它、或者带着这个特质的有几个 */
 export const HIRED_VAR = /^hired\.([a-z][a-z0-9_]*)$/;
 export const PERSON_ATTRS = ['skill', 'upkeep', 'service', 'play', 'morale', 'fatigue', 'talent', 'hired'] as const;
@@ -233,6 +243,9 @@ export function compileContent(files: Record<string, string>): CompileResult {
     for (const [k, v] of Object.entries(a.routes ?? {}))
       routeSlots.set(k, new Set([...(routeSlots.get(k) ?? []), ...v]));
   const prepGroups = new Set(b.orders.flatMap((o) => (o.prep ? [o.prep] : [])));
+  /** 成长解锁的键（W3） */
+  const unlockKeys = new Set(b.acts.flatMap((a) => (a.growth?.unlocks ?? []).map((u) => u.key)));
+  const isTag = (k: string) => (PERSON_KINDS as readonly string[]).includes(k) || traits.has(k);
   const langs = Object.keys(b.i18n);
   if (!langs.length) err('i18n/', 'no language files');
 
@@ -269,6 +282,11 @@ export function compileContent(files: Record<string, string>): CompileResult {
     t.reward,
     ...[...t.goals, ...(t.repeat.goals ?? [])].map((g) => g.reward),
   ];
+  for (const a of b.acts)
+    for (const u of a.growth?.unlocks ?? [])
+      walkEffects(u.effects, (e) => {
+        if ('flag' in e) flagWrites.add(e.flag);
+      });
   const allTournaments = b.acts.flatMap((a) => a.tournaments ?? []);
   const tournamentOrders = new Set(allTournaments.map((t) => t.order));
   for (const t of allTournaments)
@@ -290,6 +308,8 @@ export function compileContent(files: Record<string, string>): CompileResult {
     if (pv) return prepGroups.has(pv[1] as string);
     const yv = CYCLES_VAR.exec(p);
     if (yv) return b.posts.some((x) => x.id === yv[1]);
+    const uv = UNLOCKED_VAR.exec(p);
+    if (uv) return unlockKeys.has(uv[1] as string);
     const hv = HIRED_VAR.exec(p);
     if (hv) return (PERSON_KINDS as readonly string[]).includes(hv[1] as string) || traits.has(hv[1] as string);
     const [head, a, attr] = p.split('.');
@@ -349,6 +369,9 @@ export function compileContent(files: Record<string, string>): CompileResult {
       else if (c.is !== 'none' && !r.has(c.is)) err(file, `${where}: route slot '${c.route}' has no route '${c.is}'`);
     }
     if ('prep' in c && !prepGroups.has(c.prep)) err(file, `${where}: no order has prep '${c.prep}'`);
+    if ('skilled' in c && c.who && !isTag(c.who))
+      err(file, `${where}: who '${c.who}' is neither a person kind nor a trait`);
+    if ('unlocked' in c && !unlockKeys.has(c.unlocked)) err(file, `${where}: no growth unlock '${c.unlocked}'`);
     if ('assigned' in c) {
       if (!people.has(c.assigned)) err(file, `${where}: unknown person '${c.assigned}'`);
       if (c.at && !anchors.has(c.at)) err(file, `${where}: unknown anchor '${c.at}'`);
@@ -497,6 +520,8 @@ export function compileContent(files: Record<string, string>): CompileResult {
       if (p.hours && p.hours[0] >= p.hours[1]) err(file, 'hours: start must be before end');
       if (!p.effects.length && !p.restore) warn(file, 'post has no effects and restores nothing');
       if (p.restore && !b.facilities.some((f) => f.anchor === p.at)) err(file, 'restore: no facility at this anchor');
+      for (const [k, v] of Object.entries(p.worker ?? {}))
+        if (v !== undefined && (v < 0 || v > 100)) err(file, `worker.${k}: ${v} is outside 0..100`);
     } else {
       const o = a as z.infer<typeof order>;
       minutes(o.work);
@@ -558,6 +583,12 @@ export function compileContent(files: Record<string, string>): CompileResult {
       needText('people/', `bios.${p.id}`);
     }
     if (p.kind === 'player' && !p.play) warn('people/', `${p.id}: a player with play 0`);
+    // 潜力（W3）：低于起始值的那一项永远不涨，多半是写错了
+    for (const [k, v] of Object.entries(p.potential ?? {})) {
+      const start = k === 'teach' ? p.skill : (p as unknown as Record<string, number>)[k];
+      if (v !== undefined && start !== undefined && v < start)
+        warn('people/', `${p.id}: potential.${k} ${v} is below the starting value ${start}`);
+    }
   }
   for (const k of PERSON_KINDS) needText('people/', `kinds.${k}`);
   for (const t of b.traits) {
@@ -769,6 +800,22 @@ export function compileContent(files: Record<string, string>): CompileResult {
         else for (const v of Object.keys(f.variants)) needText(file, `tournaments.${t.id}.variants.${v}`);
       }
       needText(file, `tournaments.${t.id}.title`);
+    }
+    // 员工成长（W3）
+    if (a.growth) {
+      for (const t of Object.keys(a.growth.traits))
+        if (!traits.has(t)) err(file, `growth.traits: unknown trait '${t}'`);
+      const keys = new Set<string>();
+      for (const [i, u] of a.growth.unlocks.entries()) {
+        const w = `growth.unlocks[${i}] '${u.key}'`;
+        if (keys.has(u.key)) err(file, `${w}: duplicate unlock key`);
+        keys.add(u.key);
+        for (const n of u.need)
+          if (n.who && !isTag(n.who)) err(file, `${w}.need: who '${n.who}' is neither a person kind nor a trait`);
+        checkCond(file, u.when, `${w}.when`);
+        checkEffects(file, u.effects, `${w}.effects`, true);
+        needText(file, `unlocks.${u.key}`);
+      }
     }
     if (a.rules.lose_if) {
       checkCond(file, a.rules.lose_if.when, 'rules.lose_if');

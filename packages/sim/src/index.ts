@@ -18,6 +18,7 @@ export {
 } from './cards';
 export type { SimEvent } from './events';
 export * from './game';
+export { growthOf, potentialOf } from './potential';
 export * from './save';
 export {
   type AssignBlock,
@@ -64,6 +65,8 @@ export {
   tournamentStatus,
 } from './tournaments';
 export {
+  anySkilled,
+  bestSkill,
   coachAttention,
   coachPresent,
   conditionFactor,

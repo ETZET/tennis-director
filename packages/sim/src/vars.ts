@@ -1,7 +1,8 @@
-import type { Cond, FacilityState } from '@td/content';
+import type { Cond, FacilityState, SkillKind } from '@td/content';
 import { type ExprEnv, evalBool, evalNumber, type Value } from '@td/shared';
+import { ACCESS } from './potential';
 import { rand } from './rng';
-import { DIRECTOR, dayOf, type GameState, minuteOfDay, type PersonAttr, weekdayOf } from './state';
+import { DIRECTOR, dayOf, type GameState, minuteOfDay, type PersonAttr, type PersonState, weekdayOf } from './state';
 import type { World } from './world';
 
 /**
@@ -82,6 +83,28 @@ export function hiredWith(s: GameState, w: World, tag: string): number {
     if (d && (d.kind === tag || d.traits.includes(tag))) n++;
   }
   return n;
+}
+
+export const tagged = (w: World, id: string, tag: string | undefined): boolean => {
+  if (!tag) return true;
+  const d = w.people.get(id);
+  return !!d && (d.kind === tag || d.traits.includes(tag));
+};
+
+/** 在职、能指派的人里有没有一个 who 的这项能力（底子）≥ gte（条件 skilled） */
+export function anySkilled(s: GameState, w: World, k: SkillKind, gte: number, who?: string): boolean {
+  for (const id in s.people) {
+    const p = s.people[id] as PersonState;
+    if (isStaff(s, w, id) && tagged(w, id, who) && p[ACCESS[k]] >= gte) return true;
+  }
+  return false;
+}
+
+/** 在职、能指派的人里这项能力底子最高的值（变量 best.<能力>） */
+export function bestSkill(s: GameState, w: World, k: SkillKind): number {
+  let m = 0;
+  for (const id in s.people) if (isStaff(s, w, id)) m = Math.max(m, (s.people[id] as PersonState)[ACCESS[k]]);
+  return m;
 }
 
 /**
@@ -249,6 +272,12 @@ export function makeEnv(s: GameState, w: World, extra: Record<string, Value> = {
           return s.routes?.[rest] ?? '';
         case 'prep':
           return prepProgress(s, w, rest);
+        case 'best':
+          return rest === 'teach' || rest === 'upkeep' || rest === 'service' || rest === 'play'
+            ? bestSkill(s, w, rest)
+            : undefined;
+        case 'unlocked':
+          return s.unlocks?.[rest] ? 1 : 0;
         case 'cycles':
           return s.week.cycles?.[rest] ?? 0;
         case 'event':
@@ -296,6 +325,8 @@ export function test(s: GameState, w: World, c: Cond | undefined): boolean {
   if ('upgrade' in c) return !!s.upgrades?.[c.upgrade]?.includes(c.has);
   if ('route' in c) return (s.routes?.[c.route] ?? 'none') === c.is;
   if ('prep' in c) return prepProgress(s, w, c.prep) >= 1 === (c.done ?? true);
+  if ('skilled' in c) return anySkilled(s, w, c.skilled, c.gte, c.who);
+  if ('unlocked' in c) return !!s.unlocks?.[c.unlocked];
   if ('assigned' in c) {
     const p = s.people[c.assigned];
     return !!p?.job && !p.walk && (c.at === undefined || p.at === c.at);

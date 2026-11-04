@@ -1,6 +1,7 @@
 import { minutes } from '@td/content';
 import { directorDraw, expireCards, openScheduled } from './cards';
 import { type Ctx, run, setStat } from './effects';
+import { checkUnlocks } from './growth';
 import { weightedPick } from './rng';
 import { closeLedger, decayDay, gradeDrop, overnight, staffSystem } from './staff';
 import { checkStars } from './stars';
@@ -125,6 +126,8 @@ function closeDay(ctx: Ctx): void {
   recomputeDerived(ctx);
   // 周结算以后会员和声望变了：看一眼星级（LG-10）
   checkStars(ctx);
+  // 成长解锁（W3）：招来的人、效果加的能力，收盘时补看一眼（成长关着时什么都不做）
+  checkUnlocks(ctx);
   if (sunday) {
     // 拆成几项的派生量：这一周每项变了多少（界面说明董事会信心为什么变）
     const terms: Record<string, { total: number; delta: Record<string, number> }> = {};

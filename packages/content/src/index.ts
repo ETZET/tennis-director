@@ -21,6 +21,7 @@ export {
   PERSON_ATTRS,
   PREP_VAR,
   ROUTE_VAR,
+  UNLOCKED_VAR,
   VARIANT_VAR,
   WORKER,
 } from './compile';

@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { parse, stringify } from 'yaml';
 import { compileContent, VARIANT_VAR } from './compile';
 import { CONTENT } from './index';
-import { minutes } from './schema';
+import { growth, minutes } from './schema';
 
 const DATA = join(dirname(fileURLToPath(import.meta.url)), '../data');
 const files = (): Record<string, string> => {
@@ -267,6 +267,82 @@ describe('内容编译', () => {
     expect(m).toMatch(/outer_23.variants.hard: unknown state 'paved'/);
     expect(m).toMatch(/facility 'outer_23' has no upgrade 'nope'/);
     expect(m).toMatch(/missing text 'stars.opens.no_such_opening'/);
+  });
+
+  it('员工成长（W3）：解锁、条件、变量、潜力、岗位门槛能编译；写错都报错', () => {
+    const ok = files();
+    const zh = (y: Yaml) => {
+      y.unlocks = { night_care: '夜间养护' };
+    };
+    editYaml(ok, 'i18n/zh.yaml', zh);
+    editYaml(ok, 'i18n/en.yaml', (y) => {
+      y.unlocks = { night_care: 'Night clay care' };
+    });
+    editYaml(ok, 'acts/indian_wells.yaml', (y) => {
+      y.growth = {
+        enabled: true,
+        unlocks: [
+          {
+            key: 'night_care',
+            need: [{ skill: 'upkeep', gte: 75, who: 'crew' }],
+            effects: [
+              { person: 'worker', add: { morale: 5 } },
+              { flag: 'night_care_open', set: true },
+            ],
+          },
+        ],
+      };
+    });
+    editYaml(ok, 'posts/o1_upkeep.yaml', (y) => {
+      y.worker = { upkeep: 30 };
+      y.when = { all: [y.when, { unlocked: 'night_care' }, { skilled: 'upkeep', gte: 75, who: 'crew' }] };
+      y.effects = [{ stat: 'cash', add: 'unlocked.night_care + best.upkeep / 100' }];
+    });
+    editYaml(ok, 'people/indian_wells.yaml', (y) => {
+      y.find((p: { id: string }) => p.id === 'dale').potential = { teach: 60 };
+    });
+    // 只看这几处改动带来的错（别的内容可能正在并行改）
+    const before = new Set(msgs(compileContent(files())).split('\n'));
+    const r = compileContent(ok);
+    expect(
+      msgs(r)
+        .split('\n')
+        .filter((x) => x && !before.has(x)),
+    ).toEqual([]);
+    expect(growth.parse({ enabled: true })).toMatchObject({
+      rate: 0.2,
+      headroom: 15,
+      traits: { late_bloomer: 10 },
+      step: 5,
+    });
+
+    const bad = structuredClone(ok);
+    editYaml(bad, 'acts/indian_wells.yaml', (y) => {
+      y.growth.traits = { nope: 3 };
+      y.growth.unlocks.push({ key: 'night_care', need: [{ skill: 'upkeep', gte: 75, who: 'wizard' }] });
+      y.growth.unlocks.push({ key: 'no_text', need: [{ skill: 'teach', gte: 60 }] });
+    });
+    editYaml(bad, 'posts/o1_lesson.yaml', (y) => {
+      y.worker = { upkeep: 130 };
+    });
+    editYaml(bad, 'posts/o1_upkeep.yaml', (y) => {
+      y.when.all.push({ unlocked: 'nothing' }, { skilled: 'upkeep', gte: 10, who: 'ghost' });
+      y.effects[0].add = 'unlocked.nothing';
+    });
+    editYaml(bad, 'people/indian_wells.yaml', (y) => {
+      y.find((p: { id: string }) => p.id === 'dale').potential = { teach: 10 };
+    });
+    const b = compileContent(bad);
+    const m = msgs(b);
+    expect(m).toMatch(/growth.traits: unknown trait 'nope'/);
+    expect(m).toMatch(/duplicate unlock key/);
+    expect(m).toMatch(/who 'wizard' is neither/);
+    expect(m).toMatch(/missing text 'unlocks.no_text'/);
+    expect(m).toMatch(/o1_lesson.yaml: worker.upkeep/);
+    expect(m).toMatch(/no growth unlock 'nothing'/);
+    expect(m).toMatch(/who 'ghost' is neither/);
+    expect(m).toMatch(/unknown variable 'unlocked.nothing'/);
+    expect(msgs(b, 'warnings')).toMatch(/dale: potential.teach 10 is below the starting value 45/);
   });
 
   it('文件名必须和 id 一致', () => {

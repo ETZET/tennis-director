@@ -165,6 +165,14 @@ export const MIGRATIONS: Record<number, Migration> = {
     state.version = 9;
     return { ...save, version: 9, state };
   },
+  // 9 → 10（W3 员工成长，LG-12）：没有开过的解锁。能力本来就可以是小数（总监每圈 +0.3），格式不变；
+  // 潜力不进存档（按内容现算），成长开关在内容里（growth.enabled，默认关）
+  9: (save) => {
+    const state = { ...(save.state as Record<string, unknown>) };
+    state.unlocks ??= {};
+    state.version = 10;
+    return { ...save, version: 10, state };
+  },
 };
 
 export class SaveError extends Error {}

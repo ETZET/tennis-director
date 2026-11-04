@@ -11,6 +11,10 @@ export const duration = z.string().regex(/^\d+(\.\d+)?[mhd]$/, 'durations look l
 /** 数或表达式字符串（表达式在编译时检查） */
 const amount = z.union([z.number(), z.string()]);
 
+/** 员工的能力：教学、维护、服务，加上球员的球技 */
+export const SKILLS = ['teach', 'upkeep', 'service', 'play'] as const;
+export type SkillKind = (typeof SKILLS)[number];
+
 /* ---------------- 条件 ---------------- */
 
 export type Cond =
@@ -24,6 +28,8 @@ export type Cond =
   | { upgrade: string; has: string }
   | { route: string; is: string }
   | { prep: string; done?: boolean }
+  | { skilled: SkillKind; gte: number; who?: string }
+  | { unlocked: string }
   | { assigned: string; at?: string }
   | { day: { gte?: number; lte?: number } }
   | { hour: { gte?: number; lte?: number } }
@@ -58,6 +64,13 @@ export const cond: z.ZodType<Cond> = z.lazy(() =>
     z.strictObject({ route: id, is: id }),
     /** 一组分期筹备工单（order 的 prep）是不是都做完了；done: false = 还没都做完 */
     z.strictObject({ prep: id, done: z.boolean().optional() }),
+    /**
+     * 员工成长（W3）：在职、能指派的人里（含总监）有没有一个这项能力（底子，不算特质）≥ gte 的；
+     * who 写了就只看作用（kind）或特质是它的人，例如 { skilled: upkeep, gte: 75, who: crew }
+     */
+    z.strictObject({ skilled: z.enum(SKILLS), gte: z.number().min(0).max(100), who: id.optional() }),
+    /** 成长解锁（W3）：act 的 growth.unlocks 里这一项开出来了没有 */
+    z.strictObject({ unlocked: id }),
     /** 这个人正在干活（站在岗位或工单上）；带 at 时还要求在那个地点 */
     z.strictObject({ assigned: id, at: id.optional() }),
     z.strictObject({ day: z.strictObject({ gte: z.number().optional(), lte: z.number().optional() }) }),
@@ -262,6 +275,14 @@ export type Facility = z.infer<typeof facility>;
 export const PERSON_KINDS = ['coach', 'crew', 'special', 'player'] as const;
 export type PersonKind = (typeof PERSON_KINDS)[number];
 
+/** 每项能力一个数（0..100），都可以不写 */
+const skillCaps = z.strictObject({
+  teach: z.number().min(0).max(100).optional(),
+  upkeep: z.number().min(0).max(100).optional(),
+  service: z.number().min(0).max(100).optional(),
+  play: z.number().min(0).max(100).optional(),
+});
+
 export const person = z.strictObject({
   id,
   name: z.string(),
@@ -284,6 +305,11 @@ export const person = z.strictObject({
   /** 旧写法：应聘者招进来以后当什么（coach 会接任主教练）。新人物用 kind: coach */
   hire_as: z.enum(['coach', 'staff']).optional(),
   traits: z.array(id).default([]),
+  /**
+   * 潜力（W3 员工成长）：每项能力干活能涨到多少。不写的项 = 起始值 + growth.headroom（默认 15），
+   * 带 growth.traits 里的特质再加（"大器晚成" late_bloomer 默认 +10，即起始值 +25）；都截在 100。总监不看潜力（director_skill_cap）。
+   */
+  potential: skillCaps.optional(),
 });
 export type Person = z.infer<typeof person>;
 
@@ -326,10 +352,6 @@ export type DirectorConfig = z.infer<typeof director>;
 
 /* ---------------- 岗位和工单（ADR 0012）：玩家把人拖上去 ---------------- */
 
-/** 员工的能力：教学、维护、服务，加上球员的球技 */
-export const SKILLS = ['teach', 'upkeep', 'service', 'play'] as const;
-export type SkillKind = (typeof SKILLS)[number];
-
 /**
  * 持续岗位：地点上的一个"位子"。有人坐着、在它的时段里、条件满足时，一圈一圈地转，每转完一圈结算一次 effects。
  * 有 hours 的岗位是"需求"：时段里每分钟都计入本周服务率（有人在岗才算服务到）。
@@ -356,6 +378,8 @@ export const post = z.strictObject({
   restore: z.number().min(0).default(0),
   /** 只收这些人：作用（kind）或特质 id，命中一个就行；不写谁都能干 */
   only: z.array(id).min(1).optional(),
+  /** 能力门槛（W3，和工单的 worker 一样）：只有这项能力（底子，不算特质）≥ N 的人能坐，例如 { teach: 60 }。canAssign 给 'skill' */
+  worker: skillCaps.optional(),
   performance: id.optional(),
 });
 export type Post = z.infer<typeof post>;
@@ -487,6 +511,48 @@ export const tournament = z.strictObject({
 });
 export type Tournament = z.infer<typeof tournament>;
 
+/* ---------------- 员工成长（W3，LG-12） ---------------- */
+
+/** 成长解锁的一条要求：一个在职的人（who 写了就只看这个作用或特质的人）这项能力的底子 ≥ gte */
+export const growthNeed = z.strictObject({
+  skill: z.enum(SKILLS),
+  gte: z.number().min(0).max(100),
+  who: id.optional(),
+});
+
+/**
+ * 成长解锁：need 的每一条由不同的人满足（"教练 + 体能师都 ≥ 60"写两条），when 也满足时开出来——
+ * 一局只开一次，发 unlock {person, key}，写一条因果日志，执行 effects（person: worker = 开出它的那个人）。
+ * 内容用条件 { unlocked: key }、变量 unlocked.<key> 去开工单、岗位、变体。文案 unlocks.<key>。
+ */
+export const growthUnlock = z.strictObject({
+  key: id,
+  need: z.array(growthNeed).min(1),
+  when: cond.optional(),
+  effects: z.array(effect).default([]),
+});
+export type GrowthUnlock = z.infer<typeof growthUnlock>;
+
+export const growth = z.strictObject({
+  /** 总开关；关着时能力不涨（总监照旧）、不发 skill_up、不开解锁 */
+  enabled: z.boolean().default(false),
+  /** 每干完一圈岗位或一张工单，那项能力涨多少（不超过潜力） */
+  rate: z.number().min(0).default(0.2),
+  /** 默认潜力 = 起始值 + headroom */
+  headroom: z.number().min(0).default(15),
+  /** 带这些特质的人潜力再加多少（默认大器晚成 +10） */
+  traits: z.record(id, z.number()).default({ late_bloomer: 10 }),
+  /**
+   * 哪些能力按干活涨。默认不含球技：球员的球技靠训练岗位的效果涨（person: worker add play），
+   * 打开成长后那份涨幅也截在潜力上，不再另加 rate（不重复算）
+   */
+  skills: z.array(z.enum(SKILLS)).default(['teach', 'upkeep', 'service']),
+  /** 跨过 step 的整数倍、或者某条解锁的 gte 时发 skill_up */
+  step: z.number().positive().default(5),
+  unlocks: z.array(growthUnlock).default([]),
+});
+export type Growth = z.infer<typeof growth>;
+
 /* ---------------- 幕 ---------------- */
 
 export const act = z.strictObject({
@@ -571,6 +637,8 @@ export const act = z.strictObject({
   routes: z.record(id, z.array(id).min(2)).optional(),
   /** 赛事日历（LG-11） */
   tournaments: z.array(tournament).optional(),
+  /** 员工成长（W3，LG-12）：不写 = 关（和以前一样） */
+  growth: growth.optional(),
   /** 每天固定开的活动（例如下午的青少年课） */
   daily: z.array(z.strictObject({ hour: z.number(), activity: id, if: cond.optional() })).default([]),
   /** 季节：从第几天开始（第一个从第 1 天开始）；decay 是这一季设施衰减的倍数（初秋落叶多） */

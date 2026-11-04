@@ -247,3 +247,65 @@ default: { then: A }
 - 报名赛事：报名工单的价值 = 奖励 + 附加目标（按六成把握）+ 每座奖杯 25 分，第二次起打折；外出赛事开赛前不去；`min_crew` 凑不齐（在职的合格的人不够）就不去。
 - 临时岗位按有需求的岗位算，多值五成。
 - 选路卡：greedy / cautious 选 A（打平取第一个），普通玩家（novice / average / good）按自己的种子随机挑。
+
+---
+
+## W3 最终 schema（模拟一路已实现：LG-12 员工成长和潜力；以这一节为准）
+
+**默认关着**：地图不写 `growth` 或 `enabled: false` 时和以前完全一样（员工能力不涨、不截、不发事件，总监照旧）。Wave 3 内容一路打开它。
+存档版本 **10**（9 → 10 有迁移：补 `unlocks: {}`）。潜力不进存档，按内容现算。士气影响速度（人-9）没做。
+
+### 内容：地图的 `growth`（`acts/<地图>.yaml`）
+
+```yaml
+growth:
+  enabled: true
+  rate: 0.2                 # 每干完一圈岗位 / 一张工单，那项能力 +0.2（不超过潜力）。默认 0.2
+  headroom: 15              # 默认潜力 = 起始值 + 15（截在 100）
+  traits: { late_bloomer: 10 }   # 带这些特质的潜力再加（默认大器晚成 +10 → 起始值 +25）
+  skills: [teach, upkeep, service]   # 哪些能力按干活涨（默认不含 play，见下）
+  step: 5                   # 跨过 5 的整数倍、或某条解锁的 gte 时发 skill_up
+  unlocks:
+    - key: night_clay_care            # 文案 unlocks.<key>（必填，两种语言）
+      need: [{ skill: upkeep, gte: 75, who: crew }]   # who：作用或特质，可不写（任何在职的人，含总监）
+      when: { facility: outer_23, is: restored }      # 可选
+      effects: [{ flag: night_care, set: true }]      # 可选；person: worker = 开出它的人
+    - key: member_referrals
+      need: [{ skill: service, gte: 70 }]
+      effects: [{ stat: member_cap_bonus, add: 10 }]  # 举例：内容自己决定落在哪
+    - key: weekend_camp               # 组合：每条 need 由不同的人满足
+      need: [{ skill: teach, gte: 60, who: coach }, { skill: teach, gte: 60, who: trainer }]
+```
+
+- 总监不走 `rate`：照旧 `rules.director_growth`（0.3）/ `director_skill_cap`（80），不重复算；成长打开时总监也发 `skill_up`、也能满足 need。
+- 球技：球员靠训练岗位效果（`person: worker, add: { play }`）涨，不另加 `rate`；成长打开时这份涨幅截在潜力上（已经高于潜力的不往下拉）。想让球技也按 rate 涨就把 `play` 写进 `skills`（那就会和训练效果叠加）。
+- 解锁一局只开一次，不往回收；在能力涨了的那一刻和每天收盘时检查（招来的人、卡加的能力在收盘时补上）。
+
+### 内容：人物 `potential`、岗位 `worker`
+
+```yaml
+- { id: gus_moreno, ..., upkeep: 70, potential: { upkeep: 90 } }   # 写了的项直接用；不写按 headroom/traits 算
+```
+
+岗位也可以写 `worker: { teach: 60 }`（和工单的一样：底子不算特质，不够时 `canAssign` 给 `'skill'`）。
+
+### 条件和变量
+
+| 写法 | 意思 |
+| --- | --- |
+| `{ unlocked: night_clay_care }` | 这条解锁开出来了 |
+| `{ skilled: upkeep, gte: 75, who: crew }` | 在职能指派的人（含总监）里有一个这项底子 ≥ 75 的（who 可不写） |
+| `unlocked.<key>` | 0 / 1 |
+| `best.teach` / `best.upkeep` / `best.service` / `best.play` | 在职能指派的人里这项底子最高的值 |
+
+例：夜间养护工单 `when: { unlocked: night_clay_care }` + `worker: { upkeep: 75 }`；周末训练营岗位 `when: { unlocked: weekend_camp }`。
+
+### 领域事件和日志
+
+- `skill_up { person, skill, value }`：value 是跨过的门槛（5 的整数倍或解锁的 gte）。只在成长打开时发。
+- `unlock { person, key }`：同时写一条因果日志 `{ kind: 'unlock', key, person, people }`（people 是满足各条 need 的人），效果记在这一条下。
+- 模拟导出 `potentialOf(w, person, skill)`、`growthOf(w)`、`bestSkill`、`anySkilled`（招聘卡的"潜力"一行用 `potentialOf`）。
+
+### 显示
+
+能力在状态里是小数（存两位小数；总监以前就是 +0.3 的小数），门槛按原值比。界面显示时自己取整（员工条的条宽已经 `Math.round`），不改状态语义。

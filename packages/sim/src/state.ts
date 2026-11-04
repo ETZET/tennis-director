@@ -6,14 +6,14 @@ import type { OptionKey } from '@td/content';
  */
 
 /** 存档格式版本；改了格式就加一个迁移函数（见 save.ts） */
-export const SAVE_VERSION = 9;
+export const SAVE_VERSION = 10;
 
 export interface PersonState {
   id: string;
   hired: boolean;
   /** 站在哪个锚点；走在路上时是走之前的锚点（walk 不为 null） */
   at: string;
-  /** 教学能力 */
+  /** 教学能力（W3 成长打开后会是小数：存两位小数，界面自己取整） */
   skill: number;
   /** 维护能力 */
   upkeep: number;
@@ -129,6 +129,8 @@ export type Cause =
       repeat: number;
       scale: number;
     }
+  /** 成长解锁（W3，LG-12）：开出了什么、记在谁名下、need 各条是谁满足的 */
+  | { kind: 'unlock'; key: string; person: string; people: string[] }
   | { kind: 'debug'; what: string };
 
 /** 一周的钱（每天收盘按天折算记进现金，周日收盘合成一条讲给玩家） */
@@ -300,6 +302,8 @@ export interface GameState {
   events: Record<string, EventRun>;
   /** 赛事 id → 办过几次 */
   tournaments: Record<string, TournamentLog>;
+  /** 成长解锁（W3，LG-12）：键 → 记在谁名下、什么时候开的。一局一次，不往回收 */
+  unlocks: Record<string, { person: string; t: number }>;
   /** 本周的账（周日收盘结算、写成一条因果日志，然后清零） */
   week: WeekState;
   /**

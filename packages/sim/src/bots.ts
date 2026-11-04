@@ -268,7 +268,7 @@ function staffCommands(s: GameState, w: World, st: StaffStyle): Command[] {
     for (const o of options) {
       const def = w.posts.get(o.target) ?? w.orders.get(o.target);
       if (def && !eligible(w, id, def)) continue;
-      if (def && 'work' in def && !meetsWorker(s, id, def)) continue;
+      if (def && !meetsWorker(s, id, def)) continue;
       const fit = 0.4 + skillOf(pp, o.skill) / 80;
       const walk = walkEta(s, w, id, o.at) ?? 60;
       let score = o.value * fit - walk / 30;

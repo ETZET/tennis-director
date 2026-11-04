@@ -405,7 +405,7 @@ describe('存档和机器人（W2）', () => {
     for (const k of ['routes', 'events', 'tournaments']) delete old.state[k];
     const { save } = fromSave(old);
     expect(save.version).toBe(SAVE_VERSION);
-    expect(SAVE_VERSION).toBe(9);
+    expect(SAVE_VERSION).toBeGreaterThanOrEqual(9);
     expect(save.state).toMatchObject({ routes: {}, events: {}, tournaments: {} });
     expect(save.state.people.director?.back).toBeNull();
     advance(save.state, CONTENT, [], 60);
