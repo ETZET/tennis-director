@@ -1,0 +1,18 @@
+# 结局卡（W4，结局方案 A）：表演赛提前办成、升到 ★5 时来。投资方在看台上等你一句话：
+# 现在就交账（马上结算，每提前一天 +50 分），还是接着经营到第 112 天（没有提前奖励；剩下的几周会员、奖杯、成长解锁、
+# 现金还在涨，掉档和破产的风险也还在）。倒计时到了按"接着经营"（不替玩家交卷）。
+id: iw_ending
+act: indian_wells
+source: milestone
+tone: neutral
+pause: true
+countdown: 1d
+location: stadium_1
+who: investors
+options:
+  A:
+    effects:
+      - { settle: true }
+  B:
+    effects: []
+default: { then: B }

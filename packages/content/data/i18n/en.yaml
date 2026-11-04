@@ -42,6 +42,29 @@ endings:
   bankrupt:
     title: Out of money
     body: The garden can't make payroll and the investors stop the restoration. The gates are locked again.
+  score:
+    title: Season one is scored
+    body: The investors close their notebooks. Stars, trophies, members, reputation, the people you brought on, the exhibition and the money in the bank all go on one sheet.
+
+# Final score (W4, scored ending): item names, grade names, season-two goal (placeholder)
+ending:
+  items:
+    stars: Stars
+    trophies: Trophies
+    members: Members
+    reputation: Reputation
+    unlocks: Staff breakthroughs
+    exhibition: Exhibition
+    early: Days early
+    cash: Cash above $3000
+  grades:
+    S: Desert legend
+    A: Valley favourite
+    B: Back on its feet
+    C: Still breathing
+    D: Gates barely open
+  goals:
+    official_tournament: Host an official tournament
 
 events:
   iw_pickle_noise:
@@ -210,6 +233,12 @@ events:
     options:
       A: "Event plaza: a viewing slope for big matches (now: exhibition +5%)"
       B: "Academy isle: a bridge to the island academy (now: academy lessons +$2, junior semifinal +10%)"
+  iw_ending:
+    title: The stands are still full. Hand in the books?
+    body: 'The exhibition is over and the investors are waiting in the front row. "We can score the season today, and finishing early counts in your favour. Or keep running until day 112: more members, more trophies, more time for your people to grow. But the wind season does not wait for anyone."'
+    options:
+      A: "Settle now: score the season today, with a bonus for every day early"
+      B: "Keep running to day 112: no early bonus, but the club keeps growing (and so do the risks)"
 log:
   night_care: The clay is well cared for; it wears 30% slower this week
   dale_swept: Dale left his post for three hours and fixed up the worst place

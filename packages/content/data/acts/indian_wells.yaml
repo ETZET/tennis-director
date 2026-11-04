@@ -260,6 +260,40 @@ tournaments:
 calendar:
   - { day: 85, hour: 10, card: iw_investor_check }
   - { day: 112, hour: 18, card: iw_deadline }
+# 结局方案 A（W4，LG-13，设计文档"结局"）：第 112 天 18 点结算打分，不判输（破产照旧结束、不结算）。
+# 表演赛提前办成时来结局卡 iw_ending：马上结算（每提前一天 +50）还是接着经营到第 112 天。
+# 期限卡 iw_deadline 留在日历上，打分模式下它打不开（那一分钟先结算了），关掉 ending 时照旧判输。
+# 分项（schema 见 wave2-5-contract.md"W4 最终 schema"）：分 = floor(of × per)，文案 ending.items.<项>。
+# 现金只算 $3000 以上的部分（开局就有 $3000），囤钱赢不了；成长解锁每把钥匙 200，带人也看得见。
+# 档的门槛由机器人校准（200 局，docs/balance/indian-wells.md"打分"）：S 线放在 good 的中位（约 12840）附近；
+# good / average / novice 中位 12841 / 12863 / 12574，cautious（到 ★4 没办表演赛，"差一点"的局）7886 落在 C，random 3129、idle 30 是 D。
+# 三档普通玩家机器人到第 92–100 天都把能拿的分拿满（会员、声望顶到上限），分开它们的主要是提前的天数。
+ending:
+  mode: score
+  day: 112
+  hour: 18
+  exhibition: { flag: exhibition_done }
+  card: iw_ending
+  score:
+    stars: { of: stars, per: 1000 }
+    trophies: { of: trophies, per: 300 }
+    members: { of: stat.members, per: 10 }
+    reputation: { of: stat.reputation, per: 10 }
+    unlocks:
+      of: "unlocked.junior_coach + unlocked.night_clay_care + unlocked.member_referrals + unlocked.open_division + unlocked.weekend_camp"
+      per: 200
+    exhibition: { of: ending.exhibition, per: 2000 }
+    early: { of: "ending.exhibition * ending.days_early", per: 50 }
+    cash: { of: "max(0, stat.cash - 3000)", per: 0.1 }
+  grades:
+    - { grade: S, gte: 12800 }
+    - { grade: A, gte: 12200 }
+    - { grade: B, gte: 10500 }
+    - { grade: C, gte: 6000 }
+    - { grade: D, gte: 0 }
+  season2:
+    goal: official_tournament
+    start_cards: []
 director_config: steady
 rules:
   # 质量每 10 分钟向目标靠近。目标拆成几项（文案在 ui.terms.*），周结算讲得出质量为什么涨、为什么掉（GM-1）：

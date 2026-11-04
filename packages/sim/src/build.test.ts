@@ -350,6 +350,8 @@ describe('星级和奖杯（LG-10）', () => {
     // 只看办成的那一支：判定必过、一个人就够
     const c = structuredClone(CONTENT) as ContentBundle;
     c.version = `${CONTENT.version}-ex`;
+    // 旧行为（地图不写 ending）：表演赛办成就结束这一局。结局方案 A 下的行为见 ending.test.ts
+    delete (c.acts.find((x) => x.id === 'indian_wells') as { ending?: unknown }).ending;
     const o = c.orders.find((x) => x.id === ex.id) as Order;
     o.check = { chance: '1' };
     o.work = '10m';

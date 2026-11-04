@@ -1,5 +1,5 @@
 {
- "version": "570cbaa6",
+ "version": "b31fa2c1",
  "stats": [
   {
    "id": "cash",
@@ -3800,6 +3800,11 @@
      },
      {
       "expr": "stars >= 4"
+     },
+     {
+      "not": {
+       "flag": "exhibition_done"
+      }
      }
     ]
    },
@@ -5247,6 +5252,75 @@
       "effects": []
      }
     ]
+   },
+   "ending": {
+    "mode": "score",
+    "day": 112,
+    "hour": 18,
+    "exhibition": {
+     "flag": "exhibition_done"
+    },
+    "card": "iw_ending",
+    "score": {
+     "stars": {
+      "of": "stars",
+      "per": 1000
+     },
+     "trophies": {
+      "of": "trophies",
+      "per": 300
+     },
+     "members": {
+      "of": "stat.members",
+      "per": 10
+     },
+     "reputation": {
+      "of": "stat.reputation",
+      "per": 10
+     },
+     "unlocks": {
+      "of": "unlocked.junior_coach + unlocked.night_clay_care + unlocked.member_referrals + unlocked.open_division + unlocked.weekend_camp",
+      "per": 200
+     },
+     "exhibition": {
+      "of": "ending.exhibition",
+      "per": 2000
+     },
+     "early": {
+      "of": "ending.exhibition * ending.days_early",
+      "per": 50
+     },
+     "cash": {
+      "of": "max(0, stat.cash - 3000)",
+      "per": 0.1
+     }
+    },
+    "grades": [
+     {
+      "grade": "S",
+      "gte": 12800
+     },
+     {
+      "grade": "A",
+      "gte": 12200
+     },
+     {
+      "grade": "B",
+      "gte": 10500
+     },
+     {
+      "grade": "C",
+      "gte": 6000
+     },
+     {
+      "grade": "D",
+      "gte": 0
+     }
+    ],
+    "season2": {
+     "goal": "official_tournament",
+     "start_cards": []
+    }
    },
    "daily": [],
    "seasons": [
@@ -7016,6 +7090,37 @@
    }
   },
   {
+   "id": "iw_ending",
+   "act": "indian_wells",
+   "source": "milestone",
+   "tone": "neutral",
+   "weight": 1,
+   "countdown": "1d",
+   "pause": true,
+   "location": "stadium_1",
+   "who": "investors",
+   "options": {
+    "A": {
+     "effects": [
+      {
+       "settle": true
+      }
+     ],
+     "onSuccess": [],
+     "onFail": []
+    },
+    "B": {
+     "effects": [],
+     "onSuccess": [],
+     "onFail": []
+    }
+   },
+   "default": {
+    "then": "B",
+    "extra": []
+   }
+  },
+  {
    "id": "iw_first_players",
    "act": "indian_wells",
    "source": "threshold",
@@ -8672,6 +8777,22 @@
    "endings.deadline.body": "The investors' sixteen weeks are over and the exhibition never happened. The restoration stops and the gates are locked again.",
    "endings.bankrupt.title": "Out of money",
    "endings.bankrupt.body": "The garden can't make payroll and the investors stop the restoration. The gates are locked again.",
+   "endings.score.title": "Season one is scored",
+   "endings.score.body": "The investors close their notebooks. Stars, trophies, members, reputation, the people you brought on, the exhibition and the money in the bank all go on one sheet.",
+   "ending.items.stars": "Stars",
+   "ending.items.trophies": "Trophies",
+   "ending.items.members": "Members",
+   "ending.items.reputation": "Reputation",
+   "ending.items.unlocks": "Staff breakthroughs",
+   "ending.items.exhibition": "Exhibition",
+   "ending.items.early": "Days early",
+   "ending.items.cash": "Cash above $3000",
+   "ending.grades.S": "Desert legend",
+   "ending.grades.A": "Valley favourite",
+   "ending.grades.B": "Back on its feet",
+   "ending.grades.C": "Still breathing",
+   "ending.grades.D": "Gates barely open",
+   "ending.goals.official_tournament": "Host an official tournament",
    "events.iw_pickle_noise.title": "Too loud, one court short",
    "events.iw_pickle_noise.body": "Three members who have played here for twenty years are waiting by the pickleball courts. \"Pop, pop, pop, all weekend. And we lost a tennis court for it.\" More of them are talking about La Quinta.",
    "events.iw_pickle_noise.options.A": "Acoustic panels and quiet paddles ($450)",
@@ -8785,6 +8906,10 @@
    "events.iw_route_s4.body": "A resort club needs room. Turn the south car park into a viewing slope and grow new land in the southeast, or bridge over to the little sky island with the two old net posts? If you don't choose by tomorrow, Dale picks the plaza.",
    "events.iw_route_s4.options.A": "Event plaza: a viewing slope for big matches (now: exhibition +5%)",
    "events.iw_route_s4.options.B": "Academy isle: a bridge to the island academy (now: academy lessons +$2, junior semifinal +10%)",
+   "events.iw_ending.title": "The stands are still full. Hand in the books?",
+   "events.iw_ending.body": "The exhibition is over and the investors are waiting in the front row. \"We can score the season today, and finishing early counts in your favour. Or keep running until day 112: more members, more trophies, more time for your people to grow. But the wind season does not wait for anyone.\"",
+   "events.iw_ending.options.A": "Settle now: score the season today, with a bonus for every day early",
+   "events.iw_ending.options.B": "Keep running to day 112: no early bonus, but the club keeps growing (and so do the risks)",
    "log.night_care": "The clay is well cared for; it wears 30% slower this week",
    "log.dale_swept": "Dale left his post for three hours and fixed up the worst place",
    "log.dale_sweep_declined": "You told Dale you'd send someone yourself",
@@ -9643,6 +9768,22 @@
    "endings.deadline.body": "投资方给的十六周到了，表演赛还没办成。修复停了，大门又锁上了。",
    "endings.bankrupt.title": "钱花光了",
    "endings.bankrupt.body": "俱乐部发不出工资，投资方叫停了修复。大门又锁上了。",
+   "endings.score.title": "第一季打分了",
+   "endings.score.body": "投资方合上了本子。星级、奖杯、会员、声望、你带出来的人、表演赛和账上的钱，都记在同一张单子上。",
+   "ending.items.stars": "星级",
+   "ending.items.trophies": "奖杯",
+   "ending.items.members": "会员",
+   "ending.items.reputation": "声望",
+   "ending.items.unlocks": "员工成长解锁",
+   "ending.items.exhibition": "表演赛",
+   "ending.items.early": "提前天数",
+   "ending.items.cash": "现金（$3000 以上的部分）",
+   "ending.grades.S": "沙漠传奇",
+   "ending.grades.A": "山谷名园",
+   "ending.grades.B": "重新站稳",
+   "ending.grades.C": "还喘着气",
+   "ending.grades.D": "门勉强开着",
+   "ending.goals.official_tournament": "办一场正式巡回赛",
    "events.iw_pickle_noise.title": "太吵了，还少了一片场",
    "events.iw_pickle_noise.body": "三位在这儿打了二十年网球的老会员在匹克球场边等你：\"啪、啪、啪，一整个周末。为了这个还拆了一片网球场。\"有几个人已经在说去 La Quinta 了。",
    "events.iw_pickle_noise.options.A": "装隔音板、换静音拍（$450）",
@@ -9756,6 +9897,10 @@
    "events.iw_route_s4.body": "度假名园要地方。把南停车场改成观赛坡、在东南角长出新地，还是搭一座桥，把东南天上那座带两根旧网柱的小岛接过来？明天还不定，Dale 就按赛事广场来。",
    "events.iw_route_s4.options.A": "赛事广场：大比赛的观赛坡（现在：表演赛成功率 +5%）",
    "events.iw_route_s4.options.B": "学院岛：搭桥接上岛上的学院（现在：学院课每圈 +$2，青少年赛进四强 +10%）",
+   "events.iw_ending.title": "看台还没散，现在交账吗？",
+   "events.iw_ending.body": "表演赛散场了，投资方还坐在第一排等你。\"今天就可以给这一季打分，提前交卷算你的。也可以接着干到第 112 天：会员、奖杯还会多，你的人也还能再长一截。可风季不等人。\"",
+   "events.iw_ending.options.A": "马上结算：今天就打分，每提前一天有奖励",
+   "events.iw_ending.options.B": "接着经营到第 112 天：没有提前奖励，会所还在长（风险也还在）",
    "log.night_care": "红土场养透了，这一周掉得慢三成",
    "log.dale_swept": "Dale 离岗三小时，把掉得最厉害的那一处收拾了一遍",
    "log.dale_sweep_declined": "你跟 Dale 说你自己派人",
