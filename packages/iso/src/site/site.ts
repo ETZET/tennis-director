@@ -69,6 +69,20 @@ export interface Site {
     upgrade?(facility: string, upgrade: string, on: boolean): void;
     /** 大门的牌匾：一行一处修好的设施（设施、带头人、第几天）；空表 = 没有牌匾 */
     plaque?(rows: readonly { facility: string; leader: string; day: number }[]): void;
+    /**
+     * 赛事日的布置（wave2-5-contract.md）：kind 是赛事 id（cup_monthly、invitational、regional_open、
+     * junior_regional、exhibition），挂在 anchor 这处地点上；null 撤掉这处的布置。只是演出四周的布景
+     * （彩旗、签到桌、看台上的观众、拱门、赞助牌、送行的小巴），比赛本身仍是活动动画库的演出。
+     * 一处地点同时只有一种赛事；不认识的赛事当 null。几处同时有赛事时共用的布置（大门拱门）只摆一份。
+     * 设、撤一次只重建布置那一层（同一轮里几次改动合成一次）；会动的（旗子、观众、飞艇）每帧画，不重建。
+     */
+    event?(anchor: string, kind: string | null): void;
+    /**
+     * 表演赛四期筹备（prep_stands 看台、prep_lights 夜场灯、prep_service 球童和服务、prep_media 赞助或转播）
+     * 在中心球场上的样子。done = true 画建好的样子（灯塔天黑就亮）；false 是挂出来了还没做：只钉几根测量桩
+     * （看台搭着脚手架）。从没调过的那一期什么也不画（★3 以前不调）。不认识的 phase 不理。
+     */
+    prep?(phase: string, done: boolean): void;
   };
   /** 天空和远景的动画（没有就什么也不做）；wind 0 无风 .. 1 大风（可选，默认 0.3） */
   createSky(w: IsoWorld): { update(dt: number, now: number, rain: number, wind?: number): void };

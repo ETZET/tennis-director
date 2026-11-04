@@ -22,6 +22,8 @@ import { clamp, mulberry32 } from '@td/shared';
  *   ?fac=stadium_1:cleared,plaza:open   （逐个设施指定）
  *   ?var=outer_23:hard,stadium_3:pickle4&up=outer_23:pro_hard   （修复变体、升级，wave1-contract.md）
  *   ?pv=stadium_3:tennis2   （修复预览幽灵）  ?plaque=5   （牌匾刻 5 行示例）  ?stars=3&starup=1   （星级牌，升星动画）
+ *   ?ev=outer_23:invitational,stadium_1:exhibition   （赛事日布置，wave2-5-contract.md）
+ *   ?prep=prep_stands,prep_lights:0   （表演赛筹备：写了就是做完，:0 是挂出来还没做）
  * 只读画面，不碰模拟。
  */
 
@@ -131,6 +133,38 @@ const PLAQUE_DEMO = [
   { facility: 'stadium_2', leader: 'LUCAS', day: 52 },
   { facility: 'stadium_1', leader: 'MARIA', day: 66 },
 ];
+/** 赛事日布置和表演赛筹备（W2；URL 里没写就不碰） */
+const W2 = {
+  events: new Map<string, string>(),
+  prep: new Map<string, boolean>(),
+};
+for (const pair of (q.get('ev') ?? '').split(',')) {
+  const [a, k] = pair.split(':');
+  if (a && k) W2.events.set(a, k);
+}
+for (const pair of (q.get('prep') ?? '').split(',')) {
+  const [ph, d] = pair.split(':');
+  if (ph) W2.prep.set(ph, d !== '0');
+}
+/** "赛事"按钮一下换一个示例（地点 → 赛事） */
+const EVENT_DEMOS: readonly (readonly [string, string][])[] = [
+  [],
+  [['outer_1', 'cup_monthly']],
+  [['outer_23', 'cup_monthly']],
+  [['outer_23', 'invitational']],
+  [['entrance', 'regional_open']],
+  [['entrance', 'junior_regional']],
+  [['stadium_1', 'exhibition']],
+];
+const EVENT_NAMES: Record<string, string> = {
+  cup_monthly: '月度杯',
+  invitational: '邀请赛',
+  regional_open: '地区赛（外出）',
+  junior_regional: '青少年赛（外出）',
+  exhibition: '表演赛',
+};
+/** "筹备"按钮：没挂 → 四期都挂出 → 一期期做完 */
+const PREP_PHASES = ['prep_stands', 'prep_lights', 'prep_service', 'prep_media'] as const;
 if (q.has('t')) ST.minute = clamp(num('t', ST.minute), 0, 1439);
 if (q.get('ui') === '0') document.body.classList.add('noui');
 
@@ -160,6 +194,8 @@ function applyW1(): void {
     overlays.variant?.(f, W1.variants[f] ?? null);
     for (const u of indianWells.UPGRADES[f] ?? []) overlays.upgrade?.(f, u.id, W1.upgrades[f]?.includes(u.id) ?? false);
   }
+  for (const [a, k] of [...W2.events]) overlays.event?.(a, k);
+  for (const [ph, d] of W2.prep) overlays.prep?.(ph, d);
   if (W1.plaque) overlays.plaque?.(Array.from({ length: W1.plaque }, (_, i) => PLAQUE_DEMO[i % PLAQUE_DEMO.length]!));
 }
 function applyStates(): void {
@@ -269,6 +305,54 @@ $('bFresh').addEventListener('click', () => {
   Object.assign(ST.states, RESTORED_STATES);
   applyStates();
 });
+/* 赛事、筹备：两个按钮塞进"更多"面板 */
+{
+  const row = document.createElement('div');
+  row.className = 'row';
+  const bEv = document.createElement('button');
+  bEv.type = 'button';
+  const bPrep = document.createElement('button');
+  bPrep.type = 'button';
+  row.append(bEv, bPrep);
+  $('bWalk').parentElement?.before(row);
+  const evIdx = () =>
+    EVENT_DEMOS.findIndex((d) => d.length === W2.events.size && d.every(([a, k]) => W2.events.get(a) === k));
+  const prepIdx = () => {
+    if (!W2.prep.size) return 0;
+    const done = PREP_PHASES.filter((p) => W2.prep.get(p)).length;
+    return PREP_PHASES.every((p) => W2.prep.has(p)) ? 1 + done : 0;
+  };
+  const paint = () => {
+    const ev = [...W2.events.values()].map((k) => EVENT_NAMES[k] ?? k).join('+');
+    bEv.textContent = `赛事：${ev || '无'}`;
+    const done = PREP_PHASES.filter((p) => W2.prep.get(p)).length;
+    bPrep.textContent = W2.prep.size ? `筹备：${done}/4 做完` : '筹备：没挂出';
+  };
+  bEv.addEventListener('click', () => {
+    for (const a of W2.events.keys()) overlays.event?.(a, null);
+    W2.events.clear();
+    for (const [a, k] of EVENT_DEMOS[(evIdx() + 1) % EVENT_DEMOS.length] ?? []) {
+      W2.events.set(a, k);
+      overlays.event?.(a, k);
+    }
+    overlays.flush?.();
+    paint();
+    syncUrl();
+  });
+  bPrep.addEventListener('click', () => {
+    // 0 没挂出、1 四期都挂出、2..5 做完 1..4 期；没有"撤掉筹备"的接口，转一圈回到"四期都挂出"
+    const next = prepIdx() + 1 > 5 ? 1 : prepIdx() + 1;
+    const done = next - 1;
+    PREP_PHASES.forEach((p, i) => {
+      W2.prep.set(p, i < done);
+      overlays.prep?.(p, i < done);
+    });
+    overlays.flush?.();
+    paint();
+    syncUrl();
+  });
+  paint();
+}
 const timeEl = $<HTMLInputElement>('time');
 const timeV = $('timeV');
 const hhmm = (m: number) =>
@@ -375,6 +459,8 @@ function syncUrl(): void {
     if (W1.preview) p.set('pv', W1.preview.join(':'));
     if (W1.plaque) p.set('plaque', String(W1.plaque));
     if (W1.stars >= 0) p.set('stars', String(W1.stars));
+    if (W2.events.size) p.set('ev', [...W2.events].map(([a, k]) => `${a}:${k}`).join(','));
+    if (W2.prep.size) p.set('prep', [...W2.prep].map(([ph, d]) => (d ? ph : `${ph}:0`)).join(','));
     const s = `?${p.toString().replace(/%3A/g, ':').replace(/%2C/g, ',')}`;
     history.replaceState(null, '', s);
     urlEl.textContent = s;
@@ -427,4 +513,4 @@ function frame(ts: number): void {
 }
 requestAnimationFrame(frame);
 // 调试：控制台里摸世界
-(window as unknown as { __viewer: unknown }).__viewer = { world, overlays, ST, W1, walkers, starSign, applyStates };
+(window as unknown as { __viewer: unknown }).__viewer = { world, overlays, ST, W1, W2, walkers, starSign, applyStates };
