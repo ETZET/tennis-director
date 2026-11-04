@@ -41,6 +41,7 @@ export {
   type AssignBlock,
   canAssign,
   crewOf,
+  dayDecay,
   eligible,
   meetsWorker,
   minCrew,

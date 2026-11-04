@@ -25,6 +25,7 @@ import {
   working,
 } from './staff';
 import { DIRECTOR, type GameState, minuteOfDay, weekdayOf } from './state';
+import { test as testCond } from './vars';
 import { walkEta } from './walk';
 import { type World, worldFor } from './world';
 
@@ -101,13 +102,18 @@ const WEIGHT: Record<string, number> = {
 };
 
 /** 给一个选项按看得见的效果打分（成功率按期望算）；总监被叫走的时间按每小时 2 分扣 */
-function scoreOption(w: World, c: Card, st: OptionStatus, expected: boolean): number {
+/** 带 if 的效果只算此刻会生效的（贷款卡 B 是按现金分档的定数，全加起来会被当成一大笔） */
+function live(s: GameState, w: World, effs: readonly Effect[]): Effect[] {
+  return effs.filter((e) => !e.if || testCond(s, w, e.if));
+}
+
+function scoreOption(s: GameState, w: World, c: Card, st: OptionStatus, expected: boolean): number {
   const opt = c.options[st.key];
   if (!opt) return Number.NEGATIVE_INFINITY;
   let score = -st.cost * (WEIGHT.cash ?? 0) - (st.errand ? (st.errand.minutes / 60) * 2 : 0);
   const p = st.chance ?? 1;
   const add = (effs: readonly Effect[], k: number) => {
-    for (const e of effs) {
+    for (const e of live(s, w, effs)) {
       const m = expected ? k * (typeof e.chance === 'number' ? e.chance : 1) : 1;
       if ('stat' in e && 'add' in e && typeof e.add === 'number') score += m * e.add * (WEIGHT[e.stat] ?? 0);
       if ('facility' in e) score += m * 12;
@@ -135,11 +141,11 @@ function scoreOption(w: World, c: Card, st: OptionStatus, expected: boolean): nu
 }
 
 /** 最坏情况有多糟：谨慎型用（只看坏的一面，判定按失败算） */
-function worstCase(c: Card, st: OptionStatus): number {
+function worstCase(s: GameState, w: World, c: Card, st: OptionStatus): number {
   const opt = c.options[st.key];
   if (!opt) return Number.NEGATIVE_INFINITY;
   let worst = -st.cost * (WEIGHT.cash ?? 0) - (st.errand ? 1 : 0);
-  const effs = [...opt.effects, ...(st.chance === null ? [] : opt.onFail)];
+  const effs = live(s, w, [...opt.effects, ...(st.chance === null ? [] : opt.onFail)]);
   for (const e of effs) {
     if ('stat' in e && 'add' in e && typeof e.add === 'number') worst += Math.min(0, e.add * (WEIGHT[e.stat] ?? 0));
     if ('endAct' in e && e.endAct === 'lost') worst -= 100;
@@ -309,7 +315,11 @@ function staffCommands(s: GameState, w: World, st: StaffStyle): Command[] {
   return cmds;
 }
 
-function pickerBot(name: string, score: (w: World, c: Card, st: OptionStatus) => number, style: StaffStyle): Bot {
+function pickerBot(
+  name: string,
+  score: (s: GameState, w: World, c: Card, st: OptionStatus) => number,
+  style: StaffStyle,
+): Bot {
   return {
     name,
     decide(s, content) {
@@ -321,7 +331,7 @@ function pickerBot(name: string, score: (w: World, c: Card, st: OptionStatus) =>
         let best: { key: OptionKey; score: number } | null = null;
         for (const st of optionStatus(s, w, o.uid)) {
           if (!st.available) continue;
-          const sc = score(w, c, st);
+          const sc = score(s, w, c, st);
           if (!best || sc > best.score) best = { key: st.key, score: sc };
         }
         if (best) cmds.push({ type: 'chooseOption', uid: o.uid, option: best.key });
@@ -335,7 +345,7 @@ function pickerBot(name: string, score: (w: World, c: Card, st: OptionStatus) =>
 
 /** 贪心型：卡按"立刻能看到的好处"选；排人时什么都愿意干，钱留得少。 */
 export function greedyBot(): Bot {
-  return pickerBot('greedy', (w, c, st) => scoreOption(w, c, st, false), {
+  return pickerBot('greedy', (s, w, c, st) => scoreOption(s, w, c, st, false), {
     reserve: 300,
     minChance: 0.3,
     demandValue: 6,
@@ -344,7 +354,7 @@ export function greedyBot(): Bot {
 
 /** 谨慎型：卡选最坏情况最不坏的；不赌判定，钱留得多，不爱招人。 */
 export function cautiousBot(): Bot {
-  return pickerBot('cautious', (_w, c, st) => worstCase(c, st), {
+  return pickerBot('cautious', (s, w, c, st) => worstCase(s, w, c, st), {
     reserve: 1200,
     minChance: 0.7,
     demandValue: 6,
@@ -437,7 +447,7 @@ export function humanBot(seed: number, profile: HumanProfile, name = 'human'): B
         // 选路卡（W2）：按自己的种子随便挑一条路（三档玩家各有偏好，不是看分数）
         if (isRouteCard(c)) pick = avail[Math.floor(r() * avail.length)] as OptionStatus;
         else if (r() < profile.slip) pick = avail[Math.floor(r() * avail.length)] as OptionStatus;
-        else for (const st of avail) if (scoreOption(w, c, st, false) > scoreOption(w, c, pick, false)) pick = st;
+        else for (const st of avail) if (scoreOption(s, w, c, st, false) > scoreOption(s, w, c, pick, false)) pick = st;
         cmds.push({ type: 'chooseOption', uid: o.uid, option: pick.key });
         pending = true;
       }

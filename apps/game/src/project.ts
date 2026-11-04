@@ -6,6 +6,7 @@ import {
   canAssign,
   currentEdition,
   DIRECTOR,
+  dayDecay,
   dayOf,
   type Effect,
   type EndingStatus,
@@ -121,22 +122,25 @@ export class Projector {
         const w = worldOf(s, this.content);
         const limit = w.act.rules.grade_drop_below;
         const saturday = e.day % 7 === 6;
+        // 明天一天会掉多少：跟模拟一样算（季节倍数、有人守减半），别拿原始 decay_day 估（W2 闸口）
+        const season = w.act.seasons.find((x) => x.id === s.season)?.decay ?? 1;
         for (const [f, c] of Object.entries(s.condition)) {
           const st = w.facilities.get(f)?.states[s.facilities[f] ?? ''];
           if (!st?.decay_day) {
             this.worn.delete(f);
             continue;
           }
+          const decay = dayDecay(s, w, f, season);
           const place = T.facility(f);
           const n = Math.round(c);
           if (c >= 40) this.worn.delete(f);
           else if (c < 30 && !this.worn.has(f)) {
             this.worn.add(f);
-            if (!(saturday && st.drops_to && c < limit + st.decay_day))
+            if (!(saturday && st.drops_to && c < limit + decay))
               this.push(s.t, T.fmt('ui.wire.worn', { place, n, limit }), true);
           }
           // 明天收盘就要掉：按一天的衰减估一下，够不着阈值的才提醒
-          if (saturday && st.drops_to && limit && c < limit + st.decay_day)
+          if (saturday && st.drops_to && limit && c < limit + decay)
             this.push(s.t, T.fmt('ui.wire.dropping', { place, n }), true);
         }
       } else if (e.type === 'cardOpened') this.push(s.t, T.cardTitle(e.card), false);
@@ -291,6 +295,20 @@ export class Projector {
           posts
             ? T.fmt('ui.wire.tour_live', { title: this.tourTitle(s, e.tournament), posts })
             : T.fmt('ui.wire.tour_live_none', { title: this.tourTitle(s, e.tournament) }),
+          true,
+        );
+      } else if (e.type === 'tournament_goal_missed') {
+        // 附加目标因为临时岗位没人守而没拿到：讲是哪几个岗位、空了多久（W2 闸口：目标悄悄失败）
+        const sep = T.lang === 'zh' ? '、' : ', ';
+        const posts = e.posts.map((p) => `${this.short(p.post)} ${T.duration(p.minutes)}`).join(sep);
+        this.push(
+          s.t,
+          T.fmt(posts ? 'ui.wire.goal_missed' : 'ui.wire.goal_missed_none', {
+            title: this.tourTitle(s, e.tournament),
+            goal: T.tr(`tournaments.${e.tournament}.goals.${e.goal}`, e.goal),
+            posts,
+            n: Math.round(e.staffed * 100),
+          }),
           true,
         );
       } else if (e.type === 'prep_done') {
