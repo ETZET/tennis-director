@@ -116,7 +116,11 @@ export function applyEffects(ctx: Ctx, effects: readonly Effect[], entryId: numb
       const p = s.people[e.hire];
       if (!p || p.hired) continue;
       // 招来的教练接任主教练；原来的主教练留下当员工（核心玩法决定：Dale 开局不开除）
-      if (isCoach(def)) s.headCoach = e.hire;
+      if (isCoach(def) && s.headCoach !== e.hire) {
+        const from = s.headCoach;
+        s.headCoach = e.hire;
+        ctx.events.push({ type: 'head_coach', person: e.hire, from, reason: 'hired' });
+      }
       // 新人从总监开局的地方（Indian Wells 是大门）进来，等你把他拖到岗位上
       p.at = w.act.people.find((x) => w.people.get(x.id)?.role === 'director')?.at ?? p.at;
       p.job = null;
@@ -136,6 +140,7 @@ export function applyEffects(ctx: Ctx, effects: readonly Effect[], entryId: numb
       if (s.headCoach === e.fire) {
         const next = Object.values(s.people).find((q) => q.hired && isCoach(w.people.get(q.id)));
         s.headCoach = next?.id ?? null;
+        ctx.events.push({ type: 'head_coach', person: s.headCoach, from: e.fire, reason: 'left' });
       }
       out.push({ kind: 'fire', person: e.fire });
     } else if ('person' in e) {

@@ -279,6 +279,7 @@ default: { then: A }
 growth:
   enabled: true
   rate: 0.2                 # 每干完一圈岗位 / 一张工单，那项能力 +0.2（不超过潜力）。默认 0.2
+  rates: { upkeep: 0.15, teach: 0.08 }   # 可选：分项涨幅，写了的能力用它、不写的用 rate（teach / upkeep / service / play）
   headroom: 15              # 默认潜力 = 起始值 + 15（截在 100）
   traits: { late_bloomer: 10 }   # 带这些特质的潜力再加（默认大器晚成 +10 → 起始值 +25）
   skills: [teach, upkeep, service]   # 哪些能力按干活涨（默认不含 play，见下）
@@ -321,8 +322,10 @@ growth:
 ### 领域事件和日志
 
 - `skill_up { person, skill, value }`：value 是跨过的门槛（5 的整数倍或解锁的 gte）。只在成长打开时发。
+- `head_coach { person, from, reason }`：主教练换人。`reason: 'hired'` = 招来的教练接任（from 是原来的主教练，可为 null）；`'left'` = 主教练走了，由还在的教练接上（person 为 null = 空缺）。成长关着也发。
 - `unlock { person, key }`：同时写一条因果日志 `{ kind: 'unlock', key, person, people }`（people 是满足各条 need 的人），效果记在这一条下。
-- 模拟导出 `potentialOf(w, person, skill)`、`growthOf(w)`、`bestSkill`、`anySkilled`（招聘卡的"潜力"一行用 `potentialOf`）。
+- 模拟导出 `potentialOf(w, person, skill)`、`growthOf(w)`、`bestSkill`、`anySkilled`、`tagged`（招聘卡的"潜力"一行用 `potentialOf`）；`rateOf(growth, skill)`（growth.ts）是某项能力每圈的涨幅。
+- 潜力只截底子（不含特质）。派谁去里显示"底子/潜力 +特质此刻的加成"（"维护 78/78 +15"），不拿含特质的数和潜力比。
 
 ### 效果 `decay_mult`（W3 跟进：夜间养护）
 

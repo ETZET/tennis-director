@@ -960,6 +960,10 @@ export function compileContent(files: Record<string, string>): CompileResult {
     if (a.growth) {
       for (const t of Object.keys(a.growth.traits))
         if (!traits.has(t)) err(file, `growth.traits: unknown trait '${t}'`);
+      // 分项涨幅只对按干活涨的能力起作用：写了不在 skills 里的能力是笔误（不会生效）
+      for (const k of Object.keys(a.growth.rates ?? {}))
+        if (!a.growth.skills.includes(k as (typeof a.growth.skills)[number]))
+          err(file, `growth.rates.${k}: '${k}' is not in growth.skills, so this rate never applies`);
       const keys = new Set<string>();
       for (const [i, u] of a.growth.unlocks.entries()) {
         const w = `growth.unlocks[${i}] '${u.key}'`;

@@ -53,6 +53,9 @@ export function noteRecords(ctx: Ctx, recs: readonly EffectRecord[]): void {
   }
 }
 
+/** 这项能力每圈涨多少：growth.rates 里写了就用它，不写用 rate */
+export const rateOf = (g: Growth, k: SkillKind): number => g.rates?.[k] ?? g.rate;
+
 /**
  * 员工（不是总监）干完一圈岗位或一张工单：那项能力 +rate，不超过潜力。成长关着、这项能力不按干活涨时不动。
  */
@@ -64,7 +67,7 @@ export function growStaff(ctx: Ctx, id: string, k: SkillKind): void {
   const cap = potentialOf(ctx.w, id, k);
   const before = p[ACCESS[k]];
   if (before >= cap) return;
-  p[ACCESS[k]] = round2(Math.min(cap, before + g.rate));
+  p[ACCESS[k]] = round2(Math.min(cap, before + rateOf(g, k)));
   noteSkill(ctx, id, k, before);
 }
 

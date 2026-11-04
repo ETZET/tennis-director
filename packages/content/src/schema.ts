@@ -561,6 +561,15 @@ export const growth = z.strictObject({
   enabled: z.boolean().default(false),
   /** 每干完一圈岗位或一张工单，那项能力涨多少（不超过潜力） */
   rate: z.number().min(0).default(0.2),
+  /** 分项涨幅：写了的能力用它，不写的用 rate（例如 { upkeep: 0.3, teach: 0.15 }） */
+  rates: z
+    .strictObject({
+      teach: z.number().min(0).optional(),
+      upkeep: z.number().min(0).optional(),
+      service: z.number().min(0).optional(),
+      play: z.number().min(0).optional(),
+    })
+    .optional(),
   /** 默认潜力 = 起始值 + headroom */
   headroom: z.number().min(0).default(15),
   /** 带这些特质的人潜力再加多少（默认大器晚成 +10） */

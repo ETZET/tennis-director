@@ -1,5 +1,5 @@
 import { type Card, CONTENT, type ContentBundle, ending, growth, type Post } from '@td/content';
-import { advance, at, DIRECTOR, type GameState, newGame, type SimEvent } from '@td/sim';
+import { advance, at, DIRECTOR, type GameState, newGame, type SimEvent, worldFor } from '@td/sim';
 import { describe, expect, it } from 'vitest';
 import { Projector } from './project';
 import { Session } from './session';
@@ -95,13 +95,20 @@ describe('W3 staff growth in the UI', () => {
     const answers = p.snapshot(session).card?.answers ?? [];
     const withP = answers.filter((a) => a.potential);
     expect(withP.length).toBe(2);
-    for (const a of withP) expect(a.potential).toMatch(/^Potential: \w+ \d+ → \d+( · \w+ \d+ → \d+)?$/);
+    for (const a of withP)
+      expect(a.potential).toMatch(/^Potential: \w+ \d+ → \d+( · \w+ \d+ → \d+)?( · can reach \w+ \d+ → .+)*$/);
     // Gus 是维护好手：维护排在前面，起始值 +15
     const gus = c.people.find((x) => x.id === 'gus_moreno');
     if (gus) expect(answers.find((a) => a.text.includes('Gus'))?.potential).toContain(`Upkeep ${gus.upkeep} → `);
+    // 潜力够得着解锁的门槛（W3 门评审）：Gus 维护 70 → 80 跨过 75
+    expect(answers.find((a) => a.text.includes('Gus'))?.potential).toContain('can reach Upkeep 75 → Night clay care');
+    // 已经开出来的钥匙不再提
+    s.unlocks.night_clay_care = { person: 'dale', t: s.t };
+    const again = setup(c, s).p.snapshot(setup(c, s).session).card?.answers ?? [];
+    expect(again.find((a) => a.text.includes('Gus'))?.potential).not.toContain('can reach');
   });
 
-  it('staff bar: potential bars and a small ▲ once a skill rose past a whole number today', () => {
+  it('staff bar: potential bars and a small ▲ while a skill rose in the last few days', () => {
     const c = fixture({ growth: true });
     const s = quiet(c);
     hire(s, 'gus_moreno');
@@ -111,14 +118,74 @@ describe('W3 staff growth in the UI', () => {
     expect(first?.rose).toBeUndefined();
     const g = s.people.gus_moreno;
     if (!g) throw new Error('no gus');
-    g.upkeep += 1.2;
+    // 一圈 +0.1 也算（W3 门评审：以前要跨过一个整数才亮）
+    g.upkeep += 0.1;
     expect(p.snapshot(session).staff?.find((t) => t.id === 'gus_moreno')?.rose).toBe(true);
-    // 第二天重新算
+    // 第二天还亮着（最近三天里涨过）
     s.t += 1440;
+    expect(p.snapshot(session).staff?.find((t) => t.id === 'gus_moreno')?.rose).toBe(true);
+    // 三天以后没再涨就灭了
+    s.t += 3 * 1440;
     expect(p.snapshot(session).staff?.find((t) => t.id === 'gus_moreno')?.rose).toBeUndefined();
     // 派谁去：能力后面带潜力
     const fit = p.sheet(session, 'o1_lesson')?.people.find((x) => x.id === 'gus_moreno')?.fit ?? '';
     expect(fit).toMatch(/Coaching \d+\/\d+/);
+  });
+
+  it('"who to send": base/potential, a trait bonus written apart (never "93/78")', () => {
+    const c = fixture({ growth: true });
+    const s = quiet(c);
+    hire(s, 'rosa_ortiz');
+    const r = s.people.rosa_ortiz;
+    if (!r) throw new Error('no rosa');
+    r.upkeep = 78;
+    s.weather = 'wind';
+    const { session, p } = setup(c, s);
+    const fit = p.sheet(session, 'o1_upkeep')?.people.find((x) => x.id === 'rosa_ortiz')?.fit ?? '';
+    expect(fit).toMatch(/^Upkeep 78\/78 \+15 · /);
+    for (const x of p.sheet(session, 'o1_upkeep')?.people ?? []) {
+      const m = /(\d+)\/(\d+)/.exec(x.fit);
+      if (m) expect(Number(m[1])).toBeLessThanOrEqual(Number(m[2]));
+    }
+  });
+
+  it('unlock effects are visible: members cap, higher division fee and prize, junior coach bonus', () => {
+    const c = fixture({ growth: true });
+    const s = quiet(c);
+    const { session, p } = setup(c, s);
+    const capRow = () => p.snapshot(session).details.find((x) => x.label === 'Members cap')?.value ?? '';
+    expect(capRow()).toMatch(/^\d+$/);
+    const before = Number(capRow());
+    s.unlocks.member_referrals = { person: 'dale', t: s.t };
+    expect(capRow()).toBe(`${before + 10} · +10 Member referrals`);
+
+    const chips = () => (p.sheet(session, 'regional_open')?.chips ?? []).map((x) => x.text);
+    expect(chips()).toContain('Prize $800');
+    expect(chips().some((x) => x.includes('Higher division'))).toBe(false);
+    s.unlocks.open_division = { person: 'dale', t: s.t };
+    expect(chips()).toContain('−$200 · Higher division ×2');
+    expect(chips()).toContain('Prize $1600 · Higher division ×2');
+
+    const junior = () => (p.sheet(session, 'junior_regional')?.chips ?? []).map((x) => x.text);
+    expect(junior().some((x) => x.startsWith('Junior coaching'))).toBe(false);
+    s.unlocks.junior_coach = { person: 'dale', t: s.t };
+    expect(junior()).toContain('Junior coaching: A junior reaches the semifinal +20 pts');
+  });
+
+  it('a growth-gated order says who has to get how good; gone for good once the variant rules it out', () => {
+    const c = fixture({ growth: true });
+    const s = quiet(c);
+    s.facilities.outer_23 = 'playable';
+    s.condition.outer_23 = 90;
+    const { session, p } = setup(c, s);
+    const row = () => p.placeSheet(session, 'outer_23').rows.find((x) => x.id === 'o23_night_care');
+    expect(row()?.line).toMatch(/^Opens after “Night clay care” · needs someone with Upkeep 75\+ \(best now \d+\)$/);
+    s.unlocks.night_clay_care = { person: 'dale', t: s.t };
+    s.variants.outer_23 = 'clay';
+    // 开出来了、红土开着：就是一张普通的工单（不再挂锁）
+    expect(row()?.locked).toBeFalsy();
+    s.variants.outer_23 = 'hard';
+    expect(row()).toBeUndefined();
   });
 
   it('wire: a threshold crossing is one line; with an unlock in the same batch it becomes one combined line', () => {
@@ -137,6 +204,29 @@ describe('W3 staff growth in the UI', () => {
     // 总监的成长已经由 directorGrew 讲
     p.onEvents(s, [{ type: 'skill_up', person: DIRECTOR, skill: 'teach', value: 45 } as SimEvent]);
     expect(p.snapshot(session).wire.length).toBe(2);
+  });
+
+  it('wire: head coach changes say who and why; a late sign-up says the club is not entered', () => {
+    const c = fixture({ growth: true });
+    const s = quiet(c);
+    const { session, p } = setup(c, s);
+    p.onEvents(s, [{ type: 'head_coach', person: 'walt_hendricks', from: 'dale', reason: 'hired' } as SimEvent]);
+    expect(p.snapshot(session).wire[0]?.text).toMatch(
+      /^Walt Hendricks is the new head coach \(just hired\) · Dale.* stays on as staff$/,
+    );
+    p.onEvents(s, [{ type: 'head_coach', person: null, from: 'walt_hendricks', reason: 'left' } as SimEvent]);
+    expect(p.snapshot(session).wire[0]?.text).toBe('Walt Hendricks left · the club has no head coach now');
+
+    const ed = worldFor(c, s.act).editions.get('cup_monthly')?.[0];
+    if (!ed) throw new Error('no cup edition');
+    s.t = ed.start - 60;
+    p.onEvents(s, [{ type: 'orderCancelled', order: 'cup_monthly' } as SimEvent]);
+    expect(p.snapshot(session).wire[0]?.text).not.toMatch(/Too late/);
+    s.t = ed.start;
+    p.onEvents(s, [{ type: 'orderCancelled', order: 'cup_monthly' } as SimEvent]);
+    expect(p.snapshot(session).wire[0]?.text).toMatch(
+      /^Too late for the Monthly club cup: .* not entered · the \$\d+ spent is lost$/,
+    );
   });
 
   it('a skill-gated post says which skill and how much (like orders)', () => {

@@ -4,7 +4,7 @@ import type { Ctx } from './effects';
 import { applyEffects } from './effects';
 import type { SimEvent } from './events';
 import { advance, type Command, newGame } from './game';
-import { checkUnlocks } from './growth';
+import { checkUnlocks, rateOf } from './growth';
 import { potentialOf } from './potential';
 import { fromSave, toSave } from './save';
 import { canAssign } from './staff';
@@ -142,6 +142,31 @@ describe('员工成长（W3）', () => {
     (s.people.dale as { upkeep: number }).upkeep = 54.9;
     advance(s, c, [assign('dale', 'o1_upkeep')], 600);
     expect(s.people.dale?.upkeep).toBe(55);
+  });
+
+  it('分项涨幅 rates：写了的能力用它，不写的用 rate', () => {
+    const c = fixture({ ...GROWTH, rates: { upkeep: 0.5 } });
+    const { s, events } = upkeepRun(c);
+    const live = events.filter((e) => e.type === 'postCycle' && e.post === 'o1_upkeep').length;
+    expect(live).toBeGreaterThan(5);
+    expect(s.people.dale?.upkeep).toBeCloseTo(Math.min(55, 40 + 0.5 * live), 5);
+    expect(rateOf({ ...GROWTH, rates: { upkeep: 0.5 } }, 'teach')).toBe(0.2);
+    expect(rateOf({ ...GROWTH, rates: { teach: 0 } }, 'teach')).toBe(0);
+  });
+
+  it('主教练换人发 head_coach：招来的教练接任（hired），主教练走了由还在的教练接上（left）', () => {
+    const c = fixture();
+    const s = quiet(newGame(c, { seed: 5 }));
+    const w = worldFor(c, s.act);
+    const coach = c.people.find((p) => p.kind === 'coach' && p.id !== s.headCoach);
+    if (!coach || !s.headCoach) throw new Error('need a head coach and another coach');
+    const first = s.headCoach;
+    const ctx: Ctx = { s, w, events: [] };
+    applyEffects(ctx, [{ hire: coach.id }], -1, []);
+    expect(ctx.events).toContainEqual({ type: 'head_coach', person: coach.id, from: first, reason: 'hired' });
+    ctx.events.length = 0;
+    applyEffects(ctx, [{ fire: coach.id }], -1, []);
+    expect(ctx.events).toContainEqual({ type: 'head_coach', person: first, from: coach.id, reason: 'left' });
   });
 
   it('总监不重复算：照旧每圈 +0.3（不另加 0.2）', () => {

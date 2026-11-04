@@ -8,6 +8,7 @@ import './staff.css';
  *
  * - 点一下：拿起来（再点岗位或工单就派过去；再点自己放下）。
  * - 按住拖：头像跟着手指走，松手的地方是岗位或工单就派过去（由游戏层按屏幕坐标找目标）。
+ * - 人多了一排放不下：左右滑滚动这一排，往上拖才拿人（名字不截断）。
  * 不依赖悬停和键盘；每个头像至少 48 px。
  */
 
@@ -15,7 +16,7 @@ const SKILL_KEYS = ['teach', 'upkeep', 'service'] as const;
 /** 球员多一条球技 */
 const PLAYER_KEYS = ['teach', 'upkeep', 'service', 'play'] as const;
 
-function Token({ t, actions }: { t: StaffToken; actions: HudActions }) {
+function Token({ t, actions, scroll }: { t: StaffToken; actions: HudActions; scroll: boolean }) {
   const start = useRef<{ x: number; y: number; id: number } | null>(null);
   const [drag, setDrag] = useState<{ x: number; y: number } | null>(null);
   const onDown = (e: PointerEvent) => {
@@ -26,7 +27,11 @@ function Token({ t, actions }: { t: StaffToken; actions: HudActions }) {
   const onMove = (e: PointerEvent) => {
     const s0 = start.current;
     if (!s0 || s0.id !== e.pointerId) return;
-    if (drag || Math.hypot(e.clientX - s0.x, e.clientY - s0.y) > 8) {
+    const dx = e.clientX - s0.x;
+    const dy = e.clientY - s0.y;
+    // 人多一排放不下时（scroll）：手指左右滑是滚动这一排（浏览器接管，随后 pointercancel），往上拖才拿人
+    if (!drag && scroll && e.pointerType !== 'mouse' && Math.abs(dx) > Math.abs(dy)) return;
+    if (drag || Math.hypot(dx, dy) > 8) {
       // 一开始拖就算拿起来：场景里能去的岗位和工单亮起来
       if (!drag && !t.picked) actions.pick?.(t.id);
       setDrag({ x: e.clientX, y: e.clientY });
@@ -111,7 +116,7 @@ export function StaffBar({
       ) : null}
       <ul class="td-staff-row" aria-label={STR.staff}>
         {staff.map((t) => (
-          <Token key={t.id} t={t} actions={actions} />
+          <Token key={t.id} t={t} actions={actions} scroll={staff.length >= 4} />
         ))}
       </ul>
     </div>

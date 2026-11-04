@@ -1,5 +1,5 @@
 {
- "version": "74428b2b",
+ "version": "570cbaa6",
  "stats": [
   {
    "id": "cash",
@@ -600,7 +600,8 @@
     "college"
    ],
    "potential": {
-    "teach": 74
+    "teach": 74,
+    "service": 40
    }
   },
   {
@@ -770,8 +771,8 @@
    "kind": "crew",
    "role": "candidate",
    "skill": 20,
-   "upkeep": 58,
-   "service": 45,
+   "upkeep": 64,
+   "service": 50,
    "play": 0,
    "morale": 70,
    "fatigue": 0,
@@ -837,7 +838,7 @@
    "play": 60,
    "morale": 75,
    "fatigue": 0,
-   "wage_week": 100,
+   "wage_week": 140,
    "traits": [
     "desert_born",
     "late_bloomer"
@@ -1641,6 +1642,21 @@
      },
      "stat": "cash",
      "add": 5
+    },
+    {
+     "if": {
+      "unlocked": "junior_coach"
+     },
+     "stat": "cash",
+     "add": 3
+    },
+    {
+     "if": {
+      "unlocked": "junior_coach"
+     },
+     "chance": 0.03,
+     "stat": "members",
+     "add": 1
     }
    ],
    "wear": 0.05,
@@ -3046,9 +3062,6 @@
      {
       "variant": "outer_23",
       "is": "clay"
-     },
-     {
-      "expr": "condition.outer_23 < 75"
      }
     ]
    },
@@ -5154,6 +5167,11 @@
    "growth": {
     "enabled": true,
     "rate": 0.1,
+    "rates": {
+     "teach": 0.12,
+     "upkeep": 0.05,
+     "service": 0.06
+    },
     "headroom": 15,
     "traits": {
      "late_bloomer": 10
@@ -5185,6 +5203,10 @@
         "who": "crew"
        }
       ],
+      "when": {
+       "variant": "outer_23",
+       "is": "clay"
+      },
       "effects": []
      },
      {
@@ -9183,11 +9205,11 @@
    "route_notes.s2.youth.costs": "Resort-side builds wait until ★3; fewer service and fitness staff apply",
    "route_notes.s2.resort.costs": "Academy-side builds wait until ★3; fewer coaches apply",
    "prep.exhibition": "Exhibition build-up",
-   "unlocks.junior_coach": "A coach good enough for the juniors: semifinal chances at the junior regional +20%",
-   "unlocks.night_clay_care": "Night care for the clay: a weekly work order on the clay courts",
-   "unlocks.member_referrals": "Member referrals: the front desk keeps 10 more members",
-   "unlocks.open_division": "A higher division at the regional open: double the entry fee, double the prize",
-   "unlocks.weekend_camp": "Weekend camp on the academy courts: a coach and a second teacher (coaching 60+) on weekend mornings",
+   "unlocks.junior_coach": "Junior coaching (better semifinal odds at the junior regional; academy lessons earn more and sign up more families)",
+   "unlocks.night_clay_care": "Night care for the clay (a weekly work order on the clay courts)",
+   "unlocks.member_referrals": "Member referrals (room for 10 more members)",
+   "unlocks.open_division": "The higher division at the regional open (double entry fee, double prize)",
+   "unlocks.weekend_camp": "Weekend camp at the academy (two people with coaching 60+, weekend mornings)",
    "ui.route.look": "Tap to see where it goes",
    "ui.route.confirm": "Tap again to decide",
    "ui.route.pick": "Tap to pick, tap again to decide",
@@ -9277,7 +9299,7 @@
    "ui.hud.trend.bottomed": "Bottomed out",
    "ui.hud.next": "Coming up",
    "ui.hud.done": "Done",
-   "ui.hud.rose": "Got better today",
+   "ui.hud.rose": "Got better recently",
    "ui.week": "Wk {n}",
    "ui.weather.sun": "Sunny",
    "ui.weather.cloud": "Cloudy",
@@ -9302,6 +9324,9 @@
    "ui.chip.closed": "Closed {time}",
    "ui.chip.min_crew": "Needs {n} on site",
    "ui.chip.trophy": "Trophy +{n}",
+   "ui.chip.prize": "Prize ${n}",
+   "ui.chip.unlock_extra": "{what} · {tag}",
+   "ui.chip.unlock_bonus": "{tag}: {goal} +{n} pts",
    "ui.attr.skill": "coaching",
    "ui.attr.upkeep": "upkeep",
    "ui.attr.service": "service",
@@ -9334,6 +9359,8 @@
    "ui.details.courts": "Courts open",
    "ui.details.director": "Director style",
    "ui.details.seed": "Seed",
+   "ui.details.member_cap": "Members cap",
+   "ui.details.cap_plus": "+{n} {what}",
    "ui.activity": "{title} · {time} left",
    "ui.end.again": "Play again",
    "ui.end.won": "The garden lives again",
@@ -9414,6 +9441,12 @@
    "ui.wire.tour_again": "entry #{n} · rewards ×{k}",
    "ui.wire.prep_done": "{group}: {what} is ready ({done}/{total})",
    "ui.wire.prep_all": "{group}: {what} is ready, all four phases done",
+   "ui.wire.tour_late": "Too late for the {title}: the sign-up wasn't done before it started · not entered{lost}",
+   "ui.wire.tour_late_lost": " · the ${n} spent is lost",
+   "ui.wire.coach_hired": "{name} is the new head coach (just hired) · {from} stays on as staff",
+   "ui.wire.coach_hired_first": "{name} is the head coach (just hired)",
+   "ui.wire.coach_left": "{from} left · {name} takes over as head coach",
+   "ui.wire.coach_vacant": "{from} left · the club has no head coach now",
    "ui.status.empty": "{n} posts have customers waiting and nobody there",
    "ui.status.covered": "Every busy spot has someone right now",
    "ui.status.quiet": "No customers waiting right now",
@@ -9447,6 +9480,11 @@
    "ui.place.remodel": "Being remodelled into “{variant}” · reopens in {time}",
    "ui.place.min_crew": "{n}/{need} on site · starts when everyone is here",
    "ui.place.tour_host": "Starts {when} · fee ${fee} · finish it to sign up",
+   "ui.place.unlock_need": "Opens after “{what}” · needs {needs}",
+   "ui.place.unlock_item": "a {who} with {skill} {n}+ (best now {best})",
+   "ui.place.unlock_item_any": "someone with {skill} {n}+ (best now {best})",
+   "ui.place.unlock_item_none": "a {who} with {skill} {n}+ (none on staff yet)",
+   "ui.place.unlocked_idle": "“{what}” unlocked · shows up here when it's needed",
    "ui.place.tour_away_early": "Leaves {when} · fee ${fee} · send people on the day",
    "ui.place.tour_away_now": "Leaves today · fee ${fee}",
    "ui.place.tour_signup": "Sign-up opens {open} · plays {when}",
@@ -9493,12 +9531,19 @@
    "ui.sheet.leaves": "leaves “{what}”",
    "ui.sheet.speed": "Working at {n}%",
    "ui.sheet.you_coming": "On the way · {time}",
+   "ui.unlock_tag.junior_coach": "Junior coaching",
+   "ui.unlock_tag.night_clay_care": "Night clay care",
+   "ui.unlock_tag.member_referrals": "Member referrals",
+   "ui.unlock_tag.open_division": "Higher division ×2",
+   "ui.unlock_tag.weekend_camp": "Weekend camp",
    "ui.grow.potential": "Potential: {list}",
    "ui.grow.pair": "{skill} {from} → {to}",
    "ui.grow.skill_up": "{name}'s {skill} reached {n}",
    "ui.grow.unlock": "{name} reached {skill} {n} — {what} unlocked",
    "ui.grow.unlock_plain": "{what} unlocked ({names})",
    "ui.grow.because": "{names} got good enough",
+   "ui.grow.reach": "can reach {skill} {n} → {what}",
+   "ui.grow.reach_now": "{skill} {n} already → {what}",
    "ui.ending.topic": "Season one · final score",
    "ui.ending.title": "The season is scored",
    "ui.ending.total": "Total",
@@ -10131,11 +10176,11 @@
    "route_notes.s2.youth.costs": "度假那边的修法要等到 ★3；来应聘的服务、体能人员少",
    "route_notes.s2.resort.costs": "青训那边的修法要等到 ★3；来应聘的教练少",
    "prep.exhibition": "表演赛筹备",
-   "unlocks.junior_coach": "教练够格带青少年了：地区青少年赛进四强的把握 +20%",
-   "unlocks.night_clay_care": "红土场夜间养护：红土场上每周一次的工单",
-   "unlocks.member_referrals": "会员推荐：前台多留住 10 个会员",
-   "unlocks.open_division": "地区业余赛升到高一级组别：报名费翻倍，奖金翻倍",
-   "unlocks.weekend_camp": "青训场周末训练营：一名教练和另一个能带课的人（教学 ≥ 60）周末上午一起带",
+   "unlocks.junior_coach": "青少年带教（地区青少年赛进四强的把握 +20 个百分点；学院课多收一点、多招一点会员）",
+   "unlocks.night_clay_care": "红土场夜间养护（红土场上每周一次的工单）",
+   "unlocks.member_referrals": "会员推荐（会员上限 +10）",
+   "unlocks.open_division": "地区业余赛的高一级组别（报名费翻倍，奖金翻倍）",
+   "unlocks.weekend_camp": "青训场周末训练营（两个教学 ≥ 60 的人，周末上午）",
    "ui.route.look": "点一下先看看落在哪儿",
    "ui.route.confirm": "再点一下就定了",
    "ui.route.pick": "点一下选中，再点一下就定了",
@@ -10225,7 +10270,7 @@
    "ui.hud.trend.bottomed": "见底了",
    "ui.hud.next": "接下来",
    "ui.hud.done": "做完了",
-   "ui.hud.rose": "今天有长进",
+   "ui.hud.rose": "这几天有长进",
    "ui.week": "第 {n} 周",
    "ui.weather.sun": "晴",
    "ui.weather.cloud": "多云",
@@ -10250,6 +10295,9 @@
    "ui.chip.closed": "停用 {time}",
    "ui.chip.min_crew": "至少 {n} 人到场",
    "ui.chip.trophy": "奖杯 +{n}",
+   "ui.chip.prize": "奖金 ${n}",
+   "ui.chip.unlock_extra": "{what} · {tag}",
+   "ui.chip.unlock_bonus": "{tag}：{goal}把握 +{n} 个百分点",
    "ui.attr.skill": "教学",
    "ui.attr.upkeep": "维护",
    "ui.attr.service": "服务",
@@ -10282,6 +10330,8 @@
    "ui.details.courts": "开放场地",
    "ui.details.director": "导演风格",
    "ui.details.seed": "种子",
+   "ui.details.member_cap": "会员上限",
+   "ui.details.cap_plus": "{what} +{n}",
    "ui.activity": "{title} · 还剩 {time}",
    "ui.end.again": "再来一局",
    "ui.end.won": "俱乐部复活了",
@@ -10362,6 +10412,12 @@
    "ui.wire.tour_again": "第 {n} 次参加 · 奖励 ×{k}",
    "ui.wire.prep_done": "{group}：{what}做好了（{done}/{total}）",
    "ui.wire.prep_all": "{group}：{what}做好了，四期都齐了",
+   "ui.wire.tour_late": "没赶上{title}：开赛前报名没办完 · 没报上名{lost}",
+   "ui.wire.tour_late_lost": " · 花掉的 ${n} 拿不回来",
+   "ui.wire.coach_hired": "{name}接任主教练（新招来的）· {from}留下当员工",
+   "ui.wire.coach_hired_first": "{name}当上主教练（新招来的）",
+   "ui.wire.coach_left": "{from}走了 · {name}接任主教练",
+   "ui.wire.coach_vacant": "{from}走了 · 会所现在没有主教练",
    "ui.status.empty": "{n} 个岗位有客人在等，没人管",
    "ui.status.covered": "此刻有客人的地方都有人",
    "ui.status.quiet": "此刻没有岗位有客人",
@@ -10395,6 +10451,11 @@
    "ui.place.remodel": "正在改造成“{variant}” · {time}后重新开放",
    "ui.place.min_crew": "到场 {n}/{need} 人，人齐了才开工",
    "ui.place.tour_host": "{when}开赛 · 报名费 ${fee} · 做完就算报上名",
+   "ui.place.unlock_need": "开出“{what}”以后才有 · 要{needs}",
+   "ui.place.unlock_item": "{who}的{skill}到 {n}（现在最高 {best}）",
+   "ui.place.unlock_item_any": "有人{skill}到 {n}（现在最高 {best}）",
+   "ui.place.unlock_item_none": "{who}的{skill}到 {n}（还没有{who}）",
+   "ui.place.unlocked_idle": "“{what}”已经开出 · 需要的时候会出现在这里",
    "ui.place.tour_away_early": "{when}出发 · 报名费 ${fee} · 那天才能派人",
    "ui.place.tour_away_now": "今天出发 · 报名费 ${fee}",
    "ui.place.tour_signup": "{open}开始报名 · {when}比赛",
@@ -10441,12 +10502,19 @@
    "ui.sheet.leaves": "会放下“{what}”",
    "ui.sheet.speed": "干活速度 {n}%",
    "ui.sheet.you_coming": "在路上 · 还要 {time}",
+   "ui.unlock_tag.junior_coach": "青少年带教",
+   "ui.unlock_tag.night_clay_care": "红土夜间养护",
+   "ui.unlock_tag.member_referrals": "会员推荐",
+   "ui.unlock_tag.open_division": "高一级组别 ×2",
+   "ui.unlock_tag.weekend_camp": "周末训练营",
    "ui.grow.potential": "潜力：{list}",
    "ui.grow.pair": "{skill} {from} → {to}",
    "ui.grow.skill_up": "{name}的{skill}到了 {n}",
    "ui.grow.unlock": "{name}的{skill}到了 {n}——开出了{what}",
    "ui.grow.unlock_plain": "开出了{what}（{names}）",
    "ui.grow.because": "{names}的本事够了",
+   "ui.grow.reach": "能练到{skill} {n} → {what}",
+   "ui.grow.reach_now": "{skill}已有 {n} → {what}",
    "ui.ending.topic": "第一季 · 结算",
    "ui.ending.title": "这一季打分了",
    "ui.ending.total": "总分",

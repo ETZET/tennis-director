@@ -317,10 +317,13 @@ describe('内容编译', () => {
       traits: { late_bloomer: 10 },
       step: 5,
     });
+    expect(growth.parse({ enabled: true, rates: { upkeep: 0.15 } }).rates).toEqual({ upkeep: 0.15 });
+    expect(() => growth.parse({ enabled: true, rates: { cooking: 1 } })).toThrow();
 
     const bad = structuredClone(ok);
     editYaml(bad, 'acts/indian_wells.yaml', (y) => {
       y.growth.traits = { nope: 3 };
+      y.growth.rates = { upkeep: 0.15, play: 0.3 };
       y.growth.unlocks.push({ key: 'night_care', need: [{ skill: 'upkeep', gte: 75, who: 'wizard' }] });
       y.growth.unlocks.push({ key: 'no_text', need: [{ skill: 'teach', gte: 60 }] });
     });
@@ -337,6 +340,8 @@ describe('内容编译', () => {
     const b = compileContent(bad);
     const m = msgs(b);
     expect(m).toMatch(/growth.traits: unknown trait 'nope'/);
+    expect(m).toMatch(/growth.rates.play: 'play' is not in growth.skills/);
+    expect(m).not.toMatch(/growth.rates.upkeep/);
     expect(m).toMatch(/duplicate unlock key/);
     expect(m).toMatch(/who 'wizard' is neither/);
     expect(m).toMatch(/missing text 'unlocks.no_text'/);

@@ -33,6 +33,8 @@ export type SimEvent =
   | { type: 'skill_up'; person: string; skill: SkillKind; value: number }
   /** 成长解锁开出来了（W3）：key 是 growth.unlocks 的键，person 是开出它的人 */
   | { type: 'unlock'; person: string; key: string }
+  /** 主教练换人：招来一名教练接任（hired），或者主教练走了由还在的教练接上 / 空着（left）。person 为 null = 空缺 */
+  | { type: 'head_coach'; person: string | null; from: string | null; reason: 'hired' | 'left' }
   | { type: 'postInterrupted'; post: string; person: string; lost: number }
   | { type: 'orderStarted'; order: string; at: string; performance: string | null }
   | { type: 'orderFinished'; order: string; people: string[]; success?: boolean }
