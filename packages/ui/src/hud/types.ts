@@ -49,6 +49,28 @@ export interface CardAnswer {
   costs?: string;
   /** 选路卡：点过一次，镜头转过去、场景里叠着预览；再点一次才定 */
   previewing?: boolean;
+  /** 招聘选项（W3）：这个人能长到多少（"教学 58 → 73 · 维护 40 → 55"） */
+  potential?: string;
+}
+
+/** 结局卡（W4，UI-10）的分项打分：每项一行，总分、评语档和一句评语 */
+export interface ScoreCard {
+  rows: { id: string; label: string; detail: string; points: string; negative?: boolean }[];
+  total: string;
+  totalLabel: string;
+  grade: string;
+  /** 评语档的名字（内容 ending.grades.<档>，可以空） */
+  gradeName?: string;
+  verdict: string;
+  /** "第 98 天结算 · 提前 14 天" */
+  line?: string;
+}
+
+/** 结局卡"看总结"：这一季的大事（只读，来自因果日志） */
+export interface RecapData {
+  title: string;
+  lines: { id: string; when: string; text: string }[];
+  empty?: string;
 }
 
 /** 转播下三分之一的事件卡：话题标签、地点标签、标题、倒计时、三个编号选项。 */
@@ -67,6 +89,12 @@ export interface EventCardData {
   note?: string;
   /** 卡片上的主按钮（例如结束时的"重播"） */
   action?: { label: string; id: string };
+  /** 更多按钮（结局卡的"开第二季 / 看总结"）；第一个是主按钮 */
+  actions?: { label: string; id: string }[];
+  /** 结局卡（W4）：分项打分 */
+  score?: ScoreCard;
+  /** 结局卡（W4）：这一季的总结 */
+  recap?: RecapData;
   /** news：新闻快讯（没有选项）；decision：要你拍板 */
   kind: 'news' | 'decision';
   /** 后面还排着几张卡 */
@@ -92,6 +120,10 @@ export interface StaffToken {
   skills: { teach: number; upkeep: number; service: number; play?: number };
   /** 正拿在手上 */
   picked?: boolean;
+  /** 员工成长（W3）：每项能力的潜力（条上淡淡的一截）；成长关着时没有 */
+  potential?: { teach: number; upkeep: number; service: number; play?: number };
+  /** 今天有能力涨过整数（名字旁一个小 ▲） */
+  rose?: boolean;
   /** 被事件叫去办事，叫不回来 */
   locked?: boolean;
 }
@@ -207,6 +239,8 @@ export interface SeasonInfo {
   serviceLabel: string;
   /** 接下来的两个日历节拍（UI-9，只读） */
   beats?: readonly BeatItem[];
+  /** 第二季的目标（W4 占位）："第二季 · 目标：办一站正式赛事" */
+  goal?: string;
 }
 
 /** 「因为……所以……」：因果日志的一条，讲给玩家听 */

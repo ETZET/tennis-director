@@ -42,6 +42,8 @@ export class Session {
   preview: { order: string; variant: string } | null = null;
   /** 选路卡上点过一次的选项（W2）：镜头先转过去、叠上预览，再点一次才定；换卡就清掉（只是画面） */
   routePick: { uid: number; option: OptionKey } | null = null;
+  /** 结局卡（W4）显示分数还是"看总结"（只是画面） */
+  endView: 'score' | 'summary' = 'score';
   private queue: Command[] = [];
 
   constructor(

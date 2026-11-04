@@ -50,7 +50,7 @@ function Token({ t, actions }: { t: StaffToken; actions: HudActions }) {
       <button
         type="button"
         aria-pressed={!!t.picked}
-        aria-label={`${t.name} · ${t.doing}`}
+        aria-label={`${t.name} · ${t.doing}${t.rose ? ` · ${STR.rose}` : ''}`}
         onPointerDown={onDown}
         onPointerMove={onMove}
         onPointerUp={onUp}
@@ -60,11 +60,20 @@ function Token({ t, actions }: { t: StaffToken; actions: HudActions }) {
           {t.initials}
         </span>
         <span class="td-tok-text">
-          <b>{t.name}</b>
+          <b>
+            {t.name}
+            {t.rose ? (
+              <span class="td-tok-rose" aria-hidden="true">
+                ▲
+              </span>
+            ) : null}
+          </b>
           <span class="td-tok-doing">{t.doing}</span>
           <span class="td-tok-skills" aria-hidden="true">
             {(t.skills.play === undefined ? SKILL_KEYS : PLAYER_KEYS).map((k) => (
               <span key={k} class={`td-sk td-sk-${k}`} title={STR[`skill_${k}`]}>
+                {/* 员工成长（W3）：潜力是条上淡淡的一截，能力往那儿长 */}
+                {t.potential ? <em style={{ width: `${Math.round(t.potential[k] ?? t.skills[k] ?? 0)}%` }} /> : null}
                 <i style={{ width: `${Math.round(t.skills[k] ?? 0)}%` }} />
               </span>
             ))}

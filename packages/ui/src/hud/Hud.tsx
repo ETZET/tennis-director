@@ -95,6 +95,11 @@ function Chips2({
           {status}
         </span>
       ) : null}
+      {s?.goal ? (
+        <span class="td-chip td-goal" title={s.goal}>
+          {s.goal}
+        </span>
+      ) : null}
       {s?.beats?.length ? <Beats beats={s.beats} actions={actions} /> : null}
     </div>
   );
@@ -408,6 +413,7 @@ function EventCard({ c, actions }: { c: EventCardData; actions: HudActions }) {
                   {a.opens ? <span class="td-answer-opens">＋ {a.opens}</span> : null}
                   {a.costs ? <span class="td-answer-costs">－ {a.costs}</span> : null}
                   {a.chips?.length ? <Chips chips={a.chips} /> : null}
+                  {a.potential ? <span class="td-answer-potential">{a.potential}</span> : null}
                   {a.hint ? <span class="td-answer-hint">{a.hint}</span> : null}
                   {a.then ? <span class="td-answer-then">{a.then}</span> : null}
                 </span>
@@ -416,6 +422,8 @@ function EventCard({ c, actions }: { c: EventCardData; actions: HudActions }) {
             ))}
           </div>
         ) : null}
+        {c.score ? <ScoreTable sc={c.score} /> : null}
+        {c.recap ? <Recap r={c.recap} /> : null}
         {c.note || c.action ? (
           <div class="td-card-foot">
             {c.note ? <span class="td-card-note">{c.note}</span> : <span />}
@@ -426,8 +434,71 @@ function EventCard({ c, actions }: { c: EventCardData; actions: HudActions }) {
             ) : null}
           </div>
         ) : null}
+        {c.actions?.length ? (
+          <div class="td-card-actions">
+            {c.actions.map((a, i) => (
+              <button
+                type="button"
+                key={a.id}
+                class={i === 0 ? 'td-card-action' : 'td-card-action td-card-action-2'}
+                onClick={() => actions.cardAction(a.id)}
+              >
+                {a.label}
+              </button>
+            ))}
+          </div>
+        ) : null}
       </div>
     </section>
+  );
+}
+
+/** 结局卡（W4）：分项一行一行，最后是总分、评语档和一句评语 */
+function ScoreTable({ sc }: { sc: NonNullable<EventCardData['score']> }) {
+  return (
+    <div class="td-score">
+      {sc.line ? <p class="td-score-line">{sc.line}</p> : null}
+      <ol class="td-score-rows">
+        {sc.rows.map((r) => (
+          <li key={r.id} class={r.negative ? 'td-bad' : ''}>
+            <span class="td-score-label">{r.label}</span>
+            <span class="td-score-detail">{r.detail}</span>
+            <b>{r.points}</b>
+          </li>
+        ))}
+      </ol>
+      <div class="td-score-total">
+        <span class={`td-score-grade td-grade-${sc.grade}`}>{sc.grade}</span>
+        <span class="td-score-verdict">
+          {sc.gradeName ? <b>{sc.gradeName}</b> : null}
+          <span>{sc.verdict}</span>
+        </span>
+        <span class="td-score-sum">
+          <span>{sc.totalLabel}</span>
+          <b>{sc.total}</b>
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/** 结局卡"看总结"：这一季的大事，按时间排 */
+function Recap({ r }: { r: NonNullable<EventCardData['recap']> }) {
+  return (
+    <div class="td-recap">
+      <h3>{r.title}</h3>
+      {r.lines.length ? (
+        <ol>
+          {r.lines.map((x) => (
+            <li key={x.id}>
+              <b>{x.when}</b> {x.text}
+            </li>
+          ))}
+        </ol>
+      ) : r.empty ? (
+        <p>{r.empty}</p>
+      ) : null}
+    </div>
   );
 }
 

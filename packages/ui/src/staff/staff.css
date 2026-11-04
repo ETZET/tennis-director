@@ -16,7 +16,10 @@
 .td-tok-idle .td-tok-doing,.td-tok-waiting .td-tok-doing{color:#ffc8b5}
 .td-tok-skills{display:flex;gap:3px}
 .td-sk{width:26px;height:4px;background:rgba(255,255,255,.18)}
-.td-sk i{display:block;height:100%}
+.td-sk{position:relative}
+.td-sk i{position:relative;display:block;height:100%}
+.td-sk em{position:absolute;left:0;top:0;bottom:0;background:rgba(255,255,255,.22)}
+.td-tok-rose{margin-left:3px;font-size:9px;color:#7fe0a0;vertical-align:2px}
 .td-sk-teach i{background:#d8c08a}
 .td-sk-upkeep i{background:#9be07f}
 .td-sk-service i{background:#c9e8ff}

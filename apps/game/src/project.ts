@@ -8,9 +8,12 @@ import {
   DIRECTOR,
   dayOf,
   type Effect,
+  type EndingStatus,
+  endingStatus,
   facilityTotals,
   type GameState,
   goalsFor,
+  growthOf,
   hasDemand,
   minuteOfDay,
   minutes,
@@ -24,6 +27,7 @@ import {
   type Post,
   postExists,
   postStatus,
+  potentialOf,
   prepStatus,
   type SimEvent,
   type SkillKind,
@@ -52,6 +56,8 @@ import {
   type HudSnapshot,
   type PlaceRow,
   type PlaceSheetData,
+  type RecapData,
+  type ScoreCard,
   type SeasonInfo,
   type StaffToken,
   type StarInfo,
@@ -83,6 +89,9 @@ export class Projector {
   private lastSample = -1;
   /** 上一批事件处理完时每个人手上的活：习惯把人调走时，好说出他放下了什么 */
   private readonly lastJob = new Map<string, string | null>();
+  /** 员工成长（W3）：今天开工时每个人的能力（员工条上"今天长进了"的小 ▲） */
+  private growDay = -1;
+  private readonly dayStart = new Map<string, Record<SkillKind, number>>();
 
   constructor(
     private content: ContentBundle,
@@ -99,6 +108,10 @@ export class Projector {
   onEvents(s: GameState, events: readonly SimEvent[]): void {
     const T = this.text;
     for (const e of events) {
+      if (e.type === 'skill_up' || e.type === 'unlock' || e.type === 'settlement' || e.type === 'season_two') {
+        this.growthWire(s, e, events);
+        continue;
+      }
       if (e.type === 'dayEnded') {
         // 设施状况跌破 30 提醒一次（第二轮试玩 S3：状况悄悄掉到 0 没人发现）；周六收盘再提醒一次"明天掉档"。
         // 只提醒会变旧、会掉档的设施：废墟和停用的设施不会再往下掉，也不挂提醒（GM-1：废墟天天刷屏）
@@ -147,7 +160,9 @@ export class Projector {
       } else if (e.type === 'log') {
         // 升星、改造期满由各自的领域事件讲（下面），日志这条不再重复
         const kind = e.entry.cause.kind;
-        if (kind === 'star' || kind === 'remodel') continue;
+        // 成长解锁、结算、第二季由各自的领域事件讲（growthWire）
+        if (kind === 'star' || kind === 'remodel' || kind === 'unlock' || kind === 'settlement' || kind === 'season')
+          continue;
         if (kind === 'tournament') {
           this.tournamentWire(s, e.entry);
           continue;
@@ -295,6 +310,53 @@ export class Projector {
     for (const [id, p] of Object.entries(s.people)) this.lastJob.set(id, p.hired ? (p.job ?? null) : null);
   }
 
+  /**
+   * 员工成长（W3）和结局（W4）的快讯：
+   * - 跨过门槛（5 的整数倍）一条；同一批里这个人还开出了东西，就并成一条"到了 75——开出了夜间红土养护"。
+   * - 总监的成长已经由 directorGrew 讲，单独的 skill_up 不再重复。
+   */
+  private growthWire(
+    s: GameState,
+    e: Extract<SimEvent, { type: 'skill_up' | 'unlock' | 'settlement' | 'season_two' }>,
+    batch: readonly SimEvent[],
+  ): void {
+    const T = this.text;
+    if (e.type === 'skill_up') {
+      if (e.person === DIRECTOR) return;
+      if (batch.some((x) => x.type === 'unlock' && x.person === e.person)) return;
+      this.push(
+        s.t,
+        T.fmt('ui.grow.skill_up', { name: T.personName(e.person), skill: T.tr(`ui.skill.${e.skill}`), n: e.value }),
+        false,
+      );
+    } else if (e.type === 'unlock') {
+      const what = T.tr(`unlocks.${e.key}`, e.key);
+      const up = [...batch].reverse().find((x) => x.type === 'skill_up' && x.person === e.person);
+      this.push(
+        s.t,
+        up?.type === 'skill_up'
+          ? T.fmt('ui.grow.unlock', {
+              name: T.personName(e.person),
+              skill: T.tr(`ui.skill.${up.skill}`),
+              n: up.value,
+              what,
+            })
+          : T.fmt('ui.grow.unlock_plain', { what, names: T.personName(e.person) }),
+        false,
+      );
+    } else if (e.type === 'settlement') {
+      this.push(s.t, T.fmt('ui.ending.wire_settled', { total: e.total, grade: e.grade }), true);
+    } else {
+      this.lastSample = -1;
+      this.push(s.t, T.fmt('ui.ending.wire_season_two', { goal: this.goalName(e.goal) }), true);
+    }
+  }
+
+  /** 第二季目标的名字（内容 ending.goals.<目标>；没写是"新目标还在路上"） */
+  private goalName(goal: string): string {
+    return this.text.tr(`ending.goals.${goal}`, this.text.tr('ui.ending.goal_tbd'));
+  }
+
   /** 赛事结算（LG-11）的快讯：办完了（附加目标逐个打勾、奖杯和奖励），或者下雨办不成、报名费白花 */
   private tournamentWire(s: GameState, entry: CausalEntry): void {
     const T = this.text;
@@ -368,7 +430,8 @@ export class Projector {
         place: c.location ?? c.stage?.anchor ?? 'clubhouse',
       });
     }
-    for (const x of w.act.calendar) {
+    // 日历（投资方、期限）是第一季的；第二季（W4）不再挂出来
+    for (const x of (s.ending?.season ?? 1) > 1 ? [] : w.act.calendar) {
       const t = at(x.day, x.hour);
       if (t <= s.t) continue;
       const c = w.cards.get(x.card);
@@ -419,6 +482,8 @@ export class Projector {
 
   /** 日程上的最后一项（投资方给的期限）：状态条上倒数 */
   private deadline(s: GameState): number | null {
+    // 第二季没有期限（W4）
+    if ((s.ending?.season ?? 1) > 1) return null;
     const act = worldOf(s, this.content).act;
     const last = act.calendar[act.calendar.length - 1];
     return last ? at(last.day, last.hour) : null;
@@ -485,7 +550,8 @@ export class Projector {
     const T = this.text;
     const w = worldOf(s, this.content);
     const q = s.stats.quality ?? 0;
-    if (s.t - this.lastSample >= 30 || this.lastSample < 0) {
+    // 第二季开局时钟往回走（W4）：也重新采样
+    if (s.t - this.lastSample >= 30 || this.lastSample < 0 || s.t < this.lastSample) {
       this.lastSample = s.t;
       this.history.push(q);
       if (this.history.length > HISTORY) this.history.shift();
@@ -725,7 +791,15 @@ export class Projector {
       service,
       serviceLabel: service === null ? T.tr('ui.ctx.service_none') : T.fmt('ui.ctx.service', { n: service }),
       beats: this.beats(s),
+      ...(this.goalLine(s) ? { goal: this.goalLine(s) as string } : {}),
     };
+  }
+
+  /** 第二季的目标（W4 占位）：结局打开、开了第二季才有 */
+  private goalLine(s: GameState): string | null {
+    const st = s.ending;
+    if (!st?.goal || st.season < 2 || !endingStatus(s, worldOf(s, this.content))) return null;
+    return this.text.fmt('ui.ending.goal', { n: st.season, goal: this.goalName(st.goal) });
   }
 
   /** 派到活上的人的头像：还没到场的标上 coming */
@@ -849,11 +923,34 @@ export class Projector {
   staff(session: Session): StaffToken[] {
     const { s } = session;
     const w = worldOf(s, this.content);
+    const grows = !!growthOf(w);
+    if (grows && dayOf(s.t) !== this.growDay) {
+      this.growDay = dayOf(s.t);
+      this.dayStart.clear();
+    }
     return staffIds(s, w)
       .sort((a, b) => (a === DIRECTOR ? -1 : b === DIRECTOR ? 1 : 0))
       .map((id) => {
         const p = s.people[id];
         const d = this.doing(s, id);
+        const player = this.content.people.find((x) => x.id === id)?.kind === 'player';
+        // 员工成长（W3）：潜力是条上淡淡的一截；今天有能力涨过一个整数，名字旁一个小 ▲
+        let growth: Pick<StaffToken, 'potential' | 'rose'> = {};
+        if (grows && p) {
+          const now: Record<SkillKind, number> = { teach: p.skill, upkeep: p.upkeep, service: p.service, play: p.play };
+          const start = this.dayStart.get(id) ?? now;
+          this.dayStart.set(id, start);
+          const keys: SkillKind[] = player ? ['teach', 'upkeep', 'service', 'play'] : ['teach', 'upkeep', 'service'];
+          growth = {
+            potential: {
+              teach: potentialOf(w, id, 'teach'),
+              upkeep: potentialOf(w, id, 'upkeep'),
+              service: potentialOf(w, id, 'service'),
+              ...(player ? { play: potentialOf(w, id, 'play') } : {}),
+            },
+            ...(keys.some((k) => Math.floor(now[k] + 1e-6) > Math.floor(start[k] + 1e-6)) ? { rose: true } : {}),
+          };
+        }
         return {
           id,
           ...this.face(id),
@@ -863,8 +960,9 @@ export class Projector {
             teach: p?.skill ?? 0,
             upkeep: p?.upkeep ?? 0,
             service: p?.service ?? 0,
-            ...(this.content.people.find((x) => x.id === id)?.kind === 'player' ? { play: p?.play ?? 0 } : {}),
+            ...(player ? { play: p?.play ?? 0 } : {}),
           },
+          ...growth,
           ...(session.picked === id ? { picked: true } : {}),
           ...(p?.errand ? { locked: true } : {}),
         };
@@ -876,6 +974,9 @@ export class Projector {
     const T = this.text;
     const chips: Chip[] = [];
     chips.push({ text: T.tr(`ui.skill.${post.skill}`), tone: 'info' });
+    // 能力门槛（W3，成长解锁的岗位）：只有底子够的人能坐，和工单一样
+    for (const [k, n] of Object.entries(post.worker ?? {}))
+      chips.push({ text: T.fmt('ui.chip.needs', { skill: T.tr(`ui.skill.${k}`), n: n ?? 0 }), tone: 'risk' });
     if (post.hours) {
       const ds = post.days ?? [];
       const run = ds.length > 2 && ds.every((d, i) => i === 0 || d === (ds[i - 1] as number) + 1);
@@ -961,7 +1062,7 @@ export class Projector {
       if (e) return T.fmt('ui.why.early', { when: this.when(s, e.start) });
     }
     if (block === 'skill') {
-      const o = this.content.orders.find((x) => x.id === target);
+      const o = this.content.orders.find((x) => x.id === target) ?? this.content.posts.find((x) => x.id === target);
       const [k, n] = Object.entries(o?.worker ?? {})[0] ?? [];
       if (k) return T.fmt('ui.why.skill_min', { skill: T.tr(`ui.skill.${k}`), n: n ?? 0 });
     }
@@ -1018,8 +1119,10 @@ export class Projector {
         const here = p?.job === target;
         const block: AssignBlock = canAssign(s, w, id, target);
         const walk = this.walkMinutes(s, id, def.at);
+        // 员工成长（W3）：能力后面带上潜力（"教学 58/73"）
+        const cap = growthOf(w) ? `/${Math.round(potentialOf(w, id, skill))}` : '';
         const fit = [
-          `${T.tr(`ui.skill.${skill}`)} ${Math.round(workSkill(s, w, id, skill))}`,
+          `${T.tr(`ui.skill.${skill}`)} ${Math.round(workSkill(s, w, id, skill))}${cap}`,
           walk ? T.fmt('ui.sheet.walk', { time: T.duration(walk) }) : T.tr('ui.sheet.here'),
           p?.job && !here ? T.fmt('ui.sheet.leaves', { what: this.targetTitle(p.job) }) : '',
         ]
@@ -1738,6 +1841,9 @@ export class Projector {
     const T = this.text;
     if (s.outcome) {
       const o = s.outcome;
+      // 结局方案 A（W4）：结算打分的结局卡
+      const es = o.result === 'settled' ? endingStatus(s, worldOf(s, this.content)) : null;
+      if (es?.settlement) return this.endingCard(session, es);
       return {
         id: `end-${o.ending}`,
         kind: 'news',
@@ -1755,6 +1861,9 @@ export class Projector {
     if (!c) return null;
     const statuses = optionStatus(s, w, o.uid);
     const routeCard = statuses.some((st) => this.routeOf(o.card, st.key));
+    // 表演赛提前办成的结局卡（W4）：每个选项讲清是"马上结算（+提前奖励）"还是"接着经营到第 112 天"
+    const es = endingStatus(s, w);
+    const endCard = es?.deciding && w.act.ending?.card === o.card ? es : null;
     const answers: CardAnswer[] = statuses.slice(0, 3).map((st, i) => {
       const opt = c.options[st.key];
       const rt = this.routeOf(o.card, st.key);
@@ -1770,6 +1879,7 @@ export class Projector {
           }),
           tone: 'time',
         });
+      if (opt && endCard) chips.push(...this.endingChips(endCard, opt.effects));
       if (opt) {
         // 只讲此刻会生效的效果（带 if 的效果按现在的状态筛一遍，例如 Dale 只会接下一件修复）
         const live = (effs: readonly Effect[]) => effs.filter((e) => !e.if || testCond(s, w, e.if));
@@ -1805,10 +1915,15 @@ export class Projector {
       // 招聘选项留下人物的一句介绍（"维护好手"），周薪由标签讲
       const full = T.option(o.card, st.key);
       const hires = !!opt?.effects.some((e) => 'hire' in e);
+      // 员工成长（W3）：招聘选项多一行"潜力"
+      const potential = (opt?.effects ?? [])
+        .map((e) => ('hire' in e ? this.potentialLine(s, e.hire) : null))
+        .find((x): x is string => !!x);
       const text = hires ? full.replace(/[，,]\s*(每周|\$|per week|\/week).*$/i, '') : (full.split(' · ')[0] ?? '');
       return {
         key: KEYS[i] ?? 1,
         text,
+        ...(potential ? { potential } : {}),
         ...(chips.length ? { chips } : {}),
         ...(then ? { then } : {}),
         ...(st.blocked ? { disabled: true } : {}),
@@ -1843,5 +1958,162 @@ export class Projector {
       card.countdown = { ratio: left / total, label: T.fmt('ui.left', { time: T.duration(left) }) };
     }
     return card;
+  }
+
+  /**
+   * 招聘卡上候选人的"潜力"（W3）：最能长的两项，"教学 58 → 73"。成长关着时没有。
+   * 按潜力从高到低挑（一样高时先看能长多少），已经到顶的不写。
+   */
+  private potentialLine(s: GameState, id: string): string | null {
+    const w = worldOf(s, this.content);
+    if (!growthOf(w)) return null;
+    const d = this.content.people.find((x) => x.id === id);
+    if (!d) return null;
+    const T = this.text;
+    const keys: SkillKind[] =
+      d.kind === 'player' ? ['teach', 'upkeep', 'service', 'play'] : ['teach', 'upkeep', 'service'];
+    const rows = keys
+      .map((k) => ({ k, from: Math.round(k === 'teach' ? d.skill : d[k]), to: Math.round(potentialOf(w, id, k)) }))
+      .filter((x) => x.to > x.from)
+      .sort((a, b) => b.to - a.to || b.to - b.from - (a.to - a.from))
+      .slice(0, 2);
+    if (!rows.length) return null;
+    const list = rows.map((x) => T.fmt('ui.grow.pair', { skill: T.tr(`ui.skill.${x.k}`), from: x.from, to: x.to }));
+    return T.fmt('ui.grow.potential', { list: list.join(' · ') });
+  }
+
+  /** 结局卡（W4）的选项标签：马上结算拿多少提前奖励、现在结算是几分；接着经营到第几天、要担什么 */
+  private endingChips(es: EndingStatus, effs: readonly Effect[]): Chip[] {
+    const T = this.text;
+    const day = es.deadline?.day ?? 112;
+    if (effs.some((e) => 'settle' in e)) {
+      // 现在的预估里 early 已经按今天算了提前天数（ending.days_early）
+      const early = es.preview.items.find((x) => x.id === 'early')?.points ?? 0;
+      return [
+        { text: T.fmt('ui.ending.settle_now', { n: Math.round(early) }), tone: 'gain' },
+        { text: T.fmt('ui.ending.settle_score', { total: es.preview.total, grade: es.preview.grade }), tone: 'info' },
+      ];
+    }
+    return [
+      { text: T.fmt('ui.ending.keep', { day }), tone: 'time' },
+      { text: T.tr('ui.ending.keep_risk'), tone: 'risk' },
+    ];
+  }
+
+  /** 结算打分的结局卡（W4，UI-10）：分项、总分、评语；"开第二季 / 看总结" */
+  private endingCard(session: Session, es: EndingStatus): EventCardData {
+    const { s } = session;
+    const T = this.text;
+    const st = es.settlement as NonNullable<EndingStatus['settlement']>;
+    const summary = session.endView === 'summary';
+    const actions: { label: string; id: string }[] = [];
+    if (es.canStartSeason2) actions.push({ id: 'season2', label: T.tr('ui.ending.season2') });
+    actions.push(
+      summary ? { id: 'score', label: T.tr('ui.ending.score') } : { id: 'summary', label: T.tr('ui.ending.summary') },
+    );
+    const body = T.tr('endings.score.body', '');
+    return {
+      id: 'end-score',
+      kind: 'news',
+      topic: T.tr('ui.ending.topic'),
+      location: T.tr('ui.club.name'),
+      headline: T.tr('endings.score.title', T.tr('ui.ending.title')),
+      ...(summary || !body ? {} : { body }),
+      ...(summary ? { recap: this.recap(s, st) } : { score: this.scoreCard(st) }),
+      actions,
+    };
+  }
+
+  /** 分项打分：每项"多少 × 每个几分"和得分；钱按 $ 写 */
+  scoreCard(st: NonNullable<EndingStatus['settlement']>): ScoreCard {
+    const T = this.text;
+    const n = (v: number) => (Math.round(v * 10) / 10).toLocaleString(T.lang === 'zh' ? 'zh-CN' : 'en-US');
+    const signed = (v: number) => (v < 0 ? `−${n(-v)}` : n(v));
+    const early = st.items.find((x) => x.id === 'early');
+    const days = early && early.points > 0 ? Math.round(early.points / (early.per || 1)) : 0;
+    const gradeName = T.tr(`ending.grades.${st.grade}`, '');
+    return {
+      rows: st.items.map((x) => ({
+        id: x.id,
+        label: T.tr(`ending.items.${x.id}`, T.tr(`ui.ending.item.${x.id}`, x.id)),
+        detail: T.fmt('ui.ending.detail', {
+          value: x.id === 'cash' ? `${x.value < 0 ? '−' : ''}$${n(Math.abs(x.value))}` : signed(x.value),
+          per: n(x.per),
+        }),
+        points: signed(x.points),
+        ...(x.points < 0 ? { negative: true } : {}),
+      })),
+      total: signed(st.total),
+      totalLabel: T.tr('ui.ending.total'),
+      grade: st.grade,
+      ...(gradeName ? { gradeName } : {}),
+      verdict: T.tr(`ui.ending.verdict.${st.grade}`, gradeName),
+      line:
+        st.reason === 'early' && days > 0
+          ? T.fmt('ui.ending.line_early', { day: st.day, n: days })
+          : T.fmt('ui.ending.line_deadline', { day: st.day }),
+    };
+  }
+
+  /**
+   * "看总结"：第一季的大事，按时间排（只读，全部来自因果日志和结局状态）。
+   * 升星（第几天）、选的路、修复选的变体、赛事拿的奖杯、成长解锁、表演赛、结算。
+   */
+  recap(s: GameState, st: NonNullable<EndingStatus['settlement']>): RecapData {
+    const T = this.text;
+    const sep = T.lang === 'zh' ? '、' : ', ';
+    const rows: { t: number; id: string; text: string }[] = [];
+    const add = (e: CausalEntry, i: number, text: string) => rows.push({ t: e.t, id: `${e.id}-${i}`, text });
+    for (const e of s.log) {
+      if (e.t > st.t) continue;
+      const c = e.cause;
+      if (c.kind === 'star') add(e, 0, T.fmt('ui.ending.recap.star', { n: c.stars }));
+      if (c.kind === 'unlock')
+        add(
+          e,
+          0,
+          T.fmt('ui.ending.recap.unlock', {
+            what: T.tr(`unlocks.${c.key}`, c.key),
+            names: (c.people.length ? c.people : [c.person]).map((x) => T.personName(x)).join(sep),
+          }),
+        );
+      e.effects.forEach((x, i) => {
+        if (x.kind === 'route')
+          add(
+            e,
+            i + 1,
+            T.fmt('ui.ending.recap.route', {
+              route: T.tr(`routes.${x.slot}.${x.route}`, x.route).split(' · ')[0] ?? x.route,
+            }),
+          );
+        else if (x.kind === 'variant')
+          add(
+            e,
+            i + 1,
+            T.fmt('ui.ending.recap.variant', {
+              place: T.tr(`ui.fac.${x.facility}`, x.facility),
+              variant: this.variantName(x.facility, x.variant),
+            }),
+          );
+        else if (x.kind === 'trophy' && x.delta > 0 && c.kind === 'tournament')
+          add(
+            e,
+            i + 1,
+            T.fmt('ui.ending.recap.trophy', { title: T.tr(`tournaments.${c.tournament}.title`, c.tournament) }),
+          );
+      });
+    }
+    const ex = s.ending?.exhibition;
+    if (ex !== null && ex !== undefined && ex <= st.t)
+      rows.push({ t: ex, id: 'exhibition', text: T.tr('ui.ending.recap.exhibition') });
+    // 稳定排序：同一时刻按日志顺序
+    rows.sort((a, b) => a.t - b.t);
+    const lines: RecapData['lines'] = rows.map((r) => ({ id: r.id, when: T.day(r.t), text: r.text }));
+    lines.push({
+      id: 'settled',
+      when: T.day(st.t),
+      text: T.fmt('ui.ending.recap.settled', { total: st.total, grade: st.grade }),
+    });
+    return { title: T.tr('ui.ending.recap_title'), lines, empty: T.tr('ui.ending.recap_empty') };
   }
 }

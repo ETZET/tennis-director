@@ -96,6 +96,20 @@ const hudActions: HudActions = {
     if (id === 'replay') {
       void clearAutosave();
       begin(freshSession());
+    } else if (id === 'summary' || id === 'score') {
+      // 结局卡（W4）：分数和总结来回切，只是画面
+      session.endView = id;
+      draw();
+    } else if (id === 'season2') {
+      // 开第二季：时钟回到第二季开局，画面按新状态重新摆一遍
+      session.endView = 'score';
+      session.send({ type: 'startSeason2' });
+      pump([]);
+      if (!session.s.outcome) {
+        scene.sync(session.s);
+        session.paused = false;
+        draw();
+      }
     }
   },
   // 员工条：点一下拿起来，再点场景里的岗位或工单；或者按住直接拖过去

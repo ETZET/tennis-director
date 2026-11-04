@@ -39,6 +39,7 @@ const EN = {
   skill_play: 'Play',
   next: 'Coming up',
   done: 'Done',
+  rose: 'Got better today',
 };
 
 type Key = keyof typeof EN;

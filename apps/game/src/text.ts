@@ -188,6 +188,16 @@ export function createText(content: ContentBundle, lang: Lang): Text {
         return fmt(c.result === 'spoiled' ? 'ui.because.tournament_spoiled' : 'ui.because.tournament', {
           title: tr(`tournaments.${c.tournament}.title`, c.tournament),
         });
+      case 'unlock':
+        // 成长解锁（W3）：满足各条门槛的人
+        return fmt('ui.grow.because', {
+          names: c.people.map(personName).join(zh ? '、' : ' & ') || personName(c.person),
+        });
+      case 'settlement':
+        // 结算打分（W4）
+        return fmt('ui.ending.because_settled', { total: c.total, grade: c.grade });
+      case 'season':
+        return tr('ui.ending.because_season');
       case 'debug':
         return zh ? `调试：${c.what}` : `debug: ${c.what}`;
       default:
@@ -261,6 +271,8 @@ export function createText(content: ContentBundle, lang: Lang): Text {
       return list ? fmt('ui.stars.opens', { list }) : tr('ui.stars.sign');
     }
     const parts = e.effects.map(effect).filter((x): x is string => !!x);
+    // 成长解锁（W3）：效果可能是幕后的旗标，至少讲开出了什么
+    if (e.cause.kind === 'unlock') parts.unshift(tr(`unlocks.${e.cause.key}`, e.cause.key));
     return parts.length ? parts.join(zh ? '，' : ', ') : null;
   };
 
@@ -299,7 +311,7 @@ export function entryTone(e: CausalEntry): 'bad' | 'good' | undefined {
       if (x.delta > 0) good++;
       else if (x.delta < 0) bad++;
     }
-    if (x.kind === 'end') return x.result === 'won' ? 'good' : 'bad';
+    if (x.kind === 'end') return x.result === 'lost' ? 'bad' : 'good';
   }
   // 掉档（准则 6）是坏消息
   if (e.cause.kind === 'wear') return 'bad';
