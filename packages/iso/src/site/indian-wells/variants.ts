@@ -13,7 +13,7 @@ import {
 import { bakeArt } from '../../core/art';
 import { bay, hash, hx } from '../../core/color';
 import type { DrawContext } from '../../core/graph';
-import { type Bounds, dark, type Kit } from './build';
+import { type Bounds, dark, type Kit } from './common';
 import { PICK4 } from './ground';
 import { box, cyl, ellSh, fq, hipRoof, type Pt, unprojector } from './kit';
 import { F_O2, F_O3, F_P1, F_P2, F_PB1, F_PB2, FOUNTAIN, PICKLE } from './layout';

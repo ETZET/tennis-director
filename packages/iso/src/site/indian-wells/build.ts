@@ -2,10 +2,14 @@ import { mulberry32 } from '@td/shared';
 import { fbm, hash } from '../../core/color';
 import { Custom, type DrawContext, type Node } from '../../core/graph';
 import type { CourtFrame } from '../../world/frame';
+import { type Bounds, type Draw, dark, type Kit, type Lamp, type Weather } from './common';
 import type { Cast } from './ground';
 import { box, cyl, drawText, ellSh, faceF, fq, hipRoof, type Pt, unprojector } from './kit';
 import { F_O1, F_O2, F_O3, F_P1, F_P2, F_PB1, F_PB2, F_S1, FOUNTAIN, GROUNDS, PICKLE, POOL, TERRACE } from './layout';
 import type { Facilities } from './state';
+
+export { type Bounds, type Draw, dark, type Kit, type Lamp, type Weather };
+
 import {
   cabanaRow,
   clubVariant,
@@ -28,54 +32,12 @@ import {
  * 每段有自己的种子随机流，一个设施换了状态不会改动别的设施的画面。
  */
 
-export interface Lamp {
-  x: number;
-  z: number;
-  r: number;
-  i: number;
-}
-
-/** 风和雨（天空模块每帧写，棕榈和旗子读） */
-export interface Weather {
-  wind: number;
-  rain: number;
-}
-
 export interface BuildOut {
   statics: Node[];
   dynamic: Node[];
   casts: Cast[];
   lamps: Lamp[];
 }
-
-export type Bounds = { x0: number; x1: number; z0: number; z1: number; y0: number; y1: number };
-export type Draw = (r: DrawContext) => void;
-
-/** 变体和升级的画法（variants.ts）要用到的构建工具 */
-export interface Kit {
-  add(b: Bounds, draw: Draw): Custom;
-  addDyn(b: Bounds, draw: Draw): void;
-  cast(c: Cast): void;
-  lampAt(l: Lamp): void;
-  umbrella(x: number, z: number, rad: number, c1: string, c2: string, h?: number): void;
-  lightPole(
-    x: number,
-    z: number,
-    h: number,
-    o?: { on?: boolean; broken?: boolean; lx?: number; lz?: number; r?: number; i?: number },
-  ): void;
-  stringLights(pts: readonly (readonly [number, number])[], on: boolean, y?: number): void;
-  fenceSeg(x0: number, z0: number, x1: number, z1: number, h: number, o?: { c?: string }): void;
-  cone(x: number, z: number): void;
-  readonly wx: Weather;
-}
-
-/**
- * 夜里算不算"天黑了"（亮灯、发光窗户）。门槛每个节点错开一点（夜色 0.38~0.58，按节点深度 zcur 取哈希，只影响画面）：
- * 黄昏时灯和窗户一盏盏亮起来，天亮时一盏盏灭，不是同一帧全亮全灭。
- */
-export const dark = (r: DrawContext): boolean =>
-  r.night > 0.38 + 0.2 * hash(Math.round(((r as { zcur?: number }).zcur ?? 0) * 4), 5, 41);
 
 export function buildStatics(fac: Facilities, wx: Weather): BuildOut {
   const out: BuildOut = { statics: [], dynamic: [], casts: [], lamps: [] };
