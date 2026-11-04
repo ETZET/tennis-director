@@ -81,6 +81,17 @@ const LAND_GROUNDS: Readonly<Record<string, CourtFrame>> = {
   ),
 };
 
+/**
+ * 新地启用的镜头（W5 美术评审）：整块新地的中间、能装下它的缩放。赛事广场连着南边长出来的地和新停车场
+ * （SE_GROW、LOT_NEW），学院岛连着桥，南场 / 绿洲是高尔夫西段整块。
+ */
+const LAND_FOCUS: Readonly<Record<string, { x: number; z: number; zoom: number }>> = {
+  'golf_west/south_courts': { x: -31, z: 66, zoom: 3.2 },
+  'golf_west/oasis_lawn': { x: -27, z: 66, zoom: 3.5 },
+  'se_corner/event_plaza': { x: 86, z: 55, zoom: 3 },
+  'se_corner/academy_isle': { x: 100, z: 104, zoom: 4.5 },
+};
+
 /** 围墙的中心（默认镜头对着它） */
 const CLUB = { x: (GROUNDS.x0 + GROUNDS.x1) / 2, z: (GROUNDS.z0 + GROUNDS.z1) / 2 };
 
@@ -111,6 +122,7 @@ export const INDIAN_WELLS: Site = {
     standsWith,
     courts: LAND_COURTS,
     grounds: LAND_GROUNDS,
+    focus: (plot, variant) => LAND_FOCUS[`${plot}/${variant}`] ?? null,
   },
   routeLine,
   courts: COURTS,

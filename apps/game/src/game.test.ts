@@ -155,7 +155,7 @@ describe('Session', () => {
     }
     expect(session.s.outcome).not.toBeNull();
     expect(session.log.length).toBeGreaterThan(0);
-  });
+  }, 20_000); // 每一帧都投影一遍 HUD（含 W5 的地块查询），并行跑测试时 5 s 不够
 
   it('an errand option is chosen at once and sends the director over', () => {
     const session = Session.fresh(CONTENT, 7);

@@ -133,7 +133,8 @@ const tail = (pts: readonly XZ[], max: number): XZ[] => head([...pts].reverse(),
 export function createLife(d: LifeDeps): Life {
   const { site } = d;
   // 一块场地记"哪个地点的第 k 块"；frame 每次现读（site.courts 可能按变体换了一套，见 courts.ts）
-  const COURTS: Court[] = Object.entries(site.courts).flatMap(([anchor, frames]) =>
+  // 新地的球场没开时 site.courts 给空表（courts.ts）：场地清单按地图画的全部场地排（开没开由 open 挡）
+  const COURTS: Court[] = Object.entries({ ...site.courts, ...site.land?.courts }).flatMap(([anchor, frames]) =>
     frames.map((base, k) => ({
       anchor,
       k,

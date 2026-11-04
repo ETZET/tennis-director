@@ -137,3 +137,53 @@ describe('W5 land in the game', () => {
     expect(h2?.posts.length).toBe(SC.opens.posts.length);
   });
 });
+
+describe('W5 gate: clearance list, pauses, wind', () => {
+  it('a finished clearance job shows as done (never locked) and the list goes once the land opens', () => {
+    const s = quiet();
+    const p = new Projector(FIX, createText(FIX, 'en'));
+    const session = new Session(FIX, s);
+    build(s, 'building');
+    const first = SC.orders[0] as string;
+    s.orderLog.done[first] = 1;
+    const rows = p.placeSheet(session, 'south_courts').rows;
+    const row = rows.find((r) => r.id === first);
+    expect(row?.done).toBe(true);
+    expect(row?.locked).toBeUndefined();
+    expect(p.sheet(session, first)?.status).toBe(FIX.i18n.en?.['ui.sheet.order_done']);
+    build(s, 'open');
+    const after = p.placeSheet(session, 'south_courts').rows;
+    for (const id of SC.orders) expect(after.some((r) => r.id === id)).toBe(false);
+  });
+
+  it('wind-closed posts say why instead of a silent "gone"', () => {
+    const post = FIX.posts.find((x) => x.id === 'ai_resident');
+    const se = FIX.acts[0]?.plots?.find((x) => x.id === 'se_corner');
+    if (!post || !se?.variants.academy_isle) return;
+    const s = quiet();
+    const p = new Projector(FIX, createText(FIX, 'en'));
+    const session = new Session(FIX, s);
+    s.plots = { se_corner: { state: 'open', variant: 'academy_isle', since: s.t, opened: s.t, cause: 0 } };
+    s.weather = 'wind';
+    const wind = FIX.i18n.en?.['ui.why.wind'];
+    const rows = p.placeSheet(session, 'academy_isle').rows;
+    expect(rows.find((r) => r.id === 'ai_resident')?.line).toBe(FIX.i18n.en?.['ui.place.wind']);
+    const sheet = p.sheet(session, 'ai_resident');
+    expect(sheet?.status).toBe(wind);
+    expect(sheet?.people.every((x) => x.disabled === wind)).toBe(true);
+    expect(p.hub(session, 'academy_isle')?.shut).toBe('wind');
+  });
+
+  it('reloading with a pausing card open keeps the clock stopped', () => {
+    const s = quiet();
+    const w = worldOf(s, FIX);
+    const card = [...w.cards.values()].find((c) => c.pause);
+    if (!card) return;
+    s.cards.open = [
+      { uid: 1, card: card.id, opened: s.t, expires: null, cause: 0 } as GameState['cards']['open'][number],
+    ];
+    expect(new Session(FIX, s).holdForCards().paused).toBe(true);
+    s.cards.open = [];
+    expect(new Session(FIX, s).holdForCards().paused).toBe(false);
+  });
+});

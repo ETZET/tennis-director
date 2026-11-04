@@ -274,6 +274,8 @@ export interface CameraFocus {
   seq: number;
   /** 新地启用的镜头（停完镜头飞回原来的地方） */
   land?: boolean;
+  /** 新地启用的镜头拉到多远（地图的 land.focus 给了的话） */
+  zoom?: number;
 }
 
 /** 升星的镜头：先转过去（0.9 秒后点亮新星），亮了以后再停这么久，期间卡片不抢镜头（真实秒） */
@@ -1101,7 +1103,11 @@ export function createGameScene(stage: IsoWorld, content0: ContentBundle, site0:
   const life = createLife({
     world: stage,
     site,
-    courtsAt: (s, a) => courtsAt(worldOf(s, content), s, a),
+    // 地块上的新地点（W5）没有设施状态：开了，地图画的几块场地就都能打
+    courtsAt: (s, a) => {
+      const w = worldOf(s, content);
+      return w.plotAt.has(a) ? (placeOpen(s, w, a) ? (site.courts[a]?.length ?? 0) : 0) : courtsAt(w, s, a);
+    },
     placeOpen: (s, a) => placeOpen(s, worldOf(s, content), a),
     sched,
     rnd,
@@ -1156,8 +1162,8 @@ export function createGameScene(stage: IsoWorld, content0: ContentBundle, site0:
   /** 升星镜头停到什么时候（realNow）；这之前来的卡先记着，停完再转过去 */
   let starUntil = 0;
   /** 新地启用：排着的（锚点）、正在看的那一处、停到什么时候（realNow） */
-  let landQueued: string[] = [];
-  let landAt: string | null = null;
+  let landQueued: { anchor: string; plot: string; variant: string }[] = [];
+  let landAt: { anchor: string; plot: string; variant: string } | null = null;
   let landUntil = 0;
   /** 升星、新地的镜头停到什么时候 */
   const holdUntil = () => Math.max(starUntil, landUntil);
@@ -1211,7 +1217,8 @@ export function createGameScene(stage: IsoWorld, content0: ContentBundle, site0:
           starQueued = Math.max(starQueued ?? 0, e.stars);
         } else if (e.type === 'plot_open') {
           // 新地启用（W5）：镜头飞过去停一拍再回来；和升星一样，看不见画面时先排着
-          if (!landQueued.includes(e.anchor)) landQueued.push(e.anchor);
+          if (!landQueued.some((x) => x.anchor === e.anchor))
+            landQueued.push({ anchor: e.anchor, plot: e.plot, variant: e.variant });
         } else if (e.type === 'weather') {
           // 天气由模拟决定：雨天下雨，其他天放晴
           if (e.weather === 'rain') rain.start();
@@ -1337,7 +1344,10 @@ export function createGameScene(stage: IsoWorld, content0: ContentBundle, site0:
     focus() {
       if (realNow < starUntil) return { x: STAR_SIGN_AT.x, z: STAR_SIGN_AT.z, y: STAR_SIGN_LIFT, seq: focusSeq };
       if (realNow < landUntil && landAt) {
-        const p = site.anchors[landAt] ?? STANDS[landAt];
+        // 地图给了这块地的镜头（整块新地的中间和缩放）就用它，不然对准锚点
+        const lf = site.land?.focus?.(landAt.plot, landAt.variant);
+        if (lf) return { x: lf.x, z: lf.z, seq: focusSeq, land: true, ...(lf.zoom ? { zoom: lf.zoom } : {}) };
+        const p = site.anchors[landAt.anchor] ?? STANDS[landAt.anchor];
         if (p) return { x: p.x, z: p.z, seq: focusSeq, land: true };
       }
       if (!focusAnchor || sched.now > focusUntil) return null;

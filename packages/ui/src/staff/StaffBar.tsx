@@ -1,4 +1,4 @@
-import { useRef, useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import { STR } from '../hud/strings';
 import type { HudActions, StaffToken } from '../hud/types';
 import './staff.css';
@@ -46,10 +46,30 @@ function Token({ t, actions, scroll }: { t: StaffToken; actions: HudActions; scr
       actions.drop?.(t.id, e.clientX, e.clientY);
     } else actions.pick?.(t.picked ? null : t.id);
   };
+  // 拖到一半被打断（系统手势、来电、指针丢了捕获）：影子头像收掉，拿起的人放下（W5 门：pointercancel 后影子留在屏幕上）
   const onCancel = () => {
+    const was = !!drag;
     start.current = null;
     setDrag(null);
+    if (was) actions.pick?.(null);
   };
+  const dragging = !!drag;
+  useEffect(() => {
+    if (!dragging) return;
+    // 指针事件没回到按钮上（按钮重画、捕获丢了）也要收：窗口上兜底
+    const end = () => {
+      start.current = null;
+      setDrag(null);
+    };
+    window.addEventListener('pointercancel', end);
+    window.addEventListener('pointerup', end);
+    window.addEventListener('blur', end);
+    return () => {
+      window.removeEventListener('pointercancel', end);
+      window.removeEventListener('pointerup', end);
+      window.removeEventListener('blur', end);
+    };
+  }, [dragging]);
   return (
     <li class={`td-tok td-tok-${t.state}${t.picked ? ' td-tok-picked' : ''}${t.locked ? ' td-tok-locked' : ''}`}>
       <button
@@ -60,6 +80,9 @@ function Token({ t, actions, scroll }: { t: StaffToken; actions: HudActions; scr
         onPointerMove={onMove}
         onPointerUp={onUp}
         onPointerCancel={onCancel}
+        onLostPointerCapture={(e: PointerEvent) => {
+          if (start.current?.id === e.pointerId) onCancel();
+        }}
       >
         <span class="td-tok-face" style={{ background: t.color }}>
           {t.initials}

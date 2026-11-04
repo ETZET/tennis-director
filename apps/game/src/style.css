@@ -124,3 +124,9 @@ body{background:var(--sky);color:var(--navy);font-family:var(--f-text);overflow:
 .hub-beat,.pl-beat{outline:3px solid var(--optic);animation:beat-flash .7s ease-in-out 4}
 @keyframes beat-flash{50%{outline-color:transparent}}
 @media (prefers-reduced-motion:reduce){.hub-beat,.pl-beat{animation:none}}
+/* W5 门：缩成小圆点的地点牌如果有工单，⚒ 小牌留着（新地的施工一眼看得到）；停工 ⏸；天气关了岗位挂记号 */
+#labels .hub.lbl-dot.hub-has-o>.hb-o{display:flex;position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);height:18px;min-width:18px;justify-content:center;padding:0 2px;gap:0;font-size:12px;box-shadow:0 0 0 1px var(--navy)}
+#labels .hub.lbl-dot.hub-has-o>.hb-o :is(i,.hb-n){display:none}
+.hb-o .hb-n{font-style:normal}
+.hb-o.hb-halt{background:rgba(201,232,255,.18);border-color:#c9e8ff;color:#c9e8ff}
+.hb-shut{height:28px;display:flex;align-items:center;padding:0 6px;background:rgba(201,232,255,.18);border:1px solid #c9e8ff;color:#c9e8ff;font:800 14px/1 var(--f-cond)}

@@ -56,6 +56,13 @@ export class Session {
     return new Session(content, newGame(content, { seed, ...(director ? { director } : {}) }));
   }
 
+  /** 读档时：存档里开着一张要停表的卡（pause），就停着等玩家回应（不然一读档时钟就跑过去十几个小时） */
+  holdForCards(): this {
+    const w = worldOf(this.s, this.content);
+    if (!this.s.outcome && this.s.cards.open.some((o) => w.cards.get(o.card)?.pause)) this.paused = true;
+    return this;
+  }
+
   get speed(): number {
     return SPEEDS[this.speedIndex] ?? 1;
   }
