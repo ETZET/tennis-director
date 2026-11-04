@@ -1,0 +1,717 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>订场板：动态定价和超售</title>
+<style>
+*{box-sizing:border-box;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:#2a1f2b;overflow:hidden;touch-action:none;
+  font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif}
+body{display:flex;align-items:center;justify-content:center}
+#app{position:relative;width:390px;height:844px;flex:none;background:#c9a36a;overflow:hidden;touch-action:none;color:#2a1f2b;transform-origin:center center}
+#app.shake{animation:shake .35s}
+@keyframes shake{0%,100%{translate:0 0}20%{translate:-5px 2px}40%{translate:4px -3px}60%{translate:-3px 3px}80%{translate:3px -1px}}
+#cv{position:absolute;left:0;top:0;width:390px;height:330px;image-rendering:crisp-edges;image-rendering:pixelated}
+#ov{position:absolute;left:0;top:0;width:390px;height:330px;pointer-events:none;overflow:hidden}
+.btn-ico{position:absolute;top:6px;width:44px;height:44px;border-radius:12px;background:#fff4dc;border:3px solid #5a3d2b;
+  font-size:20px;font-weight:900;display:flex;align-items:center;justify-content:center;z-index:30;box-shadow:0 3px 0 #2a1f2b}
+#mute{left:6px}#help{right:6px}
+#clock{position:absolute;top:8px;left:50%;transform:translateX(-50%);background:#fff4dc;border:3px solid #5a3d2b;border-radius:12px;
+  padding:4px 10px;font-weight:900;font-size:15px;white-space:nowrap;box-shadow:0 3px 0 #2a1f2b;z-index:20}
+#clock small{font-size:11px;color:#5a3d2b;font-weight:700}
+#toast{position:absolute;top:56px;left:50%;transform:translateX(-50%);background:#2a1f2bdd;color:#fff4dc;border-radius:10px;padding:5px 10px;
+  font-size:12px;font-weight:800;white-space:nowrap;opacity:0;transition:opacity .25s;z-index:20;pointer-events:none}
+#toast.on{opacity:1}
+.ctag{position:absolute;top:238px;font-size:10px;font-weight:900;color:#fff4dc;background:#2a1f2bbb;border-radius:6px;padding:1px 4px;white-space:nowrap;transform:translateX(-50%)}
+.bub{position:absolute;transform:translate(-50%,-100%);background:#fff;border:2px solid #2a1f2b;border-radius:8px;padding:0 3px;font-size:13px;line-height:18px;
+  animation:bub .25s ease-out}
+.bub:after{content:"";position:absolute;left:50%;bottom:-6px;margin-left:-4px;border:4px solid transparent;border-top-color:#2a1f2b}
+@keyframes bub{from{transform:translate(-50%,-60%) scale(.3)}to{transform:translate(-50%,-100%) scale(1)}}
+#stats{position:absolute;top:330px;left:0;width:390px;height:34px;background:#5a3d2b;display:flex;gap:4px;align-items:center;justify-content:space-around;padding:0 4px}
+.pill{background:#fff4dc;border-radius:9px;padding:2px 8px;font-size:13px;font-weight:900;white-space:nowrap}
+.pill.bump{animation:bump .3s}
+@keyframes bump{50%{transform:scale(1.25)}}
+#board{position:absolute;top:364px;left:0;width:390px;height:248px;background:#fff4dc;overflow:hidden;border-bottom:3px solid #5a3d2b}
+#cols{position:absolute;left:0;top:0;width:390px;height:248px}
+.col{position:absolute;top:0;left:0;width:50px;height:248px;will-change:transform}
+.col .hr{height:20px;font-size:11px;font-weight:900;text-align:center;line-height:20px;color:#5a3d2b;white-space:nowrap}
+.col .hr i{font-style:normal;font-size:9px;letter-spacing:-1px;color:#d94a3a}
+.col.live .hr{background:#2a1f2b;color:#f2b134}
+.col.target .hr{background:#f2b134;color:#2a1f2b}
+.chip{margin:1px 3px;height:44px;border-radius:9px;border:2px solid #2a1f2b;color:#fff;font-weight:900;text-align:center;font-size:15px;line-height:17px;padding-top:4px;
+  box-shadow:0 2px 0 #2a1f2b;touch-action:none}
+.chip small{display:block;font-size:12px}
+.chip.pop{animation:bump .25s}
+.col.live .chip{opacity:.45}
+.cell{margin:1px 2px;height:44px;border-radius:7px;background:#e8d8b4;border:2px dashed #c9a36a;display:flex;flex-direction:column;gap:2px;padding:2px;position:relative;justify-content:center}
+.col:nth-child(odd) .cell{background:#efe0bd}
+.col .cell.dark,#cols .cell.dark{background:repeating-linear-gradient(45deg,#4a3d4a 0 4px,#3a2f3a 4px 8px);border-color:#2a1f2b;color:#c9a36a;font-size:10px;font-weight:800;align-items:center}
+.cell.ob{border:2px solid #d94a3a;background:#ffe0c8}
+.cell.hot{outline:3px solid #3fae5a;outline-offset:-1px}
+.cell.hotob{outline:3px solid #f2b134;outline-offset:-1px;background:#fff0a0}
+.cell.hotbad{outline:3px solid #d94a3a;outline-offset:-1px}
+.col.target .cell:not(.dark){border-color:#f2b134;border-style:solid}
+.bk{height:17px;border-radius:5px;color:#fff;font-size:11px;font-weight:900;display:flex;align-items:center;gap:2px;padding:0 3px;border:1px solid #2a1f2b;overflow:hidden;white-space:nowrap}
+.bk i{display:inline-block;width:4px;height:4px;background:#fff4dc;border:1px solid #2a1f2b;box-sizing:content-box}
+.bk.only{height:28px;font-size:13px}
+.cell .res{position:absolute;right:-2px;top:-4px;font-size:15px;filter:drop-shadow(0 1px 0 #2a1f2b)}
+.cell .x2{position:absolute;left:-3px;top:-5px;background:#d94a3a;color:#fff;font-size:9px;font-weight:900;border-radius:5px;padding:0 3px;border:1px solid #2a1f2b}
+#labels{position:absolute;left:0;top:0;width:40px;height:248px;background:#5a3d2b;z-index:3;color:#fff4dc}
+#labels div{font-weight:900;text-align:center}
+#labels .lh{height:20px;font-size:10px;line-height:20px}
+#labels .lp{height:46px;font-size:10px;line-height:13px;padding-top:9px}
+#labels .lc{height:48px;font-size:15px;line-height:16px;padding-top:6px}
+#labels .lc small{display:block;font-size:9px;line-height:11px}
+#callzone{position:absolute;top:612px;left:0;width:390px;height:232px;background:#c9a36a}
+#queue{position:absolute;top:4px;left:10px;right:10px;height:20px;font-size:12px;font-weight:900;color:#2a1f2b;display:flex;justify-content:space-between}
+#cardwrap{position:absolute;top:26px;left:10px;width:370px;height:124px}
+.stackcard{position:absolute;left:8px;right:8px;top:6px;height:118px;border-radius:14px;background:#e8d8b4;border:3px solid #5a3d2b}
+#card{position:absolute;left:0;top:0;width:370px;height:118px;border-radius:14px;background:#fff4dc;border:3px solid #5a3d2b;box-shadow:0 4px 0 #2a1f2b;
+  display:flex;gap:8px;padding:8px 10px;touch-action:none;z-index:5}
+#card.empty{justify-content:center;align-items:center;color:#8a5a35;font-weight:800;font-size:14px;text-align:center;flex-direction:column}
+#card.in{animation:cin .3s ease-out}
+@keyframes cin{from{transform:translateY(40px) rotate(-4deg);opacity:0}}
+#card.wig{animation:wig .4s}
+@keyframes wig{20%{transform:translateX(-8px)}40%{transform:translateX(8px)}60%{transform:translateX(-5px)}80%{transform:translateX(4px)}}
+#card .pf{width:36px;height:63px;image-rendering:pixelated;background:#8ec9e8;border:2px solid #2a1f2b;border-radius:6px;flex:none;margin-top:4px}
+#card .ct{flex:1;min-width:0}
+#card .r1{display:flex;justify-content:space-between;align-items:center;font-size:12px;font-weight:800}
+#card .tag{color:#fff;border-radius:6px;padding:1px 6px;font-size:12px;font-weight:900;border:1px solid #2a1f2b}
+#card .say{font-size:15px;font-weight:900;margin:5px 0 3px;line-height:20px}
+#card .say b{color:#3fae5a;font-size:19px}
+#card .say b.low{color:#d94a3a}
+#card .r3{font-size:11px;font-weight:700;color:#5a3d2b;line-height:14px}
+#card .tbar{position:absolute;left:10px;right:10px;bottom:4px;height:4px;background:#e8d8b4;border-radius:2px;overflow:hidden}
+#card .tbar i{display:block;height:100%;background:#3fae5a}
+.stamp{position:absolute;top:30px;font-size:26px;font-weight:900;border:4px solid;border-radius:10px;padding:0 8px;opacity:0;pointer-events:none;transform:rotate(-12deg)}
+.stamp.yes{right:14px;color:#3fae5a}.stamp.no{left:14px;color:#d94a3a;transform:rotate(12deg)}
+#card.mini{width:150px;height:auto;padding:5px 7px;opacity:.95}
+#card.mini .r3,#card.mini .pf,#card.mini .tbar{display:none}
+#card.mini .say{font-size:12px;line-height:15px;margin:2px 0 0}
+#card.mini .say b{font-size:13px}
+#btns{position:absolute;top:160px;left:10px;right:10px;height:52px;display:flex;gap:10px}
+#btns button{flex:1;height:52px;border-radius:14px;border:3px solid #2a1f2b;font-size:18px;font-weight:900;box-shadow:0 4px 0 #2a1f2b;font-family:inherit}
+#bno{background:#f4d0c4;color:#a02a1a}#byes{background:#bfe8b0;color:#1f6a30}
+#btns button:active{transform:translateY(3px);box-shadow:0 1px 0 #2a1f2b}
+#hint{position:absolute;top:214px;left:0;right:0;text-align:center;font-size:11px;font-weight:800;color:#5a3d2b}
+#fx{position:absolute;inset:0;pointer-events:none;z-index:50;overflow:hidden}
+.fl{position:absolute;transform:translate(-50%,-50%);font-weight:900;font-size:17px;white-space:nowrap;-webkit-text-stroke:1px #2a1f2b;paint-order:stroke;
+  text-shadow:0 2px 0 #2a1f2b;animation:fl 1.3s ease-out forwards}
+.fl.big{font-size:26px;animation-duration:1.8s}
+@keyframes fl{0%{opacity:0;transform:translate(-50%,-30%) scale(.5)}15%{opacity:1;transform:translate(-50%,-50%) scale(1.15)}30%{transform:translate(-50%,-60%) scale(1)}100%{opacity:0;transform:translate(-50%,-180%)}}
+.flash{position:absolute;inset:0;background:#fff;opacity:0;animation:flash .35s}
+@keyframes flash{30%{opacity:.55}}
+.layer{position:absolute;inset:0;z-index:60;background:#2a1f2bcc;display:none;align-items:center;justify-content:center;padding:16px}
+.layer.on{display:flex}
+.panel{background:#fff4dc;border:4px solid #5a3d2b;border-radius:18px;padding:16px 16px 14px;box-shadow:0 6px 0 #2a1f2b;width:100%;max-height:100%;overflow:auto}
+.panel h1{margin:0 0 6px;font-size:26px;text-align:center}
+.panel h2{margin:0 0 8px;font-size:19px;text-align:center}
+.panel p,.panel li{font-size:14px;line-height:21px;margin:4px 0;font-weight:600}
+.panel ul{padding-left:18px;margin:6px 0}
+.panel .big{font-size:30px;font-weight:900;text-align:center;color:#3fae5a;margin:4px 0}
+.panel .ttl{font-size:24px;font-weight:900;text-align:center;color:#a8453a;margin:8px 0 2px}
+.panel .q{font-size:14px;text-align:center;font-style:italic;color:#5a3d2b;margin-bottom:8px}
+.panel table{width:100%;border-collapse:collapse;font-size:14px;font-weight:700}
+.panel td{padding:3px 2px;border-bottom:1px dashed #c9a36a}.panel td:last-child{text-align:right;font-weight:900}
+.go{display:block;width:100%;height:56px;margin-top:12px;border-radius:14px;border:3px solid #2a1f2b;background:#f2b134;font-size:20px;font-weight:900;box-shadow:0 4px 0 #2a1f2b;font-family:inherit;color:#2a1f2b}
+.fore{background:#e8d8b4;border-radius:10px;padding:6px 10px;font-weight:800;font-size:14px;margin-top:8px}
+</style>
+</head>
+<body>
+<div id="app">
+  <canvas id="cv" width="195" height="165"></canvas>
+  <div id="ov"></div>
+  <div id="mute" class="btn-ico">🔊</div>
+  <div id="clock">周四 ☀️ 06:00</div>
+  <div id="help" class="btn-ico">?</div>
+  <div id="toast"></div>
+  <div id="stats">
+    <span class="pill" id="sMoney">💰 $0</span>
+    <span class="pill" id="sBad">差评 💢 0</span>
+    <span class="pill" id="sMem">会员 😊 70%</span>
+  </div>
+  <div id="board"><div id="cols"></div><div id="labels"></div></div>
+  <div id="callzone">
+    <div id="queue"><span id="qn">📞 等电话…</span><span id="qhint">点价格牌改价 · 上下拖也行</span></div>
+    <div id="cardwrap"></div>
+    <div id="btns"><button id="bno">✕ 拒绝</button><button id="byes">接 ✓</button></div>
+    <div id="hint">左右滑卡片 · 拖到格子上指定场地 · 拖到已订的格子 = 超订</div>
+  </div>
+  <div id="fx"></div>
+  <div class="layer on" id="Ltitle"><div class="panel">
+    <h1>📞 订场板</h1>
+    <p style="text-align:center;color:#5a3d2b;margin-top:-2px">Palm Oasis 网球俱乐部 · 前台的三天</p>
+    <ul>
+      <li>电话一个个打进来：<b>右滑接、左滑拒</b>，或者把卡<b>拖到格子上</b>选场地。</li>
+      <li>拖到<b>已经订出去</b>的格子 = <b>超订</b>：赌有人爽约就双倍收钱，赌输了两拨人在场上吵起来。</li>
+      <li>点每个钟点的<b>价格牌</b>（低/中/高/抢）改价：贵了来电少，便宜了赚得少。</li>
+      <li>夜场要开灯（$8/小时）；高峰全卖给散客，<b>会员</b>会生气。一天约 1 分钟，共 3 天。</li>
+    </ul>
+    <button class="go" id="bstart">开始营业</button>
+  </div></div>
+  <div class="layer" id="Lday"><div class="panel" id="Pday"></div></div>
+  <div class="layer" id="Lend"><div class="panel" id="Pend"></div></div>
+  <div class="layer" id="Lhelp"><div class="panel">
+    <h2>设计说明 · demo 03</h2>
+    <p><b>在测的假设：</b>"比客人多算一步"本身就好玩。每个来电是一次小赌：接不接、放哪格、要不要超订到一个爱爽约的客人头上；赌局在那个钟点开奖，场上当场演出来（双倍收钱 or 两拨人吵架）。</p>
+    <p><b>取舍：</b></p>
+    <ul>
+      <li>价格牌：<b>高/抢</b>每单多赚，但来电变少；<b>低</b>来电多、能救回热浪的中午，但每单少赚。</li>
+      <li>超订：赌赢一单白赚，赌输 −$15 赔偿 + 差评（差评让以后来电变少；网红在场 ×3）。</li>
+      <li>会员只付 $20：接了占掉高峰、少赚散客的钱；不接或把高峰全卖高价给散客，会员满意掉。</li>
+      <li>夜场灯费：便宜的爽约大王订了夜场，可能倒贴。</li>
+    </ul>
+    <p>北极星：每 2–5 秒一个小决定，每天傍晚高峰开奖一次大的；结束时按你的风格给称号。</p>
+    <button class="go" id="bhelp">知道了</button>
+  </div></div>
+</div>
+<script>
+'use strict';
+// ---------- 基础 ----------
+const Q = new URLSearchParams(location.search);
+const FAST = +Q.get('fast') || 1, AUTO = Q.has('auto');
+let seed = (+Q.get('seed') || (Date.now() % 1000003)) >>> 0;
+function rnd() { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; }
+const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
+const pick = (a) => a[Math.floor(rnd() * a.length)];
+const $ = (id) => document.getElementById(id);
+const app = $('app');
+let SCALE = 1;
+function fit() { SCALE = Math.min(innerWidth / 390, innerHeight / 844, 1.5); app.style.transform = `scale(${SCALE})`; }
+addEventListener('resize', fit); fit();
+function local(e) { const r = app.getBoundingClientRect(); return [(e.clientX - r.left) / SCALE, (e.clientY - r.top) / SCALE]; }
+function relRect(el) { const r = el.getBoundingClientRect(), a = app.getBoundingClientRect();
+  return { x: (r.left - a.left) / SCALE, y: (r.top - a.top) / SCALE, w: r.width / SCALE, h: r.height / SCALE }; }
+
+// ---------- 声音 ----------
+let AC = null, muted = false;
+function ac() { if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} } if (AC && AC.state === 'suspended') AC.resume(); }
+function tone(f, d = .08, type = 'square', v = .05, f2 = 0, delay = 0) {
+  if (muted || !AC) return; const t = AC.currentTime + delay;
+  const o = AC.createOscillator(), g = AC.createGain(); o.type = type; o.frequency.setValueAtTime(f, t);
+  if (f2) o.frequency.exponentialRampToValueAtTime(f2, t + d);
+  g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(.0001, t + d);
+  o.connect(g).connect(AC.destination); o.start(t); o.stop(t + d + .02);
+}
+const SFX = {
+  ring() { tone(1250, .05, 'square', .03); tone(1550, .05, 'square', .03, 0, .08); },
+  ok() { tone(520, .06); tone(780, .09, 'square', .05, 0, .06); },
+  no() { tone(320, .14, 'square', .05, 160); },
+  tick() { tone(900, .025, 'square', .03); },
+  cash() { tone(1320, .05); tone(1760, .12, 'square', .05, 0, .06); },
+  big() { [1046, 1318, 1568, 2093].forEach((f, i) => tone(f, .1, 'square', .05, 0, i * .07)); },
+  fight() { tone(150, .35, 'sawtooth', .07, 90); tone(190, .3, 'sawtooth', .05, 110, .12); tone(120, .3, 'sawtooth', .05, 80, .3); },
+  ob() { tone(440, .06, 'triangle', .06); tone(660, .06, 'triangle', .06, 0, .06); tone(990, .1, 'triangle', .06, 0, .12); },
+  sad() { tone(500, .15, 'triangle', .05, 300); },
+  hour() { tone(700, .03, 'triangle', .03); },
+};
+$('mute').onpointerdown = (e) => { e.stopPropagation(); muted = !muted; $('mute').textContent = muted ? '🔇' : '🔊'; ac(); SFX.tick(); };
+
+// ---------- 数据 ----------
+const COURTS = [
+  { n: '1', t: '硬地', clay: false, lit: false },
+  { n: '2', t: '硬地', clay: false, lit: true },
+  { n: '3', t: '红土', clay: true, lit: false },
+  { n: '4', t: '红土', clay: true, lit: true },
+];
+const HOUR_MS = 4000, H0 = 7, H1 = 21, LIGHT = 19, LIGHT_COST = 8, COMP = 15;
+const TIERS = [{ k: '低', p: 15, c: '#3fae5a' }, { k: '中', p: 25, c: '#3f6fb0' }, { k: '高', p: 40, c: '#e09a1a' }, { k: '抢', p: 60, c: '#d94a3a' }];
+const BASE = { 7: .55, 8: .75, 9: .6, 10: .45, 11: .35, 12: .35, 13: .3, 14: .3, 15: .4, 16: .65, 17: 1.6, 18: 2.6, 19: 2.6, 20: 1.8, 21: .8 };
+const DAYS = ['周四', '周五', '周六'];
+const WEATHER = {
+  sun: { k: '晴', i: '☀️', d: '晴天。傍晚 17–20 点是高峰。' },
+  heat: { k: '热浪', i: '🔥', d: '热浪：12–15 点基本没人来——除非定"低"价。' },
+  wind: { k: '大风', i: '🌬️', d: '大风：来电少一些，爽约多一些。' },
+};
+const TYPES = {
+  member: { n: '会员', s: '会', c: '#e09a1a', fl: .05, shirt: '#f4f1e8', pants: '#3f6fb0', pay: () => 20 },
+  walk: { n: '散客', s: '散', c: '#3f6fb0', fl: .15, shirt: '#4f8fd0', pants: '#2a3a5a', pay: (p) => p },
+  student: { n: '大学生', s: '学', c: '#3fae5a', fl: .42, shirt: '#5fce6a', pants: '#3a3a4a', pay: (p) => Math.min(p, pick([10, 12, 15])) },
+  corp: { n: '公司团建', s: '团', c: '#5a4d6a', fl: .08, shirt: '#5a5a6e', pants: '#2a2a3a', pay: (p) => Math.round(p * 1.5) },
+  influ: { n: '网红', s: '红', c: '#d05a9a', fl: .3, shirt: '#f07ac0', pants: '#f4f1e8', pay: (p) => p },
+  uncle: { n: '球友大叔', s: '叔', c: '#8a5a35', fl: .04, shirt: '#a8453a', pants: '#c9a36a', pay: (p) => Math.max(12, Math.round(p * .8)) },
+};
+const SKINS = ['#f1c27d', '#c68642', '#8d5524', '#ffdbac'];
+const HAIRS = ['#2a1f2b', '#5a3d2b', '#8a5a35', '#e8c060', '#a8453a', '#c0c0c0'];
+const stars = (fl) => fl <= .06 ? 1 : fl <= .1 ? 2 : fl <= .2 ? 3 : fl <= .35 ? 4 : 5;
+
+// ---------- 状态 ----------
+let S;
+function newGame() {
+  const ws = ['sun', 'heat', 'wind']; for (let i = 2; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [ws[i], ws[j]] = [ws[j], ws[i]]; }
+  S = { day: 0, weather: ws, money: 0, bad: 0, mem: 70, tiers: {}, phase: 'title',
+    tot: { rev: 0, light: 0, comp: 0, ob: 0, fight: 0, dbl: 0, noshow: 0, hang: 0, decline: 0, memAngry: 0, played: 0 } };
+  for (let h = H0; h <= H1; h++) S.tiers[h] = 1;
+  newDay();
+}
+function newDay() {
+  S.clock = 6; S.nextHour = 7; S.book = {}; S.res = {}; S.calls = []; S.callAcc = .6; S.lastCall = 0;
+  S.timers = []; S.actors = []; S.dust = {}; S.parts = []; S.weed = null; S.ended = false;
+  S.ds = { rev: 0, light: 0, comp: 0, ob: 0, fight: 0, dbl: 0, noshow: 0, played: 0, memStart: S.mem, badStart: S.bad };
+  buildBoard(); renderCard(); updStats();
+}
+const W = () => S.weather[S.day];
+const key = (c, h) => c + '_' + h;
+const book = (c, h) => S.book[key(c, h)] || (S.book[key(c, h)] = []);
+const litOK = (c, h) => h < LIGHT || COURTS[c].lit;
+const nowH = () => Math.floor(S.clock);
+function demand(h) {
+  let b = BASE[h]; const t = S.tiers[h];
+  const peak = b >= 1.2 || (S.day === 2 && h >= 17 && h <= 20);
+  if (W() === 'heat' && h >= 12 && h <= 15) b *= t === 0 ? .9 : .1;
+  if (W() === 'wind') b *= .78;
+  if (S.day === 2 && h >= 17 && h <= 20) b *= 1.45;
+  const el = peak ? [1.25, 1, .8, .55] : [1.5, 1, .55, .25];
+  return b * el[t] * Math.max(.45, 1 - .07 * S.bad);
+}
+
+// ---------- 画面（195×165 像素） ----------
+const cv = $('cv'), cx = cv.getContext('2d');
+const CX = (c) => 7 + c * 47, CY = 40, CW = 40, CH = 90, GATE = { x: 97, y: 168 };
+const SPR = [[
+  '..OOOO..', '.OHHHHO.', 'OHHHHHHO', 'OHSSSSHO', 'OSOSSOSO', '.OSSSSO.', '.OTTTTO.',
+  'OTTTTTTO', 'OSTTTTSO', '.OTTTTO.', '.OPPPPO.', '.OPOOPO.', '.OPOOPO.', '.OWOOWO.'], [
+  '..OOOO..', '.OHHHHO.', 'OHHHHHHO', 'OHSSSSHO', 'OSOSSOSO', '.OSSSSO.', '.OTTTTO.',
+  'OTTTTTTO', 'OSTTTTSO', '.OTTTTO.', '.OPPPPO.', 'OPO..OPO', 'OPO..OPO', 'OWO..OWO']];
+function drawSpr(g, fr, pal, x, y, flip) {
+  const rows = SPR[fr];
+  for (let r = 0; r < 14; r++) for (let i = 0; i < 8; i++) {
+    const ch = rows[r][flip ? 7 - i : i]; if (ch === '.') continue;
+    g.fillStyle = ch === 'O' ? '#2a1f2b' : ch === 'W' ? '#f4f1e8' : pal[ch]; g.fillRect(x + i, y + r, 1, 1);
+  }
+}
+function px(g, c, x, y, w = 1, h = 1) { g.fillStyle = c; g.fillRect(x | 0, y | 0, w, h); }
+// 静态层
+const bg = document.createElement('canvas'); bg.width = 195; bg.height = 165;
+(function buildBg() {
+  const g = bg.getContext('2d'); let s2 = 777; const r2 = () => (s2 = (s2 * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
+  // 远山
+  for (let x = 0; x < 195; x++) { const h = 8 + Math.sin(x * .05) * 4 + Math.sin(x * .13 + 1) * 3 + Math.sin(x * .31) * 1.2; px(g, '#b98a6a', x, 30 - h, 1, h); px(g, '#a87a5a', x, 30 - h * .45, 1, h * .45); }
+  // 沙地
+  px(g, '#e8c88a', 0, 28, 195, 137);
+  for (let i = 0; i < 260; i++) px(g, r2() < .5 ? '#c9a36a' : '#f0d49a', r2() * 195, 28 + r2() * 137);
+  // 场外绿
+  px(g, '#2a1f2b', 2, 33, 191, 103); px(g, '#4f8a4b', 3, 34, 189, 101);
+  for (let i = 0; i < 120; i++) px(g, '#5a9a55', 3 + r2() * 189, 34 + r2() * 101);
+  // 场地
+  COURTS.forEach((co, c) => {
+    const x = CX(c), y = CY, sf = co.clay ? '#c8643c' : '#3f6fb0', ln = co.clay ? '#f4e8d8' : '#f4f1e8';
+    px(g, sf, x, y, CW, CH);
+    if (co.clay) for (let i = 0; i < 40; i++) px(g, '#b85a34', x + r2() * CW, y + r2() * CH);
+    else for (let i = 0; i < 25; i++) px(g, '#3a66a4', x + r2() * CW, y + r2() * CH);
+    g.fillStyle = ln;
+    const L = x + 3, R = x + CW - 4, T = y + 3, B = y + CH - 4, sl = x + 7, sr = x + CW - 8, mx = x + CW / 2 - 1;
+    g.fillRect(L, T, R - L + 1, 1); g.fillRect(L, B, R - L + 1, 1); g.fillRect(L, T, 1, B - T + 1); g.fillRect(R, T, 1, B - T + 1);
+    g.fillRect(sl, T, 1, B - T + 1); g.fillRect(sr, T, 1, B - T + 1);
+    const s1 = y + 23, s2y = y + CH - 24; g.fillRect(sl, s1, sr - sl + 1, 1); g.fillRect(sl, s2y, sr - sl + 1, 1);
+    g.fillRect(mx, s1, 1, s2y - s1); g.fillRect(mx, T, 1, 2); g.fillRect(mx, B - 1, 1, 2);
+    // 球网
+    px(g, '#2a1f2b', x + 1, y + CH / 2 - 1, CW - 2, 2); px(g, '#e8e8e8', x + 1, y + CH / 2 - 1, CW - 2, 1);
+    px(g, '#2a1f2b', x, y + CH / 2 - 2, 1, 4); px(g, '#2a1f2b', x + CW - 1, y + CH / 2 - 2, 1, 4);
+  });
+  // 篱笆
+  for (let x = 2; x < 193; x += 1) if (x < 88 || x > 106) px(g, (x % 4) ? '#8a5a35' : '#5a3d2b', x, 137, 1, (x % 4) ? 1 : 3);
+  // 会所
+  px(g, '#2a1f2b', 4, 143, 46, 20); px(g, '#fff4dc', 5, 147, 44, 15); px(g, '#a8453a', 3, 141, 48, 6); px(g, '#2a1f2b', 3, 140, 48, 1);
+  for (let i = 0; i < 3; i++) { px(g, '#4fc3d9', 9 + i * 12, 151, 6, 5); px(g, '#2a1f2b', 9 + i * 12, 156, 6, 1); }
+  px(g, '#8a5a35', 43, 152, 4, 10);
+  // 泳池
+  px(g, '#f4f1e8', 138, 145, 40, 16); px(g, '#4fc3d9', 140, 147, 36, 12);
+  for (let i = 0; i < 8; i++) px(g, '#8fe3f0', 142 + r2() * 32, 148 + r2() * 10, 3, 1);
+  // 棕榈
+  const palm = (x, y, h) => {
+    for (let i = 0; i < h; i++) px(g, i % 3 ? '#8a5a35' : '#5a3d2b', x + Math.round(Math.sin(i * .25) * 1.5), y - i, 2, 1);
+    const tx = x + Math.round(Math.sin(h * .25) * 1.5), ty = y - h;
+    [[-1, 0], [1, 0], [-1, .5], [1, .5], [0, -1]].forEach(([dx, dy]) => { for (let k = 0; k < 7; k++) px(g, k > 4 ? '#2f6a2e' : '#3c7d3a', tx + dx * k, ty + dy * k + (k * k) * .12, 2, 1); });
+  };
+  palm(183, 162, 16); palm(131, 163, 12); palm(57, 163, 14); palm(189, 30, 10); palm(6, 31, 9);
+})();
+function lerpC(a, b, t) { const p = (s) => [1, 3, 5].map((i) => parseInt(s.substr(i, 2), 16)); const A = p(a), B = p(b);
+  return '#' + A.map((v, i) => Math.round(v + (B[i] - v) * t).toString(16).padStart(2, '0')).join(''); }
+function skyCol(t) {
+  const K = [[5, '#3a3a6a'], [6.5, '#f2b08a'], [8, '#8ec9e8'], [16.5, '#8ec9e8'], [18.3, '#e8906a'], [19.5, '#4a3a6a'], [23, '#1e1e40']];
+  for (let i = 0; i < K.length - 1; i++) if (t <= K[i + 1][0]) return lerpC(K[i][1], K[i + 1][1], Math.max(0, (t - K[i][0]) / (K[i + 1][0] - K[i][0])));
+  return '#1e1e40';
+}
+function dark(t) { if (t < 7) return .3 * (7 - t); if (t < 17.5) return 0; if (t < 19.5) return .5 * (t - 17.5) / 2; return .5; }
+function lightsOn(c) { const h = nowH(); return COURTS[c].lit && h >= LIGHT && h <= H1 && book(c, h).length > 0; }
+
+function draw(time) {
+  const t = S.clock;
+  cx.fillStyle = skyCol(t); cx.fillRect(0, 0, 195, 30);
+  // 太阳/月亮
+  if (t < 19.3) { const a = (t - 6) / 13.3, sx = 20 + a * 155, sy = 24 - Math.sin(a * Math.PI) * 18; const hot = W() === 'heat' && t > 11 && t < 16;
+    cx.fillStyle = hot ? '#ffd060' : '#f2b134'; cx.beginPath(); cx.arc(sx | 0, sy | 0, hot ? 5 : 4, 0, 7); cx.fill();
+    if (hot && ((time / 200) | 0) % 2) { px(cx, '#ffe9a0', sx - 8, sy, 2, 1); px(cx, '#ffe9a0', sx + 7, sy, 2, 1); px(cx, '#ffe9a0', sx, sy - 8, 1, 2); } }
+  else { px(cx, '#f4f1e8', 150, 8, 4, 4); px(cx, skyCol(t), 152, 7, 3, 3); for (let i = 0; i < 6; i++) px(cx, '#f4f1e8', (i * 37 + 11) % 190, (i * 13 + 3) % 22); }
+  cx.drawImage(bg, 0, 0);
+  // 热浪的地面闪光
+  if (W() === 'heat' && t > 11.5 && t < 15.5) { for (let i = 0; i < 10; i++) { const y = 40 + ((i * 29 + time / 40) % 95); px(cx, 'rgba(255,240,200,.35)', (i * 53 + Math.sin(time / 300 + i) * 4) % 190, y, 6, 1); } }
+  // 灰尘云
+  for (const c in S.dust) if (S.dust[c] > time) { const x0 = CX(+c) + CW / 2, y0 = CY + CH / 2;
+    for (let i = 0; i < 26; i++) { const a = i * 2.4 + time / 90, r = 6 + (i % 5) * 2.2 + Math.sin(time / 70 + i) * 2; px(cx, i % 3 ? '#f4f1e8' : '#c9a36a', x0 + Math.cos(a) * r, y0 + Math.sin(a) * r * .7, 2 + (i % 2), 2); } }
+  // 人
+  const list = S.actors.slice().sort((a, b) => a.y - b.y);
+  for (const a of list) { if (a.delay > 0) continue; let x = a.x, y = a.y;
+    if (a.state === 'brawl' && a.at) { x += Math.sin(time / 45 + a.seed) * 2; y += Math.cos(time / 60 + a.seed * 2) * 1.5; }
+    if (a.state === 'play' && a.at) y += Math.sin(time / 250 + a.seed) > .9 ? -1 : 0;
+    px(cx, 'rgba(0,0,0,.25)', x - 3, y, 7, 1);
+    drawSpr(cx, a.moving ? ((a.dist / 4 | 0) % 2) : 0, a.pal, Math.round(x - 4), Math.round(y - 14), a.flip); }
+  // 球
+  for (let c = 0; c < 4; c++) { const ps = S.actors.filter((a) => a.c === c && a.state === 'play' && a.at); if (ps.length < 2) continue;
+    const top = ps.reduce((m, a) => a.y < m.y ? a : m), bot = ps.reduce((m, a) => a.y > m.y ? a : m);
+    let k = (time / 900 + c * .37) % 2; k = k > 1 ? 2 - k : k; const bx = top.x + (bot.x - top.x) * k + 2, by = top.y - 8 + (bot.y - top.y) * k, hz = Math.sin(k * Math.PI) * 6;
+    px(cx, 'rgba(0,0,0,.3)', bx, by + 3, 2, 1); px(cx, '#2a1f2b', bx - 1, by - hz - 1, 3, 3); px(cx, '#e6f04a', bx, by - hz, 1, 1); }
+  // 风沙、风滚草
+  if (W() === 'wind') { for (const p of S.parts) px(cx, 'rgba(240,215,160,.8)', p.x, p.y, 4, 1);
+    if (S.weed) { const w = S.weed; px(cx, '#8a5a35', w.x - 3, w.y - 3, 6, 6); px(cx, '#c9a36a', w.x - 2, w.y - 2, 4, 4); px(cx, '#8a5a35', w.x - 1 + ((time / 80 | 0) % 2), w.y - 1, 2, 2); } }
+  // 夜色（亮灯的场地挖掉）
+  const d = dark(t);
+  if (d > 0) { cx.save(); cx.beginPath(); cx.rect(0, 0, 195, 165);
+    for (let c = 0; c < 4; c++) if (lightsOn(c)) cx.rect(CX(c) - 2, CY - 3, CW + 4, CH + 6);
+    cx.fillStyle = `rgba(20,18,60,${d})`; cx.fill('evenodd'); cx.restore();
+    for (let c = 0; c < 4; c++) if (lightsOn(c)) { cx.fillStyle = 'rgba(255,235,150,.12)'; cx.fillRect(CX(c) - 2, CY - 3, CW + 4, CH + 6); } }
+  // 灯杆
+  for (let c = 0; c < 4; c++) if (COURTS[c].lit) { const on = lightsOn(c);
+    [[CX(c) - 3, CY - 2], [CX(c) + CW + 1, CY - 2], [CX(c) - 3, CY + CH - 6], [CX(c) + CW + 1, CY + CH - 6]].forEach(([x, y]) => {
+      px(cx, '#6a6a7a', x, y, 1, 8); px(cx, '#2a1f2b', x - 1, y - 2, 3, 2); px(cx, on ? '#fff0a0' : '#8a8a8a', x - 1, y - 2, 3, 1);
+      if (on) { px(cx, 'rgba(255,240,160,.45)', x - 3, y - 4, 7, 5); } }); }
+}
+
+// ---------- 人物 ----------
+function palette(type) { const T = TYPES[type]; return { S: pick(SKINS), H: pick(HAIRS), T: T.shirt, P: T.pants }; }
+function spots(c, n, mode) {
+  const x = CX(c) + CW / 2, y1 = CY + 13, y2 = CY + CH - 3;
+  if (mode === 'brawl') return Array.from({ length: n }, (_, i) => [x - 12 + (i % 4) * 8 + rnd() * 2, CY + CH / 2 - 4 + (i < 4 ? 0 : 14) + rnd() * 3]);
+  if (n <= 2) return [[x, y1], [x, y2]];
+  return [[x - 9, y1], [x + 9, y1], [x - 9, y2], [x + 9, y2]];
+}
+function spawnGroup(c, h, b, mode, grp) {
+  const pos = spots(c, b.size, mode); const out = [];
+  pos.forEach((p, i) => { const a = { x: GATE.x - 4 + rnd() * 8, y: GATE.y + rnd() * 4, tx: p[0], ty: p[1], pal: palette(b.type), state: mode, c, h, grp,
+    delay: i * 160 + (grp === 'B' ? 250 : 0), dist: 0, flip: false, moving: true, at: false, seed: rnd() * 10, speed: 70 + rnd() * 15 };
+    S.actors.push(a); out.push(a); });
+  return out;
+}
+function sendTo(a, x, y, state) { a.tx = x; a.ty = y; a.state = state; a.at = false; }
+function updActors(dt) {
+  for (const a of S.actors) {
+    if (a.delay > 0) { a.delay -= dt; continue; }
+    const dx = a.tx - a.x, dy = a.ty - a.y, L = Math.hypot(dx, dy), st = a.speed * dt / 1000;
+    if (L <= st) { a.x = a.tx; a.y = a.ty; a.moving = false; if (!a.at) { a.at = true; if (a.state === 'leave') a.gone = true; } }
+    else { a.x += dx / L * st; a.y += dy / L * st; a.dist += st; a.moving = true; if (Math.abs(dx) > .5) a.flip = dx < 0; }
+  }
+  S.actors = S.actors.filter((a) => !a.gone);
+}
+
+// ---------- 叠层：气泡、飘字 ----------
+const ov = $('ov'), fx = $('fx');
+let bubs = [];
+function bubble(a, txt, ms = 1500) { const el = document.createElement('div'); el.className = 'bub'; el.textContent = txt; ov.appendChild(el); bubs.push({ a, el, until: performance.now() + ms }); }
+function updBubs() { const n = performance.now();
+  bubs = bubs.filter((b) => { if (n > b.until || b.a.gone) { b.el.remove(); return false; }
+    if (b.a.delay > 0) { b.el.style.display = 'none'; return true; } b.el.style.display = '';
+    b.el.style.left = b.a.x * 2 + 'px'; b.el.style.top = (b.a.y - 15) * 2 + 'px'; return true; }); }
+function float(txt, color, x, y, big) { const el = document.createElement('div'); el.className = 'fl' + (big ? ' big' : ''); el.textContent = txt; el.style.color = color;
+  el.style.left = Math.max(40, Math.min(350, x)) + 'px'; el.style.top = y + 'px'; fx.appendChild(el); setTimeout(() => el.remove(), big ? 1900 : 1400); }
+const courtXY = (c) => [(CX(c) + CW / 2) * 2, (CY + CH / 2) * 2];
+function shake() { app.classList.remove('shake'); void app.offsetWidth; app.classList.add('shake'); }
+function flash() { const el = document.createElement('div'); el.className = 'flash'; fx.appendChild(el); setTimeout(() => el.remove(), 400); }
+let toastT = 0;
+function toast(s, ms = 2200) { const t = $('toast'); t.textContent = s; t.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), ms); }
+COURTS.forEach((co, c) => { const el = document.createElement('div'); el.className = 'ctag'; el.style.left = (CX(c) + CW / 2) * 2 + 'px'; el.textContent = co.n + ' ' + co.t + (co.lit ? '💡' : ''); ov.appendChild(el); });
+
+// ---------- 统计条 ----------
+let lastStats = '';
+function updStats(bumpWhich) {
+  $('sMoney').textContent = '💰 $' + S.money; $('sBad').textContent = '差评 💢 ' + S.bad;
+  const m = Math.round(S.mem); $('sMem').textContent = '会员 ' + (m >= 70 ? '😊' : m >= 45 ? '😐' : '😠') + ' ' + m + '%';
+  if (bumpWhich) { const el = $(bumpWhich); el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); }
+}
+function addMoney(v, x, y, label, big) {
+  S.money += v; if (v >= 0) { S.tot.rev += v; S.ds.rev += v; } else { S.tot.comp -= v; S.ds.comp -= v; }
+  float((label ? label + ' ' : '') + (v >= 0 ? '+$' : '−$') + Math.abs(v), v >= 0 ? (big ? '#f2b134' : '#6fe08a') : '#ff6a5a', x, y, big);
+  updStats('sMoney');
+}
+function addMem(v, why, x = 300, y = 345) { S.mem = Math.max(0, Math.min(100, S.mem + v)); if (v < 0) S.tot.memAngry++;
+  if (why) float(why + (v > 0 ? ' 会员+' : ' 会员') + (v > 0 ? v : v), v > 0 ? '#6fe08a' : '#ff6a5a', x, y); updStats('sMem'); }
+function addBad(v, why, x = 195, y = 345) { S.bad = Math.max(0, S.bad + v);
+  float(why + (v > 0 ? ' 差评+' + v : ' 差评' + v), v > 0 ? '#ff6a5a' : '#6fe08a', x, y, v >= 3); updStats('sBad'); }
+
+// ---------- 订场板 ----------
+const cols = {};
+function buildBoard() {
+  const wrap = $('cols'); wrap.innerHTML = '';
+  for (let h = H0; h <= H1; h++) {
+    const el = document.createElement('div'); el.className = 'col';
+    el.innerHTML = `<div class="hr"></div><div class="chip" data-h="${h}"></div>` + COURTS.map((_, c) => `<div class="cell" data-c="${c}" data-h="${h}"></div>`).join('');
+    wrap.appendChild(el); cols[h] = { el, hr: el.querySelector('.hr'), chip: el.querySelector('.chip'), cells: [...el.querySelectorAll('.cell')] };
+    renderCol(h); bindChip(cols[h].chip, h);
+  }
+  const lb = $('labels'); lb.innerHTML = '<div class="lh">钟点</div><div class="lp">价格<br>牌</div>' + COURTS.map((co) => `<div class="lc">${co.n}<small>${co.t}${co.lit ? '💡' : ''}</small></div>`).join('');
+}
+function renderCol(h) {
+  const C = cols[h]; if (!C) return; const t = TIERS[S.tiers[h]];
+  C.chip.style.background = t.c; C.chip.innerHTML = `${t.k}<small>$${t.p}</small>`;
+  updHr(h);
+  C.cells.forEach((el, c) => {
+    if (!litOK(c, h)) { el.className = 'cell dark'; el.textContent = '无灯'; return; }
+    const a = book(c, h); el.className = 'cell' + (a.length > 1 ? ' ob' : '');
+    el.innerHTML = a.map((b) => `<span class="bk${a.length === 1 ? ' only' : ''}" style="background:${TYPES[b.type].c}">${TYPES[b.type].s}${'<i></i>'.repeat(stars(b.fl))}</span>`).join('') +
+      (a.length > 1 ? '<span class="x2">超订</span>' : '') + (S.res[key(c, h)] ? `<span class="res">${S.res[key(c, h)]}</span>` : '');
+  });
+}
+function updHr(h) { const C = cols[h]; const d = demand(h); const n = d < .25 ? 1 : d < .6 ? 2 : d < 1.1 ? 3 : 4;
+  const heat = W() === 'heat' && h >= 12 && h <= 15;
+  const html = `${h}点<i>${heat ? '🔥' : '▮'.repeat(n)}</i>`; if (C.hr._h !== html) { C.hr.innerHTML = html; C.hr._h = html; } }
+function updBoard() {
+  const t = Math.max(S.clock, 6), tgt = S.calls[0] ? S.calls[0].h : -1;
+  for (let h = H0; h <= H1; h++) { const C = cols[h]; const x = 40 + (h - t + 1) * 50;
+    C.el.style.transform = `translateX(${x.toFixed(1)}px)`;
+    C.el.classList.toggle('live', h <= S.clock && S.clock < h + 1); C.el.classList.toggle('target', h === tgt); }
+}
+function bindChip(el, h) {
+  let st = null;
+  el.addEventListener('pointerdown', (e) => { e.preventDefault(); ac(); if (S.phase !== 'play') return;
+    if (h <= S.clock) { float('这个钟点已经开始了', '#ff6a5a', local(e)[0], local(e)[1] - 20); SFX.no(); return; }
+    el.setPointerCapture(e.pointerId); st = { y: local(e)[1], t0: S.tiers[h], moved: false }; });
+  el.addEventListener('pointermove', (e) => { if (!st) return; const dy = st.y - local(e)[1];
+    if (Math.abs(dy) > 10) st.moved = true; if (!st.moved) return;
+    const nt = Math.max(0, Math.min(3, st.t0 + Math.round(dy / 24))); if (nt !== S.tiers[h]) setTier(h, nt); });
+  el.addEventListener('pointerup', (e) => { if (!st) return; if (!st.moved) setTier(h, (S.tiers[h] + 1) % 4); st = null; });
+  el.addEventListener('pointercancel', () => { st = null; });
+}
+function setTier(h, t) { S.tiers[h] = t; renderCol(h); const c = cols[h].chip; c.classList.remove('pop'); void c.offsetWidth; c.classList.add('pop');
+  tone(500 + t * 220, .05, 'square', .04); if (S.calls[0] && S.calls[0].h === h) renderCard(); }
+
+// ---------- 来电 ----------
+let callId = 0;
+function spawnCall() {
+  const h0 = nowH() + 1, h1 = Math.min(H1, nowH() + 5); if (h0 > H1) return;
+  const hs = []; let sum = 0;
+  for (let h = h0; h <= h1; h++) { if (!COURTS.some((_, c) => litOK(c, h) && book(c, h).length < 2)) continue; const d = demand(h); hs.push([h, d]); sum += d; }
+  if (!sum) return; let r = rnd() * sum, h = hs[0][0]; for (const [hh, d] of hs) { r -= d; if (r <= 0) { h = hh; break; } }
+  const peak = h >= 17 && h <= 20;
+  const tw = { member: peak ? .3 : .12, walk: .34, student: h >= 9 && h <= 16 ? .26 : .1, corp: h >= 17 ? .09 : .02, influ: .07, uncle: h <= 10 ? .28 : .07 };
+  let tr = rnd() * Object.values(tw).reduce((a, b) => a + b), type = 'walk'; for (const k in tw) { tr -= tw[k]; if (tr <= 0) { type = k; break; } }
+  const T = TYPES[type]; const price = TIERS[S.tiers[h]].p;
+  const fl = Math.min(.7, T.fl + (W() === 'wind' ? .08 : 0) + (rnd() - .5) * .06);
+  const size = type === 'corp' ? 4 : rnd() < .45 ? 4 : 2;
+  const call = { id: ++callId, type, h, size, fl, offer: T.pay(price), price, pat: 9000, max: 9000 };
+  if (S.calls.length >= 3) { float('占线！一个电话没打进来', '#ff6a5a', 195, 600); return; }
+  S.calls.push(call); SFX.ring(); if (S.calls.length === 1) renderCard(true); else updQueue();
+}
+function updQueue() { const n = S.calls.length - 1; $('qn').textContent = n > 0 ? `📞 还有 ${n} 个电话在等` : (S.calls.length ? '📞 来电' : '📞 等电话…');
+  const w = $('cardwrap'); w.querySelectorAll('.stackcard').forEach((e) => e.remove());
+  for (let i = Math.min(n, 2); i > 0; i--) { const s = document.createElement('div'); s.className = 'stackcard'; s.style.top = (6 + i * 3) + 'px'; s.style.left = (4 + i * 4) + 'px'; s.style.right = (4 + i * 4) + 'px'; w.prepend(s); } }
+function capInfo(h) { let free = 0, tot = 0, one = 0; COURTS.forEach((_, c) => { if (!litOK(c, h)) return; tot++; const n = book(c, h).length; if (!n) free++; else if (n === 1) one++; }); return { free, tot, one }; }
+let cardEl = null;
+function renderCard(fresh) {
+  const w = $('cardwrap'); if (cardEl) cardEl.remove();
+  cardEl = document.createElement('div'); cardEl.id = 'card'; w.appendChild(cardEl);
+  const call = S.calls[0];
+  if (!call) { cardEl.className = 'empty'; cardEl.innerHTML = S.clock >= H1 ? '今天不再接电话了<br><small>等最后几场打完</small>' : '☎️ 等电话中…<br><small style="font-weight:700">趁现在调一下价格牌：傍晚高峰要不要涨价？</small>'; updQueue(); return; }
+  const T = TYPES[call.type], cap = capInfo(call.h), price = TIERS[S.tiers[call.h]].p;
+  const low = call.offer < price;
+  cardEl.className = fresh ? 'in' : '';
+  cardEl.innerHTML = `<canvas class="pf" width="12" height="21"></canvas><div class="ct">
+    <div class="r1"><span class="tag" style="background:${T.c}">${T.n}</span><span>爽约史 ${'⭐'.repeat(stars(call.fl))}${'☆'.repeat(5 - stars(call.fl))}</span></div>
+    <div class="say">“${DAYS[S.day]} ${call.h} 点，${call.size} 个人，${call.type === 'member' ? '会员价' : low ? '只肯付' : '愿意付'} <b class="${low ? 'low' : ''}">$${call.offer}</b>”</div>
+    <div class="r3">${call.h} 点：空 ${cap.free}/${cap.tot} 片${cap.free === 0 ? ' · <b style="color:#d94a3a">满了，拖到格子上超订</b>' : ''}${cap.one && cap.free ? ` · 已订 ${cap.one}` : ''}<br>
+    ${call.type === 'member' ? `你标价 $${price}，会员固定 $20；拒了会员会生气` : call.type === 'student' ? '学生党：便宜，但常放鸽子' : call.type === 'corp' ? '公司报销，出手大方' : call.type === 'influ' ? '网红：来了会发帖——好坏都放大' : call.type === 'uncle' ? '老球友：准时，爱砍价' : '路过的散客'}${call.h >= LIGHT ? ` · 夜场灯费 $${LIGHT_COST}` : ''}</div></div>
+    <div class="tbar"><i></i></div><div class="stamp yes">接</div><div class="stamp no">拒</div>`;
+  const pf = cardEl.querySelector('.pf').getContext('2d'); if (!call.pal) call.pal = palette(call.type); drawSpr(pf, 0, call.pal, 2, 5, false);
+  pf.fillStyle = '#2a1f2b'; pf.fillRect(9, 5, 2, 4); pf.fillStyle = '#d94a3a'; pf.fillRect(9, 6, 1, 2);
+  bindCard(cardEl, call); updQueue();
+}
+function nextCard() { S.calls.shift(); renderCard(true); }
+function bindCard(el, call) {
+  let st = null;
+  el.addEventListener('pointerdown', (e) => { e.preventDefault(); ac(); if (S.phase !== 'play') return; el.setPointerCapture(e.pointerId); const [x, y] = local(e); st = { x, y, dx: 0, dy: 0, mini: false }; el.style.transition = 'none'; });
+  el.addEventListener('pointermove', (e) => { if (!st) return; const [x, y] = local(e); st.dx = x - st.x; st.dy = y - st.y;
+    if (y < 612) { // 进入订场板：变成小卡跟手
+      if (!st.mini) { st.mini = true; el.classList.add('mini'); }
+      el.style.transform = `translate(${x - 10 - 75}px, ${y - 638 - 78}px)`; hover(e, call);
+    } else { if (st.mini) { st.mini = false; el.classList.remove('mini'); }
+      clearHover(); el.style.transform = `translate(${st.dx}px, ${Math.min(0, st.dy) * .3}px) rotate(${st.dx / 18}deg)`;
+      el.querySelector('.stamp.yes').style.opacity = Math.max(0, st.dx / 90); el.querySelector('.stamp.no').style.opacity = Math.max(0, -st.dx / 90); } });
+  const end = (e) => { if (!st) return; const s = st; st = null; el.style.transition = 'transform .2s';
+    if (s.mini) { const cell = cellAt(e); clearHover(); el.classList.remove('mini'); if (!(cell && tryDrop(call, +cell.dataset.c, +cell.dataset.h, cell))) { el.style.transform = ''; wiggle(); } return; }
+    if (s.dx > 90) { if (!accept(call)) { el.style.transform = ''; wiggle(); } }
+    else if (s.dx < -90) decline(call);
+    else { el.style.transform = ''; el.querySelectorAll('.stamp').forEach((x) => x.style.opacity = 0); } };
+  el.addEventListener('pointerup', end); el.addEventListener('pointercancel', end);
+}
+function wiggle() { if (!cardEl) return; cardEl.classList.remove('wig'); void cardEl.offsetWidth; cardEl.classList.add('wig'); }
+function cellAt(e) { for (const el of document.elementsFromPoint(e.clientX, e.clientY)) { const c = el.closest && el.closest('.cell'); if (c) return c; } return null; }
+let hovEl = null;
+function clearHover() { if (hovEl) hovEl.classList.remove('hot', 'hotob', 'hotbad'); hovEl = null; }
+function hover(e, call) { const cell = cellAt(e); if (cell === hovEl) return; clearHover(); if (!cell) return; hovEl = cell;
+  const c = +cell.dataset.c, h = +cell.dataset.h; const v = dropKind(call, c, h); cell.classList.add(v === 'free' ? 'hot' : v === 'ob' ? 'hotob' : 'hotbad'); }
+function dropKind(call, c, h) { if (h !== call.h || !litOK(c, h) || h <= S.clock) return 'bad'; const n = book(c, h).length; return n === 0 ? 'free' : n === 1 ? 'ob' : 'bad'; }
+function tryDrop(call, c, h, cell) {
+  const v = dropKind(call, c, h); const r = relRect(cell);
+  if (v === 'bad') { float(h !== call.h ? `要放在 ${call.h} 点那一列` : !litOK(c, h) ? '这片场没灯，晚上不能打' : '已经超订过了，不能再塞', '#ff6a5a', r.x + 25, r.y); SFX.no(); return false; }
+  place(call, c, h, cell); return true;
+}
+function accept(call) {
+  const c = COURTS.findIndex((_, c) => litOK(c, call.h) && book(c, call.h).length === 0);
+  if (c < 0) { float(`${call.h} 点满了！拖到格子上可以超订`, '#ff6a5a', 195, 600); SFX.no(); const C = cols[call.h]; C.cells.forEach((x) => { x.classList.add('hotob'); setTimeout(() => x.classList.remove('hotob'), 700); }); return false; }
+  place(call, c, call.h, cols[call.h].cells[c]); return true;
+}
+function place(call, c, h, cell) {
+  const a = book(c, h); a.push({ type: call.type, offer: call.offer, fl: call.fl, size: call.size, id: call.id, pal: call.pal });
+  const r = relRect(cell);
+  if (a.length === 2) { S.tot.ob++; S.ds.ob++; SFX.ob(); float('超订！赌一把 🎲', '#f2b134', r.x + 25, r.y - 6, true); }
+  else { SFX.ok(); float(`订 $${call.offer}`, '#6fe08a', r.x + 25, r.y); }
+  if (call.type === 'member' && h >= 17 && h <= 20) addMem(2, '高峰留给会员', r.x + 25, r.y + 26);
+  renderCol(h); nextCard();
+}
+function decline(call) {
+  SFX.no(); S.tot.decline++;
+  if (call.type === 'member') addMem(-6, '会员被拒 😠', 195, 600); else float('拒了', '#c9a36a', 80, 660);
+  nextCard();
+}
+
+// ---------- 钟点结算 ----------
+function payAt(c, v, label, big, dy = 0) { const [x, y] = courtXY(c); addMoney(v, x, y - 30 + dy, label, big); }
+function resolveHour(h) {
+  SFX.hour();
+  let anyMem = false, booked = 0, avail = 0;
+  COURTS.forEach((_, c) => {
+    if (!litOK(c, h)) return; avail++;
+    const a = book(c, h); if (!a.length) return; booked++; if (a.some((b) => b.type === 'member')) anyMem = true;
+    if (h >= LIGHT) { S.money -= LIGHT_COST; S.tot.light += LIGHT_COST; S.ds.light += LIGHT_COST; const [x, y] = courtXY(c); float('灯费 −$' + LIGHT_COST, '#ff6a5a', x, y + 40); }
+    const show = a.map((b) => rnd() >= b.fl);
+    if (a.length === 1) {
+      const b = a[0];
+      if (show[0]) { S.tot.played++; S.ds.played++; S.res[key(c, h)] = '🎾'; const g = spawnGroup(c, h, b, 'play', 'A'); payAt(c, b.offer, '');
+        SFX.cash(); setTimer(700, () => bubble(g[0], b.type === 'influ' ? '📸' : pick(['😊', '🎾', '😄']), 1400));
+        if (b.type === 'influ') setTimer(1200, () => addBad(-1, '网红打卡好评', courtXY(c)[0], courtXY(c)[1] + 10)); }
+      else { S.tot.noshow++; S.ds.noshow++; S.res[key(c, h)] = '💤'; payAt(c, b.offer, '爽约·订金照收'); SFX.tick(); }
+    } else {
+      const [b0, b1] = a;
+      if (show[0] && show[1]) {
+        S.tot.fight++; S.ds.fight++; S.res[key(c, h)] = '💢';
+        const g0 = spawnGroup(c, h, b0, 'brawl', 'A'), g1 = spawnGroup(c, h, b1, 'brawl', 'B');
+        payAt(c, b0.offer, '');
+        setTimer(1300, () => {
+          SFX.fight(); shake(); S.dust[c] = performance.now() + 1500; toast(`${COURTS[c].n} 号场 ${h} 点：两拨人都来了！吵起来了！`);
+          [...g0, ...g1].forEach((p, i) => setTimeout(() => bubble(p, pick(['💢', '😠', '💢', '🤬']), 1600), i * 90));
+          const [x, y] = courtXY(c); float('吵起来了！', '#ff6a5a', x, y - 50, true);
+        });
+        setTimer(2700, () => {
+          g1.forEach((p) => { sendTo(p, GATE.x, GATE.y + 4, 'leave'); }); bubble(g1[0], '退钱！', 1300);
+          const sp = spots(c, b0.size, 'play'); g0.forEach((p, i) => sendTo(p, sp[i][0], sp[i][1], 'play'));
+          payAt(c, -COMP, '赔偿', false, 20);
+          const inf = b0.type === 'influ' || b1.type === 'influ'; addBad(inf ? 3 : 1, inf ? '网红发帖骂你！' : '', courtXY(c)[0], courtXY(c)[1] + 30);
+          if (b0.type === 'member' || b1.type === 'member') addMem(-10, '会员被挤走', courtXY(c)[0], courtXY(c)[1] + 60);
+        });
+      } else if (show[0] || show[1]) {
+        S.tot.dbl++; S.ds.dbl++; S.tot.played++; S.ds.played++; S.res[key(c, h)] = '💰';
+        const b = show[0] ? b0 : b1; const g = spawnGroup(c, h, b, 'play', 'A');
+        payAt(c, b0.offer + b1.offer, '双倍收钱！', true); SFX.big(); flash(); toast(`${COURTS[c].n} 号场：有一拨人爽约了——两份钱都进了口袋 🤑`);
+        setTimer(800, () => bubble(g[0], '😊', 1200));
+      } else { S.tot.noshow += 2; S.ds.noshow += 2; S.res[key(c, h)] = '🤑'; payAt(c, b0.offer + b1.offer, '都没来·照收', true); SFX.big(); }
+    }
+    renderCol(h);
+  });
+  // 高峰全卖给散客高价 → 会员不满
+  if (h >= 17 && h <= 20 && avail && booked === avail && !anyMem && S.tiers[h] >= 2) { addMem(-6, `${h} 点高峰全卖高价`, 195, 300); toast('会员群里在骂：高峰全卖给出高价的散客了 😠'); }
+}
+function endHour(h) { S.actors.filter((a) => a.h === h).forEach((a) => { sendTo(a, GATE.x - 6 + rnd() * 12, GATE.y + 4, 'leave'); if (rnd() < .3) bubble(a, '👋', 900); }); }
+function setTimer(ms, fn) { S.timers.push({ t: ms, fn }); }
+
+// ---------- 一天 ----------
+function updClock() {
+  const t = Math.min(S.clock, 22), hh = Math.floor(t), mm = Math.floor((t - hh) * 6) * 10;
+  $('clock').innerHTML = `${DAYS[S.day]} ${WEATHER[W()].i} ${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')} <small>第 ${S.day + 1}/3 天</small>`;
+}
+function update(dt) {
+  if (S.phase !== 'play') return;
+  const g = dt * FAST, gs = g / 1000;
+  S.clock += g / HOUR_MS;
+  while (S.clock >= S.nextHour && S.nextHour <= H1 + 1) { if (S.nextHour > H0) endHour(S.nextHour - 1); if (S.nextHour <= H1) resolveHour(S.nextHour); S.nextHour++;
+    for (let h = H0; h <= H1; h++) updHr(h);
+    if (S.calls.length && S.calls[0].h <= S.clock) renderCard(); }
+  S.calls = S.calls.filter((c, i) => { if (c.h > S.clock) return true; if (i === 0) setTimeout(() => renderCard(true)); return false; });
+  for (const tm of S.timers) { tm.t -= g; if (tm.t <= 0) { tm.fn(); tm.done = true; } } S.timers = S.timers.filter((t) => !t.done);
+  updActors(g);
+  // 来电
+  if (S.clock < H1) { let sum = 0; for (let h = nowH() + 1; h <= Math.min(H1, nowH() + 5); h++) sum += demand(h);
+    S.callAcc += .11 * sum * gs; S.lastCall += gs; if (S.callAcc >= 1 && S.lastCall > 1.1) { S.callAcc -= 1 + rnd() * .3; S.lastCall = 0; spawnCall(); } }
+  // 耐心
+  for (let i = 0; i < S.calls.length; i++) { const c = S.calls[i]; c.pat -= g;
+    if (c.pat <= 0) { S.tot.hang++; if (c.type === 'member') addMem(-4, '会员等太久挂了', 195, 600); else float('对方挂了 📵', '#ff6a5a', 195, 640); SFX.sad();
+      S.calls.splice(i, 1); i--; if (i < 0) renderCard(true); else updQueue(); } }
+  if (cardEl && S.calls[0]) { const b = cardEl.querySelector('.tbar i'); if (b) { const k = S.calls[0].pat / S.calls[0].max; b.style.width = k * 100 + '%'; b.style.background = k < .3 ? '#d94a3a' : k < .6 ? '#f2b134' : '#3fae5a'; } }
+  // 风
+  if (W() === 'wind') { if (S.parts.length < 18) S.parts.push({ x: -5, y: 30 + rnd() * 135, v: 80 + rnd() * 60 }); S.parts.forEach((p) => p.x += p.v * gs); S.parts = S.parts.filter((p) => p.x < 200);
+    if (!S.weed && rnd() < .004 * FAST) S.weed = { x: -6, y: 140 + rnd() * 20 }; if (S.weed) { S.weed.x += 45 * gs; S.weed.y += Math.sin(S.weed.x / 6) * .3; if (S.weed.x > 205) S.weed = null; } }
+  if (AUTO) bot(g);
+  if (S.clock >= 22.6 && !S.ended) { S.ended = true; endDay(); }
+}
+function endDay() {
+  S.phase = 'summary'; S.calls = []; renderCard();
+  const d = S.ds, last = S.day === 2;
+  $('Pday').innerHTML = `<h2>${DAYS[S.day]} 收工 ${WEATHER[W()].i}</h2>
+    <div class="big">今天 +$${d.rev - d.light - d.comp}</div>
+    <table><tr><td>收入（含订金）</td><td>$${d.rev}</td></tr><tr><td>夜场灯费</td><td>−$${d.light}</td></tr><tr><td>吵架赔偿</td><td>−$${d.comp}</td></tr>
+    <tr><td>打球的场次</td><td>${d.played}</td></tr><tr><td>爽约</td><td>${d.noshow} 单</td></tr>
+    <tr><td>超订</td><td>${d.ob} 次（赌赢 ${d.dbl} · 吵架 ${d.fight}）</td></tr>
+    <tr><td>差评</td><td>${S.bad}（${S.bad - d.badStart >= 0 ? '+' : ''}${S.bad - d.badStart}）</td></tr><tr><td>会员满意</td><td>${Math.round(S.mem)}%（${S.mem - d.memStart >= 0 ? '+' : ''}${Math.round(S.mem - d.memStart)}）</td></tr></table>
+    ${last ? '' : `<div class="fore">明天 ${DAYS[S.day + 1]}：${WEATHER[S.weather[S.day + 1]].i} ${WEATHER[S.weather[S.day + 1]].d}${S.day + 1 === 2 ? '<br>🎉 周六晚上人特别多。' : ''}</div>`}
+    <button class="go" id="bnext">${last ? '看总成绩' : '开始下一天'}</button>`;
+  $('Lday').classList.add('on'); SFX.big();
+  $('bnext').onpointerup = () => { $('Lday').classList.remove('on'); if (last) return showEnd(); S.day++; newDay(); S.phase = 'play'; toast(`${DAYS[S.day]}：${WEATHER[W()].d}`, 3000); };
+}
+function showEnd() {
+  S.phase = 'end'; const T = S.tot, net = S.money;
+  let title, line;
+  if (T.ob >= 6 && T.dbl >= T.fight) { title = '航空公司式总监'; line = '超订是门科学，你把它当成了信仰。两份钱进账的声音，比球拍声还好听。'; }
+  else if (T.ob >= 4 && T.fight > T.dbl) { title = '吵架制造机总监'; line = '你卖的不是场地，是现场直播的吵架。附近的人都来看热闹。'; }
+  else if (S.mem < 45) { title = '黄牛总监'; line = '高峰卖给出价最高的人，会员在停车场骂你，你在数钱。'; }
+  else if (S.bad >= 6) { title = '差评收割机总监'; line = '钱没少赚，点评网站上你的俱乐部只剩一颗星。'; }
+  else if (S.mem >= 80 && net < 1300) { title = '老好人总监'; line = '会员都爱你，账本不太爱你。'; }
+  else if (net >= 1600 && S.bad <= 2) { title = '精算师总监'; line = '每个钟点都卖到了刚好的价钱，没人吵架，也没人吃亏——除了客人的钱包。'; }
+  else if (net < 800) { title = '躺平总监'; line = '电话响了就响了吧，场地空着也挺好看的。'; }
+  else { title = '稳当总监'; line = '不赌、不宰、不出事。俱乐部安安稳稳地转。'; }
+  $('Pend').innerHTML = `<h2>三天结束</h2><div class="big">净赚 $${net}</div>
+    <table><tr><td>总收入</td><td>$${T.rev}</td></tr><tr><td>灯费 / 赔偿</td><td>−$${T.light} / −$${T.comp}</td></tr>
+    <tr><td>差评</td><td>💢 ${S.bad}</td></tr><tr><td>会员满意</td><td>${Math.round(S.mem)}%</td></tr>
+    <tr><td>超订</td><td>${T.ob} 次：赌赢 ${T.dbl} · 吵架 ${T.fight}</td></tr><tr><td>拒绝 / 挂掉的电话</td><td>${T.decline} / ${T.hang}</td></tr></table>
+    <div class="ttl">「${title}」</div><div class="q">${line}</div><button class="go" id="bagain">再来一局</button>`;
+  $('Lend').classList.add('on');
+  $('bagain').onpointerup = () => { $('Lend').classList.remove('on'); newGame(); S.phase = 'play'; toast(`${DAYS[0]}：${WEATHER[W()].d}`, 3000); };
+}
+// ---------- 测试用机器人（?auto=1） ----------
+let botT = 0;
+function bot(g) {
+  botT -= g; if (botT > 0 || !S.calls[0]) return; botT = 900;
+  if (nowH() === 8) for (let h = 17; h <= 20; h++) if (S.tiers[h] < 2) setTier(h, 2);
+  const call = S.calls[0], cap = capInfo(call.h);
+  if (cap.free) { if (call.offer >= 15 || call.type === 'member') accept(call); else decline(call); return; }
+  const c = COURTS.findIndex((_, c) => litOK(c, call.h) && book(c, call.h).length === 1 && book(c, call.h)[0].fl >= .25);
+  if (c >= 0 && call.offer >= 20) place(call, c, call.h, cols[call.h].cells[c]); else decline(call);
+}
+
+// ---------- 按钮、浮层 ----------
+$('byes').onpointerup = () => { ac(); if (S.phase !== 'play' || !S.calls[0]) return; const call = S.calls[0];
+  cardEl.style.transition = 'transform .2s'; if (!accept(call)) wiggle(); };
+$('bno').onpointerup = () => { ac(); if (S.phase !== 'play' || !S.calls[0]) return; decline(S.calls[0]); };
+let prevPhase = null;
+$('help').onpointerdown = (e) => { e.stopPropagation(); ac(); SFX.tick(); prevPhase = S.phase; if (S.phase === 'play') S.phase = 'help'; $('Lhelp').classList.add('on'); };
+$('bhelp').onpointerup = () => { $('Lhelp').classList.remove('on'); if (S.phase === 'help') S.phase = prevPhase; };
+$('Lhelp').onpointerup = (e) => { if (e.target.id === 'Lhelp') $('bhelp').onpointerup(); };
+$('bstart').onpointerup = () => { ac(); SFX.ok(); $('Ltitle').classList.remove('on'); S.phase = 'play'; toast(`${DAYS[0]}：${WEATHER[W()].d}`, 3000); };
+
+newGame();
+if (AUTO) { $('Ltitle').classList.remove('on'); S.phase = 'play'; }
+window.__S = () => S;
+let last = performance.now();
+function frame(now) { const dt = Math.min(100, now - last); last = now; update(dt); updClock(); updBoard(); draw(now); updBubs(); requestAnimationFrame(frame); }
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

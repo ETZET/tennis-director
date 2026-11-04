@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>网球总监 · 11 个玩法 demo</title>
+<style>
+  :root { --ink:#2a1f2b; --cream:#fff4dc; --edge:#5a3d2b; --sand:#e8c88a; --gold:#f2b134; --red:#d94a3a; --green:#3fae5a; --blue:#3f6fb0; }
+  * { box-sizing: border-box; }
+  body { margin:0; background: linear-gradient(#8ec9e8 0, #f3dcae 260px, var(--sand) 100%) fixed; color:var(--ink);
+    font: 15px/1.45 -apple-system, "PingFang SC", "Noto Sans SC", system-ui, sans-serif; }
+  main { max-width: 420px; margin: 0 auto; padding: 18px 14px 60px; }
+  h1 { font-size: 22px; margin: 4px 0 6px; }
+  .lead { background: var(--cream); border: 3px solid var(--edge); border-radius: 12px; padding: 12px 14px; box-shadow: 0 4px 0 var(--edge); }
+  .lead b { color: var(--red); }
+  .group { margin: 22px 0 8px; font-weight: 800; font-size: 16px; display:flex; gap:8px; align-items:center; }
+  .tag { font-size: 12px; padding: 2px 8px; border-radius: 99px; color:#fff; font-weight:700; }
+  .A { background: var(--red); } .B { background: var(--blue); } .C { background: var(--green); }
+  .card { display:block; text-decoration:none; color:inherit; background: var(--cream); border:3px solid var(--edge); border-radius: 12px;
+    margin: 12px 0; overflow:hidden; box-shadow: 0 4px 0 var(--edge); }
+  .card:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--edge); }
+  .shots { display:grid; grid-template-columns: 1fr 1fr; gap:3px; background: var(--edge); }
+  .shots img { width:100%; aspect-ratio: 390/844; object-fit: cover; object-position: top; display:block; background:#d8c090; }
+  .body { padding: 10px 12px 12px; }
+  .title { font-weight: 800; font-size: 17px; }
+  .num { color: var(--edge); opacity:.6; margin-right:4px; }
+  .q { margin: 4px 0 8px; }
+  .row { display:flex; gap:8px; }
+  .btn { flex:1; min-height:44px; display:flex; align-items:center; justify-content:center; border-radius:10px; border:3px solid var(--edge);
+    font-weight:800; text-decoration:none; color: var(--ink); background:#fff; }
+  .btn.play { background: var(--gold); }
+  .score { display:flex; gap:6px; margin-top:8px; }
+  .score button { flex:1; min-height:44px; border-radius:10px; border:2px solid var(--edge); background:#fff; font: inherit; font-weight:700; }
+  .score button.on { background: var(--ink); color: var(--cream); }
+  #sum { position: sticky; bottom: 10px; margin-top: 20px; background: var(--ink); color: var(--cream); border-radius: 12px; padding: 10px 14px; font-size: 14px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>🎾 11 个玩法 demo</h1>
+  <div class="lead">
+    北极星：<b>每 20–40 秒一个有取舍的决定</b>，每 3–5 分钟一个"赚到了 / 搞砸了"，一局结束能说出"我是怎样的总监"。<br>
+    每个玩 3–5 分钟，只回答一个问题：<b>还想再玩一局吗？</b>分数存在这台设备上，最下面会汇总，截图发给我就行。设计说明见 <a href="README.md">README.md</a>。
+  </div>
+  <div id="list"></div>
+  <div id="sum">还没打分</div>
+</main>
+<script>
+const DEMOS = [
+  ['A','奸商：钱从哪儿来'],
+  ['01-pro-shop','球具店：货架和定价','A','定价弹性 + 货架位置 + 酷热天的水价。能不能做成"抠门又上瘾"？'],
+  ['02-membership','会籍设计：超卖的艺术','A','设计会员卡和小字条款，四类客人反应不同；超卖让高峰挤爆、退会潮。'],
+  ['03-booking-board','订场板：动态定价和超售','A','给每个时段定价，赌有人爽约多订一单；赌输了球场上当场吵架。'],
+  ['04-sales-pitch','推销台：看人下菜碟','A','看客人的穿着和问题出话术卡、讨价还价；骗太狠会被识破。'],
+  ['11-social-media','社交媒体：评分和口碑','A','像素评论卡飞进来，拖到回复/补偿/举报上；拍张俱乐部照片发帖，买水军会被扒。'],
+  ['B','总监亲手干：小游戏'],
+  ['05-stringing','穿线台：张力和速度','B','手指穿线、卡张力；客人要求各不相同，快和好二选一。'],
+  ['06-court-care','场地养护：扫沙、滚压、画线','B','亲手把废场修好，画得直场地更值钱；第一批客人在门口等。'],
+  ['07-challenge-match','挑战赛：滑动击球','B','总监亲自下场跟 La Quinta 打一场，赛前准备卡有代价。'],
+  ['C','人的手感：重做排人'],
+  ['08-juicy-drag','拖人 2.0：匹配度和反馈','C','同样是拖人，但拿起来有手感、落点前有预览、放错会抱怨。带"旧手感"开关对比。'],
+  ['09-shift-puzzle','一天的拼图：排班','C','早上用人卡拼一天的时段格，按开门看这一天怎么演。'],
+  ['10-run-the-floor','总监跑场：手忙脚乱','C','直接点地面让总监跑过去处理客人要求，像 Diner Dash。'],
+];
+const KEY = 'td-demo-scores';
+const scores = JSON.parse(localStorage.getItem(KEY) || '{}');
+const list = document.getElementById('list');
+for (const d of DEMOS) {
+  if (d.length === 2) {
+    list.insertAdjacentHTML('beforeend', `<div class="group"><span class="tag ${d[0]}">${d[0]}</span>${d[1]}</div>`);
+    continue;
+  }
+  const [dir, name, , q] = d;
+  const n = dir.slice(0, 2);
+  const el = document.createElement('div');
+  el.className = 'card';
+  el.innerHTML = `
+    <a class="shots" href="demos/${dir}/index.html">
+      <img src="demos/${dir}/shot.png" alt="" onerror="this.style.visibility='hidden'">
+      <img src="demos/${dir}/shot-2.png" alt="" onerror="this.style.visibility='hidden'">
+    </a>
+    <div class="body">
+      <div class="title"><span class="num">${n}</span>${name}</div>
+      <div class="q">${q}</div>
+      <div class="row">
+        <a class="btn play" href="demos/${dir}/index.html">▶ 玩</a>
+        <a class="btn" href="demos/${dir}/notes.md">说明</a>
+      </div>
+      <div class="score" data-id="${n}">
+        <button data-v="0">0 不想</button><button data-v="1">1 无所谓</button><button data-v="2">2 想再玩</button>
+      </div>
+    </div>`;
+  list.appendChild(el);
+}
+function paint() {
+  document.querySelectorAll('.score').forEach((s) => {
+    s.querySelectorAll('button').forEach((b) => b.classList.toggle('on', String(scores[s.dataset.id]) === b.dataset.v));
+  });
+  const rated = Object.entries(scores).sort();
+  document.getElementById('sum').textContent = rated.length
+    ? '打分：' + rated.map(([k, v]) => `${k}=${v}`).join('  ')
+    : '还没打分';
+}
+list.addEventListener('click', (e) => {
+  const b = e.target.closest('.score button');
+  if (!b) return;
+  const id = b.parentElement.dataset.id;
+  scores[id] = Number(b.dataset.v);
+  localStorage.setItem(KEY, JSON.stringify(scores));
+  paint();
+});
+paint();
+</script>
+</body>
+</html>

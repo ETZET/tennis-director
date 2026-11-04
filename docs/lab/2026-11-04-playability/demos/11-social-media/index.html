@@ -1,0 +1,939 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>11 社交媒体：评分和口碑</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #2a1f2b; overflow: hidden; touch-action: none;
+    -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+    font-family: -apple-system, "PingFang SC", "Noto Sans SC", "Microsoft YaHei", sans-serif; }
+  #wrap { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; }
+  #app { position: relative; width: 390px; height: 844px; overflow: hidden; background: #2a1f2b; flex: none; }
+  #c { position: absolute; left: 0; top: 0; width: 390px; height: 844px; image-rendering: pixelated; image-rendering: crisp-edges; touch-action: none; }
+  .l { position: absolute; pointer-events: none; color: #2a1f2b; font-weight: 800; white-space: nowrap; line-height: 1.1; }
+  #cdom { position: absolute; left: 40px; top: 424px; width: 310px; height: 212px; pointer-events: none; }
+  #cname { left: 88px; top: 34px; font-size: 12px; color: #5a3d2b; }
+  #ctext { left: 10px; top: 88px; font-size: 17px; }
+  #creact { left: 10px; top: 124px; font-size: 14px; padding: 4px 9px; border: 2px solid #2a1f2b; border-radius: 10px; background: #fff; display: none; }
+  #creact.good { background: #d9f5d0; } #creact.bad { background: #ffd5cc; } #creact.viral { background: #f2b134; }
+  #creact.boom { background: #d94a3a; color: #fff; }
+  #hdr { left: 0; width: 390px; top: 380px; text-align: center; font-size: 13px; color: #5a3d2b; }
+  .dl { top: 728px; width: 84px; text-align: center; font-size: 11px; color: #2a1f2b; }
+  #hint { left: 0; width: 390px; top: 774px; text-align: center; font-size: 12px; color: #5a3d2b; }
+  .float { position: absolute; pointer-events: none; font-weight: 900; font-size: 18px; white-space: nowrap;
+    text-shadow: 2px 0 0 #2a1f2b, -2px 0 0 #2a1f2b, 0 2px 0 #2a1f2b, 0 -2px 0 #2a1f2b, 2px 2px 0 #2a1f2b;
+    animation: fl 1.2s ease-out forwards; transform: translate(-50%, 0); z-index: 20; }
+  @keyframes fl { 0% { transform: translate(-50%, 6px) scale(.5); opacity: 0 } 15% { transform: translate(-50%, -6px) scale(1.2); opacity: 1 }
+    70% { opacity: 1 } 100% { transform: translate(-50%, -52px) scale(1); opacity: 0 } }
+  .hb { position: absolute; top: 0; width: 44px; height: 44px; border: 0; background: transparent; z-index: 45; padding: 0; }
+  #ovHelp { z-index: 50; }
+  #mute { left: 0; } #help { right: 0; font-size: 20px; font-weight: 900; color: #2a1f2b; }
+  .ov { position: absolute; inset: 0; z-index: 40; display: none; align-items: center; justify-content: center; background: rgba(42,31,43,.55); }
+  .ov.on { display: flex; }
+  .panel { width: 340px; background: #fff4dc; border: 4px solid #5a3d2b; border-radius: 16px; box-shadow: 0 6px 0 #2a1f2b; padding: 16px 18px; color: #2a1f2b; }
+  .panel h1 { margin: 0 0 8px; font-size: 22px; } .panel h2 { margin: 2px 0 6px; font-size: 26px; color: #a8453a; }
+  .panel p { margin: 6px 0; font-size: 15px; line-height: 1.5; } .panel .small { font-size: 13px; color: #5a3d2b; }
+  .btn { display: block; width: 100%; min-height: 56px; margin-top: 12px; border: 3px solid #2a1f2b; border-radius: 12px;
+    background: #f2b134; font: inherit; font-weight: 900; font-size: 20px; box-shadow: 0 4px 0 #2a1f2b; color: #2a1f2b; }
+  .btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #2a1f2b; }
+  #news { position: absolute; left: 30px; right: 30px; top: 210px; z-index: 35; display: none; background: #f4f1e8; border: 4px solid #2a1f2b;
+    padding: 10px 14px 14px; box-shadow: 6px 6px 0 rgba(0,0,0,.4); transform: rotate(-3deg); }
+  #news.on { display: block; animation: slam .35s ease-out; }
+  @keyframes slam { 0% { transform: rotate(-20deg) scale(2.2); opacity: 0 } 100% { transform: rotate(-3deg) scale(1); opacity: 1 } }
+  #news .mast { font-size: 13px; font-weight: 900; border-bottom: 3px double #2a1f2b; padding-bottom: 4px; letter-spacing: 4px; }
+  #news .hl { font-size: 26px; font-weight: 900; margin-top: 8px; line-height: 1.2; }
+  #news .sub { font-size: 13px; margin-top: 6px; color: #5a3d2b; }
+  #banner { position: absolute; left: 0; right: 0; top: 280px; z-index: 34; display: none; text-align: center; }
+  #banner.on { display: block; animation: slam .3s ease-out; }
+  #banner .b { display: inline-block; background: #fff4dc; border: 4px solid #5a3d2b; border-radius: 14px; padding: 10px 22px; box-shadow: 0 5px 0 #2a1f2b; }
+  #banner .t { font-size: 24px; font-weight: 900; } #banner .s { font-size: 15px; font-weight: 800; margin-top: 4px; }
+  .end-row { display: flex; justify-content: space-around; text-align: center; margin: 8px 0; }
+  .end-row b { display: block; font-size: 24px; } .end-row span { font-size: 12px; color: #5a3d2b; }
+  #likes { left: 10px; top: 168px; font-size: 18px; color: #d94a3a; display: none; }
+</style>
+</head>
+<body>
+<div id="wrap"><div id="app">
+  <canvas id="c" width="195" height="422"></canvas>
+  <div id="hdr" class="l">评价</div>
+  <div id="cdom">
+    <div id="cname" class="l"></div>
+    <div id="ctext" class="l"></div>
+    <div id="creact" class="l"></div>
+    <div id="likes" class="l"></div>
+  </div>
+  <div id="dl0" class="l dl" style="left:36px"></div>
+  <div id="dl1" class="l dl" style="left:114px"></div>
+  <div id="dl2" class="l dl" style="left:192px"></div>
+  <div id="dl3" class="l dl" style="left:270px"></div>
+  <div id="hint" class="l"></div>
+  <div id="news"><div class="mast">沙 漠 日 报</div><div class="hl" id="newsHl"></div><div class="sub" id="newsSub"></div></div>
+  <div id="banner"><div class="b"><div class="t" id="banT"></div><div class="s" id="banS"></div></div></div>
+  <button id="mute" class="hb" aria-label="静音"></button>
+  <button id="help" class="hb" aria-label="说明">?</button>
+  <div id="ovTitle" class="ov on"><div class="panel">
+    <h1>📱 Palm Oasis 的评论区</h1>
+    <p>总监的手机响个不停：会员、游客、博主、喷子，还有对手 La Quinta 的托儿。</p>
+    <p><b>拖评论卡</b>到下面的图标：回复 / 送体验课 / 举报 / 无视（左滑=无视，右滑=回复）。</p>
+    <p>点 <b>📷</b> 拖取景框给俱乐部拍照发帖，一天一次。评分高、粉丝多，门口来的人就多。</p>
+    <p class="small">4 天，大约 4 分钟。小心：托儿有破绽，喷子越理越来劲。</p>
+    <button class="btn" id="startBtn">开工</button>
+  </div></div>
+  <div id="ovHelp" class="ov"><div class="panel">
+    <h1>设计说明</h1>
+    <p class="small"><b>在测什么：</b>"经营口碑"能不能做成一个有像素手感、每 10 秒一个小判断的循环——看人下菜碟（会员/游客/博主/托儿/喷子要不同的回法），而不是一张文字列表。</p>
+    <p class="small"><b>取舍：</b>道歉送券最稳但花钱；真诚解释免费但对真问题没用；怼回去可能爆红也可能翻车；举报能删托儿，举报真人会被骂删差评；无视最省事但博主会记仇。发帖一天一次：早上有 Dale 和小孩、傍晚有日落，二号场的沙子和脏泳池拍进去会被群嘲。买水军立刻涨分，但博主来了可能扒出来。</p>
+    <p class="small"><b>托儿的破绽：</b>墨镜、照片里是草地场（我们没有草地场）或者没图、一前一后成对出现。</p>
+    <p class="small">评分 = 所有评论的加权平均（博主算 3 条）。评分决定门口的人进不进来，粉丝决定来多少人。</p>
+    <button class="btn" id="helpClose">知道了</button>
+  </div></div>
+  <div id="ovEnd" class="ov"><div class="panel">
+    <p class="small">四天结束 · 你的称号</p>
+    <h2 id="endTitle"></h2>
+    <p id="endLine"></p>
+    <div class="end-row"><div><b id="endRating"></b><span>评分</span></div><div><b id="endFans"></b><span>粉丝</span></div><div><b id="endMoney"></b><span>现金</span></div></div>
+    <p class="small" id="endStats"></p>
+    <button class="btn" id="againBtn">再来一局</button>
+  </div></div>
+</div></div>
+<script>
+'use strict';
+// ================= basics =================
+const W = 195, H = 422, SY = 36, SH = 134;
+const app = document.getElementById('app');
+const cv = document.getElementById('c'), g = cv.getContext('2d');
+g.imageSmoothingEnabled = false;
+const sc = document.createElement('canvas'); sc.width = W; sc.height = SH;
+const sg = sc.getContext('2d'); sg.imageSmoothingEnabled = false;
+const photoC = document.createElement('canvas'); photoC.width = 64; photoC.height = 48;
+const photoG = photoC.getContext('2d');
+const Q = new URLSearchParams(location.search);
+const FAST = Q.has('fast') ? (Number(Q.get('fast')) || 6) : 1;
+const $ = (id) => document.getElementById(id);
+
+function fit() {
+  const k = Math.min(innerWidth / 390, innerHeight / 844);
+  app.style.transform = k < 1 ? `scale(${k})` : 'none';
+}
+addEventListener('resize', fit); fit();
+
+function mulberry(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+let R = mulberry(1);
+const rr = (a, b) => a + R() * (b - a);
+const ri = (a, b) => Math.floor(rr(a, b + 1));
+const pick = (a) => a[Math.floor(R() * a.length)];
+const chance = (p) => R() < p;
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const mr = Math.random;
+
+const C = { ink: '#2a1f2b', cream: '#fff4dc', pb: '#5a3d2b', sand: '#e8c88a', dsand: '#c9a36a', sky: '#8ec9e8', mtn: '#b98a6a',
+  hard: '#3f6fb0', green: '#4f8a4b', clay: '#c8643c', line: '#f4f1e8', palm: '#3c7d3a', pool: '#4fc3d9', wood: '#8a5a35',
+  roof: '#a8453a', gold: '#f2b134', red: '#d94a3a', money: '#3fae5a', white: '#ffffff', gray: '#9a9090', lgray: '#d8cfc0', card: '#fffaf0', purple: '#7a4f9a' };
+const SKINS = ['#f1c27d', '#c68642', '#8d5524', '#ffdbac'];
+const HAIRS = ['#3b2a20', '#6b4423', '#d9a441', '#1e1a1e', '#b84a2e', '#a8a0a0'];
+const SHIRTS = ['#d94a3a', '#3f6fb0', '#3fae5a', '#f2b134', '#7a4f9a', '#e07ab0', '#4fc3d9', '#f4f1e8'];
+
+function rect(ctx, x, y, w, h, c) { ctx.fillStyle = c; ctx.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)); }
+function box(ctx, x, y, w, h, fill, line) { rect(ctx, x + 1, y, w - 2, h, line); rect(ctx, x, y + 1, w, h - 2, line); rect(ctx, x + 1, y + 1, w - 2, h - 2, fill); }
+function art(ctx, rows, x, y, pal, s = 1, flip = false) {
+  for (let j = 0; j < rows.length; j++) { const row = rows[j];
+    for (let i = 0; i < row.length; i++) { const ch = row[i]; if (ch === '.') continue; const c = pal[ch]; if (!c) continue;
+      ctx.fillStyle = c; const ii = flip ? row.length - 1 - i : i; ctx.fillRect(Math.round(x + ii * s), Math.round(y + j * s), s, s); } }
+}
+// ---- 3x5 pixel font for numbers ----
+const FONT = { '0': '111101101101111', '1': '010110010010111', '2': '111001111100111', '3': '111001111001111', '4': '101101111001001',
+  '5': '111100111001111', '6': '111100111101111', '7': '111001010010010', '8': '111101111101111', '9': '111101111001111',
+  '.': '000000000000010', 'k': '100101110101101', '+': '000010111010000', '-': '000000111000000', '$': '011110010011110',
+  ' ': '000000000000000', 'D': '110101101101110', '/': '001001010100100', 'x': '000101010101000' };
+function txt(ctx, s, x, y, c, k = 1, outline = null) {
+  s = String(s);
+  const draw = (ox, oy, col) => { let cx = x; for (const ch of s) { const f = FONT[ch] || FONT[' '];
+    const cw = ch === '.' ? 2 : 3;
+    for (let j = 0; j < 5; j++) for (let i = 0; i < 3; i++) if (f[j * 3 + i] === '1') rect(ctx, cx + (ch === '.' ? (i - 1) : i) * k + ox, y + j * k + oy, k, k, col);
+    cx += (cw + 1) * k; } return cx; };
+  if (outline) { for (const [ox, oy] of [[-1, 0], [1, 0], [0, -1], [0, 1], [1, 1]]) draw(ox, oy, outline); }
+  return draw(0, 0, c);
+}
+function txtW(s, k = 1) { let w = 0; for (const ch of String(s)) w += ((ch === '.' ? 2 : 3) + 1) * k; return w - k; }
+
+// ---- pixel arts ----
+const STAR = ['....Y....', '...YYY...', '...YYY...', 'YYYYYYYYY', '.YYYYYYY.', '..YYYYY..', '..YYYYY..', '.YYY.YYY.', '.YY...YY.'];
+function star(ctx, x, y, fill, k = 1, f = 1) {
+  const cx = x + 4.5 * k;
+  const put = (i, j, col, ox = 0, oy = 0) => { const px = cx + (i - 4.5) * k * f; ctx.fillStyle = col; ctx.fillRect(Math.round(px + ox), Math.round(y + j * k + oy), Math.max(1, Math.ceil(k * Math.abs(f))), k); };
+  for (let j = 0; j < 9; j++) for (let i = 0; i < 9; i++) if (STAR[j][i] === 'Y') for (const [ox, oy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) put(i, j, C.ink, ox, oy);
+  for (let j = 0; j < 9; j++) for (let i = 0; i < 9; i++) if (STAR[j][i] === 'Y') {
+    const on = (i + 0.5) / 9 <= fill; put(i, j, on ? (j < 3 && i === 4 ? '#ffe08a' : C.gold) : '#cfc2a8'); }
+}
+const HEART = ['.R.R.', 'RRRRR', 'RRRRR', '.RRR.', '..R..'];
+const ANGRY = ['.R.R.', 'RR.RR', '.....', 'RR.RR', '.R.R.'];
+const COIN = ['.YYY.', 'YYKYY', 'YKYYY', 'YYKYY', '.YYY.'];
+const SPARK = ['..W..', '..W..', 'WWWWW', '..W..', '..W..'];
+const STARS = ['..Y..', '.YYY.', 'YYYYY', '.YYY.', 'Y...Y'];
+const BUB = ['KKKKKKK', 'KWWWWWK', 'KWYWYWK', 'KWWWWWK', 'KKKWKKK', '...KK..'];
+const PP = { R: C.red, Y: C.gold, K: C.ink, W: C.white, B: '#3f6fb0', G: C.gold, D: '#8f8a94', N: C.green, P: C.purple, S: '#f1c27d', O: '#f08a3a' };
+const ICONS = {
+  reply: ['..KKKKKKK..', '.KWWWWWWWK.', 'KWWWWWWWWWK', 'KWKWWKWWKWK', 'KWWWWWWWWWK', '.KWWWWWWWK.', '..KKWWKKK..', '....KWK....', '....KK.....', '...........', '...........'],
+  gift: ['..R.....R..', '...R...R...', '....RRR....', 'KKKKKRKKKKK', 'KGGGGRGGGGK', 'KKKKKRKKKKK', '.KGGGRGGGK.', '.KGGGRGGGK.', '.KGGGRGGGK.', '.KGGGRGGGK.', '.KKKKKKKKK.'],
+  flag: ['.K.........', '.KRRRRRR...', '.KRRRRRRRR.', '.KRRRWRRR..', '.KRRRRRRRR.', '.KRRRRRR...', '.K.........', '.K.........', '.K.........', '.K.........', 'KKK........'],
+  trash: ['....KKK....', '.KKKKKKKKK.', 'KDDDDDDDDDK', '.KKKKKKKKK.', '.KDDDDDDDK.', '.KDKDKDKDK.', '.KDKDKDKDK.', '.KDKDKDKDK.', '.KDKDKDKDK.', '.KDDDDDDDK.', '..KKKKKKK..'],
+  camera: ['...........', '...KKK.....', 'KKKKKKKKKKK', 'KDDDKKKDDYK', 'KDDKBBBKDDK', 'KDKBWBBBKDK', 'KDKBBBBBKDK', 'KDDKBBBKDDK', 'KDDDKKKDDDK', 'KKKKKKKKKKK', '...........'],
+  bag: ['...KK.KK...', '....KKK....', '...KGGGK...', '..KGGGGGK..', '.KGGGKGGGK.', 'KGGGKKKGGGK', 'KGGGGKKGGGK', 'KGGGKKGGGGK', 'KGGGKKKGGGK', '.KGGGKGGGK.', '..KKKKKKK..'],
+  x: ['KK.......KK', 'KRK.....KRK', '.KRK...KRK.', '..KRK.KRK..', '...KRRRK...', '....KRK....', '...KRRRK...', '..KRK.KRK..', '.KRK...KRK.', 'KRK.....KRK', 'KK.......KK'],
+  speaker: ['....K..', '...KK..', 'KKKWK.W', 'KWWWK..', 'KKKWK.W', '...KK..', '....K..'],
+  speakerOff: ['....K..', '...KK..', 'KKKWKR.', 'KWWWK.R', 'KKKWKR.', '...KK..', '....K..'],
+  heartS: ['.R.R.', 'RRRRR', 'RRRRR', '.RRR.', '..R..'],
+  check: ['.BBBBB.', 'BBBBBWB', 'BBBBWBB', 'BWBWBBB', 'BBWBBBB', '.BBBBB.'],
+  flame: ['...O...', '..OO...', '..OOO..', '.OOYOO.', '.OYYYO.', 'OOYYYOO', 'OYYWYYO', '.OYYYO.', '..OOO..'],
+};
+const PERSON = {
+  stand: ['..KKKK..', '.KHHHHK.', 'KHHHHHHK', 'KHSSSSHK', 'KSESSESK', '.KSSSSK.', '..KSSK..', '.KTTTTK.', 'KTTTTTTK', 'KSTTTTSK', '.KPPPPK.', '.KPKKPK.', '.KPK.KPK', '.KK..KK.'],
+  walk: ['..KKKK..', '.KHHHHK.', 'KHHHHHHK', 'KHSSSSHK', 'KSESSESK', '.KSSSSK.', '..KSSK..', '.KTTTTK.', 'KTTTTTTK', 'KSTTTTSK', '.KPPPPK.', 'KPK..KPK', 'KPK..KPK', 'KK....KK'],
+};
+const DOG = [['......KK..', 'K....KBBK.', 'KBKKKKBBEK', '.KBBBBBBK.', '.KBWWWBBK.', '.KBK.KBK..', '.KK..KK...'],
+  ['......KK..', 'K....KBBK.', 'KBKKKKBBEK', '.KBBBBBBK.', '.KBWWWBBK.', 'KBK...KBK.', 'KK.....KK.']];
+const TUMBLE = ['.KDKD.', 'KD.D.K', 'D.KD.D', 'K.D.KD', 'DK.D.K', '.DKDK.'];
+
+// ================= audio =================
+let AC = null, muted = false;
+function beep(f, d = 0.08, type = 'square', v = 0.06, slide = 0, delay = 0) {
+  if (muted) return; try { if (!AC) AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return; }
+  const t = AC.currentTime + delay, o = AC.createOscillator(), gn = AC.createGain();
+  o.type = type; o.frequency.setValueAtTime(f, t); if (slide) o.frequency.linearRampToValueAtTime(Math.max(30, f + slide), t + d);
+  gn.gain.setValueAtTime(v, t); gn.gain.exponentialRampToValueAtTime(0.0001, t + d); o.connect(gn); gn.connect(AC.destination); o.start(t); o.stop(t + d + 0.02);
+}
+const SFX = {
+  buzz: () => { beep(150, 0.06, 'square', 0.05); beep(150, 0.06, 'square', 0.05, 0, 0.1); },
+  good: () => { beep(660, 0.07); beep(880, 0.09, 'square', 0.06, 0, 0.07); },
+  bad: () => beep(300, 0.25, 'sawtooth', 0.06, -180),
+  coin: () => { beep(988, 0.05, 'square', 0.04); beep(1319, 0.08, 'square', 0.04, 0, 0.05); },
+  tap: () => beep(520, 0.03, 'square', 0.03),
+  shutter: () => { beep(2000, 0.02, 'square', 0.05); beep(400, 0.05, 'triangle', 0.08, -200, 0.02); },
+  viral: () => { [523, 659, 784, 1047].forEach((f, i) => beep(f, 0.12, 'square', 0.06, 0, i * 0.08)); },
+  boom: () => { beep(120, 0.5, 'sawtooth', 0.09, -80); beep(90, 0.6, 'square', 0.05, -40, 0.1); },
+  flip: () => beep(1200, 0.02, 'triangle', 0.04),
+};
+
+// ================= content =================
+const ISSUE = {
+  sand: { t: ['二号场全是沙', '场上沙子硌脚', '摔了一跤，全是沙'], photo: 'sand', real: true },
+  pool: { t: ['泳池绿得像汤', '泳池里漂着叶子'], photo: 'pooldirty', real: true },
+  slow: { t: ['前台半天没人', '等半小时才开场'], photo: 'none', real: true },
+  price: { t: ['一小时这价？抢钱', '饮料贵得离谱'], photo: 'receipt', real: true },
+  heat: { t: ['太热了，没法打', '中午热到冒烟'], photo: 'heat', real: false },
+  far: { t: ['离市区太远了', '导航把我带进沙漠'], photo: 'none', real: false },
+};
+const HAPPY = [['日落时打球太美了', 'sunset'], ['Dale教练超耐心', 'coach'], ['有只狗狗好可爱', 'dog'], ['安静又不挤，喜欢', 'sunset']];
+const MEH = [['还行，场地有点旧', 'sand'], ['教练好，设施一般', 'coach'], ['价格还能接受', 'none']];
+const TROLL = ['沙漠为啥这么多沙', '网球怎么是黄的', '一星，不为啥', '没有海，差评', '太阳太晒，一星'];
+const FAKE = ['场地裂得像地图', '服务差到离谱', '来了就后悔', '去La Quinta吧'];
+const NAMES = { member: ['会员·老王', '会员·Linda', '会员·陈姐', '会员·Mike', '会员·阿May', '会员·老周'],
+  tourist: ['游客·Tom', '游客·小李', '游客·Sara', '游客·背包客', '游客·Ken'], troll: ['匿名用户', '用户8848', '键盘侠007'],
+  fakeAs: ['会员·Kevin', '游客·Jay', '会员·Rex', '游客·Vince'] };
+
+// ================= state =================
+let S = null, seed = 0;
+function rating() { let s = 0, w = 0; for (const e of S.ratings) { s += e.stars * e.w; w += e.w; } return w ? s / w : 0; }
+function newGame() {
+  seed = Number(Q.get('seed')) || ((Math.random() * 1e9) | 0);
+  R = mulberry(seed);
+  S = { phase: 'play', day: 1, t: 0, dayLen: 55, poolDirty: R() < 0.55, ratings: [], fans: 120, fansShown: 120, money: 120, moneyShown: 120,
+    heat: 0, queue: [], mode: 'cards', drag: null, vf: { x: 4, y: 20, dragging: false }, posted: false, post: null, visitors: [], spawnAcc: 0, regulars: 0,
+    dog: { x: 110, y: 100, tx: 110, ty: 100, flip: false, wait: 0 }, tumble: null, sched: [], banner: 0, shake: 0, buzz: 0, hudFlip: 0, nid: 1,
+    stats: { caught: 0, wrongReports: 0, viral: 0, disasters: 0, shill: 0, exposed: false, coupons: 0, gifts: 0, posts: 0, best: 0, replies: 0, visitors: 0, turned: 0 },
+    dayStart: null, parts: [], hover: -1, flash: 0, lastFake: -99 };
+  for (const st of [1, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5, 3, 2, 4]) S.ratings.push({ stars: st, w: 1 });
+  S.ratingShown = rating(); S.lastRatingShown = S.ratingShown;
+  for (let i = 0; i < 2; i++) S.visitors.push(mkVisitor(true));
+  startDay(1);
+}
+function startDay(d) {
+  S.day = d; S.t = 0; S.posted = false;
+  S.dayStart = { rating: rating(), fans: S.fans, money: S.money };
+  const ev = []; const add = (t, f) => ev.push({ t, f });
+  const rk = () => { const x = R(); return x < 0.42 ? 'member' : x < 0.75 ? 'tourist' : x < 0.87 ? 'troll' : 'fake'; };
+  if (d === 1) { add(2, () => gen('member', 'angry', 'sand')); add(12, () => gen('tourist', 'happy')); add(22, () => gen('troll')); add(32, () => gen('member', 'meh')); add(43, () => gen('tourist', 'angry')); }
+  if (d === 2) { add(3, () => gen(rk())); add(11, () => gen('blogger', 'angry')); add(23, () => gen('fake')); add(27, () => gen('fake')); add(38, () => gen(rk())); add(48, () => gen(rk())); }
+  if (d === 3) { add(3, () => gen(rk())); add(11, () => gen(pick(['troll', 'fake']))); add(19, () => gen(rk())); add(27, () => gen(chance(0.5) ? 'blogger' : 'tourist', 'happy')); add(35, () => gen('fake')); add(43, () => gen(rk())); add(50, () => gen(rk())); }
+  if (d === 4) { add(3, () => gen(rk())); add(10, () => gen('blogger', S.stats.disasters ? 'angry' : pick(['angry', 'happy']))); add(20, () => gen(rk())); add(29, () => gen('fake')); add(37, () => gen(rk())); add(46, () => gen(rk())); }
+  for (const e of ev) e.t += rr(-1, 1.5);
+  S.sched = ev.sort((a, b) => a.t - b.t);
+}
+function mkAv(kind) {
+  const bg = { member: '#cfe8c4', tourist: '#cde7f5', blogger: '#ffe08a', troll: '#bdb6c2' };
+  const av = { skin: pick(SKINS), hair: pick(HAIRS), shirt: pick(SHIRTS), bg: bg[kind] || '#cfe8c4', style: pick(['short', 'long', 'bun']), glasses: chance(0.22), kind };
+  if (kind === 'tourist') av.style = chance(0.6) ? 'hat' : av.style;
+  if (kind === 'blogger') { av.style = 'band'; av.glasses = false; }
+  if (kind === 'troll') av.style = 'hood';
+  return av;
+}
+function gen(kind, sent, issue) {
+  if (kind === 'blogger' && S.stats.shill > 0 && !S.stats.exposed && chance(Math.min(0.85, 0.45 * S.stats.shill + (S.day === 4 ? 0.2 : 0)))) return { kind: 'blogger', expose: true, stars: 1, mood: 'angry', text: '实锤：这家刷好评', photo: 'receipt', name: '@网球阿杰', av: mkAv('blogger') };
+  const hp = clamp(0.36 + (rating() - 3.2) * 0.12, 0.2, 0.6);
+  if (!sent) { const x = R(); sent = x < hp ? 'happy' : x < hp + 0.2 ? 'meh' : 'angry'; }
+  const r = { kind, sent, av: mkAv(kind), photo: 'none', real: true, issue: null };
+  if (kind === 'troll') { r.stars = 1; r.text = pick(TROLL); r.photo = chance(0.5) ? 'heat' : 'none'; r.name = pick(NAMES.troll); r.real = false; r.sent = 'angry'; }
+  else if (kind === 'fake') { r.stars = 1; r.text = pick(FAKE); r.photo = chance(0.65) ? 'grass' : 'none'; const as = chance(0.5) ? 'member' : 'tourist';
+    r.av = mkAv(as); r.av.glasses = chance(0.75); r.name = pick(NAMES.fakeAs); r.sent = 'angry'; r.real = false; }
+  else {
+    if (sent === 'angry') { const pool = ['sand', 'sand', 'slow', 'price', 'heat', 'far']; if (S.poolDirty) pool.push('pool', 'pool');
+      issue = issue || pick(kind === 'blogger' ? (S.poolDirty ? ['sand', 'pool'] : ['sand']) : pool); const I = ISSUE[issue];
+      r.issue = issue; r.real = I.real; r.text = pick(I.t); r.photo = I.photo; r.stars = chance(0.6) ? 1 : 2; }
+    else if (sent === 'meh') { const m = pick(MEH); r.text = m[0]; r.photo = m[1]; r.stars = 3; }
+    else { const h = pick(HAPPY); r.text = h[0]; r.photo = h[1]; r.stars = chance(0.6) ? 5 : 4; }
+    if (kind === 'blogger') { r.name = '@网球阿杰'; r.text = sent === 'angry' ? (issue === 'pool' ? '泳池能养鱼，劝退' : '二号场全是沙，劝退') : pick(['宝藏球场，冲！', '日落场绝了']); }
+    else r.name = pick(NAMES[kind]);
+  }
+  r.mood = r.stars <= 2 ? 'angry' : r.stars === 3 ? 'meh' : 'happy';
+  return r;
+}
+
+// ================= outcomes =================
+function outcome(r, act) {
+  const o = { ns: r.stars, fans: 0, cost: 0, mood: r.mood, line: '', fx: 'meh', extra: 0, remove: false, viral: false, boom: false, headline: null, regular: 0 };
+  if (act === 'sorry') o.cost = 20; if (act === 'gift') o.cost = 15;
+  const k = r.kind, real = r.real, F = S.fans;
+  const good = (line, fans = 0, ns = o.ns, mood = 'happy') => { o.line = line; o.fans = fans; o.ns = ns; o.mood = mood; o.fx = 'good'; };
+  const bad = (line, fans = 0, ns = o.ns, mood = 'angry') => { o.line = line; o.fans = fans; o.ns = ns; o.mood = mood; o.fx = 'bad'; };
+  const meh = (line, mood = o.mood) => { o.line = line; o.mood = mood; o.fx = 'meh'; };
+  if (r.expose) {
+    if (act === 'sorry') good('博主：认错就好', Math.round(F * 0.15), 2, 'meh');
+    else if (act === 'sass') { bad('全网：还嘴硬？', -Math.round(F * 0.3), 1); o.boom = true; }
+    else if (act === 'ignore') meh('（全网在等你回应）');
+    else bad({ explain: '博主：越描越黑', cute: '博主：现在卖萌？', gift: '博主：想收买我？', report: '博主：还想删帖？' }[act], -Math.round(F * 0.15), 1);
+    return o;
+  }
+  if (act === 'report') {
+    if (k === 'fake') { good('假号已删除！', 60, o.ns, 'shock'); o.remove = true; o.flag = 'caught'; }
+    else if (k === 'troll') { if (chance(0.75)) { good('平台已删除', 10, o.ns, 'shock'); o.remove = true; } else meh('平台：不违规', 'smug'); }
+    else if (k === 'blogger') { bad('博主：总监删帖封口！', -Math.round(F * 0.35), 1); o.extra = 3; o.boom = true; o.headline = ['球会想删博主差评', '博主粉丝连夜刷一星']; o.flag = 'wrong'; }
+    else if (r.stars >= 4) { bad('好评也删？？', -Math.round(Math.max(20, F * 0.06)), o.ns, 'shock'); o.remove = true; o.flag = 'wrong'; }
+    else { bad('总监删差评？！', -Math.round(Math.max(30, F * 0.12)), o.ns); o.extra = 1; o.flag = 'wrong'; }
+    return o;
+  }
+  if (k === 'fake') {
+    if (act === 'ignore') meh('（假评论还挂着）', 'smug');
+    else if (act === 'sass' && chance(0.5)) good('哈…被看穿了', 40, o.ns, 'shock');
+    else meh({ sorry: '券？我才不去', gift: '（没人来上课）', explain: '呵呵', sass: '总监好凶哦', cute: '……' }[act], 'smug');
+    return o;
+  }
+  if (k === 'troll') {
+    if (act === 'ignore') meh('（喷子自讨没趣）', 'meh');
+    else if (act === 'sass') { if (chance(0.55)) { good('总监怼得漂亮！', 300, o.ns, 'shock'); o.viral = true; } else { bad('吵起来了…', -30); o.extra = 2; } }
+    else if (act === 'cute') { if (chance(0.4)) good('…行吧你赢了', 80, o.ns, 'shock'); else meh('恶心', 'smug'); }
+    else if (act === 'sorry') { meh('再来十张券！', 'smug'); o.again = chance(0.5); }
+    else if (act === 'explain') { meh('你急了你急了', 'smug'); o.again = chance(0.5); }
+    else meh('白嫖成功，还是一星', 'smug');
+    return o;
+  }
+  const blog = k === 'blogger';
+  if (r.stars <= 2) {
+    if (blog) {
+      if (act === 'sorry') { if (chance(0.6)) { good('博主：总监有诚意！', 1200, 4); o.viral = true; } else good('博主：先看看', 100, 3, 'meh'); }
+      else if (act === 'explain') { if (chance(real ? 0.4 : 0.7)) { good('博主：被圈粉了！', 1500, 5); o.viral = true; } else bad('博主：还在找借口', -150); }
+      else if (act === 'sass') { if (chance(0.25)) { good('全网：总监好霸气！', 2000, o.ns, 'shock'); o.viral = true; }
+        else { bad('粉丝冲过来了！', -Math.round(F * 0.4), 1); o.extra = 3; o.boom = true; o.headline = ['总监怼博主，翻车', '评论区一夜涌入一星']; } }
+      else if (act === 'cute') { if (chance(0.5)) good('博主：哈哈原谅你', 500, o.ns + 1); else bad('博主：尬', -100); }
+      else if (act === 'gift') { if (chance(0.45)) { good('博主重拍：日落场绝了', 1800, 5); o.viral = true; } else { bad('博主：又吃一嘴沙', -300, 1); o.extra = 1; } }
+      else { bad('博主：总监装死', -200); o.extra = 1; }
+      return o;
+    }
+    if (act === 'sorry') { if (chance(0.85)) good('改成4星，谢谢！', 15, k === 'tourist' && chance(0.3) ? 5 : 4); else good('好吧，再看看', 5, o.ns + 1, 'meh'); }
+    else if (act === 'explain') { if (real) { if (chance(0.4)) good('行，理解', 5, o.ns + 1, 'meh'); else bad('别找借口'); } else { if (chance(0.8)) good('原来如此，改星', 10, o.ns + 2); else meh('哦'); } }
+    else if (act === 'sass') { if (chance(0.15)) good('哈哈总监有梗', 60, o.ns + 1); else { bad('什么态度！', -20, 1); if (chance(0.35)) o.extra = 1; } }
+    else if (act === 'cute') { if (chance(0.5)) good('噗，好吧', 10, o.ns + 1); else meh('尬死了', 'meh'); }
+    else if (act === 'gift') { if (k === 'tourist') { if (chance(0.8)) { good('体验课真香！', 20, 5); o.regular = 3; } else meh('我要的不是课'); }
+      else { if (chance(0.6)) good('下次再来试试', 10, o.ns + 2); else meh('我要的不是课'); } }
+    else meh('（没人回复…）', 'sad');
+    return o;
+  }
+  if (r.stars === 3) {
+    if (act === 'sorry') good(chance(0.7) ? '惊喜！改5星' : '客气了，4星', 10, chance(0.7) ? 5 : 4);
+    else if (act === 'explain') { if (chance(0.7)) good('懂了，加一星', 5, 4); else meh('嗯'); }
+    else if (act === 'sass') bad('这总监有病', -15, 1);
+    else if (act === 'cute') { if (chance(0.6)) good('哈哈，加一星', 15, 4); else meh('……', 'meh'); }
+    else if (act === 'gift') { good(k === 'tourist' ? '下周带朋友来！' : '谢谢，4星', 15, k === 'tourist' ? 5 : 4); if (k === 'tourist') o.regular = 3; }
+    else meh('（没人回复…）');
+    return o;
+  }
+  // happy
+  if (act === 'cute') good(blog ? '博主转发了！' : '总监好可爱！', blog ? 300 : 40, 5);
+  else if (act === 'explain') good('客气啦', 15);
+  else if (act === 'sorry') { meh('咦？为啥道歉', 'shock'); o.fans = 5; o.regular = 1; }
+  else if (act === 'sass') { if (chance(0.4)) good('哈哈总监好皮', 50); else bad('？？？', -10, 2); }
+  else if (act === 'gift') { if (blog) { if (chance(0.65)) { good('博主拍了合作视频！', 900, 5); o.viral = true; } else good('博主：谢啦', 150, 5); }
+    else { good('下周带朋友来！', 25, 5); o.regular = 3; } }
+  else meh('（点了个赞）', 'happy');
+  return o;
+}
+
+// ================= reviews flow =================
+const CARD = { x: 20, y: 212, w: 155, h: 106 };
+const DOCK = [{ x: 22, y: 326, w: 34, h: 36 }, { x: 61, y: 326, w: 34, h: 36 }, { x: 100, y: 326, w: 34, h: 36 }, { x: 139, y: 326, w: 34, h: 36 }];
+const CAMBTN = { x: 20, y: 186, w: 26, h: 24 }, SHILLBTN = { x: 149, y: 186, w: 26, h: 24 };
+const SHUT = { x: 66, y: 324, w: 64, h: 40 }, CANCEL = { x: 22, y: 326, w: 36, h: 36 };
+const EXPIRE = 16;
+const TONES = ['sorry', 'explain', 'sass', 'cute'];
+const hit = (b, x, y) => x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h;
+
+function spawnReview(r) {
+  r.id = S.nid++; r.state = 'live'; r.age = 0; r.anim = null; r.enter = 0; r.leave = null; r.res = null;
+  r.entry = { stars: r.stars, w: r.kind === 'blogger' ? 3 : 1 };
+  S.ratings.push(r.entry);
+  if (r.kind === 'fake') { r.pair = S.t - S.lastFake < 8; S.lastFake = S.t; }
+  if (S.queue.length >= 5) { r.state = 'gone'; floatAt('错过一条', 97, 200, '#d94a3a', 13); return; }
+  S.queue.push(r); S.buzz = 0.35; SFX.buzz();
+  // a review bubble floats up from the club
+  const sx = 20 + mr() * 150, sy = SY + 40 + mr() * 80;
+  S.parts.push({ k: 'ping', x: sx, y: sy, x0: sx, y0: sy, x1: 97, y1: CARD.y + 20, life: 0.7, max: 0.7 });
+  if (r.expose) {
+    S.stats.exposed = true; S.ratings = S.ratings.filter((e) => !e.shill);
+    for (let i = 0; i < 6; i++) S.ratings.push({ stars: 1, w: 1 });
+    S.fans = Math.round(S.fans * 0.6); S.shake = 0.6; SFX.boom();
+    news('Palm Oasis 刷好评被扒！', '水军好评全部下架，粉丝掉了四成');
+    burst('angry', 97, 120, 30);
+  }
+  if (r.kind === 'blogger' && !r.expose) floatAt('博主来了！12k 粉丝', 97, 176, '#f2b134', 15);
+}
+function front() { return S.queue[0]; }
+function resolve(r, act, auto) {
+  if (!r || r.state !== 'live') return;
+  const o = outcome(r, act);
+  if (o.cost > S.money) { floatAt('钱不够！', 97, 300, '#d94a3a', 18); S.shake = 0.2; SFX.bad(); return; }
+  S.mode = 'cards'; S.drag = null;
+  r.state = 'result'; r.res = o; r.resT = auto ? 1.0 : 1.5; r.act = act;
+  S.money -= o.cost; if (o.cost) { floatAt('-$' + o.cost, 24, 42, '#d94a3a'); S.stats[act === 'sorry' ? 'coupons' : 'gifts']++; }
+  if (act !== 'ignore' && act !== 'report' && act !== 'gift') S.stats.replies++;
+  if (o.ns !== r.stars) { r.anim = { from: r.stars, to: clamp(o.ns, 1, 5), t: 0 }; r.stars = clamp(o.ns, 1, 5); r.entry.stars = r.stars; }
+  r.mood = o.mood;
+  if (o.remove) { S.ratings = S.ratings.filter((e) => e !== r.entry); r.removed = true; }
+  for (let i = 0; i < o.extra; i++) S.ratings.push({ stars: 1, w: 1 });
+  if (o.regular) S.regulars += o.regular;
+  if (o.flag === 'caught') { S.stats.caught++; if (S.stats.caught === 2) { setTimeout(() => { if (!S || S.phase !== 'play') return; addFans(500); S.heat = 1; SFX.viral(); news('La Quinta 雇托刷差评', '总监连抓两个托儿，粉丝 +500'); }, 900); } }
+  if (o.flag === 'wrong') S.stats.wrongReports++;
+  if (o.again) S.sched.push({ t: S.t + 5, f: () => { const t = gen('troll'); t.text = pick(['总监你急了', '再回我啊', '券呢？券呢？']); return t; } }), S.sched.sort((a, b) => a.t - b.t);
+  if (o.fans) addFans(o.fans);
+  const cx = 97, cy = CARD.y + 40;
+  if (o.viral) { S.stats.viral++; S.heat = 1; SFX.viral(); burst('heart', cx, cy, 26); burst('stars', cx, cy, 10); floatAt('爆了！🔥', cx, CARD.y + 6, '#f2b134', 24); S.flash = 0.25; }
+  else if (o.boom) { S.stats.disasters++; S.shake = 0.7; SFX.boom(); burst('angry', cx, cy, 40); floatAt('搞砸了…', cx, CARD.y + 6, '#d94a3a', 24); }
+  else if (o.fx === 'good') { SFX.good(); burst('heart', cx, cy, 8); }
+  else if (o.fx === 'bad') { SFX.bad(); S.shake = 0.3; burst('angry', cx, cy, 12); }
+  else SFX.tap();
+  if (o.headline) setTimeout(() => { if (S && S.phase === 'play') news(o.headline[0], o.headline[1]); }, 700);
+  const rc = $('creact'); rc.textContent = o.line; rc.className = 'l ' + (o.viral ? 'viral' : o.boom ? 'boom' : o.fx === 'good' ? 'good' : o.fx === 'bad' ? 'bad' : ''); rc.style.display = o.line ? 'block' : 'none';
+}
+function addFans(d) {
+  S.fans = Math.max(10, S.fans + d);
+  floatAt((d > 0 ? '+' : '') + d + ' 粉丝', 150, 44, d > 0 ? '#ff8fb0' : '#d94a3a', d > 400 || d < -200 ? 22 : 16);
+}
+function buyShill() {
+  if (S.money < 60) { floatAt('$60 才能买', 160, 220, '#d94a3a', 14); SFX.bad(); S.shake = 0.2; return; }
+  S.money -= 60; S.stats.shill++;
+  for (let i = 0; i < 6; i++) S.ratings.push({ stars: 5, w: 1, shill: true });
+  floatAt('-$60', 160, 200, '#d94a3a'); floatAt('+6 条五星', 97, 30, '#f2b134', 20);
+  for (let i = 0; i < 12; i++) S.parts.push({ k: 'fly', x: 162, y: 198, x0: 162 + (mr() - 0.5) * 20, y0: 198, x1: 66 + mr() * 50, y1: 8, life: 0.6 + i * 0.05, max: 0.6 + i * 0.05 });
+  SFX.coin(); S.hudFlip = 0.5;
+}
+
+// ================= camera & post =================
+const OBJ = { court1: { x: 8, y: 30, w: 60, h: 46 }, court2: { x: 78, y: 30, w: 60, h: 46 }, pool: { x: 8, y: 88, w: 44, h: 34 }, house: { x: 64, y: 84, w: 50, h: 38 } };
+function frac(o, v) { const ix = Math.max(0, Math.min(o.x + o.w, v.x + 64) - Math.max(o.x, v.x)), iy = Math.max(0, Math.min(o.y + o.h, v.y + 48) - Math.max(o.y, v.y)); return ix * iy / (o.w * o.h); }
+function isSunset() { const p = S.t / S.dayLen; return p > 0.62 && p < 0.92; }
+function kidsOn() { return S.t / S.dayLen < 0.55; }
+function photoScore() {
+  const v = S.vf, tags = []; let s = 0; const sun = isSunset();
+  if (frac(OBJ.court1, v) > 0.6) { s += 2; if (sun) { s += 3; tags.push('sunsetcourt'); } if (kidsOn()) { s += 2; tags.push('kids'); } }
+  if (frac(OBJ.court2, v) > 0.3) { s -= 5; tags.push('sand'); }
+  if (frac(OBJ.pool, v) > 0.5) { if (S.poolDirty) { s -= 4; tags.push('pooldirty'); } else { s += 2; tags.push('pool'); } }
+  if (frac(OBJ.house, v) > 0.6) s += 1;
+  const skyRows = Math.max(0, 24 - v.y);
+  if (skyRows >= 8) { s += sun ? 3 : 1; if (sun) tags.push('sunset'); }
+  const d = S.dog; if (d.x > v.x + 1 && d.x + 10 < v.x + 64 && d.y > v.y && d.y + 7 < v.y + 48) { s += 4; tags.unshift('dog'); }
+  let vis = 0; for (const p of S.visitors) if (p.x > v.x && p.x + 8 < v.x + 64 && p.y > v.y && p.y + 14 < v.y + 48) vis++;
+  s += Math.min(2, vis);
+  return { s, tags };
+}
+function snap() {
+  const { s, tags } = photoScore();
+  photoG.clearRect(0, 0, 64, 48); photoG.drawImage(sc, S.vf.x, S.vf.y, 64, 48, 0, 0, 64, 48);
+  S.posted = true; S.stats.posts++; S.stats.best = Math.max(S.stats.best, s);
+  let likes, fans, line, cls;
+  const bad = tags.includes('sand') || tags.includes('pooldirty');
+  if (s >= 7) { likes = ri(800, 1500); fans = ri(600, 1100); cls = 'viral'; line = tags.includes('dog') ? '狗狗好可爱！求地址' : tags.includes('sunset') || tags.includes('sunsetcourt') ? '这日落我哭了' : '小朋友打得好认真'; }
+  else if (s >= 3) { likes = ri(60, 200); fans = ri(60, 180); cls = 'good'; line = tags.includes('dog') ? '狗狗好可爱！' : tags.includes('kids') ? '小朋友好可爱' : '好想去打球'; }
+  else if (s >= 0) { likes = ri(5, 30); fans = ri(3, 12); cls = ''; line = bad ? '嗯…还行吧' : pick(['拍的啥？', '嗯…还行']); }
+  else { likes = ri(1, 6); fans = -Math.round(Math.max(20, S.fans * 0.08)); cls = 'bad'; line = tags.includes('sand') ? '这是沙滩吧？哈哈' : '泳池能养鱼了'; }
+  S.post = { t: 0, likes: 0, target: likes, fans, line, cls, s, applied: false, roast: s < 0 };
+  S.mode = 'post'; S.flash = 0.35; SFX.shutter();
+}
+
+// ================= visitors =================
+function mkVisitor(inside) {
+  const v = { x: 178, y: 140, st: 'up', t: 0, pal: { K: C.ink, H: pick(HAIRS), S: pick(SKINS), E: C.ink, T: pick(SHIRTS), P: pick(['#3b3b5a', '#5a3d2b', '#3f6fb0', '#2a1f2b']) }, flip: false, ph: mr() * 9, mark: null };
+  if (inside) { v.st = 'wander'; v.x = 20 + mr() * 120; v.y = 76 + mr() * 6; v.tx = v.x; v.ty = v.y; }
+  return v;
+}
+function stepTo(v, tx, ty, sp, dt) { const dx = tx - v.x, dy = ty - v.y, d = Math.hypot(dx, dy); if (d < 1) { v.x = tx; v.y = ty; return true; } const m = Math.min(d, sp * dt); v.x += dx / d * m; v.y += dy / d * m; if (Math.abs(dx) > 0.3) v.flip = dx < 0; v.moving = true; return false; }
+function updVisitors(dt) {
+  const p = S.t / S.dayLen;
+  if (p < 0.9 && !S.banner) {
+    const rate = 0.16 + Math.min(0.7, S.fans / 3000);
+    S.spawnAcc += dt * rate;
+    if (S.regulars > 0) S.spawnAcc += dt * 0.25;
+    if (S.spawnAcc >= 1 && S.visitors.length < 16) { S.spawnAcc -= 1; const v = mkVisitor(); if (S.regulars > 0) { S.regulars--; v.regular = true; } S.visitors.push(v); }
+  }
+  for (const v of S.visitors) {
+    v.moving = false; v.ph += dt * 6;
+    if (v.mark) { v.mark.t -= dt; if (v.mark.t <= 0) v.mark = null; }
+    if (v.st === 'up') { if (stepTo(v, 178, 100, 22, dt)) v.st = 'gate'; }
+    else if (v.st === 'gate') { if (stepTo(v, 156, 100, 22, dt)) { v.st = 'look'; v.t = 0.7; v.mark = { k: 'phone', t: 0.7 }; } }
+    else if (v.st === 'look') { v.t -= dt; if (v.t <= 0) {
+      const conv = v.regular ? 1 : clamp((rating() - 2.1) / 2.3, 0.05, 0.97);
+      if (mr() < conv) { v.st = 'in'; v.mark = { k: 'heart', t: 0.8 }; } else { v.st = 'back'; v.mark = { k: 'angry', t: 1 }; S.stats.turned++; floatAt('评分太低，走了', v.x + 4, SY + v.y - 6, '#d94a3a', 11); } } }
+    else if (v.st === 'in') { if (stepTo(v, 90, 122, 22, dt)) { v.st = 'done'; S.money += 8; S.stats.visitors++; SFX.coin(); floatAt('+$8', 90, SY + 112, '#3fae5a', 14); } }
+    else if (v.st === 'back') { if (stepTo(v, 180, 100, 26, dt)) v.st = 'leave'; }
+    else if (v.st === 'leave') { if (stepTo(v, 182, 150, 26, dt)) v.st = 'done'; }
+    else if (v.st === 'wander') { if (stepTo(v, v.tx, v.ty, 10, dt)) { if (mr() < dt * 0.6) { v.tx = clamp(v.x + (mr() - 0.5) * 40, 56, 140); v.ty = clamp(v.y + (mr() - 0.5) * 10, 76, 84); } } }
+  }
+  S.visitors = S.visitors.filter((v) => v.st !== 'done');
+  const d = S.dog; d.moving = false;
+  if (d.wait > 0) d.wait -= dt; else if (stepTo(d, d.tx, d.ty, 14, dt)) { d.wait = 1 + mr() * 3; d.tx = 40 + mr() * 100; d.ty = 78 + mr() * 44; if (d.tx > 54 && d.tx < 118 && d.ty > 84) d.ty = 80; }
+  if (!S.tumble && mr() < dt * 0.05) S.tumble = { x: -8, y: 124 + mr() * 6 };
+  if (S.tumble) { S.tumble.x += dt * 30; if (S.tumble.x > 200) S.tumble = null; }
+}
+
+// ================= particles & floats =================
+function burst(k, x, y, n) { for (let i = 0; i < n; i++) { const a = mr() * Math.PI * 2, sp = 20 + mr() * 50; S.parts.push({ k, x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 30, life: 0.8 + mr() * 0.6, max: 1.4 }); } }
+function floatAt(text, lx, ly, color, size = 16) {
+  const d = document.createElement('div'); d.className = 'float'; d.textContent = text; d.style.left = lx * 2 + 'px'; d.style.top = ly * 2 + 'px'; d.style.color = color; d.style.fontSize = size + 'px';
+  app.appendChild(d); setTimeout(() => d.remove(), 1250);
+}
+let newsTimer = 0;
+function news(hl, sub) { $('newsHl').textContent = hl; $('newsSub').textContent = sub; const n = $('news'); n.classList.remove('on'); void n.offsetWidth; n.classList.add('on'); newsTimer = 2.8; S.shake = Math.max(S.shake, 0.4); SFX.boom(); }
+
+// ================= drawing: scene =================
+function lerpC(a, b, t) { const pa = parseInt(a.slice(1), 16), pb = parseInt(b.slice(1), 16); const r = (pa >> 16) + ((pb >> 16) - (pa >> 16)) * t, gg = ((pa >> 8) & 255) + (((pb >> 8) & 255) - ((pa >> 8) & 255)) * t, bb = (pa & 255) + ((pb & 255) - (pa & 255)) * t; return '#' + ((1 << 24) + (Math.round(r) << 16) + (Math.round(gg) << 8) + Math.round(bb)).toString(16).slice(1); }
+const SANDDOTS = []; { const rq = mulberry(77); for (let i = 0; i < 90; i++) SANDDOTS.push([Math.floor(rq() * W), 24 + Math.floor(rq() * (SH - 24)), rq() < 0.5]); }
+const SANDPILES = []; { const rq = mulberry(5); for (let i = 0; i < 9; i++) SANDPILES.push([84 + Math.floor(rq() * 46), 36 + Math.floor(rq() * 32), 3 + Math.floor(rq() * 5)]); }
+function palm(ctx, x, y, sway) {
+  rect(ctx, x - 1, y, 3, 22, C.ink); for (let i = 0; i < 22; i += 3) rect(ctx, x, y + i, 1, 2, i % 6 ? C.wood : '#6a4528');
+  const fr = [[-9, 2], [-6, -3], [0, -5], [6, -3], [9, 2], [-4, 4], [4, 4]];
+  for (const [dx, dy] of fr) { const n = 6; for (let i = 0; i <= n; i++) { const t = i / n; const px = x + dx * t + sway * t, py = y + dy * t + (Math.abs(dx) > 5 ? t * t * 3 : 0); rect(ctx, px - 1, py - 1, 3, 2, C.ink); } }
+  for (const [dx, dy] of fr) { const n = 6; for (let i = 0; i <= n; i++) { const t = i / n; const px = x + dx * t + sway * t, py = y + dy * t + (Math.abs(dx) > 5 ? t * t * 3 : 0); rect(ctx, px, py - 1, 1, 1, i % 2 ? C.palm : '#5aa856'); } }
+}
+function court(ctx, x, y, w, h, surf, sandy, glow) {
+  rect(ctx, x, y, w, h, C.ink); rect(ctx, x + 1, y + 1, w - 2, h - 2, C.green);
+  const ix = x + 5, iy = y + 4, iw = w - 10, ih = h - 8;
+  rect(ctx, ix, iy, iw, ih, surf);
+  const L = glow ? '#ffe08a' : C.line;
+  rect(ctx, ix, iy, iw, 1, L); rect(ctx, ix, iy + ih - 1, iw, 1, L); rect(ctx, ix, iy, 1, ih, L); rect(ctx, ix + iw - 1, iy, 1, ih, L);
+  rect(ctx, ix + 6, iy, 1, ih, L); rect(ctx, ix + iw - 7, iy, 1, ih, L); rect(ctx, ix + 6, iy + Math.floor(ih / 2) - 8, iw - 12, 1, L); rect(ctx, ix + 6, iy + Math.floor(ih / 2) + 8, iw - 12, 1, L);
+  rect(ctx, ix + Math.floor(iw / 2), iy + Math.floor(ih / 2) - 8, 1, 16, L);
+  rect(ctx, ix - 2, iy + Math.floor(ih / 2), iw + 4, 1, C.ink); rect(ctx, ix - 2, iy + Math.floor(ih / 2) - 1, iw + 4, 1, '#d8d4c8');
+  if (sandy) { for (const [px, py, r] of SANDPILES) { rect(ctx, px - r, py, r * 2, 2, C.dsand); rect(ctx, px - r + 1, py - 1, r * 2 - 2, 2, C.sand); }
+    rect(ctx, ix + 10, iy + 6, 1, 6, '#2c4f80'); rect(ctx, ix + 11, iy + 11, 4, 1, '#2c4f80'); rect(ctx, ix + 30, iy + 26, 7, 1, '#2c4f80'); }
+}
+function person(ctx, x, y, pal, walking, flip, ph) { const fr = walking && Math.floor(ph) % 2 ? PERSON.walk : PERSON.stand; art(ctx, fr, Math.round(x), Math.round(y), pal, 1, flip); }
+function mark(ctx, k, x, y) {
+  if (k === 'heart') art(ctx, HEART, x, y, PP); else if (k === 'angry') art(ctx, ANGRY, x, y, PP);
+  else if (k === 'phone') { rect(ctx, x, y - 1, 5, 7, C.ink); rect(ctx, x + 1, y, 3, 4, C.sky); }
+}
+function drawScene() {
+  const ctx = sg, p = S ? S.t / S.dayLen : 0.3, time = performance.now() / 1000;
+  const sun = p > 0.62, dusk = p > 0.9;
+  const topC = dusk ? '#4a3a6a' : sun ? lerpC('#8ec9e8', '#f08a5a', clamp((p - 0.62) / 0.15, 0, 1)) : '#8ec9e8';
+  const botC = dusk ? '#c06a7a' : sun ? lerpC('#cfe8f5', '#f6d27a', clamp((p - 0.62) / 0.15, 0, 1)) : '#cfe8f5';
+  for (let i = 0; i < 6; i++) rect(ctx, 0, i * 4, W, 4, lerpC(topC, botC, i / 5));
+  const sx = 10 + p * 175, sy = 22 - Math.sin(Math.PI * Math.min(1, p)) * 18;
+  const sunC = sun ? '#ff7a3a' : '#ffe08a';
+  rect(ctx, sx - 3, sy - 4, 7, 9, sunC); rect(ctx, sx - 4, sy - 3, 9, 7, sunC);
+  ctx.fillStyle = sun ? '#8a5a6a' : C.mtn;
+  for (let x = 0; x < W; x++) { const h = 6 + Math.round(4 * Math.sin(x * 0.07) + 3 * Math.sin(x * 0.19 + 1)); ctx.fillRect(x, 24 - h, 1, h); }
+  rect(ctx, 0, 24, W, SH - 24, C.sand);
+  for (const [x, y, d] of SANDDOTS) rect(ctx, x, y, d ? 2 : 1, 1, C.dsand);
+  rect(ctx, 160, 24, 35, SH - 24, '#a89c8c'); for (let y = 28; y < SH; y += 10) rect(ctx, 177, y, 1, 5, C.line);
+  court(ctx, 8, 30, 60, 46, C.hard, false, sun && !dusk);
+  court(ctx, 78, 30, 60, 46, C.hard, true, false);
+  if (sun && !dusk) { for (let i = 0; i < 3; i++) { const gx = 14 + ((time * 9 + i * 19) % 48); rect(ctx, gx, 36 + i * 13, 1, 1, '#fff6c0'); } }
+  // pool
+  rect(ctx, 8, 88, 44, 34, C.ink); rect(ctx, 9, 89, 42, 32, C.line);
+  const wc = S && S.poolDirty ? '#6f8f4a' : C.pool; rect(ctx, 12, 92, 36, 26, wc);
+  if (S && S.poolDirty) { for (let i = 0; i < 8; i++) rect(ctx, 14 + (i * 11) % 32, 94 + (i * 7) % 22, 2, 1, '#6a4528'); rect(ctx, 30, 104, 3, 2, '#4a6a2a'); }
+  else for (let i = 0; i < 4; i++) rect(ctx, 14 + ((time * 6 + i * 9) % 30), 95 + i * 6, 3, 1, '#bff0f8');
+  // clubhouse
+  rect(ctx, 64, 96, 50, 26, C.ink); rect(ctx, 65, 97, 48, 24, '#e0c49a');
+  for (let i = 0; i < 12; i++) rect(ctx, 62 + i, 96 - i, 54 - i * 2, 1, i === 11 ? C.ink : i % 3 ? C.roof : '#8f3a30');
+  rect(ctx, 62, 96, 54, 1, C.ink);
+  rect(ctx, 84, 108, 10, 13, C.ink); rect(ctx, 85, 109, 8, 12, C.wood); rect(ctx, 91, 115, 1, 1, C.gold);
+  for (const wx of [70, 100]) { rect(ctx, wx, 102, 8, 7, C.ink); rect(ctx, wx + 1, 103, 6, 5, dusk || sun ? '#ffe08a' : C.sky); }
+  // fence and gate
+  for (let y = 28; y < SH; y += 4) if (y < 92 || y > 110) { rect(ctx, 150, y, 2, 3, C.wood); }
+  rect(ctx, 150, 28, 1, 64, '#6a4528'); rect(ctx, 150, 110, 1, 24, '#6a4528');
+  rect(ctx, 147, 84, 3, 30, C.ink); rect(ctx, 152, 84, 3, 30, C.ink); rect(ctx, 140, 80, 22, 6, C.ink); rect(ctx, 141, 81, 20, 4, C.gold);
+  for (let i = 0; i < 6; i++) rect(ctx, 143 + i * 3, 82, 2, 2, C.roof);
+  // palms
+  const sw = Math.sin(time * 1.5);
+  palm(ctx, 150, 46, sw); palm(ctx, 58, 64, sw * 0.8); palm(ctx, 128, 78, -sw);
+  if (S) {
+    if (kidsOn()) {
+      const b = (time * 0.8) % 2, bt = b < 1 ? b : 2 - b;
+      person(ctx, 18, 40, { K: C.ink, H: C.red, S: '#c68642', E: C.ink, T: '#f4f1e8', P: '#3b3b5a' }, false, false, 0);
+      person(ctx, 46, 56, { K: C.ink, H: '#3b2a20', S: '#ffdbac', E: C.ink, T: '#e07ab0', P: '#3f6fb0' }, true, true, time * 3);
+      person(ctx, 50, 36, { K: C.ink, H: '#d9a441', S: '#f1c27d', E: C.ink, T: '#3fae5a', P: '#3f6fb0' }, false, true, 0);
+      const bx = 26 + bt * 22, by = 46 + bt * 6 - Math.sin(bt * Math.PI) * 10; rect(ctx, bx, by, 2, 2, '#e8f04a');
+    }
+    const d = S.dog; art(ctx, DOG[d.moving ? Math.floor(time * 8) % 2 : 0], Math.round(d.x), Math.round(d.y), { K: C.ink, B: '#b07a3a', W: '#fff4dc', E: C.ink }, 1, d.tx < d.x);
+    const vs = S.visitors.slice().sort((a, b) => a.y - b.y);
+    for (const v of vs) { person(ctx, v.x, v.y, v.pal, v.moving, v.flip, v.ph); if (v.mark) mark(ctx, v.mark.k, v.x + 2, v.y - 8); }
+    if (S.tumble) art(ctx, TUMBLE, S.tumble.x, S.tumble.y - Math.abs(Math.sin(S.tumble.x * 0.2)) * 3, { K: '#6a4528', D: '#a07a4a' });
+  }
+  if (sun && !dusk) { ctx.fillStyle = 'rgba(255,140,60,0.16)'; ctx.fillRect(0, 24, W, SH); }
+  if (dusk) { ctx.fillStyle = 'rgba(40,30,90,0.35)'; ctx.fillRect(0, 24, W, SH); }
+}
+
+// ================= drawing: faces, photos =================
+function face(ctx, x, y, s, av, mood) {
+  const P = (i, j, c, w = 1, h = 1) => { ctx.fillStyle = c; ctx.fillRect(x + i * s, y + j * s, w * s, h * s); };
+  P(1, 0, C.ink, 10, 12); P(0, 1, C.ink, 12, 10); P(1, 1, av.bg, 10, 10);
+  const skin = av.style === 'hood' ? '#6b6470' : av.skin;
+  P(2, 11, C.ink, 8, 1); P(2, 10, av.shirt, 8, 1); if (av.style === 'hood') P(2, 10, '#5b5560', 8, 1);
+  P(2, 2, C.ink, 8, 1); P(2, 3, C.ink, 1, 6); P(9, 3, C.ink, 1, 6); P(3, 9, C.ink, 6, 1);
+  P(3, 3, skin, 6, 6);
+  if (av.style === 'hood') { P(1, 1, '#5b5560', 10, 2); P(1, 3, '#5b5560', 2, 7); P(9, 3, '#5b5560', 2, 7); }
+  else if (av.style === 'hat') { P(3, 1, C.gold, 6, 2); P(1, 3, C.gold, 10, 1); P(3, 2, C.ink, 6, 0.4); }
+  else { P(3, 2, av.hair, 6, 1); P(3, 3, av.hair, 6, 1); if (av.style === 'long') { P(2, 3, av.hair, 1, 6); P(9, 3, av.hair, 1, 6); } if (av.style === 'bun') P(5, 1, av.hair, 2, 1); if (av.style === 'band') P(3, 4, C.red, 6, 1); }
+  const eye = av.style === 'hood' ? C.red : C.ink;
+  if (av.glasses) { P(3, 5, C.ink, 6, 1); P(3, 6, C.ink, 2, 1); P(7, 6, C.ink, 2, 1); P(3, 6, '#7a7a9a', 1, 1); P(7, 6, '#7a7a9a', 1, 1); }
+  else if (mood === 'happy') { P(3, 6, eye); P(4, 5, eye); P(5, 6, eye); P(6, 6, eye); P(7, 5, eye); P(8, 6, eye); }
+  else { P(4, 6, eye); P(7, 6, eye); }
+  if (mood === 'angry' && !av.glasses) { P(3, 4, C.ink); P(4, 5, C.ink); P(8, 4, C.ink); P(7, 5, C.ink); }
+  if (mood === 'happy') { P(3, 7, '#f08a8a'); P(8, 7, '#f08a8a'); P(4, 7, C.ink); P(7, 7, C.ink); P(5, 8, C.ink, 2, 1); P(5, 7, '#c04040', 2, 1); }
+  else if (mood === 'angry') { P(5, 7, C.ink, 2, 1); P(4, 8, C.ink); P(7, 8, C.ink); P(3, 7, '#e06050'); P(8, 7, '#e06050'); }
+  else if (mood === 'sad') { P(5, 8, C.ink, 2, 1); P(4, 7, '#4fc3d9'); }
+  else if (mood === 'shock') { P(5, 7, C.ink, 2, 2); }
+  else if (mood === 'smug') { P(6, 8, C.ink, 2, 1); P(8, 7, C.ink); }
+  else P(5, 8, C.ink, 2, 1);
+}
+function photo(ctx, kind, x, y, w, h) {
+  rect(ctx, x - 1, y - 1, w + 2, h + 2, C.ink); rect(ctx, x, y, w, h, '#fff');
+  const ix = x + 2, iy = y + 2, iw = w - 4, ih = h - 4, P = (a, b, c, d, col) => rect(ctx, ix + a, iy + b, c, d, col);
+  if (kind === 'sand' || kind === 'coach') { P(0, 0, iw, ih, C.hard); P(2, 2, iw - 4, 1, C.line); P(2, ih - 3, iw - 4, 1, C.line); P(0, Math.floor(ih / 2), iw, 1, C.ink);
+    if (kind === 'sand') { for (let i = 0; i < 6; i++) P((i * 7) % (iw - 6), 3 + (i * 5) % (ih - 6), 6, 3, C.sand); }
+    else art(ctx, PERSON.stand, ix + iw / 2 - 4, iy + 5, { K: C.ink, H: C.red, S: '#c68642', E: C.ink, T: '#f4f1e8', P: '#3b3b5a' }); }
+  else if (kind === 'pooldirty' || kind === 'pool') { P(0, 0, iw, ih, kind === 'pool' ? C.pool : '#6f8f4a'); for (let i = 0; i < 6; i++) P((i * 9) % (iw - 3), (i * 7) % (ih - 2), 3, 1, kind === 'pool' ? '#bff0f8' : '#6a4528'); }
+  else if (kind === 'sunset') { for (let i = 0; i < 4; i++) P(0, i * 3, iw, 3, lerpC('#f08a5a', '#f6d27a', i / 3)); P(iw / 2 - 4, 6, 8, 4, '#ff7a3a'); P(0, 12, iw, 2, '#8a5a6a'); P(0, 14, iw, ih - 14, C.hard); P(0, 14, iw, 1, '#ffe08a'); }
+  else if (kind === 'dog') { P(0, 0, iw, ih, C.sand); art(ctx, DOG[0], ix + iw / 2 - 10, iy + ih / 2 - 6, { K: C.ink, B: '#b07a3a', W: '#fff4dc', E: C.ink }, 2); }
+  else if (kind === 'grass') { for (let i = 0; i < iw; i += 4) P(i, 0, 2, ih, '#5aa83a'), P(i + 2, 0, 2, ih, '#4a9030'); P(2, 2, iw - 4, 1, C.line); P(2, ih - 3, iw - 4, 1, C.line); P(0, Math.floor(ih / 2), iw, 1, C.line); }
+  else if (kind === 'heat') { P(0, 0, iw, ih, '#ffd27a'); P(iw / 2 - 5, 4, 10, 10, '#ff7a3a'); P(iw / 2 - 3, 2, 6, 14, '#ff7a3a'); for (let i = 0; i < 3; i++) P(4 + i * 10, ih - 4, 6, 1, '#d94a3a'); }
+  else if (kind === 'receipt') { P(0, 0, iw, ih, '#d8cfc0'); P(8, 2, iw - 16, ih - 4, '#fff'); for (let i = 0; i < 4; i++) P(10, 5 + i * 4, iw - 20 - (i % 2) * 6, 1, C.gray); txt(ctx, '$$$', ix + iw / 2 - 5, iy + ih - 8, C.red); }
+  else { P(0, 0, iw, ih, '#e4ddd0'); P(iw / 2 - 4, ih / 2 - 3, 8, 6, '#cfc6b6'); P(iw / 2 - 2, ih / 2 - 1, 4, 2, '#e4ddd0'); }
+}
+
+// ================= drawing: UI =================
+function drawHUD() {
+  rect(g, 0, 0, W, 36, C.cream); rect(g, 0, 35, W, 1, C.pb); rect(g, 0, 36, W, 1, C.ink);
+  art(g, muted ? ICONS.speakerOff : ICONS.speaker, 5, 6, PP, 2);
+  const rt = S ? S.ratingShown : 3.2;
+  const f = S && S.hudFlip > 0 ? Math.abs(Math.cos(S.hudFlip * 12)) : 1;
+  txt(g, rt.toFixed(1), 25, 3, C.ink, 3);
+  const hs = Math.round(rt * 2) / 2;
+  for (let i = 0; i < 5; i++) star(g, 60 + i * 12, 5, clamp(hs - i, 0, 1), 1, f);
+  // fans
+  const fs = S ? S.fansShown : 120, fstr = fs >= 1000 ? (fs / 1000).toFixed(1) + 'k' : String(Math.round(fs));
+  art(g, ICONS.heartS, 124, 6, PP, 2);
+  txt(g, fstr, 137, 6, C.red, 2);
+  // money
+  art(g, COIN, 4, 25, PP, 1); txt(g, String(Math.round(S ? S.moneyShown : 120)), 12, 24, C.money, 2);
+  // heat
+  const heat = S ? S.heat : 0;
+  art(g, ICONS.flame, 44 + (heat > 0.5 ? Math.round(Math.sin(performance.now() / 50)) : 0), 23, heat > 0.05 ? PP : { O: '#c9b9a0', Y: '#e0d4c0', W: '#efe6d4' }, 1);
+  rect(g, 53, 26, 34, 5, C.ink); rect(g, 54, 27, 32, 3, '#e4ddd0'); rect(g, 54, 27, Math.round(32 * heat), 3, heat > 0.6 ? C.red : '#f08a3a');
+  // day
+  const day = S ? S.day : 1, p = S ? clamp(S.t / S.dayLen, 0, 1) : 0;
+  txt(g, 'D' + day, 94, 24, C.ink, 1); txt(g, '/4', 102, 24, C.pb, 1);
+  rect(g, 116, 25, 74, 7, C.ink); rect(g, 117, 26, 72, 5, '#cfe8f5'); rect(g, 117 + Math.round(72 * 0.62), 26, Math.round(72 * 0.3), 5, '#f6b87a'); rect(g, 117 + Math.round(72 * 0.92), 26, 72 - Math.round(72 * 0.92), 5, '#6b5a8a');
+  rect(g, 116 + Math.round(72 * p), 24, 3, 9, p > 0.62 ? C.red : C.gold);
+}
+function drawDockIcon(b, icon, active, label) {
+  const lift = active ? -3 : 0;
+  box(g, b.x, b.y + 2, b.w, b.h, C.ink, C.ink);
+  box(g, b.x, b.y + lift, b.w, b.h, active ? '#fff0b0' : '#fffaf0', C.ink);
+  if (typeof icon === 'function') icon(b.x, b.y + lift); else art(g, ICONS[icon], b.x + 6, b.y + 7 + lift, PP, 2);
+}
+function drawPhone() {
+  const bz = S && S.buzz > 0 ? Math.round(Math.sin(S.buzz * 80) * 1.5) : 0;
+  g.save(); g.translate(bz, 0);
+  const x = 10, y = 172;
+  rect(g, x + 3, y, 169, H - y, C.ink); rect(g, x + 1, y + 2, 173, H - y, C.ink); rect(g, x, y + 4, 175, H - y, C.ink);
+  rect(g, x + 4, y + 3, 167, 1, '#5a4a5f');
+  rect(g, 18, 184, 159, 220, '#f6ead2');
+  rect(g, 84, 177, 26, 2, '#4a3a4f'); rect(g, 116, 177, 2, 2, '#4a3a4f');
+  rect(g, 18, 184, 159, 26, '#fff4dc'); rect(g, 18, 210, 159, 1, C.lgray);
+  // header buttons
+  const camOff = !S || S.posted;
+  box(g, CAMBTN.x, CAMBTN.y, CAMBTN.w, CAMBTN.h, camOff ? '#e4ddd0' : '#cde7f5', C.ink); art(g, ICONS.camera, CAMBTN.x + 2, CAMBTN.y + 1, camOff ? { K: C.gray, D: '#cfc6b6', Y: C.lgray, B: C.lgray, W: '#fff' } : PP, 2);
+  box(g, SHILLBTN.x, SHILLBTN.y, SHILLBTN.w, SHILLBTN.h, '#ffe08a', C.ink); art(g, ICONS.bag, SHILLBTN.x + 2, SHILLBTN.y + 1, PP, 2);
+  if (S && S.queue.length > 1) { const n = S.queue.length - 1; rect(g, 120, 188, 12, 9, C.red); txt(g, '+' + n, 122, 190, '#fff'); }
+  // content
+  if (S && S.phase === 'play') {
+    if (S.mode === 'camera') drawCameraUI();
+    else if (S.mode === 'post') drawPostUI();
+    else drawCards();
+  }
+  g.restore();
+}
+function drawCards() {
+  const q = S.queue;
+  for (let i = Math.min(3, q.length - 1); i >= 1; i--) { box(g, CARD.x + i * 2, CARD.y + i * 3, CARD.w - i * 4, CARD.h, '#efe4cc', C.ink); }
+  const r = q[0];
+  if (r) {
+    let ox = 0, oy = 0;
+    if (r.enter < 1) oy = -(1 - r.enter) * 30;
+    if (S.drag) { ox = S.drag.dx; oy = S.drag.dy; }
+    if (r.leave) { const t = r.leave.t; if (r.leave.dir === 'left') ox = -t * 220; else if (r.leave.dir === 'up') oy = -t * 160; else oy = t * 200; }
+    drawCard(r, Math.round(ox), Math.round(oy));
+    $('cdom').style.transform = `translate(${Math.round(ox) * 2}px,${Math.round(oy) * 2}px)`;
+  } else {
+    box(g, CARD.x, CARD.y, CARD.w, CARD.h, '#efe4cc', C.lgray);
+    art(g, BUB, 88, 246, { K: C.lgray, W: '#f6ead2', Y: C.lgray }, 3);
+  }
+  // dock
+  const reply = S.mode === 'reply';
+  for (let i = 0; i < 4; i++) {
+    const act = reply || (S.hover === i);
+    if (reply) { const mood = ['sad', 'meh', 'angry', 'happy'][i];
+      drawDockIcon(DOCK[i], (bx, by) => { face(g, bx + 5, by + 6, 2, { bg: ['#ffd5cc', '#cde7f5', '#ffb0a0', '#ffe0f0'][i], skin: '#f1c27d', hair: '#3b2a20', shirt: '#3f6fb0', style: 'short', glasses: false }, mood); if (i === 0) { rect(g, bx + 22, by + 22, 10, 7, C.ink); rect(g, bx + 23, by + 23, 8, 5, C.gold); } }, false);
+    } else drawDockIcon(DOCK[i], ['reply', 'gift', 'flag', 'trash'][i], act);
+  }
+  if (S.drag && S.drag.dx > 30) art(g, ICONS.reply, 160, 250, PP, 1);
+  if (S.drag && S.drag.dx < -30) art(g, ICONS.trash, 24, 250, PP, 1);
+}
+function drawCard(r, ox, oy) {
+  const x = CARD.x + ox, y = CARD.y + oy;
+  box(g, x + 1, y + 2, CARD.w, CARD.h, C.ink, C.ink);
+  const glow = r.res && r.res.viral ? '#fff0b0' : r.res && r.res.boom ? '#ffd5cc' : C.card;
+  box(g, x, y, CARD.w, CARD.h, glow, C.ink);
+  const shake = r.mood === 'angry' && r.state === 'live' ? Math.round(Math.sin(performance.now() / 40)) * (r.stars === 1 ? 1 : 0) : 0;
+  face(g, x + 4 + shake, y + 4, 3, r.av, r.mood);
+  if (r.kind === 'blogger') { art(g, ICONS.check, x + 30, y + 32, PP, 1); }
+  // stars with flip
+  for (let i = 0; i < 5; i++) {
+    let fill = r.stars > i ? 1 : 0, f = 1;
+    if (r.anim) { const t = r.anim.t - i * 0.09; if (t < 0) fill = r.anim.from > i ? 1 : 0; else if (t < 0.18) { f = Math.abs(Math.cos(t / 0.18 * Math.PI)); fill = t < 0.09 ? (r.anim.from > i ? 1 : 0) : (r.anim.to > i ? 1 : 0); } }
+    star(g, x + 44 + i * 12, y + 6, fill, 1, f);
+  }
+  if (r.kind === 'blogger') { rect(g, x + 44, y + 28, 34, 9, '#3f6fb0'); txt(g, '12k', x + 47, y + 30, '#fff'); art(g, ICONS.heartS, x + 64, y + 30, { R: '#ff8fb0' }); }
+  if (r.removed) { rect(g, x + 40, y + 10, 70, 2, C.red); }
+  photo(g, r.photo, x + 113, y + 6, 38, 28);
+  // timer
+  if (r.state === 'live') { const left = 1 - r.age / EXPIRE; rect(g, x + 5, y + 98, 145, 3, '#e4ddd0'); rect(g, x + 5, y + 98, Math.round(145 * left), 3, left < 0.3 ? C.red : C.gold); }
+  if (r.removed) { g.save(); g.globalAlpha = 0.85; for (let i = 0; i < 8; i++) rect(g, x + 110 + i * 5, y + 4 + i * 4, 6, 3, C.red); g.restore(); }
+}
+function drawCameraUI() {
+  rect(g, CARD.x, CARD.y, CARD.w, CARD.h, C.ink);
+  g.drawImage(sc, S.vf.x, S.vf.y, 64, 48, CARD.x + 13, CARD.y + 5, 128, 96);
+  const bx = CARD.x + 13, by = CARD.y + 5;
+  for (const [cx, cy, sx, sy] of [[0, 0, 1, 1], [127, 0, -1, 1], [0, 95, 1, -1], [127, 95, -1, -1]]) { rect(g, bx + cx + (sx < 0 ? -9 : 0), by + cy + (sy < 0 ? 0 : 0), 10, 1, '#fff'); rect(g, bx + cx, by + cy + (sy < 0 ? -9 : 0), 1, 10, '#fff'); }
+  rect(g, bx + 4, by + 4, 3, 3, C.red);
+  if (isSunset()) { txt(g, '+', bx + 118, by + 4, C.gold, 2); }
+  drawDockIcon(CANCEL, 'x', false);
+  const b = SHUT; box(g, b.x, b.y + 2, b.w, b.h, C.ink, C.ink); box(g, b.x, b.y, b.w, b.h, '#fffaf0', C.ink);
+  const cx = b.x + b.w / 2, cy = b.y + b.h / 2; rect(g, cx - 12, cy - 14, 24, 28, C.ink); rect(g, cx - 14, cy - 12, 28, 24, C.ink); rect(g, cx - 10, cy - 12, 20, 24, C.red); rect(g, cx - 12, cy - 10, 24, 20, C.red); rect(g, cx - 6, cy - 8, 4, 3, '#ff9a8a');
+}
+function drawPostUI() {
+  const P = S.post; const x = CARD.x, y = CARD.y;
+  box(g, x, y, CARD.w, CARD.h, P.cls === 'viral' ? '#fff0b0' : P.cls === 'bad' ? '#ffd5cc' : C.card, C.ink);
+  rect(g, x + 4, y + 4, 66, 50, C.ink); g.drawImage(photoC, 0, 0, 64, 48, x + 5, y + 5, 64, 48);
+  face(g, x + 76, y + 5, 2, { bg: '#ffe08a', skin: '#f1c27d', hair: '#3b2a20', shirt: '#3f6fb0', style: 'short' }, P.cls === 'bad' ? 'sad' : 'happy');
+  art(g, ICONS.heartS, x + 104, y + 10, PP, 2);
+  txt(g, String(Math.round(P.likes)), x + 117, y + 10, C.red, 2);
+  if (P.t > 1.0) { for (let i = 0; i < 3; i++) face(g, x + 76 + i * 22, y + 32, 1, { bg: '#cde7f5', skin: SKINS[i], hair: HAIRS[i], shirt: SHIRTS[i + 1], style: 'short' }, P.roast ? 'smug' : 'happy'); }
+  for (let i = 0; i < 4; i++) rect(g, DOCK[i].x, DOCK[i].y + 2, DOCK[i].w, DOCK[i].h, '#efe4cc');
+}
+function drawHands() {
+  const sk = '#f1c27d', sl = '#3f6fb0';
+  for (const side of [0, 1]) {
+    const flip = side === 1, X = (v, w) => flip ? W - v - w : v;
+    rect(g, X(0, 14), 396, 14, 26, C.ink); rect(g, X(0, 13), 397, 13, 25, sl); rect(g, X(0, 13), 410, 13, 2, '#2c4f80');
+    rect(g, X(0, 16), 330, 16, 68, C.ink); rect(g, X(0, 15), 331, 15, 66, sk);
+    rect(g, X(8, 12), 318, 12, 22, C.ink); rect(g, X(9, 10), 319, 10, 20, sk); rect(g, X(10, 6), 320, 6, 5, '#ffe6c8');
+    rect(g, X(15, 2), 352, 2, 10, C.ink); rect(g, X(15, 2), 366, 2, 10, C.ink);
+    rect(g, X(3, 8), 360, 8, 1, '#d9a060'); rect(g, X(3, 8), 374, 8, 1, '#d9a060');
+  }
+}
+function drawParts(dt) {
+  for (const p of S.parts) {
+    p.life -= dt;
+    if (p.k === 'ping' || p.k === 'fly') { const t = 1 - Math.max(0, p.life) / p.max; p.x = p.x0 + (p.x1 - p.x0) * t; p.y = p.y0 + (p.y1 - p.y0) * t - Math.sin(t * Math.PI) * 20;
+      if (p.k === 'ping') art(g, BUB, p.x - 3, p.y - 3, PP); else art(g, STARS, p.x - 2, p.y - 2, PP); continue; }
+    p.vy += 60 * dt; p.x += p.vx * dt; p.y += p.vy * dt;
+    const a = { heart: HEART, angry: ANGRY, stars: STARS, coin: COIN, spark: SPARK }[p.k];
+    if (p.life > 0) art(g, a, p.x, p.y, PP, p.k === 'angry' && p.life > 1 ? 2 : 1);
+  }
+  S.parts = S.parts.filter((p) => p.life > 0);
+}
+function drawViewfinder() {
+  const v = S.vf; g.fillStyle = 'rgba(20,10,30,0.45)';
+  g.fillRect(0, SY, W, v.y); g.fillRect(0, SY + v.y + 48, W, SH - v.y - 48); g.fillRect(0, SY + v.y, v.x, 48); g.fillRect(v.x + 64, SY + v.y, W - v.x - 64, 48);
+  const x = v.x, y = SY + v.y;
+  for (const [cx, cy, dx, dy] of [[x, y, 1, 1], [x + 63, y, -1, 1], [x, y + 47, 1, -1], [x + 63, y + 47, -1, -1]]) { rect(g, Math.min(cx, cx + dx * 7), cy, 8, 1, '#fff'); rect(g, cx, Math.min(cy, cy + dy * 7), 1, 8, '#fff'); }
+}
+
+// ================= labels (DOM) =================
+let lastLbl = '';
+function labels() {
+  let hdr = '评价', l = ['', '', '', ''], hint = '', name = '', text = '';
+  if (S && S.phase === 'play') {
+    const r = front();
+    hdr = S.mode === 'camera' ? '拍照发帖' : S.mode === 'post' ? '发布中…' : '评价 · ' + S.queue.length + ' 条';
+    if (S.mode === 'cards') { l = ['回复', '体验课 $15', '举报', '无视'];
+      hint = !r ? (S.posted ? '等新评论…' : '没新评论：点 📷 拍张照？') : S.drag ? '松手到图标上' : '拖卡到图标 · ←无视 →回复'; }
+    else if (S.mode === 'reply') { l = ['道歉+券 $20', '真诚解释', '怼回去', '卖萌']; hint = '选个语气 · 点卡片取消'; }
+    else if (S.mode === 'camera') { l = ['取消', '', '', '']; hint = isSunset() ? '黄金时刻！拖取景框' : '拖取景框，框住好看的'; }
+    else if (S.mode === 'post') hint = '看看大家怎么说…';
+    if (r && S.mode !== 'camera' && S.mode !== 'post') { name = r.name; text = r.text; }
+  }
+  const key = [hdr, ...l, hint, name, text, S && S.mode].join('|');
+  if (key === lastLbl) return; lastLbl = key;
+  $('hdr').textContent = hdr; for (let i = 0; i < 4; i++) $('dl' + i).textContent = l[i];
+  $('hint').textContent = hint; $('cname').textContent = name; $('ctext').textContent = text;
+  if (S && (S.mode === 'camera' || S.mode === 'post')) { $('creact').style.display = 'none'; }
+  $('likes').style.display = 'none';
+}
+
+// ================= main loop =================
+let last = performance.now();
+function frame(now) {
+  let dt = Math.min(0.05, (now - last) / 1000); last = now;
+  const gdt = dt * FAST;
+  if (S && S.phase === 'play' && !$('ovHelp').classList.contains('on')) update(gdt, dt);
+  drawScene();
+  g.save();
+  const sh = S && S.shake > 0 ? S.shake : 0;
+  if (sh) g.translate(Math.round((mr() - 0.5) * 6 * sh), Math.round((mr() - 0.5) * 6 * sh));
+  rect(g, 0, 0, W, H, '#2a1f2b');
+  g.drawImage(sc, 0, SY);
+  if (S && S.mode === 'camera') drawViewfinder();
+  drawHUD(); drawPhone(); drawHands();
+  if (S) drawParts(gdt);
+  if (S && S.flash > 0) { g.fillStyle = `rgba(255,255,255,${Math.min(1, S.flash * 3)})`; g.fillRect(0, 0, W, H); }
+  g.restore();
+  labels();
+  requestAnimationFrame(frame);
+}
+function update(dt, rdt) {
+  S.shake = Math.max(0, S.shake - rdt); S.buzz = Math.max(0, S.buzz - rdt); S.flash = Math.max(0, S.flash - rdt); S.hudFlip = Math.max(0, S.hudFlip - rdt);
+  if (newsTimer > 0) { newsTimer -= rdt; if (newsTimer <= 0) $('news').classList.remove('on'); }
+  S.heat = Math.max(0, S.heat - dt * 0.06);
+  S.fansShown += (S.fans - S.fansShown) * Math.min(1, dt * 3); if (Math.abs(S.fans - S.fansShown) < 1) S.fansShown = S.fans;
+  S.moneyShown += (S.money - S.moneyShown) * Math.min(1, dt * 6);
+  const rt = rating(); const prev = S.ratingShown; S.ratingShown += (rt - S.ratingShown) * Math.min(1, dt * 2.5);
+  if (Math.round(prev * 2) !== Math.round(S.ratingShown * 2)) { S.hudFlip = 0.3; SFX.flip(); }
+  if (S.banner > 0) { S.banner -= rdt; if (S.banner <= 0) { $('banner').classList.remove('on'); if (S.day >= 4) return endGame(); startDay(S.day + 1); } updVisitors(dt * 0.3); return; }
+  S.t += dt;
+  while (S.sched.length && S.sched[0].t <= S.t) spawnReview(S.sched.shift().f());
+  const r = front();
+  if (r) {
+    if (r.enter < 1) r.enter = Math.min(1, r.enter + rdt * 5);
+    if (r.anim) { r.anim.t += rdt; if (r.anim.t > 1) r.anim = null; else if (Math.floor((r.anim.t - rdt) / 0.09) !== Math.floor(r.anim.t / 0.09) && r.anim.t < 0.5) SFX.flip(); }
+    if (r.state === 'live' && S.mode !== 'reply' && !S.drag) { r.age += dt; if (r.age >= EXPIRE) { floatAt('超时·没回', 97, CARD.y + 50, '#d94a3a', 14); resolve(r, 'ignore', true); if (r.state === 'result') r.leaveDir = 'left'; } }
+    if (r.state === 'result') { r.resT -= rdt; if (r.resT <= 0) { r.state = 'leaving'; r.leave = { t: 0, dir: r.leaveDir || (r.act === 'ignore' ? 'left' : r.res.fx === 'bad' || r.res.boom ? 'down' : 'up') }; $('creact').style.display = 'none'; } }
+    if (r.state === 'leaving') { r.leave.t += rdt * 3; if (r.leave.t >= 1) { S.queue.shift(); $('cdom').style.transform = ''; const n = front(); if (n) { n.enter = 0; } } }
+  }
+  if (S.mode === 'post') {
+    const P = S.post; P.t += rdt;
+    P.likes += (P.target - P.likes) * Math.min(1, rdt * 2.2);
+    if (mr() < rdt * (P.cls === 'viral' ? 30 : P.cls === 'good' ? 10 : P.roast ? 12 : 2)) S.parts.push({ k: P.roast ? 'angry' : 'heart', x: CARD.x + 20 + mr() * 50, y: CARD.y + 40, vx: (mr() - 0.5) * 30, vy: -60 - mr() * 40, life: 1, max: 1 });
+    if (P.t > 1.6 && !P.applied) { P.applied = true; addFans(P.fans);
+      if (P.cls === 'viral') { S.heat = 1; S.stats.viral++; SFX.viral(); floatAt('照片爆了！🔥', 97, CARD.y + 4, '#f2b134', 24); burst('stars', 97, CARD.y + 30, 14); }
+      else if (P.roast) { SFX.bad(); S.shake = 0.5; S.ratings.push({ stars: 1, w: 1 }); floatAt('被群嘲了…', 97, CARD.y + 4, '#d94a3a', 22); burst('angry', 97, CARD.y + 30, 20); }
+      else SFX.good(); }
+    if (P.t > 1.0 && !P.shown) { P.shown = true; const rc = $('creact'); $('cdom').style.transform = ''; rc.textContent = '💬 ' + P.line; rc.className = 'l ' + (P.cls === 'viral' ? 'viral' : P.cls); rc.style.display = 'block'; }
+    if (P.t > 3.4) { S.mode = 'cards'; S.post = null; $('creact').style.display = 'none'; }
+  }
+  updVisitors(dt);
+  if (S.t >= S.dayLen) endDay();
+}
+function endDay() {
+  const d = S.dayStart, rt = rating(), df = S.fans - d.fans, dm = Math.round(S.money - d.money);
+  $('banT').textContent = S.day >= 4 ? '第 4 天结束' : `第 ${S.day} 天结束`;
+  $('banS').textContent = `★ ${d.rating.toFixed(1)} → ${rt.toFixed(1)}　粉丝 ${df >= 0 ? '+' : ''}${df}　$${dm >= 0 ? '+' : ''}${dm}`;
+  const b = $('banner'); b.classList.remove('on'); void b.offsetWidth; b.classList.add('on');
+  S.banner = 2.4 / Math.min(FAST, 3); S.mode = S.mode === 'reply' ? 'cards' : S.mode; if (S.mode === 'camera') S.mode = 'cards';
+  SFX.good();
+}
+function endGame() {
+  S.phase = 'end'; const rt = rating(), st = S.stats, fans = S.fans;
+  let title = '佛系总监', line = '评论区自生自灭，俱乐部也就那样。';
+  if (st.exposed) { title = '水军头子'; line = '刷来的五星，一夜之间全还给了博主。'; }
+  else if (st.shill > 0) { title = '水军头子'; line = '刷了好评还没被扒……这次运气好。'; }
+  else if (st.disasters >= 2 && rt < 3.4) { title = '公关灾难'; line = '每次开口，评分都往下掉一截。'; }
+  else if (fans >= 2500 && rt >= 3.6) { title = '网红总监'; line = '一句回复、一张日落，全网都知道 Palm Oasis。'; }
+  else if (st.caught >= 2 && st.wrongReports === 0) { title = '火眼金睛'; line = 'La Quinta 的托儿，一个都没逃掉。'; }
+  else if (st.coupons + st.gifts >= 6) { title = '赔笑总监'; line = '券发得比球还多，好评是买来的笑脸。'; }
+  else if (rt >= 4) { title = '口碑总监'; line = '不靠爆款，靠一条条认真回。'; }
+  else if (fans >= 1500) { title = '流量总监'; line = '粉丝不少，评分还差点意思。'; }
+  else if (st.disasters >= 1) { title = '嘴快总监'; line = '有一句话，你现在还后悔。'; }
+  $('endTitle').textContent = title; $('endLine').textContent = line;
+  $('endRating').textContent = rt.toFixed(1) + '★'; $('endFans').textContent = fans >= 1000 ? (fans / 1000).toFixed(1) + 'k' : fans; $('endMoney').textContent = '$' + Math.round(S.money);
+  $('endStats').textContent = `回复 ${st.replies} · 抓托儿 ${st.caught} · 爆款 ${st.viral} · 翻车 ${st.disasters} · 进门 ${st.visitors} 人 / 掉头 ${st.turned} 人`;
+  $('ovEnd').classList.add('on'); SFX.viral();
+}
+
+// ================= input =================
+function lp(e) { const b = cv.getBoundingClientRect(); return { x: (e.clientX - b.left) / b.width * W, y: (e.clientY - b.top) / b.height * H }; }
+function dockAt(x, y) { for (let i = 0; i < 4; i++) { const b = DOCK[i]; if (x >= b.x - 2 && x < b.x + b.w + 2 && y >= b.y - 8 && y < b.y + b.h + 14) return i; } return -1; }
+function doDock(i) {
+  const r = front(); if (!r || r.state !== 'live') return;
+  if (i === 0) { S.mode = 'reply'; SFX.tap(); }
+  else resolve(r, ['', 'gift', 'report', 'ignore'][i]);
+}
+cv.addEventListener('pointerdown', (e) => {
+  if (!S || S.phase !== 'play' || S.banner > 0) return;
+  cv.setPointerCapture(e.pointerId);
+  const { x, y } = lp(e); const r = front();
+  if (S.mode === 'camera') {
+    if (hit(CANCEL, x, y)) { S.mode = 'cards'; SFX.tap(); return; }
+    if (hit(SHUT, x, y)) { snap(); return; }
+    if (y >= SY && y < SY + SH) { S.vf.dragging = { sx: x, sy: y, vx: S.vf.x, vy: S.vf.y, k: 1 }; S.vf.x = clamp(x - 32, 0, W - 64); S.vf.y = clamp(y - SY - 24, 0, SH - 48); S.vf.dragging = { sx: x, sy: y, vx: S.vf.x, vy: S.vf.y, k: 1 }; }
+    else if (hit(CARD, x, y)) S.vf.dragging = { sx: x, sy: y, vx: S.vf.x, vy: S.vf.y, k: -0.5 };
+    return;
+  }
+  if (S.mode === 'post') return;
+  if (hit(CAMBTN, x, y)) { if (S.posted) { floatAt('今天已经发过了', 60, 214, '#d94a3a', 13); SFX.bad(); } else { S.mode = 'camera'; S.vf.x = 4; S.vf.y = 20; SFX.tap(); } return; }
+  if (hit(SHILLBTN, x, y)) { buyShill(); return; }
+  if (S.mode === 'reply') {
+    const i = dockAt(x, y); if (i >= 0 && r) { resolve(r, TONES[i]); return; }
+    if (hit(CARD, x, y)) { S.mode = 'cards'; SFX.tap(); } return;
+  }
+  if (r && r.state === 'live' && hit(CARD, x, y)) { S.drag = { sx: x, sy: y, dx: 0, dy: 0 }; SFX.tap(); return; }
+  const i = dockAt(x, y); if (i >= 0) doDock(i);
+});
+cv.addEventListener('pointermove', (e) => {
+  if (!S || S.phase !== 'play') return; const { x, y } = lp(e);
+  if (S.mode === 'camera' && S.vf.dragging) { const d = S.vf.dragging; S.vf.x = clamp(Math.round(d.vx + (x - d.sx) * d.k), 0, W - 64); S.vf.y = clamp(Math.round(d.vy + (y - d.sy) * d.k), 0, SH - 48); return; }
+  if (S.drag) { S.drag.dx = x - S.drag.sx; S.drag.dy = y - S.drag.sy; const h = dockAt(x, y); if (h !== S.hover) { S.hover = h; if (h >= 0) SFX.tap(); } }
+});
+function pup(e) {
+  if (!S || S.phase !== 'play') return;
+  if (S.vf.dragging) { S.vf.dragging = false; return; }
+  if (!S.drag) return; const d = S.drag, r = front(); S.drag = null; const h = S.hover; S.hover = -1;
+  if (!r || r.state !== 'live') return;
+  if (h >= 0) doDock(h);
+  else if (d.dx < -45) { resolve(r, 'ignore'); r.leaveDir = 'left'; }
+  else if (d.dx > 45) { S.mode = 'reply'; SFX.tap(); }
+}
+cv.addEventListener('pointerup', pup); cv.addEventListener('pointercancel', pup);
+$('mute').addEventListener('pointerdown', (e) => { e.stopPropagation(); muted = !muted; });
+$('help').addEventListener('pointerdown', (e) => { e.stopPropagation(); $('ovHelp').classList.toggle('on'); });
+$('helpClose').addEventListener('click', () => $('ovHelp').classList.remove('on'));
+$('ovHelp').addEventListener('pointerdown', (e) => { if (e.target === $('ovHelp')) $('ovHelp').classList.remove('on'); });
+$('startBtn').addEventListener('click', () => { $('ovTitle').classList.remove('on'); newGame(); SFX.good(); });
+$('againBtn').addEventListener('click', () => { $('ovEnd').classList.remove('on'); newGame(); SFX.good(); });
+window.__td = { get S() { return S; }, resolve: (a) => S && front() && resolve(front(), a), snap: () => { if (S) { S.mode = 'camera'; snap(); } } };
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
