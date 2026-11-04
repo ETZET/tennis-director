@@ -42,6 +42,10 @@ export interface Site {
     readonly plots: Readonly<Record<string, Readonly<Record<string, string>>>>;
     /** 旧站位 + 这些已经开了的新地点的站位 */
     standsWith(open: readonly string[]): Readonly<Record<string, XZ>>;
+    /** 新地点上的球场（开了以后演出、路人打球、员工站位用；可选） */
+    readonly courts?: Readonly<Record<string, readonly CourtFrame[]>>;
+    /** 新地点上不是球场的空地（施工、接待的演出用；可选） */
+    readonly grounds?: Readonly<Record<string, CourtFrame>>;
   };
   /** 两个地点之间步行的折线（含两头的站位） */
   routeLine(a: string, b: string): XZ[] | null;

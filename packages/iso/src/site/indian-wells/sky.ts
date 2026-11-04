@@ -3,6 +3,7 @@ import { hash } from '../../core/color';
 import { Custom, type DrawContext, Group, type Node } from '../../core/graph';
 import type { Weather } from './build';
 import { drawTumble } from './build';
+import { FORE } from './foreshadow';
 import { SLAB } from './ground';
 
 /**
@@ -133,12 +134,17 @@ export function createIndianWellsSky(scene: Node, weather: Weather): SkyLayer {
         roll(w, i, W > 0.7);
       });
 
+      // 地台往东南长出去以后（ADR 0021），南边那一圈云跟着往南让开，不压在新地和学院岛上
+      let south = 0;
+      for (const R of FORE.slab) south = Math.max(south, R.z1 - SLAB.z1);
       for (const c of clouds) {
         c.x += step * (0.6 + 2.4 * wind);
         if (c.x - c.w > SLAB.x1 + 20) c.x = SLAB.x0 - 20 - c.w;
         // 下雨时云更多：平时一半的云藏着
         c.node.visible = c.seed % 2 === 1 || weather.rain > 0.2 || wind > 0.6;
-        c.node.position.set(c.x, c.y, c.z);
+        // 让开的云也压低一点（高处的云投到屏幕上正好落在新地上）
+        const away = c.z > SLAB.z1 && south > 0;
+        c.node.position.set(c.x, away ? Math.min(c.y, 0) : c.y, away ? c.z + south : c.z);
       }
 
       if (birds.wait > 0) {
@@ -168,7 +174,9 @@ function drawCloud(r: DrawContext, c: Cloud, rain: number): void {
   const top = r.col(hexOf([mix(255, 176), mix(250, 178), mix(240, 184)]), 1, 0);
   const mid = r.col(hexOf([mix(244, 150), mix(232, 152), mix(222, 160)]), 1, 0);
   const bot = r.col(hexOf([mix(220, 120), mix(206, 122), mix(204, 132)]), 1, 0);
-  const p = r.P(c.x, c.y, c.z);
+  // 按节点的位置画（地台长大以后南边的云让开了，见 update）
+  const q = c.node.position;
+  const p = r.P(q.x, q.y, q.z);
   const W = c.w * r.k * 0.7;
   const H = W * 0.22;
   for (let i = 0; i < 5; i++) {

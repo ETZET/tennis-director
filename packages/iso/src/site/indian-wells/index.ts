@@ -4,6 +4,7 @@ import type { Site } from '../site';
 import { SLAB } from './ground';
 import {
   ANCHORS,
+  F_ISLE,
   F_O1,
   F_O2,
   F_O3,
@@ -13,7 +14,10 @@ import {
   F_PB2,
   F_PK4,
   F_S1,
+  F_SC1,
+  F_SC2,
   F_TN2,
+  GOLF_POND,
   GROUNDS,
   groundY,
   LAND_ANCHORS,
@@ -22,6 +26,7 @@ import {
   PLOT_ANCHORS,
   routeLine,
   SITE,
+  SLOPE,
   STANDS,
   standsWith,
 } from './layout';
@@ -59,6 +64,23 @@ const VARIANT_COURTS: Readonly<Record<string, Readonly<Record<string, readonly C
   stadium_3: { pickle4: F_PK4, tennis2: F_TN2 },
 };
 
+/** 新地（ADR 0021）上的球场和空地：南场两片硬地、学院岛的练习场；绿洲草坪、赛事广场是空地 */
+const LAND_COURTS: Readonly<Record<string, readonly CourtFrame[]>> = {
+  south_courts: [F_SC1, F_SC2],
+  academy_isle: [F_ISLE],
+};
+const LAND_GROUNDS: Readonly<Record<string, CourtFrame>> = {
+  oasis_lawn: new CourtFrame(GOLF_POND.x, 0, GOLF_POND.z, 0, 12, 6),
+  event_plaza: new CourtFrame(
+    (SLOPE.x0 + SLOPE.x1) / 2,
+    0,
+    (SLOPE.z0 + SLOPE.z1) / 2,
+    0,
+    (SLOPE.x1 - SLOPE.x0) / 2 - 2,
+    (SLOPE.z1 - SLOPE.z0) / 2 - 2,
+  ),
+};
+
 /** 围墙的中心（默认镜头对着它） */
 const CLUB = { x: (GROUNDS.x0 + GROUNDS.x1) / 2, z: (GROUNDS.z0 + GROUNDS.z1) / 2 };
 
@@ -82,7 +104,14 @@ export const INDIAN_WELLS: Site = {
   anchors: ANCHORS,
   stands: STANDS,
   // 地块上的新地点（ADR 0021）：没并进 anchors / stands，游戏按地块状态用
-  land: { anchors: LAND_ANCHORS, stands: LAND_STANDS, plots: PLOT_ANCHORS, standsWith },
+  land: {
+    anchors: LAND_ANCHORS,
+    stands: LAND_STANDS,
+    plots: PLOT_ANCHORS,
+    standsWith,
+    courts: LAND_COURTS,
+    grounds: LAND_GROUNDS,
+  },
   routeLine,
   courts: COURTS,
   courtsFor: (anchor, variant) => (variant ? VARIANT_COURTS[anchor]?.[variant] : undefined) ?? COURTS[anchor] ?? [],
