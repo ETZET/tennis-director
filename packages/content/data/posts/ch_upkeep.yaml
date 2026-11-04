@@ -1,0 +1,10 @@
+# 会所 · 维护（W2 门评审，GM-1 问题 1）：补屋顶、修空调、通水管。随时可以干，不算需求。
+# 以前会所没有维护岗位，只能等它掉到 40 以下做一张"会所又漏了"（ch_fix）或停用以后重开；现在可以派人守着。
+# 代价：派来守会所的人就不在前台、场地上（准则 2、5）。
+id: ch_upkeep
+act: indian_wells
+at: clubhouse
+skill: upkeep
+cycle: 1h
+when: { facility: clubhouse, is: open }
+restore: 4

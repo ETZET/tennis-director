@@ -10,4 +10,5 @@ effects:
   - { stat: cash, add: "round(6 * (0.6 + worker.skill / 100) * clamp(0.5 + stat.members / 40, 0.5, 2))" }
   - { stat: members, add: 1, chance: 0.02 }
   - { stat: reputation, add: 0.01 }
-wear: 0.3
+# W2 门评审（GM-1 问题 1、试玩 P1）：使用磨损减半（0.3 → 0.15），有人在岗、偶尔维护的场地两周内不再掉到 0
+wear: 0.15

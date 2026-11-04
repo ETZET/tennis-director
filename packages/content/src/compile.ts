@@ -874,6 +874,7 @@ export function compileContent(files: Record<string, string>): CompileResult {
       }
       checkExpr(file, a.rules.week.members, 'rules.week.members');
       checkExpr(file, a.rules.week.member_cap, 'rules.week.member_cap');
+      checkExpr(file, a.rules.week.member_loss_max, 'rules.week.member_loss_max');
     }
     for (const [k, v] of Object.entries(a.rules.derived)) {
       if (!stats.has(k)) err(file, `rules.derived: unknown stat '${k}'`);

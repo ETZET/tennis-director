@@ -13,4 +13,5 @@ effects:
   - { stat: cash, add: 4, if: { upgrade: stadium_2, has: cabanas } }
   - { stat: members, add: 1, chance: 0.03 }
   - { stat: reputation, add: 0.05 }
-wear: 0.5
+# W2 门评审（GM-1 问题 1、试玩 P1）：使用磨损减半（0.5 → 0.25），有人在岗、偶尔维护的场地两周内不再掉到 0
+wear: 0.25

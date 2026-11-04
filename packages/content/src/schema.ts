@@ -707,6 +707,11 @@ export const act = z.strictObject({
         reputation: z.record(id, z.string()),
         members: z.string(),
         member_cap: z.string().optional(),
+        /**
+         * 一周最多走掉多少会员（准则 6：会员按周结算、不一次崩掉；GM-1"会员一次掉 16 太陡"）。表达式，按结算前的
+         * stat.members 算；结算出的会员变化不低于它的相反数（不影响涨）。默认：一周最多走掉四分之一，至少允许走 8 个。
+         */
+        member_loss_max: z.string().default('max(8, stat.members * 0.25)'),
         service_pass: z.number().min(0).max(1).default(0.5),
       })
       .optional(),
@@ -731,6 +736,11 @@ export const act = z.strictObject({
      * 0 = 不掉档。
      */
     grade_drop_below: z.number().min(0).max(100).default(0),
+    /**
+     * 有人守的地方维持住（准则 6）：今天有人在这处设施的任何一个岗位上干完过至少一圈，收盘衰减（decay_day）乘这个数。
+     * 1 = 有人没人一样掉；0 = 有人守就不掉。岗位每圈的 wear 是使用磨损，照算不打折（在岗位 YAML 里调）。
+     */
+    staffed_decay: z.number().min(0).max(1).default(0.5),
   }),
   /**
    * 星级（LG-10，ADR 0020）：第 i 项是升到 ★(i+1) 的清单。requires 的每一条是一个条件（文案在 stars.items.<条 id>），

@@ -32,7 +32,7 @@
     traits: [early_bird],
   }
 
-# ---- 招聘日 2：a 一位教练 / 一个老场地工；b 一个体能师 / 一个想再拼一次的球员 ----
+# ---- 招聘日 2：a 一位教练 / 一个老场地工（青训之路多半是这拨）；b 一个体能师 / 一个想再拼一次的球员（度假之路多半是这拨） ----
 - {
     id: jess_park,
     name: Jess Park,
@@ -84,7 +84,7 @@
     traits: [college, late_bloomer],
   }
 
-# ---- 招聘日 3：a 前台好手 / 一位老教练；b 一个穿线师 / 一个受过伤的天才少年 ----
+# ---- 招聘日 3：a 受过伤的天才少年 / 一位老教练（青训）；b 一个穿线师 / 前台好手（度假）。卡里的人见 events/indian_wells/iw_hiring_day_* ----
 - {
     id: lily_chen,
     name: Lily Chen,

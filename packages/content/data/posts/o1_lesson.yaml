@@ -10,5 +10,6 @@ when: { any: [{ facility: outer_1, is: playable }, { facility: outer_1, is: resu
 effects:
   - { stat: cash, add: "round(8 * (0.6 + worker.skill / 100) * clamp(0.5 + stat.members / 30, 0.5, 2))" }
   - { stat: reputation, add: 0.02 }
-wear: 1
+# W2 门评审（GM-1 问题 1、试玩 P1）：使用磨损减半（1 → 0.5），有人在岗、偶尔维护的场地两周内不再掉到 0
+wear: 0.5
 performance: lesson

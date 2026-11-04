@@ -18,14 +18,17 @@ anchors:
   practice: Academy courts
   outer_1: Members' court
   outer_23: Clay courts
+  # Variant-aware names (W2 gate): the UI tries anchors.<id>.<variant> first
+  outer_23.hard: Hard courts
+  stadium_3.tennis2: Twin courts
 
 facilities:
   outer_1: { sanded: Members' court · buried in sand, swept: Members' court · swept, playable: Members' court · playable, resurfaced: Members' court · resurfaced, worn: Members' court · closed (lines under sand) }
-  outer_23: { ruined: Clay courts · fences down, playable: Clay courts · repaired, worn: Clay courts · closed (sanded over) }
+  outer_23: { ruined: Clay courts · fences down, playable: Clay courts · repaired, worn: Clay courts · closed (sanded over), playable.hard: Hard courts · repaired, worn.hard: Hard courts · closed (sanded over) }
   practice: { ruined: Academy courts · abandoned, open: Academy courts · open, worn: Academy courts · closed (sanded over) }
   clubhouse: { ruined: Clubhouse · leaking roof, open: Clubhouse · front desk open, worn: Clubhouse · front desk closed (leaks, no power) }
   plaza: { dry: Circle of Palms · fountain dry, palms dead, open: Circle of Palms · fountain running, worn: Circle of Palms · closed (fountain clogged) }
-  stadium_3: { buried: Pickleball courts · buried in sand, dug: Pickleball courts · dug out, open: Pickleball courts · open, worn: Pickleball courts · closed (sand again) }
+  stadium_3: { buried: Pickleball courts · buried in sand, dug: Pickleball courts · dug out, open: Pickleball courts · open, worn: Pickleball courts · closed (sand again), open.tennis2: Twin courts · open, worn.tennis2: Twin courts · closed (sand again) }
   stadium_2: { ruined: Pool · empty and sanded over, open: Pool · filled, worn: Pool · closed (the water turned green) }
   stadium_1: { ruined: Stadium · northeast stands collapsed, cleared: Stadium · cleared, restored: Stadium · rebuilt, worn: Stadium · closed (can't host a match) }
 
@@ -102,18 +105,24 @@ events:
     options:
       A: Dale takes the next repair (materials paid when he starts)
       B: I've got a plan
+  iw_dale_sweep:
+    title: '"Want me to go fix it up?"'
+    body: 'Dale comes in with sand on his boots. "One of our places is under 30 and going fast. Leave it and it drops a grade on Sunday. I can drop what I''m doing and spend three hours on it."'
+    options:
+      A: Dale goes (off his post for 3 hours)
+      B: I'll send someone myself
   iw_credit_union:
     title: The credit union calls
-    body: 'A loan officer from the Coachella Valley Credit Union stops at the gate. "Quiet week? We can float you $2500 now. Four weeks, $3000 back." If you can''t pay it all then, they take $1500 (never below −$1000) and the town hears about it: reputation −4 or worse.'
+    body: 'A loan officer from the Coachella Valley Credit Union stops at the gate. "Quiet week? We can float you $2500 now. Four weeks, $3000 back." If you don''t pay it all then, they take $2000 (never below −$1000) and the town hears about it: reputation −4 or worse.'
     options:
       A: Take the loan
       B: No debts, thanks
   iw_loan_due:
     title: The loan is due
-    body: The credit union is back for its $3000. Pay it all, or settle for half now and let the town talk about the rest.
+    body: The credit union is back for its $3000. Pay it all, or pay $2000 and let the town talk about the rest.
     options:
       A: Pay all $3000
-      B: Pay $1500 now (never below −$1000); reputation −4 or more
+      B: Pay $2000 and owe them the rest (never below −$1000); reputation −4 or more
   iw_rival_club:
     title: A challenge from La Quinta
     body: The head coach of the La Quinta Racquet Club turns up at the clay courts. "Your members keep telling mine this place is back. Prove it. Club match, this weekend."
@@ -149,17 +158,17 @@ events:
       C: Not this time
   iw_hiring_day_3:
     title: The third hiring day
-    body: "The garden has a bit of a name now, and the applicants are better: a front-desk pro and a veteran coach."
+    body: "The garden has a bit of a name now, and the applicants are better: an injured former prodigy and a veteran coach."
     options:
-      A: Hire Lily (great service)
+      A: Hire Luca (player)
       B: Hire Walt (veteran coach)
       C: Not this time
   iw_hiring_day_3b:
     title: The third hiring day
-    body: "The garden has a bit of a name now: someone who has strung racquets on tour, and an injured former prodigy."
+    body: "The garden has a bit of a name now: someone who has strung racquets on tour, and a front-desk pro."
     options:
       A: Hire Teodora (stringer)
-      B: Hire Luca (player)
+      B: Hire Lily (great service)
       C: Not this time
   iw_hiring_day_4:
     title: The fourth hiring day
@@ -181,7 +190,7 @@ events:
     body: 'The clubhouse is open and Dale stands at the gate with the old brochure. "Families with kids, or hotel guests from Palm Springs? We can''t chase both at once." If you don''t choose by tomorrow, Dale picks the academy.'
     options:
       A: "Youth: the academy and physio room open first; more coaches apply; academy lessons earn more"
-      B: "Resort: the café and resort pool open first; more service staff apply; busier weekends"
+      B: "Resort: the café and resort pool open first; more service and fitness staff apply; busier weekends"
   iw_route_s3:
     title: Hal Brooks offers the golf strip
     body: 'Hal Brooks, who owns the dead golf course next door, will give up its west strip. "Pave it for courts, or keep the pond and put up cabins. Your call." The survey costs $300 either way. If you don''t choose by tomorrow, Dale picks the courts.'
@@ -195,11 +204,13 @@ events:
       A: "Event plaza: a viewing slope for big matches (now: exhibition +5%)"
       B: "Academy isle: a bridge to the island academy (now: academy lessons +$2, junior semifinal +10%)"
 log:
+  dale_swept: Dale left his post for three hours and fixed up the worst place
+  dale_sweep_declined: You told Dale you'd send someone yourself
   started: You arrive at the abandoned Palm Oasis Racquet Club.
   first_court: "The members' court has a new net: the first playable court in ten years"
   ball_machine: The ball machine works again; academy lessons are better
   loan_declined: You turned down the credit union's loan
-  loan_settled: The credit union took half the loan and the town is talking about it
+  loan_settled: The credit union took what it could get and the town is talking about the rest
   loan_paid: The credit union loan is paid off
   clubhouse_open: The clubhouse front desk is open; hiring days can start
   stadium_3_open: The pickleball courts are open
@@ -225,6 +236,7 @@ posts:
   pr_weekend: { title: "Academy · Weekend open", note: "Weekends 8–13" }
   pr_upkeep: { title: "Academy · Upkeep", note: "Any time; it wears down if nobody looks after it" }
   ch_desk: { title: "Clubhouse · Front desk", note: "Daily 8–18: sign-ups, directions, the phone" }
+  ch_upkeep: { title: "Clubhouse · Upkeep", note: "Any time: roof, air con, plumbing; it wears down if nobody looks after it" }
   pz_food: { title: "Circle of Palms · Lunch stand", note: "Daily 11–14" }
   pz_evening: { title: "Circle of Palms · Weekend evenings", note: "Thu–Sun 17–20" }
   pz_upkeep: { title: "Circle of Palms · Upkeep", note: "Clean the fountain, sweep the sand" }
@@ -298,7 +310,7 @@ orders:
   st3_to_tennis2: { title: "Back to two tennis courts", note: "$1400; closed for a week. The old members will be pleased, the league leaves" }
   st3_to_pickle4: { title: "Convert to four pickleball courts", note: "$1000; closed for a week. League money, unhappy old members" }
   cup_monthly: { title: "Sign up for the monthly club cup", note: "$60; Saturday of weeks 3, 7, 11, 15. Check-in and umpire posts that day; two courts closed to rentals and lessons; rain spoils it. A trophy", locked: "★1 and two repaired courts" }
-  regional_open: { title: "Play the regional open", note: "$200; players only, a whole day away; a win brings $800, reputation and a trophy. From ★3 it's doubles: two players", locked: "★2 and a player on staff" }
+  regional_open: { title: "Play the regional open", note: "$200; players only, a whole day away; a win brings $800, reputation and a trophy. From ★3 it's doubles: a second player, or a coach who misses a day of lessons", locked: "★2 and a player on staff" }
   junior_regional: { title: "Take juniors to the regional", note: "$80; a coach takes the kids for half a day; a semifinal brings members, reputation and a trophy", locked: "★2, academy courts open, 10 academy lessons this week" }
   invitational: { title: "Host the invitational", note: "$800; four event posts both days of the weekend; rain spoils it. Clay: more reputation; hard courts: more money", locked: "★3; clay courts, clubhouse and Circle of Palms open" }
   prep_stands: { title: "Exhibition build-up · Stands", note: "$1500; exhibition +8%, +$1500 in tickets if it happens; reputation +2", locked: "From ★3" }
@@ -463,6 +475,11 @@ routes:
   s2: { youth: Youth academy, resort: Desert resort }
   s3: { south_courts: South courts, oasis_lawn: Oasis lawn }
   s4: { event_plaza: Event plaza, academy_isle: Academy isle }
+# Route card notes (W2 gate): what each road waits for. Neutral on purpose: the card can't know what's already built
+route_notes:
+  s2:
+    youth: { costs: "Resort-side builds wait until ★3; fewer service and fitness staff apply" }
+    resort: { costs: "Academy-side builds wait until ★3; fewer coaches apply" }
 # Phased build-ups (W2)
 prep:
   exhibition: Exhibition build-up
@@ -473,7 +490,7 @@ ui:
     pick: Tap to pick, tap again to decide
     default: "If time runs out, {name} picks “{route}”"
     opens: "Opens first: {list}"
-    costs: "Waits this season: {list}"
+    costs: "Waits until the next star: {list}"
     other: "Gives up “{route}”"
   beat:
     today: "Today {time}"
@@ -483,6 +500,12 @@ ui:
     live: "On now"
     hiring: Hiring day
     cards: { iw_investor_check: Investor visit, iw_deadline: Final reckoning }
+    # 季节栏的节拍牌（手机 390 宽要放下两张）：短时间、短名字
+    at: { today: "{time}", tomorrow: "Tmrw {time}", weekday: "{d} {time}", day: "D{n} {time}" }
+    short:
+      hiring: Hiring
+      tours: { cup_monthly: Club cup, regional_open: Regional, junior_regional: Juniors, invitational: Invitational }
+      cards: { iw_investor_check: Investors, iw_deadline: Deadline }
   # Star rating (UI-8): the status strip cell and its checklist
   stars:
     label: "Next ★: {n} to go"
@@ -639,6 +662,7 @@ ui:
     traits: staff traits
   task_log: "{name} will take on {what} when free"
   because:
+    default_pick: "{name} picked “{option}” when time ran out"
     post: "{name} worked {n} rounds on “{post}”"
     order: "{names} finished “{order}”"
     wear: "{place} was down to condition {n} at Sunday close"
@@ -715,6 +739,8 @@ ui:
     tour_host: "Starts {when} · fee ${fee} · finish it to sign up"
     tour_away_early: "Leaves {when} · fee ${fee} · send people on the day"
     tour_away_now: "Leaves today · fee ${fee}"
+    tour_signup: "Sign-up opens {open} · plays {when}"
+    tour_taken: "Not this one · watch for the next sign-up"
     badge_host: Event
     badge_away: Away
     badge_temp: Today

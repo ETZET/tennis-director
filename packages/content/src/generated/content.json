@@ -1,5 +1,5 @@
 {
- "version": "d75c2cd3",
+ "version": "1b64cdf5",
  "stats": [
   {
    "id": "cash",
@@ -1064,7 +1064,7 @@
      "add": 0.01
     }
    ],
-   "wear": 0.3,
+   "wear": 0.15,
    "restore": 0
   },
   {
@@ -1226,6 +1226,20 @@
    ]
   },
   {
+   "id": "ch_upkeep",
+   "act": "indian_wells",
+   "at": "clubhouse",
+   "skill": "upkeep",
+   "cycle": "1h",
+   "when": {
+    "facility": "clubhouse",
+    "is": "open"
+   },
+   "effects": [],
+   "wear": 0,
+   "restore": 4
+  },
+  {
    "id": "o1_lesson",
    "act": "indian_wells",
    "at": "outer_1",
@@ -1264,7 +1278,7 @@
      "add": 0.02
     }
    ],
-   "wear": 1,
+   "wear": 0.5,
    "restore": 0,
    "performance": "lesson"
   },
@@ -1380,7 +1394,7 @@
      "add": 4
     }
    ],
-   "wear": 1,
+   "wear": 0.5,
    "restore": 0,
    "performance": "lesson"
   },
@@ -1440,7 +1454,7 @@
      "add": 2
     }
    ],
-   "wear": 0.8,
+   "wear": 0.4,
    "restore": 0,
    "performance": "open_play"
   },
@@ -1469,7 +1483,7 @@
      }
     }
    ],
-   "wear": 0.5,
+   "wear": 0.25,
    "restore": 0,
    "only": [
     "player"
@@ -1560,7 +1574,7 @@
      "add": 5
     }
    ],
-   "wear": 1,
+   "wear": 0.5,
    "restore": 0,
    "performance": "lesson"
   },
@@ -1632,7 +1646,7 @@
      "add": 2
     }
    ],
-   "wear": 1.5,
+   "wear": 0.75,
    "restore": 0,
    "performance": "lesson"
   },
@@ -1679,7 +1693,7 @@
      "add": 0.02
     }
    ],
-   "wear": 0.5,
+   "wear": 0.25,
    "restore": 0,
    "only": [
     "trainer"
@@ -1711,7 +1725,7 @@
      }
     }
    ],
-   "wear": 0.5,
+   "wear": 0.25,
    "restore": 0,
    "only": [
     "player"
@@ -1771,7 +1785,7 @@
      "add": 2
     }
    ],
-   "wear": 0.8,
+   "wear": 0.4,
    "restore": 0,
    "performance": "open_play"
   },
@@ -1816,7 +1830,7 @@
      "add": 1
     }
    ],
-   "wear": 1,
+   "wear": 0.5,
    "restore": 0
   },
   {
@@ -1868,7 +1882,7 @@
      "add": 3
     }
    ],
-   "wear": 0.5,
+   "wear": 0.25,
    "restore": 0
   },
   {
@@ -1911,7 +1925,7 @@
      "add": 3
     }
    ],
-   "wear": 0.5,
+   "wear": 0.25,
    "restore": 0
   },
   {
@@ -1965,7 +1979,7 @@
      "add": 0.03
     }
    ],
-   "wear": 0.6,
+   "wear": 0.3,
    "restore": 0,
    "performance": "open_play"
   },
@@ -2030,7 +2044,7 @@
      "add": 8
     }
    ],
-   "wear": 1,
+   "wear": 0.5,
    "restore": 0
   },
   {
@@ -2085,7 +2099,7 @@
      "add": 0.05
     }
    ],
-   "wear": 0.5,
+   "wear": 0.25,
    "restore": 0
   },
   {
@@ -2119,7 +2133,7 @@
      "add": 0.04
     }
    ],
-   "wear": 0.5,
+   "wear": 0.25,
    "restore": 0
   },
   {
@@ -2216,7 +2230,7 @@
      "add": 0.04
     }
    ],
-   "wear": 1,
+   "wear": 0.5,
    "restore": 0,
    "performance": "pickleball"
   },
@@ -2275,7 +2289,7 @@
      "add": -0.04
     }
    ],
-   "wear": 0.8,
+   "wear": 0.4,
    "restore": 0
   },
   {
@@ -2319,7 +2333,7 @@
      "add": 0.04
     }
    ],
-   "wear": 0.8,
+   "wear": 0.4,
    "restore": 0,
    "performance": "open_play"
   },
@@ -3537,7 +3551,8 @@
    "onSuccess": [],
    "onFail": [],
    "only": [
-    "player"
+    "player",
+    "coach"
    ],
    "performance": "match",
    "min_crew": "stars >= 3 ? 2 : 1"
@@ -4414,6 +4429,7 @@
      },
      "members": "max(0, round(courts_built * service_rate + service_demand * ((stat.quality - 30) / 12 + stat.reputation / 30)))",
      "member_cap": "courts_built * 12 + (facility.clubhouse == \"open\" ? (variant.clubhouse == \"cafe\" ? 25 : 15) : 0)",
+     "member_loss_max": "max(8, stat.members * 0.25)",
      "service_pass": 0.5
     },
     "dues_week": 12,
@@ -4431,7 +4447,8 @@
     },
     "director_growth": 0.3,
     "director_skill_cap": 80,
-    "grade_drop_below": 15
+    "grade_drop_below": 15,
+    "staffed_decay": 0.5
    },
    "stars": [
     {
@@ -5327,6 +5344,1302 @@
    }
   },
   {
+   "id": "iw_dale_sweep",
+   "act": "indian_wells",
+   "source": "threshold",
+   "tone": "crisis",
+   "when": {
+    "any": [
+     {
+      "all": [
+       {
+        "any": [
+         {
+          "facility": "outer_1",
+          "is": "playable"
+         },
+         {
+          "facility": "outer_1",
+          "is": "resurfaced"
+         }
+        ]
+       },
+       {
+        "expr": "condition.outer_1 < 30"
+       }
+      ]
+     },
+     {
+      "all": [
+       {
+        "facility": "outer_23",
+        "is": "playable"
+       },
+       {
+        "expr": "condition.outer_23 < 30"
+       }
+      ]
+     },
+     {
+      "all": [
+       {
+        "facility": "practice",
+        "is": "open"
+       },
+       {
+        "expr": "condition.practice < 30"
+       }
+      ]
+     },
+     {
+      "all": [
+       {
+        "facility": "clubhouse",
+        "is": "open"
+       },
+       {
+        "expr": "condition.clubhouse < 30"
+       }
+      ]
+     },
+     {
+      "all": [
+       {
+        "facility": "plaza",
+        "is": "open"
+       },
+       {
+        "expr": "condition.plaza < 30"
+       }
+      ]
+     },
+     {
+      "all": [
+       {
+        "facility": "stadium_3",
+        "is": "open"
+       },
+       {
+        "expr": "condition.stadium_3 < 30"
+       }
+      ]
+     },
+     {
+      "all": [
+       {
+        "facility": "stadium_2",
+        "is": "open"
+       },
+       {
+        "expr": "condition.stadium_2 < 30"
+       }
+      ]
+     },
+     {
+      "all": [
+       {
+        "facility": "stadium_1",
+        "is": "restored"
+       },
+       {
+        "expr": "condition.stadium_1 < 30"
+       }
+      ]
+     }
+    ]
+   },
+   "weight": 1,
+   "once": true,
+   "countdown": "4h",
+   "pause": false,
+   "location": "clubhouse",
+   "who": "dale",
+   "options": {
+    "A": {
+     "effects": [
+      {
+       "if": {
+        "all": [
+         {
+          "any": [
+           {
+            "facility": "outer_1",
+            "is": "playable"
+           },
+           {
+            "facility": "outer_1",
+            "is": "resurfaced"
+           }
+          ]
+         },
+         {
+          "expr": "condition.outer_1 < 30"
+         }
+        ]
+       },
+       "errand": "dale",
+       "at": "outer_1",
+       "for": "3h"
+      },
+      {
+       "if": {
+        "all": [
+         {
+          "any": [
+           {
+            "facility": "outer_1",
+            "is": "playable"
+           },
+           {
+            "facility": "outer_1",
+            "is": "resurfaced"
+           }
+          ]
+         },
+         {
+          "expr": "condition.outer_1 < 30"
+         }
+        ]
+       },
+       "condition": "outer_1",
+       "add": 30
+      },
+      {
+       "if": {
+        "all": [
+         {
+          "all": [
+           {
+            "facility": "outer_23",
+            "is": "playable"
+           },
+           {
+            "expr": "condition.outer_23 < 30"
+           }
+          ]
+         },
+         {
+          "not": {
+           "all": [
+            {
+             "any": [
+              {
+               "facility": "outer_1",
+               "is": "playable"
+              },
+              {
+               "facility": "outer_1",
+               "is": "resurfaced"
+              }
+             ]
+            },
+            {
+             "expr": "condition.outer_1 < 30"
+            }
+           ]
+          }
+         }
+        ]
+       },
+       "errand": "dale",
+       "at": "outer_23",
+       "for": "3h"
+      },
+      {
+       "if": {
+        "all": [
+         {
+          "all": [
+           {
+            "facility": "outer_23",
+            "is": "playable"
+           },
+           {
+            "expr": "condition.outer_23 < 30"
+           }
+          ]
+         },
+         {
+          "not": {
+           "all": [
+            {
+             "any": [
+              {
+               "facility": "outer_1",
+               "is": "playable"
+              },
+              {
+               "facility": "outer_1",
+               "is": "resurfaced"
+              }
+             ]
+            },
+            {
+             "expr": "condition.outer_1 < 30"
+            }
+           ]
+          }
+         }
+        ]
+       },
+       "condition": "outer_23",
+       "add": 30
+      },
+      {
+       "if": {
+        "all": [
+         {
+          "all": [
+           {
+            "facility": "practice",
+            "is": "open"
+           },
+           {
+            "expr": "condition.practice < 30"
+           }
+          ]
+         },
+         {
+          "not": {
+           "all": [
+            {
+             "any": [
+              {
+               "facility": "outer_1",
+               "is": "playable"
+              },
+              {
+               "facility": "outer_1",
+               "is": "resurfaced"
+              }
+             ]
+            },
+            {
+             "expr": "condition.outer_1 < 30"
+            }
+           ]
+          }
+         },
+         {
+          "not": {
+           "all": [
+            {
+             "facility": "outer_23",
+             "is": "playable"
+            },
+            {
+             "expr": "condition.outer_23 < 30"
+            }
+           ]
+          }
+         }
+        ]
+       },
+       "errand": "dale",
+       "at": "practice",
+       "for": "3h"
+      },
+      {
+       "if": {
+        "all": [
+         {
+          "all": [
+           {
+            "facility": "practice",
+            "is": "open"
+           },
+           {
+            "expr": "condition.practice < 30"
+           }
+          ]
+         },
+         {
+          "not": {
+           "all": [
+            {
+             "any": [
+              {
+               "facility": "outer_1",
+               "is": "playable"
+              },
+              {
+               "facility": "outer_1",
+               "is": "resurfaced"
+              }
+             ]
+            },
+            {
+             "expr": "condition.outer_1 < 30"
+            }
+           ]
+          }
+         },
+         {
+          "not": {
+           "all": [
+            {
+             "facility": "outer_23",
+             "is": "playable"
+            },
+            {
+             "expr": "condition.outer_23 < 30"
+            }
+           ]
+          }
+         }
+        ]
+       },
+       "condition": "practice",
+       "add": 30
+      },
+      {
+       "if": {
+        "all": [
+         {
+          "all": [
+           {
+            "facility": "clubhouse",
+            "is": "open"
+           },
+           {
+            "expr": "condition.clubhouse < 30"
+           }
+          ]
+         },
+         {
+          "not": {
+           "all": [
+            {
+             "any": [
+              {
+               "facility": "outer_1",
+               "is": "playable"
+              },
+              {
+               "facility": "outer_1",
+               "is": "resurfaced"
+              }
+             ]
+            },
+            {
+             "expr": "condition.outer_1 < 30"
+            }
+           ]
+          }
+         },
+         {
+          "not": {
+           "all": [
+            {
+             "facility": "outer_23",
+             "is": "playable"
+            },
+            {
+             "expr": "condition.outer_23 < 30"
+            }
+           ]
+          }
+         },
+         {
+          "not": {
+           "all": [
+            {
+             "facility": "practice",
+             "is": "open"
+            },
+            {
+             "expr": "condition.practice < 30"
+            }
+           ]
+          }
+         }
+        ]
+       },
+       "errand": "dale",
+       "at": "clubhouse",
+       "for": "3h"
+      },
+      {
+       "if": {
+        "all": [
+         {
+          "all": [
+           {
+            "facility": "clubhouse",
+            "is": "open"
+           },
+           {
+            "expr": "condition.clubhouse < 30"
+           }
+          ]
+         },
+         {
+          "not": {
+           "all": [
+            {
+             "any": [
+              {
+               "facility": "outer_1",
+               "is": "playable"
+              },
+              {
+               "facility": "outer_1",
+               "is": "resurfaced"
+              }
+             ]
+            },
+            {
+             "expr": "condition.outer_1 < 30"
+            }
+           ]
+          }
+         },
+         {
+          "not": {
+           "all": [
+            {
+             "facility": "outer_23",
+             "is": "playable"
+            },
+            {
+             "expr": "condition.outer_23 < 30"
+            }
+           ]
+          }
+         },
+         {
+          "not": {
+           "all": [
+            {
+             "facility": "practice",
+             "is": "open"
+            },
+            {
+             "expr": "condition.practice < 30"
+            }
+           ]
+          }
+         }
+        ]
+       },
+       "condition": "clubhouse",
+       "add": 30
+      },
+      {
+       "if": {
+        "all": [
+         {
+          "all": [
+           {
+            "facility": "plaza",
+            "is": "open"
+           },
+           {
+            "expr": "condition.plaza < 30"
+           }
+          ]
+         },
+         {
+          "not": {
+           "all": [
+            {
+             "any": [
+              {
+               "facility": "outer_1",
+               "is": "playable"
+              },
+              {
+               "facility": "outer_1",
+               "is": "resurfaced"
+              }
+             ]
+            },
+            {
+             "expr": "condition.outer_1 < 30"
+            }
+           ]
+          }
+         },
+         {
+          "not": {
+           "all": [
+            {
+             "facility": "outer_23",
+             "is": "playable"
+            },
+            {
+             "expr": "condition.outer_23 < 30"
+            }
+           ]
+          }
+         },
+         {
+          "not": {
+           "all": [
+            {
+             "facility": "practice",
+             "is": "open"
+            },
+            {
+             "expr": "condition.practice < 30"
+            }
+           ]
+          }
+         },
+         {
+          "not": {
+           "all": [
+            {
+             "facility": "clubhouse",
+             "is": "open"
+            },
+            {
+             "expr": "condition.clubhouse < 30"
+            }
+           ]
+          }
+         }
+        ]
+       },
+       "errand": "dale",
+       "at": "plaza",
+       "for": "3h"
+      },
+      {
+       "if": {
+        "all": [
+         {
+          "all": [
+           {
+            "facility": "plaza",
+            "is": "open"
+           },
+           {
+            "expr": "condition.plaza < 30"
+           }
+          ]
+         },
+         {
+          "not": {
+           "all": [
+            {
+             "any": [
+              {
+               "facility": "outer_1",
+               "is": "playable"
+              },
+              {
+               "facility": "outer_1",
+               "is": "resurfaced"
+              }
+             ]
+            },
+            {
+             "expr": "condition.outer_1 < 30"
+            }
+           ]
+          }
+         },
+         {
+          "not": {
+           "all": [
+            {
+             "facility": "outer_23",
+             "is": "playable"
+            },
+            {
+             "expr": "condition.outer_23 < 30"
+            }
+           ]
+          }
+         },
+         {
+          "not": {
+           "all": [
+            {
+             "facility": "practice",
+             "is": "open"
+            },
+            {
+             "expr": "condition.practice < 30"
+            }
+           ]
+          }
+         },
+         {
+          "not": {
+           "all": [
+            {
+             "facility": "clubhouse",
+             "is": "open"
+            },
+            {
+             "expr": "condition.clubhouse < 30"
+            }
+           ]
+          }
+         }
+        ]
+       },
+       "condition": "plaza",
+       "add": 30
+      },
+      {
+       "if": {
+        "all": [
+         {
+          "all": [
+           {
+            "facility": "stadium_3",
+            "is": "open"
+           },
+           {
+            "expr": "condition.stadium_3 < 30"
+           }
+          ]
+         },
+         {
+          "not": {
+           "all": [
+            {
+             "any": [
+              {
+               "facility": "outer_1",
+               "is": "playable"
+              },
+              {
+               "facility": "outer_1",
+               "is": "resurfaced"
+              }
+             ]
+            },
+            {
+             "expr": "condition.outer_1 < 30"
+            }
+           ]
+          }
+         },
+         {
+          "not": {
+           "all": [
+            {
+             "facility": "outer_23",
+             "is": "playable"
+            },
+            {
+             "expr": "condition.outer_23 < 30"
+            }
+           ]
+          }
+         },
+         {
+          "not": {
+           "all": [
+            {
+             "facility": "practice",
+             "is": "open"
+            },
+            {
+             "expr": "condition.practice < 30"
+            }
+           ]
+          }
+         },
+         {
+          "not": {
+           "all": [
+            {
+             "facility": "clubhouse",
+             "is": "open"
+            },
+            {
+             "expr": "condition.clubhouse < 30"
+            }
+           ]
+          }
+         },
+         {
+          "not": {
+           "all": [
+            {
+             "facility": "plaza",
+             "is": "open"
+            },
+            {
+             "expr": "condition.plaza < 30"
+            }
+           ]
+          }
+         }
+        ]
+       },
+       "errand": "dale",
+       "at": "stadium_3",
+       "for": "3h"
+      },
+      {
+       "if": {
+        "all": [
+         {
+          "all": [
+           {
+            "facility": "stadium_3",
+            "is": "open"
+           },
+           {
+            "expr": "condition.stadium_3 < 30"
+           }
+          ]
+         },
+         {
+          "not": {
+           "all": [
+            {
+             "any": [
+              {
+               "facility": "outer_1",
+               "is": "playable"
+              },
+              {
+               "facility": "outer_1",
+               "is": "resurfaced"
+              }
+             ]
+            },
+            {
+             "expr": "condition.outer_1 < 30"
+            }
+           ]
+          }
+         },
+         {
+          "not": {
+           "all": [
+            {
+             "facility": "outer_23",
+             "is": "playable"
+            },
+            {
+             "expr": "condition.outer_23 < 30"
+            }
+           ]
+          }
+         },
+         {
+          "not": {
+           "all": [
+            {
+             "facility": "practice",
+             "is": "open"
+            },
+            {
+             "expr": "condition.practice < 30"
+            }
+           ]
+          }
+         },
+         {
+          "not": {
+           "all": [
+            {
+             "facility": "clubhouse",
+             "is": "open"
+            },
+            {
+             "expr": "condition.clubhouse < 30"
+            }
+           ]
+          }
+         },
+         {
+          "not": {
+           "all": [
+            {
+             "facility": "plaza",
+             "is": "open"
+            },
+            {
+             "expr": "condition.plaza < 30"
+            }
+           ]
+          }
+         }
+        ]
+       },
+       "condition": "stadium_3",
+       "add": 30
+      },
+      {
+       "if": {
+        "all": [
+         {
+          "all": [
+           {
+            "facility": "stadium_2",
+            "is": "open"
+           },
+           {
+            "expr": "condition.stadium_2 < 30"
+           }
+          ]
+         },
+         {
+          "not": {
+           "all": [
+            {
+             "any": [
+              {
+               "facility": "outer_1",
+               "is": "playable"
+              },
+              {
+               "facility": "outer_1",
+               "is": "resurfaced"
+              }
+             ]
+            },
+            {
+             "expr": "condition.outer_1 < 30"
+            }
+           ]
+          }
+         },
+         {
+          "not": {
+           "all": [
+            {
+             "facility": "outer_23",
+             "is": "playable"
+            },
+            {
+             "expr": "condition.outer_23 < 30"
+            }
+           ]
+          }
+         },
+         {
+          "not": {
+           "all": [
+            {
+             "facility": "practice",
+             "is": "open"
+            },
+            {
+             "expr": "condition.practice < 30"
+            }
+           ]
+          }
+         },
+         {
+          "not": {
+           "all": [
+            {
+             "facility": "clubhouse",
+             "is": "open"
+            },
+            {
+             "expr": "condition.clubhouse < 30"
+            }
+           ]
+          }
+         },
+         {
+          "not": {
+           "all": [
+            {
+             "facility": "plaza",
+             "is": "open"
+            },
+            {
+             "expr": "condition.plaza < 30"
+            }
+           ]
+          }
+         },
+         {
+          "not": {
+           "all": [
+            {
+             "facility": "stadium_3",
+             "is": "open"
+            },
+            {
+             "expr": "condition.stadium_3 < 30"
+            }
+           ]
+          }
+         }
+        ]
+       },
+       "errand": "dale",
+       "at": "stadium_2",
+       "for": "3h"
+      },
+      {
+       "if": {
+        "all": [
+         {
+          "all": [
+           {
+            "facility": "stadium_2",
+            "is": "open"
+           },
+           {
+            "expr": "condition.stadium_2 < 30"
+           }
+          ]
+         },
+         {
+          "not": {
+           "all": [
+            {
+             "any": [
+              {
+               "facility": "outer_1",
+               "is": "playable"
+              },
+              {
+               "facility": "outer_1",
+               "is": "resurfaced"
+              }
+             ]
+            },
+            {
+             "expr": "condition.outer_1 < 30"
+            }
+           ]
+          }
+         },
+         {
+          "not": {
+           "all": [
+            {
+             "facility": "outer_23",
+             "is": "playable"
+            },
+            {
+             "expr": "condition.outer_23 < 30"
+            }
+           ]
+          }
+         },
+         {
+          "not": {
+           "all": [
+            {
+             "facility": "practice",
+             "is": "open"
+            },
+            {
+             "expr": "condition.practice < 30"
+            }
+           ]
+          }
+         },
+         {
+          "not": {
+           "all": [
+            {
+             "facility": "clubhouse",
+             "is": "open"
+            },
+            {
+             "expr": "condition.clubhouse < 30"
+            }
+           ]
+          }
+         },
+         {
+          "not": {
+           "all": [
+            {
+             "facility": "plaza",
+             "is": "open"
+            },
+            {
+             "expr": "condition.plaza < 30"
+            }
+           ]
+          }
+         },
+         {
+          "not": {
+           "all": [
+            {
+             "facility": "stadium_3",
+             "is": "open"
+            },
+            {
+             "expr": "condition.stadium_3 < 30"
+            }
+           ]
+          }
+         }
+        ]
+       },
+       "condition": "stadium_2",
+       "add": 30
+      },
+      {
+       "if": {
+        "all": [
+         {
+          "all": [
+           {
+            "facility": "stadium_1",
+            "is": "restored"
+           },
+           {
+            "expr": "condition.stadium_1 < 30"
+           }
+          ]
+         },
+         {
+          "not": {
+           "all": [
+            {
+             "any": [
+              {
+               "facility": "outer_1",
+               "is": "playable"
+              },
+              {
+               "facility": "outer_1",
+               "is": "resurfaced"
+              }
+             ]
+            },
+            {
+             "expr": "condition.outer_1 < 30"
+            }
+           ]
+          }
+         },
+         {
+          "not": {
+           "all": [
+            {
+             "facility": "outer_23",
+             "is": "playable"
+            },
+            {
+             "expr": "condition.outer_23 < 30"
+            }
+           ]
+          }
+         },
+         {
+          "not": {
+           "all": [
+            {
+             "facility": "practice",
+             "is": "open"
+            },
+            {
+             "expr": "condition.practice < 30"
+            }
+           ]
+          }
+         },
+         {
+          "not": {
+           "all": [
+            {
+             "facility": "clubhouse",
+             "is": "open"
+            },
+            {
+             "expr": "condition.clubhouse < 30"
+            }
+           ]
+          }
+         },
+         {
+          "not": {
+           "all": [
+            {
+             "facility": "plaza",
+             "is": "open"
+            },
+            {
+             "expr": "condition.plaza < 30"
+            }
+           ]
+          }
+         },
+         {
+          "not": {
+           "all": [
+            {
+             "facility": "stadium_3",
+             "is": "open"
+            },
+            {
+             "expr": "condition.stadium_3 < 30"
+            }
+           ]
+          }
+         },
+         {
+          "not": {
+           "all": [
+            {
+             "facility": "stadium_2",
+             "is": "open"
+            },
+            {
+             "expr": "condition.stadium_2 < 30"
+            }
+           ]
+          }
+         }
+        ]
+       },
+       "errand": "dale",
+       "at": "stadium_1",
+       "for": "3h"
+      },
+      {
+       "if": {
+        "all": [
+         {
+          "all": [
+           {
+            "facility": "stadium_1",
+            "is": "restored"
+           },
+           {
+            "expr": "condition.stadium_1 < 30"
+           }
+          ]
+         },
+         {
+          "not": {
+           "all": [
+            {
+             "any": [
+              {
+               "facility": "outer_1",
+               "is": "playable"
+              },
+              {
+               "facility": "outer_1",
+               "is": "resurfaced"
+              }
+             ]
+            },
+            {
+             "expr": "condition.outer_1 < 30"
+            }
+           ]
+          }
+         },
+         {
+          "not": {
+           "all": [
+            {
+             "facility": "outer_23",
+             "is": "playable"
+            },
+            {
+             "expr": "condition.outer_23 < 30"
+            }
+           ]
+          }
+         },
+         {
+          "not": {
+           "all": [
+            {
+             "facility": "practice",
+             "is": "open"
+            },
+            {
+             "expr": "condition.practice < 30"
+            }
+           ]
+          }
+         },
+         {
+          "not": {
+           "all": [
+            {
+             "facility": "clubhouse",
+             "is": "open"
+            },
+            {
+             "expr": "condition.clubhouse < 30"
+            }
+           ]
+          }
+         },
+         {
+          "not": {
+           "all": [
+            {
+             "facility": "plaza",
+             "is": "open"
+            },
+            {
+             "expr": "condition.plaza < 30"
+            }
+           ]
+          }
+         },
+         {
+          "not": {
+           "all": [
+            {
+             "facility": "stadium_3",
+             "is": "open"
+            },
+            {
+             "expr": "condition.stadium_3 < 30"
+            }
+           ]
+          }
+         },
+         {
+          "not": {
+           "all": [
+            {
+             "facility": "stadium_2",
+             "is": "open"
+            },
+            {
+             "expr": "condition.stadium_2 < 30"
+            }
+           ]
+          }
+         }
+        ]
+       },
+       "condition": "stadium_1",
+       "add": 30
+      },
+      {
+       "log": "log.dale_swept"
+      }
+     ],
+     "onSuccess": [],
+     "onFail": []
+    },
+    "B": {
+     "effects": [
+      {
+       "log": "log.dale_sweep_declined"
+      }
+     ],
+     "onSuccess": [],
+     "onFail": []
+    }
+   },
+   "default": {
+    "then": "B",
+    "extra": []
+   }
+  },
+  {
    "id": "iw_dale_ten_years",
    "act": "indian_wells",
    "source": "threshold",
@@ -5496,7 +6809,7 @@
        "hire": "rosa_ortiz"
       },
       {
-       "chance": 0.5,
+       "chance": "route.s2 == \"youth\" ? 0.2 : (route.s2 == \"resort\" ? 0.8 : 0.5)",
        "flag": "iw_hiring_day_2_b",
        "set": true
       },
@@ -5526,7 +6839,7 @@
        "hire": "ben_kim"
       },
       {
-       "chance": 0.5,
+       "chance": "route.s2 == \"youth\" ? 0.2 : (route.s2 == \"resort\" ? 0.8 : 0.5)",
        "flag": "iw_hiring_day_2_b",
        "set": true
       },
@@ -5556,7 +6869,7 @@
        "log": "log.no_hire"
       },
       {
-       "chance": 0.5,
+       "chance": "route.s2 == \"youth\" ? 0.2 : (route.s2 == \"resort\" ? 0.8 : 0.5)",
        "flag": "iw_hiring_day_2_b",
        "set": true
       },
@@ -5603,7 +6916,7 @@
        "hire": "jess_park"
       },
       {
-       "chance": "route.s2 == \"youth\" ? 0.3 : 0.5",
+       "chance": "route.s2 == \"youth\" ? 0.2 : (route.s2 == \"resort\" ? 0.8 : 0.5)",
        "flag": "iw_hiring_day_3_b",
        "set": true
       },
@@ -5633,7 +6946,7 @@
        "hire": "gus_moreno"
       },
       {
-       "chance": "route.s2 == \"youth\" ? 0.3 : 0.5",
+       "chance": "route.s2 == \"youth\" ? 0.2 : (route.s2 == \"resort\" ? 0.8 : 0.5)",
        "flag": "iw_hiring_day_3_b",
        "set": true
       },
@@ -5663,7 +6976,7 @@
        "log": "log.no_hire"
       },
       {
-       "chance": "route.s2 == \"youth\" ? 0.3 : 0.5",
+       "chance": "route.s2 == \"youth\" ? 0.2 : (route.s2 == \"resort\" ? 0.8 : 0.5)",
        "flag": "iw_hiring_day_3_b",
        "set": true
       },
@@ -5710,7 +7023,7 @@
        "hire": "kofi_mensah"
       },
       {
-       "chance": "route.s2 == \"youth\" ? 0.3 : 0.5",
+       "chance": "route.s2 == \"youth\" ? 0.2 : (route.s2 == \"resort\" ? 0.8 : 0.5)",
        "flag": "iw_hiring_day_3_b",
        "set": true
       },
@@ -5740,7 +7053,7 @@
        "hire": "amara_okafor"
       },
       {
-       "chance": "route.s2 == \"youth\" ? 0.3 : 0.5",
+       "chance": "route.s2 == \"youth\" ? 0.2 : (route.s2 == \"resort\" ? 0.8 : 0.5)",
        "flag": "iw_hiring_day_3_b",
        "set": true
       },
@@ -5770,7 +7083,7 @@
        "log": "log.no_hire"
       },
       {
-       "chance": "route.s2 == \"youth\" ? 0.3 : 0.5",
+       "chance": "route.s2 == \"youth\" ? 0.2 : (route.s2 == \"resort\" ? 0.8 : 0.5)",
        "flag": "iw_hiring_day_3_b",
        "set": true
       },
@@ -5814,10 +7127,10 @@
     "A": {
      "effects": [
       {
-       "hire": "lily_chen"
+       "hire": "luca_ferreira"
       },
       {
-       "chance": "route.s2 == \"youth\" ? 0.25 : (route.s2 == \"resort\" ? 0.75 : 0.5)",
+       "chance": "route.s2 == \"youth\" ? 0.2 : (route.s2 == \"resort\" ? 0.8 : 0.5)",
        "flag": "iw_hiring_day_4_b",
        "set": true
       },
@@ -5847,7 +7160,7 @@
        "hire": "walt_hendricks"
       },
       {
-       "chance": "route.s2 == \"youth\" ? 0.25 : (route.s2 == \"resort\" ? 0.75 : 0.5)",
+       "chance": "route.s2 == \"youth\" ? 0.2 : (route.s2 == \"resort\" ? 0.8 : 0.5)",
        "flag": "iw_hiring_day_4_b",
        "set": true
       },
@@ -5877,7 +7190,7 @@
        "log": "log.no_hire"
       },
       {
-       "chance": "route.s2 == \"youth\" ? 0.25 : (route.s2 == \"resort\" ? 0.75 : 0.5)",
+       "chance": "route.s2 == \"youth\" ? 0.2 : (route.s2 == \"resort\" ? 0.8 : 0.5)",
        "flag": "iw_hiring_day_4_b",
        "set": true
       },
@@ -5924,7 +7237,7 @@
        "hire": "teo_ilic"
       },
       {
-       "chance": "route.s2 == \"youth\" ? 0.25 : (route.s2 == \"resort\" ? 0.75 : 0.5)",
+       "chance": "route.s2 == \"youth\" ? 0.2 : (route.s2 == \"resort\" ? 0.8 : 0.5)",
        "flag": "iw_hiring_day_4_b",
        "set": true
       },
@@ -5951,10 +7264,10 @@
     "B": {
      "effects": [
       {
-       "hire": "luca_ferreira"
+       "hire": "lily_chen"
       },
       {
-       "chance": "route.s2 == \"youth\" ? 0.25 : (route.s2 == \"resort\" ? 0.75 : 0.5)",
+       "chance": "route.s2 == \"youth\" ? 0.2 : (route.s2 == \"resort\" ? 0.8 : 0.5)",
        "flag": "iw_hiring_day_4_b",
        "set": true
       },
@@ -5984,7 +7297,7 @@
        "log": "log.no_hire"
       },
       {
-       "chance": "route.s2 == \"youth\" ? 0.25 : (route.s2 == \"resort\" ? 0.75 : 0.5)",
+       "chance": "route.s2 == \"youth\" ? 0.2 : (route.s2 == \"resort\" ? 0.8 : 0.5)",
        "flag": "iw_hiring_day_4_b",
        "set": true
       },
@@ -6120,8 +7433,60 @@
      },
      "effects": [
       {
+       "if": {
+        "expr": "restored == 1"
+       },
        "stat": "reputation",
-       "add": "restored * 1.5"
+       "add": 2
+      },
+      {
+       "if": {
+        "expr": "restored == 2"
+       },
+       "stat": "reputation",
+       "add": 3
+      },
+      {
+       "if": {
+        "expr": "restored == 3"
+       },
+       "stat": "reputation",
+       "add": 5
+      },
+      {
+       "if": {
+        "expr": "restored == 4"
+       },
+       "stat": "reputation",
+       "add": 6
+      },
+      {
+       "if": {
+        "expr": "restored == 5"
+       },
+       "stat": "reputation",
+       "add": 8
+      },
+      {
+       "if": {
+        "expr": "restored == 6"
+       },
+       "stat": "reputation",
+       "add": 9
+      },
+      {
+       "if": {
+        "expr": "restored == 7"
+       },
+       "stat": "reputation",
+       "add": 11
+      },
+      {
+       "if": {
+        "expr": "restored >= 8"
+       },
+       "stat": "reputation",
+       "add": 12
       }
      ],
      "onSuccess": [],
@@ -6185,12 +7550,67 @@
     "B": {
      "effects": [
       {
+       "if": {
+        "expr": "stat.cash < -500"
+       },
        "stat": "reputation",
-       "add": "-4 - max(0, 500 - stat.cash) / 500"
+       "add": -8
       },
       {
+       "if": {
+        "expr": "stat.cash >= -500 && stat.cash < 0"
+       },
+       "stat": "reputation",
+       "add": -7
+      },
+      {
+       "if": {
+        "expr": "stat.cash >= -500 && stat.cash < 0"
+       },
        "stat": "cash",
-       "add": "-min(1500, max(0, stat.cash + 1000))"
+       "add": -500
+      },
+      {
+       "if": {
+        "expr": "stat.cash >= 0 && stat.cash < 500"
+       },
+       "stat": "reputation",
+       "add": -6
+      },
+      {
+       "if": {
+        "expr": "stat.cash >= 0 && stat.cash < 500"
+       },
+       "stat": "cash",
+       "add": -1000
+      },
+      {
+       "if": {
+        "expr": "stat.cash >= 500 && stat.cash < 1000"
+       },
+       "stat": "reputation",
+       "add": -5
+      },
+      {
+       "if": {
+        "expr": "stat.cash >= 500 && stat.cash < 1000"
+       },
+       "stat": "cash",
+       "add": -1500
+      },
+      {
+       "if": {
+        "expr": "stat.cash >= 1000"
+       },
+       "stat": "reputation",
+       "add": -4
+      },
+      {
+       "if": {
+        "expr": "stat.cash >= 1000"
+       },
+       "stat": "cash",
+       "add": -2000
       },
       {
        "flag": "loan_taken",
@@ -6575,7 +7995,7 @@
    },
    "weight": 1,
    "cooldown": "21d",
-   "max_shown": 2,
+   "max_shown": 1,
    "countdown": "2h",
    "pause": false,
    "location": "outer_1",
@@ -6702,6 +8122,8 @@
    "anchors.practice": "Academy courts",
    "anchors.outer_1": "Members' court",
    "anchors.outer_23": "Clay courts",
+   "anchors.outer_23.hard": "Hard courts",
+   "anchors.stadium_3.tennis2": "Twin courts",
    "facilities.outer_1.sanded": "Members' court · buried in sand",
    "facilities.outer_1.swept": "Members' court · swept",
    "facilities.outer_1.playable": "Members' court · playable",
@@ -6710,6 +8132,8 @@
    "facilities.outer_23.ruined": "Clay courts · fences down",
    "facilities.outer_23.playable": "Clay courts · repaired",
    "facilities.outer_23.worn": "Clay courts · closed (sanded over)",
+   "facilities.outer_23.playable.hard": "Hard courts · repaired",
+   "facilities.outer_23.worn.hard": "Hard courts · closed (sanded over)",
    "facilities.practice.ruined": "Academy courts · abandoned",
    "facilities.practice.open": "Academy courts · open",
    "facilities.practice.worn": "Academy courts · closed (sanded over)",
@@ -6723,6 +8147,8 @@
    "facilities.stadium_3.dug": "Pickleball courts · dug out",
    "facilities.stadium_3.open": "Pickleball courts · open",
    "facilities.stadium_3.worn": "Pickleball courts · closed (sand again)",
+   "facilities.stadium_3.open.tennis2": "Twin courts · open",
+   "facilities.stadium_3.worn.tennis2": "Twin courts · closed (sand again)",
    "facilities.stadium_2.ruined": "Pool · empty and sanded over",
    "facilities.stadium_2.open": "Pool · filled",
    "facilities.stadium_2.worn": "Pool · closed (the water turned green)",
@@ -6777,14 +8203,18 @@
    "events.iw_dale_nudge.body": "Dale finds you by the clubhouse. \"Two of us, a whole club, and we've been standing around for a day. There's still work we can start. Want me to take the next repair?\"",
    "events.iw_dale_nudge.options.A": "Dale takes the next repair (materials paid when he starts)",
    "events.iw_dale_nudge.options.B": "I've got a plan",
+   "events.iw_dale_sweep.title": "\"Want me to go fix it up?\"",
+   "events.iw_dale_sweep.body": "Dale comes in with sand on his boots. \"One of our places is under 30 and going fast. Leave it and it drops a grade on Sunday. I can drop what I'm doing and spend three hours on it.\"",
+   "events.iw_dale_sweep.options.A": "Dale goes (off his post for 3 hours)",
+   "events.iw_dale_sweep.options.B": "I'll send someone myself",
    "events.iw_credit_union.title": "The credit union calls",
-   "events.iw_credit_union.body": "A loan officer from the Coachella Valley Credit Union stops at the gate. \"Quiet week? We can float you $2500 now. Four weeks, $3000 back.\" If you can't pay it all then, they take $1500 (never below −$1000) and the town hears about it: reputation −4 or worse.",
+   "events.iw_credit_union.body": "A loan officer from the Coachella Valley Credit Union stops at the gate. \"Quiet week? We can float you $2500 now. Four weeks, $3000 back.\" If you don't pay it all then, they take $2000 (never below −$1000) and the town hears about it: reputation −4 or worse.",
    "events.iw_credit_union.options.A": "Take the loan",
    "events.iw_credit_union.options.B": "No debts, thanks",
    "events.iw_loan_due.title": "The loan is due",
-   "events.iw_loan_due.body": "The credit union is back for its $3000. Pay it all, or settle for half now and let the town talk about the rest.",
+   "events.iw_loan_due.body": "The credit union is back for its $3000. Pay it all, or pay $2000 and let the town talk about the rest.",
    "events.iw_loan_due.options.A": "Pay all $3000",
-   "events.iw_loan_due.options.B": "Pay $1500 now (never below −$1000); reputation −4 or more",
+   "events.iw_loan_due.options.B": "Pay $2000 and owe them the rest (never below −$1000); reputation −4 or more",
    "events.iw_rival_club.title": "A challenge from La Quinta",
    "events.iw_rival_club.body": "The head coach of the La Quinta Racquet Club turns up at the clay courts. \"Your members keep telling mine this place is back. Prove it. Club match, this weekend.\"",
    "events.iw_rival_club.options.A": "Take the challenge and host it",
@@ -6809,14 +8239,14 @@
    "events.iw_hiring_day_2b.options.B": "Hire Amara (player)",
    "events.iw_hiring_day_2b.options.C": "Not this time",
    "events.iw_hiring_day_3.title": "The third hiring day",
-   "events.iw_hiring_day_3.body": "The garden has a bit of a name now, and the applicants are better: a front-desk pro and a veteran coach.",
-   "events.iw_hiring_day_3.options.A": "Hire Lily (great service)",
+   "events.iw_hiring_day_3.body": "The garden has a bit of a name now, and the applicants are better: an injured former prodigy and a veteran coach.",
+   "events.iw_hiring_day_3.options.A": "Hire Luca (player)",
    "events.iw_hiring_day_3.options.B": "Hire Walt (veteran coach)",
    "events.iw_hiring_day_3.options.C": "Not this time",
    "events.iw_hiring_day_3b.title": "The third hiring day",
-   "events.iw_hiring_day_3b.body": "The garden has a bit of a name now: someone who has strung racquets on tour, and an injured former prodigy.",
+   "events.iw_hiring_day_3b.body": "The garden has a bit of a name now: someone who has strung racquets on tour, and a front-desk pro.",
    "events.iw_hiring_day_3b.options.A": "Hire Teodora (stringer)",
-   "events.iw_hiring_day_3b.options.B": "Hire Luca (player)",
+   "events.iw_hiring_day_3b.options.B": "Hire Lily (great service)",
    "events.iw_hiring_day_3b.options.C": "Not this time",
    "events.iw_hiring_day_4.title": "The fourth hiring day",
    "events.iw_hiring_day_4.body": "A former pro heard about the place and wants to be head coach; a young local all-rounder came too.",
@@ -6831,7 +8261,7 @@
    "events.iw_route_s2.title": "Which way does the club grow?",
    "events.iw_route_s2.body": "The clubhouse is open and Dale stands at the gate with the old brochure. \"Families with kids, or hotel guests from Palm Springs? We can't chase both at once.\" If you don't choose by tomorrow, Dale picks the academy.",
    "events.iw_route_s2.options.A": "Youth: the academy and physio room open first; more coaches apply; academy lessons earn more",
-   "events.iw_route_s2.options.B": "Resort: the café and resort pool open first; more service staff apply; busier weekends",
+   "events.iw_route_s2.options.B": "Resort: the café and resort pool open first; more service and fitness staff apply; busier weekends",
    "events.iw_route_s3.title": "Hal Brooks offers the golf strip",
    "events.iw_route_s3.body": "Hal Brooks, who owns the dead golf course next door, will give up its west strip. \"Pave it for courts, or keep the pond and put up cabins. Your call.\" The survey costs $300 either way. If you don't choose by tomorrow, Dale picks the courts.",
    "events.iw_route_s3.options.A": "South courts: two new courts on the golf strip (now: weekend games there, members +4)",
@@ -6840,11 +8270,13 @@
    "events.iw_route_s4.body": "A resort club needs room. Turn the south car park into a viewing slope and grow new land in the southeast, or bridge over to the little sky island with the two old net posts? If you don't choose by tomorrow, Dale picks the plaza.",
    "events.iw_route_s4.options.A": "Event plaza: a viewing slope for big matches (now: exhibition +5%)",
    "events.iw_route_s4.options.B": "Academy isle: a bridge to the island academy (now: academy lessons +$2, junior semifinal +10%)",
+   "log.dale_swept": "Dale left his post for three hours and fixed up the worst place",
+   "log.dale_sweep_declined": "You told Dale you'd send someone yourself",
    "log.started": "You arrive at the abandoned Palm Oasis Racquet Club.",
    "log.first_court": "The members' court has a new net: the first playable court in ten years",
    "log.ball_machine": "The ball machine works again; academy lessons are better",
    "log.loan_declined": "You turned down the credit union's loan",
-   "log.loan_settled": "The credit union took half the loan and the town is talking about it",
+   "log.loan_settled": "The credit union took what it could get and the town is talking about the rest",
    "log.loan_paid": "The credit union loan is paid off",
    "log.clubhouse_open": "The clubhouse front desk is open; hiring days can start",
    "log.stadium_3_open": "The pickleball courts are open",
@@ -6878,6 +8310,8 @@
    "posts.pr_upkeep.note": "Any time; it wears down if nobody looks after it",
    "posts.ch_desk.title": "Clubhouse · Front desk",
    "posts.ch_desk.note": "Daily 8–18: sign-ups, directions, the phone",
+   "posts.ch_upkeep.title": "Clubhouse · Upkeep",
+   "posts.ch_upkeep.note": "Any time: roof, air con, plumbing; it wears down if nobody looks after it",
    "posts.pz_food.title": "Circle of Palms · Lunch stand",
    "posts.pz_food.note": "Daily 11–14",
    "posts.pz_evening.title": "Circle of Palms · Weekend evenings",
@@ -7042,7 +8476,7 @@
    "orders.cup_monthly.note": "$60; Saturday of weeks 3, 7, 11, 15. Check-in and umpire posts that day; two courts closed to rentals and lessons; rain spoils it. A trophy",
    "orders.cup_monthly.locked": "★1 and two repaired courts",
    "orders.regional_open.title": "Play the regional open",
-   "orders.regional_open.note": "$200; players only, a whole day away; a win brings $800, reputation and a trophy. From ★3 it's doubles: two players",
+   "orders.regional_open.note": "$200; players only, a whole day away; a win brings $800, reputation and a trophy. From ★3 it's doubles: a second player, or a coach who misses a day of lessons",
    "orders.regional_open.locked": "★2 and a player on staff",
    "orders.junior_regional.title": "Take juniors to the regional",
    "orders.junior_regional.note": "$80; a coach takes the kids for half a day; a semifinal brings members, reputation and a trophy",
@@ -7246,13 +8680,15 @@
    "routes.s3.oasis_lawn": "Oasis lawn",
    "routes.s4.event_plaza": "Event plaza",
    "routes.s4.academy_isle": "Academy isle",
+   "route_notes.s2.youth.costs": "Resort-side builds wait until ★3; fewer service and fitness staff apply",
+   "route_notes.s2.resort.costs": "Academy-side builds wait until ★3; fewer coaches apply",
    "prep.exhibition": "Exhibition build-up",
    "ui.route.look": "Tap to see where it goes",
    "ui.route.confirm": "Tap again to decide",
    "ui.route.pick": "Tap to pick, tap again to decide",
    "ui.route.default": "If time runs out, {name} picks “{route}”",
    "ui.route.opens": "Opens first: {list}",
-   "ui.route.costs": "Waits this season: {list}",
+   "ui.route.costs": "Waits until the next star: {list}",
    "ui.route.other": "Gives up “{route}”",
    "ui.beat.today": "Today {time}",
    "ui.beat.tomorrow": "Tmrw {time}",
@@ -7262,6 +8698,17 @@
    "ui.beat.hiring": "Hiring day",
    "ui.beat.cards.iw_investor_check": "Investor visit",
    "ui.beat.cards.iw_deadline": "Final reckoning",
+   "ui.beat.at.today": "{time}",
+   "ui.beat.at.tomorrow": "Tmrw {time}",
+   "ui.beat.at.weekday": "{d} {time}",
+   "ui.beat.at.day": "D{n} {time}",
+   "ui.beat.short.hiring": "Hiring",
+   "ui.beat.short.tours.cup_monthly": "Club cup",
+   "ui.beat.short.tours.regional_open": "Regional",
+   "ui.beat.short.tours.junior_regional": "Juniors",
+   "ui.beat.short.tours.invitational": "Invitational",
+   "ui.beat.short.cards.iw_investor_check": "Investors",
+   "ui.beat.short.cards.iw_deadline": "Deadline",
    "ui.stars.label": "Next ★: {n} to go",
    "ui.stars.full": "All stars",
    "ui.stars.title": "To reach ★{n}",
@@ -7422,6 +8869,7 @@
    "ui.terms.restored": "repairs",
    "ui.terms.traits": "staff traits",
    "ui.task_log": "{name} will take on {what} when free",
+   "ui.because.default_pick": "{name} picked “{option}” when time ran out",
    "ui.because.post": "{name} worked {n} rounds on “{post}”",
    "ui.because.order": "{names} finished “{order}”",
    "ui.because.wear": "{place} was down to condition {n} at Sunday close",
@@ -7494,6 +8942,8 @@
    "ui.place.tour_host": "Starts {when} · fee ${fee} · finish it to sign up",
    "ui.place.tour_away_early": "Leaves {when} · fee ${fee} · send people on the day",
    "ui.place.tour_away_now": "Leaves today · fee ${fee}",
+   "ui.place.tour_signup": "Sign-up opens {open} · plays {when}",
+   "ui.place.tour_taken": "Not this one · watch for the next sign-up",
    "ui.place.badge_host": "Event",
    "ui.place.badge_away": "Away",
    "ui.place.badge_temp": "Today",
@@ -7601,6 +9051,8 @@
    "anchors.practice": "青训场",
    "anchors.outer_1": "会员场",
    "anchors.outer_23": "红土场",
+   "anchors.outer_23.hard": "硬地场",
+   "anchors.stadium_3.tennis2": "双片网球场",
    "facilities.outer_1.sanded": "会员场 · 被沙埋了",
    "facilities.outer_1.swept": "会员场 · 扫出来了",
    "facilities.outer_1.playable": "会员场 · 能打了",
@@ -7609,6 +9061,8 @@
    "facilities.outer_23.ruined": "红土场 · 围网倒了",
    "facilities.outer_23.playable": "红土场 · 修好了",
    "facilities.outer_23.worn": "红土场 · 停用（又积沙了）",
+   "facilities.outer_23.playable.hard": "硬地场 · 修好了",
+   "facilities.outer_23.worn.hard": "硬地场 · 停用（又积沙了）",
    "facilities.practice.ruined": "青训场 · 废弃",
    "facilities.practice.open": "青训场 · 开放",
    "facilities.practice.worn": "青训场 · 停用（又积沙了）",
@@ -7622,6 +9076,8 @@
    "facilities.stadium_3.dug": "匹克球场 · 挖出来了",
    "facilities.stadium_3.open": "匹克球场 · 开放",
    "facilities.stadium_3.worn": "匹克球场 · 停用（又灌了沙）",
+   "facilities.stadium_3.open.tennis2": "双片网球场 · 开放",
+   "facilities.stadium_3.worn.tennis2": "双片网球场 · 停用（又灌了沙）",
    "facilities.stadium_2.ruined": "泳池 · 空池子、满地沙",
    "facilities.stadium_2.open": "泳池 · 放满水了",
    "facilities.stadium_2.worn": "泳池 · 停用（水绿了）",
@@ -7676,14 +9132,18 @@
    "events.iw_dale_nudge.body": "Dale 在会所门口找到你：\"两个人，一整座俱乐部，咱俩干站了一天了。还有能动手的活。下一件修复交给我？\"",
    "events.iw_dale_nudge.options.A": "交给 Dale 去干下一件修复（开工时扣材料费）",
    "events.iw_dale_nudge.options.B": "我自己有安排",
+   "events.iw_dale_sweep.title": "“我去收拾一下？”",
+   "events.iw_dale_sweep.body": "Dale 进门时鞋上全是沙：\"有一处掉到 30 以下了，掉得很快。不管它，周日就要掉一档。我可以放下手上的事，去收拾三个小时。\"",
+   "events.iw_dale_sweep.options.A": "Dale 去（离岗 3 小时）",
+   "events.iw_dale_sweep.options.B": "我自己派人",
    "events.iw_credit_union.title": "信用社来电",
-   "events.iw_credit_union.body": "Coachella Valley 信用社的信贷员停在大门口：\"这礼拜挺清闲？我们现在可以先借你 $2500，四周后还 $3000。\"到时候还不上全额，就先扣 $1500（最多扣到 −$1000），镇上也会传开：声望 −4 起。",
+   "events.iw_credit_union.body": "Coachella Valley 信用社的信贷员停在大门口：\"这礼拜挺清闲？我们现在可以先借你 $2500，四周后还 $3000。\"到时候不还全额，就先扣 $2000（最多扣到 −$1000），镇上也会传开：声望 −4 起。",
    "events.iw_credit_union.options.A": "借",
    "events.iw_credit_union.options.B": "不欠债，谢谢",
    "events.iw_loan_due.title": "贷款到期",
-   "events.iw_loan_due.body": "信用社来收那 $3000 了。一次还清，还是先还一半、剩下的让镇上去议论？",
+   "events.iw_loan_due.body": "信用社来收那 $3000 了。一次还清，还是先还 $2000、剩下的让镇上去议论？",
    "events.iw_loan_due.options.A": "一次还清 $3000",
-   "events.iw_loan_due.options.B": "先还 $1500（最多扣到 −$1000），声望 −4 起",
+   "events.iw_loan_due.options.B": "先还 $2000、剩下的欠着（最多扣到 −$1000），声望 −4 起",
    "events.iw_rival_club.title": "La Quinta 来下战书",
    "events.iw_rival_club.body": "La Quinta 网球俱乐部的主教练来到红土场：\"你们的会员老跟我的会员说这儿又活过来了。那就比一场，这个周末，俱乐部对抗赛。\"",
    "events.iw_rival_club.options.A": "接下挑战，在这儿办",
@@ -7708,14 +9168,14 @@
    "events.iw_hiring_day_2b.options.B": "招 Amara（球员）",
    "events.iw_hiring_day_2b.options.C": "这次不招",
    "events.iw_hiring_day_3.title": "第三个招聘日",
-   "events.iw_hiring_day_3.body": "俱乐部有点名气了，来的人水平也高了：一个前台好手，一位老教练。",
-   "events.iw_hiring_day_3.options.A": "招 Lily（前台好手）",
+   "events.iw_hiring_day_3.body": "俱乐部有点名气了，来的人水平也高了：一个受过伤的天才少年，一位老教练。",
+   "events.iw_hiring_day_3.options.A": "招 Luca（球员）",
    "events.iw_hiring_day_3.options.B": "招 Walt（老教练）",
    "events.iw_hiring_day_3.options.C": "这次不招",
    "events.iw_hiring_day_3b.title": "第三个招聘日",
-   "events.iw_hiring_day_3b.body": "俱乐部有点名气了：一个在巡回赛上穿过线的人，一个受过伤的天才少年。",
+   "events.iw_hiring_day_3b.body": "俱乐部有点名气了：一个在巡回赛上穿过线的人，一个前台好手。",
    "events.iw_hiring_day_3b.options.A": "招 Teodora（穿线师）",
-   "events.iw_hiring_day_3b.options.B": "招 Luca（球员）",
+   "events.iw_hiring_day_3b.options.B": "招 Lily（前台好手）",
    "events.iw_hiring_day_3b.options.C": "这次不招",
    "events.iw_hiring_day_4.title": "第四个招聘日",
    "events.iw_hiring_day_4.body": "一位前职业球员听说了这里，想来当主教练；还有一个什么都会一点的本地年轻人。",
@@ -7730,7 +9190,7 @@
    "events.iw_route_s2.title": "俱乐部往哪边走？",
    "events.iw_route_s2.body": "会所开张了，Dale 拿着那本旧宣传册站在大门口：\"带孩子的家庭，还是 Palm Springs 酒店来的客人？两头一起追不过来。\"明天还不定，Dale 就按青训来。",
    "events.iw_route_s2.options.A": "青训之路：学院、理疗室先开；来应聘的教练多；学院课多挣一点",
-   "events.iw_route_s2.options.B": "度假之路：咖啡吧、度假泳池先开；来应聘的服务人员多；周末客人多",
+   "events.iw_route_s2.options.B": "度假之路：咖啡吧、度假泳池先开；来应聘的服务、体能人员多；周末客人多",
    "events.iw_route_s3.title": "Hal Brooks 让出高尔夫西段",
    "events.iw_route_s3.body": "隔壁荒掉的高尔夫球场老板 Hal Brooks 愿意让出西段：\"铺成球场，还是留着水塘盖小屋，你定。\"两边都要付 $300 测量费。明天还不定，Dale 就按南场来。",
    "events.iw_route_s3.options.A": "南场：在高尔夫西段铺两片新场（现在：先在那儿办周末对打，会员 +4）",
@@ -7739,11 +9199,13 @@
    "events.iw_route_s4.body": "度假名园要地方。把南停车场改成观赛坡、在东南角长出新地，还是搭一座桥，把东南天上那座带两根旧网柱的小岛接过来？明天还不定，Dale 就按赛事广场来。",
    "events.iw_route_s4.options.A": "赛事广场：大比赛的观赛坡（现在：表演赛成功率 +5%）",
    "events.iw_route_s4.options.B": "学院岛：搭桥接上岛上的学院（现在：学院课每圈 +$2，青少年赛进四强 +10%）",
+   "log.dale_swept": "Dale 离岗三小时，把掉得最厉害的那一处收拾了一遍",
+   "log.dale_sweep_declined": "你跟 Dale 说你自己派人",
    "log.started": "你来到了废弃的 Palm Oasis 网球俱乐部。",
    "log.first_court": "会员场换上了新网：十年来第一块能打的场地",
    "log.ball_machine": "发球机修好了，学院的课更扎实了",
    "log.loan_declined": "你没借信用社的钱",
-   "log.loan_settled": "信用社收走了一半贷款，镇上都在议论",
+   "log.loan_settled": "信用社能收多少收了多少，剩下的镇上都在议论",
    "log.loan_paid": "信用社的贷款还清了",
    "log.clubhouse_open": "会所前台开张了，可以开招聘日了",
    "log.stadium_3_open": "匹克球场开放了",
@@ -7777,6 +9239,8 @@
    "posts.pr_upkeep.note": "随时可以干；没人管就变旧",
    "posts.ch_desk.title": "会所 · 前台",
    "posts.ch_desk.note": "每天 8–18 点，办卡、指路、接电话",
+   "posts.ch_upkeep.title": "会所 · 维护",
+   "posts.ch_upkeep.note": "随时可以干：屋顶、空调、水管；没人管就变旧",
    "posts.pz_food.title": "棕榈喷泉 · 午餐摊",
    "posts.pz_food.note": "每天 11–14 点",
    "posts.pz_evening.title": "棕榈喷泉 · 周末晚上",
@@ -7941,7 +9405,7 @@
    "orders.cup_monthly.note": "$60；第 3、7、11、15 周的周六。当天开签到和裁判两个岗位，两块场不租场、不上课；下雨就白办。奖杯一座",
    "orders.cup_monthly.locked": "★1，而且有两块修好的场地",
    "orders.regional_open.title": "去打地区业余赛",
-   "orders.regional_open.note": "$200；只有球员能去，离开一整天；赢了 $800、声望、奖杯一座。★3 起是双打，要两名球员",
+   "orders.regional_open.note": "$200；只有球员能去，离开一整天；赢了 $800、声望、奖杯一座。★3 起是双打：再一名球员，或者一名教练陪打（那天的课没人上）",
    "orders.regional_open.locked": "★2，有一名球员",
    "orders.junior_regional.title": "带学员去地区青少年赛",
    "orders.junior_regional.note": "$80；一名教练带队半天；进四强会员、声望、奖杯一座",
@@ -8145,13 +9609,15 @@
    "routes.s3.oasis_lawn": "绿洲草坪",
    "routes.s4.event_plaza": "赛事广场",
    "routes.s4.academy_isle": "学院岛",
+   "route_notes.s2.youth.costs": "度假那边的修法要等到 ★3；来应聘的服务、体能人员少",
+   "route_notes.s2.resort.costs": "青训那边的修法要等到 ★3；来应聘的教练少",
    "prep.exhibition": "表演赛筹备",
    "ui.route.look": "点一下先看看落在哪儿",
    "ui.route.confirm": "再点一下就定了",
    "ui.route.pick": "点一下选中，再点一下就定了",
    "ui.route.default": "倒计时到了，{name} 替你选“{route}”",
    "ui.route.opens": "先开：{list}",
-   "ui.route.costs": "这一季先不开：{list}",
+   "ui.route.costs": "下一星才开：{list}",
    "ui.route.other": "放下“{route}”",
    "ui.beat.today": "今天 {time}",
    "ui.beat.tomorrow": "明天 {time}",
@@ -8161,6 +9627,17 @@
    "ui.beat.hiring": "招聘日",
    "ui.beat.cards.iw_investor_check": "投资方来访",
    "ui.beat.cards.iw_deadline": "期限结算",
+   "ui.beat.at.today": "今天{time}",
+   "ui.beat.at.tomorrow": "明天{time}",
+   "ui.beat.at.weekday": "周{d}{time}",
+   "ui.beat.at.day": "第{n}天{time}",
+   "ui.beat.short.hiring": "招聘",
+   "ui.beat.short.tours.cup_monthly": "内赛",
+   "ui.beat.short.tours.regional_open": "地区赛",
+   "ui.beat.short.tours.junior_regional": "青少赛",
+   "ui.beat.short.tours.invitational": "邀请赛",
+   "ui.beat.short.cards.iw_investor_check": "投资方",
+   "ui.beat.short.cards.iw_deadline": "期限",
    "ui.stars.label": "下一星差 {n} 项",
    "ui.stars.full": "星已满",
    "ui.stars.title": "升到 ★{n} 还要",
@@ -8321,6 +9798,7 @@
    "ui.terms.restored": "修复",
    "ui.terms.traits": "员工特质",
    "ui.task_log": "{name}闲下来就去做{what}",
+   "ui.because.default_pick": "时间到了，{name}选了“{option}”",
    "ui.because.post": "{name}在“{post}”干了 {n} 圈",
    "ui.because.order": "{names}做完了“{order}”",
    "ui.because.wear": "{place}状况只剩 {n}，周日收盘时没撑住",
@@ -8393,6 +9871,8 @@
    "ui.place.tour_host": "{when}开赛 · 报名费 ${fee} · 做完就算报上名",
    "ui.place.tour_away_early": "{when}出发 · 报名费 ${fee} · 那天才能派人",
    "ui.place.tour_away_now": "今天出发 · 报名费 ${fee}",
+   "ui.place.tour_signup": "{open}开始报名 · {when}比赛",
+   "ui.place.tour_taken": "这一期报不了了 · 等下一期报名",
    "ui.place.badge_host": "赛事",
    "ui.place.badge_away": "外出赛",
    "ui.place.badge_temp": "今天",

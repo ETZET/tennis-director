@@ -10,5 +10,6 @@ when: { all: [{ facility: stadium_1, is: restored }, { upgrade: stadium_1, has: 
 effects:
   - { stat: cash, add: "round(18 * (0.6 + worker.skill / 100) * (1 + stat.reputation / 120))" }
   - { stat: reputation, add: 0.03 }
-wear: 0.6
+# W2 门评审（GM-1 问题 1、试玩 P1）：使用磨损减半（0.6 → 0.3），有人在岗、偶尔维护的场地两周内不再掉到 0
+wear: 0.3
 performance: open_play
