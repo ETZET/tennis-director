@@ -184,6 +184,13 @@ events:
       A: Hire Ray (old grounds chief)
       B: Hire Mateo (ball kid)
       C: Not this time
+  iw_hiring_day_4c:
+    title: The fourth hiring day
+    body: "A local player who learned the game against a packing-house wall in Indio walked in with a bag of old racquets; the young all-rounder from the festival crews came too."
+    options:
+      A: Hire Diego (local player)
+      B: Hire Marco (all-rounder)
+      C: Not this time
 
   iw_route_s2:
     title: Which way does the club grow?
@@ -204,6 +211,7 @@ events:
       A: "Event plaza: a viewing slope for big matches (now: exhibition +5%)"
       B: "Academy isle: a bridge to the island academy (now: academy lessons +$2, junior semifinal +10%)"
 log:
+  night_care: The clay is well cared for; it wears 30% slower this week
   dale_swept: Dale left his post for three hours and fixed up the worst place
   dale_sweep_declined: You told Dale you'd send someone yourself
   started: You arrive at the abandoned Palm Oasis Racquet Club.
@@ -234,6 +242,7 @@ posts:
   o23_upkeep: { title: "Clay courts · Upkeep", note: "Any time; it wears down if nobody looks after it" }
   pr_academy: { title: "Academy · Junior academy", note: "Weekdays 14–18" }
   pr_weekend: { title: "Academy · Weekend open", note: "Weekends 8–13" }
+  pr_camp: { title: "Academy · Weekend camp", note: "Weekends 8–12; needs coaching 60+. Shares the morning with weekend open play" }
   pr_upkeep: { title: "Academy · Upkeep", note: "Any time; it wears down if nobody looks after it" }
   ch_desk: { title: "Clubhouse · Front desk", note: "Daily 8–18: sign-ups, directions, the phone" }
   ch_upkeep: { title: "Clubhouse · Upkeep", note: "Any time: roof, air con, plumbing; it wears down if nobody looks after it" }
@@ -299,6 +308,7 @@ orders:
   st1_exhibition: { title: "Hold the exhibition", note: "Six people for a whole day; the higher the reputation, the better the odds (at most 75% without the build-up)", locked: "★4 and the Stadium rebuilt" }
   pl_tournament: { title: "Play a tournament", note: "Players only, once a week; a small event: the better they play, the likelier a win (prize money, no trophy)" }
   o23_pro_clay: { title: "Tournament clay", note: "$400; needs someone with upkeep 75+. Better courts, but fussier", locked: "Clay courts open, kept as clay" }
+  o23_night_care: { title: "Night care for the clay", note: "$60, 3 hours; needs someone with upkeep 75+. Water, roll and line the clay under the lights: condition +40, then it wears 30% slower for a week; once a week", locked: "Clay courts open, kept as clay; a grounds crew with upkeep 75+" }
   o23_pro_hard: { title: "Pro hard courts", note: "$350; needs someone with upkeep 75+. Wears even slower", locked: "Courts open, rebuilt as hard courts" }
   ch_pro_shop: { title: "Open a pro shop", note: "$500; needs someone with service 65+. Anyone free can mind the counter; it earns while they do", locked: "Clubhouse open" }
   st3_lights: { title: "Put up league lights", note: "$600; night sessions Fri–Sat, power bill +$25/week", locked: "Courts open" }
@@ -412,6 +422,7 @@ bios:
   marco_ruiz: Grew up in Indio and works night shifts on the festival stage crews every spring; he has done a bit of everything.
   ray_delgado: Ran the grounds crew here when the big tournament came in the nineties and retired in Indian Wells; he remembers every pipe, but his knees don't keep up.
   mateo_salgado: Sixteen, from Coachella, a ball kid at the big tournament two years running; he bikes over straight after school.
+  diego_ibarra: Grew up in Indio hitting against the packing-house wall after date-harvest shifts; won the valley junior title at seventeen but never had the money to travel. At twenty-four he is only now getting good.
 
 # Traits: name and a one-line note (numbers in traits.yaml)
 traits:
@@ -483,6 +494,14 @@ route_notes:
 # Phased build-ups (W2)
 prep:
   exhibition: Exhibition build-up
+# Staff growth (W3): what a person who got good enough opens up (shown in the news and the cause log)
+unlocks:
+  junior_coach: "Junior coaching (better semifinal odds at the junior regional; academy lessons earn more and sign up more families)"
+  night_clay_care: "Night care for the clay (a weekly work order on the clay courts)"
+  member_referrals: "Member referrals (room for 10 more members)"
+  open_division: "The higher division at the regional open (double entry fee, double prize)"
+  weekend_camp: "Weekend camp at the academy (two people with coaching 60+, weekend mornings)"
+
 ui:
   route:
     look: Tap to see where it goes
@@ -572,7 +591,7 @@ ui:
     trend: { falling: Falling, recovering: Recovering, flat: Flat, bottomed: Bottomed out }
     next: Coming up
     done: Done
-    rose: Got better today
+    rose: Got better recently
   week: "Wk {n}"
   weather: { sun: Sunny, cloud: Cloudy, rain: Rain · outdoor courts closed, wind: Windy }
   days: { "0": Mon, "1": Tue, "2": Wed, "3": Thu, "4": Fri, "5": Sat, "6": Sun }
@@ -589,6 +608,9 @@ ui:
     closed: "Closed {time}"
     min_crew: "Needs {n} on site"
     trophy: "Trophy +{n}"
+    prize: "Prize ${n}"
+    unlock_extra: "{what} · {tag}"
+    unlock_bonus: "{tag}: {goal} +{n} pts"
   attr: { skill: coaching, upkeep: upkeep, service: service, play: play, morale: morale, fatigue: fatigue }
   then: "Then: {what}"
   ctx:
@@ -618,6 +640,8 @@ ui:
     courts: Courts open
     director: Director style
     seed: Seed
+    member_cap: Members cap
+    cap_plus: "+{n} {what}"
   activity: "{title} · {time} left"
   end:
     again: Play again
@@ -703,6 +727,12 @@ ui:
     tour_again: "entry #{n} · rewards ×{k}"
     prep_done: "{group}: {what} is ready ({done}/{total})"
     prep_all: "{group}: {what} is ready, all four phases done"
+    tour_late: "Too late for the {title}: the sign-up wasn't done before it started · not entered{lost}"
+    tour_late_lost: " · the ${n} spent is lost"
+    coach_hired: "{name} is the new head coach (just hired) · {from} stays on as staff"
+    coach_hired_first: "{name} is the head coach (just hired)"
+    coach_left: "{from} left · {name} takes over as head coach"
+    coach_vacant: "{from} left · the club has no head coach now"
   status:
     empty: "{n} posts have customers waiting and nobody there"
     covered: Every busy spot has someone right now
@@ -739,6 +769,11 @@ ui:
     remodel: "Being remodelled into “{variant}” · reopens in {time}"
     min_crew: "{n}/{need} on site · starts when everyone is here"
     tour_host: "Starts {when} · fee ${fee} · finish it to sign up"
+    unlock_need: "Opens after “{what}” · needs {needs}"
+    unlock_item: "a {who} with {skill} {n}+ (best now {best})"
+    unlock_item_any: "someone with {skill} {n}+ (best now {best})"
+    unlock_item_none: "a {who} with {skill} {n}+ (none on staff yet)"
+    unlocked_idle: "“{what}” unlocked · shows up here when it's needed"
     tour_away_early: "Leaves {when} · fee ${fee} · send people on the day"
     tour_away_now: "Leaves today · fee ${fee}"
     tour_signup: "Sign-up opens {open} · plays {when}"
@@ -788,6 +823,7 @@ ui:
     speed: "Working at {n}%"
     you_coming: "On the way · {time}"
   # 员工成长（W3）和结局卡（W4，UI-10）
+  unlock_tag: { junior_coach: Junior coaching, night_clay_care: Night clay care, member_referrals: Member referrals, open_division: "Higher division ×2", weekend_camp: Weekend camp }
   grow:
     potential: "Potential: {list}"
     pair: "{skill} {from} → {to}"
@@ -795,6 +831,8 @@ ui:
     unlock: "{name} reached {skill} {n} — {what} unlocked"
     unlock_plain: "{what} unlocked ({names})"
     because: "{names} got good enough"
+    reach: "can reach {skill} {n} → {what}"
+    reach_now: "{skill} {n} already → {what}"
   ending:
     topic: Season one · final score
     title: The season is scored

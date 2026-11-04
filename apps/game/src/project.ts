@@ -2,6 +2,7 @@ import {
   type AssignBlock,
   at,
   type CausalEntry,
+  type Cond,
   type ContentBundle,
   canAssign,
   currentEdition,
@@ -10,12 +11,14 @@ import {
   dayOf,
   type Effect,
   type EndingStatus,
+  eligible,
   endingStatus,
   facilityTotals,
   type GameState,
   goalsFor,
   growthOf,
   hasDemand,
+  minCrew,
   minuteOfDay,
   minutes,
   num,
@@ -35,12 +38,16 @@ import {
   servicePass,
   serviceRate,
   shortestRoute,
+  skillOf,
   speedOf,
   staffIds,
   starStatus,
+  type Tournament,
   type TournamentStatus,
+  tagged,
   testCond,
   tournamentStatus,
+  type World,
   wagesWeek,
   walkEta,
   weekdayOf,
@@ -80,6 +87,8 @@ import { entryTone, type Text } from './text';
 
 const KEYS = [1, 2, 3] as const;
 const HISTORY = 48;
+/** 员工条的小 ▲：最近几天里能力涨过（W3 门评审：只看"今天跨过整数"太难看到） */
+const ROSE_DAYS = 3;
 
 export class Projector {
   private readonly wire: WireItem[] = [];
@@ -92,9 +101,8 @@ export class Projector {
   private lastSample = -1;
   /** 上一批事件处理完时每个人手上的活：习惯把人调走时，好说出他放下了什么 */
   private readonly lastJob = new Map<string, string | null>();
-  /** 员工成长（W3）：今天开工时每个人的能力（员工条上"今天长进了"的小 ▲） */
-  private growDay = -1;
-  private readonly dayStart = new Map<string, Record<SkillKind, number>>();
+  /** 员工成长（W3）：最近几天每天开工时每个人的能力（员工条上"这几天长进了"的小 ▲） */
+  private readonly dayStarts = new Map<string, { day: number; v: Record<SkillKind, number> }[]>();
 
   constructor(
     private content: ContentBundle,
@@ -114,6 +122,14 @@ export class Projector {
     for (const e of events) {
       if (e.type === 'skill_up' || e.type === 'unlock' || e.type === 'settlement' || e.type === 'season_two') {
         this.growthWire(s, e, events);
+        continue;
+      }
+      if (e.type === 'head_coach') {
+        this.coachWire(s, e);
+        continue;
+      }
+      if (e.type === 'orderCancelled') {
+        this.lateWire(s, e.order);
         continue;
       }
       if (e.type === 'dayEnded') {
@@ -332,6 +348,110 @@ export class Projector {
       }
     }
     for (const [id, p] of Object.entries(s.people)) this.lastJob.set(id, p.hired ? (p.job ?? null) : null);
+  }
+
+  /** 主教练换人（W3 门评审）：谁接任、为什么（新招来的 / 原来的走了） */
+  private coachWire(s: GameState, e: Extract<SimEvent, { type: 'head_coach' }>): void {
+    const T = this.text;
+    const name = e.person ? T.personName(e.person) : '';
+    const from = e.from ? T.personName(e.from) : '';
+    const key =
+      e.reason === 'hired'
+        ? from
+          ? 'ui.wire.coach_hired'
+          : 'ui.wire.coach_hired_first'
+        : e.person
+          ? 'ui.wire.coach_left'
+          : 'ui.wire.coach_vacant';
+    this.push(s.t, T.fmt(key, { name, from }), e.reason === 'left');
+  }
+
+  /**
+   * 主办赛事的报名工单开赛时还没做完（W3 门评审）：工单作废、没报上名，快讯说清楚为什么、钱白花了多少。
+   * 别的工单作废（条件没了）不讲。
+   */
+  private lateWire(s: GameState, order: string): void {
+    const T = this.text;
+    const w = worldOf(s, this.content);
+    const t = w.tournamentOf.get(order);
+    const ed = t ? currentEdition(w, t.id, s.t) : null;
+    if (!t || !ed || s.t < ed.start || s.events?.[t.id]?.start === ed.start) return;
+    const o = w.orders.get(order);
+    const spent = o ? orderCost(s, o, undefined, w) : 0;
+    this.push(
+      s.t,
+      T.fmt('ui.wire.tour_late', {
+        title: this.tourTitle(s, t.id),
+        lost: spent > 0 ? T.fmt('ui.wire.tour_late_lost', { n: spent }) : '',
+      }),
+      true,
+    );
+  }
+
+  /** 成长解锁的短名字（ui.unlock_tag.<key>；没写就用 unlocks.<key> 括号前那一截） */
+  unlockTag(key: string): string {
+    const T = this.text;
+    const full = T.tr(`unlocks.${key}`, key);
+    return T.tr(`ui.unlock_tag.${key}`, full.split(/\s*[（(]/)[0] || full);
+  }
+
+  /** 条件里一层（all 展开）的各条 */
+  private condParts(c: Cond | undefined): Cond[] {
+    if (!c) return [];
+    return 'all' in c ? c.all.flatMap((x) => this.condParts(x)) : [c];
+  }
+
+  /** 这个条件还有没有可能满足：只看已经锁定的变体（硬地的局永远开不了红土的东西），别的都算"还有可能" */
+  private mayOpen(s: GameState, c: Cond | undefined): boolean {
+    return this.condParts(c).every(
+      (x) => !('variant' in x) || !s.variants?.[x.variant] || s.variants[x.variant] === x.is,
+    );
+  }
+
+  /**
+   * 要成长解锁才有的工单（W3）：还没开出来时说要谁练到多少（现在最高多少）；开出来了、只是此刻不需要时说"已经开出"。
+   * 'skip' = 变体已经锁成别的样子，永远不会有（不挂一行锁）；null = 不归成长管，照旧用内容的 locked 文案。
+   */
+  private unlockGate(s: GameState, w: World, o: Order): string | 'skip' | null {
+    const T = this.text;
+    const g = growthOf(w);
+    if (!g || !o.when) return null;
+    const parts = this.condParts(o.when);
+    const keys = parts.flatMap((c) => ('unlocked' in c ? [c.unlocked] : []));
+    if (!keys.length) return null;
+    if (!this.mayOpen(s, o.when)) return 'skip';
+    const closed = keys.find((k) => !s.unlocks?.[k]);
+    if (closed) {
+      const u = g.unlocks.find((x) => x.key === closed);
+      if (!u) return null;
+      const staff = staffIds(s, w);
+      const needs = u.need.map((n) => {
+        const who = staff.filter((id) => tagged(w, id, n.who));
+        const best = who.length
+          ? Math.round(
+              Math.max(
+                ...who.map((id) => {
+                  const p = s.people[id];
+                  return p ? skillOf(p, n.skill) : 0;
+                }),
+              ),
+            )
+          : null;
+        const whoName = n.who ? T.tr(`kinds.${n.who}`, T.tr(`traits.${n.who}.name`, n.who)).toLowerCase() : '';
+        const key =
+          best === null ? 'ui.place.unlock_item_none' : n.who ? 'ui.place.unlock_item' : 'ui.place.unlock_item_any';
+        return T.fmt(key, { who: whoName, skill: T.tr(`ui.skill.${n.skill}`), n: n.gte, best: best ?? 0 });
+      });
+      return T.fmt('ui.place.unlock_need', {
+        what: this.unlockTag(closed),
+        needs: needs.join(T.lang === 'zh' ? '，' : ', '),
+      });
+    }
+    // 开出来了：别的条件（表达式以外的）都满足 = 只是此刻不需要（例如红土状况还好）
+    const rest = parts.filter((c) => !('unlocked' in c) && !('expr' in c));
+    if (rest.every((c) => testCond(s, w, c)))
+      return T.fmt('ui.place.unlocked_idle', { what: this.unlockTag(keys[0] as string) });
+    return null;
   }
 
   /**
@@ -632,6 +752,28 @@ export class Projector {
     return coming.length ? `${head} · ${this.comingLine(coming)}` : head;
   }
 
+  /**
+   * 会所报告里的会员上限一行（W3 门评审）：现在能装多少会员，成长解锁加了多少（"60 · +10 会员推荐"）。
+   * 加了多少按"没开这把钥匙时"现算一遍上限的差，不在界面里写死。
+   */
+  private capRow(s: GameState, w: World): StatRow[] {
+    const T = this.text;
+    const src = w.act.rules.week?.member_cap;
+    if (src === undefined) return [];
+    const extra = { service_rate: serviceRate(s), service_demand: hasDemand(s) ? 1 : 0 };
+    try {
+      const cap = Math.round(num(s, w, src, extra));
+      const parts = Object.keys(s.unlocks ?? {}).flatMap((k) => {
+        const { [k]: _, ...rest } = s.unlocks;
+        const d = cap - Math.round(num({ ...s, unlocks: rest }, w, src, extra));
+        return d > 0 ? [T.fmt('ui.details.cap_plus', { n: d, what: this.unlockTag(k) })] : [];
+      });
+      return [{ label: T.tr('ui.details.member_cap'), value: [String(cap), ...parts].join(' · ') }];
+    } catch {
+      return [];
+    }
+  }
+
   snapshot(session: Session): HudSnapshot {
     const { s } = session;
     const T = this.text;
@@ -662,6 +804,7 @@ export class Projector {
       { label: T.tr('stats.restoration'), value: `${Math.round(s.stats.restoration ?? 0)}/${w.facilities.size}` },
       { label: T.tr('ui.details.courts'), value: `${fac.courts}/${totalCourts}` },
       { label: T.tr('ui.details.wages'), value: `$${wagesWeek(s, w)}` },
+      ...this.capRow(s, w),
       ...Object.entries(s.facilities).map(([id, st]) => {
         const [name, state] = T.facilityState(id, st).split(' · ');
         const c = Math.round(s.condition[id] ?? 100);
@@ -1013,22 +1156,24 @@ export class Projector {
     const { s } = session;
     const w = worldOf(s, this.content);
     const grows = !!growthOf(w);
-    if (grows && dayOf(s.t) !== this.growDay) {
-      this.growDay = dayOf(s.t);
-      this.dayStart.clear();
-    }
+    const day = dayOf(s.t);
     return staffIds(s, w)
       .sort((a, b) => (a === DIRECTOR ? -1 : b === DIRECTOR ? 1 : 0))
       .map((id) => {
         const p = s.people[id];
         const d = this.doing(s, id);
         const player = this.content.people.find((x) => x.id === id)?.kind === 'player';
-        // 员工成长（W3）：潜力是条上淡淡的一截；今天有能力涨过一个整数，名字旁一个小 ▲
+        // 员工成长（W3）：潜力是条上框出来的一截；最近 ROSE_DAYS 天里有能力涨过，名字旁一个小 ▲
         let growth: Pick<StaffToken, 'potential' | 'rose'> = {};
         if (grows && p) {
           const now: Record<SkillKind, number> = { teach: p.skill, upkeep: p.upkeep, service: p.service, play: p.play };
-          const start = this.dayStart.get(id) ?? now;
-          this.dayStart.set(id, start);
+          let hist = this.dayStarts.get(id) ?? [];
+          // 第二季时钟往回走：重新记
+          if (hist.length && (hist.at(-1)?.day ?? 0) > day) hist = [];
+          if (!hist.length || hist.at(-1)?.day !== day) hist.push({ day, v: now });
+          hist = hist.filter((x) => x.day > day - ROSE_DAYS);
+          this.dayStarts.set(id, hist);
+          const start = hist[0]?.v ?? now;
           const keys: SkillKind[] = player ? ['teach', 'upkeep', 'service', 'play'] : ['teach', 'upkeep', 'service'];
           growth = {
             potential: {
@@ -1037,7 +1182,7 @@ export class Projector {
               service: potentialOf(w, id, 'service'),
               ...(player ? { play: potentialOf(w, id, 'play') } : {}),
             },
-            ...(keys.some((k) => Math.floor(now[k] + 1e-6) > Math.floor(start[k] + 1e-6)) ? { rose: true } : {}),
+            ...(keys.some((k) => now[k] - start[k] > 0.05) ? { rose: true } : {}),
           };
         }
         return {
@@ -1056,6 +1201,22 @@ export class Projector {
           ...(p?.errand ? { locked: true } : {}),
         };
       });
+  }
+
+  /**
+   * 派谁去里的能力一项。成长关着：干活时的能力（含特质）。成长开着（W3）：底子/潜力（"维护 78/78"），
+   * 特质此刻的加成另写在后面（"+15"）——潜力只截底子，不和含特质的数比（不会出现"93/78"）。
+   */
+  private skillFit(s: GameState, w: World, id: string, skill: SkillKind): string {
+    const T = this.text;
+    const label = T.tr(`ui.skill.${skill}`);
+    const work = Math.round(workSkill(s, w, id, skill));
+    if (!growthOf(w)) return `${label} ${work}`;
+    const p = s.people[id];
+    const base = Math.round(p ? skillOf(p, skill) : 0);
+    const cap = Math.round(potentialOf(w, id, skill));
+    const bonus = work - base;
+    return `${label} ${base}/${Math.max(cap, base)}${bonus > 0 ? ` +${bonus}` : ''}`;
   }
 
   /** 每圈大概带来什么：把岗位效果里的数折成标签（表达式按在岗这个人的能力估） */
@@ -1128,12 +1289,93 @@ export class Projector {
         ),
       );
     }
+    if (tour) chips.push(...this.goalChips(s, w, o, tour));
     if (st.chance !== null)
       chips.push({ text: T.fmt('ui.chip.chance', { p: Math.round(st.chance * 100) }), tone: 'risk' });
-    chips.push(...effectChips(T, o.effects));
+    chips.push(...this.liveChips(s, w, o.effects));
     if (st.chance !== null) chips.push(...effectChips(T, o.onSuccess, st.chance));
     if (o.restore) chips.push({ text: T.fmt('ui.sheet.restore_done', { n: o.restore }), tone: 'gain' });
     return chips;
+  }
+
+  /**
+   * 带条件的效果（if）：条件此刻不满足的不出标签；靠成长解锁才有的那一份标上是哪把钥匙
+   * （"−$200 · 高一级组别 ×2"，W3 门评审：以前两个一样的报名费标签分不清）。
+   */
+  private liveChips(s: GameState, w: World, effs: readonly Effect[]): Chip[] {
+    const T = this.text;
+    return effs.flatMap((e) => {
+      if (e.if && !testCond(s, w, e.if)) return [];
+      const key = e.if && 'unlocked' in e.if ? e.if.unlocked : null;
+      const chips = effectChips(T, [e]);
+      return key
+        ? chips.map((c) => ({ ...c, text: T.fmt('ui.chip.unlock_extra', { what: c.text, tag: this.unlockTag(key) }) }))
+        : chips;
+    });
+  }
+
+  /**
+   * 赛事报名工单上附加目标的奖金和成长解锁的加成（W3 门评审）：
+   * - 奖金按这一期的折扣现算，解锁加倍的那份算进去并标上钥匙（"奖金 $1600 · 高一级组别 ×2"）；
+   * - 目标把握里有 unlocked.<钥匙> 的，开出来以后写它加了多少个百分点（"青少年带教：进四强 +20"）。
+   *   把握按派得上的人里能力最高的那个估，开没开钥匙各算一遍取差。
+   */
+  private goalChips(s: GameState, w: World, o: Order, tour: Tournament): Chip[] {
+    const T = this.text;
+    const repeat = s.tournaments?.[tour.id]?.entries ?? 0;
+    const k = repeat > 0 ? tour.repeat.scale : 1;
+    const out: Chip[] = [];
+    const lead = staffIds(s, w)
+      .filter((id) => eligible(w, id, o))
+      .reduce((m, id) => Math.max(m, workSkill(s, w, id, o.skill)), 0);
+    const vars = {
+      'event.service_rate': 1,
+      'event.staffed': 1,
+      'event.skill': lead,
+      'event.crew': Math.max(1, minCrew(s, w, o)),
+      'event.repeat': repeat,
+    };
+    for (const g of goalsFor(tour, repeat)) {
+      const live = g.reward.filter((e) => !e.if || testCond(s, w, e.if));
+      let cash = 0;
+      let key: string | null = null;
+      for (const e of live)
+        if ('stat' in e && e.stat === 'cash' && 'add' in e && typeof e.add === 'number') {
+          cash += Math.round(e.add * k);
+          if (e.if && 'unlocked' in e.if) key = e.if.unlocked;
+        }
+      if (cash > 0) {
+        const text = T.fmt('ui.chip.prize', { n: cash });
+        out.push({
+          text: key ? T.fmt('ui.chip.unlock_extra', { what: text, tag: this.unlockTag(key) }) : text,
+          tone: 'gain',
+        });
+      }
+      if (typeof g.chance !== 'string') continue;
+      for (const m of g.chance.matchAll(/\bunlocked\.(\w+)/g)) {
+        const u = m[1] as string;
+        if (!s.unlocks?.[u]) continue;
+        try {
+          const { [u]: _, ...rest } = s.unlocks;
+          const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
+          const d = Math.round(
+            (clamp01(num(s, w, g.chance, vars)) - clamp01(num({ ...s, unlocks: rest }, w, g.chance, vars))) * 100,
+          );
+          if (d > 0)
+            out.push({
+              text: T.fmt('ui.chip.unlock_bonus', {
+                tag: this.unlockTag(u),
+                goal: T.tr(`tournaments.${tour.id}.goals.${g.id}`, g.id),
+                n: d,
+              }),
+              tone: 'gain',
+            });
+        } catch {
+          // 表达式读不出来就不写加成
+        }
+      }
+    }
+    return out;
   }
 
   /** 升级的名字（文案 upgrades.<设施>.<升级>） */
@@ -1208,10 +1450,8 @@ export class Projector {
         const here = p?.job === target;
         const block: AssignBlock = canAssign(s, w, id, target);
         const walk = this.walkMinutes(s, id, def.at);
-        // 员工成长（W3）：能力后面带上潜力（"教学 58/73"）
-        const cap = growthOf(w) ? `/${Math.round(potentialOf(w, id, skill))}` : '';
         const fit = [
-          `${T.tr(`ui.skill.${skill}`)} ${Math.round(workSkill(s, w, id, skill))}${cap}`,
+          this.skillFit(s, w, id, skill),
           walk ? T.fmt('ui.sheet.walk', { time: T.duration(walk) }) : T.tr('ui.sheet.here'),
           p?.job && !here ? T.fmt('ui.sheet.leaves', { what: this.targetTitle(p.job) }) : '',
         ]
@@ -1504,12 +1744,15 @@ export class Projector {
       if (fac && o.remodel && s.variants?.[fac] === o.remodel) continue;
       // 赛事的报名工单：条件够了、只是还没到报名的日子（或这一期已经报过 / 打过），写真正的原因和日子
       const tsl = w.tournamentOf.has(o.id) ? tours.find((x) => x.id === w.tournamentOf.get(o.id)?.id) : undefined;
+      const gate = this.unlockGate(s, w, o);
+      if (gate === 'skip') continue;
       const how =
-        tsl?.eligible && s.t < tsl.signup
+        gate ??
+        (tsl?.eligible && s.t < tsl.signup
           ? T.fmt('ui.place.tour_signup', { open: this.when(s, tsl.signup), when: this.when(s, tsl.start) })
           : tsl?.eligible && s.t < tsl.end
             ? T.tr('ui.place.tour_taken')
-            : T.tr(`orders.${o.id}.locked`, '');
+            : T.tr(`orders.${o.id}.locked`, ''));
       if (!how) continue;
       rows.push({
         id: o.id,
@@ -2075,9 +2318,26 @@ export class Projector {
       .filter((x) => x.to > x.from)
       .sort((a, b) => b.to - a.to || b.to - b.from - (a.to - a.from))
       .slice(0, 2);
-    if (!rows.length) return null;
+    // 潜力够得着某条成长解锁的门槛（W3 门评审）："能练到维护 75 → 红土夜间养护"
+    const reach: string[] = [];
+    for (const u of growthOf(w)?.unlocks ?? []) {
+      if (s.unlocks?.[u.key] || !this.mayOpen(s, u.when)) continue;
+      const n = u.need.find((x) => tagged(w, id, x.who) && potentialOf(w, id, x.skill) >= x.gte);
+      if (!n) continue;
+      const from = n.skill === 'teach' ? d.skill : d[n.skill];
+      reach.push(
+        T.fmt(from >= n.gte ? 'ui.grow.reach_now' : 'ui.grow.reach', {
+          skill: T.tr(`ui.skill.${n.skill}`),
+          n: n.gte,
+          what: this.unlockTag(u.key),
+        }),
+      );
+    }
+    if (!rows.length && !reach.length) return null;
     const list = rows.map((x) => T.fmt('ui.grow.pair', { skill: T.tr(`ui.skill.${x.k}`), from: x.from, to: x.to }));
-    return T.fmt('ui.grow.potential', { list: list.join(' · ') });
+    return [rows.length ? T.fmt('ui.grow.potential', { list: list.join(' · ') }) : '', ...reach]
+      .filter(Boolean)
+      .join(' · ');
   }
 
   /** 结局卡（W4）的选项标签：马上结算拿多少提前奖励、现在结算是几分；接着经营到第几天、要担什么 */

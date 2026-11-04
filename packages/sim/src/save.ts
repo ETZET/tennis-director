@@ -188,6 +188,13 @@ export const MIGRATIONS: Record<number, Migration> = {
     state.version = 12;
     return { ...save, version: 12, state };
   },
+  // 12 → 13（W3 夜间养护）：没有正在打折的衰减
+  12: (save) => {
+    const state = { ...(save.state as Record<string, unknown>) };
+    state.decayMult ??= {};
+    state.version = 13;
+    return { ...save, version: 13, state };
+  },
 };
 
 export class SaveError extends Error {}

@@ -15,11 +15,12 @@
 .td-tok-doing{font:500 11px/1.15 var(--td-text,sans-serif);color:#dfe6ef;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:112px}
 .td-tok-idle .td-tok-doing,.td-tok-waiting .td-tok-doing{color:#ffc8b5}
 .td-tok-skills{display:flex;gap:3px}
-.td-sk{width:26px;height:4px;background:rgba(255,255,255,.18)}
-.td-sk{position:relative}
+.td-sk{position:relative;width:26px;height:5px;background:rgba(255,255,255,.12)}
 .td-sk i{position:relative;display:block;height:100%}
-.td-sk em{position:absolute;left:0;top:0;bottom:0;background:rgba(255,255,255,.22)}
-.td-tok-rose{margin-left:3px;font-size:9px;color:#7fe0a0;vertical-align:2px}
+/* 潜力（W3）：能力能长到的那一截框出来，末端一道白线是上限（W3 门评审：以前 22% 白几乎看不见） */
+.td-sk em{position:absolute;left:0;top:-1px;bottom:-1px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.6);background:rgba(255,255,255,.1)}
+.td-sk em::after{content:"";position:absolute;right:-1px;top:-2px;bottom:-2px;width:2px;background:#fff}
+.td-tok-rose{margin-left:3px;font-size:10px;color:#7fe0a0;vertical-align:1px}
 .td-sk-teach i{background:#d8c08a}
 .td-sk-upkeep i{background:#9be07f}
 .td-sk-service i{background:#c9e8ff}
@@ -97,11 +98,13 @@
 .td-place-cond .td-sheet-bar i{background:#9be07f}
 .td-place-cond-low{color:#ffc8b5}
 .td-place-cond-low .td-sheet-bar i{background:#ff8a6b}
-.td-staff-many .td-tok>button{max-width:104px;gap:5px;padding:3px 6px 3px 3px;min-height:48px}
+/* 人多了（4 个以上）：紧凑一点，但名字不截断（W3 门评审："Direc…"）；一排放不下就横着滑
+ * （左右滑交给浏览器滚动，往上拖才是拿人：touch-action:pan-x） */
+.td-staff-many .td-tok>button{max-width:none;gap:5px;padding:3px 6px 3px 3px;min-height:48px;touch-action:pan-x}
 .td-staff-many .td-tok-face{width:34px;height:34px;font-size:13px}
-.td-staff-many .td-tok-text b{font-size:12px}
-.td-staff-many .td-tok-doing{font-size:10px;max-width:60px}
-.td-staff-many .td-sk{width:17px}
+.td-staff-many .td-tok-text b{font-size:12px;overflow:visible;text-overflow:clip}
+.td-staff-many .td-tok-doing{font-size:10px;max-width:68px}
+.td-staff-many .td-sk{width:20px}
 /* 修复变体（UI-11）：工单下面缩进的一行一个变体；点了开预览（青色框），拖人上去按这个变体开工 */
 .td-variants{list-style:none;margin:2px 0 0 22px;padding:0;display:flex;flex-direction:column;gap:3px}
 .td-variant{width:100%;min-height:48px;display:flex;align-items:center;gap:8px;padding:4px 6px 4px 8px;border:0;border-left:3px dashed rgba(255,255,255,.35);background:rgba(255,255,255,.05);color:#fff;text-align:left;cursor:pointer;touch-action:manipulation}

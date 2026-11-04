@@ -124,6 +124,14 @@ export const effect = z.union([
   }),
   /** 改设施状况 0..100（例如大风把沙吹进场地） */
   z.strictObject({ ...gate, condition: id, add: amount }),
+  /**
+   * 一段时间内衰减打折（W3）：这处设施收盘衰减 × factor，持续 days 天（从现在起算 days × 24 小时）。
+   * 同一处再来一次就换成新的（倍数和到期都换）。岗位每圈的 wear 不打折。例如夜间养护：{ facility: outer_23, factor: 0.7, days: 7 }
+   */
+  z.strictObject({
+    ...gate,
+    decay_mult: z.strictObject({ facility: id, factor: z.number().min(0).max(2), days: z.number().positive() }),
+  }),
   /** 在因果日志里写一行文案 */
   z.strictObject({ ...gate, log: z.string() }),
   /** 结束本幕 */
@@ -553,6 +561,15 @@ export const growth = z.strictObject({
   enabled: z.boolean().default(false),
   /** 每干完一圈岗位或一张工单，那项能力涨多少（不超过潜力） */
   rate: z.number().min(0).default(0.2),
+  /** 分项涨幅：写了的能力用它，不写的用 rate（例如 { upkeep: 0.3, teach: 0.15 }） */
+  rates: z
+    .strictObject({
+      teach: z.number().min(0).optional(),
+      upkeep: z.number().min(0).optional(),
+      service: z.number().min(0).optional(),
+      play: z.number().min(0).optional(),
+    })
+    .optional(),
   /** 默认潜力 = 起始值 + headroom */
   headroom: z.number().min(0).default(15),
   /** 带这些特质的人潜力再加多少（默认大器晚成 +10） */

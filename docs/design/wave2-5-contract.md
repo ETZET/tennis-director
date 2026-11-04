@@ -279,6 +279,7 @@ default: { then: A }
 growth:
   enabled: true
   rate: 0.2                 # 每干完一圈岗位 / 一张工单，那项能力 +0.2（不超过潜力）。默认 0.2
+  rates: { upkeep: 0.15, teach: 0.08 }   # 可选：分项涨幅，写了的能力用它、不写的用 rate（teach / upkeep / service / play）
   headroom: 15              # 默认潜力 = 起始值 + 15（截在 100）
   traits: { late_bloomer: 10 }   # 带这些特质的潜力再加（默认大器晚成 +10 → 起始值 +25）
   skills: [teach, upkeep, service]   # 哪些能力按干活涨（默认不含 play，见下）
@@ -291,8 +292,8 @@ growth:
     - key: member_referrals
       need: [{ skill: service, gte: 70 }]
       effects: [{ stat: member_cap_bonus, add: 10 }]  # 举例：内容自己决定落在哪
-    - key: weekend_camp               # 组合：每条 need 由不同的人满足
-      need: [{ skill: teach, gte: 60, who: coach }, { skill: teach, gte: 60, who: trainer }]
+    - key: weekend_camp               # 组合：每条 need 由不同的人满足（Indian Wells 的第二条不写 who：第二名教练、Kofi 或总监）
+      need: [{ skill: teach, gte: 60, who: coach }, { skill: teach, gte: 60 }]
 ```
 
 - 总监不走 `rate`：照旧 `rules.director_growth`（0.3）/ `director_skill_cap`（80），不重复算；成长打开时总监也发 `skill_up`、也能满足 need。
@@ -321,8 +322,20 @@ growth:
 ### 领域事件和日志
 
 - `skill_up { person, skill, value }`：value 是跨过的门槛（5 的整数倍或解锁的 gte）。只在成长打开时发。
+- `head_coach { person, from, reason }`：主教练换人。`reason: 'hired'` = 招来的教练接任（from 是原来的主教练，可为 null）；`'left'` = 主教练走了，由还在的教练接上（person 为 null = 空缺）。成长关着也发。
 - `unlock { person, key }`：同时写一条因果日志 `{ kind: 'unlock', key, person, people }`（people 是满足各条 need 的人），效果记在这一条下。
-- 模拟导出 `potentialOf(w, person, skill)`、`growthOf(w)`、`bestSkill`、`anySkilled`（招聘卡的"潜力"一行用 `potentialOf`）。
+- 模拟导出 `potentialOf(w, person, skill)`、`growthOf(w)`、`bestSkill`、`anySkilled`、`tagged`（招聘卡的"潜力"一行用 `potentialOf`）；`rateOf(growth, skill)`（growth.ts）是某项能力每圈的涨幅。
+- 潜力只截底子（不含特质）。派谁去里显示"底子/潜力 +特质此刻的加成"（"维护 78/78 +15"），不拿含特质的数和潜力比。
+
+### 效果 `decay_mult`（W3 跟进：夜间养护）
+
+```yaml
+effects: [{ decay_mult: { facility: outer_23, factor: 0.7, days: 7 } }]
+```
+
+- 这处设施收盘衰减（`dayDecay`）再乘 `factor`（0..2），从现在起 `days × 24` 小时内有效；同一处再来一次就换成新的倍数和到期。岗位每圈的 `wear` 不打折。
+- 状态 `decayMult: Record<facility, { factor, until }>`（存档版本 **13**，12 → 13 迁移补 `{}`）；效果记录 `{ kind: 'decay_mult', facility, factor, until }`（界面不讲，工单自己带一行 `log`）。
+- `o23_night_care` 用它：`restore: 40` + 一周内衰减 ×0.7（以前的 +5 折算去掉了）。
 
 ### 显示
 

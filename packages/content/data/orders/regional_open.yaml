@@ -13,4 +13,6 @@ min_crew: "stars >= 3 ? 2 : 1"
 only: [player, coach]
 effects:
   - { person: worker, add: { play: 1 } }
+  # 高一级组别（W3 成长解锁 open_division）：报名费 ×2——赛事的 fee 是定数，多出来的 $200 在赛场上交
+  - { stat: cash, add: -200, if: { unlocked: open_division } }
 performance: match

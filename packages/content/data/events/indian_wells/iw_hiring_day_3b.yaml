@@ -14,21 +14,30 @@ options:
       - { hire: teo_ilic }
       # 下一个招聘日来哪一拨人，按这一局的种子抽（docs/design/people.md「招聘日怎么出人」）
       - { flag: iw_hiring_day_4_b, set: true, chance: "route.s2 == \"youth\" ? 0.2 : (route.s2 == \"resort\" ? 0.8 : 0.5)" }
-      - { schedule: iw_hiring_day_4, in: 14d, if: { not: { flag: iw_hiring_day_4_b } } }
-      - { schedule: iw_hiring_day_4b, in: 14d, if: { flag: iw_hiring_day_4_b } }
+      # 球员稀缺（GM-11）：还没有球员的局，一半来的是 c 拨（本地球员 Diego）；已经有球员的局两成
+      - { flag: iw_hiring_day_4_c, set: true, chance: "hired.player == 0 ? 0.5 : 0.2" }
+      - { schedule: iw_hiring_day_4, in: 14d, if: { all: [{ not: { flag: iw_hiring_day_4_b } }, { not: { flag: iw_hiring_day_4_c } }] } }
+      - { schedule: iw_hiring_day_4b, in: 14d, if: { all: [{ flag: iw_hiring_day_4_b }, { not: { flag: iw_hiring_day_4_c } }] } }
+      - { schedule: iw_hiring_day_4c, in: 14d, if: { flag: iw_hiring_day_4_c } }
   B:
     effects:
       - { hire: lily_chen }
       # 下一个招聘日来哪一拨人，按这一局的种子抽（docs/design/people.md「招聘日怎么出人」）
       - { flag: iw_hiring_day_4_b, set: true, chance: "route.s2 == \"youth\" ? 0.2 : (route.s2 == \"resort\" ? 0.8 : 0.5)" }
-      - { schedule: iw_hiring_day_4, in: 14d, if: { not: { flag: iw_hiring_day_4_b } } }
-      - { schedule: iw_hiring_day_4b, in: 14d, if: { flag: iw_hiring_day_4_b } }
+      # 球员稀缺（GM-11）：还没有球员的局，一半来的是 c 拨（本地球员 Diego）；已经有球员的局两成
+      - { flag: iw_hiring_day_4_c, set: true, chance: "hired.player == 0 ? 0.5 : 0.2" }
+      - { schedule: iw_hiring_day_4, in: 14d, if: { all: [{ not: { flag: iw_hiring_day_4_b } }, { not: { flag: iw_hiring_day_4_c } }] } }
+      - { schedule: iw_hiring_day_4b, in: 14d, if: { all: [{ flag: iw_hiring_day_4_b }, { not: { flag: iw_hiring_day_4_c } }] } }
+      - { schedule: iw_hiring_day_4c, in: 14d, if: { flag: iw_hiring_day_4_c } }
   C:
     effects:
       # 不招：省下工资，活还是那几个人干
       - { log: log.no_hire }
       # 下一个招聘日来哪一拨人，按这一局的种子抽（docs/design/people.md「招聘日怎么出人」）
       - { flag: iw_hiring_day_4_b, set: true, chance: "route.s2 == \"youth\" ? 0.2 : (route.s2 == \"resort\" ? 0.8 : 0.5)" }
-      - { schedule: iw_hiring_day_4, in: 14d, if: { not: { flag: iw_hiring_day_4_b } } }
-      - { schedule: iw_hiring_day_4b, in: 14d, if: { flag: iw_hiring_day_4_b } }
+      # 球员稀缺（GM-11）：还没有球员的局，一半来的是 c 拨（本地球员 Diego）；已经有球员的局两成
+      - { flag: iw_hiring_day_4_c, set: true, chance: "hired.player == 0 ? 0.5 : 0.2" }
+      - { schedule: iw_hiring_day_4, in: 14d, if: { all: [{ not: { flag: iw_hiring_day_4_b } }, { not: { flag: iw_hiring_day_4_c } }] } }
+      - { schedule: iw_hiring_day_4b, in: 14d, if: { all: [{ flag: iw_hiring_day_4_b }, { not: { flag: iw_hiring_day_4_c } }] } }
+      - { schedule: iw_hiring_day_4c, in: 14d, if: { flag: iw_hiring_day_4_c } }
 default: { then: C }

@@ -5,7 +5,18 @@
  * 同一套模拟能在浏览器里跑，也能在 apps/sim-cli 里无头跑一千局。
  */
 
-export type { Activity, Card, ContentBundle, Effect, OptionKey, Order, Post, SkillKind } from '@td/content';
+export type {
+  Activity,
+  Card,
+  Cond,
+  ContentBundle,
+  Effect,
+  OptionKey,
+  Order,
+  Post,
+  SkillKind,
+  Tournament,
+} from '@td/content';
 export { CONTENT, minutes } from '@td/content';
 export * from './bots';
 export {
@@ -101,6 +112,7 @@ export {
   servicePass,
   serviceRate,
   stateDef,
+  tagged,
   test as testCond,
   wagesWeek,
 } from './vars';

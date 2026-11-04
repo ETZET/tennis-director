@@ -1,0 +1,26 @@
+# 红土场 · 夜间养护（W3 成长解锁 night_clay_care：一名维护工的维护底子到了 75）。收场以后浇水、滚压、拖平、补线，
+# 灯下干三小时，第二天早上的红土像新的一样。只有底子维护 ≥ 75 的人干得了（准则 5：人是钥匙）。
+# 比"又积沙了"（o23_tidy，谁都能扫，状况 < 40 才冒出来）好得多，但要那个人三小时、$60 的水和白线，一周一次。
+# 设计表：状况 +40、一周内衰减 ×0.7（效果 decay_mult；岗位每圈的 wear 照算不打折）。
+# W3 门试玩（P1）：以前还要"状况 < 75"才出现，可开出它的人一直守着红土场，状况常年 90+，解锁以后工单永远不冒出来。
+# 现在解锁了就每周可以做一次：场子好的时候 +40 多半溢出，换来的是一周掉得慢三成和一点口碑；值不值看那个人那三小时能不能干别的。
+id: o23_night_care
+act: indian_wells
+at: outer_23
+skill: upkeep
+work: 3h
+cost: 60
+crew: 1
+cooldown: 7d
+when:
+  all:
+    - { unlocked: night_clay_care }
+    - { facility: outer_23, is: playable }
+    - { variant: outer_23, is: clay }
+worker: { upkeep: 75 }
+restore: 40
+effects:
+  - { decay_mult: { facility: outer_23, factor: 0.7, days: 7 } }
+  - { log: log.night_care }
+  - { stat: reputation, add: 0.5 }
+performance: workday
