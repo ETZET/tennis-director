@@ -90,11 +90,15 @@ interface IsoWorld {
   render(dt: number, now: number): void;  // dt 秒，now 演出时间（秒）
   dispose(): void;                  // 拆掉画布和事件
 }
-interface IsoWorldOptions { sky: string; bounds: Rect; slab?: Rect; slabDepth?: number; pose?: IsoCameraPose; pixelSize?: number }
+interface IsoWorldOptions { sky: string; bounds: Rect; slab?: Rect | Rect[]; slabDepth?: number; pose?: IsoCameraPose; pixelSize?: number }
+// IsoWorld 还有：setSlab(rects: Rect | Rect[], bounds?: Rect): void  // 地台换轮廓（地图长大）
 function createIsoWorld(container: HTMLElement, o: IsoWorldOptions): IsoWorld;
 ```
 
 - `slab` 是地台（浮空岛，ADR 0005）的范围，地面贴图只覆盖它；默认 `bounds` 外扩 12 米。Indian Wells 用 `indianWells.INDIAN_WELLS_WORLD`（含 `SLAB`）。`slabDepth` 是地台侧面的厚度（米，默认 7），动画库的小岛卡片用薄一些的地台；小岛自己不再建岛体方块，侧面全由 IsoView 画。
+- **地台可以是几块矩形拼出的轮廓（ADR 0021）。** `slab` 给矩形数组时，`IsoView` 用 `slabOutline(rects)`（`core/ground.ts`）把它们合并成外轮廓：按所有矩形的边切格子，"格子在里、隔壁在外"的格边是外墙，同一直线上、同朝向、首尾相接的并成一面；重叠、相接、分开（靠岸的小岛）都行。朝镜头的墙从远到近画，土层只看"离地面多深"，所以几面墙的土层在同一高度接上；内角两面墙直接相接，不留缝、不加竖线（现在地台本来就没有切角和竖边线，外角和单块矩形时一样）。**单块矩形走原来的代码路径，像素和以前完全一样。**
+- 地面贴图覆盖几块矩形的外包框；框里不在地台上的纹素是 0（透明），`paintRect` 不会画进去（`GroundPainter.mask`、`onSlab(x, z)`）。
+- `world.setSlab(rects, bounds?)` 在运行时换轮廓：贴图换成新外包框，画过的纹素按世界坐标原样搬过去（外包框西北角不动时纹素下标也不变，`hash(i, j)` 花纹对得上），新进地台的纹素填底色、出了地台的清成 0，地面版本号、灯光图、背景地平线都重算；旋转中心不动，镜头不跳。新地的地面由场景自己画上去（Palm Oasis 见 `site/indian-wells/land.ts`，挂在 `foreshadow.ts` 的 `afterPaintGround` 上）。给了 `bounds` 就同时放宽镜头平移范围。按 ADR 0021，新地只往东南、西北角长（竖屏只变高不变宽）。
 - `bounds` 同时是镜头平移的默认限制。`createIsoWorld` 自己 `bindPointer`、监听 `resize`。
 - `render` 在宿主这一帧没调 `camera.update` 时自己补一次；地面绘制和 `addLamp` 会自动标脏静态层。
 

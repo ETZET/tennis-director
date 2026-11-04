@@ -1,5 +1,6 @@
 import { clamp, fbm, hash, mixP, mulP, ph, vnoise } from '../../core/color';
 import type { CourtFrame } from '../../world/frame';
+import { afterPaintGround } from './foreshadow';
 import {
   DRIVE,
   F_O1,
@@ -515,4 +516,7 @@ export function paintGround(g: GroundLike, fac: Facilities, casts: readonly Cast
       return t0 <= t1 ? shade(c) : 0;
     });
   }
+
+  // 地图长大（ADR 0021）：伏笔（高尔夫西段的荒草、南门两边的积沙）和已经开了的新地，画在最后
+  afterPaintGround(g);
 }

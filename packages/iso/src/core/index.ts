@@ -6,7 +6,16 @@ export { bay, clamp, fbm, hash, hx, mixP, mulP, nightP, nightRGB, Palette, ph, p
 export { createDaylight, type Daylight, daylightAt, type Light, NOON } from './daylight';
 export { SceneDrawer } from './draw';
 export * from './graph';
-export { type CircFn, GroundPainter, type Lamp, type PaintFn, type Rect } from './ground';
+export {
+  type CircFn,
+  GroundPainter,
+  type Lamp,
+  type PaintFn,
+  type Rect,
+  rectsBounds,
+  type SlabWall,
+  slabOutline,
+} from './ground';
 export { HV, K1, Projection } from './proj';
 export { type BoxOpts, faceF, LX, LZ, Raster, type ZMode, ZNONE, ZTEST, ZWRITE } from './raster';
 export { IsoView, type IsoViewOptions, type ViewStats } from './view';
