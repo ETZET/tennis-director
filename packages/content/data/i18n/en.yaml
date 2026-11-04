@@ -184,6 +184,13 @@ events:
       A: Hire Ray (old grounds chief)
       B: Hire Mateo (ball kid)
       C: Not this time
+  iw_hiring_day_4c:
+    title: The fourth hiring day
+    body: "A local player who learned the game against a packing-house wall in Indio walked in with a bag of old racquets; the young all-rounder from the festival crews came too."
+    options:
+      A: Hire Diego (local player)
+      B: Hire Marco (all-rounder)
+      C: Not this time
 
   iw_route_s2:
     title: Which way does the club grow?
@@ -234,6 +241,7 @@ posts:
   o23_upkeep: { title: "Clay courts · Upkeep", note: "Any time; it wears down if nobody looks after it" }
   pr_academy: { title: "Academy · Junior academy", note: "Weekdays 14–18" }
   pr_weekend: { title: "Academy · Weekend open", note: "Weekends 8–13" }
+  pr_camp: { title: "Academy · Weekend camp", note: "Weekends 8–12; a coach or the fitness coach. Shares the morning with weekend open play" }
   pr_upkeep: { title: "Academy · Upkeep", note: "Any time; it wears down if nobody looks after it" }
   ch_desk: { title: "Clubhouse · Front desk", note: "Daily 8–18: sign-ups, directions, the phone" }
   ch_upkeep: { title: "Clubhouse · Upkeep", note: "Any time: roof, air con, plumbing; it wears down if nobody looks after it" }
@@ -299,6 +307,7 @@ orders:
   st1_exhibition: { title: "Hold the exhibition", note: "Six people for a whole day; the higher the reputation, the better the odds (at most 75% without the build-up)", locked: "★4 and the Stadium rebuilt" }
   pl_tournament: { title: "Play a tournament", note: "Players only, once a week; a small event: the better they play, the likelier a win (prize money, no trophy)" }
   o23_pro_clay: { title: "Tournament clay", note: "$400; needs someone with upkeep 75+. Better courts, but fussier", locked: "Clay courts open, kept as clay" }
+  o23_night_care: { title: "Night care for the clay", note: "$60, 3 hours; needs someone with upkeep 75+. Water, roll and line the clay under the lights: condition +45, once a week", locked: "Clay courts open, kept as clay; a grounds crew with upkeep 75+" }
   o23_pro_hard: { title: "Pro hard courts", note: "$350; needs someone with upkeep 75+. Wears even slower", locked: "Courts open, rebuilt as hard courts" }
   ch_pro_shop: { title: "Open a pro shop", note: "$500; needs someone with service 65+. Anyone free can mind the counter; it earns while they do", locked: "Clubhouse open" }
   st3_lights: { title: "Put up league lights", note: "$600; night sessions Fri–Sat, power bill +$25/week", locked: "Courts open" }
@@ -412,6 +421,7 @@ bios:
   marco_ruiz: Grew up in Indio and works night shifts on the festival stage crews every spring; he has done a bit of everything.
   ray_delgado: Ran the grounds crew here when the big tournament came in the nineties and retired in Indian Wells; he remembers every pipe, but his knees don't keep up.
   mateo_salgado: Sixteen, from Coachella, a ball kid at the big tournament two years running; he bikes over straight after school.
+  diego_ibarra: Grew up in Indio hitting against the packing-house wall after date-harvest shifts; won the valley junior title at seventeen but never had the money to travel. At twenty-four he is only now getting good.
 
 # Traits: name and a one-line note (numbers in traits.yaml)
 traits:
@@ -483,6 +493,14 @@ route_notes:
 # Phased build-ups (W2)
 prep:
   exhibition: Exhibition build-up
+# Staff growth (W3): what a person who got good enough opens up (shown in the news and the cause log)
+unlocks:
+  junior_coach: "A coach good enough for the juniors: semifinal chances at the junior regional +20%"
+  night_clay_care: "Night care for the clay: a weekly work order on the clay courts"
+  member_referrals: "Member referrals: the front desk keeps 10 more members"
+  open_division: "A higher division at the regional open: double the entry fee, double the prize"
+  weekend_camp: "Weekend camp on the academy courts: a coach and the fitness coach on weekend mornings"
+
 ui:
   route:
     look: Tap to see where it goes

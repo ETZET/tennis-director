@@ -1,0 +1,22 @@
+# 第四个招聘日（c，GM-11 球员稀缺）：还没有球员的局一半是这一拨。一个在 Indio 对着包装厂的墙练出来的本地球员，
+# 和那个什么都会一点的音乐节搭台工（Marco，也在 a 拨）。Diego 工资最低、开局球技一般，但他是大器晚成，越打越好。
+id: iw_hiring_day_4c
+act: indian_wells
+source: consequence
+tone: relief
+pause: true
+countdown: 1d
+location: clubhouse
+who: applicants
+options:
+  A:
+    effects:
+      - { hire: diego_ibarra }
+  B:
+    effects:
+      - { hire: marco_ruiz }
+  C:
+    effects:
+      # 不招：省下工资，活还是那几个人干
+      - { log: log.no_hire }
+default: { then: C }

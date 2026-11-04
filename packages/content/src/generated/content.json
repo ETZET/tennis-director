@@ -1,5 +1,5 @@
 {
- "version": "3ac347e9",
+ "version": "d03ec46b",
  "stats": [
   {
    "id": "cash",
@@ -538,7 +538,10 @@
    "morale": 55,
    "fatigue": 0,
    "wage_week": 150,
-   "traits": []
+   "traits": [],
+   "potential": {
+    "teach": 70
+   }
   },
   {
    "id": "rosa_ortiz",
@@ -555,7 +558,11 @@
    "traits": [
     "desert_born",
     "bilingual"
-   ]
+   ],
+   "potential": {
+    "upkeep": 78,
+    "service": 40
+   }
   },
   {
    "id": "ben_kim",
@@ -571,7 +578,10 @@
    "wage_week": 140,
    "traits": [
     "early_bird"
-   ]
+   ],
+   "potential": {
+    "service": 72
+   }
   },
   {
    "id": "jess_park",
@@ -588,7 +598,10 @@
    "traits": [
     "eager",
     "college"
-   ]
+   ],
+   "potential": {
+    "teach": 74
+   }
   },
   {
    "id": "gus_moreno",
@@ -605,7 +618,11 @@
    "traits": [
     "burnt_out",
     "perfectionist"
-   ]
+   ],
+   "potential": {
+    "upkeep": 80,
+    "service": 15
+   }
   },
   {
    "id": "kofi_mensah",
@@ -622,7 +639,10 @@
    "traits": [
     "trainer",
     "early_bird"
-   ]
+   ],
+   "potential": {
+    "teach": 64
+   }
   },
   {
    "id": "amara_okafor",
@@ -639,7 +659,10 @@
    "traits": [
     "college",
     "late_bloomer"
-   ]
+   ],
+   "potential": {
+    "play": 80
+   }
   },
   {
    "id": "lily_chen",
@@ -656,7 +679,10 @@
    "traits": [
     "bilingual",
     "night_owl"
-   ]
+   ],
+   "potential": {
+    "service": 76
+   }
   },
   {
    "id": "walt_hendricks",
@@ -673,7 +699,10 @@
    "traits": [
     "burnt_out",
     "mentor"
-   ]
+   ],
+   "potential": {
+    "teach": 70
+   }
   },
   {
    "id": "teo_ilic",
@@ -690,7 +719,10 @@
    "traits": [
     "stringer",
     "perfectionist"
-   ]
+   ],
+   "potential": {
+    "upkeep": 70
+   }
   },
   {
    "id": "luca_ferreira",
@@ -707,7 +739,10 @@
    "traits": [
     "prodigy",
     "burnt_out"
-   ]
+   ],
+   "potential": {
+    "play": 73
+   }
   },
   {
    "id": "nadia_volkov",
@@ -724,7 +759,10 @@
    "traits": [
     "star",
     "legend"
-   ]
+   ],
+   "potential": {
+    "teach": 90
+   }
   },
   {
    "id": "marco_ruiz",
@@ -741,7 +779,11 @@
    "traits": [
     "bilingual",
     "night_owl"
-   ]
+   ],
+   "potential": {
+    "upkeep": 76,
+    "service": 62
+   }
   },
   {
    "id": "ray_delgado",
@@ -758,7 +800,10 @@
    "traits": [
     "local_hero",
     "old_injury"
-   ]
+   ],
+   "potential": {
+    "upkeep": 86
+   }
   },
   {
    "id": "mateo_salgado",
@@ -775,7 +820,31 @@
    "traits": [
     "ball_kid",
     "eager"
-   ]
+   ],
+   "potential": {
+    "service": 66,
+    "play": 55
+   }
+  },
+  {
+   "id": "diego_ibarra",
+   "name": "Diego Ibarra",
+   "kind": "player",
+   "role": "candidate",
+   "skill": 20,
+   "upkeep": 45,
+   "service": 30,
+   "play": 60,
+   "morale": 75,
+   "fatigue": 0,
+   "wage_week": 100,
+   "traits": [
+    "desert_born",
+    "late_bloomer"
+   ],
+   "potential": {
+    "play": 80
+   }
   }
  ],
  "traits": [
@@ -1648,6 +1717,54 @@
    ],
    "wear": 0.08,
    "restore": 0,
+   "performance": "lesson"
+  },
+  {
+   "id": "pr_camp",
+   "act": "indian_wells",
+   "at": "practice",
+   "skill": "teach",
+   "cycle": "1h",
+   "hours": [
+    8,
+    12
+   ],
+   "days": [
+    5,
+    6
+   ],
+   "when": {
+    "all": [
+     {
+      "unlocked": "weekend_camp"
+     },
+     {
+      "facility": "practice",
+      "is": "open"
+     }
+    ]
+   },
+   "effects": [
+    {
+     "stat": "cash",
+     "add": "round(16 * (0.6 + worker.skill / 100) * clamp(0.5 + stat.members / 40, 0.5, 2))"
+    },
+    {
+     "chance": 0.08,
+     "stat": "members",
+     "add": 1
+    },
+    {
+     "stat": "reputation",
+     "add": 0.03
+    }
+   ],
+   "wear": 0.05,
+   "restore": 0,
+   "only": [
+    "coach",
+    "trainer"
+   ],
    "performance": "lesson"
   },
   {
@@ -2912,6 +3029,52 @@
    "onFail": []
   },
   {
+   "id": "o23_night_care",
+   "act": "indian_wells",
+   "at": "outer_23",
+   "skill": "upkeep",
+   "work": "3h",
+   "cost": 60,
+   "when": {
+    "all": [
+     {
+      "unlocked": "night_clay_care"
+     },
+     {
+      "facility": "outer_23",
+      "is": "playable"
+     },
+     {
+      "variant": "outer_23",
+      "is": "clay"
+     },
+     {
+      "expr": "condition.outer_23 < 75"
+     }
+    ]
+   },
+   "crew": 1,
+   "cooldown": "7d",
+   "once": false,
+   "restore": 40,
+   "effects": [
+    {
+     "condition": "outer_23",
+     "add": 5
+    },
+    {
+     "stat": "reputation",
+     "add": 0.5
+    }
+   ],
+   "onSuccess": [],
+   "onFail": [],
+   "performance": "workday",
+   "worker": {
+    "upkeep": 75
+   }
+  },
+  {
    "id": "o23_pro_clay",
    "act": "indian_wells",
    "at": "outer_23",
@@ -3546,6 +3709,13 @@
      "add": {
       "play": 1
      }
+    },
+    {
+     "if": {
+      "unlocked": "open_division"
+     },
+     "stat": "cash",
+     "add": -200
     }
    ],
    "onSuccess": [],
@@ -4428,7 +4598,7 @@
       "restored": "restored * 0.15"
      },
      "members": "max(0, round(courts_built * service_rate + service_demand * ((stat.quality - 30) / 12 + stat.reputation / 30)))",
-     "member_cap": "courts_built * 12 + (facility.clubhouse == \"open\" ? (variant.clubhouse == \"cafe\" ? 25 : 15) : 0)",
+     "member_cap": "courts_built * 12 + (facility.clubhouse == \"open\" ? (variant.clubhouse == \"cafe\" ? 25 : 15) : 0) + unlocked.member_referrals * 10",
      "member_loss_max": "max(8, stat.members * 0.25)",
      "service_pass": 0.5
     },
@@ -4716,6 +4886,13 @@
          "add": 800
         },
         {
+         "if": {
+          "unlocked": "open_division"
+         },
+         "stat": "cash",
+         "add": 800
+        },
+        {
          "stat": "reputation",
          "add": 5
         },
@@ -4733,6 +4910,13 @@
         "chance": "clamp(0.05 + (event.skill - 55) / 45 + (event.crew >= 2 ? 0.1 : 0) + (variant.stadium_2 == \"recovery\" ? 0.1 : 0), 0.05, 0.85)",
         "reward": [
          {
+          "stat": "cash",
+          "add": 1000
+         },
+         {
+          "if": {
+           "unlocked": "open_division"
+          },
           "stat": "cash",
           "add": 1000
          },
@@ -4792,7 +4976,7 @@
      "goals": [
       {
        "id": "semis",
-       "chance": "clamp(0.2 + (event.skill - 45) / 50 + (route.s4 == \"academy_isle\" ? 0.1 : 0), 0.15, 0.85)",
+       "chance": "clamp(0.2 + (event.skill - 45) / 50 + (route.s4 == \"academy_isle\" ? 0.1 : 0) + unlocked.junior_coach * 0.2, 0.15, 0.9)",
        "reward": [
         {
          "stat": "reputation",
@@ -4813,7 +4997,7 @@
       "goals": [
        {
         "id": "final",
-        "chance": "clamp(0.1 + (event.skill - 45) / 50 + (route.s4 == \"academy_isle\" ? 0.1 : 0), 0.05, 0.75)",
+        "chance": "clamp(0.1 + (event.skill - 45) / 50 + (route.s4 == \"academy_isle\" ? 0.1 : 0) + unlocked.junior_coach * 0.2, 0.05, 0.85)",
         "reward": [
          {
           "stat": "reputation",
@@ -4962,6 +5146,82 @@
      }
     }
    ],
+   "growth": {
+    "enabled": true,
+    "rate": 0.1,
+    "headroom": 15,
+    "traits": {
+     "late_bloomer": 10
+    },
+    "skills": [
+     "teach",
+     "upkeep",
+     "service"
+    ],
+    "step": 5,
+    "unlocks": [
+     {
+      "key": "junior_coach",
+      "need": [
+       {
+        "skill": "teach",
+        "gte": 65,
+        "who": "coach"
+       }
+      ],
+      "effects": []
+     },
+     {
+      "key": "night_clay_care",
+      "need": [
+       {
+        "skill": "upkeep",
+        "gte": 75,
+        "who": "crew"
+       }
+      ],
+      "effects": []
+     },
+     {
+      "key": "member_referrals",
+      "need": [
+       {
+        "skill": "service",
+        "gte": 70,
+        "who": "special"
+       }
+      ],
+      "effects": []
+     },
+     {
+      "key": "open_division",
+      "need": [
+       {
+        "skill": "play",
+        "gte": 70,
+        "who": "player"
+       }
+      ],
+      "effects": []
+     },
+     {
+      "key": "weekend_camp",
+      "need": [
+       {
+        "skill": "teach",
+        "gte": 60,
+        "who": "coach"
+       },
+       {
+        "skill": "teach",
+        "gte": 60,
+        "who": "trainer"
+       }
+      ],
+      "effects": []
+     }
+    ]
+   },
    "daily": [],
    "seasons": [
     {
@@ -7135,19 +7395,49 @@
        "set": true
       },
       {
+       "chance": "hired.player == 0 ? 0.5 : 0.2",
+       "flag": "iw_hiring_day_4_c",
+       "set": true
+      },
+      {
        "if": {
-        "not": {
-         "flag": "iw_hiring_day_4_b"
-        }
+        "all": [
+         {
+          "not": {
+           "flag": "iw_hiring_day_4_b"
+          }
+         },
+         {
+          "not": {
+           "flag": "iw_hiring_day_4_c"
+          }
+         }
+        ]
        },
        "schedule": "iw_hiring_day_4",
        "in": "14d"
       },
       {
        "if": {
-        "flag": "iw_hiring_day_4_b"
+        "all": [
+         {
+          "flag": "iw_hiring_day_4_b"
+         },
+         {
+          "not": {
+           "flag": "iw_hiring_day_4_c"
+          }
+         }
+        ]
        },
        "schedule": "iw_hiring_day_4b",
+       "in": "14d"
+      },
+      {
+       "if": {
+        "flag": "iw_hiring_day_4_c"
+       },
+       "schedule": "iw_hiring_day_4c",
        "in": "14d"
       }
      ],
@@ -7165,19 +7455,49 @@
        "set": true
       },
       {
+       "chance": "hired.player == 0 ? 0.5 : 0.2",
+       "flag": "iw_hiring_day_4_c",
+       "set": true
+      },
+      {
        "if": {
-        "not": {
-         "flag": "iw_hiring_day_4_b"
-        }
+        "all": [
+         {
+          "not": {
+           "flag": "iw_hiring_day_4_b"
+          }
+         },
+         {
+          "not": {
+           "flag": "iw_hiring_day_4_c"
+          }
+         }
+        ]
        },
        "schedule": "iw_hiring_day_4",
        "in": "14d"
       },
       {
        "if": {
-        "flag": "iw_hiring_day_4_b"
+        "all": [
+         {
+          "flag": "iw_hiring_day_4_b"
+         },
+         {
+          "not": {
+           "flag": "iw_hiring_day_4_c"
+          }
+         }
+        ]
        },
        "schedule": "iw_hiring_day_4b",
+       "in": "14d"
+      },
+      {
+       "if": {
+        "flag": "iw_hiring_day_4_c"
+       },
+       "schedule": "iw_hiring_day_4c",
        "in": "14d"
       }
      ],
@@ -7195,19 +7515,49 @@
        "set": true
       },
       {
+       "chance": "hired.player == 0 ? 0.5 : 0.2",
+       "flag": "iw_hiring_day_4_c",
+       "set": true
+      },
+      {
        "if": {
-        "not": {
-         "flag": "iw_hiring_day_4_b"
-        }
+        "all": [
+         {
+          "not": {
+           "flag": "iw_hiring_day_4_b"
+          }
+         },
+         {
+          "not": {
+           "flag": "iw_hiring_day_4_c"
+          }
+         }
+        ]
        },
        "schedule": "iw_hiring_day_4",
        "in": "14d"
       },
       {
        "if": {
-        "flag": "iw_hiring_day_4_b"
+        "all": [
+         {
+          "flag": "iw_hiring_day_4_b"
+         },
+         {
+          "not": {
+           "flag": "iw_hiring_day_4_c"
+          }
+         }
+        ]
        },
        "schedule": "iw_hiring_day_4b",
+       "in": "14d"
+      },
+      {
+       "if": {
+        "flag": "iw_hiring_day_4_c"
+       },
+       "schedule": "iw_hiring_day_4c",
        "in": "14d"
       }
      ],
@@ -7242,19 +7592,49 @@
        "set": true
       },
       {
+       "chance": "hired.player == 0 ? 0.5 : 0.2",
+       "flag": "iw_hiring_day_4_c",
+       "set": true
+      },
+      {
        "if": {
-        "not": {
-         "flag": "iw_hiring_day_4_b"
-        }
+        "all": [
+         {
+          "not": {
+           "flag": "iw_hiring_day_4_b"
+          }
+         },
+         {
+          "not": {
+           "flag": "iw_hiring_day_4_c"
+          }
+         }
+        ]
        },
        "schedule": "iw_hiring_day_4",
        "in": "14d"
       },
       {
        "if": {
-        "flag": "iw_hiring_day_4_b"
+        "all": [
+         {
+          "flag": "iw_hiring_day_4_b"
+         },
+         {
+          "not": {
+           "flag": "iw_hiring_day_4_c"
+          }
+         }
+        ]
        },
        "schedule": "iw_hiring_day_4b",
+       "in": "14d"
+      },
+      {
+       "if": {
+        "flag": "iw_hiring_day_4_c"
+       },
+       "schedule": "iw_hiring_day_4c",
        "in": "14d"
       }
      ],
@@ -7272,19 +7652,49 @@
        "set": true
       },
       {
+       "chance": "hired.player == 0 ? 0.5 : 0.2",
+       "flag": "iw_hiring_day_4_c",
+       "set": true
+      },
+      {
        "if": {
-        "not": {
-         "flag": "iw_hiring_day_4_b"
-        }
+        "all": [
+         {
+          "not": {
+           "flag": "iw_hiring_day_4_b"
+          }
+         },
+         {
+          "not": {
+           "flag": "iw_hiring_day_4_c"
+          }
+         }
+        ]
        },
        "schedule": "iw_hiring_day_4",
        "in": "14d"
       },
       {
        "if": {
-        "flag": "iw_hiring_day_4_b"
+        "all": [
+         {
+          "flag": "iw_hiring_day_4_b"
+         },
+         {
+          "not": {
+           "flag": "iw_hiring_day_4_c"
+          }
+         }
+        ]
        },
        "schedule": "iw_hiring_day_4b",
+       "in": "14d"
+      },
+      {
+       "if": {
+        "flag": "iw_hiring_day_4_c"
+       },
+       "schedule": "iw_hiring_day_4c",
        "in": "14d"
       }
      ],
@@ -7302,19 +7712,49 @@
        "set": true
       },
       {
+       "chance": "hired.player == 0 ? 0.5 : 0.2",
+       "flag": "iw_hiring_day_4_c",
+       "set": true
+      },
+      {
        "if": {
-        "not": {
-         "flag": "iw_hiring_day_4_b"
-        }
+        "all": [
+         {
+          "not": {
+           "flag": "iw_hiring_day_4_b"
+          }
+         },
+         {
+          "not": {
+           "flag": "iw_hiring_day_4_c"
+          }
+         }
+        ]
        },
        "schedule": "iw_hiring_day_4",
        "in": "14d"
       },
       {
        "if": {
-        "flag": "iw_hiring_day_4_b"
+        "all": [
+         {
+          "flag": "iw_hiring_day_4_b"
+         },
+         {
+          "not": {
+           "flag": "iw_hiring_day_4_c"
+          }
+         }
+        ]
        },
        "schedule": "iw_hiring_day_4b",
+       "in": "14d"
+      },
+      {
+       "if": {
+        "flag": "iw_hiring_day_4_c"
+       },
+       "schedule": "iw_hiring_day_4c",
        "in": "14d"
       }
      ],
@@ -7395,6 +7835,50 @@
      "effects": [
       {
        "hire": "mateo_salgado"
+      }
+     ],
+     "onSuccess": [],
+     "onFail": []
+    },
+    "C": {
+     "effects": [
+      {
+       "log": "log.no_hire"
+      }
+     ],
+     "onSuccess": [],
+     "onFail": []
+    }
+   },
+   "default": {
+    "then": "C",
+    "extra": []
+   }
+  },
+  {
+   "id": "iw_hiring_day_4c",
+   "act": "indian_wells",
+   "source": "consequence",
+   "tone": "relief",
+   "weight": 1,
+   "countdown": "1d",
+   "pause": true,
+   "location": "clubhouse",
+   "who": "applicants",
+   "options": {
+    "A": {
+     "effects": [
+      {
+       "hire": "diego_ibarra"
+      }
+     ],
+     "onSuccess": [],
+     "onFail": []
+    },
+    "B": {
+     "effects": [
+      {
+       "hire": "marco_ruiz"
       }
      ],
      "onSuccess": [],
@@ -8258,6 +8742,11 @@
    "events.iw_hiring_day_4b.options.A": "Hire Ray (old grounds chief)",
    "events.iw_hiring_day_4b.options.B": "Hire Mateo (ball kid)",
    "events.iw_hiring_day_4b.options.C": "Not this time",
+   "events.iw_hiring_day_4c.title": "The fourth hiring day",
+   "events.iw_hiring_day_4c.body": "A local player who learned the game against a packing-house wall in Indio walked in with a bag of old racquets; the young all-rounder from the festival crews came too.",
+   "events.iw_hiring_day_4c.options.A": "Hire Diego (local player)",
+   "events.iw_hiring_day_4c.options.B": "Hire Marco (all-rounder)",
+   "events.iw_hiring_day_4c.options.C": "Not this time",
    "events.iw_route_s2.title": "Which way does the club grow?",
    "events.iw_route_s2.body": "The clubhouse is open and Dale stands at the gate with the old brochure. \"Families with kids, or hotel guests from Palm Springs? We can't chase both at once.\" If you don't choose by tomorrow, Dale picks the academy.",
    "events.iw_route_s2.options.A": "Youth: the academy opens first (a café clubhouse can switch to a physio room); more coaches apply; academy lessons earn more",
@@ -8306,6 +8795,8 @@
    "posts.pr_academy.note": "Weekdays 14–18",
    "posts.pr_weekend.title": "Academy · Weekend open",
    "posts.pr_weekend.note": "Weekends 8–13",
+   "posts.pr_camp.title": "Academy · Weekend camp",
+   "posts.pr_camp.note": "Weekends 8–12; a coach or the fitness coach. Shares the morning with weekend open play",
    "posts.pr_upkeep.title": "Academy · Upkeep",
    "posts.pr_upkeep.note": "Any time; it wears down if nobody looks after it",
    "posts.ch_desk.title": "Clubhouse · Front desk",
@@ -8446,6 +8937,9 @@
    "orders.o23_pro_clay.title": "Tournament clay",
    "orders.o23_pro_clay.note": "$400; needs someone with upkeep 75+. Better courts, but fussier",
    "orders.o23_pro_clay.locked": "Clay courts open, kept as clay",
+   "orders.o23_night_care.title": "Night care for the clay",
+   "orders.o23_night_care.note": "$60, 3 hours; needs someone with upkeep 75+. Water, roll and line the clay under the lights: condition +45, once a week",
+   "orders.o23_night_care.locked": "Clay courts open, kept as clay; a grounds crew with upkeep 75+",
    "orders.o23_pro_hard.title": "Pro hard courts",
    "orders.o23_pro_hard.note": "$350; needs someone with upkeep 75+. Wears even slower",
    "orders.o23_pro_hard.locked": "Courts open, rebuilt as hard courts",
@@ -8592,6 +9086,7 @@
    "bios.marco_ruiz": "Grew up in Indio and works night shifts on the festival stage crews every spring; he has done a bit of everything.",
    "bios.ray_delgado": "Ran the grounds crew here when the big tournament came in the nineties and retired in Indian Wells; he remembers every pipe, but his knees don't keep up.",
    "bios.mateo_salgado": "Sixteen, from Coachella, a ball kid at the big tournament two years running; he bikes over straight after school.",
+   "bios.diego_ibarra": "Grew up in Indio hitting against the packing-house wall after date-harvest shifts; won the valley junior title at seventeen but never had the money to travel. At twenty-four he is only now getting good.",
    "traits.phone_addict.name": "Phone addict",
    "traits.phone_addict.note": "Drifts in lessons when the director isn't there",
    "traits.eager.name": "Eager",
@@ -8683,6 +9178,11 @@
    "route_notes.s2.youth.costs": "Resort-side builds wait until ★3; fewer service and fitness staff apply",
    "route_notes.s2.resort.costs": "Academy-side builds wait until ★3; fewer coaches apply",
    "prep.exhibition": "Exhibition build-up",
+   "unlocks.junior_coach": "A coach good enough for the juniors: semifinal chances at the junior regional +20%",
+   "unlocks.night_clay_care": "Night care for the clay: a weekly work order on the clay courts",
+   "unlocks.member_referrals": "Member referrals: the front desk keeps 10 more members",
+   "unlocks.open_division": "A higher division at the regional open: double the entry fee, double the prize",
+   "unlocks.weekend_camp": "Weekend camp on the academy courts: a coach and the fitness coach on weekend mornings",
    "ui.route.look": "Tap to see where it goes",
    "ui.route.confirm": "Tap again to decide",
    "ui.route.pick": "Tap to pick, tap again to decide",
@@ -9189,6 +9689,11 @@
    "events.iw_hiring_day_4b.options.A": "招 Ray（老场地主管）",
    "events.iw_hiring_day_4b.options.B": "招 Mateo（球童）",
    "events.iw_hiring_day_4b.options.C": "这次不招",
+   "events.iw_hiring_day_4c.title": "第四个招聘日",
+   "events.iw_hiring_day_4c.body": "一个在 Indio 对着包装厂的墙练出来的本地球员，背着一包旧球拍自己找上门；音乐节搭台队的那个多面手也来了。",
+   "events.iw_hiring_day_4c.options.A": "招 Diego（本地球员）",
+   "events.iw_hiring_day_4c.options.B": "招 Marco（多面手）",
+   "events.iw_hiring_day_4c.options.C": "这次不招",
    "events.iw_route_s2.title": "俱乐部往哪边走？",
    "events.iw_route_s2.body": "会所开张了，Dale 拿着那本旧宣传册站在大门口：\"带孩子的家庭，还是 Palm Springs 酒店来的客人？两头一起追不过来。\"明天还不定，Dale 就按青训来。",
    "events.iw_route_s2.options.A": "青训之路：学院先开（会所是咖啡吧的话，可以改成理疗室）；来应聘的教练多；学院课多挣一点",
@@ -9237,6 +9742,8 @@
    "posts.pr_academy.note": "工作日 14–18 点",
    "posts.pr_weekend.title": "青训场 · 周末开放",
    "posts.pr_weekend.note": "周末 8–13 点",
+   "posts.pr_camp.title": "青训场 · 周末训练营",
+   "posts.pr_camp.note": "周末 8–12 点；教练或体能师带。和周末开放抢同一个上午",
    "posts.pr_upkeep.title": "青训场 · 维护",
    "posts.pr_upkeep.note": "随时可以干；没人管就变旧",
    "posts.ch_desk.title": "会所 · 前台",
@@ -9377,6 +9884,9 @@
    "orders.o23_pro_clay.title": "赛事级红土",
    "orders.o23_pro_clay.note": "$400；要一名维护 ≥ 75 的人。场地更好，也更娇气",
    "orders.o23_pro_clay.locked": "红土场开放、保留了红土",
+   "orders.o23_night_care.title": "红土场夜间养护",
+   "orders.o23_night_care.note": "$60、3 小时；要一名维护 ≥ 75 的人。灯下浇水、滚压、补线：状况 +45，一周一次",
+   "orders.o23_night_care.locked": "红土场开放、保留了红土；一名维护 ≥ 75 的维护工",
    "orders.o23_pro_hard.title": "职业硬地",
    "orders.o23_pro_hard.note": "$350；要一名维护 ≥ 75 的人。掉得更慢",
    "orders.o23_pro_hard.locked": "球场开放、改成了硬地",
@@ -9523,6 +10033,7 @@
    "bios.marco_ruiz": "在 Indio 长大，每年春天在音乐节的搭台队上夜班，什么活都干过一点。",
    "bios.ray_delgado": "九十年代这里办大赛时的场地主管，退休后就住在 Indian Wells；俱乐部的每根水管他都记得，膝盖却不行了。",
    "bios.mateo_salgado": "十六岁，Coachella 人，前两年在大赛上当过球童；一放学就骑车过来。",
+   "bios.diego_ibarra": "在 Indio 长大，椰枣收完工就去包装厂的墙上练球；十七岁拿过谷地青少年冠军，却一直没钱出去比赛。二十四岁了，才刚开始打出来。",
    "traits.phone_addict.name": "爱玩手机",
    "traits.phone_addict.note": "总监不在场时上课走神",
    "traits.eager.name": "干劲足",
@@ -9614,6 +10125,11 @@
    "route_notes.s2.youth.costs": "度假那边的修法要等到 ★3；来应聘的服务、体能人员少",
    "route_notes.s2.resort.costs": "青训那边的修法要等到 ★3；来应聘的教练少",
    "prep.exhibition": "表演赛筹备",
+   "unlocks.junior_coach": "教练够格带青少年了：地区青少年赛进四强的把握 +20%",
+   "unlocks.night_clay_care": "红土场夜间养护：红土场上每周一次的工单",
+   "unlocks.member_referrals": "会员推荐：前台多留住 10 个会员",
+   "unlocks.open_division": "地区业余赛升到高一级组别：报名费翻倍，奖金翻倍",
+   "unlocks.weekend_camp": "青训场周末训练营：教练和体能师周末上午一起带",
    "ui.route.look": "点一下先看看落在哪儿",
    "ui.route.confirm": "再点一下就定了",
    "ui.route.pick": "点一下选中，再点一下就定了",

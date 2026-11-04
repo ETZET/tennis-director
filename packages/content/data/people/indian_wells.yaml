@@ -4,7 +4,21 @@
 # 一句话背景在 i18n 的 bios.<id>，特质在 traits.yaml。名字和经历都是虚构的。
 - { id: director, name: Director, role: director, skill: 30, upkeep: 35, service: 40, morale: 100 }
 # Dale：园区关门以后一直守在这里的老教练。开局不开除（核心玩法决定）。
-- { id: dale, name: Dale Pruitt, role: coach, kind: coach, skill: 45, upkeep: 40, service: 20, play: 30, morale: 55, wage_week: 150 }
+# 潜力（W3，GM-11）：Dale 年轻时是这一带最好的青训教练，十年没上过课，手生了——教学能涨回 70（过得了教练的钥匙 65），
+# 维护和服务只是凑合（默认 +15）。
+- {
+    id: dale,
+    name: Dale Pruitt,
+    role: coach,
+    kind: coach,
+    skill: 45,
+    upkeep: 40,
+    service: 20,
+    play: 30,
+    morale: 55,
+    wage_week: 150,
+    potential: { teach: 70 },
+  }
 
 # ---- 招聘日 1（固定）：一个干活的，一个招呼人的 ----
 - {
@@ -18,6 +32,7 @@
     morale: 70,
     wage_week: 180,
     traits: [desert_born, bilingual],
+    potential: { upkeep: 78, service: 40 },
   }
 - {
     id: ben_kim,
@@ -30,6 +45,7 @@
     morale: 80,
     wage_week: 140,
     traits: [early_bird],
+    potential: { service: 72 },
   }
 
 # ---- 招聘日 2：a 一位教练 / 一个老场地工（青训之路多半是这拨）；b 一个体能师 / 一个想再拼一次的球员（度假之路多半是这拨） ----
@@ -44,6 +60,7 @@
     morale: 85,
     wage_week: 260,
     traits: [eager, college],
+    potential: { teach: 74 },
   }
 - {
     id: gus_moreno,
@@ -56,6 +73,7 @@
     morale: 55,
     wage_week: 240,
     traits: [burnt_out, perfectionist],
+    potential: { upkeep: 80, service: 15 },
   }
 - {
     id: kofi_mensah,
@@ -69,6 +87,7 @@
     morale: 75,
     wage_week: 230,
     traits: [trainer, early_bird],
+    potential: { teach: 64 },
   }
 - {
     id: amara_okafor,
@@ -82,6 +101,7 @@
     morale: 80,
     wage_week: 120,
     traits: [college, late_bloomer],
+    potential: { play: 80 },
   }
 
 # ---- 招聘日 3：a 受过伤的天才少年 / 一位老教练（青训）；b 一个穿线师 / 前台好手（度假）。卡里的人见 events/indian_wells/iw_hiring_day_* ----
@@ -96,6 +116,7 @@
     morale: 75,
     wage_week: 220,
     traits: [bilingual, night_owl],
+    potential: { service: 76 },
   }
 - {
     id: walt_hendricks,
@@ -109,6 +130,7 @@
     morale: 40,
     wage_week: 420,
     traits: [burnt_out, mentor],
+    potential: { teach: 70 },
   }
 - {
     id: teo_ilic,
@@ -122,6 +144,7 @@
     morale: 70,
     wage_week: 210,
     traits: [stringer, perfectionist],
+    potential: { upkeep: 70 },
   }
 - {
     id: luca_ferreira,
@@ -135,6 +158,7 @@
     morale: 50,
     wage_week: 180,
     traits: [prodigy, burnt_out],
+    potential: { play: 73 },
   }
 
 # ---- 招聘日 4：a 一位前职业球员 / 一个多面手；b 一个老场地主管 / 一个本地的球童 ----
@@ -149,6 +173,7 @@
     morale: 70,
     wage_week: 900,
     traits: [star, legend],
+    potential: { teach: 90 },
   }
 - {
     id: marco_ruiz,
@@ -161,6 +186,7 @@
     morale: 70,
     wage_week: 230,
     traits: [bilingual, night_owl],
+    potential: { upkeep: 76, service: 62 },
   }
 - {
     id: ray_delgado,
@@ -174,6 +200,7 @@
     morale: 65,
     wage_week: 320,
     traits: [local_hero, old_injury],
+    potential: { upkeep: 86 },
   }
 - {
     id: mateo_salgado,
@@ -187,4 +214,22 @@
     morale: 90,
     wage_week: 70,
     traits: [ball_kid, eager],
+    potential: { service: 66, play: 55 },
+  }
+
+# ---- 招聘日 4c（GM-11，球员稀缺）：还没有球员的局一半是这一拨，和 Marco 一起来 ----
+# 大器晚成：开局球技一般，第 50 天以后开窍（他第 65–70 天才来，一来就生效），潜力和 Amara 一样是 80
+- {
+    id: diego_ibarra,
+    name: Diego Ibarra,
+    role: candidate,
+    kind: player,
+    skill: 20,
+    upkeep: 45,
+    service: 30,
+    play: 60,
+    morale: 75,
+    wage_week: 100,
+    traits: [desert_born, late_bloomer],
+    potential: { play: 80 },
   }

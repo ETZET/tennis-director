@@ -50,6 +50,8 @@ function fixture(g: Growth | null = GROWTH): ContentBundle {
   const act = c.acts[0];
   if (!act) throw new Error('no act');
   if (g) act.growth = g;
+  // 仓库内容已经打开成长（GM-11）：g = null 是"关着"的情形，显式关掉
+  else if (act.growth) act.growth = { ...act.growth, enabled: false };
   // 一个只收教学 ≥ 50 的岗位（岗位的 worker 门槛）
   const lesson = c.posts.find((x) => x.id === 'o1_lesson') as Post;
   c.posts.push({ ...lesson, id: 'gated_lesson', worker: { teach: 50 } });
@@ -89,8 +91,8 @@ describe('员工成长（W3）', () => {
     expect(s.people.dale?.upkeep).toBe(40);
     expect(events.some((e) => e.type === 'skill_up' || e.type === 'unlock')).toBe(false);
     expect(s.unlocks).toEqual({});
-    // 仓库内容现在没打开成长
-    expect(CONTENT.acts[0]?.growth?.enabled ?? false).toBe(false);
+    // 仓库内容（GM-11）已经打开成长
+    expect(CONTENT.acts[0]?.growth?.enabled ?? false).toBe(true);
   });
 
   it('每干完一圈 +0.2，跨门槛发 skill_up，满足 need 开出解锁（一次）', () => {

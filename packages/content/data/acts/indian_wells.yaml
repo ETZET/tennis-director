@@ -183,14 +183,15 @@ tournaments:
     goals:
       - id: win
         chance: "clamp(0.1 + (event.skill - 50) / 45 + (event.crew >= 2 ? 0.1 : 0) + (variant.stadium_2 == \"recovery\" ? 0.1 : 0), 0.05, 0.9)"
-        reward: [{ stat: cash, add: 800 }, { stat: reputation, add: 5 }, { trophy: 1 }]
+        # 高一级组别（W3 成长解锁 open_division：球员球技 ≥ 70）：奖金 ×2；报名费 ×2 在报名工单的效果里补扣
+        reward: [{ stat: cash, add: 800 }, { stat: cash, add: 800, if: { unlocked: open_division } }, { stat: reputation, add: 5 }, { trophy: 1 }]
     repeat:
       scale: 0.5
       goals:
         # 卫冕：大家都认得你的球员了，难一点
         - id: defend
           chance: "clamp(0.05 + (event.skill - 55) / 45 + (event.crew >= 2 ? 0.1 : 0) + (variant.stadium_2 == \"recovery\" ? 0.1 : 0), 0.05, 0.85)"
-          reward: [{ stat: cash, add: 1000 }, { stat: reputation, add: 6 }, { trophy: 1 }]
+          reward: [{ stat: cash, add: 1000 }, { stat: cash, add: 1000, if: { unlocked: open_division } }, { stat: reputation, add: 6 }, { trophy: 1 }]
   # 地区青少年赛：第 8、12 周的周五、周六（两天里挑一天去），一名教练带学员去半天。
   # 这一周青训场的课要上够 10 圈（学院或训练营）。
   - id: junior_regional
@@ -211,14 +212,14 @@ tournaments:
     goals:
       # 有学员进四强：看带队教练的教学
       - id: semis
-        chance: "clamp(0.2 + (event.skill - 45) / 50 + (route.s4 == \"academy_isle\" ? 0.1 : 0), 0.15, 0.85)"
+        chance: "clamp(0.2 + (event.skill - 45) / 50 + (route.s4 == \"academy_isle\" ? 0.1 : 0) + unlocked.junior_coach * 0.2, 0.15, 0.9)"
         reward: [{ stat: reputation, add: 3 }, { stat: members, add: 4 }, { trophy: 1 }]
     repeat:
       scale: 0.5
       goals:
         # 第二次：要进决赛才算
         - id: final
-          chance: "clamp(0.1 + (event.skill - 45) / 50 + (route.s4 == \"academy_isle\" ? 0.1 : 0), 0.05, 0.75)"
+          chance: "clamp(0.1 + (event.skill - 45) / 50 + (route.s4 == \"academy_isle\" ? 0.1 : 0) + unlocked.junior_coach * 0.2, 0.05, 0.85)"
           reward: [{ stat: reputation, add: 5 }, { stat: members, add: 6 }, { trophy: 1 }]
   # 邀请赛：第 10、13 周的周末，在红土场办两天，会所和棕榈喷泉都要开着。四个临时岗位两天都要有人。
   # 认场地：保留红土是红土邀请赛（老牌，声望多），修成硬地是硬地邀请赛（报名的人多，钱多）。下雨就白花报名费。
@@ -283,8 +284,9 @@ rules:
       max(0, round(courts_built * service_rate + service_demand * ((stat.quality - 30) / 12 + stat.reputation / 30)))
     # 会员有上限：每块修好的场地撑得起 12 个会员（下雨天场地关门，但会员不会因此退会），会所开了再多 15 个；超出的人周末就不续了
     # 会所修成咖啡吧（GM-13）多撑 10 个：有地方坐、有东西吃，会员才愿意续；理疗室（和没选过变体的旧存档）还是 15
+    # 会员推荐（W3 成长解锁 member_referrals：前台服务 ≥ 70）再多撑 10 个
     member_cap: >-
-      courts_built * 12 + (facility.clubhouse == "open" ? (variant.clubhouse == "cafe" ? 25 : 15) : 0)
+      courts_built * 12 + (facility.clubhouse == "open" ? (variant.clubhouse == "cafe" ? 25 : 15) : 0) + unlocked.member_referrals * 10
   dues_week: 12
   derived:
     service: round(service_rate * 100)
@@ -303,3 +305,32 @@ rules:
   director_growth: 0.3
   director_skill_cap: 80
 daily: []
+# 员工成长（W3，GM-11；设计文档"五种钥匙 · 人是钥匙"，schema 见 wave2-5-contract.md"W3 最终 schema"）。
+# 每干完一圈岗位或一张工单，那项能力 +rate，不超过潜力（people/indian_wells.yaml 的 potential；不写 = 起始值 + 15，
+# 大器晚成再 +10）。总监不走 rate（照旧 director_growth 0.3 / 上限 80），但 need 都写了 who，总监开不了这些钥匙。
+# 校准（GM-11）：设计表的初值 +0.2 一周就把坐前台的人涨满；改成 +0.1。教学岗位每个工作日只有 4–6 小时，稳定上课的教练
+# 一周约 20–25 圈：55 → 65 约 4–5 周，Dale 45 → 65 约 9–10 周（第 3 周开课，第 12 周前后过门槛）；前台一天约 10 圈服务，
+# Ben 55 → 70 约 2–3 周（见 docs/balance/indian-wells.md"员工成长"）。
+growth:
+  enabled: true
+  rate: 0.1
+  headroom: 15
+  traits: { late_bloomer: 10 }
+  skills: [teach, upkeep, service]
+  step: 5
+  unlocks:
+    # 教练教学 ≥ 65：带青少年赛时学员进四强 +20 个百分点（tournaments.junior_regional 的 chance 读 unlocked.junior_coach）
+    - key: junior_coach
+      need: [{ skill: teach, gte: 65, who: coach }]
+    # 维护工维护 ≥ 75：红土场"夜间养护"工单（orders/o23_night_care.yaml）
+    - key: night_clay_care
+      need: [{ skill: upkeep, gte: 75, who: crew }]
+    # 前台服务 ≥ 70：会员推荐，会员上限 +10（rules.member_cap 读 unlocked.member_referrals）
+    - key: member_referrals
+      need: [{ skill: service, gte: 70, who: special }]
+    # 球员球技 ≥ 70：地区业余赛升到高一级组别，报名费 ×2、奖金 ×2（orders/regional_open.yaml、tournaments.regional_open）
+    - key: open_division
+      need: [{ skill: play, gte: 70, who: player }]
+    # 组合：教练 + 体能师教学都 ≥ 60 → 青训场"周末训练营"岗位（posts/pr_camp.yaml）
+    - key: weekend_camp
+      need: [{ skill: teach, gte: 60, who: coach }, { skill: teach, gte: 60, who: trainer }]

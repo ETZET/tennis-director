@@ -271,17 +271,19 @@ describe('内容编译', () => {
 
   it('员工成长（W3）：解锁、条件、变量、潜力、岗位门槛能编译；写错都报错', () => {
     const ok = files();
+    // 仓库内容（GM-11）已经有自己的解锁：这里追加一条，不替换
     const zh = (y: Yaml) => {
-      y.unlocks = { night_care: '夜间养护' };
+      y.unlocks = { ...y.unlocks, night_care: '夜间养护' };
     };
     editYaml(ok, 'i18n/zh.yaml', zh);
     editYaml(ok, 'i18n/en.yaml', (y) => {
-      y.unlocks = { night_care: 'Night clay care' };
+      y.unlocks = { ...y.unlocks, night_care: 'Night clay care' };
     });
     editYaml(ok, 'acts/indian_wells.yaml', (y) => {
       y.growth = {
         enabled: true,
         unlocks: [
+          ...(y.growth?.unlocks ?? []),
           {
             key: 'night_care',
             need: [{ skill: 'upkeep', gte: 75, who: 'crew' }],

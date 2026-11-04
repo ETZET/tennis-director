@@ -17,6 +17,8 @@ function fixture(on: { growth?: boolean; ending?: boolean }): ContentBundle {
   c.version = `${CONTENT.version}-ui-w34-${on.growth ? 'g' : ''}${on.ending ? 'e' : ''}`;
   const a = c.acts.find((x) => x.id === 'indian_wells');
   if (!a) throw new Error('no indian_wells');
+  // 仓库内容已经打开成长（GM-11）：关着的情形在这里显式关掉
+  if (!on.growth && a.growth) a.growth = { ...a.growth, enabled: false };
   if (on.growth)
     a.growth = growth.parse({
       enabled: true,
