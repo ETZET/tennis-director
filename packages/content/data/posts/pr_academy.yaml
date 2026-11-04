@@ -15,6 +15,7 @@ effects:
   - { stat: cash, add: 2, if: { route: s2, is: youth } }
   - { stat: cash, add: 2, if: { route: s4, is: academy_isle } }
   - { stat: cash, add: 5, if: { upgrade: practice, has: video_wall } }
-# W2 门评审（GM-1 问题 1、试玩 P1）：使用磨损减半（1 → 0.5），有人在岗、偶尔维护的场地两周内不再掉到 0
-wear: 0.5
+# W2 复验（P1）：使用磨损再降到原来的十分之一。有人在岗的设施每天只掉一点（看场 + 上课的会员场约 1/天），
+# 掉档要好几周、画面信号先出来；维护照旧能稳住、补回来，赛事日（t_umpire、t_courtside）磨得多
+wear: 0.05
 performance: lesson

@@ -483,7 +483,7 @@ describe('有人守的地方维持住（准则 6，W2 闸口 P1）', () => {
     while (dayOf(s.t) === d) advance(s, content, [], 1);
   };
 
-  it('今天有人在这处设施的岗位上干完过一圈：收盘衰减乘 staffed_decay（0.5）；没人：照 decay_day 掉', () => {
+  it('今天有人在这处设施的岗位上干完过一圈：收盘衰减乘 staffed_decay；没人：照 decay_day 掉', () => {
     const empty = court();
     closeOf(empty);
     expect(empty.condition.outer_1).toBeCloseTo(90 - 5, 5);
@@ -492,8 +492,11 @@ describe('有人守的地方维持住（准则 6，W2 闸口 P1）', () => {
     closeOf(kept);
     const cycles = kept.week.cycles?.o1_rental ?? 0;
     expect(cycles).toBeGreaterThan(0);
-    // 看场每圈磨损 0.5（使用磨损照算），日衰减减半：5 × 0.5
-    expect(kept.condition.outer_1).toBeCloseTo(90 - cycles * 0.5 - 2.5, 5);
+    // 看场每圈的使用磨损照算，日衰减乘 staffed_decay（内容里的数，W2 复验后是 0.1）
+    const wear = CW.posts.get('o1_rental')?.wear ?? 0;
+    const k = CW.act.rules.staffed_decay;
+    expect(k).toBeLessThan(0.5);
+    expect(kept.condition.outer_1).toBeCloseTo(90 - cycles * wear - 5 * k, 5);
   });
 
   it('dayDecay 讲得出今晚掉多少；倍数是内容里的 rules.staffed_decay', () => {
@@ -501,7 +504,7 @@ describe('有人守的地方维持住（准则 6，W2 闸口 P1）', () => {
     expect(dayDecay(s, CW, 'outer_1', 1)).toBe(5);
     s.ledger.o1_rental = { person: 'dale', cycles: 1, effects: [] };
     expect(staffedToday(s, CW).has('outer_1')).toBe(true);
-    expect(dayDecay(s, CW, 'outer_1', 1.3)).toBeCloseTo(5 * 1.3 * 0.5, 5);
+    expect(dayDecay(s, CW, 'outer_1', 1.3)).toBeCloseTo(5 * 1.3 * CW.act.rules.staffed_decay, 5);
     const c = structuredClone(CONTENT) as ContentBundle;
     c.version = `${CONTENT.version}-staffed1`;
     const act = c.acts.find((a) => a.id === 'indian_wells');

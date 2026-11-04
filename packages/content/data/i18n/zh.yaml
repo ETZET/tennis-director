@@ -189,8 +189,8 @@ events:
     title: 俱乐部往哪边走？
     body: 会所开张了，Dale 拿着那本旧宣传册站在大门口："带孩子的家庭，还是 Palm Springs 酒店来的客人？两头一起追不过来。"明天还不定，Dale 就按青训来。
     options:
-      A: 青训之路：学院、理疗室先开；来应聘的教练多；学院课多挣一点
-      B: 度假之路：咖啡吧、度假泳池先开；来应聘的服务、体能人员多；周末客人多
+      A: 青训之路：学院先开（会所是咖啡吧的话，可以改成理疗室）；来应聘的教练多；学院课多挣一点
+      B: 度假之路：度假泳池先开（会所是理疗室的话，可以改成咖啡吧）；来应聘的服务、体能人员多；周末客人多
   iw_route_s3:
     title: Hal Brooks 让出高尔夫西段
     body: 隔壁荒掉的高尔夫球场老板 Hal Brooks 愿意让出西段："铺成球场，还是留着水塘盖小屋，你定。"两边都要付 $300 测量费。明天还不定，Dale 就按南场来。
@@ -688,6 +688,8 @@ ui:
     tour_live_none: "{title}开赛了"
     tour_spoiled: "{title}那天下雨办不成 · 报名费 ${fee} 白花了"
     tour_done: "{title}打完了"
+    goal_missed: "{title}：“{goal}”没拿到 · 临时岗位空着：{posts}"
+    goal_missed_none: "{title}：“{goal}”没拿到 · 临时岗位只到岗 {n}%"
     tour_again: "第 {n} 次参加 · 奖励 ×{k}"
     prep_done: "{group}：{what}做好了（{done}/{total}）"
     prep_all: "{group}：{what}做好了，四期都齐了"

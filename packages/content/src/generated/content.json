@@ -1,5 +1,5 @@
 {
- "version": "1b64cdf5",
+ "version": "3ac347e9",
  "stats": [
   {
    "id": "cash",
@@ -1064,7 +1064,7 @@
      "add": 0.01
     }
    ],
-   "wear": 0.15,
+   "wear": 0.02,
    "restore": 0
   },
   {
@@ -1278,7 +1278,7 @@
      "add": 0.02
     }
    ],
-   "wear": 0.5,
+   "wear": 0.05,
    "restore": 0,
    "performance": "lesson"
   },
@@ -1330,7 +1330,7 @@
      "add": 2
     }
    ],
-   "wear": 0.5,
+   "wear": 0.05,
    "restore": 0,
    "performance": "open_play"
   },
@@ -1394,7 +1394,7 @@
      "add": 4
     }
    ],
-   "wear": 0.5,
+   "wear": 0.05,
    "restore": 0,
    "performance": "lesson"
   },
@@ -1454,7 +1454,7 @@
      "add": 2
     }
    ],
-   "wear": 0.4,
+   "wear": 0.04,
    "restore": 0,
    "performance": "open_play"
   },
@@ -1483,7 +1483,7 @@
      }
     }
    ],
-   "wear": 0.25,
+   "wear": 0.025,
    "restore": 0,
    "only": [
     "player"
@@ -1574,7 +1574,7 @@
      "add": 5
     }
    ],
-   "wear": 0.5,
+   "wear": 0.05,
    "restore": 0,
    "performance": "lesson"
   },
@@ -1646,7 +1646,7 @@
      "add": 2
     }
    ],
-   "wear": 0.75,
+   "wear": 0.08,
    "restore": 0,
    "performance": "lesson"
   },
@@ -1693,7 +1693,7 @@
      "add": 0.02
     }
    ],
-   "wear": 0.25,
+   "wear": 0.025,
    "restore": 0,
    "only": [
     "trainer"
@@ -1725,7 +1725,7 @@
      }
     }
    ],
-   "wear": 0.25,
+   "wear": 0.025,
    "restore": 0,
    "only": [
     "player"
@@ -1785,7 +1785,7 @@
      "add": 2
     }
    ],
-   "wear": 0.4,
+   "wear": 0.04,
    "restore": 0,
    "performance": "open_play"
   },
@@ -1830,7 +1830,7 @@
      "add": 1
     }
    ],
-   "wear": 0.5,
+   "wear": 0.05,
    "restore": 0
   },
   {
@@ -1882,7 +1882,7 @@
      "add": 3
     }
    ],
-   "wear": 0.25,
+   "wear": 0.025,
    "restore": 0
   },
   {
@@ -1925,7 +1925,7 @@
      "add": 3
     }
    ],
-   "wear": 0.25,
+   "wear": 0.025,
    "restore": 0
   },
   {
@@ -1979,7 +1979,7 @@
      "add": 0.03
     }
    ],
-   "wear": 0.3,
+   "wear": 0.03,
    "restore": 0,
    "performance": "open_play"
   },
@@ -2044,7 +2044,7 @@
      "add": 8
     }
    ],
-   "wear": 0.5,
+   "wear": 0.05,
    "restore": 0
   },
   {
@@ -2099,7 +2099,7 @@
      "add": 0.05
     }
    ],
-   "wear": 0.25,
+   "wear": 0.025,
    "restore": 0
   },
   {
@@ -2133,7 +2133,7 @@
      "add": 0.04
     }
    ],
-   "wear": 0.25,
+   "wear": 0.025,
    "restore": 0
   },
   {
@@ -2230,7 +2230,7 @@
      "add": 0.04
     }
    ],
-   "wear": 0.5,
+   "wear": 0.05,
    "restore": 0,
    "performance": "pickleball"
   },
@@ -2289,7 +2289,7 @@
      "add": -0.04
     }
    ],
-   "wear": 0.4,
+   "wear": 0.04,
    "restore": 0
   },
   {
@@ -2333,7 +2333,7 @@
      "add": 0.04
     }
    ],
-   "wear": 0.4,
+   "wear": 0.04,
    "restore": 0,
    "performance": "open_play"
   },
@@ -2423,7 +2423,7 @@
      "add": 0.02
     }
    ],
-   "wear": 0,
+   "wear": 0.5,
    "restore": 0,
    "performance": "match"
   },
@@ -2443,7 +2443,7 @@
      "add": "0.03 + worker.skill / 2000"
     }
    ],
-   "wear": 0,
+   "wear": 0.5,
    "restore": 0,
    "performance": "match"
   }
@@ -4448,7 +4448,7 @@
     "director_growth": 0.3,
     "director_skill_cap": 80,
     "grade_drop_below": 15,
-    "staffed_decay": 0.5
+    "staffed_decay": 0.1
    },
    "stars": [
     {
@@ -8260,8 +8260,8 @@
    "events.iw_hiring_day_4b.options.C": "Not this time",
    "events.iw_route_s2.title": "Which way does the club grow?",
    "events.iw_route_s2.body": "The clubhouse is open and Dale stands at the gate with the old brochure. \"Families with kids, or hotel guests from Palm Springs? We can't chase both at once.\" If you don't choose by tomorrow, Dale picks the academy.",
-   "events.iw_route_s2.options.A": "Youth: the academy and physio room open first; more coaches apply; academy lessons earn more",
-   "events.iw_route_s2.options.B": "Resort: the café and resort pool open first; more service and fitness staff apply; busier weekends",
+   "events.iw_route_s2.options.A": "Youth: the academy opens first (a café clubhouse can switch to a physio room); more coaches apply; academy lessons earn more",
+   "events.iw_route_s2.options.B": "Resort: the resort pool opens first (a physio-room clubhouse can switch to a café); more service and fitness staff apply; busier weekends",
    "events.iw_route_s3.title": "Hal Brooks offers the golf strip",
    "events.iw_route_s3.body": "Hal Brooks, who owns the dead golf course next door, will give up its west strip. \"Pave it for courts, or keep the pond and put up cabins. Your call.\" The survey costs $300 either way. If you don't choose by tomorrow, Dale picks the courts.",
    "events.iw_route_s3.options.A": "South courts: two new courts on the golf strip (now: weekend games there, members +4)",
@@ -8904,6 +8904,8 @@
    "ui.wire.tour_live_none": "The {title} is on",
    "ui.wire.tour_spoiled": "Rain washed out the {title} · the ${fee} fee is lost",
    "ui.wire.tour_done": "{title} done",
+   "ui.wire.goal_missed": "{title}: “{goal}” missed · event jobs left empty: {posts}",
+   "ui.wire.goal_missed_none": "{title}: “{goal}” missed · event jobs only {n}% staffed",
    "ui.wire.tour_again": "entry #{n} · rewards ×{k}",
    "ui.wire.prep_done": "{group}: {what} is ready ({done}/{total})",
    "ui.wire.prep_all": "{group}: {what} is ready, all four phases done",
@@ -9189,8 +9191,8 @@
    "events.iw_hiring_day_4b.options.C": "这次不招",
    "events.iw_route_s2.title": "俱乐部往哪边走？",
    "events.iw_route_s2.body": "会所开张了，Dale 拿着那本旧宣传册站在大门口：\"带孩子的家庭，还是 Palm Springs 酒店来的客人？两头一起追不过来。\"明天还不定，Dale 就按青训来。",
-   "events.iw_route_s2.options.A": "青训之路：学院、理疗室先开；来应聘的教练多；学院课多挣一点",
-   "events.iw_route_s2.options.B": "度假之路：咖啡吧、度假泳池先开；来应聘的服务、体能人员多；周末客人多",
+   "events.iw_route_s2.options.A": "青训之路：学院先开（会所是咖啡吧的话，可以改成理疗室）；来应聘的教练多；学院课多挣一点",
+   "events.iw_route_s2.options.B": "度假之路：度假泳池先开（会所是理疗室的话，可以改成咖啡吧）；来应聘的服务、体能人员多；周末客人多",
    "events.iw_route_s3.title": "Hal Brooks 让出高尔夫西段",
    "events.iw_route_s3.body": "隔壁荒掉的高尔夫球场老板 Hal Brooks 愿意让出西段：\"铺成球场，还是留着水塘盖小屋，你定。\"两边都要付 $300 测量费。明天还不定，Dale 就按南场来。",
    "events.iw_route_s3.options.A": "南场：在高尔夫西段铺两片新场（现在：先在那儿办周末对打，会员 +4）",
@@ -9833,6 +9835,8 @@
    "ui.wire.tour_live_none": "{title}开赛了",
    "ui.wire.tour_spoiled": "{title}那天下雨办不成 · 报名费 ${fee} 白花了",
    "ui.wire.tour_done": "{title}打完了",
+   "ui.wire.goal_missed": "{title}：“{goal}”没拿到 · 临时岗位空着：{posts}",
+   "ui.wire.goal_missed_none": "{title}：“{goal}”没拿到 · 临时岗位只到岗 {n}%",
    "ui.wire.tour_again": "第 {n} 次参加 · 奖励 ×{k}",
    "ui.wire.prep_done": "{group}：{what}做好了（{done}/{total}）",
    "ui.wire.prep_all": "{group}：{what}做好了，四期都齐了",

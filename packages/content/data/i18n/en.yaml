@@ -189,8 +189,8 @@ events:
     title: Which way does the club grow?
     body: 'The clubhouse is open and Dale stands at the gate with the old brochure. "Families with kids, or hotel guests from Palm Springs? We can''t chase both at once." If you don''t choose by tomorrow, Dale picks the academy.'
     options:
-      A: "Youth: the academy and physio room open first; more coaches apply; academy lessons earn more"
-      B: "Resort: the café and resort pool open first; more service and fitness staff apply; busier weekends"
+      A: "Youth: the academy opens first (a café clubhouse can switch to a physio room); more coaches apply; academy lessons earn more"
+      B: "Resort: the resort pool opens first (a physio-room clubhouse can switch to a café); more service and fitness staff apply; busier weekends"
   iw_route_s3:
     title: Hal Brooks offers the golf strip
     body: 'Hal Brooks, who owns the dead golf course next door, will give up its west strip. "Pave it for courts, or keep the pond and put up cabins. Your call." The survey costs $300 either way. If you don''t choose by tomorrow, Dale picks the courts.'
@@ -698,6 +698,8 @@ ui:
     tour_live_none: "The {title} is on"
     tour_spoiled: "Rain washed out the {title} · the ${fee} fee is lost"
     tour_done: "{title} done"
+    goal_missed: "{title}: “{goal}” missed · event jobs left empty: {posts}"
+    goal_missed_none: "{title}: “{goal}” missed · event jobs only {n}% staffed"
     tour_again: "entry #{n} · rewards ×{k}"
     prep_done: "{group}: {what} is ready ({done}/{total})"
     prep_all: "{group}: {what} is ready, all four phases done"

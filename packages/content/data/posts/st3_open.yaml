@@ -12,6 +12,7 @@ effects:
   - { stat: cash, add: "round(8 * (0.6 + worker.skill / 100) * (1 + stat.reputation / 120))" }
   - { stat: members, add: 1, chance: 0.05 }
   - { stat: reputation, add: 0.04 }
-# W2 门评审（GM-1 问题 1、试玩 P1）：使用磨损减半（0.8 → 0.4），有人在岗、偶尔维护的场地两周内不再掉到 0
-wear: 0.4
+# W2 复验（P1）：使用磨损再降到原来的十分之一。有人在岗的设施每天只掉一点（看场 + 上课的会员场约 1/天），
+# 掉档要好几周、画面信号先出来；维护照旧能稳住、补回来，赛事日（t_umpire、t_courtside）磨得多
+wear: 0.04
 performance: open_play
