@@ -1779,6 +1779,8 @@ export class Projector {
       if (o.once && (s.orderLog.done[o.id] ?? 0) > 0) continue;
       // 分期筹备做完的一期：筹备格里已经打了勾，不再当成"还没开出来"挂一行锁
       if ((s.orderLog.done[o.id] ?? 0) > 0 && [...w.prep.values()].some((ids) => ids.includes(o.id))) continue;
+      // 表演赛办成以后，筹备工单不再有意义：不挂锁行
+      if (s.flags.exhibition_done && [...w.prep.values()].some((ids) => ids.includes(o.id))) continue;
       if ((s.orderLog.cooldowns[o.id] ?? -1) > s.t) continue;
       // 已经装上的升级、和现在的变体对不上的升级、已经改成的样子：不是"还没开出来"，不再挂一行（改造期满后也按新变体重看）
       if (fac && o.upgrade) {
@@ -1947,6 +1949,8 @@ export class Projector {
   private prepPanel(s: GameState, anchor: string): PlaceSheetData['prep'] {
     const T = this.text;
     const w = worldOf(s, this.content);
+    // 表演赛已经办成：筹备格整个不显示（GATE-4 复测 P1）
+    if (s.flags.exhibition_done) return undefined;
     for (const [group, ids] of w.prep) {
       const orders = ids.map((id) => w.orders.get(id)).filter((o): o is Order => !!o && o.at === anchor);
       if (!orders.length) continue;
