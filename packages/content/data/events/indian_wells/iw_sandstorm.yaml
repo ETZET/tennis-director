@@ -1,10 +1,11 @@
 # 起风了：沙子正往外场里灌。现在带人去把场地盖上，还是等风停了再扫？
+# GM-14 卡预算（GM-1：一局来 4–5 次太重复）：一局最多两次，隔三周。
 id: iw_sandstorm
 act: indian_wells
 source: random
 tone: crisis
-cooldown: 14d
-max_shown: 3
+cooldown: 21d
+max_shown: 2
 countdown: 2h
 when:
   all:

@@ -1,10 +1,11 @@
 # 重建中心球场：补上东北角的看台、换座位、修大屏、铺场地。整局最大的一笔。
+# W2：$9000 → $7500（GM-1：终局一条链 $14000 太贵）；省下的钱挪给表演赛四期筹备（prep_*，都是可选的加成）。
 id: st1_rebuild
 act: indian_wells
 at: stadium_1
 skill: upkeep
 work: 30h
-cost: 9000
+cost: 7500
 crew: 6
 once: true
 when: { facility: stadium_1, is: cleared }

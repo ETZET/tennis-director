@@ -54,6 +54,7 @@ events:
     options:
       A: I'll show you around myself
       B: Have a look on your own
+      C: Ask for $1500 more (reputation −5)
   iw_deadline:
     title: Time's up
     body: Sixteen weeks are over. The investors leave a folder on the clubhouse desk.
@@ -97,34 +98,22 @@ events:
       B: Take a few days off first
   iw_dale_nudge:
     title: '"We''ve been standing around"'
-    body: Dale finds you by the clubhouse. "Two of us, a whole club, and we've been standing around for a day. There's still work we can start. Want me to take the next repair, or shall I go drum up some interest in town?"
+    body: Dale finds you by the clubhouse. "Two of us, a whole club, and we've been standing around for a day. There's still work we can start. Want me to take the next repair?"
     options:
       A: Dale takes the next repair (materials paid when he starts)
-      B: Dale runs a free taster lesson in town
-      C: I've got a plan
+      B: I've got a plan
   iw_credit_union:
     title: The credit union calls
-    body: A loan officer from the Coachella Valley Credit Union stops at the gate. "Quiet week? We can float you $2500 now. Four weeks, $3000 back."
+    body: 'A loan officer from the Coachella Valley Credit Union stops at the gate. "Quiet week? We can float you $2500 now. Four weeks, $3000 back." If you can''t pay it all then, they take $1500 (never below −$1000) and the town hears about it: reputation −4 or worse.'
     options:
       A: Take the loan
       B: No debts, thanks
   iw_loan_due:
     title: The loan is due
-    body: The credit union is back for its $3000. They'll give you two more weeks if you pay $400 interest now.
+    body: The credit union is back for its $3000. Pay it all, or settle for half now and let the town talk about the rest.
     options:
-      A: Pay it all back
-      B: Two more weeks, pay the interest
-  iw_loan_final:
-    title: The extension is over
-    body: The credit union takes what it can of the $3000 straight from the account. Word gets around town that the club owed money; the emptier the account, the worse it sounds.
-    options:
-      A: Pay up
-  iw_investor_call:
-    title: The investors call
-    body: '"A quiet week, and we count fewer places fixed than we hoped by now." The investors are on the phone. "Do you need more money, or will you catch up by our visit in week 13?"'
-    options:
-      A: Ask for $1500 more
-      B: Promise we'll catch up (5 places by the visit)
+      A: Pay all $3000
+      B: Pay $1500 now (never below −$1000); reputation −4 or more
   iw_rival_club:
     title: A challenge from La Quinta
     body: The head coach of the La Quinta Racquet Club turns up at the clay courts. "Your members keep telling mine this place is back. Prove it. Club match, this weekend."
@@ -187,11 +176,30 @@ events:
       B: Hire Mateo (ball kid)
       C: Not this time
 
+  iw_route_s2:
+    title: Which way does the club grow?
+    body: 'The clubhouse is open and Dale stands at the gate with the old brochure. "Families with kids, or hotel guests from Palm Springs? We can''t chase both at once." If you don''t choose by tomorrow, Dale picks the academy.'
+    options:
+      A: "Youth: the academy and physio room open first; more coaches apply; academy lessons earn more"
+      B: "Resort: the café and resort pool open first; more service staff apply; busier weekends"
+  iw_route_s3:
+    title: Hal Brooks offers the golf strip
+    body: 'Hal Brooks, who owns the dead golf course next door, will give up its west strip. "Pave it for courts, or keep the pond and put up cabins. Your call." The survey costs $300 either way. If you don''t choose by tomorrow, Dale picks the courts.'
+    options:
+      A: "South courts: two new courts on the golf strip (now: weekend games there, members +4)"
+      B: "Oasis lawn: keep the pond, cabins and a small pool court (now: picnic lawn, reputation +3)"
+  iw_route_s4:
+    title: Where does the island grow?
+    body: 'A resort club needs room. Turn the south car park into a viewing slope and grow new land in the southeast, or bridge over to the little sky island with the two old net posts? If you don''t choose by tomorrow, Dale picks the plaza.'
+    options:
+      A: "Event plaza: a viewing slope for big matches (now: exhibition +5%)"
+      B: "Academy isle: a bridge to the island academy (now: academy lessons +$2, junior semifinal +10%)"
 log:
   started: You arrive at the abandoned Palm Oasis Racquet Club.
   first_court: "The members' court has a new net: the first playable court in ten years"
   ball_machine: The ball machine works again; academy lessons are better
   loan_declined: You turned down the credit union's loan
+  loan_settled: The credit union took half the loan and the town is talking about it
   loan_paid: The credit union loan is paid off
   clubhouse_open: The clubhouse front desk is open; hiring days can start
   stadium_3_open: The pickleball courts are open
@@ -240,6 +248,11 @@ posts:
   st3_night: { title: "Courts · Night session", note: "Fri–Sat 17–20 under the league lights" }
   st2_plunge: { title: "Pool · Cold plunge", note: "Weekdays 16–20, after training" }
 
+  t_checkin: { title: "Event · Check-in desk", note: "Event days 9–17 only: entry fees, bibs, directions" }
+  t_umpire: { title: "Event · Umpire chair", note: "Event days 9–17 only; someone who knows tennis" }
+  t_courtside: { title: "Clay courts · Courtside service", note: "Invitational days 9–17 only: towels, balls, the stands" }
+  t_catering: { title: "Circle of Palms · Event catering", note: "Invitational days 10–16 only; more guests, more sales" }
+  st1_night: { title: "Stadium · Night session", note: "Thu–Sat 18–20 under the new lights" }
 orders:
   o1_sweep: { title: "Sweep the sand off the members' court", note: "Free; two people, one morning" }
   o1_net: { title: "New net for the members' court", note: "$120, one person, one hour", locked: "Sweep the sand first" }
@@ -271,8 +284,8 @@ orders:
   st1_reopen: { title: "Reopen the Stadium", note: "It lost its grade: fix the big screen, clear the stands, $450" }
   st1_clear: { title: "Clear the Stadium", note: "Haul away the collapsed northeast stands", locked: "Open the pool first" }
   st1_rebuild: { title: "Rebuild the Stadium", note: "The biggest job of the game", locked: "Clear the Stadium first" }
-  st1_exhibition: { title: "Hold the exhibition", note: "Six people for a whole day; the higher the reputation, the better the odds", locked: "★4 and the Stadium rebuilt" }
-  pl_tournament: { title: "Play a tournament", note: "Players only, once a week; the better they play, the likelier a win; from ★2 a win brings home a trophy" }
+  st1_exhibition: { title: "Hold the exhibition", note: "Six people for a whole day; the higher the reputation, the better the odds (at most 75% without the build-up)", locked: "★4 and the Stadium rebuilt" }
+  pl_tournament: { title: "Play a tournament", note: "Players only, once a week; a small event: the better they play, the likelier a win (prize money, no trophy)" }
   o23_pro_clay: { title: "Tournament clay", note: "$400; needs someone with upkeep 75+. Better courts, but fussier", locked: "Clay courts open, kept as clay" }
   o23_pro_hard: { title: "Pro hard courts", note: "$350; needs someone with upkeep 75+. Wears even slower", locked: "Courts open, rebuilt as hard courts" }
   ch_pro_shop: { title: "Open a pro shop", note: "$500; needs someone with service 65+. Anyone free can mind the counter; it earns while they do", locked: "Clubhouse open" }
@@ -284,8 +297,14 @@ orders:
   ch_to_physio: { title: "Turn the café into a physio room", note: "$900; the clubhouse closes for a week" }
   st3_to_tennis2: { title: "Back to two tennis courts", note: "$1400; closed for a week. The old members will be pleased, the league leaves" }
   st3_to_pickle4: { title: "Convert to four pickleball courts", note: "$1000; closed for a week. League money, unhappy old members" }
-  cup_monthly: { title: "Host the monthly club cup", note: "$60, two people, half a day; every four weeks. A trophy", locked: "★1 and two repaired courts" }
-  inv_clay: { title: "Host the invitational", note: "$800, four people, a whole day; rain spoils it. Clay courts make it likelier (+10%)", locked: "★3; the courts by the academy, clubhouse and Circle of Palms open" }
+  cup_monthly: { title: "Sign up for the monthly club cup", note: "$60; Saturday of weeks 3, 7, 11, 15. Check-in and umpire posts that day; two courts closed to rentals and lessons; rain spoils it. A trophy", locked: "★1 and two repaired courts" }
+  regional_open: { title: "Play the regional open", note: "$200; players only, a whole day away; a win brings $800, reputation and a trophy. From ★3 it's doubles: two players", locked: "★2 and a player on staff" }
+  junior_regional: { title: "Take juniors to the regional", note: "$80; a coach takes the kids for half a day; a semifinal brings members, reputation and a trophy", locked: "★2, academy courts open, 10 academy lessons this week" }
+  invitational: { title: "Host the invitational", note: "$800; four event posts both days of the weekend; rain spoils it. Clay: more reputation; hard courts: more money", locked: "★3; clay courts, clubhouse and Circle of Palms open" }
+  prep_stands: { title: "Exhibition build-up · Stands", note: "$1500; exhibition +8%, +$1500 in tickets if it happens; reputation +2", locked: "From ★3" }
+  prep_lights: { title: "Exhibition build-up · Floodlights", note: "$1000; exhibition +4%; once rebuilt, Thu–Sat night sessions; power +$30/week", locked: "From ★3" }
+  prep_service: { title: "Exhibition build-up · Ball kids and service", note: "$600; exhibition +10%; members +2", locked: "From ★3" }
+  prep_media: { title: "Exhibition build-up · Sponsor and TV", note: "$900; the sponsor pays $150 a week; +$1000 TV money if the exhibition happens", locked: "From ★3" }
 
 # Repair variants (GM-13): the name, and what each one gives and costs (variant_notes, for the location list)
 variants:
@@ -321,6 +340,7 @@ upgrades:
   practice: { video_wall: Video wall }
   plaza: { misters: Misters }
   stadium_2: { cabanas: Cabanas }
+  stadium_1: { night_lights: Floodlights, broadcast: Sponsor and TV deal }
 # Club stars (GM-9): names, checklist items, and what each star opens
 stars:
   names: { "0": Ruins, "1": Courts are back, "2": Clubhouse open, "3": Community club, "4": Resort club, "5": Desert landmark }
@@ -343,7 +363,7 @@ stars:
   opens:
     internal_cup: The monthly club cup
     regional: "Regional tournaments: a win brings home a trophy"
-    invitational: The invitational (clay courts help)
+    invitational: The invitational (clay or hard courts)
     sponsor: A sponsor slot
     exhibition_prep: The exhibition build-up shows on the Stadium
     exhibition: The exhibition can be held
@@ -423,7 +443,46 @@ roles:
   staff: Staff
   rival: Rival
 
+# Tournament ladder (GM-10): names, side goals, and the court-specific invitational
+tournaments:
+  cup_monthly:
+    title: Monthly club cup
+    goals: { service: "Service 80%+ that day", members: "10+ members", staffed: "Both event posts staffed all day", full_house: "40+ members" }
+  regional_open:
+    title: Regional open
+    goals: { win: Win the tournament, defend: Defend the title }
+  junior_regional:
+    title: Junior regional
+    goals: { semis: A junior reaches the semifinal, final: A junior reaches the final }
+  invitational:
+    title: The invitational
+    goals: { staffed: "All four event posts staffed both days", service: "Service 80%+ both days", full_house: "70+ members" }
+    variants: { clay: Clay-court invitational, hard: Hard-court invitational }
+# Route choices (GM-14)
+routes:
+  s2: { youth: Youth academy, resort: Desert resort }
+  s3: { south_courts: South courts, oasis_lawn: Oasis lawn }
+  s4: { event_plaza: Event plaza, academy_isle: Academy isle }
+# Phased build-ups (W2)
+prep:
+  exhibition: Exhibition build-up
 ui:
+  route:
+    look: Tap to see where it goes
+    confirm: Tap again to decide
+    pick: Tap to pick, tap again to decide
+    default: "If time runs out, {name} picks “{route}”"
+    opens: "Opens first: {list}"
+    costs: "Waits this season: {list}"
+    other: "Gives up “{route}”"
+  beat:
+    today: "Today {time}"
+    tomorrow: "Tmrw {time}"
+    weekday: "{d} {time}"
+    day: "Day {n} {time}"
+    live: "On now"
+    hiring: Hiring day
+    cards: { iw_investor_check: Investor visit, iw_deadline: Final reckoning }
   # Star rating (UI-8): the status strip cell and its checklist
   stars:
     label: "Next ★: {n} to go"
@@ -445,10 +504,13 @@ ui:
     decay: "Wears {n}/day"
     rain_ok: Playable in rain
     rain_no: Closed in rain
+    route: "Opens with the “{route}” route"
+    closed: Not open yet
   log:
     upgrade: "{what} installed at {place}"
     remodel: "{place} closed to become “{what}”"
     trophy: "Trophies {n}"
+    route: "took the “{route}” route"
   hud:
     quality: Quality
     members: Members
@@ -464,6 +526,7 @@ ui:
     wire: Club wire
     rotateLeft: Rotate left (Q)
     rotateRight: Rotate right (E)
+    home: Back to the clubhouse
     pause: Pause (Space)
     resume: Resume (Space)
     speed: Change speed
@@ -484,6 +547,9 @@ ui:
     skill_service: Service
     skill_play: Play
     trend: { falling: Falling, recovering: Recovering, flat: Flat, bottomed: Bottomed out }
+    next: Coming up
+    done: Done
+    rose: Got better today
   week: "Wk {n}"
   weather: { sun: Sunny, cloud: Cloudy, rain: Rain · outdoor courts closed, wind: Windy }
   days: { "0": Mon, "1": Tue, "2": Wed, "3": Thu, "4": Fri, "5": Sat, "6": Sun }
@@ -498,6 +564,8 @@ ui:
     cost: "−${n}"
     needs: "{skill} {n}+"
     closed: "Closed {time}"
+    min_crew: "Needs {n} on site"
+    trophy: "Trophy +{n}"
   attr: { skill: coaching, upkeep: upkeep, service: service, play: play, morale: morale, fatigue: fatigue }
   then: "Then: {what}"
   ctx:
@@ -578,10 +646,11 @@ ui:
     failed: " (it didn't work)"
     star: "the club reached ★{n}"
     remodel: "the {place} remodel into “{what}” finished"
+    tournament: "the {title} wrapped up"
+    tournament_spoiled: "it rained on the {title}"
   wire:
     grew: "The director's {skill} reached {n}"
     interrupted: "{name} was pulled off “{post}”; that round was lost"
-    routine_order: "{name} went back to {post} (routine) · {order} paused at {p}%"
     routine_post: "{name} went back to {post} (routine) · left {from}"
     week: "Week {n} settled · {rate} · {what}"
     week_rate: "service {n}%"
@@ -595,6 +664,19 @@ ui:
     plaque_faster: " · the crew beat one person by {time}"
     remodel_started: "{place} closed to become “{variant}” · reopens in {time}"
     remodel_done: "{place} reopened as “{variant}”"
+    returned: "{name} finished “{order}” and went back to {post}"
+    released_closed: "{place} closed · {name} is free now"
+    released_remodel: "{place} is shut for the remodel · {name} is free now"
+    released_event: "The tournament has the court today, {post} is off · {name} is free now"
+    released_event_end: "Tournament over, {post} packed up · {name} is free now"
+    tour_entered: "Signed up for the {title} · starts {when}"
+    tour_live: "The {title} is on · event jobs: {posts} (drag people there)"
+    tour_live_none: "The {title} is on"
+    tour_spoiled: "Rain washed out the {title} · the ${fee} fee is lost"
+    tour_done: "{title} done"
+    tour_again: "entry #{n} · rewards ×{k}"
+    prep_done: "{group}: {what} is ready ({done}/{total})"
+    prep_all: "{group}: {what} is ready, all four phases done"
   status:
     empty: "{n} posts have customers waiting and nobody there"
     covered: Every busy spot has someone right now
@@ -624,12 +706,24 @@ ui:
     order_new: "{cost}{time} · not started"
     order_on: "{names} working · {p}%"
     order_paused: "Paused · {p}%"
-    order_paused_routine: "Paused · {p}% · crew left (routine)"
     sends_variant: "As “{variant}”"
     order_wait: "{p}% · waiting for crew"
     coming: "On the way: {list}"
     coming_one: "{name} {time}"
     remodel: "Being remodelled into “{variant}” · reopens in {time}"
+    min_crew: "{n}/{need} on site · starts when everyone is here"
+    tour_host: "Starts {when} · fee ${fee} · finish it to sign up"
+    tour_away_early: "Leaves {when} · fee ${fee} · send people on the day"
+    tour_away_now: "Leaves today · fee ${fee}"
+    badge_host: Event
+    badge_away: Away
+    badge_temp: Today
+    event_closed: The tournament has this court today
+    event_soon: "Signed up · starts {when}"
+    event_live: "Playing · ends {when}"
+    prep_title: "{group} · {done}/{total} phases"
+    prep_left: "{n} to go · ${cost} in all"
+    prep_all: All four phases done, the exhibition can go ahead
   why:
     person: Can't be assigned
     busy: Away on an errand
@@ -641,6 +735,7 @@ ui:
     skill: Not skilled enough for this
     skill_min: "Needs {skill} {n}+ (own skill, traits don't count)"
     variant: Work already started as the other option
+    early: "Can only leave on match day ({when})"
   sheet:
     daily: Daily
     anytime: Any time
@@ -664,3 +759,56 @@ ui:
     leaves: "leaves “{what}”"
     speed: "Working at {n}%"
     you_coming: "On the way · {time}"
+  # 员工成长（W3）和结局卡（W4，UI-10）
+  grow:
+    potential: "Potential: {list}"
+    pair: "{skill} {from} → {to}"
+    skill_up: "{name}'s {skill} reached {n}"
+    unlock: "{name} reached {skill} {n} — {what} unlocked"
+    unlock_plain: "{what} unlocked ({names})"
+    because: "{names} got good enough"
+  ending:
+    topic: Season one · final score
+    title: The season is scored
+    total: Total
+    day: "Day {n}"
+    line_early: "Settled on day {day} · {n} days early"
+    line_deadline: "Settled on day {day}"
+    detail: "{value} × {per}"
+    item:
+      stars: Stars
+      trophies: Trophies
+      members: Members
+      reputation: Reputation
+      exhibition: Exhibition
+      early: Days early
+      cash: Cash
+    verdict:
+      S: "A season people in the desert will talk about for years."
+      A: "The garden is back, and everyone in the valley knows it."
+      B: "Solid work: the club stands on its own feet again."
+      C: "It's open and it's breathing, but only just."
+      D: "The gates are open, but the season got away from you."
+    season2: Start season two
+    summary: See summary
+    score: Back to the score
+    recap_title: How season one went
+    recap_empty: A quiet season — nothing big made the log.
+    recap:
+      star: "Reached ★{n}"
+      route: "Chose the road: {route}"
+      variant: "{place} rebuilt as “{variant}”"
+      trophy: "Won a trophy at the {title}"
+      unlock: "{what} unlocked ({names})"
+      exhibition: The exhibition filled the Stadium
+      settled: "Scored {total} · grade {grade}"
+    goal: "Season {n} · goal: {goal}"
+    goal_tbd: the next goal is coming soon
+    settle_now: "Settle now: +{n} early bonus"
+    settle_score: "Score if settled now: {total} ({grade})"
+    keep: "Keep running to day {day}"
+    keep_risk: "No early bonus; members, cash and trophies keep counting (and so does the risk)"
+    wire_settled: "Season one settled: {total} points, grade {grade}"
+    wire_season_two: "Season two begins · goal: {goal}"
+    because_settled: "season one was scored ({total}, grade {grade})"
+    because_season: "season two began"

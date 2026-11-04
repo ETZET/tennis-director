@@ -1,5 +1,6 @@
-# Dale 看你们闲了一天多，过来找你：俱乐部里还有能动手的活。两条有取舍的建议，或者你自己安排（e7：放置对照里没人告诉你下一步）。
-# 只在开局几步、而且真的有人闲着时来；一局最多三次，隔十天，不是流水线。
+# Dale 看你们闲了一天多，过来找你：俱乐部里还有能动手的活。交给他，或者你自己安排（e7：放置对照里没人告诉你下一步）。
+# 只在开局几步、而且真的有人闲着时来；一局最多两次，隔十天，不是流水线。
+# GM-14 减轻：去掉"去镇上上体验课"那一项，只剩"交给 Dale"和"我自己安排"（卡预算 15–19；员工条上的"下一步"提示照旧）。
 id: iw_dale_nudge
 act: indian_wells
 source: threshold
@@ -7,7 +8,7 @@ tone: neutral
 # 阈值卡默认只出现一次；这张可以再来（隔十天，最多三次）
 once: false
 cooldown: 10d
-max_shown: 3
+max_shown: 2
 countdown: 6h
 when:
   all:
@@ -47,14 +48,7 @@ options:
             - { stat: cash, gte: 1800 }
       - { person: dale, add: { morale: 3 } }
   B:
-    # 不花钱：Dale 去镇上的公园教一堂免费体验课，三个小时，招一点名气和人；修复还是等着
-    effects:
-      - { errand: dale, at: entrance, for: 3h }
-      - { stat: reputation, add: 1 }
-      - { stat: members, add: 1, chance: 0.5 }
-      - { person: dale, add: { fatigue: 10 } }
-  C:
     # 你自己安排：什么都不动，钱也留着；Dale 觉得被晾着
     effects:
       - { person: dale, add: { morale: -3 } }
-default: { then: C }
+default: { then: B }

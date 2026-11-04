@@ -1,0 +1,12 @@
+# 临时岗位 · 签到（GM-10）：只在接下的内赛、邀请赛的比赛日开（acts 的 tournaments.posts），不进习惯。
+# 放在会员场门口那张折叠桌上：内赛就在这里，邀请赛在隔壁的红土场（走 5 分钟）。收报名费、发号码布、指路。
+id: t_checkin
+act: indian_wells
+at: outer_1
+skill: service
+cycle: 1h
+hours: [9, 17]
+effects:
+  - { stat: cash, add: "round(4 * (0.6 + worker.skill / 100))" }
+  - { stat: members, add: 1, chance: 0.04 }
+performance: open_play

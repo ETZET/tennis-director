@@ -9,5 +9,7 @@ when: { any: [{ facility: outer_1, is: playable }, { facility: outer_1, is: resu
 effects:
   - { stat: cash, add: "round(3 * (0.6 + worker.skill / 100) * (1 + stat.reputation / 120))" }
   - { stat: members, add: 1, chance: 0.03 }
+  # 度假之路（GM-14，★2 选路 resort）：周末从 Palm Springs 的酒店来打球的客人多
+  - { stat: cash, add: 2, if: { all: [{ route: s2, is: resort }, { expr: "weekday >= 5" }] } }
 wear: 0.5
 performance: open_play

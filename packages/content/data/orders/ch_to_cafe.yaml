@@ -6,7 +6,8 @@ skill: upkeep
 work: 4h
 cost: 700
 crew: 2
-when: { facility: clubhouse, is: open }
+# 选路（GM-14）：度假之路一选就能改；青训之路要到 ★3
+when: { all: [{ facility: clubhouse, is: open }, { any: [{ route: s2, is: resort }, { expr: "stars >= 3" }] }] }
 remodel: cafe
 closed_for: 7d
 performance: workday

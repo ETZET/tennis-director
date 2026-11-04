@@ -1,0 +1,10 @@
+# 临时岗位 · 餐饮（GM-10）：邀请赛两天在棕榈喷泉边摆餐台。来的人越多卖得越多。只在接下的邀请赛比赛日开。
+id: t_catering
+act: indian_wells
+at: plaza
+skill: service
+cycle: 1h
+hours: [10, 16]
+when: { facility: plaza, is: open }
+effects:
+  - { stat: cash, add: "round(8 * (0.6 + worker.skill / 100) * clamp(0.5 + stat.members / 40, 0.5, 2))" }

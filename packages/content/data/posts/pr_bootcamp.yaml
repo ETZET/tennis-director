@@ -13,5 +13,8 @@ effects:
   - { stat: cash, add: 5, if: { upgrade: practice, has: video_wall } }
   - { stat: members, add: 1, chance: 0.07 }
   - { stat: reputation, add: 0.02 }
+  # 青训之路（GM-14，★2 选路 youth）：报青训的孩子多；★4 选了学院岛再多一点
+  - { stat: cash, add: 2, if: { route: s2, is: youth } }
+  - { stat: cash, add: 2, if: { route: s4, is: academy_isle } }
 wear: 1.5
 performance: lesson

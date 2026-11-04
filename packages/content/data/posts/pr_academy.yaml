@@ -11,6 +11,9 @@ effects:
   - { stat: cash, add: "round(12 * (0.6 + worker.skill / 100) * clamp(0.5 + stat.members / 40, 0.5, 2)) + (flag.ball_machine ? 4 : 0)" }
   - { stat: members, add: 1, chance: 0.05 }
   - { stat: reputation, add: 0.03 }
+  # 青训之路（GM-14，★2 选路 youth）：报青训的孩子多；★4 选了学院岛再多一点
+  - { stat: cash, add: 2, if: { route: s2, is: youth } }
+  - { stat: cash, add: 2, if: { route: s4, is: academy_isle } }
   - { stat: cash, add: 5, if: { upgrade: practice, has: video_wall } }
 wear: 1
 performance: lesson

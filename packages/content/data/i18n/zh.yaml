@@ -54,6 +54,7 @@ events:
     options:
       A: 我亲自带你们转
       B: 你们自己随便看
+      C: 请他们追加 $1500（声望 −5）
   iw_deadline:
     title: 期限到了
     body: 十六周到了。投资方的人把一份文件放在会所的桌子上。
@@ -97,34 +98,22 @@ events:
       B: 你先歇几天
   iw_dale_nudge:
     title: "“咱俩站了一天了”"
-    body: Dale 在会所门口找到你："两个人，一整座俱乐部，咱俩干站了一天了。还有能动手的活。下一件修复交给我，还是我去镇上给咱们攒点人气？"
+    body: Dale 在会所门口找到你："两个人，一整座俱乐部，咱俩干站了一天了。还有能动手的活。下一件修复交给我？"
     options:
       A: 交给 Dale 去干下一件修复（开工时扣材料费）
-      B: 让 Dale 去镇上上一堂免费体验课
-      C: 我自己有安排
+      B: 我自己有安排
   iw_credit_union:
     title: 信用社来电
-    body: Coachella Valley 信用社的信贷员停在大门口："这礼拜挺清闲？我们现在可以先借你 $2500，四周后还 $3000。"
+    body: Coachella Valley 信用社的信贷员停在大门口："这礼拜挺清闲？我们现在可以先借你 $2500，四周后还 $3000。"到时候还不上全额，就先扣 $1500（最多扣到 −$1000），镇上也会传开：声望 −4 起。
     options:
       A: 借
       B: 不欠债，谢谢
   iw_loan_due:
     title: 贷款到期
-    body: 信用社来收那 $3000 了。现在先付 $400 利息，可以再宽限两周。
+    body: 信用社来收那 $3000 了。一次还清，还是先还一半、剩下的让镇上去议论？
     options:
-      A: 一次还清
-      B: 付利息，再拖两周
-  iw_loan_final:
-    title: 展期到了
-    body: 信用社直接从账上扣钱，最多 $3000。镇上都传开了：俱乐部欠过钱，账上越空，名声越难听。
-    options:
-      A: 还钱
-  iw_investor_call:
-    title: 投资方来电
-    body: "“这个礼拜没什么动静，修好的地方也比我们预想的少。”投资方在电话里问，“要再加点钱，还是第 13 周我们来看的时候你能赶上？”"
-    options:
-      A: 请他们追加 $1500
-      B: 保证赶上（来看时修好 5 处）
+      A: 一次还清 $3000
+      B: 先还 $1500（最多扣到 −$1000），声望 −4 起
   iw_rival_club:
     title: La Quinta 来下战书
     body: La Quinta 网球俱乐部的主教练来到红土场："你们的会员老跟我的会员说这儿又活过来了。那就比一场，这个周末，俱乐部对抗赛。"
@@ -187,11 +176,30 @@ events:
       B: 招 Mateo（球童）
       C: 这次不招
 
+  iw_route_s2:
+    title: 俱乐部往哪边走？
+    body: 会所开张了，Dale 拿着那本旧宣传册站在大门口："带孩子的家庭，还是 Palm Springs 酒店来的客人？两头一起追不过来。"明天还不定，Dale 就按青训来。
+    options:
+      A: 青训之路：学院、理疗室先开；来应聘的教练多；学院课多挣一点
+      B: 度假之路：咖啡吧、度假泳池先开；来应聘的服务人员多；周末客人多
+  iw_route_s3:
+    title: Hal Brooks 让出高尔夫西段
+    body: 隔壁荒掉的高尔夫球场老板 Hal Brooks 愿意让出西段："铺成球场，还是留着水塘盖小屋，你定。"两边都要付 $300 测量费。明天还不定，Dale 就按南场来。
+    options:
+      A: 南场：在高尔夫西段铺两片新场（现在：先在那儿办周末对打，会员 +4）
+      B: 绿洲草坪：留下水塘，盖小屋和小泳池庭院（现在：水塘边先收拾成野餐地，声望 +3）
+  iw_route_s4:
+    title: 岛往哪边长？
+    body: 度假名园要地方。把南停车场改成观赛坡、在东南角长出新地，还是搭一座桥，把东南天上那座带两根旧网柱的小岛接过来？明天还不定，Dale 就按赛事广场来。
+    options:
+      A: 赛事广场：大比赛的观赛坡（现在：表演赛成功率 +5%）
+      B: 学院岛：搭桥接上岛上的学院（现在：学院课每圈 +$2，青少年赛进四强 +10%）
 log:
   started: 你来到了废弃的 Palm Oasis 网球俱乐部。
   first_court: 会员场换上了新网：十年来第一块能打的场地
   ball_machine: 发球机修好了，学院的课更扎实了
   loan_declined: 你没借信用社的钱
+  loan_settled: 信用社收走了一半贷款，镇上都在议论
   loan_paid: 信用社的贷款还清了
   clubhouse_open: 会所前台开张了，可以开招聘日了
   stadium_3_open: 匹克球场开放了
@@ -240,6 +248,11 @@ posts:
   st3_night: { title: 球场 · 灯下夜场, note: 周五周六 17–20 点，联赛灯下 }
   st2_plunge: { title: 泳池 · 冷水恢复池, note: 工作日 16–20 点，练完球来泡 }
 
+  t_checkin: { title: 赛事 · 签到台, note: 只在比赛日 9–17 点：收报名费、发号码布、指路 }
+  t_umpire: { title: 赛事 · 裁判椅, note: 只在比赛日 9–17 点；要懂球的人 }
+  t_courtside: { title: 红土场 · 场边服务, note: 只在邀请赛那两天 9–17 点：递毛巾、换球、看着观众席 }
+  t_catering: { title: 棕榈喷泉 · 赛事餐饮, note: 只在邀请赛那两天 10–16 点；人越多卖得越多 }
+  st1_night: { title: 中心球场 · 夜场, note: 周四到周六 18–20 点，新灯杆下 }
 orders:
   o1_sweep: { title: "扫会员场的沙", note: "不花钱，两个人一个上午" }
   o1_net: { title: "给会员场换网", note: "$120，一个人一小时", locked: "先把沙扫掉" }
@@ -271,8 +284,8 @@ orders:
   st1_reopen: { title: "重开中心球场", note: "掉档了：修大屏、清看台，$450" }
   st1_clear: { title: "清理中心球场", note: "搬走塌下来的东北角看台", locked: "先让泳池开放" }
   st1_rebuild: { title: "重建 中心球场", note: "整局最大的一笔", locked: "先清理 中心球场" }
-  st1_exhibition: { title: "办表演赛", note: "六个人张罗一整天；声望越高越容易办成", locked: "★4，中心球场重建完成" }
-  pl_tournament: { title: "出去打一站比赛", note: "只有球员能去，一周一次；球技越高越可能赢；★2 起赢了算奖杯" }
+  st1_exhibition: { title: "办表演赛", note: "六个人张罗一整天；声望越高越容易办成（不筹备最多七成五把握）", locked: "★4，中心球场重建完成" }
+  pl_tournament: { title: "出去打一站比赛", note: "只有球员能去，一周一次；小比赛：球技越高越可能赢（拿奖金，不算奖杯）" }
   o23_pro_clay: { title: 赛事级红土, note: $400；要一名维护 ≥ 75 的人。场地更好，也更娇气, locked: 红土场开放、保留了红土 }
   o23_pro_hard: { title: 职业硬地, note: $350；要一名维护 ≥ 75 的人。掉得更慢, locked: 球场开放、改成了硬地 }
   ch_pro_shop: { title: 开一间球拍专卖店, note: $500；要一名服务 ≥ 65 的人。有空的人去站柜台，站着就有进账, locked: 会所开张 }
@@ -284,8 +297,14 @@ orders:
   ch_to_physio: { title: 咖啡吧改成理疗室, note: $900；会所停用一周 }
   st3_to_tennis2: { title: 改回两片网球场, note: $1400；停用一周。老会员高兴，联赛的人走了 }
   st3_to_pickle4: { title: 改成四片匹克球, note: $1000；停用一周。联赛收入高，老会员不满 }
-  cup_monthly: { title: 办月度内赛, note: $60，两个人半天；四周一次。奖杯一座, locked: ★1，而且有两块修好的场地 }
-  inv_clay: { title: 办邀请赛, note: $800，四个人一整天；下雨就白办。保留红土的更容易办成（+10%）, locked: ★3；青训场旁的两片场、会所、棕榈喷泉都开着 }
+  cup_monthly: { title: 报名月度内赛, note: $60；第 3、7、11、15 周的周六。当天开签到和裁判两个岗位，两块场不租场、不上课；下雨就白办。奖杯一座, locked: ★1，而且有两块修好的场地 }
+  regional_open: { title: 去打地区业余赛, note: $200；只有球员能去，离开一整天；赢了 $800、声望、奖杯一座。★3 起是双打，要两名球员, locked: ★2，有一名球员 }
+  junior_regional: { title: 带学员去地区青少年赛, note: $80；一名教练带队半天；进四强会员、声望、奖杯一座, locked: ★2，青训场开着，这一周学院课上够 10 圈 }
+  invitational: { title: 办邀请赛, note: $800；周末两天开四个临时岗位；下雨就白办。红土声望多，硬地钱多, locked: ★3；红土场、会所、棕榈喷泉都开着 }
+  prep_stands: { title: 表演赛筹备 · 看台, note: $1500；表演赛 +8%，办成时门票多 $1500；声望 +2, locked: ★3 起 }
+  prep_lights: { title: 表演赛筹备 · 夜场灯, note: $1000；表演赛 +4%；重建以后周四到周六开夜场；电费每周 +$30, locked: ★3 起 }
+  prep_service: { title: 表演赛筹备 · 球童和服务, note: $600；表演赛 +10%；会员 +2, locked: ★3 起 }
+  prep_media: { title: 表演赛筹备 · 赞助和转播, note: $900；赞助商每周付 $150；表演赛办成时转播费多 $1000, locked: ★3 起 }
 
 # 修复变体（GM-13）：名字，和每个变体换来什么、付出什么（variant_notes，给地点清单用）
 variants:
@@ -321,6 +340,7 @@ upgrades:
   practice: { video_wall: 场边大屏 }
   plaza: { misters: 喷雾杆 }
   stadium_2: { cabanas: 小木屋一排 }
+  stadium_1: { night_lights: 夜场灯, broadcast: 赞助和转播合同 }
 # 俱乐部星级（GM-9）：名字、清单里的每一条、每一星开出什么
 stars:
   names: { "0": 废墟, "1": 能打球了, "2": 会所开张, "3": 社区俱乐部, "4": 度假名园, "5": 沙漠名园 }
@@ -343,7 +363,7 @@ stars:
   opens:
     internal_cup: 月度内赛
     regional: 地区赛：赢了算奖杯
-    invitational: 邀请赛（保留红土更容易办成）
+    invitational: 邀请赛（红土、硬地各一种）
     sponsor: 赞助位
     exhibition_prep: 中心球场挂出表演赛筹备
     exhibition: 能办表演赛了
@@ -423,7 +443,46 @@ roles:
   staff: 员工
   rival: 对手
 
+# 赛事阶梯（GM-10）：名字、附加目标、认场地的邀请赛
+tournaments:
+  cup_monthly:
+    title: 月度内赛
+    goals: { service: 当天服务率 80% 以上, members: 会员 10 人以上, staffed: 两个临时岗位全天有人, full_house: 会员 40 人以上 }
+  regional_open:
+    title: 地区业余赛
+    goals: { win: 拿下冠军, defend: 卫冕 }
+  junior_regional:
+    title: 地区青少年赛
+    goals: { semis: 有学员进四强, final: 有学员进决赛 }
+  invitational:
+    title: 邀请赛
+    goals: { staffed: 两天四个临时岗位全程有人, service: 两天服务率 80% 以上, full_house: 会员 70 人以上 }
+    variants: { clay: 红土邀请赛, hard: 硬地邀请赛 }
+# 选路（GM-14）
+routes:
+  s2: { youth: 青训之路, resort: 度假之路 }
+  s3: { south_courts: 南场, oasis_lawn: 绿洲草坪 }
+  s4: { event_plaza: 赛事广场, academy_isle: 学院岛 }
+# 分期筹备（W2）
+prep:
+  exhibition: 表演赛筹备
 ui:
+  route:
+    look: 点一下先看看落在哪儿
+    confirm: 再点一下就定了
+    pick: 点一下选中，再点一下就定了
+    default: "倒计时到了，{name} 替你选“{route}”"
+    opens: "先开：{list}"
+    costs: "这一季先不开：{list}"
+    other: "放下“{route}”"
+  beat:
+    today: "今天 {time}"
+    tomorrow: "明天 {time}"
+    weekday: "周{d} {time}"
+    day: "第 {n} 天 {time}"
+    live: 进行中
+    hiring: 招聘日
+    cards: { iw_investor_check: 投资方来访, iw_deadline: 期限结算 }
   # 星级（UI-8）：状态条的星级格和点开的清单
   stars:
     label: "下一星差 {n} 项"
@@ -445,10 +504,13 @@ ui:
     decay: "每天磨损 {n}"
     rain_ok: 下雨也能打
     rain_no: 下雨关门
+    route: "选了“{route}”才开"
+    closed: 现在还没开出来
   log:
     upgrade: "{place}装上了{what}"
     remodel: "{place}停用，改成“{what}”"
     trophy: "奖杯 {n}"
+    route: "走上了“{route}”"
   hud:
     quality: 质量
     members: 会员
@@ -464,6 +526,7 @@ ui:
     wire: 俱乐部快讯
     rotateLeft: 向左转（Q）
     rotateRight: 向右转（E）
+    home: 回到会所
     pause: 暂停（空格）
     resume: 继续（空格）
     speed: 换速度
@@ -484,6 +547,9 @@ ui:
     skill_service: 服务
     skill_play: 球技
     trend: { falling: 在下滑, recovering: 在回升, flat: 持平, bottomed: 见底了 }
+    next: 接下来
+    done: 做完了
+    rose: 今天有长进
   week: "第 {n} 周"
   weather: { sun: 晴, cloud: 多云, rain: 下雨 · 露天场地关闭, wind: 大风 }
   days: { "0": 一, "1": 二, "2": 三, "3": 四, "4": 五, "5": 六, "6": 日 }
@@ -498,6 +564,8 @@ ui:
     cost: "−${n}"
     needs: "{skill} {n}+"
     closed: "停用 {time}"
+    min_crew: "至少 {n} 人到场"
+    trophy: "奖杯 +{n}"
   attr: { skill: 教学, upkeep: 维护, service: 服务, play: 球技, morale: 士气, fatigue: 疲劳 }
   then: "之后：{what}"
   ctx:
@@ -568,10 +636,11 @@ ui:
     failed: （没成）
     star: "俱乐部升到了 ★{n}"
     remodel: "{place}改成“{what}”的工程完工了"
+    tournament: "{title}收赛"
+    tournament_spoiled: "{title}那天下雨"
   wire:
     grew: "总监的{skill}能力到 {n} 了"
     interrupted: "{name}被叫离“{post}”，这一圈白干了"
-    routine_order: "{name}按习惯回{post}了 · {order}停在 {p}%"
     routine_post: "{name}按习惯回{post}了 · 放下了{from}"
     week: "第 {n} 周结算 · {rate} · {what}"
     week_rate: "服务率 {n}%"
@@ -585,6 +654,19 @@ ui:
     plaque_faster: "，几个人一起比一个人干快了 {time}"
     remodel_started: "{place}停用改造成“{variant}”，{time}后重新开放"
     remodel_done: "{place}改成“{variant}”，重新开放了"
+    returned: "{name}做完了“{order}”，回到{post}"
+    released_closed: "{place}停了 · {name}闲下来了"
+    released_remodel: "{place}停用改造 · {name}闲下来了"
+    released_event: "今天比赛占了场，{post}不开 · {name}闲下来了"
+    released_event_end: "赛事收场，{post}撤了 · {name}闲下来了"
+    tour_entered: "{title}报上名了 · {when}开赛"
+    tour_live: "{title}开赛了 · 临时岗位：{posts}，把人拖上去"
+    tour_live_none: "{title}开赛了"
+    tour_spoiled: "{title}那天下雨办不成 · 报名费 ${fee} 白花了"
+    tour_done: "{title}打完了"
+    tour_again: "第 {n} 次参加 · 奖励 ×{k}"
+    prep_done: "{group}：{what}做好了（{done}/{total}）"
+    prep_all: "{group}：{what}做好了，四期都齐了"
   status:
     empty: "{n} 个岗位有客人在等，没人管"
     covered: 此刻有客人的地方都有人
@@ -614,12 +696,24 @@ ui:
     order_new: "{cost}{time} · 还没开工"
     order_on: "{names}在干 · {p}%"
     order_paused: "停工 · {p}%"
-    order_paused_routine: "停工 · {p}% · 人按习惯走了"
     sends_variant: "按“{variant}”"
     order_wait: "{p}% · 等人到场"
     coming: "在路上：{list}"
     coming_one: "{name} {time}"
     remodel: "正在改造成“{variant}” · {time}后重新开放"
+    min_crew: "到场 {n}/{need} 人，人齐了才开工"
+    tour_host: "{when}开赛 · 报名费 ${fee} · 做完就算报上名"
+    tour_away_early: "{when}出发 · 报名费 ${fee} · 那天才能派人"
+    tour_away_now: "今天出发 · 报名费 ${fee}"
+    badge_host: 赛事
+    badge_away: 外出赛
+    badge_temp: 今天
+    event_closed: 今天比赛占了场，这一项不开
+    event_soon: "已报名 · {when}开赛"
+    event_live: "比赛中 · {when}收赛"
+    prep_title: "{group} · {done}/{total} 期"
+    prep_left: "还差 {n} 期 · 共 ${cost}"
+    prep_all: 四期都做完了，可以办表演赛了
   why:
     person: 不能指派
     busy: 正在办事，叫不回来
@@ -631,6 +725,7 @@ ui:
     skill: 能力不够干这个
     skill_min: "要{skill} {n} 以上（只看底子，不算特质）"
     variant: 已经按另一种开工了
+    early: "比赛那天才能出发（{when}）"
   sheet:
     daily: 每天
     anytime: 随时可以干
@@ -654,3 +749,56 @@ ui:
     leaves: "会放下“{what}”"
     speed: "干活速度 {n}%"
     you_coming: "在路上 · 还要 {time}"
+  # 员工成长（W3）和结局卡（W4，UI-10）
+  grow:
+    potential: "潜力：{list}"
+    pair: "{skill} {from} → {to}"
+    skill_up: "{name}的{skill}到了 {n}"
+    unlock: "{name}的{skill}到了 {n}——开出了{what}"
+    unlock_plain: "开出了{what}（{names}）"
+    because: "{names}的本事够了"
+  ending:
+    topic: 第一季 · 结算
+    title: 这一季打分了
+    total: 总分
+    day: "第 {n} 天"
+    line_early: "第 {day} 天结算 · 提前 {n} 天"
+    line_deadline: "第 {day} 天结算"
+    detail: "{value} × {per}"
+    item:
+      stars: 星级
+      trophies: 奖杯
+      members: 会员
+      reputation: 声望
+      exhibition: 表演赛
+      early: 提前天数
+      cash: 现金
+    verdict:
+      S: "沙漠里的人会把这一季讲上好多年。"
+      A: "花园活过来了，整个山谷都知道。"
+      B: "干得扎实：会所重新站稳了脚跟。"
+      C: "开着门、喘着气，但也就这样了。"
+      D: "大门开着，可这一季没抓住。"
+    season2: 开第二季
+    summary: 看总结
+    score: 回到分数
+    recap_title: 第一季是怎么过来的
+    recap_empty: 安静的一季，日志里没有大事。
+    recap:
+      star: "升到 ★{n}"
+      route: "选了路：{route}"
+      variant: "{place}修成了“{variant}”"
+      trophy: "在{title}拿了一座奖杯"
+      unlock: "开出了{what}（{names}）"
+      exhibition: 表演赛坐满了中心球场
+      settled: "得了 {total} 分 · {grade} 档"
+    goal: "第 {n} 季 · 目标：{goal}"
+    goal_tbd: 新目标还在路上
+    settle_now: "马上结算：提前奖励 +{n}"
+    settle_score: "现在结算是 {total} 分（{grade}）"
+    keep: "接着经营到第 {day} 天"
+    keep_risk: "没有提前奖励；会员、现金、奖杯还在涨（风险也还在）"
+    wire_settled: "第一季结算：{total} 分，{grade} 档"
+    wire_season_two: "第二季开始 · 目标：{goal}"
+    because_settled: "第一季打了分（{total}，{grade} 档）"
+    because_season: "第二季开始了"

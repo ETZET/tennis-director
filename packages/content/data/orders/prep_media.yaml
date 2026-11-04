@@ -1,0 +1,14 @@
+# 表演赛四期筹备 · 赞助和转播（W2）：和本地电视台、赞助商签约（升级 broadcast）。
+# 签下以后赞助商每周付 $150（中心球场修没修好都付，下雨天不付），表演赛办成时转播费再多 $1000。
+# 不加成功率：这一期是给后期的钱找去处，越早签回本越多。
+id: prep_media
+act: indian_wells
+at: stadium_1
+skill: service
+work: 6h
+cost: 900
+crew: 2
+prep: exhibition
+upgrade: broadcast
+when: { expr: "stars >= 3" }
+performance: workday

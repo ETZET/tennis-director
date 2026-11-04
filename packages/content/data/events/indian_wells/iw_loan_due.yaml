@@ -1,4 +1,7 @@
-# 四周到了：信用社来收钱。一次还清，或者再拖两周、多付利息。
+# 四周到了：信用社来收 $3000（GM-14 合并：原来的"展期结束"并进这张，少一张卡）。
+# GM-1：两项都锁住只能干等。现在每一项都付得起：
+# A 一次还清 $3000（钱不够时锁住）；B 先还一半（声望 −4 起），另一半算成坏名声——账上最多扣到 −$1000（不让一笔贷款直接逼到破产），
+# 扣不够的部分也变成坏名声。有钱时 A 省名声、B 省 $1500；没钱时只能 B。
 id: iw_loan_due
 act: indian_wells
 source: consequence
@@ -9,14 +12,15 @@ location: entrance
 who: lender
 options:
   A:
-    # 还清：$3000，一了百了
     cost: 3000
     effects:
       - { flag: loan_taken, set: false }
       - { log: log.loan_paid }
   B:
-    # 展期两周：先付 $400 利息，两周后还是要还 $3000
-    cost: 400
     effects:
-      - { schedule: iw_loan_final, in: 14d }
+      # 先按扣款前的现金算名声（扣不够的越多越难看），再扣钱
+      - { stat: reputation, add: "-4 - max(0, 500 - stat.cash) / 500" }
+      - { stat: cash, add: "-min(1500, max(0, stat.cash + 1000))" }
+      - { flag: loan_taken, set: false }
+      - { log: log.loan_settled }
 default: { then: B }

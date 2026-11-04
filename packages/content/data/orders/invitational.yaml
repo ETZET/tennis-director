@@ -1,0 +1,11 @@
+# 邀请赛的报名工单（GM-10，tournaments.invitational；原来的 inv_clay 并进来了）：第 10、13 周的周末，在红土场办两天。
+# 提前一周出现；做完（发邀请、订奖杯、排赛程）就算接下，报名费 $800。比赛那两天开签到、场边服务、餐饮、裁判四个临时岗位，
+# 红土场不租场、不上课。下雨就办不成，报名费白花。红土是红土邀请赛（声望多），硬地是硬地邀请赛（钱多）。
+id: invitational
+act: indian_wells
+at: outer_23
+skill: service
+work: 4h
+crew: 3
+when: { facility: outer_23, is: playable }
+performance: match

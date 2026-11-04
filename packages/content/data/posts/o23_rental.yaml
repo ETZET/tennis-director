@@ -12,5 +12,7 @@ effects:
   - { stat: cash, add: 2, if: { upgrade: outer_23, has: tournament_clay } }
   - { stat: cash, add: 1, if: { upgrade: outer_23, has: pro_hard } }
   - { stat: members, add: 1, chance: 0.04 }
+  # 度假之路（GM-14，★2 选路 resort）：周末从 Palm Springs 的酒店来打球的客人多
+  - { stat: cash, add: 2, if: { all: [{ route: s2, is: resort }, { expr: "weekday >= 5" }] } }
 wear: 0.8
 performance: open_play

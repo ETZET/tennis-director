@@ -1,5 +1,5 @@
 {
- "version": "a8eb5d56",
+ "version": "d75c2cd3",
  "stats": [
   {
    "id": "cash",
@@ -7299,6 +7299,7 @@
    "ui.hud.wire": "Club wire",
    "ui.hud.rotateLeft": "Rotate left (Q)",
    "ui.hud.rotateRight": "Rotate right (E)",
+   "ui.hud.home": "Back to the clubhouse",
    "ui.hud.pause": "Pause (Space)",
    "ui.hud.resume": "Resume (Space)",
    "ui.hud.speed": "Change speed",
@@ -8197,6 +8198,7 @@
    "ui.hud.wire": "俱乐部快讯",
    "ui.hud.rotateLeft": "向左转（Q）",
    "ui.hud.rotateRight": "向右转（E）",
+   "ui.hud.home": "回到会所",
    "ui.hud.pause": "暂停（空格）",
    "ui.hud.resume": "继续（空格）",
    "ui.hud.speed": "换速度",

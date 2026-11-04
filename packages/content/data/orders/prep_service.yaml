@@ -1,0 +1,15 @@
+# 表演赛四期筹备 · 球童和服务（W2）：招一批球童、排好引座和场边服务、演练一遍。
+# 表演赛那天不手忙脚乱：成功率 +10%；练出来的人顺手带来几个会员（+2）。最便宜，但要服务好的人花时间。
+id: prep_service
+act: indian_wells
+at: stadium_1
+skill: service
+work: 10h
+cost: 600
+crew: 3
+prep: exhibition
+when: { expr: "stars >= 3" }
+effects:
+  - { flag: prep_service, set: true }
+  - { stat: members, add: 2 }
+performance: workday

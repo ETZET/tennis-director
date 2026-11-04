@@ -7,19 +7,20 @@ pause: true
 countdown: 1d
 location: clubhouse
 who: applicants
+# 选路（GM-14）：青训之路多来教练（a 拨 Nadia），度假之路多来服务的人（b 拨 Mateo 球童）
 options:
   A:
     effects:
       - { hire: lily_chen }
       # 下一个招聘日来哪一拨人，按这一局的种子抽（docs/design/people.md「招聘日怎么出人」）
-      - { flag: iw_hiring_day_4_b, set: true, chance: 0.5 }
+      - { flag: iw_hiring_day_4_b, set: true, chance: "route.s2 == \"youth\" ? 0.25 : (route.s2 == \"resort\" ? 0.75 : 0.5)" }
       - { schedule: iw_hiring_day_4, in: 14d, if: { not: { flag: iw_hiring_day_4_b } } }
       - { schedule: iw_hiring_day_4b, in: 14d, if: { flag: iw_hiring_day_4_b } }
   B:
     effects:
       - { hire: walt_hendricks }
       # 下一个招聘日来哪一拨人，按这一局的种子抽（docs/design/people.md「招聘日怎么出人」）
-      - { flag: iw_hiring_day_4_b, set: true, chance: 0.5 }
+      - { flag: iw_hiring_day_4_b, set: true, chance: "route.s2 == \"youth\" ? 0.25 : (route.s2 == \"resort\" ? 0.75 : 0.5)" }
       - { schedule: iw_hiring_day_4, in: 14d, if: { not: { flag: iw_hiring_day_4_b } } }
       - { schedule: iw_hiring_day_4b, in: 14d, if: { flag: iw_hiring_day_4_b } }
   C:
@@ -27,7 +28,7 @@ options:
       # 不招：省下工资，活还是那几个人干
       - { log: log.no_hire }
       # 下一个招聘日来哪一拨人，按这一局的种子抽（docs/design/people.md「招聘日怎么出人」）
-      - { flag: iw_hiring_day_4_b, set: true, chance: 0.5 }
+      - { flag: iw_hiring_day_4_b, set: true, chance: "route.s2 == \"youth\" ? 0.25 : (route.s2 == \"resort\" ? 0.75 : 0.5)" }
       - { schedule: iw_hiring_day_4, in: 14d, if: { not: { flag: iw_hiring_day_4_b } } }
       - { schedule: iw_hiring_day_4b, in: 14d, if: { flag: iw_hiring_day_4_b } }
 default: { then: C }
