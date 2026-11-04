@@ -269,6 +269,8 @@ export interface StarInfo {
   opens?: string;
   /** 明细最下面一行（投资方期限） */
   foot?: string;
+  /** 结局打开时（W4）：现在结算会是多少（只读预估，分项和结局卡一样） */
+  score?: ScoreCard & { title: string };
   tone?: Tone;
 }
 

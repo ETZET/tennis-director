@@ -266,6 +266,12 @@ function StarSheet({ st }: { st: StarInfo }) {
       ) : null}
       {st.opens ? <p class="td-star-opens">{st.opens}</p> : null}
       {st.foot ? <p class="td-star-foot">{st.foot}</p> : null}
+      {st.score ? (
+        <div class="td-star-score">
+          <h3>{st.score.title}</h3>
+          <ScoreTable sc={st.score} />
+        </div>
+      ) : null}
     </section>
   );
 }
@@ -365,7 +371,7 @@ function EventCard({ c, actions }: { c: EventCardData; actions: HudActions }) {
         </div>
       ) : null}
       <div class="td-card-tags">
-        <span class="td-tag-topic">{c.topic}</span>
+        {c.topic ? <span class="td-tag-topic">{c.topic}</span> : null}
         <span class="td-tag-loc">{c.location}</span>
         {c.more ? <span class="td-tag-more">{STR.more(c.more)}</span> : null}
       </div>
