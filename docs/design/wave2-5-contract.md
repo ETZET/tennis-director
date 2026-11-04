@@ -291,8 +291,8 @@ growth:
     - key: member_referrals
       need: [{ skill: service, gte: 70 }]
       effects: [{ stat: member_cap_bonus, add: 10 }]  # 举例：内容自己决定落在哪
-    - key: weekend_camp               # 组合：每条 need 由不同的人满足
-      need: [{ skill: teach, gte: 60, who: coach }, { skill: teach, gte: 60, who: trainer }]
+    - key: weekend_camp               # 组合：每条 need 由不同的人满足（Indian Wells 的第二条不写 who：第二名教练、Kofi 或总监）
+      need: [{ skill: teach, gte: 60, who: coach }, { skill: teach, gte: 60 }]
 ```
 
 - 总监不走 `rate`：照旧 `rules.director_growth`（0.3）/ `director_skill_cap`（80），不重复算；成长打开时总监也发 `skill_up`、也能满足 need。
@@ -323,6 +323,16 @@ growth:
 - `skill_up { person, skill, value }`：value 是跨过的门槛（5 的整数倍或解锁的 gte）。只在成长打开时发。
 - `unlock { person, key }`：同时写一条因果日志 `{ kind: 'unlock', key, person, people }`（people 是满足各条 need 的人），效果记在这一条下。
 - 模拟导出 `potentialOf(w, person, skill)`、`growthOf(w)`、`bestSkill`、`anySkilled`（招聘卡的"潜力"一行用 `potentialOf`）。
+
+### 效果 `decay_mult`（W3 跟进：夜间养护）
+
+```yaml
+effects: [{ decay_mult: { facility: outer_23, factor: 0.7, days: 7 } }]
+```
+
+- 这处设施收盘衰减（`dayDecay`）再乘 `factor`（0..2），从现在起 `days × 24` 小时内有效；同一处再来一次就换成新的倍数和到期。岗位每圈的 `wear` 不打折。
+- 状态 `decayMult: Record<facility, { factor, until }>`（存档版本 **13**，12 → 13 迁移补 `{}`）；效果记录 `{ kind: 'decay_mult', facility, factor, until }`（界面不讲，工单自己带一行 `log`）。
+- `o23_night_care` 用它：`restore: 40` + 一周内衰减 ×0.7（以前的 +5 折算去掉了）。
 
 ### 显示
 

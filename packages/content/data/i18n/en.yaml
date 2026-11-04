@@ -211,6 +211,7 @@ events:
       A: "Event plaza: a viewing slope for big matches (now: exhibition +5%)"
       B: "Academy isle: a bridge to the island academy (now: academy lessons +$2, junior semifinal +10%)"
 log:
+  night_care: The clay is well cared for; it wears 30% slower this week
   dale_swept: Dale left his post for three hours and fixed up the worst place
   dale_sweep_declined: You told Dale you'd send someone yourself
   started: You arrive at the abandoned Palm Oasis Racquet Club.
@@ -241,7 +242,7 @@ posts:
   o23_upkeep: { title: "Clay courts · Upkeep", note: "Any time; it wears down if nobody looks after it" }
   pr_academy: { title: "Academy · Junior academy", note: "Weekdays 14–18" }
   pr_weekend: { title: "Academy · Weekend open", note: "Weekends 8–13" }
-  pr_camp: { title: "Academy · Weekend camp", note: "Weekends 8–12; a coach or the fitness coach. Shares the morning with weekend open play" }
+  pr_camp: { title: "Academy · Weekend camp", note: "Weekends 8–12; needs coaching 60+. Shares the morning with weekend open play" }
   pr_upkeep: { title: "Academy · Upkeep", note: "Any time; it wears down if nobody looks after it" }
   ch_desk: { title: "Clubhouse · Front desk", note: "Daily 8–18: sign-ups, directions, the phone" }
   ch_upkeep: { title: "Clubhouse · Upkeep", note: "Any time: roof, air con, plumbing; it wears down if nobody looks after it" }
@@ -307,7 +308,7 @@ orders:
   st1_exhibition: { title: "Hold the exhibition", note: "Six people for a whole day; the higher the reputation, the better the odds (at most 75% without the build-up)", locked: "★4 and the Stadium rebuilt" }
   pl_tournament: { title: "Play a tournament", note: "Players only, once a week; a small event: the better they play, the likelier a win (prize money, no trophy)" }
   o23_pro_clay: { title: "Tournament clay", note: "$400; needs someone with upkeep 75+. Better courts, but fussier", locked: "Clay courts open, kept as clay" }
-  o23_night_care: { title: "Night care for the clay", note: "$60, 3 hours; needs someone with upkeep 75+. Water, roll and line the clay under the lights: condition +45, once a week", locked: "Clay courts open, kept as clay; a grounds crew with upkeep 75+" }
+  o23_night_care: { title: "Night care for the clay", note: "$60, 3 hours; needs someone with upkeep 75+. Water, roll and line the clay under the lights: condition +40, then it wears 30% slower for a week; once a week", locked: "Clay courts open, kept as clay; a grounds crew with upkeep 75+" }
   o23_pro_hard: { title: "Pro hard courts", note: "$350; needs someone with upkeep 75+. Wears even slower", locked: "Courts open, rebuilt as hard courts" }
   ch_pro_shop: { title: "Open a pro shop", note: "$500; needs someone with service 65+. Anyone free can mind the counter; it earns while they do", locked: "Clubhouse open" }
   st3_lights: { title: "Put up league lights", note: "$600; night sessions Fri–Sat, power bill +$25/week", locked: "Courts open" }
@@ -499,7 +500,7 @@ unlocks:
   night_clay_care: "Night care for the clay: a weekly work order on the clay courts"
   member_referrals: "Member referrals: the front desk keeps 10 more members"
   open_division: "A higher division at the regional open: double the entry fee, double the prize"
-  weekend_camp: "Weekend camp on the academy courts: a coach and the fitness coach on weekend mornings"
+  weekend_camp: "Weekend camp on the academy courts: a coach and a second teacher (coaching 60+) on weekend mornings"
 
 ui:
   route:

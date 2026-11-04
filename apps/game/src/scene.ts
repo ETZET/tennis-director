@@ -54,8 +54,8 @@ import { joinPoint, walkHeading, walkPoint, walkRate } from './walkpath';
 
 const SK = ['#f1c7a1', '#e8b896', '#d9a47c', '#c48a62', '#a86f4c', '#7a4a32', '#5f3a28', '#f1d0ae'] as const;
 
-/** 每个人物 id 的样子（内容里只有名字和数值，长相是画面的事） */
-const LOOKS: Record<string, Omit<PersonOptions, 'name' | 'x' | 'z'>> = {
+/** 每个人物 id 的样子（内容里只有名字和数值，长相是画面的事）；总监另画。内容里每个人都要有（scene.test.ts 守着） */
+export const LOOKS: Record<string, Omit<PersonOptions, 'name' | 'x' | 'z'>> = {
   dale: {
     wide: true,
     shirt: '#6b2e2a',
@@ -214,6 +214,17 @@ const LOOKS: Record<string, Omit<PersonOptions, 'name' | 'x' | 'z'>> = {
     hairStyle: 'short',
     shoes: '#f1ece0',
     scale: 0.85,
+  },
+  // 本地球员（Indio 长大，在包装厂的墙上练出来的）：晒褪色的砖红 T 恤、挡沙漠太阳的旧帽子、一支便宜的旧拍子
+  diego_ibarra: {
+    shirt: '#b5563a',
+    shorts: '#4a4f3a',
+    skin: SK[5],
+    hair: '#1d1d22',
+    hairStyle: 'cap',
+    cap: '#c9b48a',
+    shoes: '#d9d3c6',
+    racket: '#6a6f73',
   },
 };
 

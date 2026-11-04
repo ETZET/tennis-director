@@ -159,6 +159,11 @@ export function applyEffects(ctx: Ctx, effects: readonly Effect[], entryId: numb
       const v = clamp(before + num(s, w, e.add, ctx.vars), 0, 100);
       s.condition[e.condition] = v;
       if (v !== before) out.push({ kind: 'condition', facility: e.condition, delta: v - before });
+    } else if ('decay_mult' in e) {
+      const { facility, factor, days } = e.decay_mult;
+      const until = s.t + Math.round(days * 1440);
+      (s.decayMult ??= {})[facility] = { factor, until };
+      out.push({ kind: 'decay_mult', facility, factor, until });
     } else if ('log' in e) {
       out.push({ kind: 'text', key: e.log });
     } else if ('endAct' in e) {

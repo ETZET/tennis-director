@@ -6,7 +6,7 @@ import type { OptionKey } from '@td/content';
  */
 
 /** 存档格式版本；改了格式就加一个迁移函数（见 save.ts） */
-export const SAVE_VERSION = 12;
+export const SAVE_VERSION = 13;
 
 export interface PersonState {
   id: string;
@@ -211,6 +211,7 @@ export type EffectRecord =
   | { kind: 'errand'; person: string; at: string; minutes: number }
   | { kind: 'task'; person: string; order: string }
   | { kind: 'condition'; facility: string; delta: number }
+  | { kind: 'decay_mult'; facility: string; factor: number; until: number }
   /** 修复变体锁定、升级装上、改造开始（LG-14） */
   | { kind: 'variant'; facility: string; variant: string }
   | { kind: 'upgrade'; facility: string; upgrade: string }
@@ -377,6 +378,8 @@ export interface GameState {
   ending: EndingState;
   /** 地块（W5，LG-15）：地块 id → 施工或已开；地图没写 plots 时一直是空的 */
   plots: Record<string, PlotState>;
+  /** 一段时间内衰减打折（W3，效果 decay_mult）：设施 id → 收盘衰减倍数、到期（绝对分钟，到了就不再打折） */
+  decayMult: Record<string, { factor: number; until: number }>;
   /** 本周的账（周日收盘结算、写成一条因果日志，然后清零） */
   week: WeekState;
   /**

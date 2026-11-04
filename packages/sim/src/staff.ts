@@ -940,7 +940,8 @@ export function staffedToday(s: GameState, w: World): Set<string> {
 }
 
 /**
- * 这处设施今晚收盘掉多少状况：decay_day × 季节倍数，今天有人守着再乘 rules.staffed_decay（默认 0.5）；
+ * 这处设施今晚收盘掉多少状况：decay_day × 季节倍数，今天有人守着再乘 rules.staffed_decay（默认 0.5），
+ * 效果 decay_mult 没到期再乘它的倍数；
  * 改造停用期间不掉。staffed 不给就按今天的岗位账算（界面预告"明天会不会掉档"也用它）。
  */
 export function dayDecay(s: GameState, w: World, id: string, seasonDecay: number, staffed?: Set<string>): number {
@@ -948,7 +949,10 @@ export function dayDecay(s: GameState, w: World, id: string, seasonDecay: number
   const d = stateDef(s, w, id)?.decay_day ?? 0;
   if (!d) return 0;
   const on = (staffed ?? staffedToday(s, w)).has(id);
-  return d * seasonDecay * (on ? w.act.rules.staffed_decay : 1);
+  // 效果 decay_mult（夜间养护）：到期之前的收盘衰减再打折
+  const m = s.decayMult?.[id];
+  const mult = m && s.t < m.until ? m.factor : 1;
+  return d * seasonDecay * (on ? w.act.rules.staffed_decay : 1) * mult;
 }
 
 /** 设施按天衰减（准则 6：没人管的地方慢慢变旧、有人守的掉得慢；季节倍数：初秋落叶多）。要在 closeLedger 之前调 */

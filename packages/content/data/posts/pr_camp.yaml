@@ -1,7 +1,7 @@
-# 青训场 · 周末训练营（W3 成长解锁 weekend_camp：一名教练和一名体能师的教学底子都到了 60）。
-# 周六、周日上午 8–12 点，教练带技术、体能师带体能：报名的是平日上学的孩子和周末才有空的大人，收费高，带来会员。
+# 青训场 · 周末训练营（W3 成长解锁 weekend_camp：一名教练和另一个人的教学底子都到了 60）。
+# 周六、周日上午 8–12 点，一个带技术、一个带体能：报名的是平日上学的孩子和周末才有空的大人，收费高，带来会员。
 # 取舍（准则 2）：和"周末开放"（pr_weekend，服务、8–13 点）同一块场地同一个上午——坐这里就没人看周末开放的场；
-# 周末本来是休息的那两个上午，教练和体能师都得在。只收教练和体能师。
+# 周末本来是休息的那两个上午。只收教学底子 ≥ 60 的人（教练、体能师 Kofi、上课上出来的总监）。
 id: pr_camp
 act: indian_wells
 at: practice
@@ -10,7 +10,7 @@ cycle: 1h
 hours: [8, 12]
 days: [5, 6]
 when: { all: [{ unlocked: weekend_camp }, { facility: practice, is: open }] }
-only: [coach, trainer]
+worker: { teach: 60 }
 effects:
   - { stat: cash, add: "round(16 * (0.6 + worker.skill / 100) * clamp(0.5 + stat.members / 40, 0.5, 2))" }
   - { stat: members, add: 1, chance: 0.08 }

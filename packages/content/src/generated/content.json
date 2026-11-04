@@ -1,5 +1,5 @@
 {
- "version": "d03ec46b",
+ "version": "74428b2b",
  "stats": [
   {
    "id": "cash",
@@ -1761,10 +1761,9 @@
    ],
    "wear": 0.05,
    "restore": 0,
-   "only": [
-    "coach",
-    "trainer"
-   ],
+   "worker": {
+    "teach": 60
+   },
    "performance": "lesson"
   },
   {
@@ -3059,8 +3058,14 @@
    "restore": 40,
    "effects": [
     {
-     "condition": "outer_23",
-     "add": 5
+     "decay_mult": {
+      "facility": "outer_23",
+      "factor": 0.7,
+      "days": 7
+     }
+    },
+    {
+     "log": "log.night_care"
     },
     {
      "stat": "reputation",
@@ -5214,8 +5219,7 @@
        },
        {
         "skill": "teach",
-        "gte": 60,
-        "who": "trainer"
+        "gte": 60
        }
       ],
       "effects": []
@@ -8759,6 +8763,7 @@
    "events.iw_route_s4.body": "A resort club needs room. Turn the south car park into a viewing slope and grow new land in the southeast, or bridge over to the little sky island with the two old net posts? If you don't choose by tomorrow, Dale picks the plaza.",
    "events.iw_route_s4.options.A": "Event plaza: a viewing slope for big matches (now: exhibition +5%)",
    "events.iw_route_s4.options.B": "Academy isle: a bridge to the island academy (now: academy lessons +$2, junior semifinal +10%)",
+   "log.night_care": "The clay is well cared for; it wears 30% slower this week",
    "log.dale_swept": "Dale left his post for three hours and fixed up the worst place",
    "log.dale_sweep_declined": "You told Dale you'd send someone yourself",
    "log.started": "You arrive at the abandoned Palm Oasis Racquet Club.",
@@ -8796,7 +8801,7 @@
    "posts.pr_weekend.title": "Academy · Weekend open",
    "posts.pr_weekend.note": "Weekends 8–13",
    "posts.pr_camp.title": "Academy · Weekend camp",
-   "posts.pr_camp.note": "Weekends 8–12; a coach or the fitness coach. Shares the morning with weekend open play",
+   "posts.pr_camp.note": "Weekends 8–12; needs coaching 60+. Shares the morning with weekend open play",
    "posts.pr_upkeep.title": "Academy · Upkeep",
    "posts.pr_upkeep.note": "Any time; it wears down if nobody looks after it",
    "posts.ch_desk.title": "Clubhouse · Front desk",
@@ -8938,7 +8943,7 @@
    "orders.o23_pro_clay.note": "$400; needs someone with upkeep 75+. Better courts, but fussier",
    "orders.o23_pro_clay.locked": "Clay courts open, kept as clay",
    "orders.o23_night_care.title": "Night care for the clay",
-   "orders.o23_night_care.note": "$60, 3 hours; needs someone with upkeep 75+. Water, roll and line the clay under the lights: condition +45, once a week",
+   "orders.o23_night_care.note": "$60, 3 hours; needs someone with upkeep 75+. Water, roll and line the clay under the lights: condition +40, then it wears 30% slower for a week; once a week",
    "orders.o23_night_care.locked": "Clay courts open, kept as clay; a grounds crew with upkeep 75+",
    "orders.o23_pro_hard.title": "Pro hard courts",
    "orders.o23_pro_hard.note": "$350; needs someone with upkeep 75+. Wears even slower",
@@ -9182,7 +9187,7 @@
    "unlocks.night_clay_care": "Night care for the clay: a weekly work order on the clay courts",
    "unlocks.member_referrals": "Member referrals: the front desk keeps 10 more members",
    "unlocks.open_division": "A higher division at the regional open: double the entry fee, double the prize",
-   "unlocks.weekend_camp": "Weekend camp on the academy courts: a coach and the fitness coach on weekend mornings",
+   "unlocks.weekend_camp": "Weekend camp on the academy courts: a coach and a second teacher (coaching 60+) on weekend mornings",
    "ui.route.look": "Tap to see where it goes",
    "ui.route.confirm": "Tap again to decide",
    "ui.route.pick": "Tap to pick, tap again to decide",
@@ -9706,6 +9711,7 @@
    "events.iw_route_s4.body": "度假名园要地方。把南停车场改成观赛坡、在东南角长出新地，还是搭一座桥，把东南天上那座带两根旧网柱的小岛接过来？明天还不定，Dale 就按赛事广场来。",
    "events.iw_route_s4.options.A": "赛事广场：大比赛的观赛坡（现在：表演赛成功率 +5%）",
    "events.iw_route_s4.options.B": "学院岛：搭桥接上岛上的学院（现在：学院课每圈 +$2，青少年赛进四强 +10%）",
+   "log.night_care": "红土场养透了，这一周掉得慢三成",
    "log.dale_swept": "Dale 离岗三小时，把掉得最厉害的那一处收拾了一遍",
    "log.dale_sweep_declined": "你跟 Dale 说你自己派人",
    "log.started": "你来到了废弃的 Palm Oasis 网球俱乐部。",
@@ -9743,7 +9749,7 @@
    "posts.pr_weekend.title": "青训场 · 周末开放",
    "posts.pr_weekend.note": "周末 8–13 点",
    "posts.pr_camp.title": "青训场 · 周末训练营",
-   "posts.pr_camp.note": "周末 8–12 点；教练或体能师带。和周末开放抢同一个上午",
+   "posts.pr_camp.note": "周末 8–12 点；要教学 ≥ 60 的人带。和周末开放抢同一个上午",
    "posts.pr_upkeep.title": "青训场 · 维护",
    "posts.pr_upkeep.note": "随时可以干；没人管就变旧",
    "posts.ch_desk.title": "会所 · 前台",
@@ -9885,7 +9891,7 @@
    "orders.o23_pro_clay.note": "$400；要一名维护 ≥ 75 的人。场地更好，也更娇气",
    "orders.o23_pro_clay.locked": "红土场开放、保留了红土",
    "orders.o23_night_care.title": "红土场夜间养护",
-   "orders.o23_night_care.note": "$60、3 小时；要一名维护 ≥ 75 的人。灯下浇水、滚压、补线：状况 +45，一周一次",
+   "orders.o23_night_care.note": "$60、3 小时；要一名维护 ≥ 75 的人。灯下浇水、滚压、补线：状况 +40，之后一周掉得慢三成；一周一次",
    "orders.o23_night_care.locked": "红土场开放、保留了红土；一名维护 ≥ 75 的维护工",
    "orders.o23_pro_hard.title": "职业硬地",
    "orders.o23_pro_hard.note": "$350；要一名维护 ≥ 75 的人。掉得更慢",
@@ -10129,7 +10135,7 @@
    "unlocks.night_clay_care": "红土场夜间养护：红土场上每周一次的工单",
    "unlocks.member_referrals": "会员推荐：前台多留住 10 个会员",
    "unlocks.open_division": "地区业余赛升到高一级组别：报名费翻倍，奖金翻倍",
-   "unlocks.weekend_camp": "青训场周末训练营：教练和体能师周末上午一起带",
+   "unlocks.weekend_camp": "青训场周末训练营：一名教练和另一个能带课的人（教学 ≥ 60）周末上午一起带",
    "ui.route.look": "点一下先看看落在哪儿",
    "ui.route.confirm": "再点一下就定了",
    "ui.route.pick": "点一下选中，再点一下就定了",

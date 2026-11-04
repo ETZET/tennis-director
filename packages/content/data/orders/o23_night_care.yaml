@@ -1,8 +1,7 @@
 # 红土场 · 夜间养护（W3 成长解锁 night_clay_care：一名维护工的维护底子到了 75）。收场以后浇水、滚压、拖平、补线，
 # 灯下干三小时，第二天早上的红土像新的一样。只有底子维护 ≥ 75 的人干得了（准则 5：人是钥匙）。
 # 比"又积沙了"（o23_tidy，谁都能扫，状况 < 40 才冒出来）好得多，但要那个人三小时、$60 的水和白线，一周一次。
-# 设计表：状况 +40、一周内衰减 ×0.7。模拟里还没有"一段时间内衰减打折"的效果（要 LG 加），
-# 先把一周少掉的那三成按平均守场情况折成一次 +5（有人守的红土一周掉约 4，没人守约 40）。
+# 设计表：状况 +40、一周内衰减 ×0.7（效果 decay_mult；岗位每圈的 wear 照算不打折）。
 id: o23_night_care
 act: indian_wells
 at: outer_23
@@ -20,6 +19,7 @@ when:
 worker: { upkeep: 75 }
 restore: 40
 effects:
-  - { condition: outer_23, add: 5 }
+  - { decay_mult: { facility: outer_23, factor: 0.7, days: 7 } }
+  - { log: log.night_care }
   - { stat: reputation, add: 0.5 }
 performance: workday

@@ -346,7 +346,7 @@ describe('W5 land plots (LG-15)', () => {
   });
 
   it('save: version bump, 11 → 12 migration adds plots, round trip keeps them', () => {
-    expect(SAVE_VERSION).toBe(12);
+    expect(SAVE_VERSION).toBeGreaterThanOrEqual(12);
     const s = quiet(newGame(FIX, { seed: 3 }));
     choose(s, 'oasis_lawn');
     const save = toSave(s, []);

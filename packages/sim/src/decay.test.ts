@@ -1,6 +1,9 @@
 import { CONTENT } from '@td/content';
 import { describe, expect, it } from 'vitest';
+import { run as runEffects } from './effects';
 import { advance, newGame } from './game';
+import { fromSave, MIGRATIONS, toSave } from './save';
+import { dayDecay } from './staff';
 import { dayOf, type GameState, minuteOfDay } from './state';
 import { worldFor } from './world';
 
@@ -62,5 +65,42 @@ describe('有人守的地方维持住（准则 6，W2 复验 P1）', () => {
     const xs = run({});
     console.log('empty', perDay(xs).toFixed(2), xs.map(Math.round).join(' '));
     expect(perDay(xs)).toBeGreaterThan(2.5);
+  });
+});
+
+describe('效果 decay_mult：一段时间内衰减打折（W3 夜间养护）', () => {
+  it('到期之前收盘衰减 × factor，到期以后照旧；写进因果日志；存档往返、12 → 13 迁移', () => {
+    const s = quiet(newGame(CONTENT, { seed: 2 }));
+    const w = worldFor(CONTENT, s.act, s.directorConfig);
+    s.facilities.outer_1 = 'playable';
+    const none = new Set<string>();
+    const base = dayDecay(s, w, 'outer_1', 1, none);
+    expect(base).toBeGreaterThan(0);
+    const ctx = { s, w, events: [] };
+    const e = runEffects(ctx, { kind: 'debug', what: 'care' }, null, [
+      { decay_mult: { facility: 'outer_1', factor: 0.7, days: 7 } },
+    ]);
+    expect(e.effects).toContainEqual({ kind: 'decay_mult', facility: 'outer_1', factor: 0.7, until: s.t + 7 * 1440 });
+    expect(dayDecay(s, w, 'outer_1', 1, none)).toBeCloseTo(base * 0.7);
+    // 收盘时真的少掉三成
+    s.condition.outer_1 = 90;
+    const t0 = s.t;
+    while (s.t < t0 + 1440) advance(s, CONTENT, [], 60);
+    // 季节倍数可能不是 1：和不打折的同一天比
+    expect(90 - (s.condition.outer_1 ?? 0)).toBeLessThan(base * 0.99);
+    expect(90 - (s.condition.outer_1 ?? 0)).toBeGreaterThan(0);
+    // 存档往返
+    const save = toSave(s, []);
+    expect(fromSave(JSON.parse(JSON.stringify(save))).save.state.decayMult.outer_1?.factor).toBe(0.7);
+    const old = structuredClone(save) as unknown as Record<string, unknown>;
+    const st = old.state as Record<string, unknown>;
+    delete st.decayMult;
+    st.version = 12;
+    old.version = 12;
+    const m = (MIGRATIONS[12] as NonNullable<(typeof MIGRATIONS)[12]>)(old);
+    expect((m.state as GameState).decayMult).toEqual({});
+    // 到期
+    s.t = (s.decayMult.outer_1?.until ?? 0) + 1;
+    expect(dayDecay(s, w, 'outer_1', 1, none)).toBe(base);
   });
 });

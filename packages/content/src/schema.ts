@@ -124,6 +124,14 @@ export const effect = z.union([
   }),
   /** 改设施状况 0..100（例如大风把沙吹进场地） */
   z.strictObject({ ...gate, condition: id, add: amount }),
+  /**
+   * 一段时间内衰减打折（W3）：这处设施收盘衰减 × factor，持续 days 天（从现在起算 days × 24 小时）。
+   * 同一处再来一次就换成新的（倍数和到期都换）。岗位每圈的 wear 不打折。例如夜间养护：{ facility: outer_23, factor: 0.7, days: 7 }
+   */
+  z.strictObject({
+    ...gate,
+    decay_mult: z.strictObject({ facility: id, factor: z.number().min(0).max(2), days: z.number().positive() }),
+  }),
   /** 在因果日志里写一行文案 */
   z.strictObject({ ...gate, log: z.string() }),
   /** 结束本幕 */

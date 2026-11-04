@@ -436,6 +436,8 @@ export function compileContent(files: Record<string, string>): CompileResult {
         if (!facilities.has(e.condition)) err(file, `${w}: unknown facility '${e.condition}'`);
         checkExpr(file, e.add, w);
       }
+      if ('decay_mult' in e && !facilities.has(e.decay_mult.facility))
+        err(file, `${w}: unknown facility '${e.decay_mult.facility}'`);
       if ('schedule' in e && !cards.has(e.schedule)) err(file, `${w}: unknown card '${e.schedule}'`);
       if ('activity' in e && !activities.has(e.activity)) err(file, `${w}: unknown activity '${e.activity}'`);
       for (const k of ['hire', 'fire', 'person', 'errand'] as const) {
