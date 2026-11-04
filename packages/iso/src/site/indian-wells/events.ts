@@ -473,6 +473,55 @@ function cupCourt(K: ShowKit, F: Frame, main: boolean, seed: number): void {
   bench(K, F.ox - 6, zs, 1.4, 'x');
   fans.push(...row(R, [F.ox - 6.8, zs], [F.ox - 5.2, zs], 1.0, { floor: 0, seat: 0.45, fx: 0, fz: -1, empty: 0.2 }));
   crowd(K, fans, { seed });
+  // 签到桌旁边一座充气的大奖杯（手机上离远了也认得出"今天有杯赛"）
+  if (main) bigCup(K, F.ox - 7.3, zn + 0.3);
+}
+
+/** 充气大奖杯：绿底座、金杯身两只耳朵，两根拉绳钉在地上 */
+function bigCup(K: ShowKit, x: number, z: number): void {
+  K.cast({ x, z, h: 3, r: 0.8, tw: 0.6 });
+  K.add({ x0: x - 1, x1: x + 1, z0: z - 1, z1: z + 1, y0: 0, y1: 3.4 }, (r) => {
+    const lit = r.litAt(x, z);
+    const rope = r.col('#e8e2d2', 1, lit);
+    for (const [dx, dz] of [
+      [-0.95, 0.6],
+      [0.95, 0.6],
+    ] as const)
+      r.wline([x + dx, 0, z + dz], [x + dx * 0.6, 2.3, z], rope);
+    box(r, x - 0.55, x + 0.55, z - 0.55, z + 0.55, 0, 0.45, CLUB_GREEN, { lit, top: '#3c8a58' });
+    cyl(r, x, z, 0.42, 0.45, 0.65, CLUB_GOLD, { lit });
+    cyl(r, x, z, 0.16, 0.65, 1.25, CLUB_GOLD, { lit, noTop: true });
+    cyl(r, x, z, 0.32, 1.25, 1.45, CLUB_GOLD, { lit, noTop: true });
+    cyl(r, x, z, 0.55, 1.45, 1.85, CLUB_GOLD, { lit, noTop: true });
+    cyl(r, x, z, 0.72, 1.85, 2.75, CLUB_GOLD, { lit, top: '#c99a24' });
+    // 两只耳朵：屏幕上画环（转到哪个角度都是两边各一只）
+    const m = r.P(x, 2.2, z);
+    const rr = r.P(x + 0.72, 2.2, z);
+    const half = Math.max(3, Math.abs(rr[0] - m[0]) + 1);
+    const ew = Math.max(2, r.k * 0.42);
+    const eh = Math.max(3, r.k * 0.55);
+    const th = Math.max(1, Math.round(r.k * 0.16));
+    const gold = r.col(CLUB_GOLD, 1, lit);
+    const dk = r.col('#8a6a18', 1, lit);
+    for (const sd of [-1, 1]) {
+      // 半个环：从杯身伸出去再弯回来（先一圈深色描边，再金色）
+      for (const [c, w] of [
+        [dk, th + 1],
+        [gold, th],
+      ] as const)
+        for (let i = 0; i <= 16; i++) {
+          const t = -Math.PI / 2 + (i / 16) * Math.PI;
+          const px = m[0] + sd * (half - 1 + Math.cos(t) * ew);
+          const py = m[1] + Math.sin(t) * eh;
+          r.rect(Math.round(px - w / 2), Math.round(py - w / 2), w, w, c);
+        }
+    }
+    // 杯身一道高光、杯口一圈亮边
+    const hi = r.col('#fff1a8', 1, lit);
+    const a = r.P(x - 0.35, 1.95, z + 0.5);
+    const b = r.P(x - 0.35, 2.65, z + 0.5);
+    r.line(a[0], a[1], b[0], b[1], hi, Math.max(1, Math.round(r.k * 0.12)));
+  });
 }
 
 /** 场边临时看台（铝合金两级）：沿 x 从 xa 到 xb，背靠 zBack，脸朝 dir（+1 朝 +z） */
@@ -748,6 +797,50 @@ function catering(K: ShowKit): void {
       cyl(r, x, z, 0.06, 0, 1.05, '#596069', { lit, noTop: true });
       cyl(r, x, z, 0.38, 1.02, 1.1, '#f6f3ea', { lit });
     });
+  // 喷泉西南再摆一辆冰淇淋推车（一处餐饮摊撑不起"邀请赛"的热闹）
+  iceCart(K, 36.2, -15.4);
+}
+
+/** 冰淇淋推车：白车身一道粉条、两只轮子，上面一把粉白条纹的遮阳伞；夜里伞下一盏小灯 */
+function iceCart(K: ShowKit, x: number, z: number): void {
+  const hx = 0.9;
+  const hz = 0.45;
+  K.lampAt({ x, z: z + 0.6, r: 3.5, i: 0.6 });
+  K.cast({ x0: x - hx, x1: x + hx, z0: z - hz, z1: z + hz, h: 2.2 });
+  K.add({ x0: x - 1.3, x1: x + 1.3, z0: z - 1.3, z1: z + 1.3, y0: 0, y1: 2.9 }, (r) => {
+    const lit = r.litAt(x, z);
+    const night = dark(r);
+    box(r, x - hx, x + hx, z - hz, z + hz, 0.3, 1.05, '#f6f3ea', {
+      lit,
+      top: '#e7e2d4',
+      face: (nx, nz) => {
+        if (nz !== 0) fq(r, 'z', z + hz * nz, 0, nz, x - hx, x + hx, 0.55, 0.72, r.col('#ff8fb8', 1, lit));
+        if (nx !== 0) fq(r, 'x', x + hx * nx, nx, 0, z - hz, z + hz, 0.55, 0.72, r.col('#ff8fb8', 1, lit));
+      },
+    });
+    for (const dx of [-0.55, 0.55]) cyl(r, x + dx, z + hz, 0.28, 0.02, 0.32, '#3a3f47', { lit });
+    // 车顶三桶冰淇淋（粉、黄、薄荷）
+    for (const [i, c] of ['#ff8fb8', '#f6e27a', '#9fe0c0'].entries())
+      cyl(r, x - 0.45 + i * 0.45, z, 0.16, 1.05, 1.22, c, { lit });
+    // 伞杆、伞面（屏幕上画一顶扁圆伞，按条纹分色）
+    const b = r.P(x, 1.05, z);
+    const t = r.P(x, 2.5, z);
+    r.line(b[0], b[1], t[0], t[1], r.col('#d8d0c0', 1, lit));
+    const rw = Math.max(4, r.k * 1.25);
+    const rh = Math.max(2, rw * 0.42);
+    const ol = r.col('#5a2a3a', 1, lit);
+    const pk = r.col('#ff8fb8', 1.05, lit);
+    const wh = r.col('#f6f3ea', 1.05, lit);
+    for (let dy = -Math.ceil(rh) - 1; dy <= 1; dy++)
+      for (let dx = -Math.ceil(rw) - 1; dx <= Math.ceil(rw) + 1; dx++) {
+        const e = (dx / (rw + 1)) ** 2 + ((dy - 1) / (rh + 1.5)) ** 2;
+        if (e > 1 || dy > 1) continue;
+        const inner = (dx / rw) ** 2 + ((dy - 1) / (rh + 0.5)) ** 2 <= 1 && dy < 1;
+        const seg = Math.floor((Math.atan2(dy - 1, dx) + Math.PI) / (Math.PI / 4)) & 1;
+        r.pix(t[0] + dx, t[1] + dy, inner ? (seg ? pk : wh) : ol);
+      }
+    if (night) r.glow(t[0], t[1] + rh + 2, 6, [255, 210, 160], 0.55);
+  });
 }
 
 /** 外出比赛：大门外一块"祝好运"牌，车道上一辆等着出发的小巴（junior：牌子上系三个气球） */
@@ -817,6 +910,34 @@ function farewell(K: ShowKit, junior: boolean): void {
       r.glow(p[0], p[1], 3 * r.k * 0.55 + 2, [255, 240, 190], 0.7);
     }
   });
+  // 车顶前头插一面俱乐部的小三角旗（随风飘）
+  pennant(K, x1 - 0.6, 2.35, (z0 + z1) / 2);
+  // 来送行的几个人：车道这一侧（默认镜头看得见的那面）站一排，时不时跳起来挥手
+  const R = mulberry32(junior ? 0x5e2 : 0x5e1);
+  const fans = row(R, [67.4, z1 + 1.2], [73.4, z1 + 1.2], 1.15, { floor: 0, seat: null, fx: 0, fz: -1, empty: 0.15 });
+  crowd(K, fans, { seed: junior ? 0x5e2 : 0x5e1, cheer: 0.16 });
+}
+
+/** 立在车顶上的一面小三角旗（俱乐部绿，金边） */
+function pennant(K: ShowKit, x: number, y: number, z: number): void {
+  const wx = K.wx;
+  K.addDyn({ x0: x - 0.1, x1: x + 0.1, z0: z - 0.1, z1: z + 0.1, y0: y, y1: y + 1.6 }, (r) => {
+    const lit = r.litAt(x, z);
+    const s = r.spriteScale;
+    const b = r.P(x, y, z);
+    const t = r.P(x, y + 1.5, z);
+    r.line(b[0], b[1], t[0], t[1], r.col('#596069', 1, lit));
+    const L = 7 * s;
+    const sway = Math.sin(r.t * (2.2 + wx.wind * 3)) * (0.5 + wx.wind) * s;
+    for (let i = 0; i < L; i++) {
+      const u = i / L;
+      const h = Math.max(1, Math.round((1 - u) * 4 * s));
+      const px = Math.round(t[0]) + 1 + i;
+      const py = Math.round(t[1] + Math.sin(u * 3 + r.t * 3) * sway * u);
+      r.rect(px, py, 1, h, r.col(u > 0.85 ? CLUB_GOLD : CLUB_GREEN, 1, lit));
+      r.pix(px, py, r.col(CLUB_GOLD, 1, lit));
+    }
+  });
 }
 
 /* ---------------- 中心球场的表演赛 ---------------- */
@@ -854,7 +975,7 @@ function stadiumCrowd(K: ShowKit, extended: boolean): void {
   crowd(K, south, { seed: 13, wave: true });
 }
 
-/** 天上绕着中心球场慢慢转的小飞艇（白身一道绿、尾翼） */
+/** 天上绕着中心球场慢慢转的小飞艇（白身一道绿、尾翼、吊舱），尾巴后面拖一条俱乐部色的长横幅（不写字） */
 function blimp(K: ShowKit): void {
   const n = K.addDyn({ x0: -1, x1: 1, z0: -22, z1: -20, y0: 30, y1: 34 }, (r) => {
     const a = r.t * 0.05;
@@ -865,24 +986,50 @@ function blimp(K: ShowKit): void {
     const q = r.P(Math.cos(a + 0.05) * 26, 32, -21 + Math.sin(a + 0.05) * 14);
     const dir = q[0] >= p[0] ? 1 : -1;
     const s = r.spriteScale;
+    const night = dark(r);
     const lit = 0;
-    const L = 11 * s;
-    const H = 4 * s;
+    const L = 16 * s;
+    const H = 6 * s;
     const cx = Math.round(p[0]);
     const cy = Math.round(p[1]);
     const ol = r.col('#2a2238', 1, lit);
-    // 尾翼
+    // 横幅：从尾翼后面拖出去，一根拖绳，旗面随风一波一波
     const tx = cx - dir * (L - s);
-    r.rect(Math.min(tx, tx - dir * 3 * s), cy - H - s, 3 * s, 2 * H + 2 * s, ol);
-    r.rect(Math.min(tx, tx - dir * 3 * s) + (dir > 0 ? 0 : s), cy - H, 2 * s, 2 * H, r.col(CLUB_GREEN, 1, lit));
+    const bw = 22 * s;
+    const bh = 5 * s;
+    const bx0 = tx - dir * (6 * s);
+    r.line(tx, cy, bx0, cy + s, ol);
+    for (let i = 0; i < bw; i++) {
+      const u = i / bw;
+      const wave = Math.round(Math.sin(r.t * 3 - u * 7) * 1.2 * s * u);
+      const px = bx0 - dir * i;
+      const py = cy - Math.floor(bh / 2) + s + wave;
+      const band = Math.floor(u * 4) & 1;
+      r.rect(px, py - 1, 1, bh + 2, ol);
+      r.rect(px, py, 1, bh, r.col(band ? CLUB_GOLD : CLUB_GREEN, 1, lit));
+      r.rect(px, py + bh - s, 1, s, r.col('#f6f3ea', 1, lit));
+    }
+    // 尾翼（上下两片）
+    const fx = Math.min(tx, tx - dir * 4 * s);
+    r.rect(fx, cy - H - 2 * s, 4 * s, 2 * H + 4 * s, ol);
+    r.rect(fx + (dir > 0 ? 0 : s), cy - H - s, 3 * s, 2 * H + 2 * s, r.col(CLUB_GREEN, 1, lit));
+    // 艇身：描边、白身、上半一道高光、腰上一道绿、一道金
     r.ell(cx, cy, L + 1, H + 1, ol);
-    r.ell(cx, cy, L, H, r.col('#e8e6e0', 1, lit));
+    r.ell(cx, cy, L, H, r.col('#e2e0d8', 1, lit));
     r.ell(cx, cy - s, L - s, H - s, r.col('#f8f7f2', 1, lit));
-    r.rect(cx - L + 2 * s, cy - Math.floor(s / 2), 2 * L - 4 * s, s + 1, r.col(CLUB_GREEN, 1, lit));
-    r.rect(cx - 2 * s, cy + H, 4 * s, 2 * s, ol);
-    r.rect(cx - 2 * s + 1, cy + H, 4 * s - 2, s, r.col('#5a6070', 1, lit));
-    if (dark(r))
+    r.ell(cx + dir * 3 * s, cy - 3 * s, L * 0.45, s, r.col('#ffffff', 1, lit));
+    r.rect(cx - L + 3 * s, cy - s, 2 * L - 6 * s, 2 * s, r.col(CLUB_GREEN, 1, lit));
+    r.rect(cx - L + 4 * s, cy + s, 2 * L - 8 * s, s, r.col(CLUB_GOLD, 1, lit));
+    // 吊舱和两扇小窗（夜里亮）
+    r.rect(cx - 4 * s, cy + H - s, 8 * s, 3 * s, ol);
+    r.rect(cx - 4 * s + 1, cy + H - s + 1, 8 * s - 2, 2 * s, r.col('#5a6070', 1, lit));
+    for (const dx of [-2, 1])
+      r.rect(cx + dx * s, cy + H - s + 1, s, s, night ? r.em('#ffe2a0') : r.col('#9ab8d0', 1, lit));
+    if (night) {
       r.rect(cx + dir * (L - 2 * s), cy - s, s + 1, s + 1, r.em(Math.sin(r.t * 4) > 0 ? '#ff4a3a' : '#5a1a1a'));
+      // 夜里艇身被探照灯扫到一点：一圈淡淡的光
+      r.glow(cx, cy, L + 4, [200, 210, 240], 0.25);
+    }
   });
   n.renderOrder = 60;
 }
@@ -922,6 +1069,21 @@ function exhibition(K: ShowKit, prep: ReadonlyMap<string, boolean>): void {
   bunting(K, pts, 3.4, ['#d65a5a', CLUB_GOLD, '#5a8fd6', CLUB_GREEN, '#f6f3ea'], 0.7, 3.62);
   blimp(K);
   searchlights(K);
+  if (prep.get('prep_service')) {
+    // 球童：网边南侧两个、两头底线后面角上各两个（球童服务那一期做完才有）
+    const cz = F_S1.oz;
+    const kids: Fan[] = [];
+    for (const [x, z, fx, fz] of [
+      [-1.3, cz + 7.0, 0, -1],
+      [1.3, cz + 7.0, 0, -1],
+      [-13.4, cz - 5.2, 1, 0],
+      [-13.4, cz + 5.2, 1, 0],
+      [13.4, cz - 5.2, -1, 0],
+      [13.4, cz + 5.2, -1, 0],
+    ] as const)
+      kids.push({ x, z, floor: 0, seat: null, fx, fz, u: 0, look: 3 });
+    crowd(K, kids, { seed: 0xba11, cheer: 0 });
+  }
   if (prep.get('prep_media')) {
     // 转播平台上有人扛着机器（平台和机器在 prep.ts）
     const looks = fanLooks();

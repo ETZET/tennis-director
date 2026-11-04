@@ -47,11 +47,23 @@ export interface ForeLook {
   slab: Rect[];
 }
 
+/**
+ * 浮空小岛在天上的位置：在 layout 的 ISLE_SKY 上再往东南推一段（默认竖屏镜头里，原位置的岛正好贴着
+ * 东南角地台的下沿，底下的尖看着像地台倒挂下来的一块；推开以后四个转角都是一座离岸浮着的小岛）
+ */
+export const ISLE_FLOAT = {
+  x0: ISLE_SKY.x0 + 16,
+  x1: ISLE_SKY.x1 + 16,
+  z0: ISLE_SKY.z0 + 16,
+  z1: ISLE_SKY.z1 + 16,
+  y: ISLE_SKY.y,
+} as const;
+
 const defaults = (): ForeLook => ({
   decay: 0,
   gate: { bricks: 1, iron: false, lamps: false },
   golf: 'golf',
-  isle: { show: true, x0: ISLE_SKY.x0, z0: ISLE_SKY.z0, y: ISLE_SKY.y },
+  isle: { show: true, x0: ISLE_FLOAT.x0, z0: ISLE_FLOAT.z0, y: ISLE_FLOAT.y },
   hide: [],
   slab: [],
 });
@@ -320,7 +332,14 @@ export function foreshadowStatics(lv: number): Node[] {
       drawIsleProps(r, R.x0, R.z0, I.y);
       if (I.y > 6) for (const c of cl) if (depthOf(c) < mid !== far) puff(r, c[0], c[1], c[2], c[3], c[4]);
     },
-    { x0: ISLE_SKY.x0 - 3, x1: ISLE_SKY.x1 + 6, z0: ISLE_SKY.z0, z1: ISLE_SKY.z1 + 5, y0: 0, y1: ISLE_SKY.y + 3 },
+    {
+      x0: ISLE_FLOAT.x0 - 3,
+      x1: ISLE_FLOAT.x1 + 6,
+      z0: ISLE_FLOAT.z0,
+      z1: ISLE_FLOAT.z1 + 5,
+      y0: 0,
+      y1: ISLE_FLOAT.y + 3,
+    },
   );
   isle.name = 'foreshadow:isle';
   out.push(isle);

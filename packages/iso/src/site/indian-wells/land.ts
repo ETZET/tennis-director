@@ -23,7 +23,16 @@ import { Custom, type DrawContext, Group, type Node } from '../../core/graph';
 import { type Rect, slabOutline } from '../../core/ground';
 import type { Raster } from '../../core/raster';
 import { buildStatics, type Lamp, type SiteKit, type Weather } from './build';
-import { FORE, golfDecayForWeek, ISLE_NET, isleTop, type PaintTarget, repaintLand, setGroundPass } from './foreshadow';
+import {
+  FORE,
+  golfDecayForWeek,
+  ISLE_FLOAT,
+  ISLE_NET,
+  isleTop,
+  type PaintTarget,
+  repaintLand,
+  setGroundPass,
+} from './foreshadow';
 import { C, type Cast, SLAB } from './ground';
 import {
   BRIDGE,
@@ -35,7 +44,6 @@ import {
   GOLF_POND,
   GOLF_WEST,
   ISLE_DOCK,
-  ISLE_SKY,
   LOT_NEW,
   LOT_S,
   OASIS_DECK,
@@ -201,11 +209,19 @@ export function createLand(world: LandWorld, opts: LandOptions = {}): LandLayer 
       const t = se.state === 'open' ? 1 : step(se.p, 0, DOCK_AT);
       FORE.isle = {
         show: t < 1,
-        x0: lerp(ISLE_SKY.x0, ISLE_DOCK.x0, t),
-        z0: lerp(ISLE_SKY.z0, ISLE_DOCK.z0, t),
-        y: lerp(ISLE_SKY.y, 0.2, t * t),
+        x0: lerp(ISLE_FLOAT.x0, ISLE_DOCK.x0, t),
+        z0: lerp(ISLE_FLOAT.z0, ISLE_DOCK.z0, t),
+        y: lerp(ISLE_FLOAT.y, 0.2, t * t),
       };
-    } else FORE.isle = { show: true, x0: ISLE_SKY.x0, z0: ISLE_SKY.z0, y: ISLE_SKY.y };
+    } else
+      FORE.isle = {
+        // 东南角走了赛事广场：学院岛那条路没了，天上的小岛飘走（留着的话它正好浮在新停车场前面，
+        // 底下的尖像是新地台倒挂下来的一块）
+        show: !(se.variant === 'event_plaza' && se.state !== 'locked'),
+        x0: ISLE_FLOAT.x0,
+        z0: ISLE_FLOAT.z0,
+        y: ISLE_FLOAT.y,
+      };
   };
 
   /** 地面：新地（伏笔由 foreshadow.ts 先画） */
@@ -915,6 +931,30 @@ function eventPlaza(K: SiteKit, L: PlotLook): void {
     K.cast({ x0: 70, x1: 82, z0: 6.6, z1: 7.2, h: 5 });
   }
   if (open) {
+    // 台阶上铺着几块野餐毯（看大屏的人留下的；颜色和位置按自己的种子，坐的人由演出另算）
+    const BL = ['#d65a5a', '#f6e27a', '#5a8fd6', '#f6f3ea', '#ef8f5a', '#7bc47f'];
+    for (let n = 0; n < 9; n++) {
+      const i = n % 5;
+      const z0 = 10 + i * 3.2 + 0.7;
+      const h = 0.38 * (i + 1);
+      const x = S.x0 + 2 + hash(n, 1, 171) * (S.x1 - S.x0 - 6);
+      const c = BL[Math.floor(hash(n, 2, 171) * BL.length)] as string;
+      K.add(bx(x, x + 1.8, z0, z0 + 1.4, h, h + 0.05), (r) => {
+        const lit = r.litAt(x + 0.9, z0 + 0.7);
+        const a = r.col(c, 1, lit);
+        const b2 = r.col('#f6f3ea', 1, lit);
+        r.wpoly(
+          [
+            [x, h + 0.02, z0],
+            [x + 1.8, h + 0.02, z0],
+            [x + 1.8, h + 0.02, z0 + 1.4],
+            [x, h + 0.02, z0 + 1.4],
+          ],
+          a,
+          (px, py) => ((((px >> 1) + (py >> 1)) & 1) === 0 ? b2 : a),
+        );
+      });
+    }
     K.lampAt({ x: (C0.x0 + C0.x1) / 2, z: 18, r: 10, i: 0.6 });
     for (const x of [S.x0 + 0.6, S.x1 - 0.6]) K.flag(x, 8.4, 4.5, '#6a4fa0', '#6a4fa0');
   }

@@ -24,6 +24,8 @@ import { clamp, mulberry32 } from '@td/shared';
  *   ?pv=stadium_3:tennis2   （修复预览幽灵）  ?plaque=5   （牌匾刻 5 行示例）  ?stars=3&starup=1   （星级牌，升星动画）
  *   ?ev=outer_23:invitational,stadium_1:exhibition   （赛事日布置，wave2-5-contract.md）
  *   ?prep=prep_stands,prep_lights:0   （表演赛筹备：写了就是做完，:0 是挂出来还没做）
+ *   ?land=golf_west:south_courts:open,se_corner:event_plaza:building:0.5   （新地：地块:变体:状态[:进度]）
+ *   ?lpv=se_corner:academy_isle   （选路卡上的新地预览）  ?week=8   （第几周：高尔夫西段荒到几成）
  * 只读画面，不碰模拟。
  */
 
@@ -146,6 +148,21 @@ for (const pair of (q.get('prep') ?? '').split(',')) {
   const [ph, d] = pair.split(':');
   if (ph) W2.prep.set(ph, d !== '0');
 }
+/** 新地（W5；URL 里没写就不碰，开局只有伏笔） */
+const W5 = {
+  land: [] as [string, string, 'locked' | 'building' | 'open', number][],
+  preview: null as [string, string] | null,
+  week: q.has('week') ? Math.max(0, Math.round(num('week', 0))) : -1,
+};
+for (const pair of (q.get('land') ?? '').split(',')) {
+  const [plot, v, st, p] = pair.split(':');
+  if (plot && v && (st === 'locked' || st === 'building' || st === 'open'))
+    W5.land.push([plot, v, st, Number(p ?? 0) || 0]);
+}
+{
+  const [plot, v] = (q.get('lpv') ?? '').split(':');
+  if (plot && v) W5.preview = [plot, v];
+}
 /** "赛事"按钮一下换一个示例（地点 → 赛事） */
 const EVENT_DEMOS: readonly (readonly [string, string][])[] = [
   [],
@@ -196,6 +213,9 @@ function applyW1(): void {
   }
   for (const [a, k] of [...W2.events]) overlays.event?.(a, k);
   for (const [ph, d] of W2.prep) overlays.prep?.(ph, d);
+  if (W5.week >= 0) overlays.week?.(W5.week);
+  for (const [plot, v, st, p] of W5.land) overlays.land?.(plot, st, v, p);
+  if (W5.preview) overlays.landPreview?.(W5.preview[0], W5.preview[1]);
   if (W1.plaque) overlays.plaque?.(Array.from({ length: W1.plaque }, (_, i) => PLAQUE_DEMO[i % PLAQUE_DEMO.length]!));
 }
 function applyStates(): void {
@@ -461,6 +481,10 @@ function syncUrl(): void {
     if (W1.stars >= 0) p.set('stars', String(W1.stars));
     if (W2.events.size) p.set('ev', [...W2.events].map(([a, k]) => `${a}:${k}`).join(','));
     if (W2.prep.size) p.set('prep', [...W2.prep].map(([ph, d]) => (d ? ph : `${ph}:0`)).join(','));
+    if (W5.land.length)
+      p.set('land', W5.land.map(([pl, v, st, pr]) => `${pl}:${v}:${st}${st === 'building' ? `:${pr}` : ''}`).join(','));
+    if (W5.preview) p.set('lpv', W5.preview.join(':'));
+    if (W5.week >= 0) p.set('week', String(W5.week));
     const s = `?${p.toString().replace(/%3A/g, ':').replace(/%2C/g, ',')}`;
     history.replaceState(null, '', s);
     urlEl.textContent = s;
@@ -513,4 +537,14 @@ function frame(ts: number): void {
 }
 requestAnimationFrame(frame);
 // 调试：控制台里摸世界
-(window as unknown as { __viewer: unknown }).__viewer = { world, overlays, ST, W1, W2, walkers, starSign, applyStates };
+(window as unknown as { __viewer: unknown }).__viewer = {
+  world,
+  overlays,
+  ST,
+  W1,
+  W2,
+  W5,
+  walkers,
+  starSign,
+  applyStates,
+};

@@ -3,7 +3,7 @@ import { bakeArt } from '../../core/art';
 import type { DrawContext } from '../../core/graph';
 import { dark } from './common';
 import { bench, type ShowKit, sponsorBoard, stake } from './events';
-import { box, cyl, fq, type Pt } from './kit';
+import { box, cyl, faceF, fq, type Pt } from './kit';
 import { F_S1 } from './layout';
 
 /**
@@ -14,7 +14,9 @@ import { F_S1 } from './layout';
  * - prep_service 球童和服务：网边的高脚裁判椅、两头的毛巾和饮料台、南边两张球童长凳。
  * - prep_media 赞助或转播：西头两座、北看台背墙顶上一座转播机位，东北角一辆转播车（车顶卫星锅），
  *   南边场边一排赞助灯箱（夜里亮）。
- * 没做完（done = false）的那几期只在要建的地方钉几根带橙色测量带的木桩（看台是脚手架）；没挂出来的什么也不画。
+ * 没做完（done = false）的那几期是一处小工地（手机上一眼能认出"这儿要建东西"）：看台是脚手架；灯塔是四块水泥墩、
+ * 一座只搭了三分之一的桁架；服务是网边几只木箱和一卷盖着绿布的货；转播是车位上一圈橙白警示带、两卷电缆、
+ * 一摞黑色器材箱。没挂出来的什么也不画。
  */
 
 export const PREP_PHASES = ['prep_stands', 'prep_lights', 'prep_service', 'prep_media'] as const;
@@ -125,7 +127,17 @@ function scaffold(K: ShowKit): void {
 
 function towers(K: ShowKit, done: boolean): void {
   if (!done) {
-    for (const [x, z] of TOWERS) stake(K, x, z);
+    for (const [i, [x, z]] of TOWERS.entries()) {
+      footing(K, x, z);
+      stake(K, x + 0.9, z + 0.9);
+      // 东南那座先搭了三分之一（离长廊最近，手机竖屏默认镜头里看得见）
+      if (i === 3) {
+        K.cast({ x, z, h: TOWER_H * 0.36, r: 0.7, tw: 0.3 });
+        K.add({ x0: x - 0.5, x1: x + 0.5, z0: z - 0.5, z1: z + 0.5, y0: 0, y1: TOWER_H * 0.36 + 0.5 }, (r) =>
+          tower(r, x, z, 0.36),
+        );
+      }
+    }
     return;
   }
   const cx = F_S1.ox;
@@ -138,16 +150,35 @@ function towers(K: ShowKit, done: boolean): void {
   }
 }
 
-function tower(r: DrawContext, x: number, z: number): void {
+/** 灯塔的水泥墩：一块浅灰方墩，顶上四颗地脚螺栓 */
+function footing(K: ShowKit, x: number, z: number): void {
+  K.add({ x0: x - 0.75, x1: x + 0.75, z0: z - 0.75, z1: z + 0.75, y0: 0, y1: 0.45 }, (r) => {
+    const lit = r.litAt(x, z);
+    box(r, x - 0.7, x + 0.7, z - 0.7, z + 0.7, 0, 0.4, '#bdb8ae', { lit, top: '#d6d2c8' });
+    const bc = r.col('#4a4e56', 1, lit);
+    for (const [dx, dz] of [
+      [-0.4, -0.4],
+      [0.4, -0.4],
+      [-0.4, 0.4],
+      [0.4, 0.4],
+    ] as const) {
+      const p = r.P(x + dx, 0.4, z + dz);
+      r.rect(Math.round(p[0]), Math.round(p[1]) - 1, 1, 2, bc);
+    }
+  });
+}
+
+/** 一座灯塔；part < 1 是还在搭（只到 part 那么高，没有灯头，顶上露着一截钢筋） */
+function tower(r: DrawContext, x: number, z: number, part = 1): void {
   const lit = r.litAt(x, z);
-  const H = TOWER_H;
+  const H = TOWER_H * part;
   const mc = r.col('#7a828c', 1, lit);
   const md = r.col('#5a6069', 1, lit);
   // 桁架：两根往上收的主杆 + 之字形横撑（在屏幕上画，转到哪个角度都是一座塔）
   const b = r.P(x, 0, z);
   const t = r.P(x, H, z);
   const wb = Math.max(2, r.k * 0.55);
-  const wt = Math.max(1, r.k * 0.22);
+  const wt = Math.max(1, wb + (Math.max(1, r.k * 0.22) - wb) * part);
   const L = (u: number, side: number) => [
     b[0] + (t[0] - b[0]) * u + side * (wb + (wt - wb) * u),
     b[1] + (t[1] - b[1]) * u,
@@ -158,11 +189,21 @@ function tower(r: DrawContext, x: number, z: number): void {
   const r1 = L(1, 1);
   r.line(l0[0] as number, l0[1] as number, l1[0] as number, l1[1] as number, mc);
   r.line(r0[0] as number, r0[1] as number, r1[0] as number, r1[1] as number, md);
-  const n = Math.max(4, Math.round((H * r.k) / 6));
+  const n = Math.max(part < 1 ? 2 : 4, Math.round((H * r.k) / 6));
   for (let i = 0; i < n; i++) {
     const a = L(i / n, i & 1 ? 1 : -1);
     const c = L((i + 1) / n, i & 1 ? -1 : 1);
     r.line(a[0] as number, a[1] as number, c[0] as number, c[1] as number, md);
+  }
+  if (part < 1) {
+    // 还在搭：顶上一道横梁、两根伸出来的钢筋头，挂一面橙色小旗
+    r.line(l1[0] as number, l1[1] as number, r1[0] as number, r1[1] as number, mc);
+    const s = r.spriteScale;
+    for (const p of [l1, r1]) r.rect(Math.round(p[0] as number), Math.round((p[1] as number) - 2 * s), 1, 2 * s, mc);
+    const fx = Math.round(r1[0] as number);
+    const fy = Math.round((r1[1] as number) - 2 * s);
+    r.rect(fx + 1, fy, 3 * s, 2 * s, r.col('#ff7a2e', 1, lit));
+    return;
   }
   // 灯头：4×2 盏灯的灯箱
   const night = dark(r);
@@ -242,6 +283,11 @@ function service(K: ShowKit, done: boolean): void {
   const cz = F_S1.oz;
   if (!done) {
     stake(K, 3.2, cz + 8.6);
+    // 网边北侧堆着还没拆的货：两只木箱叠一只、一卷盖着俱乐部绿布的货板
+    crate(K, 1.6, cz - 8.0, 0, 0.8);
+    crate(K, 2.5, cz - 7.9, 0, 0.7);
+    crate(K, 1.95, cz - 7.95, 0.8, 0.6);
+    tarp(K, -2.4, cz - 8.0);
     return;
   }
   umpireChair(K, 0, cz - 7.7);
@@ -339,8 +385,12 @@ function van(K: ShowKit): void {
 
 function media(K: ShowKit, done: boolean): void {
   if (!done) {
-    stake(K, 20, -35.2);
-    stake(K, 26, -35.2);
+    // 转播车的车位：四角木桩、一圈警示带；车位里两卷电缆、一摞器材箱
+    taped(K, 19.6, 26.4, -36.4, -34);
+    drum(K, 21.2, -35.2);
+    drum(K, 22.6, -35.0);
+    flightCase(K, 24.6, -35.2, 0, 0.6);
+    flightCase(K, 24.6, -35.2, 0.6, 0.5);
     return;
   }
   van(K);
@@ -354,6 +404,123 @@ function media(K: ShowKit, done: boolean): void {
   for (const x of [-13.8, -9.6, -5.4, 5.4, 9.6, 13.8])
     sponsorBoard(K, 'z', zs, x - 1.9, x + 1.9, 0.12, 0.95, n++, { led: true, legs: true });
   for (const z of [-26, -21, -16]) sponsorBoard(K, 'x', -17.85, z - 2.1, z + 2.1, 0.12, 0.95, n++, { led: true });
+}
+
+/* ---------------- 小工地的道具 ---------------- */
+
+/** 一只木箱（中心 x、z，边长 0.8，从 y0 起高 h），侧面两道深色板缝 */
+function crate(K: ShowKit, x: number, z: number, y0: number, h: number): void {
+  const e = 0.4;
+  if (y0 === 0) K.cast({ x0: x - e, x1: x + e, z0: z - e, z1: z + e, h });
+  K.add({ x0: x - e, x1: x + e, z0: z - e, z1: z + e, y0, y1: y0 + h }, (r) => {
+    const lit = r.litAt(x, z);
+    box(r, x - e, x + e, z - e, z + e, y0, y0 + h, '#c99a58', {
+      lit,
+      top: '#d8ad6c',
+      sideSh: (nx, nz, _p, cc) => {
+        const d = r.col('#9a7040', faceF(nx, nz), lit);
+        const per = Math.max(3, Math.round(r.k * h * 0.5));
+        return (_x, y) => (y % per === 0 ? d : cc);
+      },
+    });
+  });
+}
+
+/** 一板盖着俱乐部绿布的货（布角压着两道金色绑带） */
+function tarp(K: ShowKit, x: number, z: number): void {
+  K.cast({ x0: x - 0.8, x1: x + 0.8, z0: z - 0.5, z1: z + 0.5, h: 0.9 });
+  K.add({ x0: x - 0.85, x1: x + 0.85, z0: z - 0.55, z1: z + 0.55, y0: 0, y1: 1 }, (r) => {
+    const lit = r.litAt(x, z);
+    box(r, x - 0.8, x + 0.8, z - 0.5, z + 0.5, 0, 0.15, '#a8743c', { lit, edge: false });
+    box(r, x - 0.75, x + 0.75, z - 0.45, z + 0.45, 0.15, 0.9, CLUB_GREEN, {
+      lit,
+      top: '#3c8a58',
+      face: (_nx, nz) => {
+        for (const u of [-0.35, 0.35])
+          if (nz !== 0)
+            fq(r, 'z', z + 0.45 * nz, 0, nz, x + u - 0.07, x + u + 0.07, 0.15, 0.9, r.col(CLUB_GOLD, 1, lit));
+      },
+    });
+  });
+}
+
+/** 一卷电缆：木轴盘立着放，黑电缆缠在中间 */
+function drum(K: ShowKit, x: number, z: number): void {
+  K.cast({ x, z, h: 0.7, r: 0.55, tw: 0.55 });
+  K.add({ x0: x - 0.6, x1: x + 0.6, z0: z - 0.6, z1: z + 0.6, y0: 0, y1: 0.75 }, (r) => {
+    const lit = r.litAt(x, z);
+    cyl(r, x, z, 0.55, 0, 0.12, '#b48650', { lit });
+    cyl(r, x, z, 0.42, 0.12, 0.58, '#2a2d33', { lit, noTop: true });
+    cyl(r, x, z, 0.55, 0.58, 0.7, '#c89a5a', { lit, top: '#d8ad6c' });
+    const p = r.P(x, 0.7, z);
+    r.ell(p[0], p[1], Math.max(1, r.k * 0.14), Math.max(1, r.k * 0.08), r.col('#7a5a3a', 1, lit));
+  });
+}
+
+/** 黑色器材箱（转播的家当）：银色包角 */
+function flightCase(K: ShowKit, x: number, z: number, y0: number, h: number): void {
+  const ex = 0.6;
+  const ez = 0.4;
+  if (y0 === 0) K.cast({ x0: x - ex, x1: x + ex, z0: z - ez, z1: z + ez, h });
+  K.add({ x0: x - ex, x1: x + ex, z0: z - ez, z1: z + ez, y0, y1: y0 + h }, (r) => {
+    const lit = r.litAt(x, z);
+    box(r, x - ex, x + ex, z - ez, z + ez, y0, y0 + h, '#2e3138', {
+      lit,
+      top: '#3d4149',
+      face: (nx, nz) => {
+        const sc = r.col('#c0c4cc', 1, lit);
+        if (nz !== 0) {
+          const c = z + ez * nz;
+          fq(r, 'z', c, 0, nz, x - ex, x - ex + 0.14, y0, y0 + h, sc);
+          fq(r, 'z', c, 0, nz, x + ex - 0.14, x + ex, y0, y0 + h, sc);
+          fq(r, 'z', c, 0, nz, x - 0.12, x + 0.12, y0 + h * 0.45, y0 + h * 0.62, sc);
+        }
+        if (nx !== 0) {
+          const c = x + ex * nx;
+          fq(r, 'x', c, nx, 0, z - ez, z - ez + 0.12, y0, y0 + h, sc);
+          fq(r, 'x', c, nx, 0, z + ez - 0.12, z + ez, y0, y0 + h, sc);
+        }
+      },
+    });
+  });
+}
+
+/** 一块要建东西的地：四角木桩，桩顶之间拉一圈橙白相间的警示带 */
+function taped(K: ShowKit, x0: number, x1: number, z0: number, z1: number): void {
+  for (const [x, z] of [
+    [x0, z0],
+    [x1, z0],
+    [x1, z1],
+    [x0, z1],
+  ] as const)
+    stake(K, x, z);
+  K.add({ x0, x1, z0, z1, y0: 0.7, y1: 1.0 }, (r) => {
+    const lit = r.litAt((x0 + x1) / 2, (z0 + z1) / 2);
+    const oc = r.col('#ff7a2e', 1, lit);
+    const wc = r.col('#f6f3ea', 1, lit);
+    const y = 0.85;
+    const c: Pt[] = [
+      [x0, y, z0],
+      [x1, y, z0],
+      [x1, y, z1],
+      [x0, y, z1],
+    ];
+    for (let i = 0; i < 4; i++) {
+      const a = c[i] as Pt;
+      const b = c[(i + 1) % 4] as Pt;
+      const len = Math.hypot(b[0] - a[0], b[2] - a[2]);
+      const n = Math.max(1, Math.round(len / 0.5));
+      for (let j = 0; j < n; j++) {
+        const u0 = j / n;
+        const u1 = (j + 1) / n;
+        r.wline(
+          [a[0] + (b[0] - a[0]) * u0, y, a[2] + (b[2] - a[2]) * u0],
+          [a[0] + (b[0] - a[0]) * u1, y, a[2] + (b[2] - a[2]) * u1],
+          j & 1 ? wc : oc,
+        );
+      }
+    }
+  });
 }
 
 /** 按筹备状态建（四期固定顺序；没挂出来的跳过） */
