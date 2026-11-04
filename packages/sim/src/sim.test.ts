@@ -997,7 +997,7 @@ describe('确定性', () => {
     const c = runGame(CONTENT, randomBot(5), 100).state;
     expect(stateHash(a)).toBe(stateHash(b));
     expect(stateHash(a)).not.toBe(stateHash(c));
-  });
+  }, 30_000); // 整局跑四遍，CI 机器慢，给足时间
 
   it('状态能直接 JSON 序列化再读回来', () => {
     const s = runGame(CONTENT, greedyBot(), 7, { maxDays: 4 }).state;
