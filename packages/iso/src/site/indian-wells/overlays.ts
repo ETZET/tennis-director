@@ -1,4 +1,5 @@
 import { type Custom, Group, type Node } from '../../core/graph';
+import type { CourtMessLook } from '../site';
 import { buildStatics, type Lamp, type Weather } from './build';
 import { buildEvents, EVENT_KINDS, type ShowOut, showKit } from './events';
 import { FORE, golfDecayForWeek } from './foreshadow';
@@ -224,6 +225,8 @@ export function createFacilityOverlays(w: SiteWorld): {
   land(plot: string, state: LandState, variant: string | null, progress?: number): void;
   landPreview(plot: string, variant: string | null): void;
   week(week: number): void;
+  mess(facility: string, mess: CourtMessLook | null): void;
+  repaint(): void;
 } {
   const rt = runtime(w);
   const landLayer = (): LandLayer => {
@@ -298,6 +301,12 @@ export function createFacilityOverlays(w: SiteWorld): {
     },
     wear(facility, amount) {
       if (rt.wear.set(facility, amount)) rt.w.view.invalidate();
+    },
+    mess(_facility, _mess) {
+      // Wave 0 桩（court-care-contract.md）：代理 B 实现（mess.ts）
+    },
+    repaint() {
+      rebuild(rt, true);
     },
     flush() {
       if (rt.scheduled) rebuild(rt);

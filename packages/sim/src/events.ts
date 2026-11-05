@@ -1,5 +1,5 @@
 import type { OptionKey, SkillKind } from '@td/content';
-import type { CausalEntry, OutcomeResult, PlaqueRow, Settlement } from './state';
+import type { CareLevel, CausalEntry, OutcomeResult, PlaqueRow, Settlement, Weather } from './state';
 
 /**
  * 领域事件：模拟每一步发出来，画面和界面订阅它们来演出、提示。
@@ -101,7 +101,20 @@ export type SimEvent =
   | ({ type: 'settlement' } & Settlement)
   | { type: 'season_two'; goal: string; land: Record<string, string[]> }
   | { type: 'seasonStarted'; season: string }
-  | { type: 'weather'; weather: 'sun' | 'cloud' | 'rain' | 'wind' }
+  | { type: 'weather'; weather: Weather }
+  /**
+   * 场地可用度（court-care-contract.md）。careLevel：一块场换了档（能打 / 勉强 / 不能打；usability 取整，只给测试和调试面板，
+   * 界面不显示数）。careDone：亲手扫做完（总监离岗 minutes 分钟，含走过去）。
+   */
+  | { type: 'careLevel'; court: string; from: CareLevel; to: CareLevel; usability: number }
+  | { type: 'careDone'; court: string; before: number; after: number; minutes: number }
+  /** 不能打：门口开始有会员等、或者等的人数变了（n 是此刻的人数）；场地又能打了（或者收盘）就 waitingEnded */
+  | { type: 'membersWaiting'; court: string; n: number }
+  | { type: 'waitingEnded'; court: string; waited: number; reason: 'playable' | 'closed' }
+  /** 等不及的会员走了一个（因果日志 walkout 一条、快讯一条） */
+  | { type: 'memberWalkedOut'; court: string; waited: number }
+  /** 勉强能打、有人在打：有人抱怨一句（只是画面和快讯，没有数） */
+  | { type: 'careGrumble'; court: string }
   | {
       type: 'weekSettled';
       serviceRate: number;

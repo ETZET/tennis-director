@@ -116,7 +116,16 @@ export const COMPUTED_VARS = [
   'ending.exhibition_early',
   'ending.season',
   'ending.settled',
+  /**
+   * 场地可用度（court-care-contract.md）：waiting 此刻在门口等的会员一共几个；walkouts 这一周等不及走掉的会员数
+   * （周日收盘结算以后清零）；worst 开着的球场里可用度最低的那块（0..100，没有开着的球场是 100）。地图没写 rules.care 时是 0 / 0 / 100
+   */
+  'care.waiting',
+  'care.walkouts',
+  'care.worst',
 ] as const;
+/** 场地可用度变量（court-care-contract.md）：usability.<设施 id> = 0..100（不是 rules.care.courts 里的设施、或者场地没开时是 100） */
+export const USABILITY_VAR = /^usability\.([a-z][a-z0-9_]*)$/;
 /** 设施状况变量：condition.<设施 id> = 0..100 */
 export const CONDITION_VAR = /^condition\.([a-z][a-z0-9_]*)$/;
 /** 变体变量：variant.<设施 id> = 修成（或者正在修成）的变体 id，没选过是 ''（LG-14） */
@@ -329,6 +338,8 @@ export function compileContent(files: Record<string, string>): CompileResult {
     if ((COMPUTED_VARS as readonly string[]).includes(p)) return true;
     const cv = CONDITION_VAR.exec(p);
     if (cv) return facilities.has(cv[1] as string);
+    const av = USABILITY_VAR.exec(p);
+    if (av) return facilities.has(av[1] as string);
     const vv = VARIANT_VAR.exec(p);
     if (vv) return !!facilities.get(vv[1] as string)?.variants;
     const rv = ROUTE_VAR.exec(p);
@@ -440,6 +451,7 @@ export function compileContent(files: Record<string, string>): CompileResult {
         if (!facilities.has(e.condition)) err(file, `${w}: unknown facility '${e.condition}'`);
         checkExpr(file, e.add, w);
       }
+      if ('mess' in e && !facilities.has(e.mess)) err(file, `${w}: unknown facility '${e.mess}'`);
       if ('decay_mult' in e && !facilities.has(e.decay_mult.facility))
         err(file, `${w}: unknown facility '${e.decay_mult.facility}'`);
       if ('schedule' in e && !cards.has(e.schedule)) err(file, `${w}: unknown card '${e.schedule}'`);
@@ -866,6 +878,14 @@ export function compileContent(files: Record<string, string>): CompileResult {
     for (const k of Object.keys(a.weather))
       if (!a.seasons.some((s) => s.id === k)) err(file, `weather: unknown season '${k}'`);
     if (!directors.has(a.director_config)) err(file, `director_config: unknown director '${a.director_config}'`);
+    // 场地可用度（court-care-contract.md）：球场都是设施，变体是这个设施的变体
+    for (const [f, c] of Object.entries(a.rules.care?.courts ?? {})) {
+      const def = facilities.get(f);
+      if (!def) err(file, `rules.care.courts: unknown facility '${f}'`);
+      else
+        for (const v of Object.keys(c.variants))
+          if (!def.variants?.[v]) err(file, `rules.care.courts.${f}: facility has no variant '${v}'`);
+    }
     for (const k of ['member_drift', 'reputation_drift'] as const) checkExpr(file, a.rules[k], `rules.${k}`);
     if (typeof a.rules.quality_target === 'string') checkExpr(file, a.rules.quality_target, 'rules.quality_target');
     else

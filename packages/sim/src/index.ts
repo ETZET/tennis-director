@@ -17,7 +17,7 @@ export type {
   SkillKind,
   Tournament,
 } from '@td/content';
-export { CONTENT, minutes } from '@td/content';
+export { CONTENT, MESS_KINDS, minutes, SURFACES, WEATHERS } from '@td/content';
 export * from './bots';
 export {
   directorPressure,
@@ -27,6 +27,7 @@ export {
   type OptionStatus,
   optionStatus,
 } from './cards';
+export { type CareBlock, type CareMinutes, canCare, careEstimate, careMinutes } from './care';
 export {
   canStartSeason2,
   type EndingStatus,
@@ -36,6 +37,7 @@ export {
 } from './ending';
 export type { SimEvent } from './events';
 export * from './game';
+export { CLEAN, careCourts, levelFrom, messOf, surfaceOf, usabilityFrom } from './mess';
 export {
   type PlotStatus,
   placeAvailable,
@@ -96,6 +98,11 @@ export {
 export {
   anySkilled,
   bestSkill,
+  careActive,
+  careBlocksPost,
+  careLevelOf,
+  careWaiting,
+  careWorst,
   coachAttention,
   coachPresent,
   conditionFactor,
@@ -114,6 +121,7 @@ export {
   stateDef,
   tagged,
   test as testCond,
+  usabilityOf,
   wagesWeek,
 } from './vars';
 export { shortestRoute, walkEta } from './walk';

@@ -1,8 +1,18 @@
 import type { Cond, FacilityState, SkillKind } from '@td/content';
 import { type ExprEnv, evalBool, evalNumber, type Value } from '@td/shared';
+import { levelFrom, surfaceOf, usabilityFrom } from './mess';
 import { ACCESS } from './potential';
 import { rand } from './rng';
-import { DIRECTOR, dayOf, type GameState, minuteOfDay, type PersonAttr, type PersonState, weekdayOf } from './state';
+import {
+  type CareLevel,
+  DIRECTOR,
+  dayOf,
+  type GameState,
+  minuteOfDay,
+  type PersonAttr,
+  type PersonState,
+  weekdayOf,
+} from './state';
 import type { World } from './world';
 
 /**
@@ -145,6 +155,50 @@ export function stateDef(s: GameState, w: World, id: string): FacilityState | un
   return d;
 }
 
+/* ---------------- 场地可用度（court-care-contract.md）：读"场地开没开"的查询 ---------------- */
+
+/** 这块场此刻开着、算可用度：是 rules.care.courts 里的设施，这一档有场地（courts > 0），没在改造 */
+export function careActive(s: GameState, w: World, f: string): boolean {
+  if (!w.act.rules.care?.courts[f]) return false;
+  return !remodeling(s, f) && (stateDef(s, w, f)?.courts ?? 0) > 0;
+}
+
+/** 可用度 0..100（不取整）；不是球场、或者场地没开时是 100（变量 usability.<设施>） */
+export function usabilityOf(s: GameState, w: World, f: string): number {
+  if (!careActive(s, w, f)) return 100;
+  const surface = surfaceOf(s, w, f);
+  return surface
+    ? usabilityFrom(w, surface, s.care?.[f]?.mess ?? { sand: 0, water: 0, litter: 0, lines: 0, cracks: 0 })
+    : 100;
+}
+
+/** 能打 / 勉强 / 不能打（不是球场、没开的场地算能打） */
+export const careLevelOf = (s: GameState, w: World, f: string): CareLevel => levelFrom(w, usabilityOf(s, w, f));
+
+/** 开着的球场里可用度最低的（变量 care.worst；没有开着的球场是 100） */
+export function careWorst(s: GameState, w: World): number {
+  let m = 100;
+  for (const f of Object.keys(w.act.rules.care?.courts ?? {}))
+    if (careActive(s, w, f)) m = Math.min(m, usabilityOf(s, w, f));
+  return m;
+}
+
+/** 此刻在门口等的会员一共几个（变量 care.waiting） */
+export function careWaiting(s: GameState): number {
+  let n = 0;
+  for (const c of Object.values(s.care ?? {})) n += c.waiting?.n ?? 0;
+  return n;
+}
+
+/**
+ * 这个岗位此刻因为它所在的球场"不能打"而停着：有需求的岗位这一分钟算需求、不算服务到；不转圈、没收入、没磨损。
+ * 写了 care 的打扫岗位不受影响；不在球场上的岗位不受影响。
+ */
+export function careBlocksPost(_s: GameState, _w: World, _post: string): boolean {
+  // Wave 0 桩：代理 A 按契约实现
+  return false;
+}
+
 /** 这处设施在改造、停用着（LG-14）：没有场地、岗位和工单不开、质量和收入不算，维护费照付 */
 export const remodeling = (s: GameState, id: string): boolean => !!s.remodels?.[id];
 
@@ -240,6 +294,14 @@ export function makeEnv(s: GameState, w: World, extra: Record<string, Value> = {
           return rest === 'at' ? (s.people[DIRECTOR]?.at ?? '') : undefined;
         case 'condition':
           return s.condition[rest] ?? 100;
+        case 'usability':
+          return usabilityOf(s, w, rest);
+        case 'care':
+          // 场地可用度（court-care-contract.md）
+          if (rest === 'waiting') return careWaiting(s);
+          if (rest === 'walkouts') return s.week.walkouts ?? 0;
+          if (rest === 'worst') return careWorst(s, w);
+          return undefined;
         case 'service_rate':
           return serviceRate(s);
         case 'service_season':

@@ -1,5 +1,6 @@
 import { minutes } from '@td/content';
 import { directorDraw, expireCards, openScheduled } from './cards';
+import { careCloseDay, careSystem } from './care';
 import { type Ctx, checkEnding, run, setStat } from './effects';
 import { checkUnlocks } from './growth';
 import { weightedPick } from './rng';
@@ -14,8 +15,8 @@ import type { World } from './world';
 
 /**
  * 每个 tick 按固定顺序执行的系统，每个只负责一件事（ADR 0012）：
- * 日历 → 赛事 → 员工走路 → 改造期满 → 放下没了岗位的人 → 岗位和工单 → 活动 → 质量 → 星级 → 事件 → 导演。
- * 收盘时：衰减（读今天的岗位账）→ 今天的岗位账 → 经济（按天记账）→（周日）周结算（一条因果日志）→ 掉档。
+ * 日历 → 赛事 → 员工走路 → 改造期满 → 放下没了岗位的人 → 岗位和工单 → 场地可用度 → 活动 → 质量 → 星级 → 事件 → 导演。
+ * 收盘时：场地可用度（门口的人回家）→ 衰减（读今天的岗位账）→ 今天的岗位账 → 经济（按天记账）→（周日）周结算（一条因果日志）→ 掉档。
  */
 
 /* ---------------- 活动 ---------------- */
@@ -103,6 +104,8 @@ function closeDay(ctx: Ctx): void {
   const day = dayOf(s.t);
   // 赛事收赛在关门那一刻的（时段写到关门）：今天就结算，不等明早
   tournamentSystem(ctx);
+  // 场地可用度：门口等的人回家、今天走掉的计数清零（court-care-contract.md）
+  careCloseDay(ctx);
   // 衰减先看今天的岗位账（有人守着的设施掉得慢），再把账写成日志清掉
   decayDay(ctx, w.act.seasons.find((x) => x.id === s.season)?.decay ?? 1);
   closeLedger(ctx);
@@ -166,7 +169,8 @@ export function openDay(ctx: Ctx, day: number, fromMinute = 0): void {
   if (weights) {
     const pick = weightedPick(
       s,
-      (['sun', 'cloud', 'rain', 'wind'] as const).map((k) => ({ item: k, weight: weights[k] })),
+      // heat 排在最后、默认权重 0：没写酷热的季节抽出来的天气和以前一样
+      (['sun', 'cloud', 'rain', 'wind', 'heat'] as const).map((k) => ({ item: k, weight: weights[k] ?? 0 })),
     );
     if (pick) s.weather = pick;
     ctx.events.push({ type: 'weather', weather: s.weather });
@@ -202,6 +206,7 @@ export function tick(ctx: Ctx): void {
   openScheduled(ctx); // 日历和后续事件
   tournamentSystem(ctx); // 赛事：开赛、收赛结算（LG-11）
   staffSystem(ctx); // 岗位转圈、工单推进、办事
+  careSystem(ctx); // 场地可用度：天气和使用加脏乱、换档、门口等人（court-care-contract.md）
   activitySystem(ctx); // 活动开始、结算
   qualitySystem(ctx); // 项目质量
   liveDerived(ctx); // 复原这类只读此刻状态的派生量

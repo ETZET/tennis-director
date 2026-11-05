@@ -324,6 +324,12 @@ posts:
   t_catering: { title: "Circle of Palms · Event catering", note: "Invitational days 10–16 only; more guests, more sales" }
   st1_night: { title: "Stadium · Night session", note: "Thu–Sat 18–20 under the new lights" }
 orders:
+  # Cleaning orders (court-care-contract.md): show up when a court's usability drops
+  care_outer_1: { title: "Members' court · Clean up", note: "Sand, water, balls and litter: two people, slowly" }
+  care_outer_23: { title: "Clay courts · Clean up", note: "Rake, drag, pick up balls: two people, slowly" }
+  care_practice: { title: "Practice courts · Clean up", note: "Sand, water, balls and litter: two people, slowly" }
+  care_stadium_1: { title: "Center court · Clean up", note: "Sand, water, balls and litter: two people, slowly" }
+  care_stadium_3: { title: "Pickleball courts · Clean up", note: "Sand, water, balls and litter: two people, slowly" }
   o1_sweep: { title: "Sweep the sand off the members' court", note: "Free; two people, one morning" }
   o1_net: { title: "New net for the members' court", note: "$120, one person, one hour", locked: "Sweep the sand first" }
   o1_resurface: { title: "Resurface the members' court", note: "$1100, three people, a full day", locked: "Once the members' court is playable" }
@@ -674,7 +680,7 @@ ui:
     done: Done
     rose: Got better recently
   week: "Wk {n}"
-  weather: { sun: Sunny, cloud: Cloudy, rain: Rain · outdoor courts closed, wind: Windy }
+  weather: { sun: Sunny, cloud: Cloudy, rain: Rain · outdoor courts closed, wind: Windy, heat: Heat wave · lines fade fast }
   days: { "0": Mon, "1": Tue, "2": Wed, "3": Thu, "4": Fri, "5": Sat, "6": Sun }
   chip:
     errand: "{name} away {time}"
@@ -766,6 +772,7 @@ ui:
     restored: repairs
     traits: staff traits
     land: new land
+    walkouts: members who left
   task_log: "{name} will take on {what} when free"
   because:
     default_pick: "{name} picked “{option}” when time ran out"
@@ -978,3 +985,48 @@ ui:
     wire_season_two: "Season two begins · goal: {goal}"
     because_settled: "season one was scored ({total}, grade {grade})"
     because_season: "season two began"
+  # Court usability (docs/design/court-care-contract.md, ADR 0022): no number for the player, just three levels, pictures and grumbles
+  care:
+    level: { ok: Playable, meh: Barely, no: Unplayable }
+    sign: "{place} · {level}"
+    kinds: { sand: sand, water: standing water, litter: balls and litter, lines: faded lines, cracks: cracks }
+    kinds_clay: { sand: sand, water: mud, litter: balls and litter, lines: buried lines, cracks: dry cracks }
+    hand: Clean it yourself
+    hand_cost: "You're off your post for about {time} (walk included)"
+    hand_note: Faster and cleaner than sending staff, but you can't be anywhere else meanwhile
+    why:
+      court: This isn't a court
+      inactive: The court isn't open yet
+      busy: You're out on an errand
+      rain: No point while it's raining
+      clean: The court is clean enough
+      over: The season is over
+    waiting: "{n} members waiting at the gate"
+    walkout: Gave up and left
+    # 抱怨气泡（按序号轮流用）
+    grumble: { "0": "Can anyone see these lines?", "1": "Sand everywhere", "2": "Balls and bottles all over", "3": "My shoes are all mud", "4": "Someone should sweep this" }
+    wire_no: "{place} is unplayable: {why}"
+    wire_meh: "{place} is barely playable"
+    wire_ok: "{place} is good to play again"
+    wire_walkout: "{place} is unplayable; a member waited {time} and left"
+    wire_done: "{place} is clean; you'll be busy there for {time}"
+    because_care: "you cleaned {place} yourself (off your post {time})"
+    because_walkout: "{place} was unplayable and a member gave up waiting"
+    week_walkouts: "{n} members gave up waiting this week"
+    week_unplayable: "{place} was unplayable for {time}"
+    game:
+      title: "Clean it yourself · {place}"
+      start: Start
+      finish: Done
+      quit: Stop
+      left: "Still to do: {list}"
+      clean: Spotless
+      done: "Cleared {p}% · you're busy there for {time}"
+      tools: { broom: Broom, squeegee: Squeegee, roller: Roller, paint: Liner, water: Hose, pick: Pick up }
+      hint:
+        broom: Push the sand off the court
+        squeegee: Push the water to the edge
+        roller: Roll back and forth; cracks take three passes
+        paint: Trace the glowing lines
+        water: Water the dry clay
+        pick: Tap to pick it up

@@ -1,11 +1,13 @@
 import type { ContentBundle, OptionKey } from '@td/content';
 import { fnv1a, stableStringify } from '@td/shared';
 import { openCard, resolveCard } from './cards';
+import { careFinish } from './care';
 import { type Ctx, run, setStat } from './effects';
 import { startSeason2 } from './ending';
 import type { SimEvent } from './events';
+import { addMess, initCare, messOf } from './mess';
 import { assign } from './staff';
-import { at, type GameState, SAVE_VERSION } from './state';
+import { at, type CareResult, type GameState, type MessKind, SAVE_VERSION } from './state';
 import { openDay, recomputeDerived, tick } from './systems';
 import { type World, worldFor } from './world';
 
@@ -25,6 +27,13 @@ export type Command =
   | { type: 'assign'; person: string; target: string | null; variant?: string }
   /** 结局（W4）：第一季结算以后开第二季（会所照旧，时钟回到第二季开局，目标占位） */
   | { type: 'startSeason2' }
+  /**
+   * 亲手扫做完（court-care-contract.md）：court 是 rules.care.courts 里的设施 id。小游戏期间游戏时间停着，
+   * 回来时只发这一条（开始不发命令）；模拟按 result 清掉脏乱、把总监派去这块场离岗若干分钟（canCare 不通过就拒绝）
+   */
+  | { type: 'careFinish'; court: string; result: CareResult }
+  /** 调试（court-care-contract.md）：把这块场的几项脏乱直接设成给的值（0..1）；不是球场什么都不做 */
+  | { type: 'debugMess'; court: string; mess: Partial<Record<MessKind, number>> }
   | { type: 'debugSetStat'; stat: string; value: number }
   | { type: 'debugSetFlag'; flag: string; value: boolean | number | string }
   | { type: 'debugForceCard'; card: string }
@@ -76,6 +85,7 @@ export function newGame(content: ContentBundle, o: NewGameOptions): GameState {
     ending: { season: 1, exhibition: null, settlement: null, goal: null, land: {} },
     plots: {},
     decayMult: {},
+    care: {},
     // 开局没有"上周"：服务率无从谈起，算 0，周结算的服务项不算（GM-1）
     week: {
       demand: 0,
@@ -86,6 +96,8 @@ export function newGame(content: ContentBundle, o: NewGameOptions): GameState {
       money: { dues: 0, income: 0, upkeep: 0, wages: 0 },
       traitRep: 0,
       q0: a.stats.quality ?? 0,
+      walkouts: 0,
+      unplayable: {},
     },
     ledger: {},
     cards: { open: [], scheduled: [], cooldowns: {}, seen: {}, shown: {}, nextDraw: 0 },
@@ -119,6 +131,8 @@ export function newGame(content: ContentBundle, o: NewGameOptions): GameState {
     if (placed?.head_coach) s.headCoach = p.id;
   }
   const ctx: Ctx = { s, w, events: [] };
+  // 场地可用度：rules.care.courts 里的每处球场一条（全干净）；没写 rules.care 时什么都不加
+  initCare(s, w);
   s.cards.nextDraw = s.t + 60;
   run(ctx, { kind: 'start' }, null, [{ log: 'log.started' }]);
   for (const c of a.calendar) s.cards.scheduled.push({ card: c.card, at: at(c.day, c.hour), cause: null });
@@ -137,6 +151,16 @@ function applyCommand(ctx: Ctx, cmd: Command): boolean {
       return assign(ctx, cmd.person, cmd.target, true, cmd.variant);
     case 'startSeason2':
       return startSeason2(ctx);
+    case 'careFinish':
+      return careFinish(ctx, cmd.court, cmd.result);
+    case 'debugMess': {
+      const m = messOf(ctx.s, cmd.court);
+      const delta: Partial<Record<MessKind, number>> = {};
+      for (const [k, v] of Object.entries(cmd.mess) as [MessKind, number][]) delta[k] = v - m[k];
+      addMess(ctx.s, ctx.w, cmd.court, delta);
+      run(ctx, { kind: 'debug', what: `mess ${cmd.court} ${JSON.stringify(cmd.mess)}` }, null, []);
+      return true;
+    }
     case 'debugSetStat':
       setStat(ctx, cmd.stat, cmd.value);
       run(ctx, { kind: 'debug', what: `set ${cmd.stat} = ${cmd.value}` }, null, []);

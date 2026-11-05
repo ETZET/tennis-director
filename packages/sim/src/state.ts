@@ -1,4 +1,6 @@
-import type { OptionKey } from '@td/content';
+import type { MessKind, OptionKey, Surface, Weather } from '@td/content';
+
+export type { MessKind, Surface, Weather };
 
 /**
  * 游戏状态：一个可以直接 JSON.stringify 的普通对象，按 id 归一化。
@@ -6,7 +8,7 @@ import type { OptionKey } from '@td/content';
  */
 
 /** 存档格式版本；改了格式就加一个迁移函数（见 save.ts） */
-export const SAVE_VERSION = 13;
+export const SAVE_VERSION = 14;
 
 export interface PersonState {
   id: string;
@@ -75,6 +77,8 @@ export interface OrderState {
   by?: Record<string, number>;
   /** 有人在干的分钟数（快讯讲"几个小时修完"） */
   mins?: number;
+  /** 打扫工单（court-care-contract.md）：开工那一刻这块场的脏乱（按进度清掉它的 clean 成） */
+  care0?: CourtMess;
 }
 
 /** 大门牌匾上的一行（LG-14）：修好一处自动记一行，玩家不用输入 */
@@ -171,6 +175,10 @@ export interface WeekState {
   q0: number;
   /** 每个岗位这一周转了几圈（变量 cycles.<岗位>；W2，旧存档没有） */
   cycles?: Record<string, number>;
+  /** 场地可用度（court-care-contract.md）：这一周等不及走掉的会员（变量 care.walkouts）；旧存档迁移补 0 */
+  walkouts?: number;
+  /** 每个有需求的岗位这一周因为场地不能打而没服务到的分钟（有人在岗也算没服务到；不记进 missed） */
+  unplayable?: Record<string, number>;
 }
 
 export interface WeekSettlement {
@@ -192,6 +200,9 @@ export interface WeekSettlement {
   };
   /** 质量这周在向哪个目标靠近，目标的各项 */
   quality: { target: number; terms: Record<string, number> };
+  /** 场地可用度（court-care-contract.md）：这一周走掉的会员；不能打挡掉分钟最多的那块场（没有是 null）。没有这个机制时不写 */
+  walkouts?: number;
+  unplayable?: { court: string; minutes: number } | null;
 }
 
 /** 效果能改的人物属性 */
@@ -222,6 +233,8 @@ export type EffectRecord =
   | { kind: 'route'; slot: string; route: string }
   /** 地块开工、开地（W5） */
   | { kind: 'plot'; plot: string; variant: string; state: 'building' | 'open' }
+  /** 场地可用度（court-care-contract.md）：这块场各项脏乱变了多少（效果 mess、亲手扫；打扫工单和岗位记在它们自己的账上） */
+  | { kind: 'mess'; facility: string; delta: Partial<Record<MessKind, number>> }
   | { kind: 'end'; result: OutcomeResult; ending: string };
 
 export interface OpenCard {
@@ -317,6 +330,34 @@ export interface PlotState {
   cause: number | null;
 }
 
+/* ---------------- 场地可用度（court-care-contract.md，ADR 0022） ---------------- */
+
+/** 一块场上五种脏乱各 0..1 */
+export type CourtMess = Record<MessKind, number>;
+/** 能打 / 勉强 / 不能打（界面只给这三档，不给数） */
+export type CareLevel = 'ok' | 'meh' | 'no';
+
+/** 一处球场设施（rules.care.courts 里的一项）的短期状况；和 condition（长期磨损）分开 */
+export interface CourtCare {
+  mess: CourtMess;
+  /** 上一分钟算出的档（换档时发 careLevel） */
+  level: CareLevel;
+  /** 不能打时等在门口的会员：从什么时候开始等（每走一个重新计）、几个人；没人等是 null */
+  waiting: { since: number; n: number } | null;
+  /** 今天这块场走掉了几个（收盘清零；不超过 rules.care.walkout_max_day） */
+  walkoutsToday: number;
+  /** 勉强能打时上一次抱怨的时刻（grumble_every 节流；没有是 null） */
+  grumbled: number | null;
+}
+
+/**
+ * 亲手扫的结果（命令 careFinish 带着）：小游戏只报玩家清掉了什么，数由模拟算（动画不决定数值）。
+ * cleared：每种脏乱清掉了开始时的几成 0..1（没有这项、没动过就不写或写 0）；模拟截在 0..1，非数字当 0。
+ */
+export interface CareResult {
+  cleared: Partial<Record<MessKind, number>>;
+}
+
 /** 一项赛事办过几次（LG-11：第二次起奖励打折、目标换一个） */
 export interface TournamentLog {
   entries: number;
@@ -380,6 +421,11 @@ export interface GameState {
   plots: Record<string, PlotState>;
   /** 一段时间内衰减打折（W3，效果 decay_mult）：设施 id → 收盘衰减倍数、到期（绝对分钟，到了就不再打折） */
   decayMult: Record<string, { factor: number; until: number }>;
+  /**
+   * 场地可用度（court-care-contract.md）：rules.care.courts 里的设施 → 短期状况。地图没写 rules.care 时是空的；
+   * 旧存档迁移成空表，模拟用到时按内容补上（全干净）
+   */
+  care: Record<string, CourtCare>;
   /** 本周的账（周日收盘结算、写成一条因果日志，然后清零） */
   week: WeekState;
   /**
@@ -406,7 +452,7 @@ export interface GameState {
   activities: RunningActivity[];
   /** 当前季节 id 和今天的天气 */
   season: string;
-  weather: 'sun' | 'cloud' | 'rain' | 'wind';
+  weather: Weather;
   flags: Record<string, boolean | number | string>;
   log: CausalEntry[];
   outcome: { result: OutcomeResult; ending: string; t: number } | null;

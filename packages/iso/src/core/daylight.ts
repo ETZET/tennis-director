@@ -227,8 +227,8 @@ export function daylightAt(minute: number, rain = 0): Light {
 export const NOON: Light = daylightAt(12 * 60);
 
 export interface Daylight {
-  /** minute：一天中的分钟（可以带零头）；rain 0..1 */
-  update(minute: number, rain: number): void;
+  /** minute：一天中的分钟（可以带零头）；rain 0..1；heat 0..1 酷热（可选，court-care-contract.md：白天偏暖发白） */
+  update(minute: number, rain: number, heat?: number): void;
   /** 当前灯光强度 0..1 */
   lamps(): number;
   /** 当前调色板夜色 0..1 */

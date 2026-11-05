@@ -200,6 +200,8 @@ export function applyEffects(ctx: Ctx, effects: readonly Effect[], entryId: numb
     } else if ('settle' in e) {
       // 结局卡的"马上结算"（W4）：结局没打开、或者已经结算过时什么都不做
       settle(ctx, 'early', entryId);
+    } else if ('mess' in e) {
+      // 场地可用度（court-care-contract.md）：Wave 0 桩，代理 A 实现（加到 s.care[e.mess].mess、截在 0..1、记 mess 记录）
     } else if ('task' in e) {
       // 把一张工单记给某人（ADR 0014 的 resume）：他手上的班或活结束、闲下来时，习惯系统让他自己走过去开工
       const p = s.people[e.who];

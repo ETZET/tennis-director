@@ -627,7 +627,8 @@ function finishCycle(ctx: Ctx, post: Post, person: string): void {
         (x.kind === 'condition' && r.kind === 'condition' && x.facility === r.facility) ||
         (x.kind === 'person' && r.kind === 'person' && x.person === r.person && x.attr === r.attr),
     );
-    if (same && 'delta' in same && 'delta' in r) same.delta = Math.round((same.delta + r.delta) * 100) / 100;
+    if (same && 'delta' in same && 'delta' in r && typeof same.delta === 'number' && typeof r.delta === 'number')
+      same.delta = Math.round((same.delta + r.delta) * 100) / 100;
     else entry.effects.push(r);
   }
   grow(ctx, person, post.skill);

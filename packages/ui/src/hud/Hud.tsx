@@ -21,6 +21,8 @@ const WX: Record<SeasonInfo['weather'], string> = {
   cloud: 'M7 18h10a4 4 0 0 0 0-8 6 6 0 0 0-11.5 1.5A3.3 3.3 0 0 0 7 18z',
   rain: 'M7 14h10a4 4 0 0 0 0-8 6 6 0 0 0-11.5 1.5A3.3 3.3 0 0 0 7 14zM8 17l-1 3M12 17l-1 3M16 17l-1 3',
   wind: 'M3 8h11a3 3 0 1 0-3-3M3 12h16a3 3 0 1 1-3 3M3 16h8',
+  // 酷热（court-care-contract.md）：太阳下面三道热浪（代理 D 可以换图）
+  heat: 'M12 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM12 0v1M5 7H4M20 7h-1M4 15q2-2 4 0t4 0 4 0 4 0M4 19q2-2 4 0t4 0 4 0 4 0',
 };
 
 /** 徽章：像素棕榈（参考图 Palm Oasis） */

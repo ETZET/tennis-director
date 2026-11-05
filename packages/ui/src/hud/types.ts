@@ -236,7 +236,7 @@ export interface BeatItem {
 export interface SeasonInfo {
   label: string;
   /** night：晴天但天已经黑了（画月亮，不画太阳） */
-  weather: 'sun' | 'night' | 'cloud' | 'rain' | 'wind';
+  weather: 'sun' | 'night' | 'cloud' | 'rain' | 'wind' | 'heat';
   weatherLabel: string;
   /** 本周服务率 0..100（有客人的时候有人在岗的比例）；null = 还没有客人，服务率无从谈起 */
   service: number | null;
