@@ -1,5 +1,5 @@
 {
- "version": "60f24867",
+ "version": "5fcfad2f",
  "stats": [
   {
    "id": "cash",
@@ -1506,7 +1506,8 @@
    },
    "effects": [],
    "wear": 0,
-   "restore": 4
+   "restore": 4,
+   "care": 0.06
   },
   {
    "id": "o23_clinic",
@@ -1654,7 +1655,8 @@
    },
    "effects": [],
    "wear": 0,
-   "restore": 4
+   "restore": 4,
+   "care": 0.06
   },
   {
    "id": "ol_host",
@@ -2021,7 +2023,8 @@
    },
    "effects": [],
    "wear": 0,
-   "restore": 4
+   "restore": 4,
+   "care": 0.06
   },
   {
    "id": "pr_weekend",
@@ -2326,7 +2329,8 @@
    },
    "effects": [],
    "wear": 0,
-   "restore": 4
+   "restore": 4,
+   "care": 0.06
   },
   {
    "id": "st2_events",
@@ -2704,7 +2708,8 @@
    },
    "effects": [],
    "wear": 0,
-   "restore": 4
+   "restore": 4,
+   "care": 0.06
   },
   {
    "id": "t_catering",
@@ -2882,6 +2887,96 @@
    "onSuccess": [],
    "onFail": [],
    "performance": "contractor"
+  },
+  {
+   "id": "care_outer_1",
+   "act": "indian_wells",
+   "at": "outer_1",
+   "skill": "upkeep",
+   "work": "2h",
+   "cost": 0,
+   "crew": 2,
+   "once": false,
+   "restore": 0,
+   "effects": [],
+   "onSuccess": [],
+   "onFail": [],
+   "performance": "sweep",
+   "care": {
+    "clean": 0.7
+   }
+  },
+  {
+   "id": "care_outer_23",
+   "act": "indian_wells",
+   "at": "outer_23",
+   "skill": "upkeep",
+   "work": "2h",
+   "cost": 0,
+   "crew": 2,
+   "once": false,
+   "restore": 0,
+   "effects": [],
+   "onSuccess": [],
+   "onFail": [],
+   "performance": "sweep",
+   "care": {
+    "clean": 0.7
+   }
+  },
+  {
+   "id": "care_practice",
+   "act": "indian_wells",
+   "at": "practice",
+   "skill": "upkeep",
+   "work": "2h",
+   "cost": 0,
+   "crew": 2,
+   "once": false,
+   "restore": 0,
+   "effects": [],
+   "onSuccess": [],
+   "onFail": [],
+   "performance": "sweep",
+   "care": {
+    "clean": 0.7
+   }
+  },
+  {
+   "id": "care_stadium_1",
+   "act": "indian_wells",
+   "at": "stadium_1",
+   "skill": "upkeep",
+   "work": "2h",
+   "cost": 0,
+   "crew": 2,
+   "once": false,
+   "restore": 0,
+   "effects": [],
+   "onSuccess": [],
+   "onFail": [],
+   "performance": "sweep",
+   "care": {
+    "clean": 0.7
+   }
+  },
+  {
+   "id": "care_stadium_3",
+   "act": "indian_wells",
+   "at": "stadium_3",
+   "skill": "upkeep",
+   "work": "2h",
+   "cost": 0,
+   "crew": 2,
+   "once": false,
+   "restore": 0,
+   "effects": [],
+   "onSuccess": [],
+   "onFail": [],
+   "performance": "sweep",
+   "care": {
+    "clean": 0.7
+   }
   },
   {
    "id": "ch_fix",
@@ -5481,9 +5576,10 @@
      "reputation": {
       "service": "service_demand * (service_rate - service_pass) * 2",
       "quality": "service_demand * (stat.quality - 50) / 25",
-      "restored": "restored * 0.15"
+      "restored": "restored * 0.15",
+      "walkouts": "-0.5 * care.walkouts"
      },
-     "members": "max(0, round(courts_built * service_rate + service_demand * ((stat.quality - 30) / 12 + stat.reputation / 30)) - (plot.se_corner == \"building\" && route.s4 == \"event_plaza\" && flag.ep_cleared ? 2 : 0))",
+     "members": "max(0, round(courts_built * service_rate + service_demand * ((stat.quality - 30) / 12 + stat.reputation / 30)) - (plot.se_corner == \"building\" && route.s4 == \"event_plaza\" && flag.ep_cleared ? 2 : 0)) - floor(care.walkouts / 3)",
      "member_cap": "courts_built * 12 + (facility.clubhouse == \"open\" ? (variant.clubhouse == \"cafe\" ? 25 : 15) : 0) + unlocked.member_referrals * 10 + (plot.golf_west == \"open\" && route.s3 == \"south_courts\" ? 24 : 0)",
      "member_loss_max": "max(8, stat.members * 0.25)",
      "service_pass": 0.5
@@ -5504,7 +5600,114 @@
     "director_growth": 0.3,
     "director_skill_cap": 80,
     "grade_drop_below": 15,
-    "staffed_decay": 0.1
+    "staffed_decay": 0.1,
+    "care": {
+     "courts": {
+      "outer_1": {
+       "surface": "hard",
+       "variants": {}
+      },
+      "outer_23": {
+       "surface": "clay",
+       "variants": {
+        "hard": "hard"
+       }
+      },
+      "practice": {
+       "surface": "hard",
+       "variants": {}
+      },
+      "stadium_1": {
+       "surface": "hard",
+       "variants": {}
+      },
+      "stadium_3": {
+       "surface": "pickleball",
+       "variants": {
+        "tennis2": "hard"
+       }
+      }
+     },
+     "ok_at": 70,
+     "no_below": 40,
+     "weights": {
+      "hard": {
+       "sand": 0.6,
+       "water": 0.8,
+       "litter": 0.3,
+       "lines": 0.35,
+       "cracks": 0.5
+      },
+      "clay": {
+       "sand": 0.45,
+       "water": 0.7,
+       "litter": 0.3,
+       "lines": 0.4,
+       "cracks": 0.6
+      },
+      "pickleball": {
+       "sand": 0.6,
+       "water": 0.8,
+       "litter": 0.35,
+       "lines": 0.3,
+       "cracks": 0.5
+      }
+     },
+     "weather": {
+      "sun": {
+       "sand": 0.002,
+       "water": -0.1
+      },
+      "cloud": {
+       "sand": 0.002,
+       "water": -0.05
+      },
+      "wind": {
+       "sand": 0.04,
+       "water": -0.12,
+       "litter": 0.01
+      },
+      "rain": {
+       "water": 0.05
+      },
+      "heat": {
+       "water": -0.2,
+       "lines": 0.02,
+       "cracks": 0.012
+      }
+     },
+     "surface": {
+      "clay": {
+       "water": 0.8,
+       "lines": 1.5,
+       "cracks": 2.5
+      }
+     },
+     "use": {
+      "litter": 0.01,
+      "lines": 0.002,
+      "cracks": 0.001
+     },
+     "order_below": 80,
+     "meh_service": 0.7,
+     "patience": "90m",
+     "walkout_max_day": 3,
+     "waiting_per_post": 2,
+     "waiting_max": 6,
+     "grumble_every": "2h",
+     "hand": {
+      "base": 15,
+      "per": {
+       "sand": 90,
+       "water": 60,
+       "litter": 45,
+       "lines": 120,
+       "cracks": 90
+      },
+      "min": 10,
+      "max": 240
+     }
+    }
    },
    "stars": [
     {
@@ -6493,19 +6696,22 @@
      "sun": 6,
      "cloud": 2,
      "rain": 0.3,
-     "wind": 1.5
+     "wind": 1.5,
+     "heat": 2
     },
     "winter": {
      "sun": 5,
      "cloud": 3,
      "rain": 1,
-     "wind": 1
+     "wind": 1,
+     "heat": 0
     },
     "spring": {
      "sun": 5,
      "cloud": 1,
      "rain": 0.2,
-     "wind": 3
+     "wind": 3,
+     "heat": 1
     }
    }
   }
@@ -9804,6 +10010,32 @@
        },
        "condition": "practice",
        "add": -15
+      },
+      {
+       "mess": "outer_1",
+       "add": {
+        "sand": 0.7
+       }
+      },
+      {
+       "if": {
+        "facility": "outer_23",
+        "is": "playable"
+       },
+       "mess": "outer_23",
+       "add": {
+        "sand": 0.6
+       }
+      },
+      {
+       "if": {
+        "facility": "practice",
+        "is": "open"
+       },
+       "mess": "practice",
+       "add": {
+        "sand": 0.5
+       }
       }
      ],
      "onSuccess": [],
@@ -10204,6 +10436,16 @@
    "posts.t_catering.note": "Invitational days 10–16 only; more guests, more sales",
    "posts.st1_night.title": "Stadium · Night session",
    "posts.st1_night.note": "Thu–Sat 18–20 under the new lights",
+   "orders.care_outer_1.title": "Members' court · Clean up",
+   "orders.care_outer_1.note": "Sand, water, balls and litter: two people, slowly",
+   "orders.care_outer_23.title": "Clay courts · Clean up",
+   "orders.care_outer_23.note": "Rake, drag, pick up balls: two people, slowly",
+   "orders.care_practice.title": "Practice courts · Clean up",
+   "orders.care_practice.note": "Sand, water, balls and litter: two people, slowly",
+   "orders.care_stadium_1.title": "Center court · Clean up",
+   "orders.care_stadium_1.note": "Sand, water, balls and litter: two people, slowly",
+   "orders.care_stadium_3.title": "Pickleball courts · Clean up",
+   "orders.care_stadium_3.note": "Sand, water, balls and litter: two people, slowly",
    "orders.o1_sweep.title": "Sweep the sand off the members' court",
    "orders.o1_sweep.note": "Free; two people, one morning",
    "orders.o1_net.title": "New net for the members' court",
@@ -10689,6 +10931,7 @@
    "ui.weather.cloud": "Cloudy",
    "ui.weather.rain": "Rain · outdoor courts closed",
    "ui.weather.wind": "Windy",
+   "ui.weather.heat": "Heat wave · lines fade fast",
    "ui.days.0": "Mon",
    "ui.days.1": "Tue",
    "ui.days.2": "Wed",
@@ -10785,6 +11028,7 @@
    "ui.terms.restored": "repairs",
    "ui.terms.traits": "staff traits",
    "ui.terms.land": "new land",
+   "ui.terms.walkouts": "members who left",
    "ui.task_log": "{name} will take on {what} when free",
    "ui.because.default_pick": "{name} picked “{option}” when time ran out",
    "ui.because.post": "{name} worked {n} rounds on “{post}”",
@@ -10986,7 +11230,85 @@
    "ui.ending.wire_settled": "Season one settled: {total} points, grade {grade}",
    "ui.ending.wire_season_two": "Season two begins · goal: {goal}",
    "ui.ending.because_settled": "season one was scored ({total}, grade {grade})",
-   "ui.ending.because_season": "season two began"
+   "ui.ending.because_season": "season two began",
+   "ui.care.level.ok": "Playable",
+   "ui.care.level.meh": "Barely",
+   "ui.care.level.no": "Unplayable",
+   "ui.care.sign": "{place} · {level}",
+   "ui.care.kinds.sand": "sand",
+   "ui.care.kinds.water": "standing water",
+   "ui.care.kinds.litter": "balls and litter",
+   "ui.care.kinds.lines": "faded lines",
+   "ui.care.kinds.cracks": "cracks",
+   "ui.care.kinds_clay.sand": "sand",
+   "ui.care.kinds_clay.water": "mud",
+   "ui.care.kinds_clay.litter": "balls and litter",
+   "ui.care.kinds_clay.lines": "buried lines",
+   "ui.care.kinds_clay.cracks": "dry cracks",
+   "ui.care.hand": "Clean it yourself",
+   "ui.care.hand_cost": "You're off your post for about {time} (walk included)",
+   "ui.care.hand_note": "Faster and cleaner than sending staff, but you can't be anywhere else meanwhile",
+   "ui.care.why.court": "This isn't a court",
+   "ui.care.why.inactive": "The court isn't open yet",
+   "ui.care.why.busy": "You're out on an errand",
+   "ui.care.why.rain": "No point while it's raining",
+   "ui.care.why.clean": "The court is clean enough",
+   "ui.care.why.over": "The season is over",
+   "ui.care.waiting": "{n} members waiting at the gate",
+   "ui.care.walkout": "Gave up and left",
+   "ui.care.grumble.0": "Can anyone see these lines?",
+   "ui.care.grumble.1": "Sand everywhere",
+   "ui.care.grumble.2": "Balls and bottles all over",
+   "ui.care.grumble.3": "My shoes are all mud",
+   "ui.care.grumble.4": "Someone should sweep this",
+   "ui.care.wire_no": "{place} is unplayable: {why}",
+   "ui.care.wire_meh": "{place} is barely playable",
+   "ui.care.wire_ok": "{place} is good to play again",
+   "ui.care.wire_walkout": "{place} is unplayable; a member waited {time} and left",
+   "ui.care.wire_done": "{place} is clean; you'll be busy there for {time}",
+   "ui.care.because_care": "you cleaned {place} yourself (off your post {time})",
+   "ui.care.because_walkout": "{place} was unplayable and a member gave up waiting",
+   "ui.care.week_walkouts": "{n} members gave up waiting this week",
+   "ui.care.log_mess": "{place}: cleared {list}",
+   "ui.care.week_unplayable": "{place} was unplayable for {time}",
+   "ui.care.game.title": "Clean it yourself · {place}",
+   "ui.care.game.start": "Start",
+   "ui.care.game.finish": "Done",
+   "ui.care.game.quit": "Stop",
+   "ui.care.game.left": "Still to do: {list}",
+   "ui.care.game.clean": "Spotless",
+   "ui.care.game.done": "Cleared {p}% · you're busy there for {time}",
+   "ui.care.game.tools.broom": "Broom",
+   "ui.care.game.tools.squeegee": "Squeegee",
+   "ui.care.game.tools.roller": "Roller",
+   "ui.care.game.tools.paint": "Liner",
+   "ui.care.game.tools.water": "Hose",
+   "ui.care.game.tools.pick": "Pick up",
+   "ui.care.game.tools.net": "Net",
+   "ui.care.game.hint.broom": "Push the sand off the court",
+   "ui.care.game.hint.squeegee": "Push the water to the edge",
+   "ui.care.game.hint.roller": "Roll back and forth; cracks take three passes",
+   "ui.care.game.hint.paint": "Trace the glowing lines",
+   "ui.care.game.hint.water": "Water the dry clay",
+   "ui.care.game.hint.pick": "Tap to pick it up",
+   "ui.care.game.hint.net": "Pull up, let go in the green",
+   "ui.care.game.hint.roller_clay": "Roll the mud firm",
+   "ui.care.game.hint.paint_clay": "Sweep along the glowing tape",
+   "ui.care.game.fx.finish_sand": "Sand's gone!",
+   "ui.care.game.fx.finish_water": "Dry!",
+   "ui.care.game.fx.finish_rough": "Smooth!",
+   "ui.care.game.fx.sandy": "Sweep the sand first",
+   "ui.care.game.fx.dry": "Too dry — water it",
+   "ui.care.game.fx.puddle": "Puddle!",
+   "ui.care.game.fx.wobble": "Shaky",
+   "ui.care.game.fx.stray": "Off the line!",
+   "ui.care.game.fx.dirty": "Paint on sand smears",
+   "ui.care.game.fx.gust": "Gust!",
+   "ui.care.game.fx.net_perfect": "Perfect tension!",
+   "ui.care.game.fx.net_ok": "Net's up",
+   "ui.care.game.fx.net_loose": "Too slack",
+   "ui.care.game.fx.net_tight": "Too tight",
+   "ui.care.game.fx.net_snap": "Snapped!"
   },
   "zh": {
    "stats.cash": "现金",
@@ -11302,6 +11624,16 @@
    "posts.t_catering.note": "只在邀请赛那两天 10–16 点；人越多卖得越多",
    "posts.st1_night.title": "中心球场 · 夜场",
    "posts.st1_night.note": "周四到周六 18–20 点，新灯杆下",
+   "orders.care_outer_1.title": "会员场 · 打扫",
+   "orders.care_outer_1.note": "沙、水、球和垃圾：两个人慢慢扫",
+   "orders.care_outer_23.title": "红土场 · 打扫",
+   "orders.care_outer_23.note": "耙平、拖网、捡球：两个人慢慢扫",
+   "orders.care_practice.title": "青训场 · 打扫",
+   "orders.care_practice.note": "沙、水、球和垃圾：两个人慢慢扫",
+   "orders.care_stadium_1.title": "中心球场 · 打扫",
+   "orders.care_stadium_1.note": "沙、水、球和垃圾：两个人慢慢扫",
+   "orders.care_stadium_3.title": "匹克球场 · 打扫",
+   "orders.care_stadium_3.note": "沙、水、球和垃圾：两个人慢慢扫",
    "orders.o1_sweep.title": "扫会员场的沙",
    "orders.o1_sweep.note": "不花钱，两个人一个上午",
    "orders.o1_net.title": "给会员场换网",
@@ -11787,6 +12119,7 @@
    "ui.weather.cloud": "多云",
    "ui.weather.rain": "下雨 · 露天场地关闭",
    "ui.weather.wind": "大风",
+   "ui.weather.heat": "酷热 · 线褪得快",
    "ui.days.0": "一",
    "ui.days.1": "二",
    "ui.days.2": "三",
@@ -11883,6 +12216,7 @@
    "ui.terms.restored": "修复",
    "ui.terms.traits": "员工特质",
    "ui.terms.land": "新地",
+   "ui.terms.walkouts": "走掉的会员",
    "ui.task_log": "{name}闲下来就去做{what}",
    "ui.because.default_pick": "时间到了，{name}选了“{option}”",
    "ui.because.post": "{name}在“{post}”干了 {n} 圈",
@@ -12084,7 +12418,85 @@
    "ui.ending.wire_settled": "第一季结算：{total} 分，{grade} 档",
    "ui.ending.wire_season_two": "第二季开始 · 目标：{goal}",
    "ui.ending.because_settled": "第一季打了分（{total}，{grade} 档）",
-   "ui.ending.because_season": "第二季开始了"
+   "ui.ending.because_season": "第二季开始了",
+   "ui.care.level.ok": "能打",
+   "ui.care.level.meh": "勉强",
+   "ui.care.level.no": "不能打",
+   "ui.care.sign": "{place} · {level}",
+   "ui.care.kinds.sand": "积沙",
+   "ui.care.kinds.water": "积水",
+   "ui.care.kinds.litter": "球和垃圾",
+   "ui.care.kinds.lines": "线褪了",
+   "ui.care.kinds.cracks": "裂缝",
+   "ui.care.kinds_clay.sand": "积沙",
+   "ui.care.kinds_clay.water": "泥水",
+   "ui.care.kinds_clay.litter": "球和垃圾",
+   "ui.care.kinds_clay.lines": "线带被盖住",
+   "ui.care.kinds_clay.cracks": "干裂",
+   "ui.care.hand": "亲手扫",
+   "ui.care.hand_cost": "总监离岗约 {time}（含走过去）",
+   "ui.care.hand_note": "比派人扫得快、扫得干净，可这段时间总监哪儿也去不了",
+   "ui.care.why.court": "这里不是球场",
+   "ui.care.why.inactive": "场地还没开",
+   "ui.care.why.busy": "总监正在办事",
+   "ui.care.why.rain": "下雨天扫了也白扫",
+   "ui.care.why.clean": "场上挺干净",
+   "ui.care.why.over": "这一季结束了",
+   "ui.care.waiting": "{n} 位会员在门口等",
+   "ui.care.walkout": "等不及了，走了",
+   "ui.care.grumble.0": "这线还看得见吗？",
+   "ui.care.grumble.1": "一脚踩下去全是沙",
+   "ui.care.grumble.2": "球滚到哪儿都是垃圾",
+   "ui.care.grumble.3": "鞋底全是泥",
+   "ui.care.grumble.4": "这场子该扫了",
+   "ui.care.wire_no": "{place}不能打了：{why}",
+   "ui.care.wire_meh": "{place}只能勉强打",
+   "ui.care.wire_ok": "{place}又能好好打了",
+   "ui.care.wire_walkout": "{place}不能打，一位会员等了 {time} 走了",
+   "ui.care.wire_done": "{place}扫完了，总监还要在场上忙 {time}",
+   "ui.care.because_care": "你亲手扫了{place}（离岗 {time}）",
+   "ui.care.because_walkout": "{place}不能打，会员等不及走了",
+   "ui.care.week_walkouts": "这周有 {n} 位会员等不及走了",
+   "ui.care.log_mess": "{place}扫掉了{list}",
+   "ui.care.week_unplayable": "{place}不能打，挡掉了 {time}",
+   "ui.care.game.title": "亲手扫 · {place}",
+   "ui.care.game.start": "开始扫",
+   "ui.care.game.finish": "收工",
+   "ui.care.game.quit": "不扫了",
+   "ui.care.game.left": "还剩：{list}",
+   "ui.care.game.clean": "扫干净了",
+   "ui.care.game.done": "清掉了 {p}% · 总监还要在场上忙 {time}",
+   "ui.care.game.tools.broom": "扫把",
+   "ui.care.game.tools.squeegee": "推水",
+   "ui.care.game.tools.roller": "压路滚",
+   "ui.care.game.tools.paint": "画线车",
+   "ui.care.game.tools.water": "洒水",
+   "ui.care.game.tools.pick": "捡",
+   "ui.care.game.tools.net": "球网",
+   "ui.care.game.hint.broom": "推着扫把把沙推出场外",
+   "ui.care.game.hint.squeegee": "把积水推到场边",
+   "ui.care.game.hint.roller": "来回压，裂缝要压三遍",
+   "ui.care.game.hint.paint": "沿着发亮的线描",
+   "ui.care.game.hint.water": "给干裂的红土洒水",
+   "ui.care.game.hint.pick": "点一下捡起来",
+   "ui.care.game.hint.net": "往上拉，在绿区松手",
+   "ui.care.game.hint.roller_clay": "来回压，把泥压实",
+   "ui.care.game.hint.paint_clay": "沿着发亮的线带扫",
+   "ui.care.game.fx.finish_sand": "收尾！沙子清光",
+   "ui.care.game.fx.finish_water": "收尾！水推干了",
+   "ui.care.game.fx.finish_rough": "收尾！场子压平了",
+   "ui.care.game.fx.sandy": "沙子垫着，压不实",
+   "ui.care.game.fx.dry": "太干，压不动",
+   "ui.care.game.fx.puddle": "积水了",
+   "ui.care.game.fx.wobble": "手抖了",
+   "ui.care.game.fx.stray": "歪了！擦不掉",
+   "ui.care.game.fx.dirty": "沙上画线，脏了",
+   "ui.care.game.fx.gust": "起风了！",
+   "ui.care.game.fx.net_perfect": "完美张力！",
+   "ui.care.game.fx.net_ok": "挂好了",
+   "ui.care.game.fx.net_loose": "网太松",
+   "ui.care.game.fx.net_tight": "太紧了",
+   "ui.care.game.fx.net_snap": "绳断了！"
   }
  }
 }

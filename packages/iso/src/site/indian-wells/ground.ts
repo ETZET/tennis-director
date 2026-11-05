@@ -90,11 +90,20 @@ export const C = {
   tileB: ph('#d3e6e2'),
 } as const;
 
-type CourtKind = 'center' | 'practice' | 'member' | 'clay' | 'pickle' | 'hard' | 'hardPro' | 'tennis2' | 'pickleB';
+export type CourtKind =
+  | 'center'
+  | 'practice'
+  | 'member'
+  | 'clay'
+  | 'pickle'
+  | 'hard'
+  | 'hardPro'
+  | 'tennis2'
+  | 'pickleB';
 /** 场面的样子：fresh 新、faded 能打的旧场、worn 掉档、cleared 清理过的旧场（不积沙）、ruin 荒废 */
 export type CourtLook = 'fresh' | 'faded' | 'worn' | 'cleared' | 'ruin';
 
-const CP: Record<CourtKind, { i: string; o: string }> = {
+export const CP: Record<CourtKind, { i: string; o: string }> = {
   center: { i: '#4b67d1', o: '#3a8a5f' },
   practice: { i: '#4fa760', o: '#3b7f8c' },
   member: { i: '#3f86c9', o: '#3e9c86' },

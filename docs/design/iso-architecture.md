@@ -19,9 +19,9 @@ packages/iso/src/
                camera.ts（IsoCamera：平移、档位缩放、Q/E 旋转、project/unproject、bindPointer）、
                daylight.ts（按游戏分钟给天色、夜色、灯光强度）、world.ts（createIsoWorld → IsoWorld，旧 Stage 的替身）
   art/         format.ts（字符画格式、SLOT 槽位、PersonSheet、帧名回退）、people/（成人和小孩精灵表，README.md）、
-               props/（held.ts 手持道具、ground.ts 地上道具）、icons/（表情图标）、font/（像素字 5×7、3×5）、
+               props/（held.ts 手持道具、ground.ts 地上道具、mess.ts 球场上的球和垃圾）、icons/（表情图标）、font/（像素字 5×7、3×5）、
                creatures/（狗、乌鸦、风滚草）
-  site/        site.ts（Site 接口、pointAlong）、indian-wells/（layout、ground、build、kit、noise、overlays、state、wear、sky、index）
+  site/        site.ts（Site 接口、pointAlong）、indian-wells/（layout、ground、build、kit、noise、overlays、state、wear、mess、sky、index）
   people/      person.ts（Person，像素精灵版）、view.ts（setPeopleView）、frames.ts（取帧）、looks.ts（外观 → 换色表）、
                poses.ts、parts.ts、types.ts
   motion/      ball.ts（BallPool / Ball）、ballistics.ts
@@ -38,7 +38,7 @@ packages/iso/src/
 - 世界：米，y 向上，北是 -z。投影（`core/proj.ts` 的 `Projection`，样片的 `P`）：先绕旋转中心转角 `ang`，再
   `sx = ox + (rx - rz) * k`，`sy = oy + (rx + rz) * k / 2 - y * k * HV`，`HV = 1.225`。投影是仿射的，深度 `rx + rz` 越大越靠前。
 - 画面画进**低分辨率缓冲**（`Uint32Array`，ImageData 的像素，ABGR），再用 `image-rendering: pixelated` 放大到画布。
-  每个缓冲像素 = `pixelSize` 个 CSS 像素（默认手机 1，宽屏 ≥ 820 CSS px 时 2）。
+  每个缓冲像素 = `pixelSize` 个 CSS 像素（默认手机 1，宽屏 ≥ 820 CSS px 时 2）。 运行中可以用 `view.setPixelSize(n)` 换（之后 `camera.resize()`），`view.pixelSize` 读回构造时或最后一次设的值；打扫小游戏用它放大到 2。
 - `k`（每米缓冲像素）就是镜头的 `zoom`；**精灵档位** `spriteScale = max(1, round(k / K1))`，`K1 = 14 / 1.8 ≈ 7.8`
   （1 档时 14 像素高的人正好 1.8 米）。镜头拉远时人比真实比例大（Kairosoft 式），拉近时按 2、3 倍放大。
 - 旋转：静止时只停在 4 个等距角（`rot` 0–3），Q/E 是约 0.45 秒的缓动。
@@ -132,11 +132,13 @@ class IsoCamera {
 ```ts
 function daylightAt(minute: number, rain?: number): Light;   // Light：sky、mtn、plain、star、disc、moon、night、lamps
 function createDaylight(world: { view: { setLight(l: Light): void } }): Daylight;
-interface Daylight { update(minute: number, rain: number): void; lamps(): number; night(): number; readonly light: Light }
+interface Daylight { update(minute: number, rain: number, heat?: number): void; lamps(): number; night(): number; readonly light: Light }
 ```
 
 `update` 按 10 游戏分钟和雨量 1/10 分档，跨档才 `setLight`；`IsoView.setLight` 再按夜色 1/16、灯光 1/8 量化，跨档才重烘静态层。
 雨天的压暗由 `daylight.update(minute, rain.amount())` 负责，`ambient/rain` 只画雨丝和水花。
+酷热 `heat`（0..1，court-care-contract.md）：白天的天空往发白的暖色靠、地平线最白、远山被热霾冲淡、太阳发白，按白天的程度淡入，
+夜里和雨天没有；只改天空、山、荒原和太阳（每帧查表），不改调色板夜色，不让静态层重烘。
 
 ### Site（`site/site.ts`，ADR 0016）
 
@@ -150,6 +152,7 @@ interface Site {
   groundY(x: number, z: number): number;
   readonly anchors: Record<string, XZ>;                    // 地点中心（活动牌）
   readonly stands: Record<string, XZ>;                     // 站位（地点牌）
+  readonly gates?: Record<string, XZ>;                     // 球场门外：场地不能打时会员等在这儿（围网外的步道上、不挡门）；没给的用 stands
   routeLine(a: string, b: string): XZ[] | null;            // 两个地点之间的步道折线（含两头站位）
   readonly courts: Record<string, readonly CourtFrame[]>;  // 地点 → 球场
   readonly grounds: Record<string, CourtFrame>;            // 地点 → 不是球场的空地
@@ -162,8 +165,10 @@ interface Site {
     preview?(facility: string, variant: string | null): void; // 现在的样子上叠变体修好后的幽灵（Bayer 约 45% + 浅青 + 虚线框）；null 关
     upgrade?(facility: string, upgrade: string, on: boolean): void; // 升级画在变体上面（没修好、变体不对时不画）
     plaque?(rows: readonly { facility: string; leader: string; day: number }[]): void; // 大门南侧的铜牌，一行一处
+    mess?(facility: string, mess: CourtMessLook | null): void; // 场地可用度的脏乱（见下）；null 不画
+    repaint?(): void;                                        // 立刻整个重做地面和静态节点（小游戏改过地面以后还原）
   };
-  createSky(w: IsoWorld): { update(dt: number, now: number, rain: number, wind?: number): void };
+  createSky(w: IsoWorld): { update(dt: number, now: number, rain: number, wind?: number, heat?: number): void };
 }
 ```
 
@@ -171,6 +176,20 @@ interface Site {
   （`ruin` / `mid` / `fresh` / `worn`），`overlays.ts` 在同一轮的 `set` 之后（微任务里）按新状态表整体重建一次，每段用自己的种子随机流。
 - `wear` 的 amount：0 干净，1 快掉档，再往上已经掉档（准则 6"先出画面信号，再掉档"）；状况怎么换算由游戏决定。
 - `wind` 0 无风到 1 大风，默认 0.3，同时让棕榈和旗子摆得更厉害。
+- `heat` 0..1 酷热（默认 0）：球场、停车场和车道上的热浪——屏幕上那块菱形里一部分像素行整行左右错一格、慢慢往上飘
+  （动态层最先画，只挪静态层的像素，不混色、不进静态层；夜里、雨天没有）。天色发白归 `daylight`。
+- `mess(facility, mess)`（court-care-contract.md，ADR 0022；Indian Wells 在 `site/indian-wells/mess.ts`）：
+  `CourtMessLook = { sand; water; litter; lines; cracks }`，各 0..1，和模拟的 `CourtMess` 同构（游戏直接传 `s.care[f].mess`）。
+  只认五处球场（`outer_1`、`outer_23`、`practice`、`stadium_1`、`stadium_3`），设施修好（`fresh` 档）才画；面和场地按 `variant()`
+  （`outer_23` 的 hard 画硬地的样子，`stadium_3` 的 pickle4 四片、tennis2 两片）。每块场一个贴地的 `Custom`（`renderOrder` -1000，
+  挂在 `statics` 下），格子和地面纹素对齐（0.2 米），逐像素反投影混色、走深度缓冲，夜里逐格按灯光池换算；
+  沙（西边围网根先积、几堆沙丘）、水（硬地：浅蓝水洼和深色湿印；红土：深色湿泥和小水洼）、褪色的线（先发灰，再一段段露出场地色；
+  红土是被红土盖住）、裂缝（硬地：几道慢慢长出来的裂纹；红土：发白的干裂斑块和龟裂纹），球和垃圾是 `art/props/mess.ts` 的小像素块。
+  每格、每件、每道裂缝都有固定的门槛（自己的种子流和值噪声，按百分位），量越大铺得越开，连续不跳。
+  量按 0.02 量化，没跨档不 `invalidate`（游戏可以每帧调）；不认识的设施、全 0、null 不画。
+  长期磨损 `wear` 在这五处球场上不再画沙和垃圾，只画杂草和旧面斑驳（Bayer 抖动的灰白斑），两个信号分开。
+- sandbox 场景查看器：`?mess=outer_1:sand=0.7,water=0.3,outer_23:cracks=0.6`（设施:项=量，可以接着写下一处）、`?heat=1`；
+  "更多"面板里有选场地、五个滑杆、全脏 / 清空、酷热开关。截图在 `apps/sandbox/public/shots/mess-*.png`。
 
 ### Person（`people/person.ts`，API 兼容旧版）
 

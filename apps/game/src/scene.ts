@@ -20,12 +20,16 @@ import {
 import { clamp, lerp, mulberry32, type XZ } from '@td/shared';
 import {
   type ContentBundle,
+  careActive,
+  careCourts,
+  careLevelOf,
   coachAttention,
   crewOf,
   DIRECTOR,
   dayOf,
   type GameState,
   isStaff,
+  MESS_KINDS,
   orderStatus,
   placeOpen,
   plotStatus,
@@ -337,9 +341,35 @@ export interface GameScene {
   /** 选路卡（W2）：新地块按这条路长出来以后的半透明预览；null 关掉（Wave 5 的地图才有，没有就什么也不做） */
   landPreview(plot: string, variant: string | null): void;
   readonly showNow: () => number;
+  /**
+   * 扫场小游戏接管一块场（court-care-contract.md，代理 C 调）：给设施 → 那块场的脏乱叠层收起来（mess null）、
+   * 藏起总监和场上的人、停下那块场上的演出和门口的会员；null → 整个重画地面（repaint）、全部还原。只是画面。
+   */
+  careStage(facility: string | null): void;
 }
 
-export function createGameScene(stage: IsoWorld, content0: ContentBundle, site0: Site): GameScene {
+/**
+ * 总监此刻是不是在亲手扫场（court-care-contract.md）：在一块球场上办事（errand），而最近一条"亲手扫了这块场"的
+ * 因果日志还没过完它的工时。返回那块场的锚点（= 设施 id），不是返回 null。只读状态（读档以后也认得出来）。
+ */
+export function directorSweeping(s: GameState, w: World): string | null {
+  const d = s.people[DIRECTOR];
+  if (!d?.errand || d.walk || !careCourts(w).includes(d.at)) return null;
+  for (let i = s.log.length - 1, n = 0; i >= 0 && n < 80; i--, n++) {
+    const e = s.log[i] as GameState['log'][number];
+    const c = e.cause;
+    if (c.kind === 'care' && c.court === d.at) return e.t + c.minutes >= s.t ? d.at : null;
+  }
+  return null;
+}
+
+export function createGameScene(
+  stage: IsoWorld,
+  content0: ContentBundle,
+  site0: Site,
+  /** 文案（门口会员的抱怨气泡）；不给就不冒字，只比划 */
+  tr?: (key: string) => string,
+): GameScene {
   let content = content0;
   let state: GameState | null = null;
   // 球场按变体换（地图给了 courtsFor 时）：演出、路人、员工站位都读这个 site
@@ -362,6 +392,13 @@ export function createGameScene(stage: IsoWorld, content0: ContentBundle, site0:
   };
   const starSign = ov.stars ? null : createStarSign(stage);
   const setStars = (n: number, animate: boolean) => (ov.stars ? ov.stars(n, animate) : starSign?.set(n, animate));
+  /** 已经交给覆盖层的场地脏乱（court-care-contract.md）：设施 → 变体 + 各项按 1/100 取整；没开、被小游戏接管的是 '' */
+  const messShown = new Map<string, string>();
+  /** 扫场小游戏接管的那块场（careStage）、因此藏起来的员工 */
+  let staged: string | null = null;
+  const stageHidden = new Set<Person>();
+  /** 酷热的画面量 0..1（天色、热浪慢慢淡入淡出） */
+  let heatAmt = 0;
   /** 已经交给覆盖层的设施样子（变体 + 升级 + 状态），和模拟状态对不上就重设一次 */
   const looks = new Map<string, string>();
   let plaqueN = -1;
@@ -464,6 +501,19 @@ export function createGameScene(stage: IsoWorld, content0: ContentBundle, site0:
     applyEvents(s, w, force);
     applyLand(s, w, force);
   }
+  /**
+   * 场地的脏乱（court-care-contract.md）：开着的球场把 s.care[f].mess 交给覆盖层画（沙、水洼、垃圾、褪色的线、裂缝）；
+   * 没开的、小游戏接管的传 null。量变了（按 1/100）才再交一次。只读模拟状态。
+   */
+  function applyMess(s: GameState, w: World): void {
+    for (const f of careCourts(w)) {
+      const m = staged === f || !careActive(s, w, f) ? null : (s.care?.[f]?.mess ?? null);
+      const key = m ? `${s.variants?.[f] ?? ''}|${MESS_KINDS.map((k) => Math.round(m[k] * 100)).join(',')}` : '';
+      if (messShown.has(f) && messShown.get(f) === key) continue;
+      messShown.set(f, key);
+      overlays.mess?.(f, m ? { ...m } : null);
+    }
+  }
   const rain = createRain(
     stage,
     undefined,
@@ -553,7 +603,8 @@ export function createGameScene(stage: IsoWorld, content0: ContentBundle, site0:
   const headCoach = () => (state?.headCoach ? (cast.get(state.headCoach) ?? null) : null);
   const performInput = (coachId = state?.headCoach): PerformInput => {
     return {
-      weather: rain.amount() > 0.3 ? 'rain' : state?.weather === 'wind' ? 'wind' : 'sun',
+      weather:
+        rain.amount() > 0.3 ? 'rain' : state?.weather === 'wind' ? 'wind' : state?.weather === 'heat' ? 'heat' : 'sun',
       fatigue: 25,
       coachSkill: coachId ? (state?.people[coachId]?.skill ?? 40) : 0,
     };
@@ -636,6 +687,11 @@ export function createGameScene(stage: IsoWorld, content0: ContentBundle, site0:
     landUntil = 0;
     deferred = null;
     applyLooks(s, true);
+    messShown.clear();
+    heatAmt = s.weather === 'heat' ? 1 : 0;
+    for (const who of stageHidden) who.root.visible = true;
+    stageHidden.clear();
+    staged = null;
     life.reset();
     const w = worldOf(s, content);
     for (const a of s.activities)
@@ -827,6 +883,20 @@ export function createGameScene(stage: IsoWorld, content0: ContentBundle, site0:
    * 慢了要追一秒多，QA：开走时落后 4~5 米）
    */
   const JOIN_K = 2.2;
+  /** 小游戏接管着一块场：总监，和站在那块场上的员工，都藏起来（小游戏自己画总监） */
+  function hideStaged(s: GameState): void {
+    if (!staged) return;
+    const w = worldOf(s, content);
+    const a = w.facilities.get(staged)?.anchor ?? staged;
+    for (const [id, p] of Object.entries(s.people)) {
+      const who = staffPerson(id);
+      if (!who || !p.hired || (id !== DIRECTOR && (p.walk || p.at !== a))) continue;
+      if (who.root.visible) {
+        who.root.visible = false;
+        stageHidden.add(who);
+      }
+    }
+  }
   function placeStaff(s: GameState, w: World, time: number, sdt: number, snap: boolean): void {
     for (const id of Object.keys(s.people).sort((a, b) =>
       a === DIRECTOR ? -1 : b === DIRECTOR ? 1 : a.localeCompare(b),
@@ -834,6 +904,8 @@ export function createGameScene(stage: IsoWorld, content0: ContentBundle, site0:
       const p = s.people[id];
       const who = staffPerson(id);
       if (!p || !who) continue;
+      // 扫场小游戏接管着这块场：这个人藏着（小游戏自己画总监），不按岗位摆
+      if (stageHidden.has(who)) continue;
       const m = motionOf(id);
       if (!isStaff(s, w, id)) {
         slots.delete(id);
@@ -919,10 +991,16 @@ export function createGameScene(stage: IsoWorld, content0: ContentBundle, site0:
       const plan = plan0 && court ? { ...plan0, ...insideCourt(p.at, plan0, base) } : plan0;
       // 走在路上：面朝路线这一段的走向（不按追插值点剩下的零头转身，QA P1-1）
       const heading = p.walk ? walkHeading(site, w, p.walk, time) : null;
+      // 总监亲手扫场（careFinish 以后在场上办事）：在场地上来回走着扫，弯腰起身（只是画面）
+      const sweep = id === DIRECTOR ? directorSweeping(s, w) : null;
+      const sfr = sweep ? site.courts[sweep]?.[0] : undefined;
       let target: XZ;
       if (p.walk) target = walkPoint(site, w, p.walk, time);
       else if (plan) target = { x: plan.x, z: plan.z };
-      else target = workSpot(p.at, base, k);
+      else if (sfr) {
+        const q = sfr.w({ x: Math.sin(time * 0.045) * 9, z: Math.sin(time * 0.017 + 1) * 3.6 });
+        target = { x: q.x, z: q.z };
+      } else target = workSpot(p.at, base, k);
       if (p.walk) m.lead = [];
       // 目标这一帧沿路线挪了多远：只在上一帧也走在同一条路上时才算（刚出发、刚到时目标是跳过去的，不能拿来定速度）
       const wk = p.walk ? `${p.walk.from}>${p.walk.to}@${p.walk.start}` : null;
@@ -968,7 +1046,8 @@ export function createGameScene(stage: IsoWorld, content0: ContentBundle, site0:
         if (snap && who.idleFace != null) who.yaw = who.idleFace;
       }
       actIdle(id, who, plan);
-      if (!plan && working(s, w, id) && (!pst || pst.exists))
+      if (sweep) actWork(id, who, 'upkeep');
+      else if (!plan && working(s, w, id) && (!pst || pst.exists))
         actWork(id, who, post?.skill ?? (p.job ? w.orders.get(p.job)?.skill : undefined));
       else if (busyT.has(id)) {
         busyT.delete(id);
@@ -1067,6 +1146,8 @@ export function createGameScene(stage: IsoWorld, content0: ContentBundle, site0:
       running.delete(show.uid);
       jobShows.delete(id);
     }
+    // 小游戏接管着的那块场：不演（停着的在 careStage 里收掉了）
+    if (staged) for (const [id, x] of want) if (x.at === staged) want.delete(id);
     for (const [id, x] of want) {
       if (jobShows.has(id)) continue;
       const plan = planPerformance(x.performance, x.at, site);
@@ -1132,6 +1213,16 @@ export function createGameScene(stage: IsoWorld, content0: ContentBundle, site0:
       return p;
     },
     rally: (a, b, o) => rally(a, b, o),
+    careLevel: (s, a) => {
+      const w = worldOf(s, content);
+      const f = w.facilityAt.get(a);
+      return f && careActive(s, w, f) ? careLevelOf(s, w, f) : null;
+    },
+    gateQueue: (s) =>
+      Object.entries(s.care ?? {})
+        .filter(([, c]) => (c.waiting?.n ?? 0) > 0)
+        .map(([f, c]) => ({ anchor: worldOf(s, content).facilities.get(f)?.anchor ?? f, n: c.waiting?.n ?? 0 })),
+    ...(tr ? { tr } : {}),
     waiting: (s) => {
       const w = worldOf(s, content);
       const by = new Map<string, { anchor: string; served: boolean; unserved: number }>();
@@ -1185,8 +1276,50 @@ export function createGameScene(stage: IsoWorld, content0: ContentBundle, site0:
     focusSeq++;
   };
 
+  /** 设施 id → 锚点（五块球场两者同名，契约这么定；对不上时按设施表找） */
+  const anchorOf = (w: World, f: string) => w.facilities.get(f)?.anchor ?? f;
+
   return {
     showNow: () => sched.now,
+    careStage(facility) {
+      if (facility === staged) return;
+      const s = state;
+      const w = s ? worldOf(s, content) : null;
+      const prev = staged;
+      // 还原：藏起来的人露出来（就在原地，下一帧 placeStaff 接着摆）、地面整个重画、被停下的卡片活动重新开演
+      for (const who of stageHidden) who.root.visible = true;
+      stageHidden.clear();
+      staged = facility;
+      life.stage(facility ? (w ? anchorOf(w, facility) : facility) : null);
+      if (!facility) {
+        overlays.repaint?.();
+        messShown.clear();
+        if (s && w && prev) {
+          const a = anchorOf(w, prev);
+          for (const x of s.activities)
+            if (x.started && s.t < x.end && x.anchor === a && !running.has(x.uid))
+              startCardActivity(x.uid, w.activities.get(x.id)?.performance ?? '', x.anchor);
+        }
+        return;
+      }
+      overlays.mess?.(facility, null);
+      messShown.set(facility, '');
+      if (!s || !w) return;
+      const a = anchorOf(w, facility);
+      // 那块场上的演出停下（岗位、工单的演出由 syncJobShows 接管期间不再开）
+      for (const [id, show] of jobShows)
+        if ((w.posts.get(id)?.at ?? w.orders.get(id)?.at) === a) {
+          running.get(show.uid)?.stop();
+          running.delete(show.uid);
+          jobShows.delete(id);
+        }
+      for (const x of s.activities)
+        if (x.started && x.anchor === a) {
+          running.get(x.uid)?.stop();
+          running.delete(x.uid);
+        }
+      hideStaged(s);
+    },
     setContent(c) {
       content = c;
     },
@@ -1219,7 +1352,10 @@ export function createGameScene(stage: IsoWorld, content0: ContentBundle, site0:
           // 新地启用（W5）：镜头飞过去停一拍再回来；和升星一样，看不见画面时先排着
           if (!landQueued.some((x) => x.anchor === e.anchor))
             landQueued.push({ anchor: e.anchor, plot: e.plot, variant: e.variant });
-        } else if (e.type === 'weather') {
+        } else if (e.type === 'memberWalkedOut') life.walkout(anchorOf(w, e.court));
+        else if (e.type === 'waitingEnded') life.ended(anchorOf(w, e.court), e.reason);
+        else if (e.type === 'careGrumble') life.grumble(anchorOf(w, e.court));
+        else if (e.type === 'weather') {
           // 天气由模拟决定：雨天下雨，其他天放晴
           if (e.weather === 'rain') rain.start();
           else rain.stop();
@@ -1252,6 +1388,8 @@ export function createGameScene(stage: IsoWorld, content0: ContentBundle, site0:
       const w = worldOf(s, content);
       syncJobShows(s, w);
       placeStaff(s, w, time, sdt, snap);
+      hideStaged(s);
+      applyMess(s, w);
 
       // 主教练：总监不在场时专注度低（有的教练爱看手机）
       const coachId = s.headCoach;
@@ -1314,16 +1452,19 @@ export function createGameScene(stage: IsoWorld, content0: ContentBundle, site0:
       for (const p of world.people) p.update(sdt, sched.now);
       pool.update(sched.now);
       rain.update(sdt, 0, 0);
-      daylight.update(time % 1440, rain.amount());
+      // 酷热（court-care-contract.md）：天色偏暖发白、地面热浪，慢慢淡入淡出；时间跳了直接到位
+      const hot = s.weather === 'heat' ? 1 : 0;
+      heatAmt = snap ? hot : heatAmt + (hot - heatAmt) * Math.min(1, dt * 0.6);
+      daylight.update(time % 1440, rain.amount(), heatAmt);
       // 风力：大风天最大，春天风季次之（ambient 里风滚草和扬沙跟着变）
       const wind = s.weather === 'wind' ? 1 : s.season === 'spring' ? 0.55 : 0.25;
       if (sdt > 0) {
         ambT += sdt;
-        sky.update(sdt, ambT, rain.amount(), wind);
+        sky.update(sdt, ambT, rain.amount(), wind, heatAmt);
       } else if (jumped)
         for (let i = 0; i < 40; i++) {
           ambT += 0.1;
-          sky.update(0.1, ambT, rain.amount(), wind);
+          sky.update(0.1, ambT, rain.amount(), wind, heatAmt);
         }
     },
     directorHead: () => {

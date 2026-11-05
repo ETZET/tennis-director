@@ -1,10 +1,16 @@
 import {
   type AssignBlock,
   at,
+  type CareLevel,
   type CausalEntry,
   type Cond,
   type ContentBundle,
+  type CourtMess,
   canAssign,
+  canCare,
+  careActive,
+  careEstimate,
+  careLevelOf,
   currentEdition,
   DIRECTOR,
   dayDecay,
@@ -18,6 +24,8 @@ import {
   goalsFor,
   growthOf,
   hasDemand,
+  MESS_KINDS,
+  messOf,
   minCrew,
   minuteOfDay,
   minutes,
@@ -43,6 +51,7 @@ import {
   speedOf,
   staffIds,
   starStatus,
+  surfaceOf,
   type Tournament,
   type TournamentStatus,
   tagged,
@@ -63,6 +72,7 @@ import {
   type EventCardData,
   grade,
   type HudSnapshot,
+  type PlaceCare,
   type PlaceRow,
   type PlaceSheetData,
   type RecapData,
@@ -104,6 +114,9 @@ export class Projector {
   private readonly lastJob = new Map<string, string | null>();
   /** 员工成长（W3）：最近几天每天开工时每个人的能力（员工条上"这几天长进了"的小 ▲） */
   private readonly dayStarts = new Map<string, { day: number; v: Record<SkillKind, number> }[]>();
+  /** 场地可用度（court-care-contract.md）：今天已经说过"只能勉强打"的球场（别刷屏）；掉到过"不能打"、还没回到"能打"的球场 */
+  private readonly mehToday = new Set<string>();
+  private readonly wasNo = new Set<string>();
 
   constructor(
     private content: ContentBundle,
@@ -133,7 +146,12 @@ export class Projector {
         this.lateWire(s, e.order);
         continue;
       }
+      if (e.type === 'careLevel' || e.type === 'memberWalkedOut' || e.type === 'careDone') {
+        this.careWire(s, e);
+        continue;
+      }
       if (e.type === 'dayEnded') {
+        this.mehToday.clear();
         // 设施状况跌破 30 提醒一次（第二轮试玩 S3：状况悄悄掉到 0 没人发现）；周六收盘再提醒一次"明天掉档"。
         // 只提醒会变旧、会掉档的设施：废墟和停用的设施不会再往下掉，也不挂提醒（GM-1：废墟天天刷屏）
         const w = worldOf(s, this.content);
@@ -169,7 +187,10 @@ export class Projector {
           .filter((x): x is string => !!x)
           .join(' · ');
         const rate = c.demand ? c.served / c.demand : 0;
+        // 这周等不及走掉的会员（court-care-contract.md）：周结算里单说一句
+        const gone = c.walkouts ? T.fmt('ui.care.week_walkouts', { n: c.walkouts }) : '';
         const hot =
+          !!c.walkouts ||
           (c.demand > 0 && rate < c.pass) ||
           e.entry.effects.some((x) => x.kind === 'stat' && x.stat !== 'cash' && x.stat !== 'quality' && x.delta < 0);
         this.push(
@@ -177,7 +198,7 @@ export class Projector {
           T.fmt('ui.wire.week', {
             n: c.week,
             rate: c.demand ? T.fmt('ui.wire.week_rate', { n: Math.round(rate * 100) }) : T.tr('ui.wire.week_none'),
-            what,
+            what: [what, gone].filter(Boolean).join(' · '),
           }),
           hot,
         );
@@ -187,6 +208,8 @@ export class Projector {
         // 成长解锁、结算、第二季由各自的领域事件讲（growthWire）
         if (kind === 'star' || kind === 'remodel' || kind === 'unlock' || kind === 'settlement' || kind === 'season')
           continue;
+        // 亲手扫、会员走人由各自的领域事件讲（careWire）
+        if (kind === 'care' || kind === 'walkout') continue;
         if (kind === 'tournament') {
           this.tournamentWire(s, e.entry);
           continue;
@@ -372,6 +395,80 @@ export class Projector {
   }
 
   /** 主教练换人（W3 门评审）：谁接任、为什么（新招来的 / 原来的走了） */
+  /**
+   * 场地可用度的快讯（court-care-contract.md）：掉到"不能打"（说主要是哪种脏乱）、从"不能打"回到"能打"、
+   * 会员等不及走了、亲手扫完了。"勉强"一块场一天只说一次，别刷屏。
+   */
+  private careWire(
+    s: GameState,
+    e: Extract<SimEvent, { type: 'careLevel' } | { type: 'memberWalkedOut' } | { type: 'careDone' }>,
+  ): void {
+    const T = this.text;
+    const place = T.anchor(e.court);
+    if (e.type === 'careLevel') {
+      if (e.to === 'no') {
+        this.wasNo.add(e.court);
+        const w = worldOf(s, this.content);
+        const k = this.careKinds(s, w, e.court)[0];
+        this.push(
+          s.t,
+          T.fmt('ui.care.wire_no', { place, why: k ? this.careKindName(s, w, e.court, k) : T.tr('ui.care.level.no') }),
+          true,
+        );
+      } else if (e.to === 'ok' && this.wasNo.has(e.court)) {
+        this.wasNo.delete(e.court);
+        this.push(s.t, T.fmt('ui.care.wire_ok', { place }), false);
+      } else if (e.to === 'meh' && e.from === 'ok' && !this.mehToday.has(e.court)) {
+        this.mehToday.add(e.court);
+        this.push(s.t, T.fmt('ui.care.wire_meh', { place }), false);
+      }
+      if (e.to === 'ok') this.wasNo.delete(e.court);
+    } else if (e.type === 'memberWalkedOut')
+      this.push(s.t, T.fmt('ui.care.wire_walkout', { place, time: T.duration(e.waited) }), true);
+    else this.push(s.t, T.fmt('ui.care.wire_done', { place, time: T.duration(e.minutes) }), false);
+  }
+
+  /** 场上有的脏乱（≥ 0.03，和小游戏配工具的门槛一样），按扣掉的可用度从多到少排 */
+  careKinds(s: GameState, w: World, f: string): (keyof CourtMess)[] {
+    const m = messOf(s, f);
+    const surface = surfaceOf(s, w, f);
+    const wt = (surface ? w.act.rules.care?.weights[surface] : undefined) ?? {};
+    return MESS_KINDS.filter((k) => m[k] >= 0.03).sort((a, b) => (wt[b] ?? 1) * m[b] - (wt[a] ?? 1) * m[a]);
+  }
+  /** 脏乱的名字：红土上用红土的叫法（泥水、干裂、线带被盖住） */
+  careKindName(s: GameState, w: World, f: string, k: keyof CourtMess): string {
+    return this.text.tr(surfaceOf(s, w, f) === 'clay' ? `ui.care.kinds_clay.${k}` : `ui.care.kinds.${k}`);
+  }
+  /** 地点牌上的场地记号：开着的球场才有（能打 / 勉强 / 不能打，不写数） */
+  careAt(s: GameState, w: World, anchor: string): CareLevel | null {
+    const f = w.facilityAt.get(anchor);
+    return f && careActive(s, w, f) ? careLevelOf(s, w, f) : null;
+  }
+  /** 地点清单里球场的那一节：档、场上有什么脏乱、门口有没有人等、"亲手扫"（代价 = 全扫干净的估计） */
+  private careSheet(s: GameState, w: World, anchor: string): PlaceCare | null {
+    const T = this.text;
+    const f = w.facilityAt.get(anchor);
+    const level = this.careAt(s, w, anchor);
+    if (!f || !level) return null;
+    const block = canCare(s, w, f);
+    const est = careEstimate(s, w, f);
+    const n = s.care?.[f]?.waiting?.n ?? 0;
+    return {
+      level,
+      label: T.tr(`ui.care.level.${level}`),
+      kinds: this.careKinds(s, w, f).map((k) => this.careKindName(s, w, f, k)),
+      ...(n > 0 ? { waiting: T.fmt('ui.care.waiting', { n }) } : {}),
+      hand: {
+        ok: block === null,
+        why: block ? T.tr(`ui.care.why.${block}`) : null,
+        minutes: est.total,
+        title: T.tr('ui.care.hand'),
+        cost: T.fmt('ui.care.hand_cost', { time: T.duration(est.total) }),
+        note: T.tr('ui.care.hand_note'),
+      },
+    };
+  }
+
   private coachWire(s: GameState, e: Extract<SimEvent, { type: 'head_coach' }>): void {
     const T = this.text;
     const name = e.person ? T.personName(e.person) : '';
@@ -1078,7 +1175,10 @@ export class Projector {
       // 手机上的季节牌放不下"Spring · windy season · Wk 11"（英文换成三行）：有短写就用短写（W5 门）
       label: `${T.tr(`ui.season_short.${s.season}`, '') || T.tr(`seasons.${s.season}`, '')} · ${T.fmt('ui.week', { n: week })}`,
       // 晴天入夜（画面 18:15 起转黄昏，18:45 以后天黑）画月亮，不画太阳（QA P3）
-      weather: s.weather === 'sun' && (s.t % 1440 >= 18.75 * 60 || s.t % 1440 < 6 * 60) ? 'night' : s.weather,
+      weather:
+        (s.weather === 'sun' || s.weather === 'heat') && (s.t % 1440 >= 18.75 * 60 || s.t % 1440 < 6 * 60)
+          ? 'night'
+          : s.weather,
       weatherLabel: T.tr(`ui.weather.${s.weather}`),
       service,
       serviceLabel: service === null ? T.tr('ui.ctx.service_none') : T.fmt('ui.ctx.service', { n: service }),
@@ -1626,13 +1726,18 @@ export class Projector {
     worn: number | null;
     /** 有人闲着、"下一步"的活就在这儿：工单格亮起来（e7 的轻提示） */
     ready: boolean;
+    /** 场地可用度的三档（court-care-contract.md）：开着的球场才有 */
+    care: CareLevel | null;
+    /** 门口在等的会员（不能打时） */
+    waiting: number;
   } | null {
     const { s } = session;
     const w = worldOf(s, this.content);
     const { posts, orders } = this.placeTargets(session, anchor);
     let shut: 'rain' | 'wind' | null = null;
     for (const p of w.posts.values()) if (p.at === anchor) shut ??= this.shutBy(s, w, p);
-    if (!posts.length && !orders.length && !shut) return null;
+    const care = this.careAt(s, w, anchor);
+    if (!posts.length && !orders.length && !shut && !care) return null;
     const pp = posts
       .map((p) => {
         const st = postStatus(s, w, p);
@@ -1682,6 +1787,8 @@ export class Projector {
       worn: this.lowAt(s, anchor),
       // 只亮"下一步"那一处（修复优先、便宜的优先），不把所有能干的活都点亮
       ready: !picked && this.anyIdle(s) && this.readyOrders(s)[0]?.at === anchor,
+      care,
+      waiting: care ? (s.care?.[w.facilityAt.get(anchor) ?? '']?.waiting?.n ?? 0) : 0,
     };
   }
 
@@ -1927,6 +2034,7 @@ export class Projector {
     rows.sort((a, b) => a.rank - b.rank || (a.fit?.blocked ? 1 : 0) - (b.fit?.blocked ? 1 : 0));
     const event = this.eventPanel(s, anchor, tours);
     const prep = this.prepPanel(s, anchor);
+    const care = this.careSheet(s, w, anchor);
     return {
       id: anchor,
       title: T.anchor(anchor),
@@ -1956,6 +2064,7 @@ export class Projector {
       ...(picked ? { prompt: T.fmt('ui.place.pick', { name: T.personName(picked), place: T.anchor(anchor) }) } : {}),
       ...(event ? { event } : {}),
       ...(prep ? { prep } : {}),
+      ...(care ? { care } : {}),
       rows: rows.map(({ rank: _, ...r }) => r),
       empty: T.tr('ui.place.empty'),
     };

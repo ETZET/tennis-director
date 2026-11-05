@@ -1,0 +1,124 @@
+/* 06 场地养护（第二轮）：只加本 demo 的样式，变量和 .k-* 来自 kit.css */
+#ui{position:absolute;inset:0;pointer-events:none;z-index:5}
+#ui button,#ui .k-modal,#ui #dock{pointer-events:auto}
+
+/* 顶上一条：静音 · 场名 / 倒计时 / 钱 · 说明 */
+#top{position:absolute;left:8px;right:8px;top:8px;height:48px;display:flex;gap:6px;align-items:stretch;z-index:20}
+.cb{width:44px;height:48px;border:0;display:flex;align-items:center;justify-content:center;font:800 18px/1 var(--f-cond);color:var(--paper)}
+.cb:active{transform:translateY(2px);box-shadow:none}
+.cb.off{color:var(--coral)}
+#info{flex:1;display:flex;align-items:center;gap:8px;padding:0 10px;min-width:0}
+#info .nm{display:flex;flex-direction:column;gap:3px;min-width:0;flex:1}
+#info .nm .k-label{font-size:9px;opacity:.6}
+#info .nm .k-title{font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#info .tm{font:700 13px/1 var(--f-cond);background:var(--panel-2);padding:6px 7px;white-space:nowrap}
+#info .tm.warn{background:var(--coral);color:var(--navy);animation:tmPulse .5s infinite alternate}
+@keyframes tmPulse{to{transform:scale(1.07)}}
+#info .cash{color:var(--money);font-size:19px;min-width:46px;text-align:right}
+
+/* 场景上的飘字、横幅、提示 */
+#fxl,#tags{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+#fxl{z-index:30}
+#banner{position:absolute;left:0;right:0;top:118px;text-align:center;font:800 26px/1 var(--f-cond);color:var(--paper);text-shadow:2px 2px 0 var(--navy),-2px -2px 0 var(--navy),2px -2px 0 var(--navy),-2px 2px 0 var(--navy);opacity:0;transform:scale(.7);transition:opacity .15s,transform .2s cubic-bezier(.3,1.6,.5,1);z-index:25;pointer-events:none}
+#banner.on{opacity:1;transform:scale(1)}
+#banner.gold{color:var(--amber)}
+#hint{position:absolute;left:12px;bottom:calc(var(--dockH,218px) + 10px);max-width:70%;padding:7px 10px;background:var(--panel);color:var(--paper);font:700 13px/1.2 var(--f-cond);box-shadow:var(--shadow);border-left:4px solid var(--optic);opacity:0;transform:translateY(6px);transition:opacity .2s,transform .2s;pointer-events:none;z-index:15}
+#hint.on{opacity:1;transform:none}
+
+/* 客人的耐心牌（游戏地点牌 .pl 的样子） */
+.ptag{position:absolute;left:0;top:0;display:none;flex-direction:column;gap:3px;padding:4px 7px 5px;background:var(--panel);color:var(--paper);font:700 11px/1 var(--f-cond);box-shadow:2px 2px 0 rgba(0,0,0,.3);white-space:nowrap}
+.ptag::after{content:"";position:absolute;left:50%;top:100%;width:2px;height:10px;margin-left:-1px;background:var(--paper);opacity:.85}
+.ptag .pb{width:46px;height:4px;background:#0a111e}
+.ptag .pb i{display:block;height:100%;width:100%;transition:width .2s}
+
+/* 底部拇指区：四条读数、工具、开场 */
+#dock{position:absolute;left:8px;right:8px;bottom:10px;padding:8px;z-index:20;transform:translateY(calc(100% + 20px));transition:transform .28s cubic-bezier(.3,1.3,.5,1)}
+#dock.on{transform:none}
+#meters{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:8px}
+.mt{display:grid;grid-template-columns:auto 1fr;grid-template-rows:auto auto;align-items:center;column-gap:5px;row-gap:3px}
+.mt .k-label{font-size:9px;grid-column:1}
+.mt b{grid-column:2;justify-self:end;font-size:15px;display:inline-block}
+.mt .bar{grid-column:1/3;height:5px;background:#0a111e}
+.mt .bar i{display:block;height:100%;width:0;transition:width .2s,background .2s}
+#tools{display:flex;gap:6px;margin-bottom:8px}
+.tool{flex:1;height:62px;border:0;background:var(--panel-2);color:var(--paper);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:0;font:700 11px/1 var(--f-cond);box-shadow:0 3px 0 #0a111e;position:relative;transition:transform .08s,background .12s}
+.tool:active{transform:translateY(2px);box-shadow:0 1px 0 #0a111e}
+.tool.on{background:var(--optic);color:var(--navy);transform:translateY(-3px);box-shadow:0 5px 0 #9c8a63}
+.tool.done::after{content:"✓";position:absolute;right:4px;top:3px;color:var(--money);font:800 13px/1 var(--f-cond)}
+.tool.on.done::after{color:var(--green)}
+#open{width:100%;height:52px;display:flex;flex-direction:column;gap:3px}
+#open b{font-size:19px}
+#open small{font:700 12px/1 var(--f-cond);opacity:.9}
+#open[data-g="S"],#open[data-g="A"]{box-shadow:0 4px 0 #1b4a2b,0 0 0 2px var(--optic)}
+
+/* 挂网的张力计 */
+#gauge{position:absolute;right:14px;bottom:calc(var(--dockH,218px) + 10px);width:62px;padding:7px 8px;display:flex;flex-direction:column;align-items:center;gap:6px;opacity:0;transform:translateX(20px);transition:opacity .2s,transform .2s;z-index:15}
+#gauge.on{opacity:1;transform:none}
+#gauge .k-label{font-size:9px}
+.gbar{position:relative;width:22px;height:170px;background:#0a111e;box-shadow:inset 0 0 0 2px var(--panel-2)}
+.gbar::before{content:"";position:absolute;left:0;right:0;top:0;height:5%;background:var(--coral)}
+.gz{position:absolute;left:2px;right:2px;background:var(--green-2);opacity:.85}
+.gn{position:absolute;left:-6px;right:-6px;height:4px;margin-bottom:-2px;background:var(--amber);box-shadow:0 0 0 1px var(--navy)}
+#gauge.hot .gn{background:var(--coral);animation:tmPulse .12s infinite alternate}
+.gv{font-size:14px}
+
+/* 卡片 */
+#ui .k-modal{z-index:60}
+#ui .k-card h1{margin:4px 0 8px;font:800 30px/1 var(--f-cond)}
+#ui .k-card h2{margin:4px 0 8px;font:800 22px/1.1 var(--f-cond)}
+#ui .k-card p{margin:6px 0;font:600 15px/1.45 var(--f-text)}
+#ui .k-card .hl{color:var(--optic);font-weight:800}
+#ui .k-card .sm{font-size:13px;opacity:.85}
+#ui .k-card .big{width:100%;height:52px;margin-top:12px;font-size:18px}
+#ui .k-card .g{color:var(--money)}
+#ui .k-card .r{color:var(--coral)}
+#ui .k-label.warn{color:var(--coral);opacity:1}
+.facts{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 2px}
+.facts span{background:var(--panel-2);padding:6px 8px;font:700 13px/1 var(--f-cond)}
+.facts b{color:var(--optic)}
+.facts .g{color:var(--money)}
+.opt{display:block;width:100%;min-height:58px;margin-top:8px;border:0;background:var(--panel-2);color:var(--paper);text-align:left;padding:8px 12px;box-shadow:0 3px 0 #0a111e;font:800 16px/1.2 var(--f-cond)}
+.opt:active{transform:translateY(2px);box-shadow:0 1px 0 #0a111e}
+.opt span{display:flex;gap:12px;margin-top:4px;font:700 12px/1 var(--f-cond)}
+.opt i{font-style:normal}
+.opt .g{color:var(--money)}.opt .r{color:var(--coral)}
+.rows{margin:10px 0}
+.row{display:grid;grid-template-columns:36px 1fr 30px;align-items:center;gap:8px;margin:6px 0;font:700 13px/1 var(--f-cond)}
+.row .bar{height:8px;background:#0a111e}
+.row .bar i{display:block;height:100%;width:0;transition:width .45s cubic-bezier(.2,.8,.3,1)}
+.row b{text-align:right;font-size:15px}
+.gradeRow{display:flex;align-items:center;gap:14px;margin:4px 0}
+.grade{font:800 54px/1 var(--f-cond);width:58px;text-align:center;opacity:0;transform:scale(2.2);transition:opacity .15s,transform .3s cubic-bezier(.3,1.6,.5,1);text-shadow:3px 3px 0 #0a111e}
+.grade.in{opacity:1;transform:none}
+.quote{background:var(--panel-2);padding:8px 10px;font:600 14px/1.4 var(--f-text);margin:8px 0 0}
+.stars{color:var(--optic);font-size:17px;letter-spacing:2px}
+.tbl{width:100%;border-collapse:collapse;font:700 13px/1 var(--f-cond);margin:8px 0}
+.tbl td{padding:7px 2px;border-bottom:2px solid var(--panel-2)}
+.tbl .st{color:var(--optic)}
+.sum{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:8px 0}
+.sum div{background:var(--panel-2);padding:8px;display:flex;flex-direction:column;gap:5px}
+.sum .k-label{font-size:9px}
+.title{font:800 30px/1 var(--f-cond);color:var(--optic);margin:14px 0 4px}
+#helpov .k-card{max-height:80vh;overflow:auto}
+#helpov .k-card p{font-size:14px}
+#helpov .k-btn{width:100%;margin-top:10px}
+#ui .k-modal[hidden]{display:none}
+/* 底栏收起时移出画面：不让手机框被按钮的焦点滚动带跑（overflow:hidden 还能被程序滚动，clip 不能） */
+#phone,#ui{overflow:clip}
+/* 第一场的读数条 */
+#mbar{position:absolute;left:8px;right:8px;bottom:10px;padding:10px 10px 12px;z-index:20;transform:translateY(calc(100% + 20px));transition:transform .28s cubic-bezier(.3,1.3,.5,1)}
+#mbar.on{transform:none}
+#mbar .k-label{font-size:10px;margin-bottom:8px}
+#mbar .mc{display:grid;grid-template-columns:repeat(5,1fr);gap:5px}
+#mbar .mc span{display:flex;flex-direction:column;align-items:center;gap:5px;padding:7px 2px;background:var(--panel-2);font:700 11px/1 var(--f-cond);opacity:.55}
+#mbar .mc span.hit{opacity:1}
+#mbar .mc b{font:800 20px/1 var(--f-cond)}
+#mbar [data-k="good"].hit b{color:var(--money)}
+#mbar [data-k]:not([data-k="good"]).hit b{color:var(--coral)}
+/* 阵风：屏幕上横扫的风线 */
+#wind{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:12;display:none}
+#wind.on{display:block}
+#wind i{position:absolute;left:0;height:2px;background:rgba(243,236,220,.75);box-shadow:0 2px 0 rgba(20,34,58,.25);opacity:0;animation:windR .7s linear infinite}
+#wind.l i{animation-name:windL}
+@keyframes windR{0%{transform:translateX(-120px);opacity:0}15%{opacity:1}100%{transform:translateX(460px);opacity:0}}
+@keyframes windL{0%{transform:translateX(460px);opacity:0}15%{opacity:1}100%{transform:translateX(-120px);opacity:0}}

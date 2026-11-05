@@ -15,6 +15,20 @@ const amount = z.union([z.number(), z.string()]);
 export const SKILLS = ['teach', 'upkeep', 'service', 'play'] as const;
 export type SkillKind = (typeof SKILLS)[number];
 
+/** 天气（court-care-contract.md：加了酷热 heat） */
+export const WEATHERS = ['sun', 'cloud', 'rain', 'wind', 'heat'] as const;
+export type Weather = (typeof WEATHERS)[number];
+
+/**
+ * 场地可用度（court-care-contract.md，ADR 0022）：场面上的五种脏乱，各 0..1。
+ * sand 积沙、water 积水（红土是泥）、litter 球和垃圾、lines 线褪色、cracks 裂缝（红土是干裂）。
+ */
+export const MESS_KINDS = ['sand', 'water', 'litter', 'lines', 'cracks'] as const;
+export type MessKind = (typeof MESS_KINDS)[number];
+/** 场地的面：硬地、红土、匹克球 */
+export const SURFACES = ['hard', 'clay', 'pickleball'] as const;
+export type Surface = (typeof SURFACES)[number];
+
 /* ---------------- 条件 ---------------- */
 
 export type Cond =
@@ -85,8 +99,8 @@ export const cond: z.ZodType<Cond> = z.lazy(() =>
     /** 现任主教练是谁；'none' 表示空缺 */
     z.strictObject({ coach: id }),
     z.strictObject({ activity: id, running: z.boolean().optional() }),
-    /** 今天的天气：sun / cloud / rain / wind */
-    z.strictObject({ weather: z.enum(['sun', 'cloud', 'rain', 'wind']) }),
+    /** 今天的天气：sun / cloud / rain / wind / heat */
+    z.strictObject({ weather: z.enum(WEATHERS) }),
     /** 当前季节（幕里 seasons 的 id） */
     z.strictObject({ season: id }),
     z.strictObject({ expr: z.string() }),
@@ -94,6 +108,16 @@ export const cond: z.ZodType<Cond> = z.lazy(() =>
 );
 
 /* ---------------- 效果（白名单操作） ---------------- */
+
+/** 每种脏乱一个数（都可以不写）：效果 mess 的增量、rules.care 的各种速率和权重 */
+export const messAmounts = z.strictObject({
+  sand: z.number().optional(),
+  water: z.number().optional(),
+  litter: z.number().optional(),
+  lines: z.number().optional(),
+  cracks: z.number().optional(),
+});
+export type MessAmounts = z.infer<typeof messAmounts>;
 
 /** 每个效果都可以带条件和概率 */
 const gate = { if: cond.optional(), chance: amount.optional() };
@@ -154,6 +178,11 @@ export const effect = z.union([
    * 选路（route）会自动让对应的地块开工，这个效果给第二季和特别的卡用
    */
   z.strictObject({ ...gate, plot: id, build: id }),
+  /**
+   * 场地可用度（court-care-contract.md）：给这块场的脏乱各项加多少（0..1，可以是负数 = 清掉），结果截在 0..1。
+   * 例如沙尘暴不管：{ mess: outer_1, add: { sand: 0.6 } }。不是 rules.care.courts 里的设施什么都不做
+   */
+  z.strictObject({ ...gate, mess: id, add: messAmounts }),
 ]);
 export type Effect = z.infer<typeof effect>;
 
@@ -399,6 +428,11 @@ export const post = z.strictObject({
   wear: z.number().default(0),
   /** 维护岗位修复多少要乘能力：restore × (0.5 + worker.skill / 100) */
   restore: z.number().min(0).default(0),
+  /**
+   * 场地可用度（court-care-contract.md）：每圈把这块场每种脏乱清掉 care × (0.5 + worker.skill / 100)（绝对量，0..1）。
+   * 写了 care 的岗位在"不能打"的场上照样转圈；没写的（看场、上课）停转
+   */
+  care: z.number().min(0).max(1).optional(),
   /** 只收这些人：作用（kind）或特质 id，命中一个就行；不写谁都能干 */
   only: z.array(id).min(1).optional(),
   /** 能力门槛（W3，和工单的 worker 一样）：只有这项能力（底子，不算特质）≥ N 的人能坐，例如 { teach: 60 }。canAssign 给 'skill' */
@@ -481,6 +515,11 @@ export const order = z.strictObject({
    * 变量 prep.<组> = 做完的比例 0..1，条件 { prep: <组> } = 都做完了。
    */
   prep: id.optional(),
+  /**
+   * 打扫工单（court-care-contract.md）：这个地点的场地（rules.care.courts 里的设施）可用度低于 rules.care.order_below
+   * 时冒出来（开了工就一直在，做完为止；不用写 when）。按进度一点点清：做满 work 时每种脏乱清掉开工那一刻的 clean 成
+   */
+  care: z.strictObject({ clean: z.number().min(0).max(1) }).optional(),
 });
 export type Order = z.infer<typeof order>;
 
@@ -684,6 +723,54 @@ export const plot = z.strictObject({
 });
 export type Plot = z.infer<typeof plot>;
 
+/* ---------------- 场地可用度（court-care-contract.md，ADR 0022） ---------------- */
+
+/**
+ * 场地可用度的规则（act.rules.care）：不写 = 没有这个机制（和以前一样）。数值的初值和意义见 court-care-contract.md。
+ * - courts：哪些设施是球场、什么面（variants：修成某个变体以后换成什么面）。
+ * - 可用度 = clamp(100 − 100 × Σ weights[面][k] × mess[k], 0, 100)；≥ ok_at 能打，< no_below 不能打，中间勉强。
+ * - weather：营业时间里每小时各项的增减（负数 = 自己变干净，例如晒干积水），再乘 surface[面][k]（不写是 1）。
+ * - use：每有一个"在用这块场"的岗位在干活（不是打扫岗位），每小时各项加多少。
+ */
+export const careRules = z.strictObject({
+  courts: z.record(
+    id,
+    z.strictObject({ surface: z.enum(SURFACES), variants: z.record(id, z.enum(SURFACES)).default({}) }),
+  ),
+  ok_at: z.number().min(0).max(100).default(70),
+  no_below: z.number().min(0).max(100).default(40),
+  weights: z.partialRecord(z.enum(SURFACES), messAmounts).default({}),
+  weather: z.partialRecord(z.enum(WEATHERS), messAmounts).default({}),
+  surface: z.partialRecord(z.enum(SURFACES), messAmounts).default({}),
+  use: messAmounts.default({}),
+  /** 打扫工单在可用度低于它时冒出来 */
+  order_below: z.number().min(0).max(100).default(85),
+  /** 勉强能打时，有需求的岗位有人在岗的一分钟只算这么多"服务到" */
+  meh_service: z.number().min(0).max(1).default(0.6),
+  /** 不能打时会员在门口等多久就走一个（之后下一个接着等） */
+  patience: duration.default('90m'),
+  /** 一块场一天最多走掉几个 */
+  walkout_max_day: z.number().int().min(0).default(3),
+  /** 每个被挡住的有需求岗位有几个会员在门口等；门口最多几个 */
+  waiting_per_post: z.number().int().min(0).default(2),
+  waiting_max: z.number().int().min(0).default(6),
+  /** 勉强能打、有人在打时，隔多久有人抱怨一次（只是画面和快讯） */
+  grumble_every: duration.default('2h'),
+  /**
+   * 亲手扫（总监的小游戏）：总监离岗的分钟 = (base + Σ per[k] × 开始时的 mess[k] × 清掉的比例[k]) ÷ (0.5 + 总监维护 / 100)
+   * × (1 + 0.5 × (场地数 − 1))，截在 [min, max]，再加上走过去的分钟
+   */
+  hand: z
+    .strictObject({
+      base: z.number().min(0).default(15),
+      per: messAmounts.default({}),
+      min: z.number().min(0).default(10),
+      max: z.number().min(0).default(240),
+    })
+    .default({ base: 15, per: {}, min: 10, max: 240 }),
+});
+export type CareRules = z.infer<typeof careRules>;
+
 /* ---------------- 幕 ---------------- */
 
 export const act = z.strictObject({
@@ -758,6 +845,8 @@ export const act = z.strictObject({
      * 1 = 有人没人一样掉；0 = 有人守就不掉。岗位每圈的 wear 是使用磨损，照算不打折（在岗位 YAML 里调）。
      */
     staffed_decay: z.number().min(0).max(1).default(0.5),
+    /** 场地可用度（court-care-contract.md）：不写 = 没有这个机制 */
+    care: careRules.optional(),
   }),
   /**
    * 星级（LG-10，ADR 0020）：第 i 项是升到 ★(i+1) 的清单。requires 的每一条是一个条件（文案在 stars.items.<条 id>），
@@ -790,9 +879,18 @@ export const act = z.strictObject({
   seasons: z
     .array(z.strictObject({ id, from_day: z.number().int().min(1), decay: z.number().min(0).default(1) }))
     .default([]),
-  /** 每个季节的天气权重 */
+  /** 每个季节的天气权重（heat 酷热不写是 0） */
   weather: z
-    .record(id, z.strictObject({ sun: z.number(), cloud: z.number(), rain: z.number(), wind: z.number() }))
+    .record(
+      id,
+      z.strictObject({
+        sun: z.number(),
+        cloud: z.number(),
+        rain: z.number(),
+        wind: z.number(),
+        heat: z.number().optional(),
+      }),
+    )
     .default({}),
 });
 export type Act = z.infer<typeof act>;

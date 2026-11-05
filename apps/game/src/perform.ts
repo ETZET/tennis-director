@@ -42,6 +42,8 @@ export const PERFORMANCE_PLANS: Readonly<Record<string, PerformPlan>> = {
   match: { activity: 'match', area: 'court', params: { tier: 1, fmt: 's', finale: 'none' }, cast: 'none' },
   /** 动手修：一群人清理场地 */
   workday: { activity: 'cleanup', area: 'court', params: { crew: 'volunteers', n: 6 }, cast: 'none' },
+  /** 打扫球场（court-care-contract.md 的 care_<设施> 工单）：到场的员工下场扫，再来三个帮手 */
+  sweep: { activity: 'cleanup', area: 'court', params: { crew: 'volunteers', n: 3 }, cast: 'none' },
   /** 外包施工：荧光背心的施工队 */
   contractor: { activity: 'cleanup', area: 'court', params: { crew: 'pros', n: 4 }, cast: 'none' },
   /** 烧烤会：广场上的空地 */

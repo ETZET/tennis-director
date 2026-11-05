@@ -29,6 +29,19 @@ export interface DebugSnapshot {
   /** 内容热重载的警告和错误 */
   notes: readonly string[];
   commands: number;
+  /** 场地可用度（court-care-contract.md）：每块球场的档、可用度、五项脏乱、门口等的人；今天的天气 */
+  care?: {
+    weather: string;
+    courts: readonly {
+      id: string;
+      title: string;
+      active: boolean;
+      level: string;
+      usability: number;
+      mess: Readonly<Record<string, number>>;
+      waiting: number;
+    }[];
+  };
 }
 
 export interface DebugActions {
@@ -39,4 +52,8 @@ export interface DebugActions {
   exportSave(): void;
   newGame(seed: number | null): void;
   close(): void;
+  /** 把一块球场的几项脏乱直接设成给的值（debugMess） */
+  mess?(court: string, mess: Readonly<Record<string, number>>): void;
+  /** 今天的天气换成 weather（测酷热、下雨） */
+  weather?(weather: string): void;
 }

@@ -154,6 +154,10 @@ function until(s: GameState, f: (s: GameState) => boolean, max = 20000): SimEven
   return ev;
 }
 const order = (id: string) => W.orders.get(id) as Order;
+/** 把所有球场扫干净（只测别的机制的用例用） */
+function tidy(s: GameState): void {
+  for (const c of Object.values(s.care)) c.mess = { sand: 0, water: 0, litter: 0, lines: 0, cracks: 0 };
+}
 
 describe('赛事日历：主办（LG-11）', () => {
   it('日历排出每一期：第 1 周周六 9–17，报名不早于开局；报名工单在窗口里出现，按报名费算钱', () => {
@@ -184,7 +188,14 @@ describe('赛事日历：主办（LG-11）', () => {
     // 第 6 天之前临时岗位不存在；Dale 坐在看场上
     advance(s, FIX, [assign('dale', 'o1_rental')], 0);
     expect(postStatus(s, W, W.posts.get('t_checkin') as Post).exists).toBe(false);
-    until(s, (x) => dayOf(x.t) === 6, 8 * 1440);
+    until(
+      s,
+      (x) => {
+        tidy(x);
+        return dayOf(x.t) === 6;
+      },
+      8 * 1440,
+    );
     s.weather = 'sun';
     // 比赛日：看场不开（Dale 被放下来），临时岗位存在
     const released = run(s, 1).filter((e) => e.type === 'released');
@@ -200,7 +211,15 @@ describe('赛事日历：主办（LG-11）', () => {
     const rep0 = s.stats.reputation ?? 0;
     const tr0 = s.trophies;
     const m0 = s.stats.members ?? 0;
-    const ev2 = until(s, (x) => !x.events.cup, 12 * 60);
+    // 这条只看赛事：场地一直扫干净（场地可用度另有测试，care.test.ts）
+    const ev2 = until(
+      s,
+      (x) => {
+        tidy(x);
+        return !x.events.cup;
+      },
+      12 * 60,
+    );
     expect(ev2.some((e) => e.type === 'tournament_live')).toBe(true);
     const done = ev2.find((e) => e.type === 'tournament_done');
     expect(done).toMatchObject({

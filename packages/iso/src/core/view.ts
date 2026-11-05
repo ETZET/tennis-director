@@ -146,7 +146,7 @@ export class IsoView {
   readonly stats: ViewStats = { bakeMs: 0, frameMs: 0, jobMs: 0, statics: 0, dynamics: 0, live: false, bakes: 0 };
 
   private readonly ctx: CanvasRenderingContext2D;
-  private readonly pixelSize: number | undefined;
+  private pixelSizeOpt: number | undefined;
   private img: ImageData | null = null;
   private frame = new Uint32Array(1);
   private depth = new Float32Array(1);
@@ -187,7 +187,7 @@ export class IsoView {
     this.slabRects = normSlab(o.slab);
     this.slab = rectsBounds(this.slabRects);
     this.slabDepth = o.slabDepth ?? 7;
-    this.pixelSize = o.pixelSize;
+    this.pixelSizeOpt = o.pixelSize;
     this.ground = new GroundPainter(this.slabRects);
     this.proj.cx = o.center?.x ?? (this.slab.x0 + this.slab.x1) / 2;
     this.proj.cz = o.center?.z ?? (this.slab.z0 + this.slab.z1) / 2;
@@ -215,11 +215,21 @@ export class IsoView {
     this.resize();
   }
 
+  /** 构造时给的每像素 CSS 像素数（undefined = 按屏宽自动） */
+  get pixelSize(): number | undefined {
+    return this.pixelSizeOpt;
+  }
+
+  /** 换每个缓冲像素多少 CSS 像素（例如打扫小游戏里放大到 2）；之后要调 resize()（镜头的 resize 会调） */
+  setPixelSize(n: number | undefined): void {
+    this.pixelSizeOpt = n;
+  }
+
   /** 按容器大小重设缓冲 */
   resize(): void {
     const W = Math.max(1, this.container.clientWidth || window.innerWidth);
     const H = Math.max(1, this.container.clientHeight || window.innerHeight);
-    this.PS = this.pixelSize ?? (W >= 820 ? 2 : 1);
+    this.PS = this.pixelSizeOpt ?? (W >= 820 ? 2 : 1);
     const BW = Math.ceil(W / this.PS);
     const BH = Math.ceil(H / this.PS);
     if (BW === this.BW && BH === this.BH && this.img) return;

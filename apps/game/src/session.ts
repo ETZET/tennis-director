@@ -1,6 +1,7 @@
 import { PACE } from '@td/shared';
 import {
   advance,
+  type CareResult,
   type Command,
   type ContentBundle,
   type GameState,
@@ -22,6 +23,8 @@ import {
  * - 拖人：先点（或长按拖起）一个人，再点岗位或工单；拿起来的人记在 picked 上，时间不停。
  * - 变体工单（LG-14）：拖到哪一行就带上那一行的 variant。
  * - 模拟发出 requestPause（例如要紧的卡打开）就自动暂停。
+ * - 亲手扫的小游戏开着（care，court-care-contract.md）：游戏时间不走（和暂停一样，但不改 paused），
+ *   收工发一条 careFinish，放弃什么都不发。
  */
 
 export const MINUTES_PER_SECOND = PACE.minutesPerSecond;
@@ -44,6 +47,8 @@ export class Session {
   routePick: { uid: number; option: OptionKey } | null = null;
   /** 结局卡（W4）显示分数还是"看总结"（只是画面） */
   endView: 'score' | 'summary' = 'score';
+  /** 亲手扫的小游戏开着的那块场（设施 id）：frame() 不走游戏时间（和 paused 一样，但不改 paused） */
+  care: string | null = null;
   private queue: Command[] = [];
 
   constructor(
@@ -109,10 +114,16 @@ export class Session {
     this.send({ type: 'assign', person, target, ...(variant ? { variant } : {}) });
   }
 
+  /** 亲手扫收工：把每项清掉了几成交给模拟（下一帧生效），小游戏关上、时间接着走 */
+  careFinish(court: string, result: CareResult): void {
+    this.send({ type: 'careFinish', court, result });
+    this.care = null;
+  }
+
   /** 推进 dt 秒真实时间。返回这一帧的领域事件。 */
   frame(dt: number): SimEvent[] {
     let ticks = 0;
-    if (!this.paused && !this.s.outcome) {
+    if (!this.paused && !this.care && !this.s.outcome) {
       this.frac += dt * MINUTES_PER_SECOND * this.speed * (this.idle ? PACE.idleSpeedup : 1);
       ticks = Math.floor(this.frac);
       this.frac -= ticks;
@@ -122,7 +133,7 @@ export class Session {
 
   /** 正好走一个游戏分钟（试玩桥用：不受速度和"闲着加速"影响） */
   stepMinute(): SimEvent[] {
-    return this.run(this.paused || this.s.outcome ? 0 : 1);
+    return this.run(this.paused || this.care || this.s.outcome ? 0 : 1);
   }
 
   private run(ticks: number): SimEvent[] {

@@ -5,6 +5,20 @@ import type { IsoWorld } from '../core/world';
 import type { CourtFrame } from '../world/frame';
 
 /**
+ * 一块球场上的脏乱（court-care-contract.md，ADR 0022）：各 0..1，0 干净、1 最脏。和模拟的 CourtMess 结构一样
+ * （游戏直接把 s.care[f].mess 传进来）；画面只按它画，不改它。
+ * sand 积沙、water 积水（红土画成深色湿泥和水洼）、litter 球、瓶子、落叶、lines 白线褪色（红土是线带被盖住）、
+ * cracks 裂缝（红土画成干裂发白的斑块）。
+ */
+export interface CourtMessLook {
+  readonly sand: number;
+  readonly water: number;
+  readonly litter: number;
+  readonly lines: number;
+  readonly cracks: number;
+}
+
+/**
  * 一张地图在画面这一侧要提供的东西（游戏 app 只认这个接口，不直接引用某个场景的模块；ADR 0016、0019）。
  * 名字和内容里地图的锚点一一对应：模拟只说"在 outer_1"，在哪儿、怎么走过去由这里决定。
  */
@@ -31,6 +45,11 @@ export interface Site {
   readonly anchors: Readonly<Record<string, XZ>>;
   /** 每个地点上人站在哪儿（地点牌也挂在这儿） */
   readonly stands: Readonly<Record<string, XZ>>;
+  /**
+   * 球场的门外（court-care-contract.md，可选）：场地不能打时等着的会员站在这儿（地点 → 门外一点，世界坐标，
+   * 在围网外、步道上、不挡门）。没给的地点用 stands。
+   */
+  readonly gates?: Readonly<Record<string, XZ>>;
   /**
    * 地图长大（ADR 0021，可选）：地块上新地点的中心和站位。不在 anchors / stands 里（地块没开时不显示、路人不去）；
    * 游戏按模拟的 placeAvailable / placeOpen 决定什么时候用。routeLine 认这些地点。
@@ -113,9 +132,20 @@ export interface Site {
     landPreview?(plot: string, variant: string | null): void;
     /** 第几周（伏笔：高尔夫西段一周比一周荒；从 1 起） */
     week?(week: number): void;
+    /**
+     * 场地可用度的画面（court-care-contract.md）：在这处设施的所有球场上画积沙、积水、球和垃圾、褪色的线、裂缝，
+     * 量按 mess（各 0..1）。面（硬地 / 红土 / 匹克球）按 variant() 给的变体定。null = 不画（小游戏接管这块场时）。
+     * 不认识的设施、没修好的设施不画。同一帧里改几次只重画一次；只画贴地的一层，不挡人和网。
+     */
+    mess?(facility: string, mess: CourtMessLook | null): void;
+    /** 立刻按现在的状态把地面贴图和静态节点整个重做一遍（小游戏改过地面、藏过围网以后还原用） */
+    repaint?(): void;
   };
-  /** 天空和远景的动画（没有就什么也不做）；wind 0 无风 .. 1 大风（可选，默认 0.3） */
-  createSky(w: IsoWorld): { update(dt: number, now: number, rain: number, wind?: number): void };
+  /**
+   * 天空和远景的动画（没有就什么也不做）；wind 0 无风 .. 1 大风（可选，默认 0.3）；
+   * heat 0 .. 1 酷热（可选，默认 0；court-care-contract.md：地面热浪、远景发白）
+   */
+  createSky(w: IsoWorld): { update(dt: number, now: number, rain: number, wind?: number, heat?: number): void };
 }
 
 /** 折线上走过比例 u（0..1）处的点。 */

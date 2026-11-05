@@ -141,3 +141,21 @@
 .td-place-prep .td-prep-done{color:#9be07f}
 .td-place-prep p{margin:0;color:#c9d3e0;font-weight:500}
 .td-row-badge{display:inline-block;margin-left:6px;padding:1px 5px;background:#d7ff3c;color:#14223a;font:700 10px/1.3 var(--td-text,sans-serif);vertical-align:middle}
+/* 球场的场地可用度（court-care-contract.md）：三档记号（绿 ✓ / 琥珀 ! / 红 ✕，不写数）+ 脏乱名字 + "亲手扫"按钮（≥ 48 px，拇指区） */
+.td-place-care{display:flex;flex-direction:column;gap:6px;font:600 12px/1.2 var(--td-text,sans-serif);color:#dfe6ef}
+.td-care-state{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.td-care-mark{width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;font:800 13px/1 var(--td-cond,monospace);color:#14223a;box-shadow:2px 2px 0 rgba(0,0,0,.3)}
+.td-care-ok .td-care-mark{background:#6fd08c}
+.td-care-meh .td-care-mark{background:#ffc04a}
+.td-care-no .td-care-mark{background:#ff5a4a;color:#fff}
+.td-care-state b{font-size:13px}
+.td-care-no .td-care-state b{color:#ffb3a8}
+.td-care-meh .td-care-state b{color:#ffd78a}
+.td-care-kinds{color:#c9d4e2;font-weight:500}
+.td-care-wait{margin:0;color:#ffc8b5}
+.td-care-hand{width:100%;min-height:52px;display:flex;align-items:center;gap:9px;padding:5px 6px 5px 8px;border:0;border-left:5px solid #9be07f;background:rgba(155,224,127,.16);color:#fff;text-align:left;cursor:pointer;touch-action:manipulation}
+.td-care-hand:disabled{cursor:default;opacity:.55;border-left-color:#8a9094;background:rgba(255,255,255,.06)}
+.td-care-hand-icon{width:28px;flex:none;text-align:center;font-size:18px}
+.td-care-hand .td-row-text>span{color:#dfe6ef}
+.td-care-note{font-size:11px;color:#b9c4d3!important}
+.td-care-no .td-care-hand:not(:disabled){border-left-color:#ff8a6b;background:rgba(255,138,107,.18)}

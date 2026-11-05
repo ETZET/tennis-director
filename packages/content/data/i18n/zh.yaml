@@ -324,6 +324,12 @@ posts:
   t_catering: { title: 棕榈喷泉 · 赛事餐饮, note: 只在邀请赛那两天 10–16 点；人越多卖得越多 }
   st1_night: { title: 中心球场 · 夜场, note: 周四到周六 18–20 点，新灯杆下 }
 orders:
+  # 打扫工单（court-care-contract.md）：场地可用度掉下来就冒出来
+  care_outer_1: { title: "会员场 · 打扫", note: "沙、水、球和垃圾：两个人慢慢扫" }
+  care_outer_23: { title: "红土场 · 打扫", note: "耙平、拖网、捡球：两个人慢慢扫" }
+  care_practice: { title: "青训场 · 打扫", note: "沙、水、球和垃圾：两个人慢慢扫" }
+  care_stadium_1: { title: "中心球场 · 打扫", note: "沙、水、球和垃圾：两个人慢慢扫" }
+  care_stadium_3: { title: "匹克球场 · 打扫", note: "沙、水、球和垃圾：两个人慢慢扫" }
   o1_sweep: { title: "扫会员场的沙", note: "不花钱，两个人一个上午" }
   o1_net: { title: "给会员场换网", note: "$120，一个人一小时", locked: "先把沙扫掉" }
   o1_resurface: { title: "会员场重新铺面", note: "$1100，三个人一整天", locked: "会员场能打以后" }
@@ -674,7 +680,7 @@ ui:
     done: 做完了
     rose: 这几天有长进
   week: "第 {n} 周"
-  weather: { sun: 晴, cloud: 多云, rain: 下雨 · 露天场地关闭, wind: 大风 }
+  weather: { sun: 晴, cloud: 多云, rain: 下雨 · 露天场地关闭, wind: 大风, heat: 酷热 · 线褪得快 }
   days: { "0": 一, "1": 二, "2": 三, "3": 四, "4": 五, "5": 六, "6": 日 }
   chip:
     errand: "{name}离岗 {time}"
@@ -756,6 +762,7 @@ ui:
     restored: 修复
     traits: 员工特质
     land: 新地
+    walkouts: 走掉的会员
   task_log: "{name}闲下来就去做{what}"
   because:
     default_pick: "时间到了，{name}选了“{option}”"
@@ -968,3 +975,71 @@ ui:
     wire_season_two: "第二季开始 · 目标：{goal}"
     because_settled: "第一季打了分（{total}，{grade} 档）"
     because_season: "第二季开始了"
+  # 场地可用度（docs/design/court-care-contract.md，ADR 0022）：不给玩家看数，只给三档、画面和抱怨
+  care:
+    level: { ok: 能打, meh: 勉强, no: 不能打 }
+    # 地点牌上的小记号旁边的无障碍名字
+    sign: "{place} · {level}"
+    kinds: { sand: 积沙, water: 积水, litter: 球和垃圾, lines: 线褪了, cracks: 裂缝 }
+    # 红土上同一种脏乱的叫法
+    kinds_clay: { sand: 积沙, water: 泥水, litter: 球和垃圾, lines: 线带被盖住, cracks: 干裂 }
+    hand: 亲手扫
+    hand_cost: "总监离岗约 {time}（含走过去）"
+    hand_note: 比派人扫得快、扫得干净，可这段时间总监哪儿也去不了
+    why:
+      court: 这里不是球场
+      inactive: 场地还没开
+      busy: 总监正在办事
+      rain: 下雨天扫了也白扫
+      clean: 场上挺干净
+      over: 这一季结束了
+    waiting: "{n} 位会员在门口等"
+    walkout: 等不及了，走了
+    # 抱怨气泡（按序号轮流用）
+    grumble: { "0": "这线还看得见吗？", "1": "一脚踩下去全是沙", "2": "球滚到哪儿都是垃圾", "3": "鞋底全是泥", "4": "这场子该扫了" }
+    wire_no: "{place}不能打了：{why}"
+    wire_meh: "{place}只能勉强打"
+    wire_ok: "{place}又能好好打了"
+    wire_walkout: "{place}不能打，一位会员等了 {time} 走了"
+    wire_done: "{place}扫完了，总监还要在场上忙 {time}"
+    because_care: "你亲手扫了{place}（离岗 {time}）"
+    because_walkout: "{place}不能打，会员等不及走了"
+    week_walkouts: "这周有 {n} 位会员等不及走了"
+    log_mess: "{place}扫掉了{list}"
+    week_unplayable: "{place}不能打，挡掉了 {time}"
+    # 小游戏（apps/game/src/care/）
+    game:
+      title: "亲手扫 · {place}"
+      start: 开始扫
+      finish: 收工
+      quit: 不扫了
+      left: "还剩：{list}"
+      clean: 扫干净了
+      done: "清掉了 {p}% · 总监还要在场上忙 {time}"
+      tools: { broom: 扫把, squeegee: 推水, roller: 压路滚, paint: 画线车, water: 洒水, pick: 捡, net: 球网 }
+      hint:
+        broom: 推着扫把把沙推出场外
+        squeegee: 把积水推到场边
+        roller: 来回压，裂缝要压三遍
+        paint: 沿着发亮的线描
+        water: 给干裂的红土洒水
+        pick: 点一下捡起来
+        net: 往上拉，在绿区松手
+        roller_clay: 来回压，把泥压实
+        paint_clay: 沿着发亮的线带扫
+      fx:
+        finish_sand: 收尾！沙子清光
+        finish_water: 收尾！水推干了
+        finish_rough: 收尾！场子压平了
+        sandy: 沙子垫着，压不实
+        dry: 太干，压不动
+        puddle: 积水了
+        wobble: 手抖了
+        stray: 歪了！擦不掉
+        dirty: 沙上画线，脏了
+        gust: 起风了！
+        net_perfect: 完美张力！
+        net_ok: 挂好了
+        net_loose: 网太松
+        net_tight: 太紧了
+        net_snap: 绳断了！

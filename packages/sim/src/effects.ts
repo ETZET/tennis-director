@@ -1,6 +1,7 @@
 import { type Effect, type Ending, minutes, type Person, WORKER } from '@td/content';
 import { clamp, type Value } from '@td/shared';
 import type { SimEvent } from './events';
+import { addMess } from './mess';
 import { capWorkerGain } from './potential';
 import { rand } from './rng';
 import {
@@ -200,6 +201,10 @@ export function applyEffects(ctx: Ctx, effects: readonly Effect[], entryId: numb
     } else if ('settle' in e) {
       // 结局卡的"马上结算"（W4）：结局没打开、或者已经结算过时什么都不做
       settle(ctx, 'early', entryId);
+    } else if ('mess' in e) {
+      // 场地可用度（court-care-contract.md）：加到这块场的脏乱上、截在 0..1；不是球场什么都不做
+      const d = addMess(s, w, e.mess, e.add);
+      if (Object.keys(d).length) out.push({ kind: 'mess', facility: e.mess, delta: d });
     } else if ('task' in e) {
       // 把一张工单记给某人（ADR 0014 的 resume）：他手上的班或活结束、闲下来时，习惯系统让他自己走过去开工
       const p = s.people[e.who];

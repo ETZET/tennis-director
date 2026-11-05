@@ -1,4 +1,16 @@
-import { type Command, type ContentBundle, directorPressure, eligibleCards, worldOf } from '@td/sim';
+import {
+  type Command,
+  type ContentBundle,
+  careActive,
+  careCourts,
+  careLevelOf,
+  directorPressure,
+  eligibleCards,
+  MESS_KINDS,
+  usabilityOf,
+  type Weather,
+  worldOf,
+} from '@td/sim';
 import { type DebugActions, type DebugSnapshot, mountDebug } from '@td/ui';
 import type { Session } from './session';
 import type { Text } from './text';
@@ -46,6 +58,8 @@ export function createDebug(el: HTMLElement, host: DebugHost, startOpen: boolean
     exportSave: () => host.exportSave(),
     newGame: (seed) => host.newGame(seed),
     close: () => ui.toggle(),
+    mess: (court, mess) => send({ type: 'debugMess', court, mess }),
+    weather: (weather) => send({ type: 'debugWeather', weather: weather as Weather }),
   };
   const handle = mountDebug(el, actions);
 
@@ -83,6 +97,18 @@ export function createDebug(el: HTMLElement, host: DebugHost, startOpen: boolean
       cards: c.cards.filter((x) => x.act === s.act).map((x) => ({ id: x.id, title: T.cardTitle(x.id) })),
       notes,
       commands: session.log.length,
+      care: {
+        weather: s.weather,
+        courts: careCourts(w).map((f) => ({
+          id: f,
+          title: T.facility(f),
+          active: careActive(s, w, f),
+          level: careLevelOf(s, w, f),
+          usability: usabilityOf(s, w, f),
+          mess: Object.fromEntries(MESS_KINDS.map((k) => [k, s.care?.[f]?.mess[k] ?? 0])),
+          waiting: s.care?.[f]?.waiting?.n ?? 0,
+        })),
+      },
     };
   }
   const draw = () => handle.update(open ? snapshot() : null);

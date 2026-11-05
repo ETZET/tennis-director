@@ -38,6 +38,9 @@ function run(jobs: { rental?: string; lesson?: string; upkeep?: string }): numbe
     }
     if (m === 15 * 60 && jobs.lesson) cmds.push(assign(jobs.lesson, 'o1_lesson'));
     if (m === 19 * 60 && jobs.lesson && jobs.lesson !== jobs.upkeep) cmds.push(assign(jobs.lesson, null));
+    // 这里只看状况衰减：场地每天早上扫干净（不然大风天积沙不能打、岗位停转，就不算"有人守"了；见 care.test.ts）
+    if (m === 8 * 60)
+      for (const c of Object.values(s.care)) c.mess = { sand: 0, water: 0, litter: 0, lines: 0, cracks: 0 };
     advance(s, CONTENT, cmds, 1);
     if (dayOf(s.t) !== d) daily.push(s.condition.outer_1 ?? 0);
   }

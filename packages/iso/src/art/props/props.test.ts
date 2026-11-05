@@ -3,6 +3,7 @@ import { type PixelArt, SLOT } from '../format';
 import { ICON_ART } from '../icons';
 import { GROUND_ANIMS, GROUND_PROPS } from './ground';
 import { HELD } from './held';
+import { MESS_PROPS } from './mess';
 
 /** 每张图：各行等宽、锚点在图内、每个字符都是槽位（含小写暗面）或 pal 里的颜色。 */
 function check(name: string, a: PixelArt): void {
@@ -21,6 +22,9 @@ function check(name: string, a: PixelArt): void {
 describe('道具和图标素材', () => {
   it('手持道具', () => {
     for (const [k, a] of Object.entries(HELD)) check(k, a);
+  });
+  it('球场上的球和垃圾', () => {
+    for (const [k, a] of Object.entries(MESS_PROPS)) check(k, a);
   });
   it('地上道具', () => {
     for (const [k, a] of Object.entries(GROUND_PROPS)) check(k, a);

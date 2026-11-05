@@ -195,6 +195,18 @@ export const MIGRATIONS: Record<number, Migration> = {
     state.version = 13;
     return { ...save, version: 13, state };
   },
+  // 13 → 14（场地可用度，court-care-contract.md，ADR 0022）：迁移时读不到内容，care 先是空表，
+  // 模拟用到时按 rules.care.courts 补上（全干净、能打）；本周没有走掉的会员、没有不能打挡掉的分钟
+  13: (save) => {
+    const state = { ...(save.state as Record<string, unknown>) };
+    state.care ??= {};
+    const week = { ...((state.week as Record<string, unknown>) ?? {}) };
+    week.walkouts ??= 0;
+    week.unplayable ??= {};
+    state.week = week;
+    state.version = 14;
+    return { ...save, version: 14, state };
+  },
 };
 
 export class SaveError extends Error {}

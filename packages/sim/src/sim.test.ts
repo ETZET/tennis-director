@@ -19,6 +19,10 @@ function until(s: GameState, f: (s: GameState) => boolean, max = 20000, content:
   for (let i = 0; i < max && !f(s); i++) advance(s, content, [], 1);
   return f(s);
 }
+/** 把所有球场扫干净（只测别的机制的用例用，场地可用度见 care.test.ts） */
+function tidy(s: GameState): void {
+  for (const c of Object.values(s.care)) c.mess = { sand: 0, water: 0, litter: 0, lines: 0, cracks: 0 };
+}
 /** 关掉所有卡（只看经营系统） */
 function quiet(s: GameState): GameState {
   s.cards.scheduled = [];
@@ -331,7 +335,11 @@ describe('周结算（GM-1：放着不管时数字的变化要讲得清）', () 
     s.facilities.outer_23 = 'playable';
     s.facilities.clubhouse = 'open';
     s.stats.members = 40; // 上限 3 块场 × 12 + 会所 15 = 51
-    until(s, (x) => weekdayOf(x.t) === 6 && minuteOfDay(x.t) >= 19 * 60);
+    // 这条只看会员上限：场地一直扫干净（场地可用度另有测试，care.test.ts）
+    until(s, (x) => {
+      tidy(x);
+      return weekdayOf(x.t) === 6 && minuteOfDay(x.t) >= 19 * 60;
+    });
     s.weather = 'rain';
     expect(facilityTotals(s, W()).courts).toBe(0);
     const e = toSettlement(s);

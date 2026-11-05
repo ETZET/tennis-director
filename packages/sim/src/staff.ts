@@ -2,20 +2,35 @@ import { minutes, type Order, type Post, type SkillKind } from '@td/content';
 import { clamp } from '@td/shared';
 import { applyEffects, type Ctx, checkPlotOpen, run, setStat } from './effects';
 import { growStaff, noteRecords, noteSkill } from './growth';
+import { addMess } from './mess';
 import { plotAllows, plotOrderPaused } from './plots';
 import { rand } from './rng';
 import {
+  type CourtMess,
   DIRECTOR,
   dayOf,
   type EffectRecord,
   type GameState,
+  type MessKind,
   minuteOfDay,
+  type OrderState,
   type PersonState,
   type PlaqueRow,
   weekdayOf,
 } from './state';
 import { eventPostOpen, tournamentOrder, tournamentOrderDone, trackEventMinute } from './tournaments';
-import { isRestored, isStaff, num, prepProgress, remodeling, stateDef, test } from './vars';
+import {
+  careActive,
+  careLevelAtPost,
+  isRestored,
+  isStaff,
+  num,
+  prepProgress,
+  remodeling,
+  stateDef,
+  test,
+  usabilityOf,
+} from './vars';
 import { haltWalk, leaveJob, walkTo } from './walk';
 import type { World } from './world';
 
@@ -167,6 +182,13 @@ export function orderVisible(s: GameState, w: World, o: Order): boolean {
   // 地块（W5）：清理工单只在施工时有、只做一次；地块上的工单要开了才有
   if (!plotAllows(s, w, o.id, o.at)) return false;
   if (w.plotOrders.has(o.id) && (s.orderLog.done[o.id] ?? 0) > 0) return false;
+  // 打扫工单（court-care-contract.md）：场开着，并且已经开工、或者可用度低于 order_below；没有冷却、不作废
+  if (o.care) {
+    const f = orderFacility(w, o);
+    if (!f || !careActive(s, w, f)) return false;
+    const below = w.act.rules.care?.order_below ?? 85;
+    return (!!s.orders[o.id]?.started || usabilityOf(s, w, f) < below) && test(s, w, o.when);
+  }
   // 分期筹备的每一期只做一次
   if ((o.once || o.prep) && (s.orderLog.done[o.id] ?? 0) > 0) return false;
   if ((s.orderLog.cooldowns[o.id] ?? -1) > s.t) return false;
@@ -586,7 +608,7 @@ function condAdd(ctx: Ctx, anchor: string, delta: number, out?: EffectRecord[]):
  * 干完一圈或一张工单，那项能力涨一点（有上限）。总监：director_growth、上限 director_skill_cap，一直开着
  * （总监没有情绪，能力随游戏慢慢成长）。员工：W3 的成长（growth.ts，growth.enabled 才涨，上限是潜力）。
  */
-function grow(ctx: Ctx, person: string, k: SkillKind): void {
+export function grow(ctx: Ctx, person: string, k: SkillKind): void {
   const { s, w } = ctx;
   if (person !== DIRECTOR) {
     growStaff(ctx, person, k);
@@ -619,15 +641,27 @@ function finishCycle(ctx: Ctx, post: Post, person: string): void {
   noteRecords(ctx, out);
   if (post.wear) condAdd(ctx, post.at, -post.wear);
   if (post.restore) condAdd(ctx, post.at, post.restore * speedOf(skill), out);
+  // 打扫岗位（court-care-contract.md）：每圈每项清掉 care × 速度
+  if (post.care) {
+    const f = w.facilityAt.get(post.at);
+    if (f && careActive(s, w, f)) {
+      const c = -post.care * speedOf(skill);
+      const d = addMess(s, w, f, { sand: c, water: c, litter: c, lines: c, cracks: c });
+      if (Object.keys(d).length) out.push({ kind: 'mess', facility: f, delta: d });
+    }
+  }
   // 同一种效果合并成一条，收盘时写进日志
   for (const r of out) {
     const same = entry.effects.find(
       (x) =>
         (x.kind === 'stat' && r.kind === 'stat' && x.stat === r.stat) ||
         (x.kind === 'condition' && r.kind === 'condition' && x.facility === r.facility) ||
-        (x.kind === 'person' && r.kind === 'person' && x.person === r.person && x.attr === r.attr),
+        (x.kind === 'person' && r.kind === 'person' && x.person === r.person && x.attr === r.attr) ||
+        (x.kind === 'mess' && r.kind === 'mess' && x.facility === r.facility),
     );
-    if (same && 'delta' in same && 'delta' in r) same.delta = Math.round((same.delta + r.delta) * 100) / 100;
+    if (same?.kind === 'mess' && r.kind === 'mess') same.delta = sumMess(same.delta, r.delta);
+    else if (same && 'delta' in same && 'delta' in r && typeof same.delta === 'number' && typeof r.delta === 'number')
+      same.delta = Math.round((same.delta + r.delta) * 100) / 100;
     else entry.effects.push(r);
   }
   grow(ctx, person, post.skill);
@@ -650,6 +684,7 @@ function jobIndex(s: GameState): Map<string, string[]> {
 function postSystem(ctx: Ctx, jobs: Map<string, string[]>): void {
   const { s, w } = ctx;
   const anyEvent = Object.keys(s.events ?? {}).length > 0;
+  const careOn = !!w.act.rules.care;
   for (const post of w.posts.values()) {
     const person = jobs.get(post.id)?.[0] ?? null;
     // 先看便宜的（时段、有没有人），再求条件
@@ -660,26 +695,72 @@ function postSystem(ctx: Ctx, jobs: Map<string, string[]>): void {
     }
     const exists = postExists(s, w, post);
     const demand = exists && !!post.hours;
+    // 场地可用度（court-care-contract.md）：球场不能打，岗位停转（打扫岗位除外）；勉强能打，一分钟只算 meh_service 个服务到
+    const level = exists && careOn ? careLevelAtPost(s, w, post.id) : 'ok';
+    const blocked = level === 'no';
     const busy = !!person && exists && working(s, w, person);
+    const serve = level === 'meh' ? (w.act.rules.care?.meh_service ?? 1) : 1;
     if (demand) {
       s.week.demand += 1;
-      if (busy) s.week.served += 1;
+      if (blocked) {
+        // 场地不能打：算需求、不算服务到（有人在岗也一样），不记进 missed（周结算另讲"哪块场不能打"）
+        const u = (s.week.unplayable ??= {});
+        u[post.id] = (u[post.id] ?? 0) + 1;
+      } else if (busy) s.week.served += serve;
       else s.week.missed[post.id] = (s.week.missed[post.id] ?? 0) + 1;
       // 赛事那几天（LG-11）：附加目标看这一场的服务率、临时岗位的到岗率
-      if (anyEvent) trackEventMinute(s, w, post.id, demand, busy);
+      if (anyEvent) trackEventMinute(s, w, post.id, demand, busy && !blocked);
     }
+    // 不能打：人留在岗位上，这一圈停在原处（不涨、不结算、不磨损），能打了接着转
+    if (busy && blocked) continue;
     if (!busy) {
       // 时段过了、条件没了、人走了：这一圈作废（被拉走的情况已经在 leaveJob 里结算过）
       if (s.posts[post.id]) delete s.posts[post.id];
       continue;
     }
     const st = (s.posts[post.id] ??= { progress: 0 });
+    // 勉强能打时记下这一圈实际算了多少服务到（被拉走时退回它）；一直能打就不写，和以前一样
+    if (post.hours && (st.credit !== undefined || serve !== 1)) st.credit = (st.credit ?? st.progress) + serve;
     st.progress += 1;
     if (st.progress >= minutes(post.cycle)) {
       st.progress = 0;
+      delete st.credit;
       finishCycle(ctx, post, person as string);
     }
   }
+}
+
+/** 两条 mess 记录按项相加（保留 4 位小数） */
+function sumMess(
+  a: Partial<Record<MessKind, number>>,
+  b: Partial<Record<MessKind, number>>,
+): Partial<Record<MessKind, number>> {
+  const out: Partial<Record<MessKind, number>> = { ...a };
+  for (const [k, v] of Object.entries(b) as [MessKind, number][]) out[k] = Math.round(((out[k] ?? 0) + v) * 1e4) / 1e4;
+  return out;
+}
+const roundMess = (a: Partial<Record<MessKind, number>>) => sumMess({}, a);
+
+/**
+ * 打扫工单这一分钟的进度 dw（能力 50 的人·分钟）：每项清掉开工那一刻的 care0[k] × clean × dw / work（court-care-contract.md）。
+ * 做满 work 时正好清掉 clean 成（中途又脏了的不管：那是下一张工单的事）
+ */
+function careProgress(ctx: Ctx, o: Order, f: string, st: OrderState, dw: number, work: number): void {
+  const { s, w } = ctx;
+  if (!o.care || dw <= 0 || work <= 0) return;
+  const m0: CourtMess = (st.care0 ??= {
+    ...(s.care?.[f]?.mess ?? { sand: 0, water: 0, litter: 0, lines: 0, cracks: 0 }),
+  });
+  const k = (o.care.clean * dw) / work;
+  const d = addMess(s, w, f, {
+    sand: -m0.sand * k,
+    water: -m0.water * k,
+    litter: -m0.litter * k,
+    lines: -m0.lines * k,
+    cracks: -m0.cracks * k,
+  });
+  const acc = (st.careCleared ??= {});
+  for (const [kk, v] of Object.entries(d) as [MessKind, number][]) acc[kk] = (acc[kk] ?? 0) + v;
 }
 
 function finishOrder(ctx: Ctx, o: Order): void {
@@ -706,6 +787,9 @@ function finishOrder(ctx: Ctx, o: Order): void {
   );
   noteRecords(ctx, entry.effects);
   if (o.restore) condAdd(ctx, o.at, o.restore, entry.effects);
+  // 打扫工单：一共清掉了多少，合成一条 mess 记录
+  if (f && st?.careCleared && Object.keys(st.careCleared).length)
+    entry.effects.push({ kind: 'mess', facility: f, delta: roundMess(st.careCleared) });
   if (f && variant) entry.effects.push({ kind: 'variant', facility: f, variant });
   if (f && o.upgrade && !s.upgrades[f]?.includes(o.upgrade)) {
     (s.upgrades[f] ??= []).push(o.upgrade);
@@ -851,6 +935,9 @@ function orderSystem(ctx: Ctx, jobs: Map<string, string[]>): void {
       }
       if (cost) setStat(ctx, 'cash', (s.stats.cash ?? 0) - cost);
       state = s.orders[o.id] = { progress: 0, started: true, by: {}, mins: 0 };
+      // 打扫工单：记下开工那一刻的脏乱，按进度清掉它的 clean 成
+      if (o.care && f)
+        state.care0 = { ...(s.care?.[f]?.mess ?? { sand: 0, water: 0, litter: 0, lines: 0, cracks: 0 }) };
       if (variant && f) {
         state.variant = variant;
         delete s.picks[o.id];
@@ -864,6 +951,8 @@ function orderSystem(ctx: Ctx, jobs: Map<string, string[]>): void {
       f && !s.plaque.some((r) => r.facility === f)
         ? ((s.repairs ??= {})[f] ??= { by: {}, mins: 0, work: 0 })
         : undefined;
+    const work = orderWork(s, o);
+    const before = state.progress;
     for (const id of here) {
       const v = speedOf(workSkill(s, w, id, o.skill));
       state.progress += v;
@@ -873,7 +962,8 @@ function orderSystem(ctx: Ctx, jobs: Map<string, string[]>): void {
     }
     state.mins = (state.mins ?? 0) + 1;
     if (credit) credit.mins += 1;
-    if (state.progress >= orderWork(s, o)) finishOrder(ctx, o);
+    if (o.care && f) careProgress(ctx, o, f, state, Math.min(state.progress, work) - before, work);
+    if (state.progress >= work) finishOrder(ctx, o);
   }
 }
 
