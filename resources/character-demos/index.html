@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>场景查看器 · Tennis Director</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Semi+Condensed:wght@500;600;700;800&family=Saira:wght@400;500;600&display=swap">
+  <script type="module" crossorigin src="./assets/index-CTQgRnMJ.js"></script>
+  <link rel="modulepreload" crossorigin href="./assets/src-Be53G9IG.js">
+  <link rel="stylesheet" crossorigin href="./assets/index-DTvYEBCE.css">
+</head>
+<body>
+<div id="world"></div>
+<div id="labels" aria-hidden="true"></div>
+<div id="ui">
+  <header class="top">
+    <div class="brand"><span class="badge">TD</span><span class="t"><b>场景查看器</b><small>Palm Oasis · Indian Wells</small></span></div>
+    <a class="lib" href="./activities.html">活动动画库 →</a>
+  </header>
+  <section class="more" id="more" hidden aria-label="更多设置">
+    <h4>设施状态 <small>点一下换下一档</small></h4>
+    <div class="facs" id="facs"></div>
+    <label class="ctl"><span class="k">时间</span><input type="range" id="time" min="0" max="1439" step="5"><output id="timeV"></output></label>
+    <label class="ctl"><span class="k">风</span><input type="range" id="wind" min="0" max="100" step="5"><output id="windV"></output></label>
+    <label class="ctl"><span class="k">磨损</span><input type="range" id="wear" min="0" max="150" step="5"><output id="wearV"></output></label>
+    <h4>场地脏乱 <small>可用度的画面，court-care-contract.md</small></h4>
+    <div class="row">
+      <button type="button" id="bMessCourt">会员场</button>
+      <button type="button" id="bMessAll">全脏</button>
+      <button type="button" id="bMessClear">清空</button>
+      <button type="button" id="bHeat" aria-pressed="false">酷热</button>
+    </div>
+    <div id="messCtl"></div>
+    <div class="row">
+      <button type="button" id="bWalk">路人 +4</button>
+      <button type="button" id="bClear">清空路人</button>
+      <button type="button" id="bHome">重置镜头</button>
+    </div>
+    <p class="url">截图参数：<code id="url"></code></p>
+  </section>
+  <nav class="dock" aria-label="场景控制">
+    <div class="r">
+      <button type="button" id="bRuin">荒废</button>
+      <button type="button" id="bFresh">复原</button>
+      <button type="button" id="bNight" aria-pressed="false">夜</button>
+      <button type="button" id="bRain" aria-pressed="false">雨</button>
+      <button type="button" id="bMore" aria-expanded="false" aria-controls="more">更多</button>
+    </div>
+    <div class="r">
+      <button type="button" id="bQ" title="转 90°（Q）" aria-label="向左转 90°">⟲ Q</button>
+      <button type="button" id="bE" title="转 90°（E）" aria-label="向右转 90°">E ⟳</button>
+      <button type="button" id="bOut" aria-label="缩小">−</button>
+      <button type="button" id="bIn" aria-label="放大">+</button>
+      <button type="button" id="bLabels" aria-pressed="false">锚点</button>
+    </div>
+  </nav>
+</div>
+</body>
+</html>

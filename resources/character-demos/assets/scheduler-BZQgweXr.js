@@ -1,0 +1,1 @@
+var e=class{now=0;events=[];at(e,t){this.events.push({t:e,fn:t}),this.events.sort((e,t)=>e.t-t.t)}advance(e){this.now+=e;let t=0;for(;this.events.length&&this.events[0].t<=this.now&&t++<200;){let e=this.events.shift();e?.fn(e.t)}}get pending(){return this.events.length}};export{e as t};

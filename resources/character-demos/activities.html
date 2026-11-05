@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>活动动画库 · Tennis Director</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Semi+Condensed:wght@500;600;700;800&family=Saira:wght@400;500;600&display=swap">
+  <script type="module" crossorigin src="./assets/activities-PP1ISKCc.js"></script>
+  <link rel="modulepreload" crossorigin href="./assets/src-Be53G9IG.js">
+  <link rel="modulepreload" crossorigin href="./assets/scheduler-BZQgweXr.js">
+  <link rel="stylesheet" crossorigin href="./assets/activities-CWESWyZk.css">
+</head>
+<body>
+<div id="app">
+  <header class="bar" id="bar">
+    <a class="brand" href="#" aria-label="回到总览">
+      <span class="badge">TD</span>
+      <span class="brand-t"><b>活动动画库</b><small>Activity library · ADR 0010</small></span>
+    </a>
+    <button class="sum" id="sumBtn" type="button" aria-expanded="false" aria-controls="conds">
+      <span id="sum"></span><span class="chev" aria-hidden="true">▾</span>
+    </button>
+  </header>
+  <section class="conds" id="conds" aria-label="全局条件">
+    <div class="ctl"><span class="k">场景</span><div class="seg" id="venue"></div></div>
+    <div class="ctl"><span class="k">天气</span><div class="seg" id="wx"></div></div>
+    <label class="ctl"><span class="k">疲劳</span><input type="range" id="fat" min="0" max="100" value="25"><output id="fatV">25%</output></label>
+    <div class="ctl"><span class="k">教练</span><div class="pips" id="coach"></div></div>
+  </section>
+
+  <main id="overview" class="scroll">
+    <div class="wrap">
+      <p class="intro">每张卡是一个可复用的"原子活动"。顶部的条件实时影响所有活动；点开任一张进入大舞台，调这个活动自己的变量。游戏用同一套演出（<code>@td/iso</code> 的 <code>activities</code>）。</p>
+      <div id="cats"></div>
+    </div>
+  </main>
+
+  <section id="stage" class="stage" hidden>
+    <div class="sview" id="sview">
+      <div class="ttl"><span id="sCat"></span><b id="sName"></b></div>
+      <div class="play" role="group" aria-label="播放">
+        <button type="button" id="bPause" aria-pressed="false" title="暂停 / 继续">❚❚</button>
+        <button type="button" id="bSpeed" title="速度">1×</button>
+        <button type="button" id="bReplay" title="重播">↺</button>
+        <button type="button" id="bOut" title="缩小" aria-label="缩小">−</button>
+        <button type="button" id="bIn" title="放大" aria-label="放大">+</button>
+        <button type="button" id="bRot" title="转 90°（Q / E）" aria-label="转 90°">⟲</button>
+        <button type="button" id="bView" title="重置视角" aria-label="重置视角">⌖</button>
+      </div>
+      <div class="hint">拖动平移 · 双指或滚轮缩放 · ⟲ 转 90°</div>
+    </div>
+    <div class="sheet" id="sheet">
+      <nav class="acts" id="side" aria-label="活动列表"></nav>
+      <aside class="panel" id="panel">
+        <section><h4>说明</h4><p class="desc" id="sDesc"></p></section>
+        <section><h4>本活动变量</h4><div id="sParams"></div></section>
+        <section><h4>当前效果</h4><ul class="fx" id="sFx"></ul></section>
+      </aside>
+    </div>
+  </section>
+</div>
+</body>
+</html>

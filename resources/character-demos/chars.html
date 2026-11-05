@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="icon" href="data:,">
+<title>人物设计方向 · Tennis Director</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600;700&family=Silkscreen:wght@400;700&family=ZCOOL+QingKe+HuangYou&display=swap">
+<style>:root{--navy:#14223a;--panel:#1d2f4e;--optic:#d8c08a;--green:#2f7a49;--paper:#f3ecdc;--coral:#ff8a6b;--f:"Pixelify Sans","ZCOOL QingKe HuangYou","Noto Sans SC",sans-serif}*{box-sizing:border-box}body{background:var(--navy);color:var(--paper);font:15px/1.5 var(--f);margin:0}main{max-width:420px;margin:0 auto;padding:18px 14px 40px}h1{margin:0 0 4px;font-size:22px}.lead{opacity:.85;margin:0 0 14px}a.card{color:inherit;background:var(--panel);border-top:5px solid var(--green);margin:14px 0;text-decoration:none;display:block;box-shadow:2px 2px #00000059}a.card:active{transform:translateY(2px)}.shots{background:#0a111e;grid-template-columns:1fr 1fr;gap:2px;display:grid}.shots img{aspect-ratio:390/844;object-fit:cover;object-position:top;background:#2a3a58;width:100%;display:block}.b{padding:10px 12px 12px}.t{font-size:17px;font-weight:700}.n{color:var(--optic);margin-right:6px}.go{background:var(--optic);min-height:44px;color:var(--navy);justify-content:center;align-items:center;margin-top:8px;font-weight:700;display:flex}</style>
+</head>
+<body>
+<main>
+  <h1>玩法 demo · 第二轮</h1>
+  <p class="lead">五种不同的人物画法。每页：全体人物一排、动作、近看、放进真实球场里的样子。挑一个方向（或者混搭），回复里说"A 的比例 + C 的肖像"这样就行。</p>
+  <div id="list"></div>
+</main>
+<script>
+const D=[['a','A','写实比例 16×32','头身比接近真人，衣服褶皱、发型、年龄都画得出来。'],
+['b','B','小而全 12×24','在现有大小上多一倍像素：眼睛、眉毛、胡子、眼镜、皱纹。'],
+['c','C','双层：小人 + 大肖像','场景里小人简洁，卡片和对话里配 48×48 的细致肖像和表情。'],
+['d','D','体型和姿态先行','胖瘦高矮、驼背、站姿各不相同，远看轮廓就认得出谁。'],
+['e','E','高清像素 24×40','有光影和体积，接近插画；成本最高。']];
+document.getElementById('list').innerHTML=D.map(([id,n,t,q])=>`<a class="card" href="chars-${id}.html">
+<div class="shots"><img src="shots/chars-${id}-1.png" alt="" onerror="this.style.visibility='hidden'"><img src="shots/chars-${id}-2.png" alt="" onerror="this.style.visibility='hidden'"></div>
+<div class="b"><div class="t"><span class="n">${n}</span>${t}</div><div>${q}</div><div class="go">▶ 玩</div></div></a>`).join('');
+</script>
+</body>
+</html>
