@@ -1,0 +1,40 @@
+/* 方向 D 的页面：手机竖屏，可以上下滚动（kit.css 默认 body 不滚） */
+html,body{height:auto;overflow:auto}
+body{overflow-x:hidden;-webkit-user-select:auto;user-select:auto}
+#app{max-width:430px;margin:0 auto;padding:14px 12px 60px}
+.d-head h1{font:700 22px/1.2 var(--f-cond);margin:6px 0 6px}
+.d-head p{margin:0 0 10px;opacity:.9;font-size:14px;line-height:1.5}
+.d-nav{display:flex;flex-wrap:wrap;gap:6px}
+.d-nav .k-btn{min-height:44px;padding:0 10px;font-size:14px;text-decoration:none}
+.d-sec{margin:22px 0 0;scroll-margin-top:8px}
+.d-sec h2{margin:0 0 4px}
+.d-lead{margin:0 0 10px;font-size:13px;line-height:1.5;opacity:.85}
+.d-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:4px}
+.d-card{background:#d8bf8c;color:var(--navy);display:flex;flex-direction:column;align-items:center;padding:2px 2px 6px;box-shadow:var(--shadow)}
+.d-name{font:700 12px/1.1 var(--f-cond);margin-top:2px}
+.d-line{font-size:10px;line-height:1.2;text-align:center;opacity:.8;min-height:24px}
+.d-silrow{display:grid;grid-template-columns:repeat(8,1fr);gap:2px;background:#f3ecdc;padding:4px 0}
+.d-silcell{display:flex;flex-direction:column;align-items:center;overflow:hidden}
+.d-silcell canvas{max-width:100%;height:auto!important}
+.d-sname{font-size:10px;line-height:1.2;color:inherit;text-align:center;white-space:nowrap}
+.d-silrow .d-sname{color:var(--navy)}
+.d-reveal{margin:8px 0;width:100%}
+.d-chips{display:flex;flex-wrap:wrap;gap:4px;margin:0 0 8px}
+.d-chip{min-height:44px;min-width:44px;padding:0 10px;border:0;text-decoration:none;font-size:13px}
+.d-chip.on{background:var(--optic);color:var(--navy)}
+.d-moves{background:#0f1a2c;padding:6px}
+.d-mrow{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-bottom:4px}
+.d-mcell{display:flex;flex-direction:column;align-items:center}
+.d-mcell canvas{max-width:100%;height:auto!important}
+.d-moves .d-lead{margin:6px 2px 2px}
+.d-close{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.d-ccell{display:flex;flex-direction:column;align-items:center;background:#d8bf8c;color:var(--navy);padding:4px}
+.d-scene{position:relative;width:100%;height:560px;overflow:hidden;touch-action:none;background:#a3bac8}
+.d-scene canvas{display:block;image-rendering:pixelated;touch-action:none}
+.d-labels{position:absolute;inset:0;pointer-events:none}
+.d-tag{position:absolute;left:0;top:0;font:700 10px/1 var(--f-cond);color:var(--paper);background:rgba(20,34,58,.78);padding:2px 3px;white-space:nowrap}
+.d-tag.old{background:var(--coral);color:var(--navy)}
+.d-notes{font-size:13px;line-height:1.55}
+.d-notes h3{font:700 15px/1.2 var(--f-cond);margin:14px 0 4px;color:var(--optic)}
+.d-notes ul{margin:0;padding-left:18px}
+.d-notes p{margin:0}
