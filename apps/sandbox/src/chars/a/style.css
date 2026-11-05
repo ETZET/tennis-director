@@ -1,0 +1,38 @@
+/* 方向 A 的页面：可以上下滚动（kit.css 默认不滚），手机竖屏优先 */
+html,body{height:auto;overflow-x:hidden;overflow-y:auto}
+#app{max-width:430px;margin:0 auto;padding:0 0 40px}
+canvas.px{image-rendering:pixelated;display:block}
+.top{padding:14px 56px 6px 14px}
+.top h1{margin:2px 0 4px;font:700 22px/1.15 var(--f-cond)}
+.lead,.sub{margin:0 0 8px;font-size:13px;line-height:1.45;opacity:.85}
+.help{right:10px;position:fixed}
+.sec{padding:8px 10px 14px}
+.sec h2{display:flex;align-items:center;gap:8px;margin:6px 0 8px;font:700 17px/1 var(--f-cond)}
+.sec h2 span{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;background:var(--optic);color:var(--navy);font-size:14px}
+.lineup{display:grid;grid-template-columns:repeat(4,1fr);gap:4px}
+.card{background:var(--panel-2);display:flex;flex-direction:column;align-items:center;padding:3px 2px 5px;box-shadow:var(--shadow)}
+.card canvas{margin-bottom:3px}
+.nm{font:700 12px/1.1 var(--f-cond);color:var(--optic);text-align:center}
+.ln{font-size:10px;line-height:1.25;text-align:center;opacity:.9;min-height:25px}
+.chips{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px}
+.chip{min-height:44px;min-width:44px;padding:0 9px;border:0;background:var(--panel-2);font:700 13px/1 var(--f-cond);box-shadow:var(--shadow)}
+.chip.on{background:var(--optic);color:var(--navy)}
+.acts{display:grid;grid-template-columns:repeat(3,1fr);gap:4px}
+.act,.cl{display:flex;flex-direction:column;align-items:center;background:var(--panel-2);padding:3px 0 4px}
+.al{font-size:11px;opacity:.85;margin-top:2px}
+.close{display:grid;grid-template-columns:repeat(4,1fr);gap:4px}
+.notes{font-size:13px;line-height:1.5}
+.notes h3{font:700 14px/1.2 var(--f-cond);color:var(--optic);margin:12px 0 4px}
+.notes ul{margin:0;padding-left:18px}
+.notes table{border-collapse:collapse;font-size:12px;width:100%}
+.notes td,.notes th{border-top:1px solid rgba(243,236,220,.15);padding:3px 4px;text-align:left;vertical-align:top}
+.k-modal.hidden{display:none}
+.k-modal{position:fixed;align-items:stretch;overflow:auto}
+.k-modal>.k-card{max-height:none;overflow:auto;align-self:flex-start}
+.close-btn{width:100%;margin-top:12px}
+.scene{position:relative;width:100%;margin:0 0 6px;background:#a9d0e3;overflow:hidden;touch-action:pan-y}
+.scene canvas{touch-action:pan-y!important}
+.cap{font-size:12px;line-height:1.4;margin:2px 0 12px;opacity:.9}
+.cap b{color:var(--optic)}
+.tag{position:absolute;pointer-events:none;font:700 10px/1 var(--f-cond);background:rgba(20,34,58,.85);color:var(--paper);padding:2px 4px;white-space:nowrap;transform:translate(-50%,-100%)}
+.tag.old{background:rgba(120,60,40,.9)}
