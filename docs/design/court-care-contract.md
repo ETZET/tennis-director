@@ -484,4 +484,62 @@ const care = createCare({
 
 ## 最终 schema（实现完以后由代理 A 回写）
 
-（空）
+代理 A 2026-11-04 实现完、机器人 200 局校准后的定稿。和上文不一样的地方以这里为准。
+
+### 数值（`acts/indian_wells.yaml` 的 `rules.care`；改动处标 ←）
+
+```yaml
+care:
+  courts: （同上文）
+  ok_at: 70
+  no_below: 40
+  weights: （同上文）
+  weather:
+    sun:   { sand: 0.002, water: -0.10 }           # ← 0.004：晴天也积沙太快，打扫工单每两天一张
+    cloud: { sand: 0.002, water: -0.05 }           # ← 0.004
+    wind:  { sand: 0.04, litter: 0.01, water: -0.12 }   # ← 0.05：一天没人扫 ≈ 67（勉强），两天 ≈ 35（不能打）
+    rain:  { water: 0.05 }                         # ← 0.09：一整天雨 ≈ 52（勉强）、连着两天才不能打；
+                                                   #   0.09 时每个雨天五块场都不能打、各走 3 个，玩家没法应对（下雨不能亲手扫）
+    heat:  { lines: 0.02, cracks: 0.012, water: -0.20 }
+  surface: { clay: { cracks: 2.5, lines: 1.5, water: 0.8 } }
+  use: { litter: 0.01, lines: 0.002, cracks: 0.001 }   # ← litter 0.02：会员场一天约 −3.3
+  order_below: 80                                  # ← 85
+  meh_service: 0.7                                 # ← 0.6
+  patience: 90m
+  walkout_max_day: 3
+  waiting_per_post: 2
+  waiting_max: 6
+  grumble_every: 2h
+  hand: { base: 15, per: { sand: 90, water: 60, litter: 45, lines: 120, cracks: 90 }, min: 10, max: 240 }
+weather（季节权重）: autumn heat 2、winter heat 0、spring heat 1
+week.reputation.walkouts: "-0.5 * care.walkouts"；week.members 末尾 "- floor(care.walkouts / 3)"（在 max(0, …) 外面）
+```
+
+- 打扫工单 `orders/care_<设施>.yaml`：`work: 2h`（← 4h）、`crew: 2`、`care: { clean: 0.7 }`、`performance: sweep`（代理 D 的演出）。
+  一名维护 62 的员工约 107 分钟、两个人约 54 分钟。
+- 五个维护岗位 `care: 0.06`（← 0.04）：维护 62 的人每圈每项 −0.067，一天约 −0.8，平常日子和雨后顶得住、大风天差一点。
+- 新的 i18n 键：`ui.care.log_mess`（`{place}扫掉了{list}` / `{place}: cleared {list}`）、`ui.care.game.tools.net`、
+  `ui.care.game.hint.{net,roller_clay,paint_clay}`、`ui.care.game.fx.*`（代理 C 要的 15 个）。
+
+### 加的类型和导出（没有改名、删字段）
+
+- `Cause` 加了 `{ kind: 'care'; court; minutes; before; after; cleared }`、`{ kind: 'walkout'; court; waited }`（`state.ts`）。
+- `PostState.credit?: number`：勉强能打时这一圈实际记上的服务分钟（被拉走时退回它；一直能打不写）。
+- `OrderState.careCleared?: Partial<CourtMess>`：打扫工单到现在清掉的量；做完时合成一条 `mess` 记录写进 `order` 日志。
+- `World.postsAt: Map<地点, Post[]>`。
+- `vars.ts`：`careLevelAtPost(s, w, post): CareLevel`（`careBlocksPost` = 它 === 'no'）。`staff.ts`：`grow` 导出。
+- 命令 `{ type: 'debugWeather'; weather: Weather }`：把今天的天气换掉、发 `weather` 事件、写一条 debug 日志（能重放）。
+- 机器人：`runGame(…, { observe?(s) })`；`HumanProfile.hand?: number`（good 0.9、average 0.75、novice 不写）；greedy 亲手扫 0.6。
+  机器人派打扫工单的价值 = (100 − 可用度) / 4，不能打 × 2，还能打且 ≥ 70 × 0.5；亲手扫只在不能打、或勉强且低于 55 时。
+
+### 行为上的说明
+
+- 赛事（LG-11）的服务率、到岗率：勉强算满（`trackEventMinute` 拿到 busy = 有人在干、没被挡住）；只有不能打算没服务到。
+- `careSystem` 里"使用"和"被挡住的岗位"按上一分钟的档数（和 `postSystem` 一样），换档后下一分钟才开始等人；
+  `careFinish`、换档到能打 / 勉强时门口的人立刻 `waitingEnded playable`。
+- 周结算的 `walkouts`、`unplayable` 只在地图写了 `rules.care` 时写。
+- 机器人 200 局（内容 5fcfad2f）：greedy 能打 92.4% / 勉强 7.4% / 不能打 0.1%，平均分 15950 → 14757；good 81.8 / 16.2 / 2.0%，
+  14415 → 12816；average 79.2 / 18.0 / 2.7%，13604 → 11511；novice 72.1 / 22.3 / 5.6%，12032 → 8814；cautious 5915 → 5943。
+  `balance.test.ts` 的区间都过（greedy S/A 98.5%）。人类档整体掉一档（good 多半 B），结局档没动，留给制作人定。
+- 报告 `docs/balance/indian-wells.md` 多一节"场地可用度"：各档时间占比、每局走掉的会员、亲手扫次数、打扫工单张数。
+

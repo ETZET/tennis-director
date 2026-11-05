@@ -109,6 +109,14 @@ export function createText(content: ContentBundle, lang: Lang): Text {
     if (zh) return h ? (m % 60 ? `${h} 小时 ${m % 60} 分` : `${h} 小时`) : `${m} 分钟`;
     return h ? (m % 60 ? `${h}h ${String(m % 60).padStart(2, '0')}m` : `${h}h`) : `${m} min`;
   };
+  /** 脏乱的名字：红土上（按现在的变体换面）用红土的叫法 */
+  const careCourts = content.acts[0]?.rules.care?.courts ?? {};
+  const messName = (f: string, k: string) => {
+    const c = careCourts[f];
+    const v = variants[f];
+    const clay = (v && c?.variants[v]) || c?.surface;
+    return tr(clay === 'clay' ? `ui.care.kinds_clay.${k}` : `ui.care.kinds.${k}`, k);
+  };
   const effect = (e: EffectRecord): string | null => {
     switch (e.kind) {
       case 'stat': {
@@ -159,6 +167,20 @@ export function createText(content: ContentBundle, lang: Lang): Text {
         return fmt('ui.log.trophy', { n: signed(e.delta) });
       case 'route':
         return fmt('ui.log.route', { route: tr(`routes.${e.slot}.${e.route}`, e.route).split(' · ')[0] ?? e.route });
+      case 'mess': {
+        // 场地可用度（court-care-contract.md）：扫掉了哪几种脏乱（ui.care.log_mess），落上了的写 +名字；不写数
+        const sep = zh ? '、' : ', ';
+        const ks = Object.entries(e.delta).filter(([, v]) => Math.abs(v ?? 0) >= 0.01);
+        const cleared = ks.filter(([, v]) => (v ?? 0) < 0).map(([k]) => messName(e.facility, k));
+        const added = ks.filter(([, v]) => (v ?? 0) > 0).map(([k]) => `+${messName(e.facility, k)}`);
+        const parts = [
+          ...(cleared.length
+            ? [fmt('ui.care.log_mess', { place: facility(e.facility), list: cleared.join(sep) })]
+            : []),
+          ...(added.length ? [`${facility(e.facility)} ${added.join(sep)}`] : []),
+        ];
+        return parts.length ? parts.join(sep) : null;
+      }
       default:
         // flag、schedule 是幕后的账，不讲给玩家；变体锁定、牌匾由快讯单独讲
         return null;
@@ -245,6 +267,11 @@ export function createText(content: ContentBundle, lang: Lang): Text {
         return fmt('ui.ending.because_settled', { total: c.total, grade: c.grade });
       case 'season':
         return tr('ui.ending.because_season');
+      case 'care':
+        // 总监亲手扫了场（court-care-contract.md）
+        return fmt('ui.care.because_care', { place: anchor(c.court), time: duration(c.minutes) });
+      case 'walkout':
+        return fmt('ui.care.because_walkout', { place: anchor(c.court) });
       case 'debug':
         return zh ? `调试：${c.what}` : `debug: ${c.what}`;
       default:
@@ -307,6 +334,12 @@ export function createText(content: ContentBundle, lang: Lang): Text {
         part(q, [fmt('ui.settle.target', { n: Math.round(c.quality.target * 10) / 10, parts: terms.join(sep) })]),
       );
     }
+    // 场地可用度（court-care-contract.md）：这周走掉的会员、挡掉分钟最多的那块场（有才写）
+    if (c.walkouts) out.push(fmt('ui.care.week_walkouts', { n: c.walkouts }));
+    if (c.unplayable)
+      out.push(
+        fmt('ui.care.week_unplayable', { place: anchor(c.unplayable.court), time: duration(c.unplayable.minutes) }),
+      );
     return out.length ? out.join(zh ? '；' : '; ') : null;
   };
 
@@ -368,7 +401,8 @@ export function entryTone(e: CausalEntry): 'bad' | 'good' | undefined {
     }
     if (x.kind === 'end') return x.result === 'lost' ? 'bad' : 'good';
   }
-  // 掉档（准则 6）是坏消息
-  if (e.cause.kind === 'wear') return 'bad';
+  // 掉档（准则 6）、会员等不及走了是坏消息；亲手扫干净是好消息
+  if (e.cause.kind === 'wear' || e.cause.kind === 'walkout') return 'bad';
+  if (e.cause.kind === 'care') return 'good';
   return bad > good ? 'bad' : good > bad ? 'good' : undefined;
 }

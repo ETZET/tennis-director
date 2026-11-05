@@ -17,6 +17,7 @@ import {
   F_SC1,
   F_SC2,
   F_TN2,
+  GATES,
   GOLF_POND,
   GROUNDS,
   groundY,
@@ -114,6 +115,8 @@ export const INDIAN_WELLS: Site = {
   groundY,
   anchors: ANCHORS,
   stands: STANDS,
+  // 球场门外（场地不能打时会员在这儿等，court-care-contract.md）
+  gates: GATES,
   // 地块上的新地点（ADR 0021）：没并进 anchors / stands，游戏按地块状态用
   land: {
     anchors: LAND_ANCHORS,

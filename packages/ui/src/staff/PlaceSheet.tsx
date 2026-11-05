@@ -30,6 +30,7 @@ export function PlaceSheet({ p, actions }: { p: PlaceSheetData; actions: HudActi
             </span>
           </div>
         ) : null}
+        {p.care ? <CareRow p={p} actions={actions} /> : null}
         {p.event ? (
           <div class="td-place-event" aria-live="polite">
             <b>{p.event.title}</b>
@@ -136,6 +137,47 @@ export function PlaceSheet({ p, actions }: { p: PlaceSheetData; actions: HudActi
           <p class="td-sheet-note">{p.empty}</p>
         )}
       </section>
+    </div>
+  );
+}
+
+/** 档的记号：形状也不一样（色弱也分得清），和地点牌上的一样 */
+export const CARE_GLYPH = { ok: '✓', meh: '~', no: '✕' } as const;
+
+/**
+ * 球场这一节（court-care-contract.md）：三档记号 + 场上有的脏乱的名字（不写数），下面一个"亲手扫"按钮。
+ * 按钮写着代价（总监离岗多久）和取舍；不能扫时置灰、写原因。不另开面板：点它直接进扫场小游戏。
+ */
+function CareRow({ p, actions }: { p: PlaceSheetData; actions: HudActions }) {
+  const c = p.care;
+  if (!c) return null;
+  return (
+    <div class={`td-place-care td-care-${c.level}`}>
+      <div class="td-care-state">
+        <span class="td-care-mark" aria-hidden="true">
+          {CARE_GLYPH[c.level]}
+        </span>
+        <b>{c.label}</b>
+        {c.kinds.length ? <span class="td-care-kinds">{c.kinds.join(' · ')}</span> : null}
+      </div>
+      {c.waiting ? <p class="td-care-wait">{c.waiting}</p> : null}
+      <button
+        type="button"
+        class="td-care-hand"
+        disabled={!c.hand.ok}
+        data-care={p.id}
+        onClick={() => c.hand.ok && actions.onCare?.(p.id)}
+      >
+        <span class="td-care-hand-icon" aria-hidden="true">
+          🧹
+        </span>
+        <span class="td-row-text">
+          <b>{c.hand.title}</b>
+          <span>{c.hand.ok ? c.hand.cost : c.hand.why}</span>
+          {c.hand.ok ? <span class="td-care-note">{c.hand.note}</span> : null}
+        </span>
+        <span class="td-row-go">{c.hand.ok ? '›' : ''}</span>
+      </button>
     </div>
   );
 }

@@ -8,6 +8,7 @@ import {
   type Scheduler,
   type Site,
   type Sprite,
+  SpriteLayer,
   WEST,
 } from '@td/iso';
 import { clamp, type XZ } from '@td/shared';
@@ -61,12 +62,29 @@ export interface LifeDeps {
   busy: (anchor: string) => boolean;
   /** 此刻有需求的岗位（按地点合并）：有没有人在接待、没接待的有几处 */
   waiting?: (s: GameState) => readonly { anchor: string; served: boolean; unserved: number }[];
+  /**
+   * 场地可用度（court-care-contract.md）：这个地点的球场此刻是哪一档（不是开着的球场 = null）。
+   * 不能打的场不上会员自己打球。
+   */
+  careLevel?: (s: GameState, anchor: string) => 'ok' | 'meh' | 'no' | null;
+  /** 不能打时门口在等的会员：哪块场、几个（模拟的 s.care[f].waiting） */
+  gateQueue?: (s: GameState) => readonly { anchor: string; n: number }[];
+  /** 文案（抱怨气泡 ui.care.grumble.*） */
+  tr?: (key: string) => string;
 }
 
 export interface Life {
   update(s: GameState, dt: number): void;
   /** 读档、换内容之后全部重排 */
   reset(): void;
+  /** 门口等着的会员里有一个等不及了：转身沿步道走到停车场、消失（memberWalkedOut） */
+  walkout(anchor: string): void;
+  /** 门口不用等了（waitingEnded）：playable 进场，closed 回家 */
+  ended(anchor: string, reason: 'playable' | 'closed'): void;
+  /** 勉强能打的场上有人抱怨一句（careGrumble） */
+  grumble(anchor: string): void;
+  /** 扫场小游戏接管这块场（scene.careStage）：场上和门口的人藏起来、对打停下；null 全部还原 */
+  stage(anchor: string | null): void;
 }
 
 /** 背景人物现在在干什么：不在场、正走进来、到位了、正走出去 */
@@ -316,6 +334,8 @@ export function createLife(d: LifeDeps): Life {
     const draw = open(s, c);
     if (!draw || d.busy(c.anchor)) return false;
     if (s.weather === 'rain') return false;
+    // 场地不能打（court-care-contract.md）：会员不上场，在门口等（下面的 gate）
+    if (d.careLevel?.(s, c.anchor) === 'no') return false;
     const min = t % 1440;
     if (min < 7 * 60 || min > 20 * 60) return false;
     const day = Math.floor(t / 1440);
@@ -603,6 +623,151 @@ export function createLife(d: LifeDeps): Life {
     }
   }
 
+  /* ---------- 门口等着的会员（court-care-contract.md）：场地不能打，会员站在门外等，等不及就走 ---------- */
+  const fx = new SpriteLayer(d.world.scene);
+  const gaters = Array.from({ length: 12 }, (_, k) => ({
+    b: bg(d.person(COURTS.length * 2 + 14 + k)),
+    /** 占着的位置（锚点:第几个；空 = 没在等） */
+    slot: '',
+    anchor: '',
+    /** 下一次比划、冒气泡的时刻（sched.now） */
+    next: 0,
+  }));
+  /** 门外排队的位置：沿围网错开（不挡门），越后来的越靠两边 */
+  const QUEUE = [0, 1, -1, 2, -2, 3];
+  /** 刚走了一个的球场：这段时间少站一个人（模拟里 n 不变，画面上让走掉的那个位置空一会儿） */
+  const gone = new Map<string, { n: number; until: number }>();
+  let grumbleK = 0;
+  const grumbleLine = () => d.tr?.(`ui.care.grumble.${grumbleK++ % 5}`) ?? '';
+  function gateSpot(anchor: string, k: number): { at: XZ; face: XZ } | null {
+    const g = site.gates?.[anchor] ?? site.stands[anchor];
+    if (!g) return null;
+    const fr = site.courts[anchor]?.[0];
+    const c = fr ? { x: fr.ox, z: fr.oz } : (site.anchors[anchor] ?? g);
+    const L = Math.hypot(c.x - g.x, c.z - g.z) || 1;
+    const ux = (c.x - g.x) / L;
+    const uz = (c.z - g.z) / L;
+    const side = (QUEUE[k] ?? k) * 0.95;
+    // 往外退一点、沿围网横着排开；单数位置再往后半步，看着像一小撮人而不是一排桩
+    const back = 0.6 + (k % 2) * 0.55;
+    return { at: { x: g.x - ux * back - uz * side, z: g.z - uz * back + ux * side }, face: c };
+  }
+  const exitFor = (a: string) => (site.stands.parking ? 'parking' : nearestExit(a));
+  function syncGate(s: GameState): void {
+    const want = new Map<string, { anchor: string; k: number }>();
+    for (const q of d.gateQueue?.(s) ?? []) {
+      if (q.anchor === staged) continue;
+      const g = gone.get(q.anchor);
+      const less = g && s.t < g.until ? g.n : 0;
+      if (g && s.t >= g.until) gone.delete(q.anchor);
+      const n = Math.max(0, Math.min(QUEUE.length, q.n) - less);
+      for (let k = 0; k < n; k++) want.set(`${q.anchor}:${k}`, { anchor: q.anchor, k });
+    }
+    for (const g of gaters)
+      if (g.slot && !want.has(g.slot)) {
+        // 不用等了（场地能打了、关门了）、或者人少了：沿步道走回停车场
+        g.slot = '';
+        depart(g.b, () => (site.routeLine(g.anchor, exitFor(g.anchor)) ?? []).slice(1), GUEST_LEAD);
+      }
+    for (const [key, x] of want) {
+      if (gaters.some((g) => g.slot === key)) continue;
+      const g = gaters.find((q) => !q.slot && q.b.phase === 'off');
+      const spot = gateSpot(x.anchor, x.k);
+      if (!g || !spot) continue;
+      g.slot = key;
+      g.anchor = x.anchor;
+      g.next = d.sched.now + 1 + d.rnd() * 3;
+      const settle = () => {
+        g.b.p.idleFace = Math.atan2(spot.face.x - spot.at.x, spot.face.z - spot.at.z);
+        g.b.p.yaw = g.b.p.idleFace;
+      };
+      const from = EXITS[Math.floor(d.rnd() * EXITS.length)] ?? 'entrance';
+      arrive(g.b, () => [...(site.routeLine(from, x.anchor) ?? []).slice(0, -1), spot.at], GUEST_LEAD, settle);
+    }
+  }
+  /** 门口的人隔一会儿摊手、跺脚，偶尔冒一句抱怨 */
+  function animGate(): void {
+    const now = d.sched.now;
+    for (const g of gaters) {
+      if (!g.slot || g.b.phase !== 'here' || now < g.next) continue;
+      g.next = now + 3 + d.rnd() * 4;
+      const roll = d.rnd();
+      if (roll < 0.3) {
+        const line = grumbleLine();
+        if (line) fx.say(g.b.p.headTop, line, 2.4);
+      } else if (roll < 0.5) fx.emote(g.b.p.headTop, d.rnd() < 0.5 ? 'anger' : 'sweat', 1.4);
+      const pool = ['shrug', 'facepalm', 'shrug', 'hand'] as const;
+      g.b.p.gesture(pool[Math.floor(d.rnd() * pool.length)] ?? 'shrug', now, 1.4);
+    }
+  }
+  /** 等不及的那个（站得最久的，也就是排在最前面的）：转身走到停车场、消失 */
+  function walkout(anchor: string): void {
+    const mine = gaters.filter((g) => g.slot && g.anchor === anchor);
+    const g = mine.sort((a, b) => a.slot.localeCompare(b.slot))[0];
+    if (!g) return;
+    g.slot = '';
+    const now = cur?.t ?? 0;
+    const was = gone.get(anchor);
+    gone.set(anchor, { n: (was && now < was.until ? was.n : 0) + 1, until: now + 45 });
+    fx.emote(g.b.p.headTop, 'anger', 1.6);
+    const line = d.tr?.('ui.care.walkout') ?? '';
+    if (line) fx.say(g.b.p.headTop, line, 2.6);
+    depart(g.b, () => (site.routeLine(anchor, exitFor(anchor)) ?? []).slice(1), GUEST_LEAD);
+  }
+  /** 场地能打了：门口的人走进场（走到场地中间那一带再溶解，打球的人由 syncCourts 排上来）；关门了：回家 */
+  function ended(anchor: string, reason: 'playable' | 'closed'): void {
+    gone.delete(anchor);
+    for (const g of gaters) {
+      if (!g.slot || g.anchor !== anchor) continue;
+      g.slot = '';
+      const fr = site.courts[anchor]?.[0];
+      if (reason === 'closed' || !fr || snap) {
+        depart(g.b, () => (site.routeLine(anchor, exitFor(anchor)) ?? []).slice(1), GUEST_LEAD);
+        continue;
+      }
+      const inside = fr.w({ x: (d.rnd() - 0.5) * 14, z: (d.rnd() - 0.5) * 6 });
+      g.b.phase = 'out';
+      walk(g.b, [here(g.b), inside], () =>
+        fadeTo(g.b, 0, () => {
+          if (g.b.phase !== 'out') return;
+          g.b.phase = 'off';
+          g.b.p.clearMoves();
+        }),
+      );
+    }
+  }
+  /** 勉强能打的场上有人抱怨：场上打球的会员（没人打就门口的人）头上冒一句 */
+  function grumble(anchor: string): void {
+    if (anchor === staged) return;
+    const on = COURTS.flatMap((c, i) => (c.anchor === anchor ? [...(players[i] as readonly [Bg, Bg])] : [])).filter(
+      (b) => b.phase === 'here' && b.p.root.visible,
+    );
+    const b = on[Math.floor(d.rnd() * on.length)] ?? gaters.find((g) => g.slot && g.anchor === anchor)?.b;
+    if (!b) return;
+    const line = grumbleLine();
+    if (line) fx.say(b.p.headTop, line, 2.6);
+    b.p.gesture('shrug', d.sched.now, 1.4);
+  }
+
+  /* ---------- 扫场小游戏接管一块场（scene.careStage）：场上、门口、来办事的人都藏起来 ---------- */
+  let staged: string | null = null;
+  const stageHidden = new Set<Bg>();
+  function stagedBgs(a: string): Bg[] {
+    return [
+      ...COURTS.flatMap((c, i) => (c.anchor === a ? [...(players[i] as readonly [Bg, Bg])] : [])),
+      ...gaters.filter((g) => g.anchor === a && g.b.phase !== 'off').map((g) => g.b),
+      ...guests.filter((g) => g.anchor === a && g.b.phase !== 'off').map((g) => g.b),
+    ];
+  }
+  function hideStaged(): void {
+    if (!staged) return;
+    for (const b of stagedBgs(staged))
+      if (b.p.root.visible) {
+        b.p.root.visible = false;
+        stageHidden.add(b);
+      }
+  }
+
   /* ---------- 风沙：贴着地面吹过去的沙粒（一粒一个像素点的 Custom 节点） ---------- */
   const leaves: { m: Custom; c: string; vy: number; ph: number; life: number; ground: number }[] = [];
   let leafT = 0;
@@ -685,11 +850,38 @@ export function createLife(d: LifeDeps): Life {
         syncCourts(s);
         syncWalkers(s);
         syncGuests(s);
+        syncGate(s);
         snap = false;
       }
       tickFades(dt);
-      if (dt > 0) animGuests();
+      if (dt > 0) {
+        animGuests();
+        animGate();
+      }
+      hideStaged();
+      fx.update(d.sched.now);
       updateLeaves(s, dt);
+    },
+    walkout,
+    ended,
+    grumble,
+    stage(anchor) {
+      if (anchor === staged) return;
+      // 还原上一块场：藏起来的人重新露出来，对打接着打
+      for (const b of stageHidden) if (b.phase !== 'off') b.p.root.visible = true;
+      stageHidden.clear();
+      COURTS.forEach((c, i) => {
+        const st = courts[i];
+        const pair = players[i] as readonly [Bg, Bg];
+        if (!st || c.anchor !== (anchor ?? staged)) return;
+        if (anchor) {
+          st.rally?.stop();
+          st.rally = null;
+        } else if (st.want && !st.rally && pair.every((x) => x.phase === 'here'))
+          st.rally = d.rally(pair[0].p, pair[1].p, { speed: 8 + d.rnd() * 3, miss: 0.2 });
+      });
+      staged = anchor;
+      hideStaged();
     },
     reset() {
       COURTS.forEach((_, i) => {
@@ -702,6 +894,11 @@ export function createLife(d: LifeDeps): Life {
       });
       for (const w of walkers) w.on = false;
       for (const g of guests) g.slot = '';
+      for (const g of gaters) g.slot = '';
+      gone.clear();
+      fx.dispose();
+      stageHidden.clear();
+      staged = null;
       for (const b of all) hideNow(b);
       check = 0;
       lastT = null;

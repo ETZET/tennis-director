@@ -5,6 +5,7 @@ import { buildEvents, EVENT_KINDS, type ShowOut, showKit } from './events';
 import { FORE, golfDecayForWeek } from './foreshadow';
 import { type Cast, type GroundLike, paintGround } from './ground';
 import { createLand, type LandLayer, type LandState, type LandWorld } from './land';
+import { createMess, type MessLayer } from './mess';
 import { buildPlaque, type PlaqueRow } from './plaque';
 import { buildPrep, isPrepPhase, type PrepPhase } from './prep';
 import { buildPreviewGhost } from './preview';
@@ -46,6 +47,8 @@ interface Runtime {
   lampOffs: (() => void)[];
   weather: Weather;
   wear: WearLayer;
+  /** 场地可用度的脏乱（mess.ts） */
+  mess: MessLayer;
   scheduled: boolean;
   sky: SkyLayer | null;
   /** 设施 → 变体（null / 没有 = 原来的样子） */
@@ -79,7 +82,8 @@ function runtime(w: SiteWorld): Runtime {
     const dynamic = new Group();
     dynamic.name = 'indian-wells-anim';
     const wear = createWear();
-    w.statics.add(statics, wear.root);
+    const mess = createMess();
+    w.statics.add(statics, wear.root, mess.root);
     w.scene.add(dynamic);
     rt = {
       w,
@@ -90,6 +94,7 @@ function runtime(w: SiteWorld): Runtime {
       lampOffs: [],
       weather: { wind: 0.3, rain: 0 },
       wear,
+      mess,
       scheduled: false,
       sky: null,
       variants: {},
@@ -120,6 +125,8 @@ function rebuild(rt: Runtime, force = false): void {
   const out = buildStatics(fac, rt.weather);
   rt.fac = fac;
   rt.casts = out.casts;
+  // 球场修好 / 停用 / 换面：脏乱层跟着换场地（量留着）
+  rt.mess.sync(fac);
   rt.statics.remove(...rt.statics.children);
   rt.dynamic.remove(...rt.dynamic.children);
   rt.statics.add(...out.statics);
@@ -302,8 +309,9 @@ export function createFacilityOverlays(w: SiteWorld): {
     wear(facility, amount) {
       if (rt.wear.set(facility, amount)) rt.w.view.invalidate();
     },
-    mess(_facility, _mess) {
-      // Wave 0 桩（court-care-contract.md）：代理 B 实现（mess.ts）
+    mess(facility, mess) {
+      // 量化后没跨档不重烘（游戏每帧都调）；设施还没修好时只记下量，修好那次重建一起画
+      if (rt.mess.set(facility, mess)) rt.w.view.invalidate();
     },
     repaint() {
       rebuild(rt, true);

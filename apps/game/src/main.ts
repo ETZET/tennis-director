@@ -8,7 +8,8 @@ import {
 } from '@td/iso';
 import { clamp } from '@td/shared';
 import { CONTENT, type ContentBundle, canAssign, DIRECTOR, placeAvailable, type SimEvent, worldOf } from '@td/sim';
-import { type HudActions, mountHud, setHudStrings } from '@td/ui';
+import { CARE_GLYPH, type HudActions, mountHud, setHudStrings } from '@td/ui';
+import { createCare } from './care';
 import { plotForRoute, variantSite, withLand } from './courts';
 import { createDebug } from './debug';
 import { GameLabels } from './labels';
@@ -59,12 +60,27 @@ camera.limits = {
 camera.home = { ...HOME };
 camera.setPose(HOME);
 site.build(stage);
-const scene = createGameScene(stage, content, site);
+const scene = createGameScene(stage, content, site, (k) => text.tr(k));
 // 等距画面里围网是低矮的像素栅栏，不用再按镜头方向隐藏近处的围网（旧 three 版的 cutAwayNearFences 去掉了）
 
 /* ---------- 一局 ---------- */
 let session: Session;
 let projector: Projector;
+
+/*
+ * ---------- 亲手扫（court-care-contract.md）：扫场小游戏（apps/game/src/care，代理 C） ----------
+ * 小游戏开着时游戏时间停着（session.care），镜头、地图上的拖人和点地点牌都交给它。
+ */
+const care = createCare({
+  world: stage,
+  camera,
+  site,
+  session: () => session,
+  content: () => content,
+  text: () => text,
+  host: container,
+  stage: (f) => scene.careStage(f),
+});
 
 function begin(s: Session): void {
   session = s;
@@ -132,6 +148,7 @@ const hudActions: HudActions = {
     draw();
   },
   drop: (person, x, y) => {
+    if (care.active) return;
     const t = targetAt(x, y);
     if (t && 'target' in t) assignTo(person, t.target, t.variant);
     else if (t) tapPlace(t.place, person);
@@ -152,6 +169,15 @@ const hudActions: HudActions = {
   target: (id) => tapTarget(id),
   variant: (order, v) => tapVariant(order, v),
   beat: (place) => jumpTo(place),
+  // 地点清单的"亲手扫"：打开扫场小游戏（canCare 不通过时 open 什么都不做）；开了就收起清单
+  onCare: (anchor) => {
+    const f = worldOf(session.s, content).facilityAt.get(anchor) ?? anchor;
+    if (!care.open(f)) return;
+    session.picked = null;
+    session.sheet = null;
+    session.place = null;
+    draw();
+  },
 };
 /** 屏幕上 (x, y) 那儿是地点清单的哪一行，或者哪块地点牌 */
 function targetAt(x: number, y: number): { target: string; variant?: string } | { place: string } | null {
@@ -436,13 +462,17 @@ function addHubs(c: ContentBundle): void {
           const name = `<b>${esc(text.anchor(a))}</b>`;
           // 设施快撑不住了：红色 ! 加状况（第二轮试玩 S3）
           const worn = h.worn !== null ? `<span class="hb-worn">!${h.worn}</span>` : '';
-          return `${name}${worn}${shut}${posts}${orders}`;
+          // 场地可用度（court-care-contract.md）：三档记号，不写数；不能打时门口等的人数
+          const care = h.care
+            ? `<span class="hb-care hb-care-${h.care}" role="img" aria-label="${esc(text.fmt('ui.care.sign', { place: text.anchor(a), level: text.tr(`ui.care.level.${h.care}`) }))}">${CARE_GLYPH[h.care]}</span>${h.waiting ? `<span class="hb-wait">${h.waiting}</span>` : ''}`
+            : '';
+          return `${name}${care}${worn}${shut}${posts}${orders}`;
         },
         cls: () => {
           const h = hubOf(a);
           const need = h?.posts.some((p) => p.need);
           const f = placeFlags(a);
-          return `hub${h?.orders.n ? ' hub-has-o' : ''}${beatOn(a) ? ' hub-beat' : ''}${f.here ? ' hub-here' : ''}${f.dest ? ' hub-dest' : ''}${f.card ? ' hub-card' : ''}${need ? ' hub-need' : ''}${h?.fit === 'fit' ? ' tg-fit' : h?.fit === 'nofit' ? ' tg-nofit' : ''}${session.place === a ? ' hub-open' : ''}`;
+          return `hub${h?.care && h.care !== 'ok' ? ` hub-care-${h.care}` : ''}${h?.orders.n ? ' hub-has-o' : ''}${beatOn(a) ? ' hub-beat' : ''}${f.here ? ' hub-here' : ''}${f.dest ? ' hub-dest' : ''}${f.card ? ' hub-card' : ''}${need ? ' hub-need' : ''}${h?.fit === 'fit' ? ' tg-fit' : h?.fit === 'nofit' ? ' tg-nofit' : ''}${session.place === a ? ' hub-open' : ''}`;
         },
       },
       () => tapPlace(a),
@@ -452,6 +482,8 @@ function addHubs(c: ContentBundle): void {
 }
 /** 点地点牌（或拿着人落到它上面） */
 function tapPlace(a: string, person: string | null = session.picked): void {
+  // 扫场小游戏开着：地图上的地点牌不接（小游戏的 DOM 层本来就挡着，这里再保险一道）
+  if (care.active) return;
   if (person) {
     const fits = projector.placeFits(session, a, person);
     // 只有一项能接的活就直接派；但还没定变体的修复工单要先在清单里挑一行（UI-11）
@@ -582,6 +614,11 @@ window.addEventListener('keydown', (e) => {
   const t = e.target as HTMLElement | null;
   if (t?.closest?.('button,summary,input,select') && (e.key === ' ' || e.key === 'Enter')) return;
   if (t?.closest?.('.tdd') && e.key !== '`') return;
+  // 扫场小游戏开着：只认 Esc（不扫了）和调试面板
+  if (care.active && e.key !== '`') {
+    if (e.key === 'Escape') care.close();
+    return;
+  }
   if (e.key === '`' && debug) debug.toggle();
   else if (e.key === 'q' || e.key === 'Q') camera.rotate(1);
   else if (e.key === 'e' || e.key === 'E') camera.rotate(-1);
@@ -788,11 +825,19 @@ function frame(ts: number) {
       nightEl.style.opacity = '0';
     }
   }
-  const card = document.querySelector('.td-card');
-  const occ = card ? Math.max(0, container.clientHeight - card.getBoundingClientRect().top) : 0;
-  if (occ !== camera.occludedBottomPx) camera.occludedBottomPx = occ;
-  edgePan(dt);
-  camera.update(dt, followFocus());
+  // 扫场小游戏开着时镜头的遮挡由它管（C 的 care/index.ts），这里不改
+  if (!care.active) {
+    const card = document.querySelector('.td-card');
+    const occ = card ? Math.max(0, container.clientHeight - card.getBoundingClientRect().top) : 0;
+    if (occ !== camera.occludedBottomPx) camera.occludedBottomPx = occ;
+  }
+  care.update(dt);
+  // 扫场小游戏开着：镜头由它定（不自动对焦、不拖边平移）
+  if (care.active) camera.update(dt, null);
+  else {
+    edgePan(dt);
+    camera.update(dt, followFocus());
+  }
   // 人物取帧要知道镜头转角和精灵档位（people/view.ts），先于人物更新
   const pr = stage.view.proj;
   setPeopleView(pr.ang, pr.k, pr.spriteScale);
@@ -901,6 +946,8 @@ declare global {
       camera: () => typeof camera;
       /** 等距画面（试玩、截图时查场景图） */
       world: () => typeof stage;
+      /** 扫场小游戏（court-care-contract.md）：试玩、截图时直接打开某块场 */
+      care: () => typeof care;
       fastForward: (max: number) => { minutes: number; stop: string };
       answer: (key: 1 | 2 | 3) => void;
       /** 把人派到岗位或工单上（null 叫他停下来；variant：变体工单的哪一行）；返回 null，或者为什么没成 */
@@ -935,6 +982,7 @@ window.__td = {
   resync: () => scene.sync(session.s),
   camera: () => camera,
   world: () => stage,
+  care: () => care,
   fastForward,
   answer: (key) => answer(key, true),
   assign: (person, target, variant) => {

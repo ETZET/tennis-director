@@ -1005,6 +1005,7 @@ ui:
     because_care: "你亲手扫了{place}（离岗 {time}）"
     because_walkout: "{place}不能打，会员等不及走了"
     week_walkouts: "这周有 {n} 位会员等不及走了"
+    log_mess: "{place}扫掉了{list}"
     week_unplayable: "{place}不能打，挡掉了 {time}"
     # 小游戏（apps/game/src/care/）
     game:
@@ -1015,7 +1016,7 @@ ui:
       left: "还剩：{list}"
       clean: 扫干净了
       done: "清掉了 {p}% · 总监还要在场上忙 {time}"
-      tools: { broom: 扫把, squeegee: 推水, roller: 压路滚, paint: 画线车, water: 洒水, pick: 捡 }
+      tools: { broom: 扫把, squeegee: 推水, roller: 压路滚, paint: 画线车, water: 洒水, pick: 捡, net: 球网 }
       hint:
         broom: 推着扫把把沙推出场外
         squeegee: 把积水推到场边
@@ -1023,3 +1024,22 @@ ui:
         paint: 沿着发亮的线描
         water: 给干裂的红土洒水
         pick: 点一下捡起来
+        net: 往上拉，在绿区松手
+        roller_clay: 来回压，把泥压实
+        paint_clay: 沿着发亮的线带扫
+      fx:
+        finish_sand: 收尾！沙子清光
+        finish_water: 收尾！水推干了
+        finish_rough: 收尾！场子压平了
+        sandy: 沙子垫着，压不实
+        dry: 太干，压不动
+        puddle: 积水了
+        wobble: 手抖了
+        stray: 歪了！擦不掉
+        dirty: 沙上画线，脏了
+        gust: 起风了！
+        net_perfect: 完美张力！
+        net_ok: 挂好了
+        net_loose: 网太松
+        net_tight: 太紧了
+        net_snap: 绳断了！

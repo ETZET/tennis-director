@@ -1,5 +1,8 @@
-import type { ContentBundle } from '@td/sim';
+import type { ContentBundle, GameState } from '@td/sim';
 import {
+  careActive,
+  careCourts,
+  careLevelOf,
   cautiousBot,
   greedyBot,
   HUMAN_TIERS,
@@ -11,6 +14,7 @@ import {
   replay,
   runGame,
   stateHash,
+  worldFor,
 } from '@td/sim';
 
 /**
@@ -45,6 +49,11 @@ export interface BotSummary {
    * 结局方案 A（W4）：地图写了 ending（mode: score）才有。总分的平均、分位、评语档的局数比例（破产没结算的局记 bankrupt）、
    * 提前结算（表演赛以后马上结算）的局数比例、结算的局里每一项的平均分
    */
+  /**
+   * 场地可用度（court-care-contract.md）：开着的球场在营业时间里各档的时间占比（每 5 分钟看一眼），
+   * 每局平均走掉的会员、亲手扫几次、打扫工单做完几张。地图没写 rules.care 时没有
+   */
+  care?: { ok: number; meh: number; no: number; walkouts: number; hand: number; orders: number };
   score?: {
     avg: number;
     p10: number;
@@ -116,9 +125,30 @@ export function botReport(
     const grades: Record<string, number> = Object.fromEntries((ending?.grades ?? []).map((g) => [g.grade, 0]));
     const items: Record<string, number> = {};
     let early = 0;
+    const careOn = !!content.acts.find((a) => a.id === act)?.rules.care;
+    const lv = { ok: 0, meh: 0, no: 0 };
+    const careSum = { walkouts: 0, hand: 0, orders: 0 };
+    const observe = careOn
+      ? (s: GameState) => {
+          const w = worldFor(content, s.act, s.directorConfig);
+          for (const f of careCourts(w)) if (careActive(s, w, f)) lv[careLevelOf(s, w, f)]++;
+        }
+      : undefined;
     for (let i = 0; i < o.games; i++) {
       const seed = (o.seed0 ?? 1) + i;
-      const r = runGame(content, BOTS[name](seed), seed, { act, director, maxDays: 120 });
+      const r = runGame(content, BOTS[name](seed), seed, {
+        act,
+        director,
+        maxDays: 120,
+        ...(observe ? { observe } : {}),
+      });
+      if (careOn) {
+        for (const e of r.state.log) {
+          if (e.cause.kind === 'walkout') careSum.walkouts++;
+          if (e.cause.kind === 'care') careSum.hand++;
+        }
+        for (const [id, n] of Object.entries(r.state.orderLog.done)) if (id.startsWith('care_')) careSum.orders += n;
+      }
       total++;
       if (r.outcome?.result === 'won') sum.wins++;
       const ending = r.outcome?.ending ?? '(none)';
@@ -176,6 +206,17 @@ export function botReport(
       if (!x) continue;
       x.openDay = median(d.open);
       x.buildDays = Math.round(median(d.build) * 10) / 10;
+    }
+    if (careOn) {
+      const n = Math.max(1, lv.ok + lv.meh + lv.no);
+      sum.care = {
+        ok: lv.ok / n,
+        meh: lv.meh / n,
+        no: lv.no / n,
+        walkouts: careSum.walkouts / o.games,
+        hand: careSum.hand / o.games,
+        orders: careSum.orders / o.games,
+      };
     }
     sum.winRate = sum.wins / o.games;
     sum.msPerGame = (performance.now() - t0) / o.games;
@@ -279,6 +320,19 @@ export function reportMarkdown(r: Report): string {
             .join('；') || '—'
         }`,
       );
+  }
+  if (r.bots.some((b) => b.care)) {
+    lines.push('', '## 场地可用度（ADR 0022）', '');
+    lines.push('开着的球场在营业时间里各档的时间占比；每局平均走掉的会员、亲手扫的次数、做完的打扫工单。', '');
+    lines.push('| 机器人 | 能打 | 勉强 | 不能打 | 走掉的会员 / 局 | 亲手扫 / 局 | 打扫工单 / 局 |');
+    lines.push('| --- | --- | --- | --- | --- | --- | --- |');
+    for (const b of r.bots) {
+      const c = b.care;
+      if (!c) continue;
+      lines.push(
+        `| ${b.bot} | ${pct(c.ok)} | ${pct(c.meh)} | ${pct(c.no)} | ${c.walkouts.toFixed(1)} | ${c.hand.toFixed(1)} | ${c.orders.toFixed(1)} |`,
+      );
+    }
   }
   lines.push('', '## 卡出现的局数比例', '');
   lines.push('| 卡 | 出现比例 |', '| --- | --- |');

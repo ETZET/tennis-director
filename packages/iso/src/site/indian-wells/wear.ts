@@ -1,19 +1,23 @@
 import { mulberry32, range } from '@td/shared';
-import { hx } from '../../core/color';
+import { bay, hx } from '../../core/color';
 import { Custom, type DrawContext, Group } from '../../core/graph';
 import type { CourtFrame } from '../../world/frame';
 import { CLUBHOUSE, F_O1, F_O2, F_O3, F_P1, F_P2, F_PB1, F_PB2, F_S1, PLAZA, POOL_DECK, TERRACE } from './layout';
 
 /**
  * 状况看得见（准则 6"先出画面信号，再掉档"，照旧版 wear.ts）：修好的设施没人维护、状况往下掉时，
- * 场地上一点点长出积沙、杂草和垃圾。宿主按设施给 amount（0 干净，1 快掉档，再往上已经掉档），这里只画。
+ * 地上一点点长出积沙、杂草和垃圾。宿主按设施给 amount（0 干净，1 快掉档，再往上已经掉档），这里只画。
  * 每块碎屑有自己的门槛，amount 过了门槛就冒出来；积沙随后还会继续变大。
+ *
+ * 五处球场（场地可用度，court-care-contract.md）：积沙和垃圾归短期的脏乱（mess.ts），这里只画长期的样子——
+ * 裂缝里的杂草和旧面斑驳（原来积沙的位置和门槛换成褪色的斑块，原来的垃圾不画），两个信号不长成一个样子。
+ * 随机流照旧全部取一遍，别处设施的碎屑位置一点不变。
  *
  * 每个设施一个静态 Custom 节点（贴地、排序偏后，不挡网和围网）；amount 变了就让静态层重烘。
  * 位置用自己的种子随机流，不碰 Math.random。
  */
 
-type Kind = 'sand' | 'weed' | 'litter';
+type Kind = 'sand' | 'weed' | 'litter' | 'patch';
 
 interface Piece {
   kind: Kind;
@@ -30,6 +34,8 @@ interface Piece {
 const SAND = ['#e9c999', '#dfba86', '#f2d8ad'];
 const LITTER = ['#f1ece0', '#e8e2d2', '#d6362f', '#3a8fd9', '#9aa0a6', '#f0a020'];
 const WEEDS = ['#a3874c', '#b59757', '#6ab748', '#77c452', '#5f7f3a'];
+/** 旧面斑驳：褪成灰白的几种颜色（和 ground.ts 的 faded 一路） */
+const PATCH = ['#b3aa9a', '#a59c8c', '#c2b9a8'];
 
 /** 这几个设施有几块场地（和 overlays 一致） */
 const COURTS: Record<string, readonly CourtFrame[]> = {
@@ -53,8 +59,22 @@ export function createWear(): WearLayer {
   const pick = <T>(a: readonly T[]): T => a[Math.floor(rand() * a.length) % a.length] as T;
   const byFacility = new Map<string, Piece[]>();
   const add = (f: string, kind: Kind, x: number, z: number, s: [number, number, number], c: string, thr: number) => {
+    const yaw = R(0, Math.PI);
+    // 球场：沙换成旧面斑驳（颜色按原来那一份挑，不多取随机数），垃圾不画
+    if (COURTS[f] && kind === 'litter') return;
+    const court = COURTS[f] && kind === 'sand';
     const list = byFacility.get(f) ?? [];
-    list.push({ kind, x, z, yaw: R(0, Math.PI), sx: s[0], sy: s[1], sz: s[2], thr, c });
+    list.push({
+      kind: court ? 'patch' : kind,
+      x,
+      z,
+      yaw,
+      sx: s[0],
+      sy: s[1],
+      sz: s[2],
+      thr,
+      c: court ? (PATCH[SAND.indexOf(c)] ?? (PATCH[0] as string)) : c,
+    });
     byFacility.set(f, list);
   };
 
@@ -147,14 +167,31 @@ export function createWear(): WearLayer {
 }
 
 function drawPieces(r: DrawContext, pieces: readonly Piece[], a: number): void {
-  // 先沙后草再垃圾（草和垃圾在沙上）
-  for (const kind of ['sand', 'weed', 'litter'] as const)
+  // 先斑驳、沙，后草再垃圾（草和垃圾在沙上）
+  for (const kind of ['patch', 'sand', 'weed', 'litter'] as const)
     for (const p of pieces) {
       if (p.kind !== kind) continue;
       const grow = Math.min(1, Math.max(0, (a - p.thr) / 0.12));
       if (grow <= 0) continue;
       const lit = r.litAt(p.x, p.z);
-      if (kind === 'sand') {
+      if (kind === 'patch') {
+        // 一片褪色的旧面：斜放的八边形，Bayer 抖动着铺一层灰白（越旧越密），像素硬边
+        const more = 0.7 + 0.5 * Math.min(1, Math.max(0, (a - p.thr) / 0.6));
+        const hx2 = (p.sx / 2) * grow * more * 0.8;
+        const hz2 = (p.sz / 2) * grow * more * 0.8;
+        const c = Math.cos(p.yaw);
+        const s = Math.sin(p.yaw);
+        const pts: [number, number, number][] = [];
+        for (let i = 0; i < 8; i++) {
+          const an = (i / 8) * Math.PI * 2;
+          const u = Math.cos(an) * hx2;
+          const v = Math.sin(an) * hz2;
+          pts.push([p.x + u * c - v * s, 0.02, p.z + u * s + v * c]);
+        }
+        const c1 = r.col(p.c, 1, lit);
+        const dens = 0.3 + 0.35 * Math.min(1, Math.max(0, (a - p.thr) / 0.8));
+        r.wpoly(pts, 0, (x, y) => (bay(x, y) < dens ? c1 : 0));
+      } else if (kind === 'sand') {
         // 一摊斜放的沙：八边形贴地，前半边亮一点
         const more = 0.7 + 0.5 * Math.min(1, Math.max(0, (a - p.thr) / 0.6));
         const hx2 = (p.sx / 2) * grow * more;

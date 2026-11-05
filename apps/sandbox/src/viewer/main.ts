@@ -26,6 +26,8 @@ import { clamp, mulberry32 } from '@td/shared';
  *   ?prep=prep_stands,prep_lights:0   （表演赛筹备：写了就是做完，:0 是挂出来还没做）
  *   ?land=golf_west:south_courts:open,se_corner:event_plaza:building:0.5   （新地：地块:变体:状态[:进度]）
  *   ?lpv=se_corner:academy_isle   （选路卡上的新地预览）  ?week=8   （第几周：高尔夫西段荒到几成）
+ *   ?mess=outer_1:sand=0.7,water=0.3,outer_23:cracks=0.6   （场地脏乱，court-care-contract.md：设施:项=量，0..1）
+ *   ?heat=1   （酷热：天色发白、球场上的热浪）  ?gates=1   （每处球场门外站三个等着的会员）
  * 只读画面，不碰模拟。
  */
 
@@ -163,6 +165,42 @@ for (const pair of (q.get('land') ?? '').split(',')) {
   const [plot, v] = (q.get('lpv') ?? '').split(':');
   if (plot && v) W5.preview = [plot, v];
 }
+/** 场地脏乱（court-care-contract.md；URL 里没写就不碰）：设施 → 五项 0..1 */
+const MESS_KEYS = ['sand', 'water', 'litter', 'lines', 'cracks'] as const;
+type MessKey = (typeof MESS_KEYS)[number];
+type MessAmt = Record<MessKey, number>;
+const MESS_COURTS = ['outer_1', 'outer_23', 'practice', 'stadium_1', 'stadium_3'] as const;
+const MESS_NAMES: Record<MessKey, string> = {
+  sand: '积沙',
+  water: '积水',
+  litter: '垃圾',
+  lines: '线褪',
+  cracks: '裂缝',
+};
+const CARE = {
+  mess: {} as Record<string, MessAmt>,
+  heat: q.get('heat') === '1',
+  /** 面板上正在调的那块场 */
+  court: 'outer_1' as string,
+};
+const zeroMess = (): MessAmt => ({ sand: 0, water: 0, litter: 0, lines: 0, cracks: 0 });
+{
+  // 设施:项=量,项=量,设施:项=量…（项可以接着写，碰到"设施:"换下一处）
+  let cur: MessAmt | null = null;
+  for (const tok of (q.get('mess') ?? '').split(',')) {
+    let t = tok;
+    const ci = t.indexOf(':');
+    if (ci >= 0) {
+      const f = t.slice(0, ci);
+      cur = (MESS_COURTS as readonly string[]).includes(f) ? (CARE.mess[f] ??= zeroMess()) : null;
+      if (cur) CARE.court = f;
+      t = t.slice(ci + 1);
+    }
+    const [k, v] = t.split('=');
+    if (cur && k && (MESS_KEYS as readonly string[]).includes(k) && Number.isFinite(Number(v)))
+      cur[k as MessKey] = clamp(Number(v), 0, 1);
+  }
+}
 /** "赛事"按钮一下换一个示例（地点 → 赛事） */
 const EVENT_DEMOS: readonly (readonly [string, string][])[] = [
   [],
@@ -223,11 +261,15 @@ function applyStates(): void {
   for (const f of FACILITIES) overlays.set(f, ST.states[f]);
   overlays.flush?.();
   applyWear();
+  applyMess();
   paintFacs();
   syncUrl();
 }
 function applyWear(): void {
   for (const f of FACILITIES) overlays.wear?.(f, ST.wear);
+}
+function applyMess(): void {
+  for (const f of MESS_COURTS) overlays.mess?.(f, CARE.mess[f] ?? null);
 }
 
 /* ---------------- 路人：沿步道在随机地点之间走 ---------------- */
@@ -424,6 +466,67 @@ wearEl.addEventListener('input', () => {
   applyWear();
   syncUrl();
 });
+/* 场地脏乱：选一块场，五个滑杆；全脏 / 清空；酷热开关 */
+{
+  const ctl = $('messCtl');
+  const bCourt = $('bMessCourt');
+  const bHeat = $('bHeat');
+  const sliders = MESS_KEYS.map((k) => {
+    const lab = document.createElement('label');
+    lab.className = 'ctl';
+    const n = document.createElement('span');
+    n.className = 'k';
+    n.textContent = MESS_NAMES[k];
+    const inp = document.createElement('input');
+    inp.type = 'range';
+    inp.min = '0';
+    inp.max = '100';
+    inp.step = '5';
+    const out = document.createElement('output');
+    lab.append(n, inp, out);
+    ctl.append(lab);
+    inp.addEventListener('input', () => {
+      const m = (CARE.mess[CARE.court] ??= zeroMess());
+      m[k] = Number(inp.value) / 100;
+      out.textContent = `${inp.value}%`;
+      applyMess();
+      syncUrl();
+    });
+    return { k, inp, out };
+  });
+  const paint = () => {
+    bCourt.textContent = FAC_NAMES[CARE.court as Facility];
+    const m = CARE.mess[CARE.court] ?? zeroMess();
+    for (const s of sliders) {
+      s.inp.value = String(Math.round(m[s.k] * 100));
+      s.out.textContent = `${s.inp.value}%`;
+    }
+    bHeat.setAttribute('aria-pressed', String(CARE.heat));
+  };
+  bCourt.addEventListener('click', () => {
+    CARE.court =
+      MESS_COURTS[(MESS_COURTS.indexOf(CARE.court as (typeof MESS_COURTS)[number]) + 1) % MESS_COURTS.length];
+    paint();
+  });
+  $('bMessAll').addEventListener('click', () => {
+    CARE.mess[CARE.court] = { sand: 0.8, water: 0.8, litter: 0.8, lines: 0.8, cracks: 0.8 };
+    applyMess();
+    paint();
+    syncUrl();
+  });
+  $('bMessClear').addEventListener('click', () => {
+    delete CARE.mess[CARE.court];
+    applyMess();
+    paint();
+    syncUrl();
+  });
+  bHeat.addEventListener('click', () => {
+    CARE.heat = !CARE.heat;
+    paint();
+    syncUrl();
+  });
+  paint();
+}
 const bLabels = $('bLabels');
 const paintLabels = () => bLabels.setAttribute('aria-pressed', String(ST.labels));
 bLabels.addEventListener('click', () => {
@@ -485,6 +588,14 @@ function syncUrl(): void {
       p.set('land', W5.land.map(([pl, v, st, pr]) => `${pl}:${v}:${st}${st === 'building' ? `:${pr}` : ''}`).join(','));
     if (W5.preview) p.set('lpv', W5.preview.join(':'));
     if (W5.week >= 0) p.set('week', String(W5.week));
+    const ms = Object.entries(CARE.mess)
+      .map(([f, m]) => {
+        const kv = MESS_KEYS.filter((k) => m[k] > 0).map((k) => `${k}=${+m[k].toFixed(2)}`);
+        return kv.length ? `${f}:${kv.join(',')}` : '';
+      })
+      .filter(Boolean);
+    if (ms.length) p.set('mess', ms.join(','));
+    if (CARE.heat) p.set('heat', '1');
     const s = `?${p.toString().replace(/%3A/g, ':').replace(/%2C/g, ',')}`;
     history.replaceState(null, '', s);
     urlEl.textContent = s;
@@ -512,8 +623,17 @@ paintTime();
 paintRain();
 paintLabels();
 spawnWalkers(Math.round(clamp(num('walkers', 0), 0, 60)));
+// ?gates=1：每处球场门外站三个等着的会员（court-care-contract.md 的 Site.gates；看站位有没有被围网挡住）
+if (q.get('gates') === '1')
+  for (const g of Object.values(site.gates ?? {}))
+    for (let i = 0; i < 3; i++) {
+      const look = activities.look(rand, site.venue, false);
+      new Person({ ...look, name: `gate${i}`, x: g.x + (i - 1) * 0.9, z: g.z + (i % 2) * 0.5 }, people);
+    }
 // 截图：雨一开始就是满的（不等淡入）
 if (ST.rain) rain.update(30, world.camera.target.tx, world.camera.target.tz);
+// 截图：热浪一开始就是满的（不等淡入）
+if (CARE.heat) for (let i = 0; i < 80; i++) sky.update(0.1, 0, 0, ST.wind, 1);
 
 let last = performance.now();
 let now = 0;
@@ -529,9 +649,10 @@ function frame(ts: number): void {
   for (const w of walkers) if (!w.p.busy()) sendOn(w);
   for (const p of [...people.people]) p.update(dt, now);
   const r = rain.amount();
-  sky.update(dt, now, r, ST.wind);
+  const heat = CARE.heat ? 1 : 0;
+  sky.update(dt, now, r, ST.wind, heat);
   rain.update(dt, world.camera.target.tx, world.camera.target.tz);
-  daylight.update(ST.minute, r);
+  daylight.update(ST.minute, r, heat);
   world.render(dt, now);
   placeLabels();
 }
@@ -544,6 +665,7 @@ requestAnimationFrame(frame);
   W1,
   W2,
   W5,
+  CARE,
   walkers,
   starSign,
   applyStates,

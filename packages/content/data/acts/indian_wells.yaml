@@ -129,10 +129,11 @@ seasons:
   - { id: winter, from_day: 36, decay: 0.8 }
   # 春天是风季：大风扬沙，没人管的场地坏得更快
   - { id: spring, from_day: 71, decay: 1.3 }
+# 酷热 heat（court-care-contract.md）：只影响场地可用度（线褪、开裂，红土开裂快得多）和画面；初秋和春天的沙漠才有
 weather:
-  autumn: { sun: 6, cloud: 2, rain: 0.3, wind: 1.5 }
-  winter: { sun: 5, cloud: 3, rain: 1, wind: 1 }
-  spring: { sun: 5, cloud: 1, rain: 0.2, wind: 3 }
+  autumn: { sun: 6, cloud: 2, rain: 0.3, wind: 1.5, heat: 2 }
+  winter: { sun: 5, cloud: 3, rain: 1, wind: 1, heat: 0 }
+  spring: { sun: 5, cloud: 1, rain: 0.2, wind: 3, heat: 1 }
 start_cards: [iw_arrival]
 # 星级（ADR 0020，LG-10，GM-9）：第 i 项是升到 ★(i+1) 的清单，全部满足才升，只往上不往回掉。
 # 条 id 的文案在 stars.items.<id>，opens 的文案在 stars.opens.<键>。
@@ -467,10 +468,13 @@ rules:
       service: service_demand * (service_rate - service_pass) * 2
       quality: service_demand * (stat.quality - 50) / 25
       restored: restored * 0.15
+      # 场地可用度（court-care-contract.md）：这一周在门口等不及走掉的会员，每个 −0.5 声望
+      walkouts: "-0.5 * care.walkouts"
     # 赛事广场施工、车挪走以后（W5）：南停车场停不了车，每周少来 2 人
     members: >-
       max(0, round(courts_built * service_rate + service_demand * ((stat.quality - 30) / 12 + stat.reputation / 30))
       - (plot.se_corner == "building" && route.s4 == "event_plaza" && flag.ep_cleared ? 2 : 0))
+      - floor(care.walkouts / 3)
     # 会员有上限：每块修好的场地撑得起 12 个会员（下雨天场地关门，但会员不会因此退会），会所开了再多 15 个；超出的人周末就不续了
     # 会所修成咖啡吧（GM-13）多撑 10 个：有地方坐、有东西吃，会员才愿意续；理疗室（和没选过变体的旧存档）还是 15
     # 会员推荐（W3 成长解锁 member_referrals：前台服务 ≥ 70）再多撑 10 个
@@ -495,6 +499,46 @@ rules:
   staffed_decay: 0.1
   director_growth: 0.3
   director_skill_cap: 80
+  # 场地可用度（court-care-contract.md，ADR 0022）：五处球场的短期脏乱，和状况 condition 分开。
+  # 可用度 = 100 − 100 × Σ weights[面][k] × mess[k]；≥ ok_at 能打、< no_below 不能打、中间勉强（玩家只看到三档）。
+  care:
+    courts:
+      outer_1: { surface: hard }
+      outer_23: { surface: clay, variants: { hard: hard } }
+      practice: { surface: hard }
+      stadium_1: { surface: hard }
+      stadium_3: { surface: pickleball, variants: { tennis2: hard } }
+    ok_at: 70
+    no_below: 40
+    # 每一单位脏乱扣多少可用度（× 100）
+    weights:
+      hard: { sand: 0.6, water: 0.8, litter: 0.3, lines: 0.35, cracks: 0.5 }
+      clay: { sand: 0.45, water: 0.7, litter: 0.3, lines: 0.4, cracks: 0.6 }
+      pickleball: { sand: 0.6, water: 0.8, litter: 0.35, lines: 0.3, cracks: 0.5 }
+    # 营业时间里每小时的增减（负数 = 自己变干净）；乘 surface[面][k]（不写是 1），结果截在 0..1
+    weather:
+      sun: { sand: 0.002, water: -0.10 }
+      cloud: { sand: 0.002, water: -0.05 }
+      wind: { sand: 0.04, litter: 0.01, water: -0.12 }
+      rain: { water: 0.05 }
+      heat: { lines: 0.02, cracks: 0.012, water: -0.20 }
+    surface:
+      clay: { cracks: 2.5, lines: 1.5, water: 0.8 }
+    # 每有一个"在用这块场"的岗位在干活，每小时加多少
+    use: { litter: 0.01, lines: 0.002, cracks: 0.001 }
+    order_below: 80
+    meh_service: 0.7
+    patience: 90m
+    walkout_max_day: 3
+    waiting_per_post: 2
+    waiting_max: 6
+    grumble_every: 2h
+    # 亲手扫：总监离岗 (base + Σ per[k] × mess[k] × 清掉的比例) ÷ (0.5 + 维护 / 100) × (1 + 0.5 × (场地数 − 1))，截在 [min, max]，再加走路
+    hand:
+      base: 15
+      per: { sand: 90, water: 60, litter: 45, lines: 120, cracks: 90 }
+      min: 10
+      max: 240
 daily: []
 # 员工成长（W3，GM-11；设计文档"五种钥匙 · 人是钥匙"，schema 见 wave2-5-contract.md"W3 最终 schema"）。
 # 每干完一圈岗位或一张工单，那项能力 +rate，不超过潜力（people/indian_wells.yaml 的 potential；不写 = 起始值 + 15，

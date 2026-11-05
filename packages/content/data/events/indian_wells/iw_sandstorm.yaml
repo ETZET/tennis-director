@@ -26,4 +26,8 @@ options:
       - { condition: outer_1, add: -25 }
       - { condition: outer_23, add: -20, if: { facility: outer_23, is: playable } }
       - { condition: practice, add: -15, if: { facility: practice, is: open } }
+      # 场地可用度（court-care-contract.md）：沙子直接灌进场里，要人去扫
+      - { mess: outer_1, add: { sand: 0.7 } }
+      - { mess: outer_23, add: { sand: 0.6 }, if: { facility: outer_23, is: playable } }
+      - { mess: practice, add: { sand: 0.5 }, if: { facility: practice, is: open } }
 default: { then: B }

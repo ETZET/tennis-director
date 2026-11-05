@@ -65,6 +65,11 @@ export interface Walk {
 /** 持续岗位这一圈转了多少分钟 */
 export interface PostState {
   progress: number;
+  /**
+   * 场地可用度（court-care-contract.md）：这一圈已经计入"服务到"的分钟（勉强能打时一分钟只算 meh_service）。
+   * 被拉走时退回的是它（没有就按 progress 退，和以前一样）
+   */
+  credit?: number;
 }
 
 /** 一次性工单：做了多少工作量（能力 50 的人一分钟做 1）、开工没有（开工时扣材料费） */
@@ -79,6 +84,8 @@ export interface OrderState {
   mins?: number;
   /** 打扫工单（court-care-contract.md）：开工那一刻这块场的脏乱（按进度清掉它的 clean 成） */
   care0?: CourtMess;
+  /** 打扫工单：到现在一共清掉了多少（负数，按项；做完时合成一条 mess 记录写进 order 日志） */
+  careCleared?: Partial<CourtMess>;
 }
 
 /** 大门牌匾上的一行（LG-14）：修好一处自动记一行，玩家不用输入 */
@@ -149,6 +156,19 @@ export type Cause =
   | { kind: 'season'; season: number; goal: string }
   /** 地块（W5，LG-15）：开工（选路、效果或者第二季带出来的），或者清理工单都做完、开地 */
   | { kind: 'plot'; plot: string; variant: string; state: 'building' | 'open' }
+  /**
+   * 场地可用度（court-care-contract.md）：总监亲手扫了一块场（离岗 minutes 分钟，含走过去；可用度 before → after，取整；
+   * cleared 每项清掉了开始时的几成，只写 > 0 的项）；等不及的会员走了一个（在门口等了 waited 分钟）
+   */
+  | {
+      kind: 'care';
+      court: string;
+      minutes: number;
+      before: number;
+      after: number;
+      cleared: Partial<Record<MessKind, number>>;
+    }
+  | { kind: 'walkout'; court: string; waited: number }
   | { kind: 'debug'; what: string };
 
 /** 一周的钱（每天收盘按天折算记进现金，周日收盘合成一条讲给玩家） */

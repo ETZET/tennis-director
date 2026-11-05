@@ -570,6 +570,11 @@ export function compileContent(files: Record<string, string>): CompileResult {
       warn(file, `only: nobody in people/ can take this ${dir === 'posts' ? 'post' : 'order'}`);
     needText(file, `${dir}.${a.id}.title`);
     needText(file, `${dir}.${a.id}.note`);
+    // 场地可用度（court-care-contract.md）：写了 care 的岗位和工单要落在这一幕 rules.care.courts 里的球场上
+    if (a.care !== undefined) {
+      const f = b.facilities.find((x) => x.anchor === a.at)?.id;
+      if (!f || !ac?.rules.care?.courts[f]) err(file, `care: '${a.at}' is not a court in rules.care.courts`);
+    }
     if (dir === 'posts') {
       const p = a as z.infer<typeof post>;
       minutes(p.cycle);
@@ -593,6 +598,7 @@ export function compileContent(files: Record<string, string>): CompileResult {
         !o.upgrade &&
         !o.remodel &&
         !o.variants &&
+        !o.care &&
         !tournamentOrders.has(o.id) &&
         !clearanceOrders.has(o.id)
       )

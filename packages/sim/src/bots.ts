@@ -2,19 +2,23 @@ import {
   type Card,
   type ContentBundle,
   type Effect,
+  MESS_KINDS,
   minutes,
   type OptionKey,
   type SkillKind,
   type Tournament,
 } from '@td/content';
 import { type OptionStatus, optionStatus } from './cards';
+import { canCare } from './care';
 import { advance, type Command, type LoggedCommand, newGame } from './game';
+import { careCourts } from './mess';
 import {
   canAssign,
   eligible,
   meetsWorker,
   occupant,
   orderCost,
+  orderFacility,
   orderStatus,
   orderVariant,
   orderVariants,
@@ -24,8 +28,8 @@ import {
   staffIds,
   working,
 } from './staff';
-import { DIRECTOR, type GameState, minuteOfDay, weekdayOf } from './state';
-import { test as testCond } from './vars';
+import { type CareLevel, DIRECTOR, type GameState, minuteOfDay, weekdayOf } from './state';
+import { careLevelOf, test as testCond, usabilityOf } from './vars';
 import { walkEta } from './walk';
 import { type World, worldFor } from './world';
 
@@ -195,6 +199,9 @@ const GOAL_ODDS = 0.6;
 const EVENT_POST_BONUS = 1.5;
 /** 地块（W5）：开地会开出新的岗位，这块地的清理工单一共值这么多（按张数分摊），比修好一处设施略高 */
 const PLOT_VALUE = 240;
+/** 打扫工单（court-care-contract.md）：可用度低于它才派人；亲手扫：不能打，或者勉强而且低于 HAND_AT */
+const CARE_ORDER_AT = 70;
+const HAND_AT = 55;
 
 /** 一项赛事这一期值多少：奖励 + 附加目标（按六成把握），第二次起打折 */
 function tournamentValue(s: GameState, t: Tournament): number {
@@ -257,6 +264,14 @@ function staffCommands(s: GameState, w: World, st: StaffStyle): Command[] {
     let value = effectScore(o.effects) + effectScore(o.onSuccess, p) + effectScore(o.onFail, 1 - p) + o.restore / 4;
     if (variant) value += effectScore(o.variants?.[variant]?.effects ?? []);
     if (o.upgrade) value += UPGRADE_VALUE;
+    // 打扫工单（court-care-contract.md）：越脏越值得去，不能打的场（挡着收入、门口有人等）加倍
+    // 刚冒出来、还能打的不急（等它再脏一点、或者让守着的维护工顺手清）
+    if (o.care) {
+      const f = orderFacility(w, o);
+      const u = f ? usabilityOf(s, w, f) : 100;
+      const lvl = f ? careLevelOf(s, w, f) : 'ok';
+      value += ((100 - u) / 4) * (lvl === 'no' ? 2 : lvl === 'ok' && u >= CARE_ORDER_AT ? 0.5 : 1);
+    }
     const tour = w.tournamentOf.get(o.id);
     if (tour) value += tournamentValue(s, tour);
     const plot = w.plotOrders.get(o.id);
@@ -315,10 +330,36 @@ function staffCommands(s: GameState, w: World, st: StaffStyle): Command[] {
   return cmds;
 }
 
+/**
+ * 亲手扫（court-care-contract.md）：总监闲着（没在办事、手上不是正在营业的有需求岗位）、某块场勉强或不能打时，
+ * 挑最差的那块扫，每项清掉 hand 成（小游戏扫得多干净）。
+ */
+function handCare(s: GameState, w: World, hand: number | undefined): Command[] {
+  if (!hand) return [];
+  const d = s.people[DIRECTOR];
+  if (!d?.hired || d.errand) return [];
+  const job = d.job ? w.posts.get(d.job) : undefined;
+  if (job && postDemand(s, w, job)) return [];
+  if (d.job && s.orders[d.job]?.started) return [];
+  const rank: Record<CareLevel, number> = { no: 0, meh: 1, ok: 2 };
+  let best: { f: string; lvl: CareLevel; u: number } | null = null;
+  for (const f of careCourts(w)) {
+    const lvl = careLevelOf(s, w, f);
+    if (lvl === 'ok' || canCare(s, w, f) !== null) continue;
+    const u = usabilityOf(s, w, f);
+    if (lvl === 'meh' && u >= HAND_AT) continue;
+    if (!best || rank[lvl] < rank[best.lvl] || (lvl === best.lvl && u < best.u)) best = { f, lvl, u };
+  }
+  if (!best) return [];
+  const cleared = Object.fromEntries(MESS_KINDS.map((k) => [k, hand]));
+  return [{ type: 'careFinish', court: best.f, result: { cleared } }];
+}
+
 function pickerBot(
   name: string,
   score: (s: GameState, w: World, c: Card, st: OptionStatus) => number,
   style: StaffStyle,
+  hand?: number,
 ): Bot {
   return {
     name,
@@ -338,18 +379,20 @@ function pickerBot(
       }
       // 先处理卡（可能把总监叫走），下一眼再排人；排人每 15 分钟想一次
       if (cmds.length || minuteOfDay(s.t) % 15 !== 0) return cmds;
-      return staffCommands(s, w, style);
+      const care = handCare(s, w, hand);
+      return care.length ? care : staffCommands(s, w, style);
     },
   };
 }
 
 /** 贪心型：卡按"立刻能看到的好处"选；排人时什么都愿意干，钱留得少。 */
 export function greedyBot(): Bot {
-  return pickerBot('greedy', (s, w, c, st) => scoreOption(s, w, c, st, false), {
-    reserve: 300,
-    minChance: 0.3,
-    demandValue: 6,
-  });
+  return pickerBot(
+    'greedy',
+    (s, w, c, st) => scoreOption(s, w, c, st, false),
+    { reserve: 300, minChance: 0.3, demandValue: 6 },
+    0.6,
+  );
 }
 
 /** 谨慎型：卡选最坏情况最不坏的；不赌判定，钱留得多，不爱招人。 */
@@ -389,6 +432,8 @@ export interface HumanProfile {
   noise: number;
   /** 工单留多少现金不动 */
   reserve: number;
+  /** 亲手扫（court-care-contract.md）：小游戏每项清掉几成；不写 = 不亲手扫（新手） */
+  hand?: number;
 }
 
 /** skill 0 = 刚上手，1 = 很会玩（但仍然只是一天看几次的人） */
@@ -402,6 +447,7 @@ export function humanProfile(skill: number): HumanProfile {
     slip: lerp(0.35, 0.05),
     noise: lerp(0.9, 0.2),
     reserve: Math.round(lerp(800, 300)),
+    ...(k >= 0.7 ? { hand: 0.9 } : k >= 0.4 ? { hand: 0.75 } : {}),
   };
 }
 
@@ -458,6 +504,8 @@ export function humanBot(seed: number, profile: HumanProfile, name = 'human'): B
       }
       if (!pending) return [];
       pending = false;
+      const care = handCare(s, w, profile.hand);
+      if (care.length) return care;
       const misjudge = (target: string) => {
         let m = judged.get(target);
         if (m === undefined) judged.set(target, (m = Math.exp(gauss() * profile.noise)));
@@ -494,7 +542,14 @@ export function runGame(
   content: ContentBundle,
   bot: Bot,
   seed: number,
-  o: { act?: string; director?: string; maxDays?: number; step?: number } = {},
+  o: {
+    act?: string;
+    director?: string;
+    maxDays?: number;
+    step?: number;
+    /** 每走一步看一眼状态（报告统计用，只读） */
+    observe?: (s: GameState) => void;
+  } = {},
 ): RunResult {
   const s = newGame(content, {
     seed,
@@ -507,6 +562,7 @@ export function runGame(
   while (!s.outcome && s.t < limit) {
     const r = advance(s, content, bot.decide(s, content), stepMin);
     commands.push(...r.accepted);
+    o.observe?.(s);
   }
   return { bot: bot.name, seed, outcome: s.outcome, days: Math.floor(s.t / 1440) + 1, state: s, commands };
 }

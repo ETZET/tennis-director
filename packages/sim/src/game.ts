@@ -7,7 +7,7 @@ import { startSeason2 } from './ending';
 import type { SimEvent } from './events';
 import { addMess, initCare, messOf } from './mess';
 import { assign } from './staff';
-import { at, type CareResult, type GameState, type MessKind, SAVE_VERSION } from './state';
+import { at, type CareResult, type GameState, type MessKind, SAVE_VERSION, type Weather } from './state';
 import { openDay, recomputeDerived, tick } from './systems';
 import { type World, worldFor } from './world';
 
@@ -34,6 +34,8 @@ export type Command =
   | { type: 'careFinish'; court: string; result: CareResult }
   /** 调试（court-care-contract.md）：把这块场的几项脏乱直接设成给的值（0..1）；不是球场什么都不做 */
   | { type: 'debugMess'; court: string; mess: Partial<Record<MessKind, number>> }
+  /** 调试（court-care-contract.md）：把今天的天气换成 weather（酷热开关等；发 weather 事件，能重放） */
+  | { type: 'debugWeather'; weather: Weather }
   | { type: 'debugSetStat'; stat: string; value: number }
   | { type: 'debugSetFlag'; flag: string; value: boolean | number | string }
   | { type: 'debugForceCard'; card: string }
@@ -161,6 +163,11 @@ function applyCommand(ctx: Ctx, cmd: Command): boolean {
       run(ctx, { kind: 'debug', what: `mess ${cmd.court} ${JSON.stringify(cmd.mess)}` }, null, []);
       return true;
     }
+    case 'debugWeather':
+      ctx.s.weather = cmd.weather;
+      ctx.events.push({ type: 'weather', weather: cmd.weather });
+      run(ctx, { kind: 'debug', what: `weather ${cmd.weather}` }, null, []);
+      return true;
     case 'debugSetStat':
       setStat(ctx, cmd.stat, cmd.value);
       run(ctx, { kind: 'debug', what: `set ${cmd.stat} = ${cmd.value}` }, null, []);

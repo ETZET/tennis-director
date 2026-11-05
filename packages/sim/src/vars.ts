@@ -194,9 +194,21 @@ export function careWaiting(s: GameState): number {
  * 这个岗位此刻因为它所在的球场"不能打"而停着：有需求的岗位这一分钟算需求、不算服务到；不转圈、没收入、没磨损。
  * 写了 care 的打扫岗位不受影响；不在球场上的岗位不受影响。
  */
-export function careBlocksPost(_s: GameState, _w: World, _post: string): boolean {
-  // Wave 0 桩：代理 A 按契约实现
-  return false;
+export function careBlocksPost(s: GameState, w: World, post: string): boolean {
+  return careLevelAtPost(s, w, post) === 'no';
+}
+
+/**
+ * 岗位所在球场上一分钟的档（careSystem 存下的 s.care[f].level）：写了 care 的打扫岗位、不在球场上的岗位、
+ * 场地没开的一律算能打。staff.ts 按它决定这一分钟算不算服务到（勉强只算 meh_service）、停不停转。
+ */
+export function careLevelAtPost(s: GameState, w: World, post: string): CareLevel {
+  const p = w.posts.get(post);
+  if (!p || p.care !== undefined) return 'ok';
+  const f = w.facilityAt.get(p.at);
+  if (!f || !w.act.rules.care?.courts[f]) return 'ok';
+  const lvl = s.care?.[f]?.level ?? 'ok';
+  return lvl === 'ok' || !careActive(s, w, f) ? 'ok' : lvl;
 }
 
 /** 这处设施在改造、停用着（LG-14）：没有场地、岗位和工单不开、质量和收入不算，维护费照付 */

@@ -217,6 +217,33 @@ export interface PlaceSheetData {
   event?: { title: string; line: string; goals: { id: string; text: string; met: boolean; value?: string }[] };
   /** 分期筹备（W2，表演赛四期）：每一期的名字、花费、做完没有；foot 是还差多少 */
   prep?: { title: string; foot: string; phases: { id: string; name: string; cost: string; done: boolean }[] };
+  /**
+   * 球场的场地可用度（court-care-contract.md，ADR 0022）：三档（不写数）、场上有的脏乱的名字、"亲手扫"按钮。
+   * 不是开着的球场时没有。
+   */
+  care?: PlaceCare | null;
+}
+
+/** 地点清单里球场的那一节：档、脏乱、亲手扫 */
+export interface PlaceCare {
+  level: 'ok' | 'meh' | 'no';
+  /** 档的名字（能打 / 勉强 / 不能打） */
+  label: string;
+  /** 场上有的脏乱的名字（红土用红土的叫法），按影响大小排，不带数 */
+  kinds: string[];
+  /** 门口在等的会员（"2 位会员在门口等"）；没人等时没有 */
+  waiting?: string;
+  hand: {
+    ok: boolean;
+    /** 不能扫的原因（ui.care.why.*） */
+    why: string | null;
+    /** 全扫干净总监要离岗几分钟（careEstimate 的 total） */
+    minutes: number;
+    /** 按钮上的字（亲手扫）、代价（总监离岗约 …）、取舍一句话 */
+    title: string;
+    cost: string;
+    note: string;
+  };
 }
 
 /** 季节栏上"接下来的节拍"（UI-9）：招聘日、赛事、投资方、结算；点一下镜头转到那一处的地点牌 */
@@ -331,4 +358,6 @@ export interface HudActions {
   variant?(order: string, variant: string): void;
   /** 点了季节栏上的一个节拍：镜头转到那一处的地点牌、亮一下（UI-9，只读） */
   beat?(place: string): void;
+  /** 地点清单里点了"亲手扫"（court-care-contract.md）：打开扫场小游戏 */
+  onCare?(place: string): void;
 }

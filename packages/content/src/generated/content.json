@@ -1,5 +1,5 @@
 {
- "version": "9f2337cf",
+ "version": "5fcfad2f",
  "stats": [
   {
    "id": "cash",
@@ -1506,7 +1506,8 @@
    },
    "effects": [],
    "wear": 0,
-   "restore": 4
+   "restore": 4,
+   "care": 0.06
   },
   {
    "id": "o23_clinic",
@@ -1654,7 +1655,8 @@
    },
    "effects": [],
    "wear": 0,
-   "restore": 4
+   "restore": 4,
+   "care": 0.06
   },
   {
    "id": "ol_host",
@@ -2021,7 +2023,8 @@
    },
    "effects": [],
    "wear": 0,
-   "restore": 4
+   "restore": 4,
+   "care": 0.06
   },
   {
    "id": "pr_weekend",
@@ -2326,7 +2329,8 @@
    },
    "effects": [],
    "wear": 0,
-   "restore": 4
+   "restore": 4,
+   "care": 0.06
   },
   {
    "id": "st2_events",
@@ -2704,7 +2708,8 @@
    },
    "effects": [],
    "wear": 0,
-   "restore": 4
+   "restore": 4,
+   "care": 0.06
   },
   {
    "id": "t_catering",
@@ -2882,6 +2887,96 @@
    "onSuccess": [],
    "onFail": [],
    "performance": "contractor"
+  },
+  {
+   "id": "care_outer_1",
+   "act": "indian_wells",
+   "at": "outer_1",
+   "skill": "upkeep",
+   "work": "2h",
+   "cost": 0,
+   "crew": 2,
+   "once": false,
+   "restore": 0,
+   "effects": [],
+   "onSuccess": [],
+   "onFail": [],
+   "performance": "sweep",
+   "care": {
+    "clean": 0.7
+   }
+  },
+  {
+   "id": "care_outer_23",
+   "act": "indian_wells",
+   "at": "outer_23",
+   "skill": "upkeep",
+   "work": "2h",
+   "cost": 0,
+   "crew": 2,
+   "once": false,
+   "restore": 0,
+   "effects": [],
+   "onSuccess": [],
+   "onFail": [],
+   "performance": "sweep",
+   "care": {
+    "clean": 0.7
+   }
+  },
+  {
+   "id": "care_practice",
+   "act": "indian_wells",
+   "at": "practice",
+   "skill": "upkeep",
+   "work": "2h",
+   "cost": 0,
+   "crew": 2,
+   "once": false,
+   "restore": 0,
+   "effects": [],
+   "onSuccess": [],
+   "onFail": [],
+   "performance": "sweep",
+   "care": {
+    "clean": 0.7
+   }
+  },
+  {
+   "id": "care_stadium_1",
+   "act": "indian_wells",
+   "at": "stadium_1",
+   "skill": "upkeep",
+   "work": "2h",
+   "cost": 0,
+   "crew": 2,
+   "once": false,
+   "restore": 0,
+   "effects": [],
+   "onSuccess": [],
+   "onFail": [],
+   "performance": "sweep",
+   "care": {
+    "clean": 0.7
+   }
+  },
+  {
+   "id": "care_stadium_3",
+   "act": "indian_wells",
+   "at": "stadium_3",
+   "skill": "upkeep",
+   "work": "2h",
+   "cost": 0,
+   "crew": 2,
+   "once": false,
+   "restore": 0,
+   "effects": [],
+   "onSuccess": [],
+   "onFail": [],
+   "performance": "sweep",
+   "care": {
+    "clean": 0.7
+   }
   },
   {
    "id": "ch_fix",
@@ -5481,9 +5576,10 @@
      "reputation": {
       "service": "service_demand * (service_rate - service_pass) * 2",
       "quality": "service_demand * (stat.quality - 50) / 25",
-      "restored": "restored * 0.15"
+      "restored": "restored * 0.15",
+      "walkouts": "-0.5 * care.walkouts"
      },
-     "members": "max(0, round(courts_built * service_rate + service_demand * ((stat.quality - 30) / 12 + stat.reputation / 30)) - (plot.se_corner == \"building\" && route.s4 == \"event_plaza\" && flag.ep_cleared ? 2 : 0))",
+     "members": "max(0, round(courts_built * service_rate + service_demand * ((stat.quality - 30) / 12 + stat.reputation / 30)) - (plot.se_corner == \"building\" && route.s4 == \"event_plaza\" && flag.ep_cleared ? 2 : 0)) - floor(care.walkouts / 3)",
      "member_cap": "courts_built * 12 + (facility.clubhouse == \"open\" ? (variant.clubhouse == \"cafe\" ? 25 : 15) : 0) + unlocked.member_referrals * 10 + (plot.golf_west == \"open\" && route.s3 == \"south_courts\" ? 24 : 0)",
      "member_loss_max": "max(8, stat.members * 0.25)",
      "service_pass": 0.5
@@ -5504,7 +5600,114 @@
     "director_growth": 0.3,
     "director_skill_cap": 80,
     "grade_drop_below": 15,
-    "staffed_decay": 0.1
+    "staffed_decay": 0.1,
+    "care": {
+     "courts": {
+      "outer_1": {
+       "surface": "hard",
+       "variants": {}
+      },
+      "outer_23": {
+       "surface": "clay",
+       "variants": {
+        "hard": "hard"
+       }
+      },
+      "practice": {
+       "surface": "hard",
+       "variants": {}
+      },
+      "stadium_1": {
+       "surface": "hard",
+       "variants": {}
+      },
+      "stadium_3": {
+       "surface": "pickleball",
+       "variants": {
+        "tennis2": "hard"
+       }
+      }
+     },
+     "ok_at": 70,
+     "no_below": 40,
+     "weights": {
+      "hard": {
+       "sand": 0.6,
+       "water": 0.8,
+       "litter": 0.3,
+       "lines": 0.35,
+       "cracks": 0.5
+      },
+      "clay": {
+       "sand": 0.45,
+       "water": 0.7,
+       "litter": 0.3,
+       "lines": 0.4,
+       "cracks": 0.6
+      },
+      "pickleball": {
+       "sand": 0.6,
+       "water": 0.8,
+       "litter": 0.35,
+       "lines": 0.3,
+       "cracks": 0.5
+      }
+     },
+     "weather": {
+      "sun": {
+       "sand": 0.002,
+       "water": -0.1
+      },
+      "cloud": {
+       "sand": 0.002,
+       "water": -0.05
+      },
+      "wind": {
+       "sand": 0.04,
+       "water": -0.12,
+       "litter": 0.01
+      },
+      "rain": {
+       "water": 0.05
+      },
+      "heat": {
+       "water": -0.2,
+       "lines": 0.02,
+       "cracks": 0.012
+      }
+     },
+     "surface": {
+      "clay": {
+       "water": 0.8,
+       "lines": 1.5,
+       "cracks": 2.5
+      }
+     },
+     "use": {
+      "litter": 0.01,
+      "lines": 0.002,
+      "cracks": 0.001
+     },
+     "order_below": 80,
+     "meh_service": 0.7,
+     "patience": "90m",
+     "walkout_max_day": 3,
+     "waiting_per_post": 2,
+     "waiting_max": 6,
+     "grumble_every": "2h",
+     "hand": {
+      "base": 15,
+      "per": {
+       "sand": 90,
+       "water": 60,
+       "litter": 45,
+       "lines": 120,
+       "cracks": 90
+      },
+      "min": 10,
+      "max": 240
+     }
+    }
    },
    "stars": [
     {
@@ -6493,19 +6696,22 @@
      "sun": 6,
      "cloud": 2,
      "rain": 0.3,
-     "wind": 1.5
+     "wind": 1.5,
+     "heat": 2
     },
     "winter": {
      "sun": 5,
      "cloud": 3,
      "rain": 1,
-     "wind": 1
+     "wind": 1,
+     "heat": 0
     },
     "spring": {
      "sun": 5,
      "cloud": 1,
      "rain": 0.2,
-     "wind": 3
+     "wind": 3,
+     "heat": 1
     }
    }
   }
@@ -9804,6 +10010,32 @@
        },
        "condition": "practice",
        "add": -15
+      },
+      {
+       "mess": "outer_1",
+       "add": {
+        "sand": 0.7
+       }
+      },
+      {
+       "if": {
+        "facility": "outer_23",
+        "is": "playable"
+       },
+       "mess": "outer_23",
+       "add": {
+        "sand": 0.6
+       }
+      },
+      {
+       "if": {
+        "facility": "practice",
+        "is": "open"
+       },
+       "mess": "practice",
+       "add": {
+        "sand": 0.5
+       }
       }
      ],
      "onSuccess": [],
@@ -11037,6 +11269,7 @@
    "ui.care.because_care": "you cleaned {place} yourself (off your post {time})",
    "ui.care.because_walkout": "{place} was unplayable and a member gave up waiting",
    "ui.care.week_walkouts": "{n} members gave up waiting this week",
+   "ui.care.log_mess": "{place}: cleared {list}",
    "ui.care.week_unplayable": "{place} was unplayable for {time}",
    "ui.care.game.title": "Clean it yourself · {place}",
    "ui.care.game.start": "Start",
@@ -11051,12 +11284,31 @@
    "ui.care.game.tools.paint": "Liner",
    "ui.care.game.tools.water": "Hose",
    "ui.care.game.tools.pick": "Pick up",
+   "ui.care.game.tools.net": "Net",
    "ui.care.game.hint.broom": "Push the sand off the court",
    "ui.care.game.hint.squeegee": "Push the water to the edge",
    "ui.care.game.hint.roller": "Roll back and forth; cracks take three passes",
    "ui.care.game.hint.paint": "Trace the glowing lines",
    "ui.care.game.hint.water": "Water the dry clay",
-   "ui.care.game.hint.pick": "Tap to pick it up"
+   "ui.care.game.hint.pick": "Tap to pick it up",
+   "ui.care.game.hint.net": "Pull up, let go in the green",
+   "ui.care.game.hint.roller_clay": "Roll the mud firm",
+   "ui.care.game.hint.paint_clay": "Sweep along the glowing tape",
+   "ui.care.game.fx.finish_sand": "Sand's gone!",
+   "ui.care.game.fx.finish_water": "Dry!",
+   "ui.care.game.fx.finish_rough": "Smooth!",
+   "ui.care.game.fx.sandy": "Sweep the sand first",
+   "ui.care.game.fx.dry": "Too dry — water it",
+   "ui.care.game.fx.puddle": "Puddle!",
+   "ui.care.game.fx.wobble": "Shaky",
+   "ui.care.game.fx.stray": "Off the line!",
+   "ui.care.game.fx.dirty": "Paint on sand smears",
+   "ui.care.game.fx.gust": "Gust!",
+   "ui.care.game.fx.net_perfect": "Perfect tension!",
+   "ui.care.game.fx.net_ok": "Net's up",
+   "ui.care.game.fx.net_loose": "Too slack",
+   "ui.care.game.fx.net_tight": "Too tight",
+   "ui.care.game.fx.net_snap": "Snapped!"
   },
   "zh": {
    "stats.cash": "现金",
@@ -12205,6 +12457,7 @@
    "ui.care.because_care": "你亲手扫了{place}（离岗 {time}）",
    "ui.care.because_walkout": "{place}不能打，会员等不及走了",
    "ui.care.week_walkouts": "这周有 {n} 位会员等不及走了",
+   "ui.care.log_mess": "{place}扫掉了{list}",
    "ui.care.week_unplayable": "{place}不能打，挡掉了 {time}",
    "ui.care.game.title": "亲手扫 · {place}",
    "ui.care.game.start": "开始扫",
@@ -12219,12 +12472,31 @@
    "ui.care.game.tools.paint": "画线车",
    "ui.care.game.tools.water": "洒水",
    "ui.care.game.tools.pick": "捡",
+   "ui.care.game.tools.net": "球网",
    "ui.care.game.hint.broom": "推着扫把把沙推出场外",
    "ui.care.game.hint.squeegee": "把积水推到场边",
    "ui.care.game.hint.roller": "来回压，裂缝要压三遍",
    "ui.care.game.hint.paint": "沿着发亮的线描",
    "ui.care.game.hint.water": "给干裂的红土洒水",
-   "ui.care.game.hint.pick": "点一下捡起来"
+   "ui.care.game.hint.pick": "点一下捡起来",
+   "ui.care.game.hint.net": "往上拉，在绿区松手",
+   "ui.care.game.hint.roller_clay": "来回压，把泥压实",
+   "ui.care.game.hint.paint_clay": "沿着发亮的线带扫",
+   "ui.care.game.fx.finish_sand": "收尾！沙子清光",
+   "ui.care.game.fx.finish_water": "收尾！水推干了",
+   "ui.care.game.fx.finish_rough": "收尾！场子压平了",
+   "ui.care.game.fx.sandy": "沙子垫着，压不实",
+   "ui.care.game.fx.dry": "太干，压不动",
+   "ui.care.game.fx.puddle": "积水了",
+   "ui.care.game.fx.wobble": "手抖了",
+   "ui.care.game.fx.stray": "歪了！擦不掉",
+   "ui.care.game.fx.dirty": "沙上画线，脏了",
+   "ui.care.game.fx.gust": "起风了！",
+   "ui.care.game.fx.net_perfect": "完美张力！",
+   "ui.care.game.fx.net_ok": "挂好了",
+   "ui.care.game.fx.net_loose": "网太松",
+   "ui.care.game.fx.net_tight": "太紧了",
+   "ui.care.game.fx.net_snap": "绳断了！"
   }
  }
 }

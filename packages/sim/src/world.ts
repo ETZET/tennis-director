@@ -29,6 +29,8 @@ export interface World {
   /** 本幕的持续岗位和一次性工单 */
   readonly posts: ReadonlyMap<string, Post>;
   readonly orders: ReadonlyMap<string, Order>;
+  /** 地点 → 这个地点上的岗位（内容顺序；场地可用度按地点数"在用这块场"的岗位） */
+  readonly postsAt: ReadonlyMap<string, readonly Post[]>;
   /** 锚点 → 那儿的设施 id */
   readonly facilityAt: ReadonlyMap<string, string>;
   readonly people: ReadonlyMap<string, Person>;
@@ -99,6 +101,15 @@ function editionsOf(t: Tournament, act: Act): Edition[] {
 const cache = new WeakMap<ContentBundle, Map<string, World>>();
 
 const byId = <T extends { id: string }>(xs: readonly T[]) => new Map(xs.map((x) => [x.id, x]));
+function groupAt(xs: readonly Post[]): Map<string, Post[]> {
+  const m = new Map<string, Post[]>();
+  for (const x of xs) {
+    const a = m.get(x.at);
+    if (a) a.push(x);
+    else m.set(x.at, [x]);
+  }
+  return m;
+}
 
 export function worldFor(content: ContentBundle, actId: string, directorId?: string): World {
   let m = cache.get(content);
@@ -146,6 +157,7 @@ export function worldFor(content: ContentBundle, actId: string, directorId?: str
     activities: byId(content.activities),
     posts: byId((content.posts ?? []).filter((x) => x.act === act.id)),
     orders: byId(orders),
+    postsAt: groupAt((content.posts ?? []).filter((x) => x.act === act.id)),
     facilityAt: new Map(content.facilities.map((f) => [f.anchor, f.id])),
     people: byId(content.people),
     traits: byId(content.traits),

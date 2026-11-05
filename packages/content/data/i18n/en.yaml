@@ -1013,6 +1013,7 @@ ui:
     because_care: "you cleaned {place} yourself (off your post {time})"
     because_walkout: "{place} was unplayable and a member gave up waiting"
     week_walkouts: "{n} members gave up waiting this week"
+    log_mess: "{place}: cleared {list}"
     week_unplayable: "{place} was unplayable for {time}"
     game:
       title: "Clean it yourself · {place}"
@@ -1022,7 +1023,7 @@ ui:
       left: "Still to do: {list}"
       clean: Spotless
       done: "Cleared {p}% · you're busy there for {time}"
-      tools: { broom: Broom, squeegee: Squeegee, roller: Roller, paint: Liner, water: Hose, pick: Pick up }
+      tools: { broom: Broom, squeegee: Squeegee, roller: Roller, paint: Liner, water: Hose, pick: Pick up, net: Net }
       hint:
         broom: Push the sand off the court
         squeegee: Push the water to the edge
@@ -1030,3 +1031,22 @@ ui:
         paint: Trace the glowing lines
         water: Water the dry clay
         pick: Tap to pick it up
+        net: Pull up, let go in the green
+        roller_clay: Roll the mud firm
+        paint_clay: Sweep along the glowing tape
+      fx:
+        finish_sand: "Sand's gone!"
+        finish_water: Dry!
+        finish_rough: Smooth!
+        sandy: Sweep the sand first
+        dry: Too dry — water it
+        puddle: Puddle!
+        wobble: Shaky
+        stray: Off the line!
+        dirty: Paint on sand smears
+        gust: Gust!
+        net_perfect: Perfect tension!
+        net_ok: "Net's up"
+        net_loose: Too slack
+        net_tight: Too tight
+        net_snap: Snapped!

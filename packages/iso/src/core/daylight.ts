@@ -163,6 +163,11 @@ const smooth = (a: number, b: number, x: number) => {
 /** 阴雨天的灰：天空三段、山脊三道（雨越大越往这边靠） */
 const OVERCAST_SKY: readonly RGB[] = [hx('#6e7682'), hx('#8e959e'), hx('#a9aaa6')];
 const OVERCAST_MTN: readonly RGB[] = [hx('#9a96a0'), hx('#86808c'), hx('#74707e')];
+/** 酷热的白天（court-care-contract.md）：天往发白的暖色靠，地平线最白，远山被热霾冲淡，荒原偏暖 */
+const HEAT_SKY: readonly RGB[] = [hx('#86bfe0'), hx('#f2dfbc'), hx('#fff4de')];
+const HEAT_MTN: readonly RGB[] = [hx('#e6cdb8'), hx('#dcbca6'), hx('#d2ae96')];
+const HEAT_PLAIN: readonly RGB[] = [hx('#f0cf98'), hx('#e2ba84')];
+const HEAT_SUN: RGB = hx('#ffffff');
 /** 雨量到这儿太阳 / 月亮完全被云遮住 */
 const DISC_GONE = 0.5;
 /** 月亮的位置和颜色 */
@@ -172,8 +177,10 @@ const MOON_AT: readonly [number, number] = [0.76, 0.12];
 /**
  * 一天中某一分钟的光（关键帧之间线性插值，连续变化）。
  * rain 0..1：天色往阴天灰靠、整体压暗，加一点夜色、压掉暖色；太阳 / 月亮随雨量褪进天色，雨量过半就看不见了。
+ * heat 0..1（酷热）：白天的天色往发白的暖色靠、地平线发白、远山被热霾冲淡、太阳发白；按白天的程度淡入，夜里不变。
+ * 只改天空、山和荒原（每帧查表），不改调色板夜色，所以不会让静态层重烘。
  */
-export function daylightAt(minute: number, rain = 0): Light {
+export function daylightAt(minute: number, rain = 0, heat = 0): Light {
   const m = ((minute % 1440) + 1440) % 1440;
   const wet = Math.max(0, Math.min(1, rain));
   let i = 0;
@@ -183,35 +190,39 @@ export function daylightAt(minute: number, rain = 0): Light {
   const u = b.at > a.at ? (m - a.at) / (b.at - a.at) : 0;
   const dim = 1 - 0.35 * wet;
   const dark = lerp(a.night, b.night, u);
+  // 酷热只在白天看得出来（夜色 0.5 以上完全没有），下雨时也压掉
+  const hot = Math.max(0, Math.min(1, heat)) * (1 - smooth(0.1, 0.5, dark)) * (1 - wet);
   const night = Math.min(1, dark + 0.25 * wet);
   // 先按时间插值，再往阴天灰靠、压暗（夜里天本来就黑，往灰靠得少，免得下雨反而把夜空提亮）
   const grey = (x: RGB, y: RGB, g: RGB, k: number): RGB => {
     const c = mixC(mixC(x, y, u), g, k * (1 - 0.85 * dark));
     return [c[0] * dim, c[1] * dim, c[2] * dim];
   };
-  const skyC = [0, 1, 2].map((j) => grey(a.sky[j] as RGB, b.sky[j] as RGB, OVERCAST_SKY[j] as RGB, 0.6 * wet)) as [
-    RGB,
-    RGB,
-    RGB,
-  ];
+  const skyC = [0, 1, 2].map((j) =>
+    mixC(
+      grey(a.sky[j] as RGB, b.sky[j] as RGB, OVERCAST_SKY[j] as RGB, 0.6 * wet),
+      HEAT_SKY[j] as RGB,
+      hot * ([0.45, 0.6, 0.75][j] as number),
+    ),
+  ) as [RGB, RGB, RGB];
   // 太阳 / 月亮：颜色褪向它所在高度的天色；被云完全遮住时挪到地平线下面（IsoView 不画地平线以下的）
   const fade = Math.min(1, wet / DISC_GONE);
   const behind = (dy: number) => mixC(skyC[0], skyC[1], Math.min(1, Math.max(0, dy) / 0.6));
   const sy = lerp(a.sun[2], b.sun[2], u);
-  const sunC = mixC(mixC(a.sun[0], b.sun[0], u), behind(sy), fade * 0.85);
+  const sunC = mixC(mixC(mixC(a.sun[0], b.sun[0], u), HEAT_SUN, hot), behind(sy), fade * 0.85);
   // 月亮：夜色 0.55 起慢慢显出来，0.9 全显
   const mA = smooth(0.55, 0.9, dark) * (1 - fade);
   const moonC = mixC(behind(MOON_AT[1]), MOON, mA);
   return {
     sky: [hex(skyC[0]), hex(skyC[1]), hex(skyC[2])],
-    mtn: [0, 1, 2].map((j) => hex(grey(a.mtn[j] as RGB, b.mtn[j] as RGB, OVERCAST_MTN[j] as RGB, 0.3 * wet))) as [
-      string,
-      string,
-      string,
-    ],
+    mtn: [0, 1, 2].map((j) =>
+      hex(
+        mixC(grey(a.mtn[j] as RGB, b.mtn[j] as RGB, OVERCAST_MTN[j] as RGB, 0.3 * wet), HEAT_MTN[j] as RGB, hot * 0.5),
+      ),
+    ) as [string, string, string],
     plain: [0, 1].map((j) => {
       const c = mixC(a.plain[j] as RGB, b.plain[j] as RGB, u);
-      return hex([c[0] * dim, c[1] * dim, c[2] * dim]);
+      return hex(mixC([c[0] * dim, c[1] * dim, c[2] * dim], HEAT_PLAIN[j] as RGB, hot * 0.4));
     }) as [string, string],
     star: lerp(a.star, b.star, u) * (1 - wet),
     disc: [hex(sunC), lerp(a.sun[1], b.sun[1], u), fade >= 1 ? 9 : sy],
@@ -244,14 +255,16 @@ export function createDaylight(world: { view: { setLight(l: Light): void } }): D
   let cur = NOON;
   let lastM = Number.NaN;
   let lastR = Number.NaN;
+  let lastH = Number.NaN;
   return {
-    update(minute, rain) {
+    update(minute, rain, heat = 0) {
       const m = ((minute % 1440) + 1440) % 1440;
-      // 不到 0.05 游戏分钟、雨量不到 0.5% 的变化看不出来，省得每帧拼颜色字符串
-      if (Math.abs(m - lastM) < 0.05 && Math.abs(rain - lastR) < 0.005) return;
+      // 不到 0.05 游戏分钟、雨量和酷热不到 0.5% 的变化看不出来，省得每帧拼颜色字符串
+      if (Math.abs(m - lastM) < 0.05 && Math.abs(rain - lastR) < 0.005 && Math.abs(heat - lastH) < 0.005) return;
       lastM = m;
       lastR = rain;
-      cur = daylightAt(m, rain);
+      lastH = heat;
+      cur = daylightAt(m, rain, heat);
       world.view.setLight(cur);
     },
     lamps: () => cur.lamps,

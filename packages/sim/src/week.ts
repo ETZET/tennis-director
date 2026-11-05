@@ -70,6 +70,19 @@ export function settleWeek(ctx: Ctx, day: number): void {
   for (const [post, minutes] of Object.entries(wk.missed))
     if (minutes > 0 && (!top || minutes > top.minutes || (minutes === top.minutes && post < top.post)))
       top = { post, minutes };
+  // 场地可用度（court-care-contract.md）：走掉的会员、不能打挡掉分钟最多的那块场（按岗位所在的设施合计；同分取 id 小的）
+  const careOn = !!w.act.rules.care;
+  let unplayable: WeekSettlement['unplayable'] = null;
+  if (careOn) {
+    const byCourt: Record<string, number> = {};
+    for (const [post, m] of Object.entries(wk.unplayable ?? {})) {
+      const f = w.facilityAt.get(w.posts.get(post)?.at ?? '');
+      if (f && m > 0) byCourt[f] = (byCourt[f] ?? 0) + m;
+    }
+    for (const [court, minutes] of Object.entries(byCourt))
+      if (!unplayable || minutes > unplayable.minutes || (minutes === unplayable.minutes && court < unplayable.court))
+        unplayable = { court, minutes };
+  }
   const q = qualityTarget(s, w);
   const terms: Record<string, number> = {};
   for (const [k, v] of Object.entries(q.terms)) terms[k] = round1(v);
@@ -93,6 +106,7 @@ export function settleWeek(ctx: Ctx, day: number): void {
       rep,
       members: { gain, cap, ...(dm > raw && lossMax !== null ? { loss_max: lossMax } : {}) },
       quality: { target: round1(q.total), terms },
+      ...(careOn ? { walkouts: wk.walkouts ?? 0, unplayable } : {}),
     },
     null,
     out,
@@ -121,5 +135,7 @@ export function settleWeek(ctx: Ctx, day: number): void {
     money: { dues: 0, income: 0, upkeep: 0, wages: 0 },
     traitRep: 0,
     q0: s.stats.quality ?? 0,
+    walkouts: 0,
+    unplayable: {},
   };
 }

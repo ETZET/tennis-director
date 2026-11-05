@@ -72,3 +72,4 @@ input[type=range]::-moz-range-thumb{width:18px;height:26px;background:var(--whit
   .more,.dock{align-self:flex-end;width:420px;margin-right:16px}
   .dock{margin-bottom:16px}
 }
+.row button[aria-pressed="true"]{background:var(--optic);color:var(--navy)}

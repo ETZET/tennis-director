@@ -22,6 +22,14 @@
     <label class="ctl"><span class="k">时间</span><input type="range" id="time" min="0" max="1439" step="5"><output id="timeV"></output></label>
     <label class="ctl"><span class="k">风</span><input type="range" id="wind" min="0" max="100" step="5"><output id="windV"></output></label>
     <label class="ctl"><span class="k">磨损</span><input type="range" id="wear" min="0" max="150" step="5"><output id="wearV"></output></label>
+    <h4>场地脏乱 <small>可用度的画面，court-care-contract.md</small></h4>
+    <div class="row">
+      <button type="button" id="bMessCourt">会员场</button>
+      <button type="button" id="bMessAll">全脏</button>
+      <button type="button" id="bMessClear">清空</button>
+      <button type="button" id="bHeat" aria-pressed="false">酷热</button>
+    </div>
+    <div id="messCtl"></div>
     <div class="row">
       <button type="button" id="bWalk">路人 +4</button>
       <button type="button" id="bClear">清空路人</button>

@@ -1,15 +1,19 @@
 import { mulberry32, range } from '@td/shared';
 import { hash } from '../../core/color';
 import { Custom, type DrawContext, Group, type Node } from '../../core/graph';
+import type { Raster } from '../../core/raster';
 import type { Weather } from './build';
 import { drawTumble } from './build';
 import { FORE } from './foreshadow';
 import { SLAB } from './ground';
+import { DRIVE, F_O1, F_O2, F_O3, F_P1, F_P2, F_PB1, F_PB2, F_S1, LOT_N, LOT_S } from './layout';
 
 /**
  * Indian Wells 的天空和环境动画（照旧版 ambient.ts）：岛上空飘的云、偶尔飞过的一行鸟、
  * 风从西边来，风滚草顺着几条空旷的走廊滚过去。风力 wind（0..1）同时让棕榈和旗子摆得更厉害（build.ts 读 Weather）。
  * 下雨时云变多变灰、风滚草停下（雨点本身和整体压暗归 ambient/rain 和 daylight）。
+ * 酷热（heat 0..1，court-care-contract.md）：球场和停车场上方的热浪——几行像素整格地左右错一格、慢慢往上飘
+ * （每帧画在动态层的最底下，只挪静态层的像素，不挡人，也不进静态层；天色发白归 daylight）。
  * 只动画面，用自己的种子随机流，不碰 Math.random 和模拟。
  */
 
@@ -43,8 +47,21 @@ interface Cloud {
 }
 
 export interface SkyLayer {
-  update(dt: number, now: number, rain: number, wind?: number): void;
+  update(dt: number, now: number, rain: number, wind?: number, heat?: number): void;
 }
+
+/** 晒得冒热浪的地面：各块球场、停车场和车道 */
+const HOT: readonly { x0: number; x1: number; z0: number; z1: number }[] = [
+  ...[F_S1, F_P1, F_P2, F_O1, F_O2, F_O3, F_PB1, F_PB2].map((f) => ({
+    x0: f.ox - f.hx,
+    x1: f.ox + f.hx,
+    z0: f.oz - f.hz,
+    z1: f.oz + f.hz,
+  })),
+  LOT_N,
+  LOT_S,
+  DRIVE,
+];
 
 /** 鸟画在所有东西前面（深度偏置很大），它们在高空 */
 const FRONT = 1e4;
@@ -107,10 +124,30 @@ export function createIndianWellsSky(scene: Node, weather: Weather): SkyLayer {
   flock.name = 'birds';
   root.add(flock);
 
+  /* 热浪：动态层最先画（深度偏置很小），只把已经画好的地面像素整格挪一下 */
+  const haze = { amt: 0 };
+  const hazeNode = new Custom((r) => drawHaze(r, haze.amt), {
+    x0: SLAB.x0,
+    x1: SLAB.x1,
+    y0: 0,
+    y1: 0.01,
+    z0: SLAB.z0,
+    z1: SLAB.z1,
+  });
+  hazeNode.renderOrder = -FRONT * 10;
+  hazeNode.name = 'heat-haze';
+  hazeNode.visible = false;
+  root.add(hazeNode);
+
   let wind = 0.3;
   return {
-    update(dt, now, rain, windIn = 0.3) {
+    update(dt, now, rain, windIn = 0.3, heatIn = 0) {
       const step = Math.min(dt, 0.1);
+      // 酷热淡入淡出（下雨时没有）
+      const hot = Math.max(0, Math.min(1, heatIn)) * (1 - Math.min(1, rain * 2));
+      haze.amt += (hot - haze.amt) * Math.min(1, step * 0.8);
+      if (haze.amt < 0.02 && hot === 0) haze.amt = 0;
+      hazeNode.visible = haze.amt > 0;
       // 风力平滑地跟过去，棕榈不会一下子甩起来
       wind += (Math.max(0, Math.min(1, windIn)) - wind) * Math.min(1, step * 0.8);
       weather.wind = wind;
@@ -206,6 +243,61 @@ function drawBirds(r: DrawContext, b: { x: number; y: number; z: number; n: numb
     if (r.k > 3) {
       r.pix(x - 2, y + (up ? -1 : 1), c);
       r.pix(x + 2, y + (up ? -1 : 1), c);
+    }
+  }
+}
+
+/**
+ * 热浪：每块晒着的地面在屏幕上的那块菱形里，一部分像素行整行左右错一格（只挪像素、不混色，画面还是硬边像素）；
+ * 哪几行错开随时间慢慢往上飘。夜里没有。
+ */
+function drawHaze(r: DrawContext, amt: number): void {
+  const day = 1 - Math.min(1, r.night * 2.5);
+  const a = amt * day;
+  if (a <= 0.02) return;
+  const R = r as unknown as Raster;
+  const buf = R.buf;
+  if (!buf) return;
+  const W = R.W;
+  const H = R.H;
+  const t = r.t;
+  for (let h = 0; h < HOT.length; h++) {
+    const q = HOT[h] as (typeof HOT)[number];
+    const pts = [r.P(q.x0, 0, q.z0), r.P(q.x1, 0, q.z0), r.P(q.x1, 0, q.z1), r.P(q.x0, 0, q.z1)];
+    let y0 = H;
+    let y1 = -1;
+    for (const p of pts) {
+      y0 = Math.min(y0, p[1]);
+      y1 = Math.max(y1, p[1]);
+    }
+    // 热浪也飘到场地上方一点（围网、看台下沿那一截）
+    const lift = Math.round(r.k * 1.2);
+    const Y0 = Math.max(0, Math.ceil(y0) - lift);
+    const Y1 = Math.min(H - 1, Math.floor(y1));
+    for (let y = Y0; y <= Y1; y++) {
+      // 往上飘的几条带子：带子里的行才错开
+      const band = Math.sin(y * 0.42 + t * 2.6 + h * 1.7);
+      if (band < 1 - 0.28 * a) continue;
+      const off = Math.sin(y * 1.9 - t * 7.5 + h) > 0 ? 1 : -1;
+      // 这一行和菱形（往上挪了 lift）的交点
+      const yy = Math.min(Math.max(y + lift * 0.5, y0), y1);
+      let x0 = Number.POSITIVE_INFINITY;
+      let x1 = Number.NEGATIVE_INFINITY;
+      for (let e = 0; e < 4; e++) {
+        const p = pts[e] as [number, number];
+        const n = pts[(e + 1) & 3] as [number, number];
+        if ((p[1] <= yy && n[1] >= yy) || (n[1] <= yy && p[1] >= yy)) {
+          const x = n[1] === p[1] ? p[0] : p[0] + ((yy - p[1]) / (n[1] - p[1])) * (n[0] - p[0]);
+          x0 = Math.min(x0, x);
+          x1 = Math.max(x1, x);
+        }
+      }
+      const X0 = Math.max(0, Math.ceil(x0));
+      const X1 = Math.min(W - 1, Math.floor(x1));
+      if (X1 - X0 < 3) continue;
+      const o = y * W;
+      if (off > 0) buf.copyWithin(o + X0 + 1, o + X0, o + X1);
+      else buf.copyWithin(o + X0, o + X0 + 1, o + X1 + 1);
     }
   }
 }

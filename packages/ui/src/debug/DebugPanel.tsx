@@ -74,6 +74,8 @@ export function DebugPanel({ s, actions }: { s: DebugSnapshot; actions: DebugAct
         </div>
       </Section>
 
+      {s.care ? <CareSection care={s.care} actions={actions} /> : null}
+
       <Section title="Stats">
         <table class="tdd-table">
           <tbody>
@@ -206,6 +208,62 @@ export function DebugPanel({ s, actions }: { s: DebugSnapshot; actions: DebugAct
         </form>
       </Section>
     </aside>
+  );
+}
+
+const KINDS = ['sand', 'water', 'litter', 'lines', 'cracks'] as const;
+
+/** 场地可用度（court-care-contract.md）：一块场一行，五项各一键设到 0.8、一键清空、一键"不能打"（门口会来人等）；酷热开关 */
+function CareSection({ care, actions }: { care: NonNullable<DebugSnapshot['care']>; actions: DebugActions }) {
+  return (
+    <Section title={`Court care · ${care.weather}`}>
+      <div class="tdd-row">
+        {['sun', 'wind', 'rain', 'heat'].map((w) => (
+          <button type="button" key={w} aria-pressed={care.weather === w} onClick={() => actions.weather?.(w)}>
+            {w}
+          </button>
+        ))}
+      </div>
+      <table class="tdd-table">
+        <tbody>
+          {care.courts.map((c) => (
+            <tr key={c.id}>
+              <th title={c.id}>
+                {c.title}
+                <br />
+                <span class="tdd-dim">
+                  {c.active ? `${c.level} ${Math.round(c.usability)}` : 'closed'}
+                  {c.waiting ? ` · wait ${c.waiting}` : ''}
+                </span>
+              </th>
+              <td>
+                <div class="tdd-row">
+                  {KINDS.map((k) => (
+                    <button
+                      type="button"
+                      key={k}
+                      title={`${k} = ${(c.mess[k] ?? 0).toFixed(2)}`}
+                      onClick={() => actions.mess?.(c.id, { [k]: 0.8 })}
+                    >
+                      {k} {Math.round((c.mess[k] ?? 0) * 100)}
+                    </button>
+                  ))}
+                  <button type="button" onClick={() => actions.mess?.(c.id, { water: 1, sand: 0.6 })}>
+                    unplayable
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => actions.mess?.(c.id, Object.fromEntries(KINDS.map((k) => [k, 0])))}
+                  >
+                    clear
+                  </button>
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </Section>
   );
 }
 
