@@ -3,14 +3,16 @@ import './style.css';
 import { CAST, type Member } from './cast';
 import { createHud } from './hud';
 import { NOTES_HTML } from './notes';
-import { type Grid, toCanvas } from './pix';
+import { Grid, toCanvas } from './pix';
 import { crop32, EXPR_ZH, EXPRS, type Expr, portrait } from './portrait';
+import { createRoster } from './roster';
 import { createScene } from './scene';
-import { type AnimId, anim, compose, EMOTES, type Facing, FH, FW } from './sprite';
+import { type AnimId, anim, compose, EMOTES, type EmoteId, type Facing, FH, FW } from './sprite';
 
 /**
  * 人物方向 C「双层：场景小人 + 大肖像」。
- * ?view=scene 直接滚到"放进游戏"那块；?zoom=7.8 换镜头档位；?ps=1 用游戏手机的 1 倍像素（默认 2 倍，和玩法 demo 一致）。
+ * 第二版（制作人：地图上说话不显示大头照，大头照只在菜单里的花名册）：气泡、员工条、事件卡都不放肖像，肖像只在花名册。
+ * ?view=scene 直接滚到"放进游戏"那块；?view=roster 打开花名册，&who=gus 直接看某人的详情；?zoom=7.8 换镜头档位；?ps=1 用游戏手机的 1 倍像素（默认 2 倍，和玩法 demo 一致）。
  */
 
 const Q = new URLSearchParams(location.search);
@@ -37,6 +39,38 @@ function face(m: Member, e: Expr, size: 48 | 32, scale: number): HTMLCanvasEleme
   const g = size === 48 ? pg(m, e) : crop32(pg(m, e), m.portrait);
   const cv = toCanvas(g, m.look, scale, true);
   cv.className = 'c-px';
+  return cv;
+}
+
+/** 员工条格子：场景小人 idle 第一帧的头（裁 12×11，3×），和地图上那个人一模一样 */
+function spriteHead(m: Member): HTMLCanvasElement {
+  const g = compose(m.sprite, anim(m.sprite, 'idle').poses[0] as Parameters<typeof compose>[1], 'front');
+  let y0 = 0;
+  while (y0 < g.h && g.d.slice(y0 * g.w, (y0 + 1) * g.w).every((c) => c === '.')) y0++;
+  const out = new Grid(12, 11);
+  for (let y = 0; y < 11; y++) for (let x = 0; x < 12; x++) out.set(x, y, g.get(x + 3, y0 + y));
+  const cv = toCanvas(out, m.look, 3);
+  cv.className = 'c-px';
+  return cv;
+}
+/** 像素表情图标 */
+function emoteCv(id: EmoteId, scale: number): HTMLCanvasElement {
+  const e = EMOTES[id];
+  const cv = document.createElement('canvas');
+  cv.width = Math.max(...e.rows.map((r) => r.length));
+  cv.height = e.rows.length;
+  cv.style.width = `${cv.width * scale}px`;
+  cv.style.height = `${cv.height * scale}px`;
+  cv.className = 'c-px';
+  const ctx = cv.getContext('2d') as CanvasRenderingContext2D;
+  e.rows.forEach((r, y) => {
+    for (let x = 0; x < r.length; x++) {
+      const c = e.pal[r[x] as string];
+      if (!c) continue;
+      ctx.fillStyle = c;
+      ctx.fillRect(x, y, 1, 1);
+    }
+  });
   return cv;
 }
 
@@ -110,7 +144,7 @@ for (const [id, t] of [
   ['moves', '动作'],
   ['close', '近看'],
   ['scene', '放进游戏'],
-  ['hire', '招人卡'],
+  ['roster', '花名册'],
   ['notes', '规格'],
 ] as const) {
   const a = h('a', 'k-chip', t);
@@ -122,7 +156,7 @@ app.append(
   h(
     'p',
     'c-lede',
-    '场景里的小人只要<b>一眼分得清谁是谁</b>（10×18：轮廓、发型、一块招牌色、一件道具）；<b>样貌和年纪交给 48×48 大肖像</b>，出现在员工条、事件卡、气泡和招人卡上。两层用同一份换色表，颜色一一对得上。',
+    '第二版：<b>地图上只有小人</b>（10×18：轮廓、发型、一块招牌色、一件随身道具），说话用地图气泡、情绪由小人自己演；<b>48×48 大肖像只在菜单里的花名册出现</b>。两层用同一份换色表，颜色一一对得上。',
   ),
 );
 
@@ -136,7 +170,11 @@ const section = (id: string, title: string, sub = '') => {
 };
 
 // 1. 阵容
-const sLine = section('lineup', '全体阵容', '左：48×48 肖像（2×）；右：场景小人（3×，在演自己的 idle）。');
+const sLine = section(
+  'lineup',
+  '全体阵容',
+  '左：花名册里的 48×48 肖像（2×）；右：地图上的小人（3×，在演自己的 idle，拿着自己的道具）。',
+);
 const grid = h('div', 'c-lineup');
 for (const m of CAST) {
   const c = h('div', 'c-card');
@@ -250,7 +288,7 @@ sClose.append(closeSpr);
 const sScene = section(
   'scene',
   '放进游戏',
-  '真的 Palm Oasis，镜头 = 游戏手机竖屏的默认档（zoom 4）。场上 Jess 对 Nadia，Dale 带两个小孩，场边是其余的人；左下角一排是现在的 8×14 Person（Dale、Jess、Gus），右边一排是 C 的小人。HUD 是游戏样式的仿制：员工条和事件卡用肖像。点事件卡的选项，Gus 的表情会变。',
+  '真的 Palm Oasis，镜头 = 游戏手机竖屏的默认档（zoom 4）。地图上没有肖像：气泡是一句话 + 像素表情 + 名字小牌 + 招牌色边，说话的人自己跳一下/跺脚；员工条是小人的头；事件卡是 Gus 的小人，地图上他头顶冒 ▼ Gus。左下一排是现在的 8×14 Person，右边一排是 C 的小人。员工条最左边的「花名册」打开菜单，肖像只在那里。',
 );
 const phone = h('div', 'c-phone');
 const stageEl = h('div', 'c-stage');
@@ -270,38 +308,38 @@ for (const [z, t] of ZOOMS) {
   zoomBar.append(b);
 }
 sScene.append(zoomBar);
-const hud = createHud(face);
+const roster = createRoster(face, (m, sc) => live(m, 'idle', 'front', sc, false));
+const hud = createHud({
+  head: spriteHead,
+  sprite: (m, sc) => live(m, 'idle', 'front', sc, false),
+  emote: emoteCv,
+  openRoster: (id) => roster.open(id),
+});
 (window as unknown as { cScene: typeof scene }).cScene = scene;
-phone.append(hud.root);
+phone.append(hud.root, roster.root);
 const tagOld = h('div', 'c-tag', '↑ 现在 8×14');
 const tagNew = h('div', 'c-tag c-tag-new', '↑ C 10×18');
 phone.append(tagOld, tagNew);
 
-// 6. 招人卡
-const sHire = section('hire', '招人卡', '应聘的人来找你：肖像就是简历照，年纪、性格从脸上先读到。');
-const hire = h('div', 'c-hire');
-const CAND: [string, string[], string][] = [
-  ['teo', ['穿线师', '完美主义'], '$14/时'],
-  ['nadia', ['退役名将', '老伤'], '$40/时'],
-  ['mateo', ['球童', '天才少年'], '$8/时'],
-];
-for (const [id, traits, wage] of CAND) {
-  const m = CAST.find((c) => c.id === id) as Member;
-  const c = h('div', 'c-hcard');
-  const pf = h('div', 'c-pface');
-  pf.style.background = m.tint;
-  pf.append(face(m, 'neutral', 48, 2));
-  const info = h('div', 'c-hinfo');
-  info.append(h('b', '', m.name), h('span', 'c-hline', m.line));
-  const chips = h('div', 'td-chips c-hchips');
-  for (const t of traits) chips.append(h('span', 'td-chip', t));
-  chips.append(h('span', 'td-chip td-chip-cost', wage));
-  info.append(chips);
-  const go = h('button', 'k-btn primary', '签下');
-  c.append(pf, info, go);
-  hire.append(c);
-}
-sHire.append(hire);
+// 6. 花名册
+const sRoster = section(
+  'roster',
+  '花名册（菜单）',
+  '肖像只在这里：从员工条最左边的「花名册」打开。列表一行一个人（肖像按士气换表情、岗位、最强两项能力、特质、周薪、士气），点进去是详情：2× 大肖像、背景、四项能力和潜力、特质、喜欢/讨厌、五张表情（点一张换大图），◀ ▶ 或左右滑切人。',
+);
+const ob = h('button', 'k-btn primary', '打开花名册');
+ob.addEventListener('click', () => {
+  phone.scrollIntoView({ block: 'start' });
+  roster.open();
+});
+const od = h('button', 'k-btn ghost', '看 Gus 的详情');
+od.addEventListener('click', () => {
+  phone.scrollIntoView({ block: 'start' });
+  roster.open('gus');
+});
+const ow = h('div', 'c-zoom');
+ow.append(ob, od);
+sRoster.append(ow);
 
 // 7. 规格
 const sNotes = section('notes', '规格和说明');
@@ -333,6 +371,23 @@ const tick = () => {
     if (!m) continue;
     const p = scene.project(m.pos.x, 0, m.pos.z);
     b.el.style.transform = `translate(${Math.round(p.x)}px, ${Math.round(p.y - 22 * ps * scene.world.view.proj.spriteScale)}px)`;
+    // 每 5 秒说一次：气泡弹一下，小人同时做动作（情绪由小人演）
+    const k = Math.floor((t + hud.bubbles.indexOf(b) * 2.5) / 5);
+    if (k !== Number(b.el.dataset.k ?? -1)) {
+      b.el.dataset.k = String(k);
+      b.el.classList.remove('c-say');
+      void b.el.offsetWidth;
+      b.el.classList.add('c-say');
+      if (!m.once) m.play(b.act, scene.now());
+    }
+  }
+  {
+    const m = scene.minis.get(hud.pointer.id);
+    if (m) {
+      const p = scene.project(m.pos.x, 0, m.pos.z);
+      const bob = Math.round(Math.abs(Math.sin(t * 4)) * -4);
+      hud.pointer.el.style.transform = `translate(${Math.round(p.x)}px, ${Math.round(p.y - 22 * ps * scene.world.view.proj.spriteScale) + bob}px)`;
+    }
   }
   const a = scene.project(scene.compareAt.x, 0, scene.compareAt.z);
   const c = scene.project(scene.oursAt.x, 0, scene.oursAt.z);
@@ -342,4 +397,6 @@ const tick = () => {
 };
 requestAnimationFrame(tick);
 
-if (Q.get('view') === 'scene') requestAnimationFrame(() => phone.scrollIntoView({ block: 'start' }));
+if (Q.get('view') === 'scene' || Q.get('view') === 'roster')
+  requestAnimationFrame(() => phone.scrollIntoView({ block: 'start' }));
+if (Q.get('view') === 'roster') roster.open(Q.get('who') ?? undefined);

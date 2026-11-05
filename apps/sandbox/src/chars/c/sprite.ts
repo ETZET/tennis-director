@@ -58,8 +58,9 @@ export type ExtraId =
   | 'socks'
   | 'hawaii'
   | 'stripe'
-  | 'wristband';
-export type HeldId = 'racket' | 'phone' | 'cup' | 'clip' | 'ball' | 'cane' | 'brush' | 'pliers' | 'tote';
+  | 'wristband'
+  | 'towel';
+export type HeldId = 'racket' | 'phone' | 'cup' | 'clip' | 'ball' | 'cane' | 'brush' | 'pliers' | 'tote' | 'rake';
 
 export interface SpriteSpec {
   build: Build;
@@ -420,6 +421,15 @@ function heldArt(id: Held['id'], handRow: number, shoeRow: number): { rows: stri
       return { rows: ['7', '7'], dx: -1, dy: 0 };
     case 'tote':
       return { rows: ['.N.', 'N.N', 'NNN', 'NnN'], dx: -1, dy: 0 };
+    case 'rake': {
+      // Rosa 的耙子：耙头举在头旁边，柄一直拄到地上
+      const n = Math.max(1, shoeRow - handRow);
+      return {
+        rows: ['7.7.7', '77777', '..3..', '..3..', '..3..', '..3..', ...Array.from({ length: n }, () => '..3..')],
+        dx: -2,
+        dy: -6,
+      };
+    }
     case 'cane': {
       const n = Math.max(1, shoeRow - handRow);
       return { rows: Array.from({ length: n }, () => '3'), dx: -1, dy: 1 };
@@ -567,6 +577,15 @@ export function compose(spec: SpriteSpec, pose: Pose, facing: Facing): Grid {
     g.set(OX, torY + 2, '7');
     g.set(OX - 1, torY + 1, '1');
     g.set(OX, torY + 1, '1');
+  }
+  if (ex.has('towel')) {
+    // Nadia 脖子上的白毛巾，正面两头垂下来
+    for (let x = tx0; x <= tx1; x++) g.set(x, torY, x === tx1 ? 'w' : 'W');
+    if (!back) {
+      g.set(tx0 + 1, torY + 1, 'W');
+      g.set(tx0 + 1, torY + 2, 'w');
+      g.set(tx1 - 1, torY + 1, 'w');
+    }
   }
   if (ex.has('bandana')) {
     for (let x = tx0 + 1; x <= tx1 - 1; x++) g.set(x, torY, 'A');
@@ -760,10 +779,10 @@ const IDLES: Record<IdleId, (s: SpriteSpec) => Anim> = {
   squint: () => ({
     dt: 0.6,
     poses: [
-      { r: 'down', l: 'down' },
-      { r: 'brow', l: 'down', eyes: 'side', hx: -1 },
-      { r: 'brow', l: 'down', eyes: 'side', hx: -1 },
-      { r: 'brow', l: 'hip', eyes: 'open' },
+      { r: 'down', l: 'down', held: [C('rake', 'l')] },
+      { r: 'brow', l: 'down', eyes: 'side', hx: -1, held: [C('rake', 'l')] },
+      { r: 'brow', l: 'down', eyes: 'side', hx: -1, held: [C('rake', 'l')] },
+      { r: 'brow', l: 'down', eyes: 'open', held: [C('rake', 'l')] },
     ],
     emote: [null, null, 'wind', 'wind'],
   }),

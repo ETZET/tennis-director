@@ -94,7 +94,7 @@ export const CAST: readonly Member[] = [
       accent: '#c8442e',
       iris: '#3a2418',
     },
-    sprite: { build: 'normal', hair: 'sunhat', extra: ['bandana'], idle: 'squint' },
+    sprite: { build: 'normal', hair: 'sunhat', extra: ['bandana'], carry: 'rake', idle: 'squint' },
     portrait: {
       face: 'oval',
       age: 'mid',
@@ -300,7 +300,7 @@ export const CAST: readonly Member[] = [
       frame: '#c8a84a',
       iris: '#6a9ac8',
     },
-    sprite: { build: 'tall', hair: 'bun', extra: ['tank'], idle: 'shoulder' },
+    sprite: { build: 'tall', hair: 'bun', extra: ['tank', 'towel'], carry: 'racket', idle: 'shoulder', walk: 'normal' },
     portrait: {
       face: 'long',
       age: 'mid',

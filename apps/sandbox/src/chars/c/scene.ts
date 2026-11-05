@@ -190,6 +190,8 @@ export interface Scene {
   /** 世界点 → 容器里的 CSS 坐标 */
   project(x: number, y: number, z: number): { x: number; y: number };
   setZoom(z: number): void;
+  /** 演出时间（秒） */
+  now(): number;
   dispose(): void;
   /** 对照用的现在的 Person 站在哪儿 */
   compareAt: XZ;
@@ -387,6 +389,7 @@ export function createScene(host: HTMLElement, o: { zoom: number; pixelSize: num
       const s = world.camera.project(x, y, z);
       return { x: s.x, y: s.y };
     },
+    now: () => now,
     setZoom(z) {
       world.camera.target.zoom = z;
     },
