@@ -6,3 +6,4 @@ coverage/
 .vite/
 tools/screenshot/out/
 tools/playtest/out/
+.claude/worktrees/

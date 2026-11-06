@@ -14,6 +14,7 @@ export * from './fx/particles';
 export * from './fx/sprites';
 export * from './motion/ball';
 export * from './motion/ballistics';
+export * from './people/head';
 export * from './people/parts';
 export * from './people/person';
 export * from './people/poses';

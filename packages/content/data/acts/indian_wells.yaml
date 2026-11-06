@@ -482,6 +482,26 @@ rules:
     member_cap: >-
       courts_built * 12 + (facility.clubhouse == "open" ? (variant.clubhouse == "cafe" ? 25 : 15) : 0) + unlocked.member_referrals * 10
       + (plot.golf_west == "open" && route.s3 == "south_courts" ? 24 : 0)
+  # 每日结算（daily-settlement-contract.md，ADR 0024）：钱、声望、会员每天收盘按今天结算。初值 = 上面周结算的各项 ÷ 7
+  # （按周的量：服务、质量、修复；按次数的量不除：走掉的会员本来就是今天的个数）。会员按小数算、零头留到明天。
+  # 今天没有需求（没有一个开着的有需求岗位：雨天、开局）时声望、会员都不动，所以这里不再乘 service_demand。
+  # Wave 0 只放了数，模拟还在读上面的 week；代理 A 接上以后删掉 week。
+  day:
+    service_pass: 0.5
+    reputation:
+      service: (service_rate - service_pass) * 2 / 7
+      quality: (stat.quality - 50) / 25 / 7
+      restored: restored * 0.15 / 7
+      walkouts: "-0.5 * care.walkouts"
+    members:
+      growth: >-
+        max(0, (courts_built * service_rate + (stat.quality - 30) / 12 + stat.reputation / 30) / 7
+        - (plot.se_corner == "building" && route.s4 == "event_plaza" && flag.ep_cleared ? 2 : 0) / 7)
+      walkouts: "-care.walkouts / 3"
+    member_cap: >-
+      courts_built * 12 + (facility.clubhouse == "open" ? (variant.clubhouse == "cafe" ? 25 : 15) : 0) + unlocked.member_referrals * 10
+      + (plot.golf_west == "open" && route.s3 == "south_courts" ? 24 : 0)
+    member_loss_max: max(8, stat.members * 0.25) / 7
   dues_week: 12
   derived:
     service: round(service_rate * 100)

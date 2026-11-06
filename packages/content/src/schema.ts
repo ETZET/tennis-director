@@ -819,6 +819,21 @@ export const act = z.strictObject({
         service_pass: z.number().min(0).max(1).default(0.5),
       })
       .optional(),
+    /**
+     * 每天收盘的每日结算（daily-settlement-contract.md，ADR 0024；代替上面的 week）。表达式里 service_rate 是今天的服务率，
+     * care.walkouts 是今天走掉的会员。今天没有需求（没有一个开着的有需求岗位）时声望、会员都不动（准则 6：没人就是零、不倒扣）。
+     * reputation：拆成几项（文案 ui.terms.<名字>）；members：今天该来多少人（小数，零头留到明天），一个表达式或拆成几项；
+     * member_cap：场地撑得起多少人（超出的不续）；member_loss_max：今天最多走掉多少（不影响涨）；service_pass：声望服务项的及格线。
+     */
+    day: z
+      .strictObject({
+        reputation: z.record(id, z.string()),
+        members: z.union([z.string(), z.record(id, z.string())]),
+        member_cap: z.string().optional(),
+        member_loss_max: z.string().default('max(8, stat.members * 0.25) / 7'),
+        service_pass: z.number().min(0).max(1).default(0.5),
+      })
+      .optional(),
     /** 每个会员每周的会费 */
     dues_week: z.number(),
     /** 每天收盘和开局时重算的派生状态量，例如董事会信心 */

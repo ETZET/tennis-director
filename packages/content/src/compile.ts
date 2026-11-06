@@ -908,6 +908,22 @@ export function compileContent(files: Record<string, string>): CompileResult {
       checkExpr(file, a.rules.week.member_cap, 'rules.week.member_cap');
       checkExpr(file, a.rules.week.member_loss_max, 'rules.week.member_loss_max');
     }
+    // 每日结算（daily-settlement-contract.md）
+    if (a.rules.day) {
+      for (const [t, v] of Object.entries(a.rules.day.reputation)) {
+        checkExpr(file, v, `rules.day.reputation.${t}`);
+        needText(file, `ui.terms.${t}`);
+      }
+      const members = a.rules.day.members;
+      if (typeof members === 'string') checkExpr(file, members, 'rules.day.members');
+      else
+        for (const [t, v] of Object.entries(members)) {
+          checkExpr(file, v, `rules.day.members.${t}`);
+          needText(file, `ui.terms.${t}`);
+        }
+      checkExpr(file, a.rules.day.member_cap, 'rules.day.member_cap');
+      checkExpr(file, a.rules.day.member_loss_max, 'rules.day.member_loss_max');
+    }
     for (const [k, v] of Object.entries(a.rules.derived)) {
       if (!stats.has(k)) err(file, `rules.derived: unknown stat '${k}'`);
       checkExpr(file, v, `rules.derived.${k}`);

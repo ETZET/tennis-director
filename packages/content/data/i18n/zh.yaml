@@ -763,6 +763,7 @@ ui:
     traits: 员工特质
     land: 新地
     walkouts: 走掉的会员
+    growth: 新会员
   task_log: "{name}闲下来就去做{what}"
   because:
     default_pick: "时间到了，{name}选了“{option}”"
@@ -1043,3 +1044,90 @@ ui:
         net_loose: 网太松
         net_tight: 太紧了
         net_snap: 绳断了！
+  # 每日结算卡（daily-settlement-contract.md，ADR 0024）：每天收盘停下来讲今天；周日多一页"本周回顾"
+  daily:
+    title: "第 {n} 天 · 周{d}收盘"
+    title_week: "第 {n} 周回顾"
+    page: "{i}/{n}"
+    tap_skip: 点一下看结果
+    tap_next: 点一下继续
+    tap_week: 点一下看本周回顾
+    continue: 开始新的一天
+    weather: { sun: 晴, cloud: 多云, rain: 下雨, wind: 大风, heat: 酷热 }
+    sections:
+      money: 今天的钱
+      standing: 口碑和会员
+      people: 今天的人
+      tomorrow: 明天
+      week_money: 本周的钱
+      week_standing: 本周口碑和会员
+      week_trend: 这一周的服务率
+    money:
+      dues: 会费
+      facility: "{place}"
+      post: "{post}"
+      wages: 工资
+      upkeep: "{place}维护"
+      materials: "材料 · {order}"
+      card: "{card}"
+      event: "{title}"
+      other: 其他
+      total: 今天净收入
+      cash: 现金
+      vs_yesterday: "比昨天 {d}"
+      same_yesterday: 和昨天一样
+    standing:
+      reputation: 声望
+      members: 会员
+      service: "服务率 {n}%"
+      pass: "及格线 {n}%"
+      vs_yesterday: "比昨天 {d} 个百分点"
+      none: 今天没有客人，口碑和会员都不动
+      missed: "缺人最多：{post}，空了 {time}"
+      unplayable: "{place}不能打，挡掉了 {time}"
+      walkouts: "{n} 位会员等不及走了"
+      capped: "场地只撑得起 {cap} 人"
+      limited: "今天最多走 {n} 人，剩下的明天再说"
+      carry: "差一点就多一位会员"
+    people:
+      top: 干得最多
+      idle: 一直闲着
+      morale: 士气在掉
+      work: "干了 {time}"
+      idle_for: "闲了 {time}"
+      morale_drop: "士气 {from} → {to}"
+      none: 今天没什么要说的
+      locate: 在地图上找到{name}
+    tomorrow:
+      weather: "明天{weather}"
+      season: "明天入{season}"
+      dirty: "{place}没人扫的话会{level}"
+      dirty_why: "（{why}）"
+      tournament: "{title}比赛日"
+      tournament_first: "{title}开赛"
+      tournament_signup: "{title}开始报名"
+      hiring: 招聘日
+      card: "{card}"
+      settle: 季末结算
+      days_left: "离季末结算还有 {n} 天"
+      last_day: 明天就是季末结算
+      nothing: 明天没有安排
+      at: "{time}"
+    week:
+      total: 本周净收入
+      best: "最好的一天：周{d}（{money}）"
+      worst: "最差的一天：周{d}（{money}）"
+      reputation: 本周声望
+      members: 本周会员
+      walkouts: "本周走掉 {n} 位会员"
+      service: "本周服务率 {n}%"
+      no_demand: 没客人
+      days: "收进来 {n} 天"
+    wire: "第 {n} 天收盘 · {rate} · {what}"
+    wire_rate: "服务率 {n}%"
+    ctx_service: "今天服务率 {n}%"
+    wire_none: 没有客人
+    because: "第 {n} 天收盘：服务率 {rate}%，及格线 {pass}%"
+    because_none: "第 {n} 天收盘：没有客人（口碑和会员都不动）"
+    because_week: "第 {n} 周回顾：服务率 {rate}%"
+    because_week_none: "第 {n} 周回顾：没有客人"

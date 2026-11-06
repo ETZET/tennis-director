@@ -773,6 +773,7 @@ ui:
     traits: staff traits
     land: new land
     walkouts: members who left
+    growth: new members
   task_log: "{name} will take on {what} when free"
   because:
     default_pick: "{name} picked “{option}” when time ran out"
@@ -1050,3 +1051,90 @@ ui:
         net_loose: Too slack
         net_tight: Too tight
         net_snap: Snapped!
+  # Daily settlement card (daily-settlement-contract.md, ADR 0024): every close pauses to report the day; Sundays add a week review page
+  daily:
+    title: "Day {n} · {d} close"
+    title_week: "Week {n} review"
+    page: "{i}/{n}"
+    tap_skip: Tap to see the results
+    tap_next: Tap to continue
+    tap_week: Tap for the week review
+    continue: Start the next day
+    weather: { sun: sunny, cloud: cloudy, rain: rain, wind: windy, heat: heat wave }
+    sections:
+      money: Today's money
+      standing: Reputation & members
+      people: Today's people
+      tomorrow: Tomorrow
+      week_money: This week's money
+      week_standing: This week's reputation & members
+      week_trend: Service rate this week
+    money:
+      dues: Dues
+      facility: "{place}"
+      post: "{post}"
+      wages: Wages
+      upkeep: "{place} upkeep"
+      materials: "Materials · {order}"
+      card: "{card}"
+      event: "{title}"
+      other: Other
+      total: Net today
+      cash: Cash
+      vs_yesterday: "{d} vs yesterday"
+      same_yesterday: Same as yesterday
+    standing:
+      reputation: Reputation
+      members: Members
+      service: "Service {n}%"
+      pass: "pass mark {n}%"
+      vs_yesterday: "{d} pts vs yesterday"
+      none: No customers today, so reputation and members stay put
+      missed: "Most short-handed: {post}, empty for {time}"
+      unplayable: "{place} was unplayable for {time}"
+      walkouts: "{n} members gave up waiting and left"
+      capped: "The courts can only hold {cap} members"
+      limited: "At most {n} leave in a day; the rest decide tomorrow"
+      carry: "One more member is almost in"
+    people:
+      top: Worked hardest
+      idle: Stood around
+      morale: Morale slipping
+      work: "worked {time}"
+      idle_for: "idle {time}"
+      morale_drop: "morale {from} → {to}"
+      none: Nothing to report
+      locate: "Find {name} on the map"
+    tomorrow:
+      weather: "Tomorrow: {weather}"
+      season: "{season} starts tomorrow"
+      dirty: "{place} will be {level} if nobody cleans it"
+      dirty_why: " ({why})"
+      tournament: "{title} match day"
+      tournament_first: "{title} starts"
+      tournament_signup: "{title} sign-up opens"
+      hiring: Hiring day
+      card: "{card}"
+      settle: Season settlement
+      days_left: "{n} days to the season settlement"
+      last_day: Tomorrow is settlement day
+      nothing: Nothing scheduled
+      at: "{time}"
+    week:
+      total: Net this week
+      best: "Best day: {d} ({money})"
+      worst: "Worst day: {d} ({money})"
+      reputation: Reputation this week
+      members: Members this week
+      walkouts: "{n} members walked out this week"
+      service: "Service this week {n}%"
+      no_demand: no customers
+      days: "{n} days counted"
+    wire: "Day {n} close · {rate} · {what}"
+    wire_rate: "service {n}%"
+    ctx_service: "Service today {n}%"
+    wire_none: no customers
+    because: "Day {n} close: service {rate}%, pass mark {pass}%"
+    because_none: "Day {n} close: no customers (reputation and members stay put)"
+    because_week: "Week {n} review: service {rate}%"
+    because_week_none: "Week {n} review: no customers"

@@ -2,6 +2,7 @@ import type { ContentBundle, OptionKey } from '@td/content';
 import { fnv1a, stableStringify } from '@td/shared';
 import { openCard, resolveCard } from './cards';
 import { careFinish } from './care';
+import { freshDay } from './day';
 import { type Ctx, run, setStat } from './effects';
 import { startSeason2 } from './ending';
 import type { SimEvent } from './events';
@@ -101,6 +102,30 @@ export function newGame(content: ContentBundle, o: NewGameOptions): GameState {
       walkouts: 0,
       unplayable: {},
     },
+    // 每日结算（daily-settlement-contract.md）：下面建好人以后按开局的状态重建今天的账
+    today: {
+      day: a.start.day,
+      log0: 0,
+      demand: 0,
+      served: 0,
+      missed: {},
+      unplayable: {},
+      walkouts: {},
+      last: 0,
+      lastDemand: 0,
+      traitRep: 0,
+      materials: {},
+      cash0: 0,
+      reputation0: 0,
+      members0: 0,
+      quality0: 0,
+      morale0: {},
+      work: {},
+      idle: {},
+    },
+    memberCarry: 0,
+    forecast: null,
+    days: [],
     ledger: {},
     cards: { open: [], scheduled: [], cooldowns: {}, seen: {}, shown: {}, nextDraw: 0 },
     activities: [],
@@ -132,6 +157,7 @@ export function newGame(content: ContentBundle, o: NewGameOptions): GameState {
     };
     if (placed?.head_coach) s.headCoach = p.id;
   }
+  s.today = freshDay(s, a.start.day);
   const ctx: Ctx = { s, w, events: [] };
   // 场地可用度：rules.care.courts 里的每处球场一条（全干净）；没写 rules.care 时什么都不加
   initCare(s, w);
