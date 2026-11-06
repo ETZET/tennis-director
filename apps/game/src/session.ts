@@ -4,6 +4,7 @@ import {
   type CareResult,
   type Command,
   type ContentBundle,
+  type DayReport,
   type GameState,
   type LoggedCommand,
   newGame,
@@ -25,6 +26,8 @@ import {
  * - 模拟发出 requestPause（例如要紧的卡打开）就自动暂停。
  * - 亲手扫的小游戏开着（care，court-care-contract.md）：游戏时间不走（和暂停一样，但不改 paused），
  *   收工发一条 careFinish，放弃什么都不发。
+ * - 每日结算（daily-settlement-contract.md，ADR 0024）：模拟收盘发 daySettled，这里记下报告、停自己的钟（不管几倍速）；
+ *   结算卡点完调 ackSettlement() 才接着走。模拟从不等它：不是命令、不进命令日志，重放和它无关。
  */
 
 export const MINUTES_PER_SECOND = PACE.minutesPerSecond;
@@ -49,6 +52,8 @@ export class Session {
   endView: 'score' | 'summary' = 'score';
   /** 亲手扫的小游戏开着的那块场（设施 id）：frame() 不走游戏时间（和 paused 一样，但不改 paused） */
   care: string | null = null;
+  /** 开着的每日结算卡（daySettled 带来的报告）：frame() 不走游戏时间（和 paused 一样，但不改 paused）；读档不恢复 */
+  settlement: DayReport | null = null;
   private queue: Command[] = [];
 
   constructor(
@@ -120,10 +125,16 @@ export class Session {
     this.care = null;
   }
 
+  /** 结算卡点完了：关上卡，时间接着走（下一帧起） */
+  ackSettlement(): void {
+    this.settlement = null;
+    this.frac = 0;
+  }
+
   /** 推进 dt 秒真实时间。返回这一帧的领域事件。 */
   frame(dt: number): SimEvent[] {
     let ticks = 0;
-    if (!this.paused && !this.care && !this.s.outcome) {
+    if (!this.paused && !this.care && !this.settlement && !this.s.outcome) {
       this.frac += dt * MINUTES_PER_SECOND * this.speed * (this.idle ? PACE.idleSpeedup : 1);
       ticks = Math.floor(this.frac);
       this.frac -= ticks;
@@ -133,7 +144,7 @@ export class Session {
 
   /** 正好走一个游戏分钟（试玩桥用：不受速度和"闲着加速"影响） */
   stepMinute(): SimEvent[] {
-    return this.run(this.paused || this.care || this.s.outcome ? 0 : 1);
+    return this.run(this.paused || this.care || this.settlement || this.s.outcome ? 0 : 1);
   }
 
   private run(ticks: number): SimEvent[] {
@@ -145,16 +156,33 @@ export class Session {
     const first = advance(this.s, this.content, cmds, 0);
     this.log.push(...first.accepted);
     events.push(...first.events);
+    // 调试跳过几天（debugSkip）一次结算好几天：只开最后一张；开了卡这一帧就不再往下走
+    if (this.settle(first.events)) {
+      this.frac = 0;
+      return events;
+    }
     for (let i = 0; i < ticks; i++) {
       const r = advance(this.s, this.content, [], 1);
       this.log.push(...r.accepted);
       events.push(...r.events);
-      if (r.events.some((e) => e.type === 'requestPause') || this.s.outcome) {
-        this.paused = !this.s.outcome;
+      // 收盘了：停在结算卡上（不改 paused；这一局结束了就不开，让结局卡接手）
+      const settled = this.settle(r.events);
+      const pause = r.events.some((e) => e.type === 'requestPause') || !!this.s.outcome;
+      if (pause) this.paused = !this.s.outcome;
+      if (settled || pause) {
         this.frac = 0;
         break;
       }
     }
     return events;
+  }
+
+  /** 这批事件里有收盘结算：记下最后一份报告，返回 true（这一局已经结束时不开卡） */
+  private settle(events: readonly SimEvent[]): boolean {
+    let report: DayReport | null = null;
+    for (const e of events) if (e.type === 'daySettled') report = e.report;
+    if (!report || this.s.outcome) return false;
+    this.settlement = report;
+    return true;
   }
 }

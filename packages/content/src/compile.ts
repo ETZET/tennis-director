@@ -69,13 +69,13 @@ export const COMPUTED_VARS = [
   'staff',
   /** 修好了几处设施：状态和开局不一样、而且给园区加分（扫完沙这种中间状态不算，ADR 0015） */
   'restored',
-  /** 本周到现在的服务率 0..1（有需求的岗位分钟里，有人在岗的比例） */
+  /** 今天到现在的服务率 0..1（有需求的岗位分钟里，有人在岗的比例）；今天还没有需求时是昨天的，昨天也没有是 0 */
   'service_rate',
-  /** 这一周（或者上一周）有没有需求：0 或 1。没有需求的一周，服务率无从谈起（GM-1） */
+  /** 今天（或者昨天）有没有需求：0 或 1。没有需求的一天，服务率无从谈起（GM-1），每日结算不动声望、会员 */
   'service_demand',
-  /** 整季（到现在为止所有周加上这一周）的服务率 0..1；只给结局打分用（要扫日志） */
+  /** 整季（到现在为止每一天的每日结算，加上今天）的服务率 0..1；只给结局打分用（要扫日志） */
   'service_season',
-  /** 周结算里声望服务项的及格线（rules.week.service_pass） */
+  /** 每日结算里声望服务项的及格线（rules.day.service_pass） */
   'service_pass',
   /** 修好、能打的场地数，不管今天下不下雨（会员上限按这个算） */
   'courts_built',
@@ -117,8 +117,8 @@ export const COMPUTED_VARS = [
   'ending.season',
   'ending.settled',
   /**
-   * 场地可用度（court-care-contract.md）：waiting 此刻在门口等的会员一共几个；walkouts 这一周等不及走掉的会员数
-   * （周日收盘结算以后清零）；worst 开着的球场里可用度最低的那块（0..100，没有开着的球场是 100）。地图没写 rules.care 时是 0 / 0 / 100
+   * 场地可用度（court-care-contract.md）：waiting 此刻在门口等的会员一共几个；walkouts 今天等不及走掉的会员数
+   * （每天开门清零）；worst 开着的球场里可用度最低的那块（0..100，没有开着的球场是 100）。地图没写 rules.care 时是 0 / 0 / 100
    */
   'care.waiting',
   'care.walkouts',
@@ -899,14 +899,21 @@ export function compileContent(files: Record<string, string>): CompileResult {
         checkExpr(file, v, `rules.quality_target.${t}`);
         needText(file, `ui.terms.${t}`);
       }
-    if (a.rules.week) {
-      for (const [t, v] of Object.entries(a.rules.week.reputation)) {
-        checkExpr(file, v, `rules.week.reputation.${t}`);
+    // 每日结算（daily-settlement-contract.md）
+    if (a.rules.day) {
+      for (const [t, v] of Object.entries(a.rules.day.reputation)) {
+        checkExpr(file, v, `rules.day.reputation.${t}`);
         needText(file, `ui.terms.${t}`);
       }
-      checkExpr(file, a.rules.week.members, 'rules.week.members');
-      checkExpr(file, a.rules.week.member_cap, 'rules.week.member_cap');
-      checkExpr(file, a.rules.week.member_loss_max, 'rules.week.member_loss_max');
+      const members = a.rules.day.members;
+      if (typeof members === 'string') checkExpr(file, members, 'rules.day.members');
+      else
+        for (const [t, v] of Object.entries(members)) {
+          checkExpr(file, v, `rules.day.members.${t}`);
+          needText(file, `ui.terms.${t}`);
+        }
+      checkExpr(file, a.rules.day.member_cap, 'rules.day.member_cap');
+      checkExpr(file, a.rules.day.member_loss_max, 'rules.day.member_loss_max');
     }
     for (const [k, v] of Object.entries(a.rules.derived)) {
       if (!stats.has(k)) err(file, `rules.derived: unknown stat '${k}'`);

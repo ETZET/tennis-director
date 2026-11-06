@@ -8,7 +8,7 @@ export type { MessKind, Surface, Weather };
  */
 
 /** 存档格式版本；改了格式就加一个迁移函数（见 save.ts） */
-export const SAVE_VERSION = 14;
+export const SAVE_VERSION = 15;
 
 export interface PersonState {
   id: string;
@@ -126,8 +126,13 @@ export type Cause =
   | { kind: 'default'; card: string; option: OptionKey | null; success?: boolean }
   | { kind: 'activity'; activity: string }
   | { kind: 'day'; day: number }
-  /** 周日收盘的周结算：服务率、缺人最多的岗位、这一周的钱，以及声望、会员、质量为什么这样变 */
+  /**
+   * 周日收盘的周结算：服务率、缺人最多的岗位、这一周的钱，以及声望、会员、质量为什么这样变。
+   * 每日结算（daily-settlement-contract.md，ADR 0024）以后它只是"本周回顾"：各项是这一周七条 daily 的合计，不再改数
+   */
   | ({ kind: 'week' } & WeekSettlement)
+  /** 每天收盘的每日结算（daily-settlement-contract.md，ADR 0024）：今天的服务率、钱，以及声望、会员为什么这样变 */
+  | ({ kind: 'daily' } & DaySettlement)
   | { kind: 'post'; post: string; person: string; cycles: number }
   | { kind: 'order'; order: string; people: string[]; success?: boolean }
   /** 周日收盘时状况低于掉档阈值，设施掉了一档（准则 6） */
@@ -199,6 +204,12 @@ export interface WeekState {
   walkouts?: number;
   /** 每个有需求的岗位这一周因为场地不能打而没服务到的分钟（有人在岗也算没服务到；不记进 missed） */
   unplayable?: Record<string, number>;
+  /**
+   * 每日结算（daily-settlement-contract.md）以后：上面的 demand、served、missed、money、traitRep、walkouts、unplayable
+   * 不再每分钟记，而是每天收盘把今天（DayState）卷进来；rep 是这一周每天声望各项之和，members 是这一周会员一共变了几个
+   */
+  rep?: Record<string, number>;
+  members?: number;
 }
 
 export interface WeekSettlement {
@@ -215,7 +226,7 @@ export interface WeekSettlement {
   members: {
     gain: number;
     cap: number | null;
-    /** 这周本该走掉更多、被"一周最多走掉几个"（rules.week.member_loss_max）挡住时，挡在多少（没挡就不写） */
+    /** 旧的周结算：这周本该走掉更多、被"一周最多走掉几个"挡住时，挡在多少（没挡就不写）；每日结算以后的回顾不写 */
     loss_max?: number;
   };
   /** 质量这周在向哪个目标靠近，目标的各项 */
@@ -223,6 +234,217 @@ export interface WeekSettlement {
   /** 场地可用度（court-care-contract.md）：这一周走掉的会员；不能打挡掉分钟最多的那块场（没有是 null）。没有这个机制时不写 */
   walkouts?: number;
   unplayable?: { court: string; minutes: number } | null;
+  /** 每日结算以后的周结算只是回顾（各项是七天之和，没改数）；没有这一项的是旧的周结算（整季服务率要算它） */
+  review?: boolean;
+}
+
+/* ---------------- 每日结算（daily-settlement-contract.md，ADR 0024） ---------------- */
+
+/** 每日结算的因果日志（cause.kind === 'daily'）：和 WeekSettlement 同一套讲法，只算今天 */
+export interface DaySettlement {
+  day: number;
+  /** 今天有需求的岗位分钟、其中服务到的分钟（勉强能打按 meh_service 折算，可以是小数） */
+  demand: number;
+  served: number;
+  /** 声望服务项的及格线（rules.day.service_pass） */
+  pass: number;
+  missed: { post: string; minutes: number } | null;
+  /** 今天的会费、设施收入、维护费、工资（取整；现金早已按天记过，这里只讲） */
+  money: WeekMoney;
+  /** 声望各项（rules.day.reputation 的项，加上特质 traits）；保留两位小数。今天没有需求时是 {} */
+  rep: Record<string, number>;
+  /**
+   * 会员：gain 各项之和（小数，没取整）、cap 场地撑得起多少人（null = 没上限）、carry 结算后的零头 (-1, 1)；
+   * loss_max：今天本该走掉更多、被 rules.day.member_loss_max 挡住时挡在多少（没挡就不写）
+   */
+  members: {
+    gain: number;
+    cap: number | null;
+    carry: number;
+    loss_max?: number;
+    /** 实现回写（契约"最终 schema"）：rules.day.members 的各项（两位小数；写成一个表达式时只有 total）、撞了上限、实际变了几个 */
+    terms?: Record<string, number>;
+    capped?: boolean;
+    delta?: number;
+  };
+  /** 今天没有需求：声望、会员都没结算（rep 是 {}、members.gain 是 0） */
+  skipped?: boolean;
+  /** 场地可用度：今天走掉的会员、不能打挡掉分钟最多的那块场。地图没写 rules.care 时不写 */
+  walkouts?: number;
+  unplayable?: { court: string; minutes: number } | null;
+}
+
+/** 今天的账（开门时清零，收盘时结算成 DaySettlement 和 DayReport） */
+export interface DayState {
+  /** 第几天（openDay 建的那一天） */
+  day: number;
+  /** 今天开门那一刻因果日志的下一个 id（收盘时从这里往后扫今天的钱：岗位、材料、卡、赛事） */
+  log0: number;
+  /** 有需求的岗位分钟，和其中服务到的分钟（勉强能打按 meh_service 折算） */
+  demand: number;
+  served: number;
+  /** 每个有需求的岗位今天没人的分钟 */
+  missed: Record<string, number>;
+  /** 每个有需求的岗位今天因为场地不能打没服务到的分钟（不记进 missed） */
+  unplayable: Record<string, number>;
+  /** 每块场今天等不及走掉的会员（变量 care.walkouts = 各项之和） */
+  walkouts: Record<string, number>;
+  /** 昨天的服务率和需求分钟（今天还没有需求时变量 service_rate 读昨天的） */
+  last: number;
+  lastDemand: number;
+  /** 在职人员特质今天带来的声望（收盘时记，和 rules.day.reputation 一起结算） */
+  traitRep: number;
+  /** 今天开工的工单扣的材料费（工单 → 钱；开工扣钱不写因果日志，所以在这里记） */
+  materials: Record<string, number>;
+  /** 开门那一刻的现金、声望、会员、质量 */
+  cash0: number;
+  reputation0: number;
+  members0: number;
+  quality0: number;
+  /** 开门那一刻每个在职的人的士气 */
+  morale0: Record<string, number>;
+  /** 每个在职的人今天在岗位、工单上干活（或在办事）的营业分钟；闲着的营业分钟（走路两边都不算） */
+  work: Record<string, number>;
+  idle: Record<string, number>;
+  /**
+   * 实现回写（契约"最终 schema"）：收盘 bookDay 按天记进现金的会费、工资，和每处设施的收入、维护费（不取整）。
+   * 结算卡按它列钱的行（会员在结算后才变，收盘以后再算会费就不对了）；bookDay 之前没有
+   */
+  book?: { dues: number; wages: number; facilities: Record<string, { income: number; upkeep: number }> };
+}
+
+/** 结算卡上钱的一行：kind 是来源，id 是哪一个（岗位、设施、工单、卡、赛事；会费、工资、其他是 null）；amount 取整，收入正、花销负 */
+export type DayMoneyKind = 'dues' | 'facility' | 'post' | 'wages' | 'upkeep' | 'materials' | 'card' | 'event' | 'other';
+export interface DayMoneyLine {
+  kind: DayMoneyKind;
+  id: string | null;
+  amount: number;
+}
+
+/** 结算卡上"今天的人"的一个人 */
+export interface DayPerson {
+  id: string;
+  /** 今天干活、闲着的营业分钟 */
+  work: number;
+  idle: number;
+  /** 收盘后的士气、开门时的士气 */
+  morale: number;
+  morale0: number;
+}
+
+/** 明天日历上的一项（和季节栏的节拍同一套规则） */
+export type DayCalendarItem =
+  /** 赛事：明天是这一期的比赛日（entered 已经报上名；first 明天是第一个比赛日）；或者明天开放报名 signup */
+  | { kind: 'tournament'; id: string; at: string; start: number; entered: boolean; first: boolean; signup: boolean }
+  /** 招聘日：排着的招聘卡（卡的 who 是 applicants） */
+  | { kind: 'hiring'; card: string; at: number }
+  /** 地图日历上的卡（投资方来访、期限） */
+  | { kind: 'card'; card: string; at: number }
+  /** 季末结算（rules.ending 的 day、hour） */
+  | { kind: 'settle'; at: number };
+
+/** 结算卡的"明天"：天气是真的（收盘时已经抽好，存在 GameState.forecast） */
+export interface DayTomorrow {
+  day: number;
+  weekday: number;
+  season: string;
+  /** 明天换季 */
+  seasonStarts: boolean;
+  weather: Weather;
+  /** 明天没人扫就会变差的球场（按明天的天气和今天的使用估一整天）：会变成哪一档、现在哪一档、主要是哪种脏乱 */
+  dirty: { court: string; level: CareLevel; now: CareLevel; why: MessKind }[];
+  calendar: DayCalendarItem[];
+  /** 离季末结算还有几天 = ending.day − 明天是第几天（明天就是结算那天 = 0）；地图没写 ending、或者第二季 = null */
+  daysLeft: number | null;
+}
+
+/** 周日结算卡的"本周回顾"：只是把这一周的每日结算加起来讲，不改任何数 */
+export interface WeekReview {
+  week: number;
+  /** 收进来的是哪几天（周一到周日；读旧档那一周缺的天不在里面） */
+  days: number[];
+  money: { total: number; lines: DayMoneyLine[] };
+  reputation: number;
+  members: number;
+  walkouts: number;
+  service: {
+    demand: number;
+    served: number;
+    rate: number | null;
+    /** 每天的服务率（顺序同 days；没有需求的那天是 null） */
+    trend: (number | null)[];
+  };
+  /** 净收入最多、最少的一天（只有一天时两个一样；没有是 null） */
+  best: { day: number; money: number } | null;
+  worst: { day: number; money: number } | null;
+  quality: { before: number; after: number };
+}
+
+/** 一天的结算报告（领域事件 daySettled 带着它，也存在 GameState.days 里）：结算卡只读它 */
+export interface DayReport {
+  day: number;
+  week: number;
+  /** 0 = 周一 … 6 = 周日 */
+  weekday: number;
+  season: string;
+  weather: Weather;
+  money: {
+    lines: DayMoneyLine[];
+    /** 今天现金一共变了多少（收盘后 − 开门时，取整）；lines 之和和它差的零头记在 other 里 */
+    total: number;
+    /** 收盘后的现金（取整） */
+    cash: number;
+    /** 和昨天的 total 比（昨天没有报告是 null） */
+    vsYesterday: number | null;
+  };
+  service: {
+    demand: number;
+    served: number;
+    /** 今天的服务率 0..1；今天没有需求是 null */
+    rate: number | null;
+    pass: number;
+    /** 和昨天的服务率比（两天都有需求才有） */
+    vsYesterday: number | null;
+    missed: { post: string; minutes: number } | null;
+    unplayable: { court: string; minutes: number } | null;
+    walkouts: number;
+    /** 每块场走掉几个（只写 > 0 的） */
+    walkoutsBy: Record<string, number>;
+  };
+  reputation: {
+    before: number;
+    after: number;
+    delta: number;
+    /** rules.day.reputation 的各项和 traits（没有需求时是 {}） */
+    terms: Record<string, number>;
+    /** 今天没有需求：声望不动（准则 6：没人就是零、不倒扣） */
+    skipped: boolean;
+  };
+  members: {
+    before: number;
+    after: number;
+    /** 今天会员实际变了几个（整数） */
+    delta: number;
+    /** 公式算出的今天该来多少（小数，各项之和） */
+    gain: number;
+    /** rules.day.members 的各项（写成一个表达式时只有 total） */
+    terms: Record<string, number>;
+    /** 结算后留到明天的零头 (-1, 1) */
+    carry: number;
+    cap: number | null;
+    /** 撞了上限（gain 被削掉了，或者超出上限的人不续了） */
+    capped: boolean;
+    lossMax: number | null;
+    /** 被"今天最多走掉几个"挡住了 */
+    limited: boolean;
+    skipped: boolean;
+  };
+  quality: { before: number; after: number; target: number };
+  /** 今天的人：干得最多、闲着、士气在掉（各最多 3 个） */
+  people: { top: DayPerson[]; idle: DayPerson[]; morale: DayPerson[] };
+  tomorrow: DayTomorrow;
+  /** 只有周日：本周回顾 */
+  review: WeekReview | null;
 }
 
 /** 效果能改的人物属性 */
@@ -446,8 +668,16 @@ export interface GameState {
    * 旧存档迁移成空表，模拟用到时按内容补上（全干净）
    */
   care: Record<string, CourtCare>;
-  /** 本周的账（周日收盘结算、写成一条因果日志，然后清零） */
+  /** 本周的账（每天收盘把今天卷进来，周日收盘写成一条本周回顾日志，然后清零） */
   week: WeekState;
+  /** 今天的账（每日结算，daily-settlement-contract.md）：开门清零，收盘结算 */
+  today: DayState;
+  /** 会员的零头 (-1, 1)：每日结算按小数算会员，取整以后剩下的留到明天（不丢） */
+  memberCarry: number;
+  /** 明天的天气：收盘时就抽好（结算卡的预告是真的），明天开门照它；day 不是要开的那一天就作废、照旧抽 */
+  forecast: { day: number; weather: Weather } | null;
+  /** 最近 7 天的结算报告（最新的在最后）：结算卡、周日的本周回顾读它 */
+  days: DayReport[];
   /**
    * 拆成几项的派生量（例如董事会信心）每一项现在的值，和上个周日收盘时的值（第二轮试玩 S2）。
    * 每天收盘重算；没有的老存档在下一次重算时补上。

@@ -35,6 +35,12 @@ export interface Text {
   duration(min: number): string;
 }
 
+/** 两位小数的带号数（每日结算的声望一天只动零点几，daily-settlement-contract.md） */
+export const signed2 = (n: number): string => {
+  const r = Math.round(n * 100) / 100 || 0;
+  return r > 0 ? `+${r.toFixed(2)}` : r < 0 ? `−${(-r).toFixed(2)}` : '0';
+};
+
 // 负号用 −（和现金的 −$150 一致）
 const signed = (n: number) => {
   const r = Math.round(n * 10) / 10 || 0;
@@ -226,8 +232,30 @@ export function createText(content: ContentBundle, lang: Lang): Text {
             .replace('{order}', tr(`orders.${c.order}.title`, c.order)) + r
         );
       }
+      case 'daily': {
+        // 每日结算（daily-settlement-contract.md）：今天的服务率、及格线、缺人最多的岗位
+        if (!c.demand) return fmt('ui.daily.because_none', { n: c.day });
+        const base = fmt('ui.daily.because', {
+          n: c.day,
+          rate: Math.round((c.served / c.demand) * 100),
+          pass: Math.round(c.pass * 100),
+        });
+        if (!c.missed) return base;
+        return (
+          base +
+          fmt('ui.settle.missed', {
+            post: tr(`posts.${c.missed.post}.title`, c.missed.post),
+            time: duration(c.missed.minutes),
+          })
+        );
+      }
       case 'week': {
-        // 周结算（GM-1）：服务率、及格线、缺人最多的岗位
+        // 每日结算以后的周结算只是回顾（七天之和，不改数）
+        if (c.review)
+          return c.demand
+            ? fmt('ui.daily.because_week', { n: c.week, rate: Math.round((c.served / c.demand) * 100) })
+            : fmt('ui.daily.because_week_none', { n: c.week });
+        // 旧的周结算（GM-1）：服务率、及格线、缺人最多的岗位
         if (!c.demand) return fmt('ui.settle.none', { n: c.week });
         const base = fmt('ui.settle.because', {
           n: c.week,
@@ -343,7 +371,65 @@ export function createText(content: ContentBundle, lang: Lang): Text {
     return out.length ? out.join(zh ? '；' : '; ') : null;
   };
 
+  /** 每日结算的"所以"：钱（和周结算一样讲来源）、声望各项（两位小数）、会员（撞上限、被挡住）、走掉的会员、不能打的场 */
+  const daily = (e: CausalEntry): string | null => {
+    const c = e.cause;
+    if (c.kind !== 'daily') return null;
+    const sep = zh ? '、' : ', ';
+    const money = (n: number) => `${n < 0 ? '−' : '+'}$${Math.abs(Math.round(n))}`;
+    const get = (stat: string) =>
+      e.effects.find((x): x is Extract<EffectRecord, { kind: 'stat' }> => x.kind === 'stat' && x.stat === stat);
+    const part = (what: string, why: string[]) =>
+      why.length ? fmt('ui.settle.part', { what, parts: why.join(sep) }) : what;
+    const out: string[] = [];
+    const cash = get('cash');
+    if (cash) {
+      const why = (['wages', 'upkeep', 'dues', 'income'] as const)
+        .filter((k) => Math.round(c.money[k]))
+        .map(
+          (k) => `${tr(`ui.settle.money.${k}`)} ${money(k === 'wages' || k === 'upkeep' ? -c.money[k] : c.money[k])}`,
+        );
+      out.push(part(effect(cash) ?? '', why));
+    }
+    const rep = get('reputation');
+    if (rep)
+      out.push(
+        part(
+          `${tr('stats.reputation')} ${signed2(rep.delta)}`,
+          Object.entries(c.rep)
+            .filter(([, v]) => Math.round(v * 100))
+            .map(([k, v]) => `${tr(`ui.terms.${k}`, k)} ${signed2(v)}`),
+        ),
+      );
+    const members = get('members');
+    if (members) {
+      // 撞了上限：多的人不续了（变少），或者还有人想来却进不来（变多但没那么多）；被"今天最多走几个"挡住
+      const cap = c.members.cap ?? 0;
+      const why: string[] = [];
+      const capped = c.members.capped ?? (c.members.cap !== null && members.delta < Math.trunc(c.members.gain));
+      if (capped && c.members.cap !== null)
+        why.push(
+          members.delta < 0
+            ? fmt('ui.settle.capped', { cap })
+            : fmt('ui.settle.full', { cap, n: Math.round(c.members.gain - members.delta) }),
+        );
+      if (c.members.loss_max !== undefined)
+        why.push(fmt('ui.daily.standing.limited', { n: Math.max(1, Math.round(c.members.loss_max)) }));
+      out.push(part(effect(members) ?? '', why));
+    }
+    if (c.walkouts) out.push(fmt('ui.daily.standing.walkouts', { n: c.walkouts }));
+    if (c.unplayable)
+      out.push(
+        fmt('ui.daily.standing.unplayable', {
+          place: anchor(c.unplayable.court),
+          time: duration(c.unplayable.minutes),
+        }),
+      );
+    return out.length ? out.join(zh ? '；' : '; ') : null;
+  };
+
   const so = (e: CausalEntry): string | null => {
+    if (e.cause.kind === 'daily') return daily(e);
     if (e.cause.kind === 'week') return settled(e);
     // 升星这条日志没有数值变动：讲开出了什么
     if (e.cause.kind === 'star') {

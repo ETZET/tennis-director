@@ -12,6 +12,7 @@ import { CARE_GLYPH, type HudActions, mountHud, setHudStrings } from '@td/ui';
 import { createCare } from './care';
 import { plotForRoute, variantSite, withLand } from './courts';
 import { createDebug } from './debug';
+import { headOf } from './heads';
 import { GameLabels } from './labels';
 import { clearAutosave, downloadSave, readAutosave, writeAutosave } from './persist';
 import { Projector } from './project';
@@ -86,6 +87,7 @@ function begin(s: Session): void {
   session = s;
   projector = new Projector(content, text);
   projector.canShow = (a) => !!(site.anchors[a] ?? site.stands[a]);
+  projector.headOf = headOf;
   scene.sync(s.s);
   camera.reset();
   // 开场镜头对准总监（开局他站在大门口，默认视角里在屏幕外；QA P2-3）：总监落在画面中间偏右
@@ -148,7 +150,7 @@ const hudActions: HudActions = {
     draw();
   },
   drop: (person, x, y) => {
-    if (care.active) return;
+    if (care.active || session.settlement) return;
     const t = targetAt(x, y);
     if (t && 'target' in t) assignTo(person, t.target, t.variant);
     else if (t) tapPlace(t.place, person);
@@ -170,6 +172,15 @@ const hudActions: HudActions = {
   variant: (order, v) => tapVariant(order, v),
   beat: (place) => jumpTo(place),
   // 地点清单的"亲手扫"：打开扫场小游戏（canCare 不通过时 open 什么都不做）；开了就收起清单
+  // 每日结算卡（daily-settlement-contract.md）：点完最后一页，时间接着走；点了一个人，地图上亮一下他在的地方
+  settlementDone: () => {
+    session.ackSettlement();
+    draw();
+  },
+  settlementPerson: (id) => {
+    const p = session.s.people[id];
+    if (p) jumpTo(p.at);
+  },
   onCare: (anchor) => {
     const f = worldOf(session.s, content).facilityAt.get(anchor) ?? anchor;
     if (!care.open(f)) return;
@@ -241,7 +252,10 @@ const beatOn = (a: string) => !!beatFocus && beatFocus.place === a && performanc
 
 const draw = () => {
   syncPreview();
-  ui.update(projector.snapshot(session));
+  const snap = projector.snapshot(session);
+  // 扫场小游戏开着时结算卡不盖上去（小游戏开着时间不走，正常到不了收盘；调试跳天时等它关了再开）
+  if (care.active) snap.settlement = null;
+  ui.update(snap);
 };
 
 /**
@@ -483,7 +497,7 @@ function addHubs(c: ContentBundle): void {
 /** 点地点牌（或拿着人落到它上面） */
 function tapPlace(a: string, person: string | null = session.picked): void {
   // 扫场小游戏开着：地图上的地点牌不接（小游戏的 DOM 层本来就挡着，这里再保险一道）
-  if (care.active) return;
+  if (care.active || session.settlement) return;
   if (person) {
     const fits = projector.placeFits(session, a, person);
     // 只有一项能接的活就直接派；但还没定变体的修复工单要先在清单里挑一行（UI-11）
@@ -614,6 +628,8 @@ window.addEventListener('keydown', (e) => {
   const t = e.target as HTMLElement | null;
   if (t?.closest?.('button,summary,input,select') && (e.key === ' ' || e.key === 'Enter')) return;
   if (t?.closest?.('.tdd') && e.key !== '`') return;
+  // 结算卡开着：Space / Enter 由卡自己接（跳到结尾、翻页、进入明天），别的快捷键都不响应
+  if (session.settlement && !care.active && e.key !== '`') return;
   // 扫场小游戏开着：只认 Esc（不扫了）和调试面板
   if (care.active && e.key !== '`') {
     if (e.key === 'Escape') care.close();
@@ -919,12 +935,15 @@ if (import.meta.hot)
 function fastForward(max: number): { minutes: number; stop: string } {
   const t0 = session.s.t;
   session.paused = false;
+  // 开着的结算卡当作已经点过（试玩桥一次走一段，不看卡）
+  session.ackSettlement();
   let stop = 'time';
   // 按营业分钟数走（夜里跳过的时间不算），每次正好一分钟（R10：/wait/1440 不会走成两天）
   for (let i = 0; i < max; i++) {
     const ev = session.stepMinute();
     pump(ev);
     if (session.s.outcome) stop = 'actEnded';
+    else if (session.settlement) stop = 'daySettled';
     else if (ev.some((e) => e.type === 'cardOpened')) stop = 'cardOpened';
     else if (session.paused) stop = 'pause';
     else if (ev.some((e) => e.type === 'orderFinished')) stop = 'orderFinished';

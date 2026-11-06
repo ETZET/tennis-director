@@ -56,4 +56,6 @@ export interface DebugActions {
   mess?(court: string, mess: Readonly<Record<string, number>>): void;
   /** 今天的天气换成 weather（测酷热、下雨） */
   weather?(weather: string): void;
+  /** 跳到今天收盘（每日结算，daily-settlement-contract.md）：测结算卡 */
+  closeDay?(): void;
 }

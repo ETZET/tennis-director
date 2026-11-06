@@ -28,6 +28,7 @@ export {
   optionStatus,
 } from './cards';
 export { type CareBlock, type CareMinutes, canCare, careEstimate, careMinutes } from './care';
+export { buildDayReport, todayRate, weekReview } from './day';
 export {
   canStartSeason2,
   type EndingStatus,

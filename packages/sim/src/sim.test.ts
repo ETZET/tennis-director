@@ -6,7 +6,7 @@ import { run } from './effects';
 import { advance, newGame, replay, stateHash, step } from './game';
 import { fromSave, SaveError, toSave } from './save';
 import { canAssign, orderLead, orderStatus, postStatus, workSkill } from './staff';
-import { at, type CausalEntry, dayOf, type GameState, minuteOfDay, SAVE_VERSION, weekdayOf } from './state';
+import { at, type CausalEntry, dayOf, type GameState, minuteOfDay, SAVE_VERSION } from './state';
 import { facilityTotals, hasDemand, makeEnv, num, qualityTarget, serviceRate, test } from './vars';
 import { shortestRoute, walkEta } from './walk';
 import { worldFor } from './world';
@@ -244,10 +244,10 @@ describe('岗位', () => {
     const s = quiet(court1(fresh()));
     advance(s, CONTENT, [assign('dale', 'o1_lesson')], 0);
     until(s, (x) => minuteOfDay(x.t) >= 15 * 60 + 40);
-    const served = s.week.served;
+    const served = s.today.served;
     const r = advance(s, CONTENT, [assign('dale', 'o1_upkeep')], 0);
     expect(r.events).toContainEqual({ type: 'postInterrupted', post: 'o1_lesson', person: 'dale', lost: 40 });
-    expect(s.week.served).toBe(served - 40);
+    expect(s.today.served).toBe(served - 40);
     expect(s.posts.o1_lesson).toBeUndefined();
   });
 
@@ -259,12 +259,18 @@ describe('岗位', () => {
     expect(s.people.director?.job).toBe('o1_rental');
   });
 
-  it('没人服务的需求计入服务率的分母；周日收盘按服务率结算，然后清零', () => {
+  it('没人服务的需求计入服务率的分母；每天收盘按今天结算、卷进本周的账，周日回顾以后清零', () => {
     const s = quiet(court1(fresh(9)));
     until(s, (x) => minuteOfDay(x.t) >= 12 * 60);
-    expect(s.week.demand).toBeGreaterThan(0);
-    expect(s.week.served).toBe(0);
+    expect(s.today.demand).toBeGreaterThan(0);
+    expect(s.today.served).toBe(0);
     expect(serviceRate(s)).toBe(0);
+    const demand1 = s.today.demand;
+    until(s, (x) => dayOf(x.t) === 2);
+    // 第二天开门：今天的账清零，昨天的需求带过来；本周的账卷进了第 1 天
+    expect(s.today).toMatchObject({ day: 2, demand: 0, served: 0, last: 0 });
+    expect(s.today.lastDemand).toBeGreaterThan(demand1);
+    expect(s.week.demand).toBe(s.today.lastDemand);
     const r = { settled: false };
     for (let i = 0; i < 8 * 720 && !r.settled; i++)
       r.settled = advance(s, CONTENT, [], 1).events.some((e) => e.type === 'weekSettled');
@@ -274,41 +280,52 @@ describe('岗位', () => {
   });
 });
 
-/** 跑到下一个周日收盘，返回这一次的周结算日志 */
+/** 跑到下一个周日收盘，返回这一次的周结算日志（每日结算以后只是本周回顾） */
 function toSettlement(s: GameState): CausalEntry & { cause: { kind: 'week' } } {
   const n = s.log.length;
   until(s, (x) => x.log.slice(n).some((e) => e.cause.kind === 'week'), 8 * 1440);
   return s.log.slice(n).find((e) => e.cause.kind === 'week') as CausalEntry & { cause: { kind: 'week' } };
 }
+/** 跑到下一次收盘，返回今天的每日结算日志（ADR 0024） */
+function toDaily(s: GameState): CausalEntry & { cause: { kind: 'daily' } } {
+  const n = s.log.length;
+  until(s, (x) => x.log.slice(n).some((e) => e.cause.kind === 'daily'), 1440);
+  return s.log.slice(n).find((e) => e.cause.kind === 'daily') as CausalEntry & { cause: { kind: 'daily' } };
+}
 const statDelta = (e: CausalEntry, stat: string) =>
   e.effects.find((x) => x.kind === 'stat' && x.stat === stat) as { delta: number } | undefined;
 
-describe('周结算（GM-1：放着不管时数字的变化要讲得清）', () => {
-  it('还没有开放的岗位：服务率是 0、不是凭空的 50%；周结算不算服务项和质量项（不倒扣）', () => {
+describe('每日结算（GM-1、ADR 0024：放着不管时数字的变化要讲得清）', () => {
+  it('还没有开放的岗位：服务率是 0、不是凭空的 50%；没有需求的天声望、会员都不动（连修复项也不算，不倒扣）', () => {
     const s = quiet(fresh(37));
     expect(serviceRate(s)).toBe(0);
     expect(hasDemand(s)).toBe(false);
     expect(s.stats.service).toBe(0);
     const rep = s.stats.reputation ?? 0;
+    const d = toDaily(s);
+    expect(d.cause).toMatchObject({ day: 1, demand: 0, served: 0, pass: 0.5, missed: null, rep: {}, skipped: true });
+    expect(d.cause.members.gain).toBe(0);
     const e = toSettlement(s);
-    expect(e.cause).toMatchObject({ week: 1, demand: 0, served: 0, pass: 0.5, missed: null });
-    expect(e.cause.rep).toMatchObject({ service: 0, quality: 0 });
-    // 只剩修复项（开局什么都没修好：0）
-    expect(s.stats.reputation).toBe(rep + (e.cause.rep.restored ?? 0));
+    expect(e.cause).toMatchObject({ week: 1, demand: 0, served: 0, pass: 0.5, missed: null, review: true });
+    expect(s.stats.reputation).toBe(rep);
     expect(s.week).toMatchObject({ demand: 0, lastDemand: 0, last: 0 });
   });
 
-  it('工资和会费按天记进现金但不各写一条日志；周结算合成一条"本周工资 −$150"', () => {
+  it('工资和会费按天记进现金；每天一条 daily 讲今天的钱，周日回顾合成"本周工资 −$150"', () => {
     const s = quiet(fresh(37));
     const n = s.log.length;
+    const d = toDaily(s);
+    expect(d.cause.money).toEqual({ dues: 0, income: 0, upkeep: 0, wages: Math.round(150 / 7) });
+    expect(statDelta(d, 'cash')?.delta).toBe(-Math.round(150 / 7));
     const e = toSettlement(s);
     expect(s.log.slice(n).filter((x) => x.cause.kind === 'day')).toEqual([]);
+    expect(s.log.slice(n).filter((x) => x.cause.kind === 'daily')).toHaveLength(7);
     expect(e.cause.money).toEqual({ dues: 0, income: 0, upkeep: 0, wages: 150 });
     expect(statDelta(e, 'cash')?.delta).toBe(-150);
     expect(s.stats.cash).toBeCloseTo(3000 - 150, 6);
   });
 
-  it('质量的目标拆成几项，加起来就是目标；周结算讲这一周质量走了多少、在向哪个目标靠近', () => {
+  it('质量的目标拆成几项，加起来就是目标；周日回顾讲这一周质量走了多少、在向哪个目标靠近', () => {
     const s = quiet(fresh(37));
     const q = qualityTarget(s, W());
     expect(Object.values(q.terms).reduce((a, b) => a + b, 0)).toBeCloseTo(q.total);
@@ -319,18 +336,22 @@ describe('周结算（GM-1：放着不管时数字的变化要讲得清）', () 
     expect(statDelta(e, 'quality')?.delta).toBeCloseTo((s.stats.quality ?? 0) - q0, 1);
   });
 
-  it('有客人没人管：服务率 0 低于及格线，声望服务项 −1；周结算点名缺人最多的岗位', () => {
+  it('有客人没人管：今天服务率 0 低于及格线，声望服务项 −2/7；每日结算点名缺人最多的岗位', () => {
     const s = quiet(court1(fresh(9)));
-    const e = toSettlement(s);
+    const e = toDaily(s);
     expect(e.cause.demand).toBeGreaterThan(0);
     expect(e.cause.served).toBe(0);
-    expect(e.cause.rep.service).toBe(-1);
+    expect(e.cause.rep.service).toBeCloseTo(-1 / 7, 2);
     // 外场 1 看场 8–15 点每天 7 小时，比下午的课（工作日 15–19 点）空得多
     expect(e.cause.missed).toMatchObject({ post: 'o1_rental' });
-    expect(s.week.lastDemand).toBe(e.cause.demand);
+    expect(s.today.lastDemand).toBe(e.cause.demand);
+    // 一周的回顾是七天之和
+    const w = toSettlement(s);
+    const days = s.log.filter((x) => x.cause.kind === 'daily') as (CausalEntry & { cause: { kind: 'daily' } })[];
+    expect(w.cause.demand).toBe(days.reduce((a, x) => a + x.cause.demand, 0));
   });
 
-  it('下雨的周日不会让会员退会：会员上限按修好的场地算，不按今天开着的', () => {
+  it('下雨天不会让会员退会：会员上限按修好的场地算，不按今天开着的', () => {
     const s = quiet(court1(fresh(9)));
     s.facilities.outer_23 = 'playable';
     s.facilities.clubhouse = 'open';
@@ -338,51 +359,55 @@ describe('周结算（GM-1：放着不管时数字的变化要讲得清）', () 
     // 这条只看会员上限：场地一直扫干净（场地可用度另有测试，care.test.ts）
     until(s, (x) => {
       tidy(x);
-      return weekdayOf(x.t) === 6 && minuteOfDay(x.t) >= 19 * 60;
+      return minuteOfDay(x.t) >= 19 * 60;
     });
     s.weather = 'rain';
     expect(facilityTotals(s, W()).courts).toBe(0);
-    const e = toSettlement(s);
+    const e = toDaily(s);
     expect(e.cause.members.cap).toBe(51);
     expect(s.stats.members ?? 0).toBeGreaterThanOrEqual(40);
   });
 
-  it('超过上限的会员周末不续了：周结算写明场地撑得起多少人', () => {
+  it('超过上限的会员不续了：每日结算写明场地撑得起多少人，一天最多走掉一周的七分之一', () => {
     const s = quiet(court1(fresh(9)));
     s.stats.members = 30; // 上限 1 块场 × 12
-    const e = toSettlement(s);
+    const e = toDaily(s);
     expect(e.cause.members.cap).toBe(12);
-    // 一周最多走掉 max(8, 30 × 25%) = 8 个（rules.week.member_loss_max），剩下的下周接着走
-    expect(statDelta(e, 'members')?.delta).toBe(-8);
-    expect(e.cause.members.loss_max).toBe(8);
-    expect(s.stats.members).toBe(22);
-    const e2 = toSettlement(s);
-    expect(statDelta(e2, 'members')?.delta).toBe(-8);
-    expect(s.stats.members).toBe(14);
+    expect(e.cause.members.capped).toBe(true);
+    // 一天最多走掉 max(8, 30 × 25%) / 7 ≈ 1.14 个（rules.day.member_loss_max），剩下的明天接着走
+    expect(statDelta(e, 'members')?.delta).toBe(-1);
+    expect(e.cause.members.loss_max).toBeCloseTo(8 / 7, 2);
+    expect(s.stats.members).toBe(29);
+    const e2 = toDaily(s);
+    expect(statDelta(e2, 'members')?.delta).toBe(-1);
+    expect(s.stats.members).toBe(28);
   });
 
-  it('一周最多走掉的会员按规则算（四分之一，至少 8）；没挡住时周结算不写 loss_max', () => {
+  it('一天最多走掉的会员按规则算（四分之一 ÷ 7，至少 8 ÷ 7）；没挡住时不写 loss_max', () => {
     const s = quiet(court1(fresh(9)));
     s.stats.members = 80;
-    const e = toSettlement(s);
-    expect(statDelta(e, 'members')?.delta).toBe(-20);
-    expect(e.cause.members.loss_max).toBe(20);
+    const e = toDaily(s);
+    expect(statDelta(e, 'members')?.delta).toBe(-2);
+    expect(e.cause.members.loss_max).toBeCloseTo(20 / 7, 2);
+    expect(s.memberCarry).toBeCloseTo(-(20 / 7 - 2), 6);
     const t = quiet(court1(fresh(9)));
-    t.stats.members = 15;
-    const f = toSettlement(t);
-    expect(statDelta(f, 'members')?.delta).toBe(-3);
+    t.stats.members = 13;
+    const f = toDaily(t);
+    expect(statDelta(f, 'members')?.delta).toBe(-1);
     expect(f.cause.members.loss_max).toBeUndefined();
+    // 撞上限：零头不攒
+    expect(t.memberCarry).toBe(0);
   });
 
-  it('员工特质的声望不每天漂：记在本周的账上，周日一起结算并写进周结算', () => {
+  it('员工特质的声望不在白天漂：记在今天的账上，收盘和每日结算一起结算并写进 daily', () => {
     const s = quiet(court1(fresh(9)));
     const star = Object.values(s.people).find((p) => W().people.get(p.id)?.traits.includes('star'));
     expect(star).toBeDefined();
     (star as { hired: boolean }).hired = true;
     const rep = s.stats.reputation ?? 0;
-    until(s, (x) => dayOf(x.t) === 3);
+    until(s, (x) => minuteOfDay(x.t) >= 19 * 60);
     expect(s.stats.reputation).toBe(rep);
-    const e = toSettlement(s);
+    const e = toDaily(s);
     expect(e.cause.rep.traits ?? 0).toBeGreaterThan(0);
   });
 });
@@ -869,11 +894,20 @@ describe('时间', () => {
     expect(seen.size).toBeGreaterThan(1);
   });
 
-  it('不操作时局面基本不动：一周里会员只在周日收盘时变化', () => {
+  it('不操作时局面基本不动：会员白天不漂，只在每天收盘时按今天结算一次', () => {
     const s = quiet(court1(fresh(9)));
     s.stats.members = 10;
-    advance(s, CONTENT, [], 5 * 720);
-    expect(s.stats.members).toBe(10);
+    for (let d = 1; d <= 3; d++) {
+      const before = s.stats.members ?? 0;
+      until(s, (x) => minuteOfDay(x.t) >= 20 * 60 - 1);
+      expect(s.stats.members).toBe(before);
+      const n = s.log.length;
+      until(s, (x) => dayOf(x.t) === d + 1);
+      const daily = s.log.slice(n).find((e) => e.cause.kind === 'daily');
+      expect(daily).toBeDefined();
+      const m = daily?.effects.find((x) => x.kind === 'stat' && x.stat === 'members') as { delta: number } | undefined;
+      expect((s.stats.members ?? 0) - before).toBe(m?.delta ?? 0);
+    }
   });
 
   it('第 112 天 18 点没办成表演赛：结算打分（结局方案 A），期限卡不再判输', () => {

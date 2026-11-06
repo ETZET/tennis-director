@@ -247,7 +247,7 @@ describe('W4 ending plan A (score)', () => {
     s.stars = 2;
     expect(scoreOf(s, w).grade).toBe('D');
   });
-  it('quality-of-play vars: season service rate over every week, exhibition days ahead regardless of settling', () => {
+  it('quality-of-play vars: season service rate over every day (and legacy weeks), exhibition days ahead regardless of settling', () => {
     const c = fixture();
     const a = c.acts[0];
     if (!a?.ending) throw new Error('no ending');
@@ -259,15 +259,21 @@ describe('W4 ending plan A (score)', () => {
     const w = worldFor(c, s.act);
     const pts = () => Object.fromEntries(scoreOf(s, w).items.map((x) => [x.id, x.points]));
     // 一直没有需求：0，不是凭空的 50%
-    s.week.demand = 0;
-    s.week.served = 0;
+    s.log = s.log.filter((e) => e.cause.kind !== 'daily' && e.cause.kind !== 'week');
+    s.today.demand = 0;
+    s.today.served = 0;
     expect(pts()).toEqual({ service: 0, pace: 0 });
-    // 两个周结算（100 分钟里 80、300 分钟里 120）加上这一周到现在（100 分钟里 100）：300 / 500 = 60%
-    const week = (demand: number, served: number) =>
-      ({ id: s.log.length, t: s.t, parent: null, effects: [], cause: { kind: 'week', demand, served } }) as never;
-    s.log.push(week(100, 80), week(300, 120));
-    s.week.demand = 100;
-    s.week.served = 100;
+    // 每日结算以前的一条旧周结算（100 分钟里 80）、一条每日结算（300 分钟里 120）加上今天到现在（100 分钟里 100）：300 / 500 = 60%；
+    // 每日结算以后的周结算只是回顾（review），不重复算
+    const entry = (cause: Record<string, unknown>) =>
+      ({ id: s.log.length, t: s.t, parent: null, effects: [], cause }) as never;
+    s.log.push(
+      entry({ kind: 'week', demand: 100, served: 80 }),
+      entry({ kind: 'daily', demand: 300, served: 120 }),
+      entry({ kind: 'week', demand: 300, served: 120, review: true }),
+    );
+    s.today.demand = 100;
+    s.today.served = 100;
     expect(pts().service).toBe(60);
     // 表演赛第 90 天办成：比第 112 天早 22 天；之后什么时候结算都不变
     s.stars = 4;

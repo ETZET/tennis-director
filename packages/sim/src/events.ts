@@ -1,5 +1,5 @@
 import type { OptionKey, SkillKind } from '@td/content';
-import type { CareLevel, CausalEntry, OutcomeResult, PlaqueRow, Settlement, Weather } from './state';
+import type { CareLevel, CausalEntry, DayReport, OutcomeResult, PlaqueRow, Settlement, Weather } from './state';
 
 /**
  * 领域事件：模拟每一步发出来，画面和界面订阅它们来演出、提示。
@@ -95,6 +95,11 @@ export type SimEvent =
   | { type: 'errandFinished'; person: string }
   | { type: 'log'; entry: CausalEntry }
   | { type: 'dayEnded'; day: number }
+  /**
+   * 每日结算（daily-settlement-contract.md，ADR 0024）：收盘结算完、明天的天气抽好以后发（closeDay 的最后一件事）。
+   * 模拟从不等它：游戏收到就停自己的钟、弹结算卡，玩家点完再走（不是命令，不进命令日志，重放与它无关）
+   */
+  | { type: 'daySettled'; report: DayReport }
   | { type: 'actEnded'; result: OutcomeResult; ending: string }
   /** 结局（W4）：表演赛提前办成了（结局卡随后打开，如果内容写了）；结算打分（分项和评语，也存在 s.ending.settlement）；开了第二季 */
   | { type: 'ending_offered'; day: number; card: string | null }

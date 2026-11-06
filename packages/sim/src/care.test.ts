@@ -260,19 +260,20 @@ describe('不能打：没服务到、门口等人、走人', () => {
     set(s, 'outer_1', { sand: 1 });
     s.weather = 'sun';
     tick(s, 0, [assign('dale', 'o1_rental')]);
-    const d0 = s.week.demand;
-    const s0 = s.week.served;
     const cash0 = s.stats.cash ?? 0;
     const ev: SimEvent[] = [];
     const d = dayOf(s.t);
+    // 今天的账（每日结算）：收盘前最后一分钟看
+    while (minuteOfDay(s.t) < 20 * 60 - 1) ev.push(...tick(s));
+    const today = structuredClone(s.today);
     while (dayOf(s.t) === d) ev.push(...tick(s));
     expect(careBlocksPost(s, w, 'o1_rental')).toBe(true);
     expect(careBlocksPost(s, w, 'o1_upkeep')).toBe(false);
     // 8–15 点 7 小时：头一分钟还没换档
-    expect(s.week.demand - d0).toBeGreaterThanOrEqual(7 * 60 - 1);
-    expect(s.week.served - s0).toBeLessThanOrEqual(1);
-    expect(s.week.unplayable?.o1_rental).toBeGreaterThanOrEqual(7 * 60 - 2);
-    expect(s.week.missed.o1_rental ?? 0).toBeLessThanOrEqual(1);
+    expect(today.demand).toBeGreaterThanOrEqual(7 * 60 - 1);
+    expect(today.served).toBeLessThanOrEqual(1);
+    expect(today.unplayable.o1_rental).toBeGreaterThanOrEqual(7 * 60 - 2);
+    expect(today.missed.o1_rental ?? 0).toBeLessThanOrEqual(1);
     expect(ev.some((e) => e.type === 'postCycle' && e.post === 'o1_rental')).toBe(false);
     // 没有收入（看场岗位一圈都没转）；现金只少了一天的工资和维护
     expect(s.stats.cash ?? 0).toBeLessThan(cash0);
@@ -282,6 +283,12 @@ describe('不能打：没服务到、门口等人、走人', () => {
     expect(outs.length).toBe(3);
     expect(outs.map((e) => (e.type === 'memberWalkedOut' ? e.waited : 0))).toEqual([90, 90, 90]);
     expect(logs(s, 'walkout').length).toBe(3);
+    expect(today.walkouts).toEqual({ outer_1: 3 });
+    // 同一天收盘就罚：每日结算的 walkouts 项 −1.5（声望），卷进本周的账
+    const daily = logs(s, 'daily').at(-1);
+    if (daily?.cause.kind !== 'daily') throw new Error('daily');
+    expect(daily.cause.walkouts).toBe(3);
+    expect(daily.cause.rep.walkouts).toBe(-1.5);
     expect(s.week.walkouts).toBe(3);
     // 15 点看场关了：门口没人等了；收盘时计数清零
     expect(ev.some((e) => e.type === 'waitingEnded')).toBe(true);
@@ -309,27 +316,34 @@ describe('不能打：没服务到、门口等人、走人', () => {
     set(s, 'outer_1', { sand: 0.5, litter: 0.2 });
     tick(s, 0, [assign('dale', 'o1_rental')]);
     tick(s, 2);
-    const s0 = s.week.served;
+    const s0 = s.today.served;
     const ev = tick(s, 60);
     expect(s.care.outer_1?.level).toBe('meh');
-    expect(s.week.served - s0).toBeCloseTo(60 * W().act.rules.care!.meh_service, 0);
+    expect(s.today.served - s0).toBeCloseTo(60 * W().act.rules.care!.meh_service, 0);
     expect(ev.filter((e) => e.type === 'careGrumble').length).toBeLessThanOrEqual(1);
   });
 
-  it('周日收盘：走掉的会员扣声望（−0.5 / 个）和会员（每 3 个少来 1 个），讲出最不能打的场；本周清零', () => {
+  it('收盘的每日结算：今天走掉的会员扣声望（−0.5 / 个）和会员（−1/3 个，零头留到明天），讲出最不能打的场；周日回顾讲七天之和', () => {
     const s = club();
     while (!(weekdayOf(s.t) === 6 && minuteOfDay(s.t) >= 19 * 60)) tick(s, 30);
-    s.week.walkouts = 4;
-    s.week.unplayable = { o1_rental: 100, o1_lesson: 30, pr_academy: 50 };
+    s.today.demand = Math.max(1, s.today.demand);
+    s.today.walkouts = { outer_1: 4 };
+    s.today.unplayable = { o1_rental: 100, o1_lesson: 30, pr_academy: 50 };
     const env = makeEnv(s, W());
     expect(env.get('care.walkouts')).toBe(4);
     const d = dayOf(s.t);
     while (dayOf(s.t) === d) tick(s);
+    const daily = logs(s, 'daily').at(-1);
+    if (daily?.cause.kind !== 'daily') throw new Error('daily');
+    expect(daily.cause.rep.walkouts).toBe(-2);
+    expect(daily.cause.members.terms?.walkouts).toBeCloseTo(-4 / 3, 2);
+    expect(daily.cause.walkouts).toBe(4);
+    expect(daily.cause.unplayable).toEqual({ court: 'outer_1', minutes: 130 });
     const e = logs(s, 'week').at(-1);
     if (e?.cause.kind !== 'week') throw new Error('week');
-    expect(e.cause.rep.walkouts).toBe(-2);
-    expect(e.cause.walkouts).toBe(4);
-    expect(e.cause.unplayable).toEqual({ court: 'outer_1', minutes: 130 });
+    expect(e.cause.review).toBe(true);
+    expect(e.cause.walkouts).toBeGreaterThanOrEqual(4);
+    expect(e.cause.rep.walkouts).toBeLessThanOrEqual(-2);
     expect(s.week.walkouts).toBe(0);
     expect(s.week.unplayable).toEqual({});
   });
@@ -378,7 +392,7 @@ describe('效果 mess、没写 rules.care 的内容、存档', () => {
     s.weather = 'wind';
     advance(s, content, [assign('dale', 'o1_rental')], 120);
     expect(s.care).toEqual({});
-    expect(s.week.served).toBeGreaterThan(100);
+    expect(s.today.served).toBeGreaterThan(100);
     const env = makeEnv(s, w);
     expect([env.get('care.waiting'), env.get('care.walkouts'), env.get('care.worst')]).toEqual([0, 0, 100]);
     expect(env.get('usability.outer_1')).toBe(100);

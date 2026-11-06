@@ -23,7 +23,7 @@ packages/iso/src/
                creatures/（狗、乌鸦、风滚草）
   site/        site.ts（Site 接口、pointAlong）、indian-wells/（layout、ground、build、kit、noise、overlays、state、wear、mess、sky、index）
   people/      person.ts（Person，像素精灵版）、view.ts（setPeopleView）、frames.ts（取帧）、looks.ts（外观 → 换色表）、
-               poses.ts、parts.ts、types.ts
+               head.ts（personHead：结算卡的像素头像）、poses.ts、parts.ts、types.ts
   motion/      ball.ts（BallPool / Ball）、ballistics.ts
   choreo/      scheduler.ts（演出时间轴）、shots.ts（击球原子动作）
   fx/          particles.ts（Particles）、sprites.ts（SpriteLayer：漫画字、表情、气泡）、icons.ts（图标烘焙）
@@ -205,6 +205,10 @@ interface Site {
 
 画法：一个 `Sprite`（`person.sprite`），每帧按（朝向、姿势、击球分段、手势、走路相位）从精灵表取帧（`people/frames.ts` 的 `pickFrame`，
 取不到按 `FRAME_FALLBACK` 回退，最后是 `idle`），换色按 `PersonOptions` 填槽位（`people/looks.ts` 的 `personSlots`）。`scale < 0.8` 用小孩精灵表。
+
+像素头像（`people/head.ts`，每日结算卡"今天的人"，daily-settlement-contract.md）：`personHead(o: PersonOptions, rows = 9): BakedArt | null`。
+取和地图上同一张站立正面帧（`idle` front 第 0 帧，不画拍子）、同一套换色和发型叠加（锚点对准 `head_top`，和 `Person` 一样），
+从头顶往下裁 `rows` 行。不碰 DOM：游戏把像素画到画布上（最近邻放大）。48×48 的大肖像是以后的名册，不在这里。
 
 ### 镜头信息（`people/view.ts`）
 

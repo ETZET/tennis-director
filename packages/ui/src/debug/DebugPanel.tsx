@@ -71,6 +71,11 @@ export function DebugPanel({ s, actions }: { s: DebugSnapshot; actions: DebugAct
               {l}
             </button>
           ))}
+          {actions.closeDay ? (
+            <button type="button" title="Skip to closing time and settle the day" onClick={() => actions.closeDay?.()}>
+              Close day
+            </button>
+          ) : null}
         </div>
       </Section>
 

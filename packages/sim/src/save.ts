@@ -1,5 +1,6 @@
+import { freshDay } from './day';
 import type { LoggedCommand } from './game';
-import { type GameState, SAVE_VERSION } from './state';
+import { dayOf, type GameState, SAVE_VERSION } from './state';
 
 /**
  * 存档：带版本号的状态快照，加上最近一段命令日志（用于复现 bug）。
@@ -206,6 +207,19 @@ export const MIGRATIONS: Record<number, Migration> = {
     state.week = week;
     state.version = 14;
     return { ...save, version: 14, state };
+  },
+  // 14 → 15（每日结算，daily-settlement-contract.md，ADR 0024）：今天的账从读档这一刻记起（之前几天的口碑、会员不补算），
+  // 昨天的服务率先借上周的；没有会员零头、没有抽好的明天天气（明早照旧抽）、没有结算报告
+  14: (save) => {
+    const state = { ...(save.state as Record<string, unknown>) };
+    const s = state as unknown as GameState;
+    const week = (state.week as { last?: number; lastDemand?: number } | undefined) ?? {};
+    state.today ??= freshDay(s, dayOf(s.t ?? 0), { last: week.last ?? 0, lastDemand: week.lastDemand ?? 0 });
+    state.memberCarry ??= 0;
+    state.forecast ??= null;
+    state.days ??= [];
+    state.version = 15;
+    return { ...save, version: 15, state };
   },
 };
 

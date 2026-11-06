@@ -303,6 +303,72 @@ export interface StarInfo {
   tone?: Tone;
 }
 
+/* ---------------- 每日结算卡（daily-settlement-contract.md，ADR 0024） ---------------- */
+
+/** 结算卡上的一行：value 是要滚动的数（动画从 from 滚到 value，from 不写是 0）；text 是已经格式化好的最终文字 */
+export interface SettlementRow {
+  id: string;
+  label: string;
+  value: number;
+  from?: number;
+  /** 滚动时怎么写数：money "+$120"、signed "+0.27"（digits 位小数）、int "42"、pct "83%"；text 不滚，直接写 text */
+  format: 'money' | 'signed' | 'int' | 'pct' | 'text';
+  digits?: number;
+  /** 滚完以后显示的文字（和 format 写出来的一样，给读屏和"跳到结尾"用） */
+  text: string;
+  /** 这一行下面的小字（"为什么"） */
+  note?: string;
+  tone?: Tone;
+  /** 行首的小图标（"明天"一节的天气） */
+  icon?: SeasonInfo['weather'];
+}
+
+/** "今天的人"里的一个人：head 是像素头像（游戏用 @td/iso 的 personHead 烘出来的 data URL，没有就画首字母） */
+export interface SettlementPerson {
+  id: string;
+  name: string;
+  initials: string;
+  color: string;
+  head?: string;
+  /** "干了 6 小时"、"闲了 5 小时"、"士气 62 → 55" */
+  note: string;
+  tone?: Tone;
+}
+
+export interface SettlementSection {
+  id: 'money' | 'standing' | 'people' | 'tomorrow' | 'week_money' | 'week_standing' | 'week_trend';
+  title: string;
+  rows: SettlementRow[];
+  /** 这一节的合计（钱的"今天净收入"） */
+  total?: SettlementRow;
+  /** people 一节：三组（干得最多、一直闲着、士气在掉），没人的组不给 */
+  groups?: { id: 'top' | 'idle' | 'morale'; label: string; people: SettlementPerson[] }[];
+  /** week_trend 一节：每天一根柱子（value 0..1，没客人是 null） */
+  bars?: { label: string; value: number | null; text: string }[];
+  /** week_trend 一节：及格线 0..1（画一条横线） */
+  pass?: number;
+  /** 这一节没有内容时的一句 */
+  empty?: string;
+}
+
+export interface SettlementPage {
+  id: 'day' | 'week';
+  title: string;
+  /** 标题下面一行（"晴 · 现金 $4,210"） */
+  subtitle?: string;
+  sections: SettlementSection[];
+}
+
+/** 每日结算卡：pages[0] 是今天，周日多一页本周回顾。换了 id 就从头播动画 */
+export interface SettlementCardData {
+  id: string;
+  pages: SettlementPage[];
+  /** 底部提示：动画中、播完（有下一页 / 最后一页） */
+  hint: { skip: string; next: string; week: string; done: string };
+  /** 最后一页的主按钮 */
+  continueLabel: string;
+}
+
 export interface HudSnapshot {
   club: { badge: string; name: string; clock: string };
   quality: { value: number; grade: Grade; trend: Trend; history: readonly number[] };
@@ -331,6 +397,8 @@ export interface HudSnapshot {
   hint?: string | null;
   sheet?: TargetSheetData | null;
   place?: PlaceSheetData | null;
+  /** 每日结算卡（daily-settlement-contract.md）：开着时盖住地图，别的卡、底部说明都让开 */
+  settlement?: SettlementCardData | null;
   controls: { paused: boolean; speed: string };
 }
 
@@ -360,4 +428,8 @@ export interface HudActions {
   beat?(place: string): void;
   /** 地点清单里点了"亲手扫"（court-care-contract.md）：打开扫场小游戏 */
   onCare?(place: string): void;
+  /** 每日结算卡最后一页点完（daily-settlement-contract.md）：关卡、时间接着走（= session.ackSettlement()） */
+  settlementDone?(): void;
+  /** 结算卡上点了一个人：在地图上亮一下他（可以什么都不做） */
+  settlementPerson?(person: string): void;
 }

@@ -89,7 +89,8 @@ import {
 } from '@td/ui';
 import { effectChips, thenLine } from './chips';
 import type { Session } from './session';
-import { entryTone, type Text } from './text';
+import { settlementCard } from './settle';
+import { entryTone, signed2, type Text } from './text';
 
 /**
  * 模拟状态 → HUD 快照。界面只看快照；这里决定"给玩家看什么、怎么说"。
@@ -122,6 +123,14 @@ export class Projector {
     private content: ContentBundle,
     private text: Text,
   ) {}
+
+  /** 每日结算卡的像素头像（main.ts 接上 @td/iso 的 personHead；测试里不接，画首字母） */
+  headOf?: (id: string) => string | undefined;
+
+  /** 现在的内容包（结算卡等辅助投影读） */
+  get contentNow(): ContentBundle {
+    return this.content;
+  }
 
   /** 内容热重载：换内容和文案，快讯和曲线保留 */
   setContent(c: ContentBundle, text: Text): void {
@@ -179,29 +188,34 @@ export class Projector {
             this.push(s.t, T.fmt('ui.wire.dropping', { place, n }), true);
         }
       } else if (e.type === 'cardOpened') this.push(s.t, T.cardTitle(e.card), false);
-      else if (e.type === 'log' && e.entry.cause.kind === 'week') {
-        // 周结算一周一条（GM-1）：服务率 + 这一周动了哪些数；细节（为什么）在"我们怎么走到这一步"里
+      else if (e.type === 'log' && e.entry.cause.kind === 'daily') {
+        // 每日结算一天一条（daily-settlement-contract.md）：服务率 + 现金 · 声望 · 会员的变化；
+        // 细节在结算卡和"我们怎么走到这一步"里。周结算只是回顾，不再发快讯（回顾在卡上）
         const c = e.entry.cause;
-        const what = e.entry.effects
-          .map((x) => (x.kind === 'stat' ? T.effect(x) : null))
+        const stat = (k: string) =>
+          e.entry.effects.find(
+            (x): x is Extract<CausalEntry['effects'][number], { kind: 'stat' }> => x.kind === 'stat' && x.stat === k,
+          );
+        const what = [
+          stat('cash') ? T.effect(stat('cash') as NonNullable<ReturnType<typeof stat>>) : null,
+          stat('reputation') ? `${T.tr('stats.reputation')} ${signed2(stat('reputation')?.delta ?? 0)}` : null,
+          stat('members') ? T.effect(stat('members') as NonNullable<ReturnType<typeof stat>>) : null,
+        ]
           .filter((x): x is string => !!x)
           .join(' · ');
         const rate = c.demand ? c.served / c.demand : 0;
-        // 这周等不及走掉的会员（court-care-contract.md）：周结算里单说一句
-        const gone = c.walkouts ? T.fmt('ui.care.week_walkouts', { n: c.walkouts }) : '';
-        const hot =
-          !!c.walkouts ||
-          (c.demand > 0 && rate < c.pass) ||
-          e.entry.effects.some((x) => x.kind === 'stat' && x.stat !== 'cash' && x.stat !== 'quality' && x.delta < 0);
+        const hot = !!c.walkouts || (stat('reputation')?.delta ?? 0) < 0 || (stat('members')?.delta ?? 0) < 0;
         this.push(
-          s.t,
-          T.fmt('ui.wire.week', {
-            n: c.week,
-            rate: c.demand ? T.fmt('ui.wire.week_rate', { n: Math.round(rate * 100) }) : T.tr('ui.wire.week_none'),
-            what: [what, gone].filter(Boolean).join(' · '),
+          e.entry.t,
+          T.fmt('ui.daily.wire', {
+            n: c.day,
+            rate: c.demand ? T.fmt('ui.daily.wire_rate', { n: Math.round(rate * 100) }) : T.tr('ui.daily.wire_none'),
+            what,
           }),
           hot,
         );
+      } else if (e.type === 'log' && e.entry.cause.kind === 'week') {
+        // 周日的周结算只是回顾（不改数），讲在结算卡第二页，快讯不再说
       } else if (e.type === 'log') {
         // 升星、改造期满由各自的领域事件讲（下面），日志这条不再重复
         const kind = e.entry.cause.kind;
@@ -894,7 +908,8 @@ export class Projector {
    */
   private capRow(s: GameState, w: World): StatRow[] {
     const T = this.text;
-    const src = w.act.rules.week?.member_cap;
+    // 会员上限挪到了每日结算（daily-settlement-contract.md）
+    const src = w.act.rules.day?.member_cap;
     if (src === undefined) return [];
     const extra = { service_rate: serviceRate(s), service_demand: hasDemand(s) ? 1 : 0 };
     try {
@@ -957,9 +972,15 @@ export class Projector {
     ];
 
     const story: StoryItem[] = [];
+    let dailySeen = false;
     for (let i = s.log.length - 1; i >= 0 && story.length < 14; i--) {
       const e = s.log[i] as CausalEntry;
       if (e.cause.kind === 'start') continue;
+      // 每日结算一天一条：来龙去脉里只留最近一条，不把别的事挤掉
+      if (e.cause.kind === 'daily') {
+        if (dailySeen) continue;
+        dailySeen = true;
+      }
       const so = T.so(e);
       if (!so) continue;
       const tone = entryTone(e);
@@ -995,6 +1016,7 @@ export class Projector {
       hint: session.picked && !session.place ? T.fmt('ui.staff.hint', { name: T.personName(session.picked) }) : null,
       sheet: session.sheet ? this.sheet(session, session.sheet) : null,
       place: session.place ? this.placeSheet(session, session.place) : null,
+      settlement: session.settlement ? settlementCard(this, T, s, session.settlement, { headOf: this.headOf }) : null,
       controls: { paused: session.paused, speed: `${session.speed}×` },
     };
   }
@@ -1159,7 +1181,7 @@ export class Projector {
       { text: T.fmt('ui.ctx.members', { n: Math.round(s.stats.members ?? 0) }) },
       hasDemand(s)
         ? {
-            text: T.fmt('ui.ctx.service', { n: Math.round(serviceRate(s) * 100) }),
+            text: T.fmt('ui.daily.ctx_service', { n: Math.round(serviceRate(s) * 100) }),
             tone: serviceRate(s) < servicePass(worldOf(s, this.content)) ? 'loss' : 'info',
           }
         : { text: T.tr('ui.ctx.service_none'), tone: 'info' },
@@ -1181,7 +1203,7 @@ export class Projector {
           : s.weather,
       weatherLabel: T.tr(`ui.weather.${s.weather}`),
       service,
-      serviceLabel: service === null ? T.tr('ui.ctx.service_none') : T.fmt('ui.ctx.service', { n: service }),
+      serviceLabel: service === null ? T.tr('ui.ctx.service_none') : T.fmt('ui.daily.ctx_service', { n: service }),
       beats: this.beats(s),
       ...(this.goalLine(s) ? { goal: this.goalLine(s) as string } : {}),
     };
