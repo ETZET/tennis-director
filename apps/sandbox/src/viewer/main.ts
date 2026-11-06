@@ -28,6 +28,8 @@ import { clamp, mulberry32 } from '@td/shared';
  *   ?lpv=se_corner:academy_isle   （选路卡上的新地预览）  ?week=8   （第几周：高尔夫西段荒到几成）
  *   ?mess=outer_1:sand=0.7,water=0.3,outer_23:cracks=0.6   （场地脏乱，court-care-contract.md：设施:项=量，0..1）
  *   ?heat=1   （酷热：天色发白、球场上的热浪）  ?gates=1   （每处球场门外站三个等着的会员）
+ *   ?lineup=38,-31,2.4   （在那一点按半径围一圈 8 个人，各朝一个方向，看转动时人物的朝向）
+ *   ?deg=30   （无极旋转，ADR 0023：转角用度数，优先于 rot）  ?snap=45   （松手吸附到 45°，0 = 不吸附）
  * 只读画面，不碰模拟。
  */
 
@@ -230,9 +232,12 @@ const world = createIsoWorld($('world'), {
     tx: num('tx', startPose.tx),
     tz: num('tz', startPose.tz),
     zoom: num('zoom', startPose.zoom),
-    rot: (Math.round(num('rot', 0)) & 3) as 0 | 1 | 2 | 3,
+    rot: q.has('deg') ? num('deg', 0) / 90 : num('rot', 0),
   },
 });
+world.camera.rotSnap = num('snap', 0) / 90;
+// 截图、测帧时间的脚本用（只在 sandbox）
+(window as unknown as { __world: typeof world }).__world = world;
 const L = site.camera.limits;
 world.camera.limits = { zoom: [L.zoom[0], L.zoom[1]], tx: [L.tx[0], L.tx[1]], tz: [L.tz[0], L.tz[1]] };
 world.camera.home = { ...startPose };
@@ -569,7 +574,8 @@ function syncUrl(): void {
     p.set('wind', String(Math.round(ST.wind * 100)));
     if (ST.wear) p.set('wear', String(Math.round(ST.wear * 100)));
     const t = world.camera.target;
-    p.set('rot', String(t.rot));
+    p.set('deg', String(Math.round(t.rot * 90 * 10) / 10));
+    if (world.camera.rotSnap) p.set('snap', String(Math.round(world.camera.rotSnap * 90)));
     p.set('zoom', String(t.zoom));
     p.set('tx', t.tx.toFixed(1));
     p.set('tz', t.tz.toFixed(1));
@@ -630,6 +636,25 @@ if (q.get('gates') === '1')
       const look = activities.look(rand, site.venue, false);
       new Person({ ...look, name: `gate${i}`, x: g.x + (i - 1) * 0.9, z: g.z + (i % 2) * 0.5 }, people);
     }
+// ?lineup=x,z：在 (x, z) 围一圈 8 个人，各朝一个方向（45° 一个），看无极旋转时人物的朝向（ADR 0023）
+if (q.has('lineup')) {
+  const [lx, lz, lr = 2.4] = (q.get('lineup') ?? '').split(',').map(Number) as [number, number, number?];
+  for (let i = 0; i < 8; i++) {
+    const a = (i * Math.PI) / 4;
+    const look = activities.look(rand, site.venue, false);
+    new Person(
+      {
+        ...look,
+        ...(i % 2 === 0 ? { racket: '#d6362f' } : {}),
+        name: `lineup${i}`,
+        x: lx + Math.sin(a) * lr,
+        z: lz + Math.cos(a) * lr,
+        lock: a,
+      },
+      people,
+    );
+  }
+}
 // 截图：雨一开始就是满的（不等淡入）
 if (ST.rain) rain.update(30, world.camera.target.tx, world.camera.target.tz);
 // 截图：热浪一开始就是满的（不等淡入）

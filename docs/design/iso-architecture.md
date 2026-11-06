@@ -5,7 +5,7 @@
 
 ## 目标
 
-- 画面是 Canvas 2D 软件光栅的 2.5D 等距像素（固定 2:1 等距，Q/E 转 90°），不用 WebGL，不依赖 three。
+- 画面是 Canvas 2D 软件光栅的 2.5D 等距像素（固定俯角；水平转角连续，双指扭转无极旋转，Q/E 转 90°，ADR 0023），不用 WebGL，不依赖 three。
 - `sim`、`ui`、`content` 不知道画面怎么画；模拟只按锚点名说话，画面按 `layout.ts` 的世界坐标（米）画。
 
 ## 包结构
@@ -16,7 +16,7 @@ packages/iso/src/
                color.ts（打包颜色、调色板夜色、抖动、噪声）、art.ts（bakeArt 烘焙、换色、翻转、夜色）、
                ground.ts（GroundPainter：地面贴图、影子、灯光池）、
                view.ts（IsoView：画布、低分辨率缓冲、静态层缓存、一帧渲染）、
-               camera.ts（IsoCamera：平移、档位缩放、Q/E 旋转、project/unproject、bindPointer）、
+               camera.ts（IsoCamera：平移、档位缩放、无极旋转和 Q/E、project/unproject、bindPointer）、
                daylight.ts（按游戏分钟给天色、夜色、灯光强度）、world.ts（createIsoWorld → IsoWorld，旧 Stage 的替身）
   art/         format.ts（字符画格式、SLOT 槽位、PersonSheet、帧名回退）、people/（成人和小孩精灵表，README.md）、
                props/（held.ts 手持道具、ground.ts 地上道具、mess.ts 球场上的球和垃圾）、icons/（表情图标）、font/（像素字 5×7、3×5）、
@@ -41,7 +41,7 @@ packages/iso/src/
   每个缓冲像素 = `pixelSize` 个 CSS 像素（默认手机 1，宽屏 ≥ 820 CSS px 时 2）。 运行中可以用 `view.setPixelSize(n)` 换（之后 `camera.resize()`），`view.pixelSize` 读回构造时或最后一次设的值；打扫小游戏用它放大到 2。
 - `k`（每米缓冲像素）就是镜头的 `zoom`；**精灵档位** `spriteScale = max(1, round(k / K1))`，`K1 = 14 / 1.8 ≈ 7.8`
   （1 档时 14 像素高的人正好 1.8 米）。镜头拉远时人比真实比例大（Kairosoft 式），拉近时按 2、3 倍放大。
-- 旋转：静止时只停在 4 个等距角（`rot` 0–3），Q/E 是约 0.45 秒的缓动。
+- 旋转（ADR 0023）：`rot` 是连续值（单位 90°，[0, 4)），双指扭转跟手转、松手带惯性，`rotSnap` 可选吸附（0 = 不吸附）。Q/E 是约 0.45 秒的 90° 缓动，非整角时先转到下一个整 90°。
 - 缩放档位：`ZOOM_STEPS = [2, 3, 4, 5.2, 7.8, 15.6, 23.4]`（精灵 1/1/1/1/1/2/3 倍，人相对世界的大小随放大只减不增），游戏限制 [2, 15.6]；精灵档位跟目标档位走（`spriteScaleFor`，缩放动画开始时就换好），双指时带回差（`spriteScaleHyst`）；`IsoCamera.nearestStep(z)` 取最近一档。
 - 像素图锚点在像素缝上：人物左右对称于第 `ox-1` 列和第 `ox` 列之间。翻转时 `ox' = w - ox`，挂点 `x' = w - 1 - x`。
 
@@ -105,19 +105,22 @@ function createIsoWorld(container: HTMLElement, o: IsoWorldOptions): IsoWorld;
 ### IsoCamera（`core/camera.ts`）
 
 ```ts
-interface IsoCameraPose { tx: number; tz: number; zoom: number; rot: 0 | 1 | 2 | 3 }   // zoom 就是 k
+interface IsoCameraPose { tx: number; tz: number; zoom: number; rot: number }   // zoom 就是 k；rot 单位 90°，连续
 interface IsoCameraLimits { zoom: [number, number]; tx: [number, number]; tz: [number, number] }
 class IsoCamera {
   constructor(view: IsoView, pose?: IsoCameraPose, limits?: IsoCameraLimits);
   readonly target: IsoCameraPose; readonly smooth: { tx; tz; zoom; ang };
   limits: IsoCameraLimits; home: IsoCameraPose; enabled: boolean;      // enabled = false 时不响应指针（正拖着人）
   setPose(p: IsoCameraPose, instant?: boolean): void;
+  rotSnap: number; twistEnabled: boolean;                             // 松手吸附步长（90° 为单位，0 = 不吸附）；双指扭转开关
+  twist(dAng: number, cssX?: number, cssY?: number): void;             // 跟手转（弧度，正 = 顺时针），绕那一点下的地面
+  beginTwist(): void; release(vel: number): void;                     // 给 HUD 旋转条用：开始拖、松手时的角速度（弧度/秒）
   rotate(steps: number): void; zoomIn(): void; zoomOut(): void; reset(): void;   // reset 回 home，转角不变
   pan(dxPx: number, dyPx: number): void; zoomAt(zoom: number, cssX: number, cssY: number, instant?: boolean): void;
   static nearestStep(z: number): number;
   setFollow(on: boolean): void; readonly following: boolean;
   update(dt: number, focus: { x: number; z: number } | null): void;    // 每帧：跟随、缓动、交给 IsoView
-  takeUpdated(): boolean; readonly moving: boolean;                    // moving：转动或缩放途中
+  takeUpdated(): boolean; readonly moving: boolean;                    // moving：转动（含扭转、惯性）或缩放途中
   project(x: number, y: number, z: number): { x: number; y: number; depth: number };  // CSS 像素
   unproject(cssX: number, cssY: number, y?: number): { x: number; z: number };
   readonly pxPerM: number;          // CSS 像素每米（地点牌的紧凑模式读它）

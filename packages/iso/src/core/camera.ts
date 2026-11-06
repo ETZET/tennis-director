@@ -1,6 +1,7 @@
 /**
  * IsoCamera（取代 OrbitCamera，契约见 docs/design/iso-architecture.md）：平移、离散档位缩放、
- * Q/E 90° 旋转（约 0.45 秒缓动，静止时只停在 4 个等距角）、跟随，指针事件（拖动平移、双指缩放、滚轮）。
+ * 无极旋转（ADR 0023）：双指扭转跟手转、松手带惯性，可选吸附（rotSnap）；Q/E 仍是 90° 缓动。
+ * 跟随，指针事件（拖动平移、双指缩放 + 扭转、滚轮）。
  *
  * 位姿里的 zoom 就是 k（每米多少缓冲像素），档位见 ZOOM_STEPS；精灵档位由目标档位决定（spriteScaleFor），
  * 缩放动画一开始就换好、途中不变；双指缩放时按当前 k 带回差换档。
@@ -13,7 +14,8 @@ export interface IsoCameraPose {
   tx: number;
   tz: number;
   zoom: number;
-  rot: 0 | 1 | 2 | 3;
+  /** 转角，单位是 90°（连续值，0..4；1 = 转了 90°，0.5 = 45°） */
+  rot: number;
 }
 
 export interface IsoCameraLimits {
@@ -32,6 +34,22 @@ export const ZOOM_STEPS: readonly number[] = [2, 3, 4, 5.2, 7.8, 15.6, 23.4];
 /** 旋转缓动时长（秒） */
 const ROT_DUR = 0.45;
 const HALF_PI = Math.PI / 2;
+/** 双指扭转的死区（弧度）：转过这么多才开始转，免得双指缩放时画面跟着歪 */
+const TWIST_DEAD = 0.1;
+/** 惯性衰减（每秒）和停下的角速度（弧度/秒） */
+const ROT_FRICTION = 5;
+const ROT_STOP = 0.15;
+
+/** 转角（90° 为单位）规范到 [0, 4) */
+const normRot = (r: number) => {
+  const v = ((r % 4) + 4) % 4;
+  return v > 4 - 1e-9 ? 0 : v;
+};
+/** a → b 最短的有符号差（90° 为单位，-2..2） */
+const rotDelta = (a: number, b: number) => {
+  const d = normRot(b - a);
+  return d > 2 ? d - 4 : d;
+};
 
 const clamp = (v: number, a: number, b: number) => (v < a ? a : Math.min(v, b));
 
@@ -43,11 +61,21 @@ export class IsoCamera {
   home: IsoCameraPose;
   /** false 时不响应指针（例如游戏里正拖着人） */
   enabled = true;
+  /** 双指扭转是否转镜头 */
+  twistEnabled = true;
+  /**
+   * 松手后吸附的步长（90° 为单位）：0 = 不吸附，停在哪就是哪；0.5 = 吸附到最近的 45°；1 = 最近的 90°。
+   */
+  rotSnap = 0;
   private follow = false;
   private rotFrom = 0;
   private rotTo = 0;
   private rotT = -1;
   private pinching = false;
+  /** 正在被手指扭转 */
+  private twisting = false;
+  /** 惯性角速度（弧度/秒） */
+  private rotVel = 0;
   /** 当前的精灵档位（交给 Projection.sprite） */
   private sprite = 0;
   private occluded = 0;
@@ -70,29 +98,96 @@ export class IsoCamera {
     this.apply();
   }
 
-  /** 直接跳到某个位姿（不缓动） */
+  /** 跳到某个位姿（instant = false 时平移、缩放、转角都缓动过去，转角走最短的方向） */
   setPose(p: IsoCameraPose, instant = true): void {
-    const dr = (((p.rot - this.target.rot) % 4) + 4) % 4;
+    const dr = rotDelta(this.smooth.ang / HALF_PI, p.rot);
     Object.assign(this.target, p);
+    this.target.rot = normRot(p.rot);
     this.clampTarget();
+    this.rotVel = 0;
     if (instant) {
       this.smooth.tx = this.target.tx;
       this.smooth.tz = this.target.tz;
       this.smooth.zoom = this.target.zoom;
-      this.rotTo += dr * HALF_PI;
-      this.smooth.ang = this.rotTo;
+      this.smooth.ang += dr * HALF_PI;
+      this.rotTo = this.smooth.ang;
       this.rotT = -1;
-    } else if (dr) this.rotate(dr === 3 ? -1 : dr);
+    } else if (Math.abs(dr) > 1e-6) this.tweenRot(this.smooth.ang + dr * HALF_PI);
     this.apply();
   }
 
-  /** 转 steps 个 90°（Q = +1，E = -1） */
+  /** 转 steps 个 90°（Q = +1，E = -1）；停在非整角时先转到下一个整 90° */
   rotate(steps: number): void {
     if (!steps) return;
-    this.target.rot = ((((this.target.rot + steps) % 4) + 4) % 4) as 0 | 1 | 2 | 3;
+    const from = this.rotT >= 0 ? this.rotTo / HALF_PI : this.smooth.ang / HALF_PI;
+    const base = steps > 0 ? Math.floor(from + 1e-6) : Math.ceil(from - 1e-6);
+    this.rotVel = 0;
+    this.tweenRot((base + steps) * HALF_PI);
+  }
+
+  /** 缓动转到 ang（弧度，不规范化） */
+  private tweenRot(ang: number, dur = ROT_DUR): void {
     this.rotFrom = this.smooth.ang;
-    this.rotTo += steps * HALF_PI;
+    this.rotTo = ang;
+    this.rotDur = dur;
     this.rotT = 0;
+    this.target.rot = normRot(ang / HALF_PI);
+  }
+  private rotDur = ROT_DUR;
+
+  /**
+   * 跟手转 dAng 弧度（正 = 画面顺时针），绕 CSS 点 (cssX, cssY)：那一点下的地面不动。
+   * 双指扭转、HUD 上的旋转条都调这个；松手后调 release(vel) 交给惯性和吸附。
+   */
+  twist(dAng: number, cssX?: number, cssY?: number): void {
+    this.rotT = -1;
+    this.rotVel = 0;
+    this.turn(dAng, cssX, cssY);
+  }
+
+  private turn(dAng: number, cssX?: number, cssY?: number): void {
+    if (!dAng) return;
+    const piv = cssX === undefined || cssY === undefined ? null : this.unproject(cssX, cssY);
+    this.smooth.ang += dAng;
+    this.rotTo = this.smooth.ang;
+    this.target.rot = normRot(this.smooth.ang / HALF_PI);
+    this.apply();
+    if (piv && cssX !== undefined && cssY !== undefined) {
+      const now = this.unproject(cssX, cssY);
+      this.target.tx += piv.x - now.x;
+      this.target.tz += piv.z - now.z;
+      this.clampTarget();
+      this.smooth.tx = this.target.tx;
+      this.smooth.tz = this.target.tz;
+      this.apply();
+    }
+  }
+
+  /** 手指松开：按角速度 vel（弧度/秒）继续转一段再停（rotSnap > 0 时停到最近的吸附角） */
+  release(vel: number): void {
+    this.twisting = false;
+    this.rotVel = Math.abs(vel) > ROT_STOP * 2 ? vel : 0;
+    if (!this.rotVel) this.settleRot();
+  }
+
+  /** 正在拖着转 */
+  beginTwist(): void {
+    this.twisting = true;
+    this.rotVel = 0;
+    this.rotT = -1;
+  }
+
+  private settleRot(): void {
+    if (this.rotSnap > 0) {
+      const q = this.smooth.ang / HALF_PI;
+      const snapped = Math.round(q / this.rotSnap) * this.rotSnap;
+      if (Math.abs(snapped - q) > 1e-6) {
+        this.tweenRot(snapped * HALF_PI, 0.22);
+        return;
+      }
+    }
+    this.rotTo = this.smooth.ang;
+    this.target.rot = normRot(this.smooth.ang / HALF_PI);
   }
 
   zoomIn(): void {
@@ -188,8 +283,16 @@ export class IsoCamera {
       s.zoom = Math.exp(Math.log(s.zoom) + (Math.log(t.zoom) - Math.log(s.zoom)) * fz);
       if (Math.abs(s.zoom / t.zoom - 1) < 0.004) s.zoom = t.zoom;
     }
+    if (this.rotVel && !this.twisting) {
+      this.turn(this.rotVel * dt);
+      this.rotVel *= Math.exp(-dt * ROT_FRICTION);
+      if (Math.abs(this.rotVel) < ROT_STOP) {
+        this.rotVel = 0;
+        this.settleRot();
+      }
+    }
     if (this.rotT >= 0) {
-      this.rotT += dt / ROT_DUR;
+      this.rotT += dt / this.rotDur;
       const u = Math.min(1, this.rotT);
       const e = u < 0.5 ? 4 * u * u * u : 1 - (-2 * u + 2) ** 3 / 2;
       s.ang = this.rotFrom + (this.rotTo - this.rotFrom) * e;
@@ -210,7 +313,9 @@ export class IsoCamera {
 
   /** 转动或缩放动画中（静态层实时画） */
   get moving(): boolean {
-    return this.rotT >= 0 || this.pinching || this.smooth.zoom !== this.target.zoom;
+    return (
+      this.rotT >= 0 || this.twisting || this.rotVel !== 0 || this.pinching || this.smooth.zoom !== this.target.zoom
+    );
   }
 
   private apply(): void {
@@ -276,6 +381,18 @@ export class IsoCamera {
   bindPointer(el: HTMLElement): () => void {
     const ptrs = new Map<number, { x: number; y: number }>();
     let pinch0 = 0;
+    // 扭转：两指连线在"转后坐标"里的角度（和 k 无关），累计到过了死区才开始转
+    let ang0: number | null = null;
+    let twistAcc = 0;
+    let twistOn = false;
+    let vel = 0;
+    let lastT = 0;
+    const psi = (a: { x: number; y: number }, b: { x: number; y: number }) => {
+      // 屏幕 (sx, sy) → 转后 (rx, rz)：a = sx/k，b = 2sy/k，rx = (a+b)/2，rz = (b-a)/2
+      const sa = b.x - a.x;
+      const sb = 2 * (b.y - a.y);
+      return Math.atan2(sb - sa, sa + sb);
+    };
     let wheelAcc = 0;
     const rel = (e: { clientX: number; clientY: number }) => {
       const b = el.getBoundingClientRect();
@@ -292,7 +409,13 @@ export class IsoCamera {
       if (ptrs.size === 2) {
         const [a, b] = [...ptrs.values()] as [{ x: number; y: number }, { x: number; y: number }];
         pinch0 = Math.hypot(a.x - b.x, a.y - b.y);
+        ang0 = psi(a, b);
+        twistAcc = 0;
+        twistOn = false;
+        vel = 0;
+        lastT = e.timeStamp;
         this.pinching = true;
+        this.rotVel = 0;
       }
     };
     const move = (e: PointerEvent) => {
@@ -306,11 +429,28 @@ export class IsoCamera {
       else if (ptrs.size === 2) {
         const [a, b] = [...ptrs.values()] as [{ x: number; y: number }, { x: number; y: number }];
         const d = Math.hypot(a.x - b.x, a.y - b.y);
-        if (pinch0 > 0) {
-          const c = rel({ clientX: (a.x + b.x) / 2, clientY: (a.y + b.y) / 2 });
-          this.zoomAt(this.smooth.zoom * (d / pinch0), c.x, c.y, true);
-        }
+        const c = rel({ clientX: (a.x + b.x) / 2, clientY: (a.y + b.y) / 2 });
+        if (pinch0 > 0) this.zoomAt(this.smooth.zoom * (d / pinch0), c.x, c.y, true);
         pinch0 = d;
+        if (ang0 !== null && this.twistEnabled) {
+          const now = psi(a, b);
+          let da = now - ang0;
+          if (da > Math.PI) da -= 2 * Math.PI;
+          else if (da < -Math.PI) da += 2 * Math.PI;
+          ang0 = now;
+          if (!twistOn) {
+            twistAcc += da;
+            if (Math.abs(twistAcc) > TWIST_DEAD) {
+              twistOn = true;
+              this.beginTwist();
+            }
+          } else {
+            this.twist(da, c.x, c.y);
+            const dt = Math.max(1, e.timeStamp - lastT) / 1000;
+            vel = vel * 0.6 + (da / dt) * 0.4;
+          }
+          lastT = e.timeStamp;
+        }
       }
     };
     const up = (e: PointerEvent) => {
@@ -321,6 +461,9 @@ export class IsoCamera {
       pinch0 = 0;
       if (wasPinch) {
         this.pinching = false;
+        if (twistOn) this.release(e.timeStamp - lastT < 80 ? vel : 0);
+        twistOn = false;
+        ang0 = null;
         const other = [...ptrs.values()][0] ?? last;
         const c = rel({ clientX: (other.x + last.x) / 2, clientY: (other.y + last.y) / 2 });
         this.zoomAt(IsoCamera.nearestStep(this.smooth.zoom), c.x, c.y);
