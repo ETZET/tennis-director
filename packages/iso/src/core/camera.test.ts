@@ -98,3 +98,63 @@ describe('缩放档位和精灵档位', () => {
     expect(pr.spriteScale).toBe(1);
   });
 });
+
+describe('无极旋转（ADR 0023）', () => {
+  const run = (cam: IsoCamera, frames = 120) => {
+    for (let i = 0; i < frames; i++) cam.update(1 / 60, null);
+  };
+
+  it('位姿的 rot 可以是非整数，停在哪就是哪', () => {
+    const cam = new IsoCamera(fakeView(), { tx: 0, tz: 0, zoom: 4, rot: 1 / 3 });
+    expect(cam.view.proj.ang).toBeCloseTo(Math.PI / 6);
+    run(cam);
+    expect(cam.view.proj.ang).toBeCloseTo(Math.PI / 6);
+    expect(cam.moving).toBe(false);
+  });
+
+  it('twist 跟手转，release 后惯性往同一方向多转一段再停', () => {
+    const cam = new IsoCamera(fakeView());
+    cam.beginTwist();
+    cam.twist(0.3);
+    expect(cam.view.proj.ang).toBeCloseTo(0.3);
+    expect(cam.moving).toBe(true);
+    cam.release(2);
+    run(cam, 240);
+    const a = cam.view.proj.ang;
+    expect(a).toBeGreaterThan(0.5);
+    expect(a).toBeLessThan(0.3 + 2 / 5 + 1e-6);
+    expect(cam.moving).toBe(false);
+    expect(cam.target.rot).toBeCloseTo(a / (Math.PI / 2));
+  });
+
+  it('rotSnap = 0.5：停下时吸附到最近的 45°', () => {
+    const cam = new IsoCamera(fakeView());
+    cam.rotSnap = 0.5;
+    cam.beginTwist();
+    cam.twist(0.7);
+    cam.release(0);
+    run(cam);
+    expect(cam.view.proj.ang).toBeCloseTo(Math.PI / 4);
+    expect(cam.target.rot).toBeCloseTo(0.5);
+  });
+
+  it('Q/E 从非整角先转到下一个整 90°', () => {
+    const cam = new IsoCamera(fakeView(), { tx: 0, tz: 0, zoom: 4, rot: 0.4 });
+    cam.rotate(1);
+    run(cam);
+    expect(cam.view.proj.ang).toBeCloseTo(Math.PI / 2);
+    cam.rotate(-1);
+    run(cam);
+    expect(cam.view.proj.ang).toBeCloseTo(0);
+    cam.rotate(-1);
+    run(cam);
+    expect(cam.target.rot).toBeCloseTo(3);
+  });
+
+  it('setPose 缓动走最短的方向', () => {
+    const cam = new IsoCamera(fakeView(), { tx: 0, tz: 0, zoom: 4, rot: 0.2 });
+    cam.setPose({ tx: 0, tz: 0, zoom: 4, rot: 3.8 }, false);
+    run(cam);
+    expect(cam.view.proj.ang).toBeCloseTo(-0.2 * (Math.PI / 2));
+  });
+});
