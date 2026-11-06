@@ -43,37 +43,48 @@ export function conditionFactor(c: number): number {
 }
 
 /**
- * 本周到现在的服务率；本周还没有需求时用上周的。
- * 上周也没有需求（开局、或者还没有一个开放的岗位）时是 0，不是凭空的 50%（GM-1）：
- * 这时 hasDemand 为假，周结算不算服务项，界面显示"还没有客人"。
+ * 今天到现在的服务率（每日结算，daily-settlement-contract.md）；今天还没有需求时用昨天的。
+ * 昨天也没有需求（开局、或者还没有一个开放的岗位）时是 0，不是凭空的 50%（GM-1）：
+ * 这时 hasDemand 为假，界面显示"还没有客人"。今天没有需求的一天，每日结算不动声望、会员。
  */
 export function serviceRate(s: GameState): number {
-  if (s.week.demand > 0) return s.week.served / s.week.demand;
-  return s.week.lastDemand > 0 ? s.week.last : 0;
+  const d = s.today;
+  if (!d) return 0;
+  if (d.demand > 0) return d.served / d.demand;
+  return d.lastDemand > 0 ? d.last : 0;
 }
 
 /**
- * 整季的服务率 0..1（W4 结局打分）：所有周结算（因果日志里的 week）加上这一周到现在，有人在岗的分钟 / 有需求的分钟。
- * 一直没有需求时是 0。只在结算打分时读（要扫一遍日志），别在每个 tick 的条件里用。
+ * 整季的服务率 0..1（W4 结局打分）：所有每日结算（因果日志里的 daily）、每日结算以前的旧周结算（week 且没有 review），
+ * 加上今天到现在：有人在岗的分钟 / 有需求的分钟。一直没有需求时是 0。只在结算打分时读（要扫一遍日志），别在每个 tick 的条件里用。
  */
 export function serviceSeason(s: GameState): number {
-  let demand = s.week.demand;
-  let served = s.week.served;
+  let demand = s.today?.demand ?? 0;
+  let served = s.today?.served ?? 0;
   for (const e of s.log) {
-    if (e.cause.kind !== 'week') continue;
-    demand += e.cause.demand;
-    served += e.cause.served;
+    const c = e.cause;
+    if (c.kind === 'daily' || (c.kind === 'week' && !c.review)) {
+      demand += c.demand;
+      served += c.served;
+    }
   }
   return demand > 0 ? served / demand : 0;
 }
 
-/** 本周（或者上周）有没有需求：服务率有没有意义 */
+/** 今天（或者昨天）有没有需求：服务率有没有意义 */
 export function hasDemand(s: GameState): boolean {
-  return s.week.demand > 0 || s.week.lastDemand > 0;
+  return (s.today?.demand ?? 0) > 0 || (s.today?.lastDemand ?? 0) > 0;
 }
 
-/** 声望服务项的及格线 */
-export const servicePass = (w: World): number => w.act.rules.week?.service_pass ?? 0.5;
+/** 今天走掉的会员一共几个（变量 care.walkouts） */
+export function walkoutsToday(s: GameState): number {
+  let n = 0;
+  for (const v of Object.values(s.today?.walkouts ?? {})) n += v;
+  return n;
+}
+
+/** 声望服务项的及格线（rules.day.service_pass） */
+export const servicePass = (w: World): number => w.act.rules.day?.service_pass ?? 0.5;
 
 /** 质量的目标和各项（没拆开写的目标只有一项 total） */
 export function qualityTarget(s: GameState, w: World): { total: number; terms: Record<string, number> } {
@@ -263,6 +274,19 @@ export function facilityTotals(s: GameState, w: World) {
   return { courts, built, quality, income, upkeep };
 }
 
+/** 每处设施这一档每周的收入、维护费（和 facilityTotals 同一套规则：下雨天只有能挡雨的有收入，改造中只付维护费）；都是 0 的不写 */
+export function facilityMoney(s: GameState, w: World): Record<string, { income: number; upkeep: number }> {
+  const out: Record<string, { income: number; upkeep: number }> = {};
+  const rain = s.weather === 'rain';
+  for (const id of Object.keys(s.facilities)) {
+    const f = stateDef(s, w, id);
+    if (!f) continue;
+    const income = remodeling(s, id) || (rain && !f.rain_ok) ? 0 : f.income_week;
+    if (income || f.upkeep_week) out[id] = { income, upkeep: f.upkeep_week };
+  }
+  return out;
+}
+
 export function wagesWeek(s: GameState, w: World): number {
   let total = 0;
   for (const p of Object.values(s.people)) if (isStaff(s, w, p.id)) total += w.people.get(p.id)?.wage_week ?? 0;
@@ -311,7 +335,7 @@ export function makeEnv(s: GameState, w: World, extra: Record<string, Value> = {
         case 'care':
           // 场地可用度（court-care-contract.md）
           if (rest === 'waiting') return careWaiting(s);
-          if (rest === 'walkouts') return s.week.walkouts ?? 0;
+          if (rest === 'walkouts') return walkoutsToday(s);
           if (rest === 'worst') return careWorst(s, w);
           return undefined;
         case 'service_rate':

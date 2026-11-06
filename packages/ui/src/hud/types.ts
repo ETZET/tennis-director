@@ -319,6 +319,8 @@ export interface SettlementRow {
   /** 这一行下面的小字（"为什么"） */
   note?: string;
   tone?: Tone;
+  /** 行首的小图标（"明天"一节的天气） */
+  icon?: SeasonInfo['weather'];
 }
 
 /** "今天的人"里的一个人：head 是像素头像（游戏用 @td/iso 的 personHead 烘出来的 data URL，没有就画首字母） */
@@ -343,6 +345,8 @@ export interface SettlementSection {
   groups?: { id: 'top' | 'idle' | 'morale'; label: string; people: SettlementPerson[] }[];
   /** week_trend 一节：每天一根柱子（value 0..1，没客人是 null） */
   bars?: { label: string; value: number | null; text: string }[];
+  /** week_trend 一节：及格线 0..1（画一条横线） */
+  pass?: number;
   /** 这一节没有内容时的一句 */
   empty?: string;
 }

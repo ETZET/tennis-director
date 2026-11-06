@@ -396,4 +396,51 @@ ackSettlement(): void               // 点完最后一页：关卡，下一帧�
 
 ## 最终 schema（实现完以后由代理 A 回写）
 
-（空）
+代理 A 2026-11-06 落地。上面各节的名字、字段、签名都没改；下面是**最终数值**和**新加的字段**（都是可选的加法，B 照旧编译）。
+
+### 数值（`acts/indian_wells.yaml` 的 `rules.day`，和 Wave 0 一字不差，没调）
+
+`service_pass: 0.5`；`reputation: { service: (service_rate - service_pass) * 2 / 7, quality: (stat.quality - 50) / 25 / 7,
+restored: restored * 0.15 / 7, walkouts: -0.5 * care.walkouts }`；`members: { growth: max(0, (…) / 7 - (…) / 7), walkouts: -care.walkouts / 3 }`；
+`member_cap` 和原来的 `week.member_cap` 一样；`member_loss_max: max(8, stat.members * 0.25) / 7`。
+`rules.week` 已从 schema、编译器校验、YAML 里删掉（`member_drift` / `reputation_drift` 老写法不动）。
+
+### 新加的字段
+
+```ts
+DayState.book?: { dues: number; wages: number; facilities: Record<facility, { income: number; upkeep: number }> }
+  // bookDay 收盘时记的今天的会费、工资、每处设施的收入和维护费（按天、不取整）；结算卡的钱按它列（会员在结算后才变，事后再算会费就错了）
+DaySettlement.members.terms?: Record<string, number>   // rules.day.members 各项（两位小数；写成一个表达式时只有 total）
+DaySettlement.members.capped?: boolean                  // 撞了上限
+DaySettlement.members.delta?: number                    // 会员实际变了几个（整数；被 0..500 截住时是截后的）
+DaySettlement.skipped?: true                            // 今天没有需求：rep 是 {}、members.gain 是 0、不改数
+```
+
+`DaySettlement.members.carry` 是两位小数（讲给玩家）；精确的零头在 `GameState.memberCarry`。`loss_max` 只在被挡住时写（两位小数）。
+`daily` 日志的 `effects`：先是只讲不改的 `stat cash`（今天 bookDay 的会费 + 设施收入 − 维护 − 工资，取整），再是实际改的 `stat members`、`stat reputation`。
+
+### 新导出（`@td/sim` 没有新增入口导出；模块内）
+
+- `vars.ts`：`walkoutsToday(s)`（变量 `care.walkouts`）、`facilityMoney(s, w)`（设施 → `{ income, upkeep }` 每周数，和 `facilityTotals` 同规则）。
+- `day.ts`：`seasonOn` 挪到这里（`systems.ts` 照旧 `export { seasonOn }`，入口不变）、`weatherWeights`。`todayRate` / `todayHasDemand` /
+  `todayWalkouts` 是 `vars.ts` 的 `serviceRate` / `hasDemand` / `walkoutsToday` 的别名（`vars` 不能反过来引用 `day`）。
+
+### 行为细节（实现里定下来的）
+
+- `buildDayReport` 在周日自己挂 `review`（把 `s.days` 里同一周的、加上这一份算），`closeDay` 只 push、截到 7 份、发 `daySettled`；直接调它也拿得到回顾。
+- `reputation.delta` = 收盘声望 − 开门声望（含当天卡、工单的零头，两位小数）；`terms` 只有每日结算的各项。`members.delta` 同理（整数）。
+- 钱的行：同一 kind + id 合并后取整，0 不写；`other` = total − Σ 行，|other| ≥ 2 才写；排序：收入从大到小 → 花销绝对值从大到小 → `other`。
+  `card` 行 = `option` / `default` 日志里 `stat cash` 之和 − `cost` 记录（卡的花费直接扣现金、只记 `cost`）。
+- `people.morale` 要 `today.morale0` 里有这个人（开门时在职）；`top` / `idle` 的候选是 `isStaff`（含总监）。
+- `tomorrow.dirty` 的"此刻有人"按 `job`（不看在不在路上）；`now` 按此刻的脏乱算档（不读存下的 `level`）。
+- `tomorrow.calendar` 的赛事：比赛日要 `eligible || entered`；报名日（`signup: true`）要 `eligible` 且还没接下。比赛日的 `start`：
+  第一个比赛日是这一期的 `start`，之后的比赛日是那天的赛事开始时刻。
+- `openDay` 开头 `freshDay`（prev 按契约）；`s.forecast` 用过就清成 null（不管季节有没有天气表）。
+- 整季服务率 `service_season` = Σ `daily` + Σ 没有 `review` 的旧 `week` + 今天。
+
+### 测试
+
+`packages/sim/src/day.test.ts`：普通的一天按今天的各项动声望、会员；没需求的一天什么都不动；走掉的会员当天罚；零头攒到明天；
+上限挡住且不攒零头；周日回顾等于七天之和、周日只按周日一天变、`settleWeek` 不改任何状态量；`days` 只留 7 份；预告 = 第二天的天气，
+且 seed 1 的 30 天天气序列和改之前（开门时抽）逐日相同（序列是用改之前的代码跑出来钉住的）；报告每节都有（钱按来源、合计差 < $2、
+和昨天比、今天的人、明天的天气/脏场/日历/离季末）；读 14 版存档。`sim.test.ts`、`care.test.ts`、`ending.test.ts` 原来断言周结算改数的用例改成按天，意图不变。

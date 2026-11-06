@@ -128,6 +128,7 @@ export class Session {
   /** 结算卡点完了：关上卡，时间接着走（下一帧起） */
   ackSettlement(): void {
     this.settlement = null;
+    this.frac = 0;
   }
 
   /** 推进 dt 秒真实时间。返回这一帧的领域事件。 */
@@ -155,8 +156,11 @@ export class Session {
     const first = advance(this.s, this.content, cmds, 0);
     this.log.push(...first.accepted);
     events.push(...first.events);
-    // 调试跳过几天（debugSkip）一次结算好几天：只开最后一张
-    this.settle(first.events);
+    // 调试跳过几天（debugSkip）一次结算好几天：只开最后一张；开了卡这一帧就不再往下走
+    if (this.settle(first.events)) {
+      this.frac = 0;
+      return events;
+    }
     for (let i = 0; i < ticks; i++) {
       const r = advance(this.s, this.content, [], 1);
       this.log.push(...r.accepted);

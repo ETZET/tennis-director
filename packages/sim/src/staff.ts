@@ -701,13 +701,14 @@ function postSystem(ctx: Ctx, jobs: Map<string, string[]>): void {
     const busy = !!person && exists && working(s, w, person);
     const serve = level === 'meh' ? (w.act.rules.care?.meh_service ?? 1) : 1;
     if (demand) {
-      s.week.demand += 1;
+      // 今天的账（每日结算，daily-settlement-contract.md）：收盘时结算，再卷进本周的账
+      const d = s.today;
+      d.demand += 1;
       if (blocked) {
-        // 场地不能打：算需求、不算服务到（有人在岗也一样），不记进 missed（周结算另讲"哪块场不能打"）
-        const u = (s.week.unplayable ??= {});
-        u[post.id] = (u[post.id] ?? 0) + 1;
-      } else if (busy) s.week.served += serve;
-      else s.week.missed[post.id] = (s.week.missed[post.id] ?? 0) + 1;
+        // 场地不能打：算需求、不算服务到（有人在岗也一样），不记进 missed（结算另讲"哪块场不能打"）
+        d.unplayable[post.id] = (d.unplayable[post.id] ?? 0) + 1;
+      } else if (busy) d.served += serve;
+      else d.missed[post.id] = (d.missed[post.id] ?? 0) + 1;
       // 赛事那几天（LG-11）：附加目标看这一场的服务率、临时岗位的到岗率
       if (anyEvent) trackEventMinute(s, w, post.id, demand, busy && !blocked);
     }
@@ -933,7 +934,11 @@ function orderSystem(ctx: Ctx, jobs: Map<string, string[]>): void {
         for (const id of crew) backToPost(ctx, id, o.id);
         continue;
       }
-      if (cost) setStat(ctx, 'cash', (s.stats.cash ?? 0) - cost);
+      if (cost) {
+        setStat(ctx, 'cash', (s.stats.cash ?? 0) - cost);
+        // 开工扣钱不写因果日志：记在今天的账上，结算卡按工单列出材料费
+        s.today.materials[o.id] = (s.today.materials[o.id] ?? 0) + cost;
+      }
       state = s.orders[o.id] = { progress: 0, started: true, by: {}, mins: 0 };
       // 打扫工单：记下开工那一刻的脏乱，按进度清掉它的 clean 成
       if (o.care && f)
@@ -978,13 +983,22 @@ function errandSystem(ctx: Ctx): void {
   }
 }
 
-/** 每个营业分钟：在职的人手上没活（没岗位没工单、没在走路、没在办事）就记一分钟"闲着"，有活就清零 */
+/**
+ * 每个营业分钟：在职的人手上没活（没岗位没工单、没在走路、没在办事）就记一分钟"闲着"，有活就清零。
+ * 同时记今天的账（结算卡"今天的人"）：在办事、或者有活且没在走路 → 干活一分钟；没活没走路没办事 → 闲着一分钟
+ */
 function idleSystem(ctx: Ctx): void {
   const { s, w } = ctx;
+  const d = s.today;
   for (const id of staffIds(s, w)) {
     const p = s.people[id] as PersonState;
-    if (!p.job && !p.walk && !p.errand) p.idleMin = (p.idleMin ?? 0) + 1;
-    else if (p.idleMin) p.idleMin = 0;
+    if (!p.job && !p.walk && !p.errand) {
+      p.idleMin = (p.idleMin ?? 0) + 1;
+      d.idle[id] = (d.idle[id] ?? 0) + 1;
+    } else {
+      if (p.idleMin) p.idleMin = 0;
+      if (p.errand || (p.job && !p.walk)) d.work[id] = (d.work[id] ?? 0) + 1;
+    }
   }
 }
 

@@ -1,6 +1,7 @@
 import { minutes } from '@td/content';
 import { directorDraw, expireCards, openScheduled } from './cards';
 import { careCloseDay, careSystem } from './care';
+import { buildDayReport, forecastWeather, freshDay, seasonOn, settleDay, weatherWeights } from './day';
 import { type Ctx, checkEnding, run, setStat } from './effects';
 import { checkUnlocks } from './growth';
 import { weightedPick } from './rng';
@@ -16,7 +17,8 @@ import type { World } from './world';
 /**
  * 每个 tick 按固定顺序执行的系统，每个只负责一件事（ADR 0012）：
  * 日历 → 赛事 → 员工走路 → 改造期满 → 放下没了岗位的人 → 岗位和工单 → 场地可用度 → 活动 → 质量 → 星级 → 事件 → 导演。
- * 收盘时：场地可用度（门口的人回家）→ 衰减（读今天的岗位账）→ 今天的岗位账 → 经济（按天记账）→（周日）周结算（一条因果日志）→ 掉档。
+ * 收盘时：场地可用度（门口的人回家）→ 衰减（读今天的岗位账）→ 今天的岗位账 → 经济（按天记账）→ 特质 → 每日结算（声望、会员，
+ * 一条 daily 因果日志，ADR 0024）→（周日）本周回顾（只讲不改）→ 掉档 → … → 抽明天的天气 → 今天的结算报告（daySettled）。
  */
 
 /* ---------------- 活动 ---------------- */
@@ -72,13 +74,13 @@ function qualitySystem(ctx: Ctx): void {
 
 /**
  * 只读此刻状态的派生量（例如复原 restoration = restored）每分钟同步，HUD 读到的和星级清单里的 restored 永远是同一个数。
- * 读本周服务率（service_rate、service_demand）的派生量照旧只在收盘时算（准则 6：不实时漂移）。
+ * 读今天服务率（service_rate、service_demand）的派生量照旧只在收盘时算（准则 6：不实时漂移，收盘结算一次）。
  */
-const WEEKLY_VARS = /\bservice_(rate|demand)\b/;
+const CLOSE_VARS = /\bservice_(rate|demand)\b/;
 function liveDerived(ctx: Ctx): void {
   const { s, w } = ctx;
   for (const [stat, src] of Object.entries(w.act.rules.derived))
-    if (!WEEKLY_VARS.test(src)) setStat(ctx, stat, num(s, w, src));
+    if (!CLOSE_VARS.test(src)) setStat(ctx, stat, num(s, w, src));
 }
 
 export function recomputeDerived(ctx: Ctx): void {
@@ -111,18 +113,20 @@ function closeDay(ctx: Ctx): void {
   closeLedger(ctx);
   // 钱按天记账、老写法的每日漂移（week.ts，GM-1：不每天各写一条日志）
   bookDay(ctx, day);
-  // 在职人员的特质：士气漂移；声望漂移记在本周的账上，周日一起结算（准则 6：声望不实时漂移）
+  // 在职人员的特质：士气漂移；声望漂移记在今天的账上，和每日结算一起结算（准则 6：声望不实时漂移）
   for (const p of Object.values(s.people)) {
     if (!p.hired) continue;
     for (const t of w.people.get(p.id)?.traits ?? []) {
       const tr = w.traits.get(t);
       if (!tr) continue;
       p.morale = Math.max(0, Math.min(100, p.morale + tr.morale_drift));
-      s.week.traitRep += tr.reputation_drift;
+      s.today.traitRep += tr.reputation_drift;
     }
     p.fatigue = Math.max(0, p.fatigue - 10);
   }
-  // 周日收盘：会员和声望按这一周的服务率结算，写成一条周结算日志，本周清零（week.ts）
+  // 每日结算（ADR 0024）：声望、会员按今天结算，写一条 daily 日志，把今天卷进本周的账（day.ts）
+  settleDay(ctx, day);
+  // 周日收盘：本周回顾（七天之和，只讲不改），本周清零（week.ts）
   const sunday = weekdayOf(s.t) === 6;
   if (sunday) settleWeek(ctx, day);
   // 周日收盘：会员声望结算完了，再看哪处设施没撑住、掉一档（准则 6，ADR 0017）
@@ -148,18 +152,25 @@ function closeDay(ctx: Ctx): void {
   const lose = w.act.rules.lose_if;
   if (lose && !s.outcome && test(s, w, lose.when))
     run(ctx, { kind: 'day', day }, null, [{ endAct: 'lost', ending: lose.ending }]);
+  // 明天的天气现在就抽好（随机数的位置和以前在开门时抽一样），结算卡的预告是真的
+  forecastWeather(ctx, day);
+  // 今天的结算报告（只读、不用随机数；周日带上本周回顾）：留最近 7 份，发给游戏开结算卡
+  const report = buildDayReport(s, w, day);
+  s.days.push(report);
+  if (s.days.length > 7) s.days.splice(0, s.days.length - 7);
+  ctx.events.push({ type: 'daySettled', report });
 }
 
-/** 今天属于哪个季节（幕里的 seasons；没有季节时返回 ''） */
-export function seasonOn(w: World, day: number): string {
-  let id = '';
-  for (const x of w.act.seasons) if (day >= x.from_day) id = x.id;
-  return id;
-}
+/** 今天属于哪个季节（实现在 day.ts，这里照旧导出） */
+export { seasonOn };
 
 /** 新的一天开门：换季、今天的天气、每天固定的活动。 */
 export function openDay(ctx: Ctx, day: number, fromMinute = 0): void {
   const { s, w } = ctx;
+  // 今天的账（每日结算）：昨天有需求就记下昨天的服务率，没有就把更早的带过来
+  const y = s.today;
+  const prev = y && y.demand > 0 ? { last: y.served / y.demand, lastDemand: y.demand } : y;
+  s.today = freshDay(s, day, prev ? { last: prev.last, lastDemand: prev.lastDemand } : undefined);
   const season = seasonOn(w, day);
   if (season !== s.season) {
     s.season = season;
@@ -167,14 +178,15 @@ export function openDay(ctx: Ctx, day: number, fromMinute = 0): void {
   }
   const weights = w.act.weather[season];
   if (weights) {
-    const pick = weightedPick(
-      s,
-      // heat 排在最后、默认权重 0：没写酷热的季节抽出来的天气和以前一样
-      (['sun', 'cloud', 'rain', 'wind', 'heat'] as const).map((k) => ({ item: k, weight: weights[k] ?? 0 })),
-    );
-    if (pick) s.weather = pick;
+    // 昨天收盘已经抽好了（预告是真的）：照它，不再抽；新开局、读旧档、第二季回拨时钟没有预告，照旧抽
+    if (s.forecast?.day === day) s.weather = s.forecast.weather;
+    else {
+      const pick = weightedPick(s, weatherWeights(weights));
+      if (pick) s.weather = pick;
+    }
     ctx.events.push({ type: 'weather', weather: s.weather });
   }
+  s.forecast = null;
   // 赛事（LG-11）：接下的主办赛事今天比赛、又下雨，就办不成
   rainCheck(ctx);
   for (const d of w.act.daily) {

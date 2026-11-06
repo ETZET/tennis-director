@@ -58,6 +58,20 @@ import { joinPoint, walkHeading, walkPoint, walkRate } from './walkpath';
 
 const SK = ['#f1c7a1', '#e8b896', '#d9a47c', '#c48a62', '#a86f4c', '#7a4a32', '#5f3a28', '#f1d0ae'] as const;
 
+/** 总监的样子（地图上的小人和每日结算卡的像素头像共用） */
+export const DIRECTOR_LOOK: Omit<PersonOptions, 'name' | 'x' | 'z'> = {
+  base: 'director',
+  shirt: '#2f5a55',
+  trim: '#e6b03c',
+  shorts: '#7d6f55',
+  pants: true,
+  skin: SK[2],
+  hair: '#4a3020',
+  hairStyle: 'short',
+  shoes: '#3a2a20',
+  clipboard: true,
+};
+
 /** 每个人物 id 的样子（内容里只有名字和数值，长相是画面的事）；总监另画。内容里每个人都要有（scene.test.ts 守着） */
 export const LOOKS: Record<string, Omit<PersonOptions, 'name' | 'x' | 'z'>> = {
   dale: {
@@ -529,21 +543,7 @@ export function createGameScene(
 
   /* ---------- 总监 ---------- */
   const home = (STANDS.entrance ?? Object.values(STANDS)[0] ?? { x: 0, z: 0 }) as XZ;
-  const you = mk({
-    name: 'Director',
-    x: home.x,
-    z: home.z,
-    base: 'director',
-    shirt: '#2f5a55',
-    trim: '#e6b03c',
-    shorts: '#7d6f55',
-    pants: true,
-    skin: SK[2],
-    hair: '#4a3020',
-    hairStyle: 'short',
-    shoes: '#3a2a20',
-    clipboard: true,
-  });
+  const you = mk({ name: 'Director', x: home.x, z: home.z, ...DIRECTOR_LOOK });
   const marker = directorMarker();
   marker.renderOrder = 5;
   you.headTop.add(marker);

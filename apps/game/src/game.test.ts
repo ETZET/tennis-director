@@ -101,33 +101,35 @@ describe('text', () => {
   });
 });
 
-describe('weekly settlement in the wire and the story (GM-1)', () => {
-  it('idle game: one wire line a week instead of a daily "Cash −$21"; the story says why', () => {
+describe('daily settlement in the wire and the story (ADR 0024)', () => {
+  it('idle game: one wire line a day (cash · reputation · members), no weekly line; the story keeps only the latest day', () => {
     const s = newGame(CONTENT, { seed: 37 });
     const proj = new Projector(CONTENT, createText(CONTENT, 'en'));
     proj.onEvents(s, advance(s, CONTENT, [{ type: 'assign', person: 'director', target: 'o1_sweep' }], 0).events);
     proj.onEvents(s, advance(s, CONTENT, [{ type: 'assign', person: 'dale', target: 'o1_sweep' }], 0).events);
     for (let i = 0; i < 14 * 12; i++) proj.onEvents(s, advance(s, CONTENT, [], 60).events);
     const wire = (proj as unknown as { wire: { text: string }[] }).wire.map((x) => x.text);
-    expect(wire.filter((x) => /^Cash −\$21/.test(x))).toEqual([]);
+    // 周结算只是回顾，不再发快讯；每天收盘一条
     expect(
       wire.filter((x) => x.startsWith('Week ')),
       wire.join('\n'),
-    ).toHaveLength(2);
-    expect(wire.join('\n')).toMatch(/Week 2 settled · no customers yet · Cash −\$150/);
+    ).toEqual([]);
+    expect(wire.join('\n')).toMatch(/Day 14 close · no customers · Cash −\$21/);
     // 废墟不挂"状况跌到"的提醒
     expect(wire.some((x) => x.includes('Stadium condition'))).toBe(false);
+    const story = proj.snapshot(new Session(CONTENT, s)).story ?? [];
+    expect(story.filter((x) => /^Day \d+ close/.test(x.because))).toHaveLength(1);
     for (const lang of ['en', 'zh'] as const) {
       const T = createText(CONTENT, lang);
-      const e = s.log.filter((x) => x.cause.kind === 'week').at(-1);
+      const e = s.log.filter((x) => x.cause.kind === 'daily').at(-1);
       expect(e).toBeDefined();
       const line = `${T.because(e as never)} ${T.so(e as never)}`;
       expect(line).not.toMatch(/\bui\.|\{/);
-      if (lang === 'en') {
-        expect(line).toMatch(/no post open yet/);
-        expect(line).toMatch(/Cash −\$150 \(wages −\$150\)/);
-        expect(line).toMatch(/Program quality .* \(heading for [\d.]+: /);
-      } else expect(line).toMatch(/工资 −\$150/);
+      if (lang === 'en') expect(line).toMatch(/Cash −\$21 \(wages −\$21\)/);
+      else expect(line).toMatch(/工资 −\$21/);
+      // 周日的周结算日志是回顾
+      const wk = s.log.filter((x) => x.cause.kind === 'week').at(-1);
+      expect(wk && T.because(wk)).not.toMatch(/\bui\.|\{/);
     }
   });
 });
@@ -144,12 +146,15 @@ describe('Session', () => {
     for (let f = 0; f < 60 * 60 * 60 && !session.s.outcome; f++) {
       for (const c of bot.decide(session.s, CONTENT)) session.send(c);
       session.paused = false;
+      // 每天收盘停在结算卡上（ADR 0024）：点过去
+      if (session.settlement) session.ackSettlement();
       const ev = session.frame(1 / 60);
       proj.onEvents(session.s, ev);
       if (f % 30 === 0) {
         const snap = proj.snapshot(session);
         expect(snap.club.clock).toMatch(/^Day \d+ · /);
         if (snap.card) expect(snap.card.headline).not.toMatch(/^events\./);
+        if (snap.settlement) expect(JSON.stringify(snap.settlement)).not.toMatch(/\b(ui|posts|orders|events)\.[a-z]/);
         for (const st of snap.story ?? []) expect(`${st.because} ${st.so}`).not.toMatch(/\b(events|stats|anchors)\./);
       }
     }

@@ -460,32 +460,10 @@ rules:
     land: >-
       (plot.golf_west == "open" ? (route.s3 == "south_courts" ? 6 : 5) : 0) + (plot.se_corner == "open" ? 4 : 0)
   quality_rate: 0.15
-  # 会员和声望每周日收盘结算一次（准则 6），写成一条周结算日志。service_rate 是这一周的服务率，
-  # service_demand 是这一周有没有需求：还没有一个开放的岗位时，没有客人，也就没有口碑——服务项和质量项都不算（不倒扣）。
-  week:
-    service_pass: 0.5
-    reputation:
-      service: service_demand * (service_rate - service_pass) * 2
-      quality: service_demand * (stat.quality - 50) / 25
-      restored: restored * 0.15
-      # 场地可用度（court-care-contract.md）：这一周在门口等不及走掉的会员，每个 −0.5 声望
-      walkouts: "-0.5 * care.walkouts"
-    # 赛事广场施工、车挪走以后（W5）：南停车场停不了车，每周少来 2 人
-    members: >-
-      max(0, round(courts_built * service_rate + service_demand * ((stat.quality - 30) / 12 + stat.reputation / 30))
-      - (plot.se_corner == "building" && route.s4 == "event_plaza" && flag.ep_cleared ? 2 : 0))
-      - floor(care.walkouts / 3)
-    # 会员有上限：每块修好的场地撑得起 12 个会员（下雨天场地关门，但会员不会因此退会），会所开了再多 15 个；超出的人周末就不续了
-    # 会所修成咖啡吧（GM-13）多撑 10 个：有地方坐、有东西吃，会员才愿意续；理疗室（和没选过变体的旧存档）还是 15
-    # 会员推荐（W3 成长解锁 member_referrals：前台服务 ≥ 70）再多撑 10 个
-    # 南场开了（W5）两片新场再撑 24 个；绿洲草坪不涨（度假客不是会员）
-    member_cap: >-
-      courts_built * 12 + (facility.clubhouse == "open" ? (variant.clubhouse == "cafe" ? 25 : 15) : 0) + unlocked.member_referrals * 10
-      + (plot.golf_west == "open" && route.s3 == "south_courts" ? 24 : 0)
-  # 每日结算（daily-settlement-contract.md，ADR 0024）：钱、声望、会员每天收盘按今天结算。初值 = 上面周结算的各项 ÷ 7
-  # （按周的量：服务、质量、修复；按次数的量不除：走掉的会员本来就是今天的个数）。会员按小数算、零头留到明天。
-  # 今天没有需求（没有一个开着的有需求岗位：雨天、开局）时声望、会员都不动，所以这里不再乘 service_demand。
-  # Wave 0 只放了数，模拟还在读上面的 week；代理 A 接上以后删掉 week。
+  # 每日结算（daily-settlement-contract.md，ADR 0024）：钱、声望、会员每天收盘按今天结算，写一条 daily 因果日志。
+  # 初值 = 原来周结算的各项 ÷ 7（按周的量：服务、质量、修复、会员增长；按次数的量不除：走掉的会员本来就是今天的个数；
+  # 存量的上限不除）。service_rate 是今天的服务率，care.walkouts 是今天走掉的会员。会员按小数算、零头留到明天。
+  # 今天没有需求（没有一个开着的有需求岗位：雨天、开局）时声望、会员都不动（没人就是零、不倒扣），所以这里不乘 service_demand。
   day:
     service_pass: 0.5
     reputation:
@@ -494,13 +472,20 @@ rules:
       restored: restored * 0.15 / 7
       walkouts: "-0.5 * care.walkouts"
     members:
+      # 赛事广场施工、车挪走以后（W5）：南停车场停不了车，每周少来 2 人（每天 2/7）
       growth: >-
         max(0, (courts_built * service_rate + (stat.quality - 30) / 12 + stat.reputation / 30) / 7
         - (plot.se_corner == "building" && route.s4 == "event_plaza" && flag.ep_cleared ? 2 : 0) / 7)
+      # 场地可用度（court-care-contract.md）：今天在门口等不及走掉的会员，每个 −0.5 声望、−1/3 会员（零头留到明天）
       walkouts: "-care.walkouts / 3"
+    # 会员有上限：每块修好的场地撑得起 12 个会员（下雨天场地关门，但会员不会因此退会），会所开了再多 15 个；超出的人就不续了
+    # 会所修成咖啡吧（GM-13）多撑 10 个：有地方坐、有东西吃，会员才愿意续；理疗室（和没选过变体的旧存档）还是 15
+    # 会员推荐（W3 成长解锁 member_referrals：前台服务 ≥ 70）再多撑 10 个
+    # 南场开了（W5）两片新场再撑 24 个；绿洲草坪不涨（度假客不是会员）
     member_cap: >-
       courts_built * 12 + (facility.clubhouse == "open" ? (variant.clubhouse == "cafe" ? 25 : 15) : 0) + unlocked.member_referrals * 10
       + (plot.golf_west == "open" && route.s3 == "south_courts" ? 24 : 0)
+    # 一天最多走掉多少会员（不一次崩掉，明天接着走）：一周的 max(8, 会员 × 25%) ÷ 7
     member_loss_max: max(8, stat.members * 0.25) / 7
   dues_week: 12
   derived:

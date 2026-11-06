@@ -164,7 +164,7 @@ export function careSystem(ctx: Ctx): void {
         const waited = s.t - c.waiting.since;
         if (waited >= patience && c.walkoutsToday < rules.walkout_max_day) {
           c.walkoutsToday += 1;
-          s.week.walkouts = (s.week.walkouts ?? 0) + 1;
+          s.today.walkouts[f] = (s.today.walkouts[f] ?? 0) + 1;
           run(ctx, { kind: 'walkout', court: f, waited }, null, []);
           ctx.events.push({ type: 'memberWalkedOut', court: f, waited });
           c.waiting.since = s.t;
@@ -179,7 +179,7 @@ export function careSystem(ctx: Ctx): void {
   }
 }
 
-/** 收盘（closeDay，衰减之前）：门口等的人回家（waitingEnded closed，不算走掉），今天走掉的计数清零 */
+/** 收盘（closeDay，衰减之前）：门口等的人回家（waitingEnded closed，不算走掉），今天走掉的计数清零（今天的账 today.walkouts 留着给每日结算） */
 export function careCloseDay(ctx: Ctx): void {
   const { s, w } = ctx;
   if (!w.act.rules.care) return;

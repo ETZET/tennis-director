@@ -793,34 +793,16 @@ export const act = z.strictObject({
   rules: z.strictObject({
     /**
      * 质量的目标：一个表达式，或者拆成几项（值 = 各项之和，文案在 ui.terms.<名字>）。
-     * 拆开写，周结算才能讲清楚质量为什么涨、为什么掉（GM-1）。
+     * 拆开写，结算才能讲清楚质量为什么涨、为什么掉（GM-1）。
      */
     quality_target: z.union([z.string(), z.record(id, z.string())]),
     /** 每天向目标靠近的比例 0..1 */
     quality_rate: z.number().min(0).max(1),
-    /** 每天收盘的会员、声望变化（老写法；Indian Wells 用下面的 week） */
+    /** 每天收盘的会员、声望变化（老写法；Indian Wells 用下面的 day） */
     member_drift: z.string().default('0'),
     reputation_drift: z.string().default('0'),
     /**
-     * 周日收盘的周结算（准则 6）。表达式里 service_rate 是这一周的服务率，service_demand 是这一周有没有需求（0/1）。
-     * reputation：拆成几项（文案在 ui.terms.<名字>）；members：该来多少人；member_cap：场地撑得起多少人（超出的不续）；
-     * service_pass：声望服务项的及格线（表达式里是 service_pass，界面讲给玩家）。
-     */
-    week: z
-      .strictObject({
-        reputation: z.record(id, z.string()),
-        members: z.string(),
-        member_cap: z.string().optional(),
-        /**
-         * 一周最多走掉多少会员（准则 6：会员按周结算、不一次崩掉；GM-1"会员一次掉 16 太陡"）。表达式，按结算前的
-         * stat.members 算；结算出的会员变化不低于它的相反数（不影响涨）。默认：一周最多走掉四分之一，至少允许走 8 个。
-         */
-        member_loss_max: z.string().default('max(8, stat.members * 0.25)'),
-        service_pass: z.number().min(0).max(1).default(0.5),
-      })
-      .optional(),
-    /**
-     * 每天收盘的每日结算（daily-settlement-contract.md，ADR 0024；代替上面的 week）。表达式里 service_rate 是今天的服务率，
+     * 每天收盘的每日结算（daily-settlement-contract.md，ADR 0024；代替原来的周结算 week）。表达式里 service_rate 是今天的服务率，
      * care.walkouts 是今天走掉的会员。今天没有需求（没有一个开着的有需求岗位）时声望、会员都不动（准则 6：没人就是零、不倒扣）。
      * reputation：拆成几项（文案 ui.terms.<名字>）；members：今天该来多少人（小数，零头留到明天），一个表达式或拆成几项；
      * member_cap：场地撑得起多少人（超出的不续）；member_loss_max：今天最多走掉多少（不影响涨）；service_pass：声望服务项的及格线。

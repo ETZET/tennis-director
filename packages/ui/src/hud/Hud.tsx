@@ -5,6 +5,7 @@ import { PlaceSheet } from '../staff/PlaceSheet';
 import { StaffBar } from '../staff/StaffBar';
 import { TargetSheet } from '../staff/TargetSheet';
 import { GRADE_COLOR, sparkPoints } from './format';
+import { SettlementCard } from './SettlementCard';
 import { STR } from './strings';
 import type { EventCardData, HudActions, HudSnapshot, SeasonInfo, StarInfo } from './types';
 import './hud.css';
@@ -637,6 +638,8 @@ function ClubWire({ s, actions }: { s: HudSnapshot; actions: HudActions }) {
 }
 
 export function Hud({ s, actions }: { s: HudSnapshot; actions: HudActions }) {
+  // 每日结算卡开着（daily-settlement-contract.md）：事件卡、员工条、地点清单和说明都让开，遮罩盖住其余的
+  const st = s.settlement ?? null;
   return (
     <div class="td-hud">
       {/* 左上标题卡、右上俱乐部报告（手机上上下叠着） */}
@@ -644,13 +647,15 @@ export function Hud({ s, actions }: { s: HudSnapshot; actions: HudActions }) {
         <ScoreBug club={s.club} paused={s.controls.paused} status={s.status} season={s.season} actions={actions} />
         <StatStrip s={s} />
       </div>
-      {s.card ? <EventCard c={s.card} actions={actions} /> : null}
+      {s.card && !st ? <EventCard c={s.card} actions={actions} /> : null}
       {/* 卡开着的时候先拍板，员工条让开 */}
-      {s.staff && !s.card ? <StaffBar staff={s.staff} hint={s.hint} actions={actions} /> : null}
+      {s.staff && !s.card && !st ? <StaffBar staff={s.staff} hint={s.hint} actions={actions} /> : null}
       <ClubWire s={s} actions={actions} />
       {/* 地点清单（ADR 0013）在员工条上面，员工条仍然能拖；点开一项说明时清单先收起 */}
-      {s.place && !s.sheet && !s.card ? <PlaceSheet p={s.place} actions={actions} /> : null}
-      {s.sheet && !s.card ? <TargetSheet t={s.sheet} actions={actions} back={!!s.place} /> : null}
+      {s.place && !s.sheet && !s.card && !st ? <PlaceSheet p={s.place} actions={actions} /> : null}
+      {s.sheet && !s.card && !st ? <TargetSheet t={s.sheet} actions={actions} back={!!s.place} /> : null}
+      {/* 换了一天（id）才从头播：key 让组件重建，同一张卡每帧重建快照不打断动画 */}
+      {st ? <SettlementCard key={st.id} c={st} actions={actions} /> : null}
     </div>
   );
 }

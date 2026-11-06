@@ -226,7 +226,7 @@ export interface WeekSettlement {
   members: {
     gain: number;
     cap: number | null;
-    /** 这周本该走掉更多、被"一周最多走掉几个"（rules.week.member_loss_max）挡住时，挡在多少（没挡就不写） */
+    /** 旧的周结算：这周本该走掉更多、被"一周最多走掉几个"挡住时，挡在多少（没挡就不写）；每日结算以后的回顾不写 */
     loss_max?: number;
   };
   /** 质量这周在向哪个目标靠近，目标的各项 */
@@ -257,7 +257,18 @@ export interface DaySettlement {
    * 会员：gain 各项之和（小数，没取整）、cap 场地撑得起多少人（null = 没上限）、carry 结算后的零头 (-1, 1)；
    * loss_max：今天本该走掉更多、被 rules.day.member_loss_max 挡住时挡在多少（没挡就不写）
    */
-  members: { gain: number; cap: number | null; carry: number; loss_max?: number };
+  members: {
+    gain: number;
+    cap: number | null;
+    carry: number;
+    loss_max?: number;
+    /** 实现回写（契约"最终 schema"）：rules.day.members 的各项（两位小数；写成一个表达式时只有 total）、撞了上限、实际变了几个 */
+    terms?: Record<string, number>;
+    capped?: boolean;
+    delta?: number;
+  };
+  /** 今天没有需求：声望、会员都没结算（rep 是 {}、members.gain 是 0） */
+  skipped?: boolean;
   /** 场地可用度：今天走掉的会员、不能打挡掉分钟最多的那块场。地图没写 rules.care 时不写 */
   walkouts?: number;
   unplayable?: { court: string; minutes: number } | null;
@@ -295,6 +306,11 @@ export interface DayState {
   /** 每个在职的人今天在岗位、工单上干活（或在办事）的营业分钟；闲着的营业分钟（走路两边都不算） */
   work: Record<string, number>;
   idle: Record<string, number>;
+  /**
+   * 实现回写（契约"最终 schema"）：收盘 bookDay 按天记进现金的会费、工资，和每处设施的收入、维护费（不取整）。
+   * 结算卡按它列钱的行（会员在结算后才变，收盘以后再算会费就不对了）；bookDay 之前没有
+   */
+  book?: { dues: number; wages: number; facilities: Record<string, { income: number; upkeep: number }> };
 }
 
 /** 结算卡上钱的一行：kind 是来源，id 是哪一个（岗位、设施、工单、卡、赛事；会费、工资、其他是 null）；amount 取整，收入正、花销负 */
@@ -652,7 +668,7 @@ export interface GameState {
    * 旧存档迁移成空表，模拟用到时按内容补上（全干净）
    */
   care: Record<string, CourtCare>;
-  /** 本周的账（周日收盘结算、写成一条因果日志，然后清零） */
+  /** 本周的账（每天收盘把今天卷进来，周日收盘写成一条本周回顾日志，然后清零） */
   week: WeekState;
   /** 今天的账（每日结算，daily-settlement-contract.md）：开门清零，收盘结算 */
   today: DayState;

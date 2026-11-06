@@ -7,6 +7,7 @@ export { type DebugHandle, DebugPanel, mountDebug } from './debug/DebugPanel';
 export type * from './debug/types';
 export { GRADE_COLOR, grade, mmss, sparkPoints, trend } from './hud/format';
 export { Hud, type HudHandle, mountHud } from './hud/Hud';
+export { pageTimeline, SettlementCard, settleNumber } from './hud/SettlementCard';
 export { STR, setHudStrings } from './hud/strings';
 export type * from './hud/types';
 export { Chips } from './staff/Chips';

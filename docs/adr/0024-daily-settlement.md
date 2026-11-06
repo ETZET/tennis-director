@@ -1,6 +1,6 @@
 # 0024 每日结算：钱、声望、会员每天收盘按今天结算，停下来弹一张结算卡
 
-- 状态：提议（2026-11-06 制作人拍板，wave 0 契约见 `docs/design/daily-settlement-contract.md`）
+- 状态：已采纳（2026-11-06 制作人拍板；契约和落地的最终 schema 见 `docs/design/daily-settlement-contract.md`）
 - 日期：2026-11-06
 - 修改：准则 6（"会员、声望不实时漂移，按一周的平均服务率结算"）；补充 [0012](0012-staffing-loop.md)、[0017](0017-grade-drop.md)、[0022](0022-court-usability.md)
 

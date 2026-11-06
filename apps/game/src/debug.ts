@@ -7,6 +7,7 @@ import {
   directorPressure,
   eligibleCards,
   MESS_KINDS,
+  minuteOfDay,
   usabilityOf,
   type Weather,
   worldOf,
@@ -60,6 +61,14 @@ export function createDebug(el: HTMLElement, host: DebugHost, startOpen: boolean
     close: () => ui.toggle(),
     mess: (court, mess) => send({ type: 'debugMess', court, mess }),
     weather: (weather) => send({ type: 'debugWeather', weather: weather as Weather }),
+    // 每日结算（daily-settlement-contract.md）：一下跳到今天收盘，结算卡随即打开
+    closeDay: () => {
+      const session = host.session();
+      session.ackSettlement();
+      const close = worldOf(session.s, host.content()).act.hours.close * 60;
+      const left = Math.round(close - minuteOfDay(session.s.t));
+      if (left > 0) send({ type: 'debugSkip', minutes: left });
+    },
   };
   const handle = mountDebug(el, actions);
 

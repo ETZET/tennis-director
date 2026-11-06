@@ -1,5 +1,5 @@
 {
- "version": "cb0cc664",
+ "version": "47bb02ed",
  "stats": [
   {
    "id": "cash",
@@ -5572,18 +5572,6 @@
     "quality_rate": 0.15,
     "member_drift": "0",
     "reputation_drift": "0",
-    "week": {
-     "reputation": {
-      "service": "service_demand * (service_rate - service_pass) * 2",
-      "quality": "service_demand * (stat.quality - 50) / 25",
-      "restored": "restored * 0.15",
-      "walkouts": "-0.5 * care.walkouts"
-     },
-     "members": "max(0, round(courts_built * service_rate + service_demand * ((stat.quality - 30) / 12 + stat.reputation / 30)) - (plot.se_corner == \"building\" && route.s4 == \"event_plaza\" && flag.ep_cleared ? 2 : 0)) - floor(care.walkouts / 3)",
-     "member_cap": "courts_built * 12 + (facility.clubhouse == \"open\" ? (variant.clubhouse == \"cafe\" ? 25 : 15) : 0) + unlocked.member_referrals * 10 + (plot.golf_west == \"open\" && route.s3 == \"south_courts\" ? 24 : 0)",
-     "member_loss_max": "max(8, stat.members * 0.25)",
-     "service_pass": 0.5
-    },
     "day": {
      "reputation": {
       "service": "(service_rate - service_pass) * 2 / 7",
