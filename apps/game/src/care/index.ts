@@ -1,16 +1,19 @@
 import './care.css';
 import {
+  type CourtMessLook,
   type Custom,
   createTumbleweed,
   type IsoCamera,
   type IsoCameraLimits,
   type IsoCameraPose,
   type IsoWorld,
+  type MessCourtSnapshot,
   Particles,
   type PeopleWorld,
   Person,
   type Site,
   SpriteLayer,
+  snapshotTotals,
   type Tumbleweed,
 } from '@td/iso';
 import { mulberry32, type Rand } from '@td/shared';
@@ -39,7 +42,7 @@ import {
   type ToolView,
 } from './draw';
 import { buzz, flash, floatText, makeEvery, retrigger, SND } from './juice';
-import { CareModel, clearedPercent, FINISH_AT, type Tool, workable } from './model';
+import { CareModel, clearedFrom, clearedPercent, FINISH_AT, facilityLeft, type Tool, workable } from './model';
 
 /**
  * 亲手扫（court-care-contract.md「小游戏」，ADR 0022）：总监亲手扫一块球场。从 sandbox demo 06 第二轮搬进正式游戏：
@@ -47,6 +50,10 @@ import { CareModel, clearedPercent, FINISH_AT, type Tool, workable } from './mod
  * 扫把推沙像推雪、压路滚、画线车（笔尖在手指上方、30 像素吸住、16 像素内算画正）、球网张力计、总监跟着手指跑、扬尘粒子、
  * 剩 8% 一口气收尾、阵风把沙吹回来。小游戏期间游戏时间停着（session.care），收工发一条 careFinish（每项清掉的比例），
  * 不扫了什么都不发。数由模拟算，这里只报"清掉了什么"。
+ *
+ * 和外面同步（court-care-contract.md「小游戏和外面同步」）：开场照地图画着的快照摆（deps.mess.snapshot），进去看到的沙、水洼、
+ * 裂缝、褪了的线、每件垃圾都和外面同一个位置、同一个样子；只藏扫的这一块场，同一处设施的另一块照画。收工交给模拟以后
+ * 把扫剩下的样子交回地图（deps.mess.rebase），外面照剩下的画；没扫的那块场原样。清掉的比例按整处设施画面上的多少折算。
  */
 
 export interface CareDeps {
@@ -61,8 +68,16 @@ export interface CareDeps {
   text: () => Text;
   /** main.ts 的 container（#stage）：小游戏在里面挂自己的全屏 DOM 层，挡住地图的指针事件 */
   host: HTMLElement;
-  /** = scene.careStage（代理 D 实现）：给设施 → 场景藏起这块场的脏乱叠层、真总监、门口的会员和打球的人；null → 还原 */
-  stage(facility: string | null): void;
+  /**
+   * = scene.careStage（代理 D 实现）：给设施 → 场景藏起这块场（court = 快照的 key）的脏乱叠层、真总监、门口的会员和打球的人；
+   * null → 还原
+   */
+  stage(facility: string | null, court?: string | null): void;
+  /** = scene.messSnapshot / messRebase：外面画着的脏乱（没给、地图不支持时小游戏按量随机摆，和外面对不上） */
+  mess?: {
+    snapshot(facility: string, fallback: CourtMessLook | null): MessCourtSnapshot[];
+    rebase(facility: string, courts: readonly MessCourtSnapshot[], amounts: CourtMessLook | null): void;
+  };
 }
 
 export interface CareGame {
@@ -140,6 +155,8 @@ interface Stroke {
 interface Run {
   f: string;
   m: CareModel;
+  /** 这处设施别的场（照快照原样留着；收工时原样交回去） */
+  others: MessCourtSnapshot[];
   rnd: Rand;
   saved: SavedView;
   root: HTMLElement;
@@ -209,8 +226,14 @@ export function createCare(d: CareDeps, opts: { force?: boolean } = {}): CareGam
     const frames = d.site.courtsFor?.(f, variant) ?? d.site.courts[f] ?? [];
     const F = frames[0] ?? d.site.courts[f]?.[0];
     if (!F) return false;
+    // 先拍外面画着的样子（stage 以后这块场就藏起来了）；扫的是离 F 最近的那块
+    const snaps = d.mess?.snapshot(f, messOf(s, f)) ?? [];
+    const near = (q: MessCourtSnapshot) => Math.hypot(q.ox - F.ox, q.oz - F.oz);
+    const snap = snaps.reduce<MessCourtSnapshot | null>((b, q) => (!b || near(q) < near(b) ? q : b), null);
+    const from = snap && near(snap) < 1 ? snap : undefined;
+    const others = from ? snaps.filter((q) => q !== from) : [];
     ses.care = f;
-    d.stage(f);
+    d.stage(f, from?.key ?? null);
     const cam = d.camera;
     const view = d.world.view;
     const saved: SavedView = {
@@ -234,6 +257,7 @@ export function createCare(d: CareDeps, opts: { force?: boolean } = {}): CareGam
       mess: messOf(s, f),
       rnd,
       texel: { x0: view.slab.x0, z0: view.slab.z0 },
+      from,
     });
     const straight = Math.abs(Math.sin(F.a)) < 1e-6;
     const hid = hideAround(d.world, m, straight && m.tools.includes('net'));
@@ -263,6 +287,7 @@ export function createCare(d: CareDeps, opts: { force?: boolean } = {}): CareGam
     const r: Run = {
       f,
       m,
+      others,
       rnd,
       saved,
       root,
@@ -586,7 +611,7 @@ export function createCare(d: CareDeps, opts: { force?: boolean } = {}): CareGam
     r.tv.on = false;
     r.rt.on = false;
     r.ost.guide = false;
-    const cleared = r.m.cleared();
+    const cleared = facilityCleared(r);
     r.result = { cleared };
     const card = r.$('.tdc-card');
     card.querySelector('.tdc-label')!.textContent = d.text().anchor(r.f);
@@ -622,11 +647,23 @@ export function createCare(d: CareDeps, opts: { force?: boolean } = {}): CareGam
     };
   }
 
+  /** 交给模拟的结果：这块场的进度按整处设施画面上的多少折算（另一块场没扫，原样算"一点没动"） */
+  function facilityCleared(r: Run): Partial<Record<MessKind, number>> {
+    const m = r.m;
+    if (!m.src) return m.cleared();
+    const left = facilityLeft(m.left(), snapshotTotals(m.src), r.others.map(snapshotTotals));
+    return clearedFrom(m.start, left);
+  }
+
   function commit(r: Run): void {
     if (run !== r || !r.result) return;
     const res = r.result;
     r.result = null;
-    d.session().careFinish(r.f, res);
+    const ses = d.session();
+    // careFinish 当场交给模拟：拿到清完以后的量，外面照扫剩下的样子画（还原以后不会闪回原来的样子）
+    const ok = ses.careFinish(r.f, res);
+    const left = r.m.residual();
+    if (ok && left && d.mess) d.mess.rebase(r.f, [left, ...r.others], messOf(ses.s, r.f));
     restore(r);
   }
 
@@ -964,7 +1001,7 @@ export function createCare(d: CareDeps, opts: { force?: boolean } = {}): CareGam
       b.classList.toggle('done', done);
     }
     const all = workable(m.start).every((k) => (left[k] ?? 0) <= 0.02);
-    r.$('.tdc-finish small').textContent = r.phase === 'work' ? preview(r, { cleared: m.cleared() }).line : '';
+    r.$('.tdc-finish small').textContent = r.phase === 'work' ? preview(r, { cleared: facilityCleared(r) }).line : '';
     if (r.phase === 'work') {
       // 收尾：剩不到 8% 一口气清光（阵风吹回来以后可以再来一次）
       if (left.sand !== undefined) {

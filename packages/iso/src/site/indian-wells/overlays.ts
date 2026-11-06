@@ -1,4 +1,5 @@
 import { type Custom, Group, type Node } from '../../core/graph';
+import type { MessCourtSnapshot } from '../mess-look';
 import type { CourtMessLook } from '../site';
 import { buildStatics, type Lamp, type Weather } from './build';
 import { buildEvents, EVENT_KINDS, type ShowOut, showKit } from './events';
@@ -233,6 +234,9 @@ export function createFacilityOverlays(w: SiteWorld): {
   landPreview(plot: string, variant: string | null): void;
   week(week: number): void;
   mess(facility: string, mess: CourtMessLook | null): void;
+  messSnapshot(facility: string, fallback: CourtMessLook | null): MessCourtSnapshot[];
+  messRebase(facility: string, courts: readonly MessCourtSnapshot[], amounts: CourtMessLook | null): void;
+  messFocus(facility: string, court: string | null): void;
   repaint(): void;
 } {
   const rt = runtime(w);
@@ -312,6 +316,13 @@ export function createFacilityOverlays(w: SiteWorld): {
     mess(facility, mess) {
       // 量化后没跨档不重烘（游戏每帧都调）；设施还没修好时只记下量，修好那次重建一起画
       if (rt.mess.set(facility, mess)) rt.w.view.invalidate();
+    },
+    messSnapshot: (facility, fallback) => rt.mess.snapshot(facility, fallback),
+    messRebase(facility, courts, amounts) {
+      if (rt.mess.rebase(facility, courts, amounts)) rt.w.view.invalidate();
+    },
+    messFocus(facility, court) {
+      if (rt.mess.focus(facility, court)) rt.w.view.invalidate();
     },
     repaint() {
       rebuild(rt, true);

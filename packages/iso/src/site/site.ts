@@ -3,20 +3,9 @@ import type { Venue } from '../activities/types';
 import type { IsoCameraPose } from '../core/camera';
 import type { IsoWorld } from '../core/world';
 import type { CourtFrame } from '../world/frame';
+import type { CourtMessLook, MessCourtSnapshot } from './mess-look';
 
-/**
- * 一块球场上的脏乱（court-care-contract.md，ADR 0022）：各 0..1，0 干净、1 最脏。和模拟的 CourtMess 结构一样
- * （游戏直接把 s.care[f].mess 传进来）；画面只按它画，不改它。
- * sand 积沙、water 积水（红土画成深色湿泥和水洼）、litter 球、瓶子、落叶、lines 白线褪色（红土是线带被盖住）、
- * cracks 裂缝（红土画成干裂发白的斑块）。
- */
-export interface CourtMessLook {
-  readonly sand: number;
-  readonly water: number;
-  readonly litter: number;
-  readonly lines: number;
-  readonly cracks: number;
-}
+export type { CourtMessLook } from './mess-look';
 
 /**
  * 一张地图在画面这一侧要提供的东西（游戏 app 只认这个接口，不直接引用某个场景的模块；ADR 0016、0019）。
@@ -138,6 +127,19 @@ export interface Site {
      * 不认识的设施、没修好的设施不画。同一帧里改几次只重画一次；只画贴地的一层，不挡人和网。
      */
     mess?(facility: string, mess: CourtMessLook | null): void;
+    /**
+     * 亲手扫的小游戏开场（court-care-contract.md「小游戏和外面同步」）：这处设施此刻画着的每块场（沙多厚、水多深、
+     * 哪几格有裂缝、哪几段线褪了、哪几件垃圾在哪儿）。小游戏照它摆，进去看到的和外面一模一样。
+     * 画着的量没有时按 fallback 算。没修好、不认识的设施是空表。
+     */
+    messSnapshot?(facility: string, fallback: CourtMessLook | null): MessCourtSnapshot[];
+    /**
+     * 小游戏收工：courts 是扫剩下的样子（每块场一份，按 key 认），amounts 是模拟清完以后的量。
+     * 从此照剩下的样子画（扫掉的不再出现、没扫的留在原地），量再变也接着这个样子长、退。
+     */
+    messRebase?(facility: string, courts: readonly MessCourtSnapshot[], amounts: CourtMessLook | null): void;
+    /** 小游戏接管这处设施的一块场（快照的 key）：只藏这一块，同一处设施别的场照画；null 还原 */
+    messFocus?(facility: string, court: string | null): void;
     /** 立刻按现在的状态把地面贴图和静态节点整个重做一遍（小游戏改过地面、藏过围网以后还原用） */
     repaint?(): void;
   };

@@ -79,7 +79,11 @@ const care = createCare({
   content: () => content,
   text: () => text,
   host: container,
-  stage: (f) => scene.careStage(f),
+  stage: (f, court) => scene.careStage(f, court),
+  mess: {
+    snapshot: (f, fallback) => scene.messSnapshot(f, fallback),
+    rebase: (f, courts, amounts) => scene.messRebase(f, courts, amounts),
+  },
 });
 
 function begin(s: Session): void {

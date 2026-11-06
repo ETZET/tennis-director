@@ -3,10 +3,20 @@ import { daylightAt } from '../../core/daylight';
 import { Group } from '../../core/graph';
 import { Projection } from '../../core/proj';
 import { Raster } from '../../core/raster';
+import { MESS_DAY, type MessCourtSnapshot, messCell, messCellIn, snapshotCellIn } from '../mess-look';
 import type { CourtMessLook } from '../site';
 import { INDIAN_WELLS } from './index';
 import { F_O1, FRAMES, PATHS } from './layout';
-import { createMess, MESS_FACILITIES, MessGrid, messCells, messCourts, quantMess } from './mess';
+import {
+  createMess,
+  MESS_FACILITIES,
+  MessGrid,
+  messCells,
+  messCourts,
+  messRebase,
+  messSnapshot,
+  quantMess,
+} from './mess';
 import { createFacilityOverlays, type SiteWorld } from './overlays';
 import { Facilities, INITIAL_STATES, RESTORED_STATES } from './state';
 
@@ -157,6 +167,111 @@ describe('mess：叠层运行时', () => {
     expect(inv).toBe(1);
     ov.mess('outer_1', null);
     expect(inv).toBe(2);
+  });
+});
+
+describe('mess：和亲手扫小游戏同步（快照、交回）', () => {
+  const ALL = mess({ sand: 0.5, water: 0.4, litter: 0.5, lines: 0.6, cracks: 0.5 });
+  const fresh = (f = 'outer_1', i = 0) => new MessGrid(messCourts(FRESH, f)[i]!);
+  /** 每格的颜色（照快照画） */
+  const paintSnap = (q: MessCourtSnapshot) => {
+    const v = messCellIn();
+    const out = { col: 0, amt: 0 };
+    const col = new Uint32Array(q.nx * q.nz);
+    const amt = new Float32Array(q.nx * q.nz);
+    for (let c = 0; c < col.length; c++) {
+      if (!q.inside[c]) continue;
+      messCell(snapshotCellIn(q, c, v), c % q.nx, Math.floor(c / q.nx), MESS_DAY, out);
+      col[c] = out.col;
+      amt[c] = out.amt;
+    }
+    return { col, amt };
+  };
+  const paintGrid = (g: MessGrid, m: CourtMessLook) => {
+    const col = new Uint32Array(g.N);
+    const amt = new Float32Array(g.N);
+    messCells(g, m, MESS_DAY, (c) => g.base[c] as number, col, amt);
+    return { col, amt };
+  };
+  const same = (a: { col: Uint32Array; amt: Float32Array }, b: { col: Uint32Array; amt: Float32Array }) => {
+    let diff = 0;
+    for (let c = 0; c < a.amt.length; c++) {
+      const on = (a.amt[c] as number) > 0;
+      if (
+        on !== (b.amt[c] as number) > 0 ||
+        (on && (a.col[c] !== b.col[c] || Math.abs((a.amt[c] as number) - (b.amt[c] as number)) > 1e-3))
+      )
+        diff++;
+    }
+    return diff;
+  };
+
+  it('照快照画和地图自己画一模一样（小游戏进去不跳）', () => {
+    for (const [f, i] of [
+      ['outer_1', 0],
+      ['outer_23', 1],
+      ['stadium_3', 0],
+    ] as const) {
+      const g = fresh(f, i);
+      const snap = messSnapshot(g, ALL);
+      expect(same(paintSnap(snap), paintGrid(g, ALL)), f).toBe(0);
+      expect(snap.pieces.length, f).toBe(g.pieces.filter((p) => p.thr < ALL.litter).length);
+    }
+  });
+
+  it('原样交回、量变小：画面一格不差（没扫的那块场不会跟着变干净）', () => {
+    for (const f of ['outer_1', 'outer_23'] as const) {
+      const g = fresh(f);
+      const before = messSnapshot(g, ALL);
+      const q = mess({ sand: 0.3, water: 0.2, litter: 0.26, lines: 0.36, cracks: 0.3 });
+      messRebase(g, before, q);
+      const after = messSnapshot(g, q);
+      expect(same(paintSnap(after), paintSnap(before)), f).toBe(0);
+      expect(after.pieces.map((p) => p.id).sort()).toEqual(before.pieces.map((p) => p.id).sort());
+    }
+  });
+
+  it('扫掉的不再画、剩下的留在原地；量再涨，扫掉的地方先回来', () => {
+    const g = fresh();
+    const before = messSnapshot(g, ALL);
+    // 西半边扫干净、捡掉一半垃圾
+    const sand = before.sand.slice();
+    for (let c = 0; c < sand.length; c++) if (c % before.nx < before.nx / 2) sand[c] = 0;
+    const pieces = before.pieces.filter((_, i) => i % 2 === 0);
+    const res = { ...before, sand, pieces };
+    const q = mess({ ...ALL, sand: 0.3, litter: 0.26 });
+    messRebase(g, res, q);
+    const after = messSnapshot(g, q);
+    expect(same(paintSnap(after), paintSnap(res))).toBe(0);
+    expect(after.pieces.map((p) => p.id).sort()).toEqual(pieces.map((p) => p.id).sort());
+    // 垃圾再多一点：多出来的先是刚捡掉的那几件
+    const more = messSnapshot(g, mess({ ...q, litter: 0.3 })).pieces.map((p) => p.id);
+    const gone = new Set(before.pieces.map((p) => p.id).filter((id) => !pieces.some((p) => p.id === id)));
+    const extra = more.filter((id) => !pieces.some((p) => p.id === id));
+    expect(extra.length).toBeGreaterThan(0);
+    for (const id of extra) expect(gone.has(id)).toBe(true);
+  });
+
+  it('叠层：snapshot / focus / rebase 接上', () => {
+    const L = createMess();
+    L.sync(FRESH);
+    L.set('outer_23', mess({ litter: 0.5, sand: 0.4 }));
+    const snaps = L.snapshot('outer_23', null);
+    expect(snaps).toHaveLength(2);
+    expect(L.focus('outer_23', snaps[0]!.key)).toBe(true);
+    const vis = L.root.children.filter((n) => n.visible).map((n) => n.name);
+    expect(vis).toContain(`mess:${snaps[1]!.key}`);
+    expect(vis).not.toContain(`mess:${snaps[0]!.key}`);
+    L.focus('outer_23', null);
+    const res = { ...snaps[0]!, pieces: [], sand: new Float32Array(snaps[0]!.sand.length) };
+    expect(L.rebase('outer_23', [res, snaps[1]!], mess({ litter: 0.24, sand: 0.2 }))).toBe(true);
+    expect(L.get('outer_23')).toEqual(quantMess(mess({ litter: 0.24, sand: 0.2 })));
+    const now = L.snapshot('outer_23', null);
+    expect(now[0]!.pieces).toHaveLength(0);
+    expect(now[0]!.sand.some((v) => v > 0.05)).toBe(false);
+    expect(now[1]!.pieces.map((p) => p.id)).toEqual(snaps[1]!.pieces.map((p) => p.id));
+    // 没快照时按 fallback 量
+    expect(L.snapshot('outer_1', mess({ sand: 0.5 }))[0]?.amounts.sand).toBeCloseTo(0.5);
   });
 });
 

@@ -4,6 +4,15 @@ import { bakeArt } from '../../core/art';
 import { clamp, fbm, hash, mixP, mulP, nightP, ph, vnoise } from '../../core/color';
 import { Custom, type DrawContext, Group } from '../../core/graph';
 import type { Raster } from '../../core/raster';
+import {
+  MESS_DAY,
+  type MessCellIn,
+  type MessCourtSnapshot,
+  type MessHexKey,
+  type MessPiece,
+  messCell,
+  messCellIn,
+} from '../mess-look';
 import type { CourtMessLook } from '../site';
 import { C, type CourtKind, type CourtLook, CP, courtLook, PICK4, SLAB } from './ground';
 import { F_O1, F_O2, F_O3, F_P1, F_P2, F_PB1, F_PB2, F_S1 } from './layout';
@@ -19,7 +28,8 @@ import type { Facilities, Facility } from './state';
  *
  * 分布每块场固定（自己的种子随机流和值噪声，不碰 Math.random 和模拟）：每个格子、每件垃圾、每道裂缝都有自己的门槛，
  * 量越大铺得越开（和 wear.ts 一样），所以量连续变化时画面连续、不跳。量按 MESS_STEP 量化，没跨档不重烘静态层。
- * 只画，不改数。
+ * 每一格怎么画在 ../mess-look.ts（亲手扫的小游戏用同一个函数）。小游戏开场照 snapshot 摆、收工用 rebase 把扫剩下的样子交回来：
+ * 门槛按剩下的样子重排（扫掉的往后排、剩下的往前排），之后量再变也接着这个样子长、退。只画，不改数。
  */
 
 export const MESS_KEYS = ['sand', 'water', 'litter', 'lines', 'cracks'] as const;
@@ -196,6 +206,8 @@ export class MessGrid {
   /** 白线格（1）和它先褪的门槛 */
   readonly line: Uint8Array;
   readonly lineT: Float32Array;
+  /** 白线格从多少量起发灰（平常是 0；小游戏刚画过的线抬到画完时的量） */
+  readonly lineG: Float32Array;
   /** 线褪掉以后露出来的场地色（打包色，白天） */
   readonly base: Uint32Array;
   /** 硬地裂缝：第几道（-1 不是）、在这道上的位置 0..1、是不是边上的崩口 */
@@ -204,6 +216,8 @@ export class MessGrid {
   readonly crackChip: Uint8Array;
   /** 每道裂缝的门槛 */
   readonly crackThr: number[] = [];
+  /** 每个裂缝格的门槛（= 这道裂缝的门槛 + 0.3 × 在这道上的位置：量过了它这一格才长出来；小游戏压平过的格子单独往后排） */
+  readonly crackT: Float32Array;
   readonly pieces: Piece[] = [];
 
   constructor(readonly s: MessCourtSpec) {
@@ -224,6 +238,8 @@ export class MessGrid {
     this.dryNet = new Uint8Array(N);
     this.line = new Uint8Array(N);
     this.lineT = new Float32Array(N);
+    this.lineG = new Float32Array(N);
+    this.crackT = new Float32Array(N).fill(2);
     this.base = new Uint32Array(N);
     this.crackK = new Int16Array(N).fill(-1);
     this.crackP = new Float32Array(N);
@@ -345,6 +361,10 @@ export class MessGrid {
           }
         }
       }
+      for (let c = 0; c < N; c++) {
+        const k = this.crackK[c] as number;
+        if (k >= 0) this.crackT[c] = (this.crackThr[k] as number) + CRACK_GROW * (this.crackP[c] as number);
+      }
     }
     // 球和垃圾：多数在围网根和底线后面（风吹过去、球滚过去），一些在网前，其余散着
     const area = (s.hx * s.hz) / (16.5 * 8.3);
@@ -401,139 +421,202 @@ function rankInto(out: Float32Array, raw: Float32Array, mask: readonly number[],
 
 /* ---------------- 画 ---------------- */
 
-const HEX = {
-  sand: '#e9c999',
-  sand2: '#dfba86',
-  sand3: '#f4dcb2',
-  sandD: '#d6ae78',
-  peb: '#c9a676',
-  wet: '#1d2c40',
-  puddle: '#86b6d2',
-  puddle2: '#a6cfe4',
-  rim: '#3e6584',
-  glint: '#f2fbff',
-  mud: '#6a2a18',
-  mudPool: '#6e4a3e',
-  mudRim: '#9a7a6c',
-  mudGlint: '#b9dcea',
-  crack: '#262c38',
-  chip: '#59606c',
-  dry: '#efc9a2',
-  dryCrack: '#8a3c22',
-  grey: '#a9a497',
-  clayLine: '#d98a62',
-} as const;
-type HexKey = keyof typeof HEX;
-/** 白天的打包色（夜里按格换算） */
-const DAY = Object.fromEntries(Object.entries(HEX).map(([k, v]) => [k, ph(v)])) as Record<HexKey, number>;
-
 /** 几种量对应的样子（门槛 → 量） */
 const SAND_K = 2.6;
-const SAND_THICK = 0.55;
 const WATER_MAX = 0.78;
-const PUDDLE = 0.12;
+const DRY_K = 0.8;
+const LINE_K = 1.1;
+/** 硬地裂缝：一道裂缝过了门槛以后沿着长出来要多少量 */
+const CRACK_GROW = 0.3;
+/** 一格裂缝从淡到清楚要多少量（量连续变化时裂缝一格格淡入，不是一下子冒出来） */
+const CRACK_SOFT = 0.04;
+/** 门槛排到"刚好不画"时多让出来的一点 */
+const EPS = 1e-4;
+
+/** 一块场每一格画面上的量（门槛 + 量算出来的；小游戏的快照也是这几项） */
+export interface MessFields {
+  sand: Float32Array;
+  wet: Float32Array;
+  crack: Float32Array;
+  dry: Float32Array;
+  grey: Float32Array;
+  fade: Float32Array;
+}
+
+export const messFieldsFor = (N: number): MessFields => ({
+  sand: new Float32Array(N),
+  wet: new Float32Array(N),
+  crack: new Float32Array(N),
+  dry: new Float32Array(N),
+  grey: new Float32Array(N),
+  fade: new Float32Array(N),
+});
+
+/** 门槛 + 量 → 每一格画面上的量（纯函数，写进 out） */
+export function messFields(g: MessGrid, m: CourtMessLook, out: MessFields): void {
+  const clay = g.s.clay;
+  for (let c = 0; c < g.N; c++) {
+    out.sand[c] = 0;
+    out.wet[c] = 0;
+    out.crack[c] = 0;
+    out.dry[c] = 0;
+    out.grey[c] = 0;
+    out.fade[c] = 0;
+    if (!g.inside[c]) continue;
+    if (m.sand > 0) out.sand[c] = Math.max(0, (m.sand - (g.sandT[c] as number) * 0.92) * SAND_K);
+    if (m.water > 0) out.wet[c] = Math.max(0, m.water * WATER_MAX - (g.wetT[c] as number));
+    if (m.cracks > 0) {
+      if (!clay) {
+        if ((g.crackK[c] as number) >= 0) out.crack[c] = clamp((m.cracks - (g.crackT[c] as number)) / CRACK_SOFT, 0, 1);
+      } else out.dry[c] = Math.max(0, m.cracks * DRY_K - (g.dryT[c] as number));
+    }
+    if (m.lines > 0 && g.line[c]) {
+      const lg = g.lineG[c] as number;
+      if (m.lines > lg) out.grey[c] = Math.min(0.55, 0.55 * (m.lines - lg) + 0.05);
+      out.fade[c] = Math.max(0, m.lines - (g.lineT[c] as number) * LINE_K);
+    }
+  }
+}
+
+/** 这块场的裂缝格是哪种（0 不是、1 裂缝、2 崩口） */
+const crackCellOf = (g: MessGrid): Uint8Array => {
+  const out = new Uint8Array(g.N);
+  if (!g.s.clay) for (let c = 0; c < g.N; c++) if ((g.crackK[c] as number) >= 0) out[c] = g.crackChip[c] ? 2 : 1;
+  return out;
+};
 
 /**
  * 算出这块场每一格的颜色和不透明度（0 = 不画）。纯函数（只读格子、量和调色板），测试直接调。
- * 从下往上：裂缝 / 干裂 → 褪色的线 → 积水 → 沙。
+ * 从下往上：裂缝 / 干裂 → 褪色的线 → 积水 → 沙（每格怎么画见 ../mess-look.ts 的 messCell）。
  */
 export function messCells(
   g: MessGrid,
   m: CourtMessLook,
-  P: Readonly<Record<HexKey, number>>,
+  P: Readonly<Record<MessHexKey, number>>,
   base: (c: number) => number,
   colA: Uint32Array,
   amtA: Float32Array,
+  scratch: MessFields = messFieldsFor(g.N),
 ): number {
-  const { nx, nz, N, inside } = g;
-  const clay = g.s.clay;
-  const sandD = new Float32Array(N);
-  if (m.sand > 0)
-    for (let c = 0; c < N; c++)
-      if (inside[c]) sandD[c] = Math.max(0, (m.sand - (g.sandT[c] as number) * 0.92) * SAND_K);
+  const { nx, nz, inside } = g;
+  messFields(g, m, scratch);
+  const { sand } = scratch;
+  const v: MessCellIn = messCellIn();
+  const out = { col: 0, amt: 0 };
+  v.clay = g.s.clay;
   let painted = 0;
   for (let j = 0; j < nz; j++)
     for (let i = 0; i < nx; i++) {
       const c = j * nx + i;
       amtA[c] = 0;
       if (!inside[c]) continue;
-      let col = 0;
-      let amt = 0;
-      const over = (k: number, a: number) => {
-        if (a <= 0) return;
-        if (a >= 1 || amt <= 0) {
-          col = amt <= 0 || a >= 1 ? k : mixP(col, k, a);
-          amt = a >= 1 ? 1 : Math.max(amt, a);
-          return;
-        }
-        const na = a + amt * (1 - a);
-        col = mixP(col, k, a / na);
-        amt = na;
-      };
-      // 裂缝 / 干裂
-      if (m.cracks > 0) {
-        if (!clay) {
-          const k = g.crackK[c] as number;
-          if (k >= 0) {
-            const grow = clamp((m.cracks - (g.crackThr[k] as number)) / 0.3, 0, 1);
-            if ((g.crackP[c] as number) < grow) over(g.crackChip[c] ? P.chip : P.crack, g.crackChip[c] ? 0.7 : 0.92);
-          }
-        } else {
-          const d = m.cracks * 0.8 - (g.dryT[c] as number);
-          if (d > 0) {
-            over(P.dry, Math.min(0.62, 0.28 + d * 3));
-            if (d > 0.05 && g.dryNet[c]) over(P.dryCrack, Math.min(0.9, 0.4 + d * 4));
-          }
-        }
-      }
-      // 线：先整体发灰，过了门槛一段段地褪掉（红土：被红土盖住）
-      if (m.lines > 0 && g.line[c]) {
-        over(clay ? P.clayLine : P.grey, Math.min(0.55, 0.55 * m.lines + 0.05));
-        const d = m.lines - (g.lineT[c] as number) * 1.1;
-        if (d > 0) over(base(c), Math.min(0.94, 0.35 + d * 4));
-      }
-      // 水：硬地是浅色反光的水洼、外圈一道深色湿印；红土是深色湿泥、深的地方积成小水洼
-      if (m.water > 0) {
-        const w = m.water * WATER_MAX - (g.wetT[c] as number);
-        if (w > 0) {
-          if (clay) {
-            over(P.mud, Math.min(0.62, 0.3 + w * 2.2));
-            // 小水洼：一圈亮边（映着天），里面一汪浑水，偶尔一点反光
-            if (w > PUDDLE + 0.03) over(hash(i, j, 79) < 0.012 ? P.mudGlint : P.mudPool, 0.94);
-            else if (w > PUDDLE) over(P.mudRim, 0.85);
-          } else if (w > PUDDLE + 0.035) {
-            // 水洼：映着天的一汪浅蓝，靠里一点更亮，偶尔一点反光
-            const h = hash(i, j, 81);
-            over(h < 0.012 ? P.glint : w > PUDDLE + 0.09 ? P.puddle2 : P.puddle, 1);
-          } else if (w > PUDDLE) over(P.rim, 0.85);
-          else over(P.wet, 0.32);
-        }
-      }
-      // 沙：厚的整格盖住（朝上风的坡亮、背风的暗，偶尔一颗石子），薄的按厚度分四档透出下面
-      const sd = sandD[c] as number;
-      if (sd > 0.05) {
-        if (sd >= SAND_THICK) {
-          const up = j > 0 ? (sandD[c - nx] as number) : sd;
-          const dn = j < nz - 1 ? (sandD[c + nx] as number) : sd;
-          const lf = i > 0 ? (sandD[c - 1] as number) : sd;
-          let k = P.sand;
-          if (sd - up > 0.22 || sd - lf > 0.3) k = P.sand3;
-          else if (sd - dn > 0.22) k = P.sand2;
-          else if (sd > 1.6) k = P.sandD;
-          if (hash(i, j, 78) > 0.985) k = P.peb;
-          over(k, 1);
-        } else {
-          const a = Math.min(0.92, Math.round(((sd - 0.05) / 0.5) * 4 + hash(i, j, 77) * 0.9 - 0.45) / 4 + 0.18);
-          over(P.sand, a);
-        }
-      }
-      if (amt > 0) {
-        colA[c] = col;
-        amtA[c] = amt;
+      const sd = sand[c] as number;
+      v.sand = sd;
+      v.sandUp = j > 0 ? (sand[c - nx] as number) : sd;
+      v.sandDn = j < nz - 1 ? (sand[c + nx] as number) : sd;
+      v.sandLf = i > 0 ? (sand[c - 1] as number) : sd;
+      v.wet = scratch.wet[c] as number;
+      v.crack = (g.crackK[c] as number) >= 0 ? (g.crackChip[c] ? 2 : 1) : 0;
+      v.crackA = scratch.crack[c] as number;
+      v.dry = scratch.dry[c] as number;
+      v.dryNet = !!g.dryNet[c];
+      v.line = !!g.line[c];
+      v.grey = scratch.grey[c] as number;
+      v.fade = scratch.fade[c] as number;
+      v.base = v.line && v.fade > 0 ? base(c) : 0;
+      messCell(v, i, j, P, out);
+      if (out.amt > 0) {
+        colA[c] = out.col;
+        amtA[c] = out.amt;
         painted++;
       }
     }
   return painted;
+}
+
+/** 这块场按量 m 画出来的样子（交给小游戏） */
+export function messSnapshot(g: MessGrid, m: CourtMessLook): MessCourtSnapshot {
+  const f = messFieldsFor(g.N);
+  messFields(g, m, f);
+  const s = g.s;
+  const pieces: MessPiece[] = [];
+  if (m.litter > 0)
+    g.pieces.forEach((p, id) => {
+      if (p.thr < m.litter) pieces.push({ id, x: p.x, z: p.z, prop: p.prop });
+    });
+  return {
+    key: s.key,
+    ox: s.ox,
+    oz: s.oz,
+    hx: s.hx,
+    hz: s.hz,
+    clay: s.clay,
+    amounts: { ...m },
+    gx0: g.gx0,
+    gz0: g.gz0,
+    nx: g.nx,
+    nz: g.nz,
+    ts: TS,
+    inside: g.inside,
+    line: g.line,
+    dryNet: g.dryNet,
+    crackCell: crackCellOf(g),
+    base: g.base,
+    ...f,
+    pieces,
+  };
+}
+
+/**
+ * 小游戏收工：把门槛重排成"按量 q 画出来正好是 res 的样子"（res 是扫剩下的快照，格子和这块场一样）。
+ * 连续的几项（沙、水、红土干裂、线褪掉多少、线发灰多少）按剩下的量直接解出门槛；一格一格有没有的几项（硬地裂缝、垃圾）
+ * 剩下的按原来的先后挤到 q 以下、扫掉的挤到 q 以上（以后量再涨，扫掉的地方先回来）。q 是 0 的项画不出来，不动。
+ */
+export function messRebase(g: MessGrid, res: MessCourtSnapshot, q: CourtMessLook): void {
+  if (res.nx !== g.nx || res.nz !== g.nz || res.key !== g.s.key) return;
+  const old = res.amounts;
+  const clay = g.s.clay;
+  for (let c = 0; c < g.N; c++) {
+    if (!g.inside[c]) continue;
+    if (q.sand > 0) {
+      const r = res.sand[c] as number;
+      g.sandT[c] = r > 0.05 ? (q.sand - r / SAND_K) / 0.92 : Math.max(g.sandT[c] as number, q.sand / 0.92 + EPS);
+    }
+    if (q.water > 0) {
+      const r = res.wet[c] as number;
+      g.wetT[c] = r > 0 ? q.water * WATER_MAX - r : Math.max(g.wetT[c] as number, q.water * WATER_MAX + EPS);
+    }
+    if (q.cracks > 0) {
+      if (clay) {
+        const r = res.dry[c] as number;
+        g.dryT[c] = r > 0 ? q.cracks * DRY_K - r : Math.max(g.dryT[c] as number, q.cracks * DRY_K + EPS);
+      } else if ((g.crackK[c] as number) >= 0) {
+        const t = g.crackT[c] as number;
+        const was = old.cracks > t;
+        const a = res.crack[c] as number;
+        if (a > 0) {
+          // 剩下的：按原来的先后挤到 q 以下，清楚程度照剩下的
+          const lo = q.cracks - CRACK_SOFT * Math.min(1, a);
+          g.crackT[c] = was ? Math.min((t * q.cracks) / old.cracks, lo) : lo;
+        } else if (was) g.crackT[c] = q.cracks + (Math.max(0, old.cracks - q.cracks) * t) / old.cracks + EPS;
+      }
+    }
+    if (q.lines > 0 && g.line[c]) {
+      const r = res.fade[c] as number;
+      g.lineT[c] = r > 0 ? (q.lines - r) / LINE_K : Math.max(g.lineT[c] as number, q.lines / LINE_K + EPS);
+      const gr = res.grey[c] as number;
+      g.lineG[c] = gr > 0 ? q.lines - (Math.min(0.55, gr) >= 0.55 ? 1 : (gr - 0.05) / 0.55) : q.lines;
+    }
+  }
+  if (q.litter > 0 && old.litter > 0) {
+    const kept = new Set(res.pieces.map((p) => p.id));
+    g.pieces.forEach((p, id) => {
+      if (p.thr >= old.litter) return;
+      p.thr = kept.has(id)
+        ? (p.thr * q.litter) / old.litter
+        : q.litter + (Math.max(0, old.litter - q.litter) * p.thr) / old.litter + EPS;
+    });
+  }
 }
 
 /** 逐像素：反投影到地面 → 格子 → 混色；被前面的东西挡住的像素不画（深度缓冲） */
@@ -601,6 +684,7 @@ function courtNode(g: MessGrid, get: () => CourtMessLook | null): Custom {
   const s = g.s;
   const colA = new Uint32Array(g.N);
   const amtA = new Float32Array(g.N);
+  const scratch = messFieldsFor(g.N);
   const baked = Object.fromEntries(Object.entries(MESS_PROPS).map(([k, a]) => [k, bakeArt(a)])) as unknown as Record<
     MessProp,
     ReturnType<typeof bakeArt>
@@ -613,7 +697,7 @@ function courtNode(g: MessGrid, get: () => CourtMessLook | null): Custom {
       const night = R.pal?.night ?? 0;
       const warm = R.pal?.warm ?? 1;
       // 先按白天的颜色算格子，夜里再逐格按那儿受灯光的程度换算（灯光池里亮、池外暗，和地面贴图对得上）
-      const n = messCells(g, m, DAY, (c) => g.base[c] as number, colA, amtA);
+      const n = messCells(g, m, MESS_DAY, (c) => g.base[c] as number, colA, amtA, scratch);
       if (n > 0 && R.buf) {
         if (night > 0)
           for (let j = 0; j < g.nz; j++)
@@ -647,6 +731,17 @@ export interface MessLayer {
   set(facility: string, mess: CourtMessLook | null): boolean;
   /** 这处设施现在画着的（量化后的）量；测试、调试用 */
   get(facility: string): CourtMessLook | null;
+  /**
+   * 这处设施现在画着的每块场（小游戏开场照着摆）。画着的量没有时按 fallback（量化后）算。没修好、不认识的设施是空表。
+   */
+  snapshot(facility: string, fallback: CourtMessLook | null): MessCourtSnapshot[];
+  /**
+   * 小游戏收工：每块场照 courts 里同一块场（按 key 认）扫剩下的样子重排门槛，并且按 amounts（模拟清完以后的量）画。
+   * 返回 true = 画面变了。
+   */
+  rebase(facility: string, courts: readonly MessCourtSnapshot[], amounts: CourtMessLook | null): boolean;
+  /** 小游戏接管这处设施的一块场（key）：只藏这一块，别的照画；null 还原 */
+  focus(facility: string, key: string | null): boolean;
 }
 
 export function createMess(): MessLayer {
@@ -658,6 +753,10 @@ export function createMess(): MessLayer {
   /** 设施 → 现在画的场地（没修好 = 空） */
   const courts = new Map<string, string>();
   const nodes = new Map<string, Custom[]>();
+  /** 设施 → 现在画的每块场的 key（和 nodes 同序） */
+  const keys = new Map<string, string[]>();
+  /** 设施 → 小游戏接管着、不画的那块场 */
+  const focused = new Map<string, string>();
   const shown = (f: string) => !!amounts.get(f) && (nodes.get(f)?.length ?? 0) > 0;
   const gridOf = (s: MessCourtSpec) => {
     let g = grids.get(s.key);
@@ -669,7 +768,11 @@ export function createMess(): MessLayer {
   };
   const refreshVisible = (f: string) => {
     const on = !!amounts.get(f);
-    for (const n of nodes.get(f) ?? []) n.visible = on;
+    const ks = keys.get(f) ?? [];
+    const hide = focused.get(f);
+    (nodes.get(f) ?? []).forEach((n, i) => {
+      n.visible = on && ks[i] !== hide;
+    });
   };
   return {
     root,
@@ -684,6 +787,10 @@ export function createMess(): MessLayer {
         for (const n of nodes.get(f) ?? []) root.remove(n);
         const list = specs.map((s) => courtNode(gridOf(s), () => amounts.get(f) ?? null));
         nodes.set(f, list);
+        keys.set(
+          f,
+          specs.map((s) => s.key),
+        );
         if (list.length) root.add(...list);
         refreshVisible(f);
         if (was || shown(f)) changed = true;
@@ -700,5 +807,30 @@ export function createMess(): MessLayer {
       return was || shown(facility);
     },
     get: (f) => amounts.get(f) ?? null,
+    snapshot(facility, fallback) {
+      const m = amounts.get(facility) ?? quantMess(fallback);
+      const ks = keys.get(facility) ?? [];
+      if (!m) return [];
+      return ks.map((k) => messSnapshot(grids.get(k) as MessGrid, m));
+    },
+    rebase(facility, list, target) {
+      if (!(MESS_FACILITIES as readonly string[]).includes(facility)) return false;
+      const q = quantMess(target);
+      if (q)
+        for (const res of list) {
+          const g = grids.get(res.key);
+          if (g && (keys.get(facility) ?? []).includes(res.key)) messRebase(g, res, q);
+        }
+      amounts.set(facility, q);
+      refreshVisible(facility);
+      return true;
+    },
+    focus(facility, key) {
+      if ((focused.get(facility) ?? null) === key) return false;
+      if (key) focused.set(facility, key);
+      else focused.delete(facility);
+      refreshVisible(facility);
+      return shown(facility);
+    },
   };
 }

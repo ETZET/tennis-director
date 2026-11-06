@@ -1,4 +1,4 @@
-import type { CourtMessLook } from '@td/iso';
+import { type CourtMessLook, type MessCourtSnapshot, type MessProp, snapshotCell, snapshotTotals } from '@td/iso';
 import type { Rand } from '@td/shared';
 import type { MessKind, Surface } from '@td/sim';
 
@@ -6,7 +6,11 @@ import type { MessKind, Surface } from '@td/sim';
  * 亲手扫小游戏的数值（court-care-contract.md「小游戏」，从 sandbox demo 06 第二轮搬过来）：一块球场上的
  * 沙、积水 / 湿泥、球和垃圾、褪色的线、裂缝 / 干裂，按模拟的 CourtMessLook 和面生成。
  * 只管数，不碰画面和 DOM；演出（扫把、粒子）读它的返回值。网格是场地局部坐标 u（沿长边）、v（沿球网）的 0.2 米格子，
- * 不转的场地和地面贴图的纹素对齐。这里的随机只决定画面上脏乱怎么分布；交给模拟的只有 cleared（每项清掉了几成）。
+ * 不转的场地和地面贴图的纹素对齐。交给模拟的只有 cleared（每项清掉了几成）。
+ *
+ * 和外面同步（court-care-contract.md「小游戏和外面同步」）：正式游戏里模型照地图画着的快照（MessCourtSnapshot）摆——
+ * 每格的沙、水、裂缝、褪了的线、每件垃圾都和外面一模一样，量也是画面上的量；收工时 residual() 把扫剩下的样子按同样的格子交回去，
+ * 外面从此照剩下的画。没有快照时（地图不支持、测试）才按 mess 用随机数生成，那时随机只决定画面。
  */
 
 export const TS = 0.2;
@@ -65,6 +69,33 @@ export interface LitterItem {
   /** 0 网球、1 瓶子、2 落叶 */
   kind: 0 | 1 | 2;
   taken: boolean;
+  /** 照快照摆的：外面画的是哪件、编号（交回去时认它） */
+  prop?: MessProp;
+  id?: number;
+}
+
+/** 外面的垃圾 → 小游戏粒子颜色用的大类 */
+const KIND_OF: Record<MessProp, 0 | 1 | 2> = { ball: 0, bottle: 1, can: 1, leaf: 2, wrap: 1 };
+
+type Totals = Record<MessKind, number>;
+
+/**
+ * 一块场的进度折成整处设施的"还剩多少"（两片场的设施只扫了一片：另一片原样留着，按画面上的多少加权）。
+ * focus 是扫的这块场开工时有多少、others 是别的场有多少（snapshotTotals）；这块场什么都没有的项按别的场算（一点没动）。
+ */
+export function facilityLeft(
+  left: Partial<Record<MessKind, number>>,
+  focus: Totals,
+  others: readonly Totals[],
+): Partial<Record<MessKind, number>> {
+  const out: Partial<Record<MessKind, number>> = {};
+  for (const k of Object.keys(left) as MessKind[]) {
+    const l = left[k] as number;
+    const f = focus[k];
+    const o = others.reduce((t, x) => t + x[k], 0);
+    out[k] = f + o > 0 ? (l * f + o) / (f + o) : l;
+  }
+  return out;
 }
 
 /** 场上有的脏乱配哪些工具（契约「五种脏乱」的工具列；net 是线那一项的一部分：打得多了网也松） */
@@ -150,6 +181,8 @@ export interface CareModelOptions {
   rnd: Rand;
   /** 地面贴图纹素的原点（世界坐标；地台西北角）：不转的场地的格子和地面一个像素格 */
   texel?: { x0: number; z0: number };
+  /** 地图此刻画着的这块场（照它摆，和外面一模一样）；没有就按 mess 随机生成 */
+  from?: MessCourtSnapshot;
 }
 
 export class CareModel {
@@ -157,7 +190,7 @@ export class CareModel {
   readonly surface: Surface;
   readonly clay: boolean;
   readonly start: CourtMessLook;
-  readonly tools: Tool[];
+  tools: Tool[];
   readonly dims: LineDims;
   readonly nx: number;
   readonly nz: number;
@@ -180,6 +213,17 @@ export class CareModel {
   readonly segs: Seg[] = [];
   readonly litter: LitterItem[] = [];
   readonly net: { t: number; score: number; score0: number };
+  /** 照着摆的快照（没有 = 随机生成的） */
+  readonly src: MessCourtSnapshot | null;
+  /** 每格对应快照里的哪一格（-1 没有；画面的抖动、颜色按那一格取） */
+  readonly wcell: Int32Array;
+  /** 硬地：这一格是裂缝（1）还是崩口（2） */
+  readonly chip: Uint8Array;
+  /** 白线格（照快照）：发灰多少、褪掉多少、褪掉以后露出来的场地色 */
+  readonly lineCell: Uint8Array;
+  readonly grey: Float32Array;
+  readonly fade0: Float32Array;
+  readonly base: Uint32Array;
   sandInit = 1;
   wetInit = 1;
   roughInit = 1;
@@ -211,14 +255,27 @@ export class CareModel {
     this.segOf = new Int8Array(N).fill(-1);
     this.segP = new Int16Array(N);
     this.segNear = new Int8Array(N).fill(-1);
+    this.src = o.from ?? null;
+    this.wcell = new Int32Array(N).fill(-1);
+    this.chip = new Uint8Array(N);
+    this.lineCell = new Uint8Array(N);
+    this.grey = new Float32Array(N);
+    this.fade0 = new Float32Array(N);
+    this.base = new Uint32Array(N);
     for (let j = 0; j < this.nz; j++)
       for (let i = 0; i < this.nx; i++)
         if (Math.abs(this.cu(i)) <= G.hx - 0.1 && Math.abs(this.cv(j)) <= G.hz - 0.1) this.inside[j * this.nx + i] = 1;
     const m = o.mess;
     const t0 = clamp(0.72 - 0.5 * m.lines, 0, 1);
     this.net = { t: t0, score: netScore(t0), score0: netScore(t0) };
-    this.buildLines(o.rnd, m.lines >= MESS_MIN ? m.lines : 0);
-    this.generate(o.rnd);
+    if (this.src) {
+      this.buildLines(o.rnd, 0);
+      this.fromSnapshot(this.src);
+      this.tools = this.toolsSeen();
+    } else {
+      this.buildLines(o.rnd, m.lines >= MESS_MIN ? m.lines : 0);
+      this.generate(o.rnd);
+    }
   }
 
   /* ---------------- 坐标 ---------------- */
@@ -455,6 +512,107 @@ export class CareModel {
     this.roughInit = Math.max(1e-6, rf);
   }
 
+  /** 照快照摆：每格取快照里同一个世界位置那一格的量（不转的场地正好一格对一格） */
+  private fromSnapshot(S: MessCourtSnapshot): void {
+    for (let c = 0; c < this.N; c++) {
+      if (!this.inside[c]) continue;
+      const p = this.world(this.cu(c % this.nx), this.cv(Math.floor(c / this.nx)));
+      const w = snapshotCell(S, p.x, p.z);
+      if (w < 0) continue;
+      this.wcell[c] = w;
+      this.sand[c] = S.sand[w] as number;
+      this.wet[c] = S.wet[w] as number;
+      if (this.clay) {
+        this.rough[c] = S.dry[w] as number;
+        this.crack[c] = S.dryNet[w] as number;
+      } else if (S.crackCell[w]) {
+        this.chip[c] = S.crackCell[w] as number;
+        this.rough[c] = S.crack[w] as number;
+        this.crack[c] = (S.crack[w] as number) > 0 ? 1 : 0;
+      }
+      if (S.line[w]) {
+        this.lineCell[c] = 1;
+        this.grey[c] = S.grey[w] as number;
+        this.fade0[c] = S.fade[w] as number;
+        this.base[c] = S.base[w] as number;
+        // 外面褪了的格子：这一段线要重画
+        const sg = this.segOf[c] as number;
+        if (sg >= 0 && (S.fade[w] as number) > 0) (this.segs[sg] as Seg).cov[this.segP[c] as number] = 1;
+      }
+    }
+    this.fadedInit = this.segs.reduce((t, g) => t + g.cov.reduce((x, v) => x + (v === 1 ? 1 : 0), 0), 0);
+    for (const p of S.pieces) {
+      const l = this.local(p.x, p.z);
+      if (!this.inCourt(l.u, l.v)) continue;
+      this.litter.push({ u: l.u, v: l.v, kind: KIND_OF[p.prop], taken: false, prop: p.prop, id: p.id });
+    }
+    this.litterInit = this.litter.length;
+    let sd = 0;
+    let wt = 0;
+    let rf = 0;
+    for (let c = 0; c < this.N; c++) {
+      if (!this.inside[c]) continue;
+      sd += Math.max(0, (this.sand[c] as number) - 0.03);
+      wt += this.wet[c] as number;
+      rf += this.rough[c] as number;
+    }
+    this.sandInit = Math.max(1e-6, sd);
+    this.wetInit = Math.max(1e-6, wt);
+    this.roughInit = Math.max(1e-6, rf);
+  }
+
+  /** 照快照摆的场：只给这块场上看得见的脏乱配工具（模拟的量是整处设施的，另一片场上的这块场上不一定有） */
+  private toolsSeen(): Tool[] {
+    const S = this.src;
+    if (!S) return this.tools;
+    const t = snapshotTotals(S);
+    const seen = { ...this.start };
+    for (const k of KINDS) if (k !== 'lines' && t[k] <= 0) seen[k] = 0;
+    const tools = toolsFor(this.surface, seen);
+    // 线：外面没有褪掉的段就不给画线车（球网照给：线那一项里有它）
+    if (this.fadedInit <= 0) {
+      const i = tools.indexOf('paint');
+      if (i >= 0) tools.splice(i, 1);
+    }
+    return tools;
+  }
+
+  /**
+   * 收工时交回地图的样子：快照的格子，扫到的格子换成现在的量（沙、水、裂缝 / 干裂、线），捡掉的垃圾拿掉；
+   * 小游戏没覆盖到的格子照原样。刚画好的线不再发灰、不再褪；画得抖的线照旧发灰。没有快照时是 null。
+   */
+  residual(): MessCourtSnapshot | null {
+    const S = this.src;
+    if (!S) return null;
+    const sand = S.sand.slice();
+    const wet = S.wet.slice();
+    const crack = S.crack.slice();
+    const dry = S.dry.slice();
+    const grey = S.grey.slice();
+    const fade = S.fade.slice();
+    for (let j = 0; j < S.nz; j++)
+      for (let i = 0; i < S.nx; i++) {
+        const w = j * S.nx + i;
+        if (!S.inside[w]) continue;
+        const l = this.local(S.gx0 + (i + 0.5) * S.ts, S.gz0 + (j + 0.5) * S.ts);
+        const c = this.cell(l.u, l.v);
+        if (c < 0 || !this.inside[c]) continue;
+        sand[w] = this.sand[c] as number;
+        wet[w] = this.wet[c] as number;
+        if (this.clay) dry[w] = this.rough[c] as number;
+        else if (S.crackCell[w]) crack[w] = this.rough[c] as number;
+        if (!S.line[w]) continue;
+        const sg = this.segOf[c] as number;
+        const cv = sg >= 0 ? ((this.segs[sg] as Seg).cov[this.segP[c] as number] ?? 0) : 0;
+        if (cv === 2) {
+          grey[w] = 0;
+          fade[w] = 0;
+        } else if (cv === 3) fade[w] = 0;
+      }
+    const pieces = S.pieces.filter((p) => !this.litter.some((it) => it.id === p.id && it.taken));
+    return { ...S, sand, wet, crack, dry, grey, fade, pieces };
+  }
+
   /* ---------------- 读数 ---------------- */
 
   /** 线还剩多少没画（0..1，不算球网）：抖的格子算四成没画，画歪的白点擦不掉、每格扣 0.5% */
@@ -620,7 +778,7 @@ export class CareModel {
           fixed += r - (this.rough[c] as number);
         } else {
           this.wet[c] = Math.min(1.6, (this.wet[c] as number) + 0.03 * f);
-          if ((this.wet[c] as number) > 1.0) puddle = true;
+          if ((this.wet[c] as number) > 0.4) puddle = true;
         }
       }
     return { fixed, puddle };

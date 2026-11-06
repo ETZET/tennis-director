@@ -1,6 +1,7 @@
 import {
   BallPool,
   type ChoreoContext,
+  type CourtMessLook,
   Custom,
   contactPt,
   createDaylight,
@@ -8,6 +9,7 @@ import {
   createStarSign,
   type DrawContext,
   type IsoWorld,
+  type MessCourtSnapshot,
   type PeopleWorld,
   Person,
   type PersonOptions,
@@ -342,10 +344,15 @@ export interface GameScene {
   landPreview(plot: string, variant: string | null): void;
   readonly showNow: () => number;
   /**
-   * 扫场小游戏接管一块场（court-care-contract.md，代理 C 调）：给设施 → 那块场的脏乱叠层收起来（mess null）、
-   * 藏起总监和场上的人、停下那块场上的演出和门口的会员；null → 整个重画地面（repaint）、全部还原。只是画面。
+   * 扫场小游戏接管一块场（court-care-contract.md，代理 C 调）：给设施 → 那块场（court = 快照的 key）的脏乱叠层收起来、
+   * 同一处设施别的场照画（地图不认 court 时整处设施都收起来）、藏起总监和场上的人、停下那块场上的演出和门口的会员；
+   * null → 整个重画地面（repaint）、全部还原。只是画面。
    */
-  careStage(facility: string | null): void;
+  careStage(facility: string | null, court?: string | null): void;
+  /** 这处设施此刻画着的脏乱（小游戏开场照着摆；地图不支持时是空表） */
+  messSnapshot(facility: string, fallback: CourtMessLook | null): MessCourtSnapshot[];
+  /** 小游戏收工：外面的场地从此照扫剩下的样子画（amounts 是模拟清完以后的量） */
+  messRebase(facility: string, courts: readonly MessCourtSnapshot[], amounts: CourtMessLook | null): void;
 }
 
 /**
@@ -396,6 +403,8 @@ export function createGameScene(
   const messShown = new Map<string, string>();
   /** 扫场小游戏接管的那块场（careStage）、因此藏起来的员工 */
   let staged: string | null = null;
+  /** 接管的是哪一块场（地图认的话，只藏这一块的脏乱） */
+  let stagedCourt: string | null = null;
   const stageHidden = new Set<Person>();
   /** 酷热的画面量 0..1（天色、热浪慢慢淡入淡出） */
   let heatAmt = 0;
@@ -507,7 +516,7 @@ export function createGameScene(
    */
   function applyMess(s: GameState, w: World): void {
     for (const f of careCourts(w)) {
-      const m = staged === f || !careActive(s, w, f) ? null : (s.care?.[f]?.mess ?? null);
+      const m = (staged === f && !stagedCourt) || !careActive(s, w, f) ? null : (s.care?.[f]?.mess ?? null);
       const key = m ? `${s.variants?.[f] ?? ''}|${MESS_KINDS.map((k) => Math.round(m[k] * 100)).join(',')}` : '';
       if (messShown.has(f) && messShown.get(f) === key) continue;
       messShown.set(f, key);
@@ -1281,11 +1290,18 @@ export function createGameScene(
 
   return {
     showNow: () => sched.now,
-    careStage(facility) {
+    messSnapshot: (facility, fallback) => overlays.messSnapshot?.(facility, fallback) ?? [],
+    messRebase(facility, courts, amounts) {
+      overlays.messRebase?.(facility, courts, amounts);
+      messShown.delete(facility);
+    },
+    careStage(facility, court = null) {
       if (facility === staged) return;
       const s = state;
       const w = s ? worldOf(s, content) : null;
       const prev = staged;
+      if (prev && stagedCourt) overlays.messFocus?.(prev, null);
+      stagedCourt = facility && court && overlays.messFocus ? court : null;
       // 还原：藏起来的人露出来（就在原地，下一帧 placeStaff 接着摆）、地面整个重画、被停下的卡片活动重新开演
       for (const who of stageHidden) who.root.visible = true;
       stageHidden.clear();
@@ -1302,8 +1318,11 @@ export function createGameScene(
         }
         return;
       }
-      overlays.mess?.(facility, null);
-      messShown.set(facility, '');
+      if (stagedCourt) overlays.messFocus?.(facility, stagedCourt);
+      else {
+        overlays.mess?.(facility, null);
+        messShown.set(facility, '');
+      }
       if (!s || !w) return;
       const a = anchorOf(w, facility);
       // 那块场上的演出停下（岗位、工单的演出由 syncJobShows 接管期间不再开）

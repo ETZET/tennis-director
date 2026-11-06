@@ -1,3 +1,4 @@
+import { Group, indianWells, type MessCourtSnapshot } from '@td/iso';
 import { mulberry32 } from '@td/shared';
 import { CONTENT } from '@td/sim';
 import { describe, expect, it } from 'vitest';
@@ -7,6 +8,7 @@ import {
   type CourtGeom,
   clearedFrom,
   clearedPercent,
+  facilityLeft,
   lineDims,
   litterCount,
   MESS_MIN,
@@ -172,5 +174,104 @@ describe('Session：小游戏开着时游戏时间停着', () => {
     expect(s.care).toBeNull();
     s.frame(10);
     expect(s.s.t).toBeGreaterThan(t0);
+  });
+});
+
+describe('亲手扫：和外面同步（照地图的快照摆）', () => {
+  /** 地图的叠层（假的 IsoWorld：只要静态层和失效计数），五处球场修好 */
+  function overlays() {
+    const w = {
+      statics: new Group(),
+      scene: new Group(),
+      ground: { paintRect: () => {} },
+      addLamp: () => () => {},
+      view: { invalidate: () => {} },
+    };
+    const ov = indianWells.createFacilityOverlays(w as never);
+    ov.repaint();
+    for (const f of ['outer_1', 'outer_23', 'practice', 'stadium_1', 'stadium_3'])
+      ov.set(f, indianWells.RESTORED_STATES[f as 'outer_1'] as string);
+    ov.flush();
+    return ov;
+  }
+  const ALL = { sand: 0.5, water: 0.4, litter: 0.5, lines: 0.6, cracks: 0.5 };
+  const fromSnap = (snap: MessCourtSnapshot, surface: 'hard' | 'clay' = 'hard') =>
+    new CareModel({
+      geom: { ox: snap.ox, oz: snap.oz, hx: snap.hx, hz: snap.hz, c: 1, s: 0 },
+      surface,
+      mess: ALL,
+      rnd: mulberry32(1),
+      texel: TEXEL,
+      from: snap,
+    });
+
+  it('进去：每一格、每一件垃圾都和外面一样', () => {
+    const ov = overlays();
+    ov.mess('outer_1', ALL);
+    const [snap] = ov.messSnapshot('outer_1', null);
+    if (!snap) throw new Error('没有快照');
+    const m = fromSnap(snap);
+    let mapped = 0;
+    for (let c = 0; c < m.N; c++) {
+      if (!m.inside[c]) continue;
+      const w = m.wcell[c] as number;
+      expect(w).toBeGreaterThanOrEqual(0);
+      mapped++;
+      expect(m.sand[c]).toBe(snap.sand[w]);
+      expect(m.wet[c]).toBe(snap.wet[w]);
+    }
+    expect(mapped).toBe(snap.inside.reduce((n, v) => n + v, 0));
+    expect(m.litter.map((it) => it.id)).toEqual(snap.pieces.map((p) => p.id));
+    for (const it of m.litter) {
+      const p = snap.pieces.find((q) => q.id === it.id)!;
+      const w = m.world(it.u, it.v);
+      expect(w.x).toBeCloseTo(p.x);
+      expect(w.z).toBeCloseTo(p.z);
+    }
+    expect(m.fadedInit).toBeGreaterThan(0);
+    expect(m.tools).toEqual(['broom', 'squeegee', 'roller', 'pick', 'paint', 'net']);
+  });
+
+  it('没动就交回：和进去时一样；捡掉的垃圾、扫掉的沙不再画', () => {
+    const ov = overlays();
+    ov.mess('outer_1', ALL);
+    const [snap] = ov.messSnapshot('outer_1', null);
+    if (!snap) throw new Error('没有快照');
+    const m = fromSnap(snap);
+    const same = m.residual()!;
+    for (const k of ['sand', 'wet', 'crack', 'dry', 'grey', 'fade'] as const)
+      expect(Array.from(same[k]), k).toEqual(Array.from(snap[k]));
+    expect(same.pieces).toEqual(snap.pieces);
+    const half = m.litter.slice(0, Math.floor(m.litter.length / 2));
+    for (const it of half) it.taken = true;
+    m.finish('sand');
+    const res = m.residual()!;
+    expect(res.pieces.map((p) => p.id)).toEqual(m.litter.filter((it) => !it.taken).map((it) => it.id));
+    expect(res.sand.some((v) => v > 0)).toBe(false);
+    // 交回地图：外面照剩下的画
+    const left = m.left();
+    const after = { ...ALL, sand: ALL.sand * (left.sand ?? 1), litter: ALL.litter * (left.litter ?? 1) };
+    ov.messRebase('outer_1', [res], after);
+    const [now] = ov.messSnapshot('outer_1', null);
+    expect(now?.pieces.map((p) => p.id).sort()).toEqual(res.pieces.map((p) => p.id).sort());
+    expect(now?.sand.some((v) => v > 0.05)).toBe(false);
+  });
+
+  it('两片场的设施只扫一片：按画面上的多少折算，另一片原样', () => {
+    const focus = { sand: 10, water: 0, litter: 4, lines: 0, cracks: 0 };
+    const other = { sand: 30, water: 0, litter: 0, lines: 0, cracks: 0 };
+    const l = facilityLeft({ sand: 0, litter: 0 }, focus, [other]);
+    expect(l.sand).toBeCloseTo(0.75);
+    // 这块场上没有的项按别的场算：一点没动
+    expect(facilityLeft({ water: 0 }, focus, [{ ...other, water: 5 }]).water).toBe(1);
+    expect(l.litter).toBe(0);
+  });
+});
+
+describe('Session：收工当场交给模拟', () => {
+  it('careFinish 返回收没收；事件下一帧交出去', () => {
+    const s = Session.fresh(CONTENT, 5);
+    s.frame(0);
+    expect(s.careFinish('clubhouse', { cleared: { sand: 1 } })).toBe(false);
   });
 });

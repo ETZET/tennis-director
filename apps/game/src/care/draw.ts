@@ -2,11 +2,17 @@ import {
   bakeArt,
   Custom,
   type DrawContext,
-  hash,
   type IsoWorld,
+  MESS_DAY,
+  MESS_PROPS,
+  type MessProp,
+  messCell,
+  messCellIn,
   mixP,
   type Node,
+  nightP,
   type Person,
+  ph,
   type Raster,
   V3,
 } from '@td/iso';
@@ -31,31 +37,17 @@ export interface OverlayState {
   guide: boolean;
 }
 
+/** 小游戏自己的颜色（引导线、刚画的线、画在沙上的脏线、画歪的白点）；场上的脏乱用 @td/iso 的 MESS_DAY（和外面同一套） */
 const HEX = {
-  sand: '#e9c999',
-  sand2: '#dfba86',
-  sand3: '#f2d8ad',
-  sandD: '#d6ae78',
-  peb: '#c9a676',
-  crack: '#2c3442',
-  crackC: '#7a3a22',
-  dry: '#e8c9a4',
-  dryC: '#f4e2c8',
-  faded: '#b3aa9a',
-  fadedC: '#c4653a',
   white: '#f6f3ea',
   wobble: '#dcd6c6',
   mud: '#cdb88f',
-  wet: '#7a2e1c',
-  puddleC: '#6a3a2a',
-  puddle: '#86c2e0',
-  sheen: '#a9d4e8',
-  glint: '#e8f8ff',
   gold: '#ffd84a',
   lock: '#fff3b0',
   ink: '#2a2238',
 } as const;
 type HexKey = keyof typeof HEX;
+const OWN = Object.fromEntries(Object.entries(HEX).map(([k, v]) => [k, ph(v)])) as Record<HexKey, number>;
 
 /** 场地四角的世界外包框 */
 function bounds(m: CareModel): { x0: number; x1: number; z0: number; z1: number } {
@@ -74,20 +66,32 @@ export function createOverlay(m: CareModel, st: OverlayState): Custom {
   const N = m.N;
   const colA = new Uint32Array(N);
   const amtA = new Float32Array(N);
-  const arts = LITTER_ART.map((a) => bakeArt(a));
-  const P = {} as Record<HexKey, number>;
+  const own = LITTER_ART.map((a) => bakeArt(a));
+  const props = Object.fromEntries(Object.entries(MESS_PROPS).map(([k, a]) => [k, bakeArt(a)])) as Record<
+    MessProp,
+    ReturnType<typeof bakeArt>
+  >;
   const b = bounds(m);
   const node = new Custom(
     (r: DrawContext) => {
       const R = r as unknown as Raster;
-      const lit = r.litAt(m.G.ox, m.G.oz);
-      for (const k of Object.keys(HEX) as HexKey[]) P[k] = r.col(HEX[k], 1, lit);
-      buildCells(m, st, P, colA, amtA);
+      buildCells(m, st, colA, amtA);
+      // 和外面一样：先按白天的颜色算，夜里逐格按那儿受灯光的程度换算
+      const night = R.pal?.night ?? 0;
+      if (night > 0) {
+        const warm = R.pal?.warm ?? 1;
+        for (let c = 0; c < N; c++)
+          if ((amtA[c] as number) > 0) {
+            const p = m.world(m.cu(c % m.nx), m.cv(Math.floor(c / m.nx)));
+            colA[c] = nightP(colA[c] as number, night, r.litAt(p.x, p.z), warm);
+          }
+      }
       blit(R, m, colA, amtA, b);
       for (const it of m.litter) {
         if (it.taken) continue;
         const w = m.world(it.u, it.v);
-        r.art(arts[it.kind] as ReturnType<typeof bakeArt>, w.x, 0.02, w.z, { lit });
+        const art = it.prop ? props[it.prop] : own[it.kind];
+        r.art(art as ReturnType<typeof bakeArt>, w.x, 0.02, w.z, { lit: r.litAt(w.x, w.z) });
       }
     },
     { x0: b.x0, x1: b.x1, y0: 0, y1: 0.02, z0: b.z0, z1: b.z1 },
@@ -96,130 +100,92 @@ export function createOverlay(m: CareModel, st: OverlayState): Custom {
   return node;
 }
 
-function buildCells(
-  m: CareModel,
-  st: OverlayState,
-  P: Record<HexKey, number>,
-  colA: Uint32Array,
-  amtA: Float32Array,
-): void {
-  const { nx, nz, sand, rough, crack, wet, stray, segOf, segNear, segP, segs, inside } = m;
+/**
+ * 每格的颜色：场上的脏乱用 @td/iso 的 messCell（和外面的叠层同一个函数、同一套颜色、同一个抖动），
+ * 小游戏自己的东西（引导线、刚画的线、画在沙上的脏线、画歪的白点）盖在线那一层上。
+ */
+function buildCells(m: CareModel, st: OverlayState, colA: Uint32Array, amtA: Float32Array): void {
+  const { nx, nz, sand, rough, crack, wet, stray, segOf, segNear, segP, segs, inside, src } = m;
   const clay = m.clay;
   const blink = Math.floor(st.t * 5);
-  /** 沙下面那一层：线、引导线、画歪的线、积水、裂缝 */
-  const under = (c: number, i: number, j: number): void => {
-    const sg = segOf[c] as number;
-    // 引导线两边描一圈暗边，金线在手机上也看得清
-    if (sg < 0 && st.guide && stray[c] === 0) {
-      const sn = segNear[c] as number;
-      const cv = sn >= 0 ? (segs[sn]?.cov[segP[c] as number] ?? 0) : 0;
-      if (sn >= 0 && (cv === 1 || cv === 4)) {
-        colA[c] = P.ink;
-        amtA[c] = sn === st.lock ? 0.55 : 0.4;
-        return;
-      }
-    }
-    if (sg >= 0) {
-      const g = segs[sg];
-      const k = segP[c] as number;
-      const cv = g?.cov[k] ?? 0;
-      if (cv === 2 || cv === 3) {
-        colA[c] = cv === 2 ? P.white : P.wobble;
-        amtA[c] = 1;
-        return;
-      }
-      if (cv === 4) {
-        colA[c] = P.mud;
-        amtA[c] = 1;
-        return;
-      }
-      if (cv === 1) {
-        if (st.guide) {
-          colA[c] = sg === st.lock ? P.lock : P.gold;
-          amtA[c] = sg === st.lock ? 0.85 : ((k + blink) & 7) < 5 ? 1 : 0.55;
-          return;
-        }
-        // 褪了：硬地发灰、断续；红土被红土盖住
-        colA[c] = clay ? P.fadedC : P.faded;
-        amtA[c] = clay ? 0.88 : hash(i, j, 81) < 0.3 ? 0.95 : 0.72;
-        return;
-      }
-    }
-    if (stray[c]) {
-      colA[c] = stray[c] === 1 ? P.white : P.mud;
-      amtA[c] = 1;
-      return;
-    }
-    const w = wet[c] as number;
-    if (w > 0.02) {
-      if (clay) {
-        if (w > 0.95) {
-          colA[c] = hash(i, j, 79) < 0.06 ? P.glint : P.puddleC;
-          amtA[c] = 1;
-        } else {
-          colA[c] = P.wet;
-          amtA[c] = 0.12 + Math.min(1, w) * 0.7;
-        }
-      } else if (w > 0.5) {
-        colA[c] = hash(i, j, 79) < 0.05 ? P.glint : P.puddle;
-        amtA[c] = 0.8;
-      } else {
-        colA[c] = P.sheen;
-        amtA[c] = 0.2 + w * 0.7;
-      }
-      return;
-    }
-    const rf = rough[c] as number;
-    if (rf > 0.02) {
-      if (clay) {
-        colA[c] = crack[c] ? P.crackC : P.dry;
-        amtA[c] = crack[c] ? Math.min(0.9, rf) : Math.min(0.75, rf * 0.85);
-        if (!crack[c] && hash(i, j, 83) < 0.12) colA[c] = P.dryC;
-      } else if (crack[c]) {
-        colA[c] = P.crack;
-        amtA[c] = Math.min(1, rf * 1.1);
-      } else {
-        const dn = j < nz - 1 ? (rough[c + nx] as number) : rf;
-        if (rf - dn > 0.12) {
-          colA[c] = P.ink;
-          amtA[c] = Math.min(0.35, rf * 0.4);
-        } else {
-          colA[c] = P.faded;
-          amtA[c] = Math.min(0.62, rf * 0.75);
-        }
-      }
-    }
-  };
+  const v = messCellIn();
+  const out = { col: 0, amt: 0 };
+  v.clay = clay;
+  const snapNx = src?.nx ?? 1;
   for (let j = 0; j < nz; j++)
     for (let i = 0; i < nx; i++) {
       const c = j * nx + i;
       amtA[c] = 0;
       if (!inside[c]) continue;
       const s = sand[c] as number;
-      // 厚沙整格盖住：朝北的坡亮、朝南的坡暗，偶尔一颗石子
-      if (s >= 0.55) {
-        const up = j > 0 ? (sand[c - nx] as number) : s;
-        const dn = j < nz - 1 ? (sand[c + nx] as number) : s;
-        const lf = i > 0 ? (sand[c - 1] as number) : s;
-        let col = P.sand;
-        if (s - up > 0.22 || s - lf > 0.3) col = P.sand3;
-        else if (s - dn > 0.22) col = P.sand2;
-        else if (s > 1.6) col = P.sandD;
-        if (hash(i, j, 78) > 0.985) col = P.peb;
-        colA[c] = col;
-        amtA[c] = 1;
-        continue;
+      v.sand = s;
+      v.sandUp = j > 0 ? (sand[c - nx] as number) : s;
+      v.sandDn = j < nz - 1 ? (sand[c + nx] as number) : s;
+      v.sandLf = i > 0 ? (sand[c - 1] as number) : s;
+      v.wet = wet[c] as number;
+      if (clay) {
+        v.crack = 0;
+        v.crackA = 0;
+        v.dry = rough[c] as number;
+        v.dryNet = !!crack[c];
+      } else {
+        // 照快照摆的：裂缝格按快照（1 裂缝、2 崩口）；随机生成的：有裂纹的格子是裂缝，没有的是坑洼（画淡一点）
+        v.crack = src ? (m.chip[c] as number) : crack[c] ? 1 : (rough[c] as number) > 0.02 ? 2 : 0;
+        v.crackA = Math.min(1, rough[c] as number);
+        v.dry = 0;
+        v.dryNet = false;
       }
-      under(c, i, j);
-      // 薄沙：按厚度把沙色盖上去（四档），下面的线和坑透出来
-      if (s > 0.05) {
-        const a = Math.min(0.92, Math.round(((s - 0.05) / 0.5) * 4 + hash(i, j, 77) * 0.9 - 0.45) / 4 + 0.18);
-        const am = amtA[c] as number;
-        if (am >= 1) colA[c] = mixP(colA[c] as number, P.sand, a);
-        else {
-          colA[c] = am > 0 ? mixP(P.sand, colA[c] as number, am * (1 - a)) : P.sand;
-          amtA[c] = Math.max(a, am);
+      // 线：照快照摆的按外面的发灰、褪掉；随机生成的按线段（褪了 = 褪掉一半）
+      const sg = segOf[c] as number;
+      const cv = sg >= 0 ? ((segs[sg]?.cov[segP[c] as number] ?? 0) as number) : 0;
+      if (src) {
+        v.line = !!m.lineCell[c];
+        v.grey = m.grey[c] as number;
+        v.fade = m.fade0[c] as number;
+        v.base = m.base[c] as number;
+      } else {
+        v.line = sg >= 0;
+        v.grey = sg >= 0 && cv === 1 ? 0.45 : 0;
+        v.fade = 0;
+        v.base = 0;
+      }
+      v.paint = 0;
+      v.paintA = 0;
+      if (cv === 2) {
+        // 刚画好：不灰不褪（露出地面贴图的白线）
+        v.grey = 0;
+        v.fade = 0;
+      } else if (cv === 3) {
+        v.fade = 0;
+        v.paint = OWN.wobble;
+        v.paintA = 0.55;
+      } else if (cv === 4) {
+        v.paint = OWN.mud;
+        v.paintA = 1;
+      }
+      if (st.guide && stray[c] === 0) {
+        if (sg >= 0 && (cv === 1 || cv === 4)) {
+          v.paint = sg === st.lock ? OWN.lock : OWN.gold;
+          v.paintA = sg === st.lock ? 0.85 : (((segP[c] as number) + blink) & 7) < 5 ? 1 : 0.55;
+        } else if (sg < 0) {
+          // 引导线两边描一圈暗边，金线在手机上也看得清
+          const sn = segNear[c] as number;
+          const nv = sn >= 0 ? (segs[sn]?.cov[segP[c] as number] ?? 0) : 0;
+          if (sn >= 0 && (nv === 1 || nv === 4)) {
+            v.paint = OWN.ink;
+            v.paintA = sn === st.lock ? 0.55 : 0.4;
+          }
         }
+      }
+      if (stray[c]) {
+        v.paint = stray[c] === 1 ? OWN.white : OWN.mud;
+        v.paintA = 1;
+      }
+      const w = src ? (m.wcell[c] as number) : -1;
+      messCell(v, w >= 0 ? w % snapNx : i, w >= 0 ? Math.floor(w / snapNx) : j, MESS_DAY, out);
+      if (out.amt > 0) {
+        colA[c] = out.col;
+        amtA[c] = out.amt;
       }
     }
 }

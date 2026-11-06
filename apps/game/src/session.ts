@@ -50,6 +50,8 @@ export class Session {
   /** 亲手扫的小游戏开着的那块场（设施 id）：frame() 不走游戏时间（和 paused 一样，但不改 paused） */
   care: string | null = null;
   private queue: Command[] = [];
+  /** 不等下一帧就跑掉的命令（careFinish）产生的事件：下一次 frame() 一起交出去 */
+  private held: SimEvent[] = [];
 
   constructor(
     public content: ContentBundle,
@@ -115,9 +117,16 @@ export class Session {
   }
 
   /** 亲手扫收工：把每项清掉了几成交给模拟（下一帧生效），小游戏关上、时间接着走 */
-  careFinish(court: string, result: CareResult): void {
-    this.send({ type: 'careFinish', court, result });
+  /**
+   * 收工：当场交给模拟（不等下一帧），小游戏还原时外面的场地已经是清完以后的量，画面不闪回原来的样子；
+   * 事件留到下一次 frame() 交出去。返回模拟收没收（canCare 不过就不收）。
+   */
+  careFinish(court: string, result: CareResult): boolean {
     this.care = null;
+    const before = this.log.length;
+    this.send({ type: 'careFinish', court, result });
+    this.held.push(...this.run(0));
+    return this.log.slice(before).some((c) => c.cmd.type === 'careFinish');
   }
 
   /** 推进 dt 秒真实时间。返回这一帧的领域事件。 */
@@ -137,8 +146,9 @@ export class Session {
   }
 
   private run(ticks: number): SimEvent[] {
-    if (!ticks && !this.queue.length) return [];
-    const events: SimEvent[] = [];
+    const events: SimEvent[] = this.held;
+    this.held = [];
+    if (!ticks && !this.queue.length) return events;
     // 一分钟一分钟地走：要紧的卡一打开就停下，不会一帧跑过头
     const cmds = this.queue;
     this.queue = [];
