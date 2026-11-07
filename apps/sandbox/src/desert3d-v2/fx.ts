@@ -1,4 +1,4 @@
-// 风和沙：阵风（uWind/uGust）、贴地吹过的一纹素奶油色沙线、风滚草、风把沙吹回球场（court.userData.sand.deposit）、尘团（puff）。
+// 风和沙：阵风（uWind/uGust）、贴地吹过的一纹素奶油色沙线、风滚草、风把沙吹回球场（court.userData.sand.deposit）、尘团（puff）、吹叶机的沙流（spray）。
 // 演出随机只用种子随机流；画面不决定任何数值（这里也没有数值）。
 import * as THREE from 'three';
 import type { SandGrid } from './assets/court';
@@ -8,6 +8,8 @@ import type { AssetCtx } from './world';
 export interface Fx {
   /** 一团尘土：pos 地面点，size 米（0.15 小 ～ 0.4 大），n 团数 */
   puff(pos: THREE.Vector3, size?: number, n?: number): void;
+  /** 吹叶机喷出的沙流：从 pos 沿 dir（世界）喷，dt = 这一帧的秒数（按时间匀速出粒子） */
+  spray(pos: THREE.Vector3, dir: THREE.Vector3, dt: number): void;
   update(dt: number, t: number): void;
   /** 当前阵风 0..1 */
   gust(): number;
@@ -59,6 +61,25 @@ export function createFx(
   let puffNext = 0;
   scene.add(puffMesh);
 
+  // ── 吹叶机的沙流：1.5 纹素的小方块，比沙亮（钙质土色），一锥喷出去、贴地滑、很快没 ─────
+  const SPRAY = 90;
+  const sprayGeo = new THREE.BoxGeometry(ctx.texel * 1.5, ctx.texel * 1.5, ctx.texel * 1.5);
+  const sprayMat = ctx.mat('path', { noShadowReceive: true, bands: [-2, -1] });
+  const sprayMesh = new THREE.InstancedMesh(sprayGeo, sprayMat, SPRAY);
+  sprayMesh.layers.set(ctx.layers.FX);
+  sprayMesh.castShadow = false;
+  sprayMesh.frustumCulled = false;
+  const specks = Array.from({ length: SPRAY }, () => ({
+    life: 1,
+    max: 1,
+    p: new THREE.Vector3(),
+    v: new THREE.Vector3(),
+    s: 1,
+  }));
+  let sprayNext = 0;
+  let sprayAcc = 0;
+  scene.add(sprayMesh);
+
   // ── 沙线：一纹素高、6～14 纹素长的奶油色细条，顺风贴地飞 ─────
   const STREAKS = 28;
   const streakGeo = new THREE.BoxGeometry(1, 0.02, ctx.texel * 0.9);
@@ -101,8 +122,30 @@ export function createFx(
   // ── 风把沙吹回来 ─────────────
   let depAcc = 0;
 
+  const spray = (pos: THREE.Vector3, dir: THREE.Vector3, dt: number) => {
+    sprayAcc += dt * 70;
+    const d = dir.clone().normalize();
+    const side = new THREE.Vector3(-d.z, 0, d.x).normalize();
+    while (sprayAcc >= 1) {
+      sprayAcc -= 1;
+      const P = specks[sprayNext];
+      sprayNext = (sprayNext + 1) % SPRAY;
+      P.life = 0;
+      P.max = 0.3 + rnd() * 0.4;
+      P.s = 0.7 + rnd() * 0.6;
+      P.p.copy(pos).addScaledVector(side, (rnd() - 0.5) * 0.15);
+      const sp = 5 + rnd() * 3;
+      P.v
+        .copy(d)
+        .multiplyScalar(sp)
+        .addScaledVector(side, (rnd() - 0.5) * sp * 0.6);
+      P.v.y = Math.max(P.v.y, 0) * 0.3 + 0.4 + rnd() * 1.2;
+    }
+  };
+
   return {
     puff,
+    spray,
     gust: () => gust,
     update(dt, t) {
       // 阵风
@@ -143,6 +186,28 @@ export function createFx(
         puffMesh.setMatrixAt(i, m4);
       }
       puffMesh.instanceMatrix.needsUpdate = true;
+
+      // 吹叶机的沙流
+      for (let i = 0; i < SPRAY; i++) {
+        const P = specks[i];
+        if (P.life >= P.max) {
+          sprayMesh.setMatrixAt(i, zero);
+          continue;
+        }
+        P.life += dt;
+        P.v.y -= 4 * dt;
+        P.p.addScaledVector(P.v, dt);
+        if (P.p.y < 0.07) {
+          P.p.y = 0.07;
+          P.v.y = Math.abs(P.v.y) * 0.3;
+        }
+        P.v.multiplyScalar(1 - dt * 2.5);
+        const k = P.life / P.max;
+        const s = P.s * (k < 0.75 ? 1 : 1 - (k - 0.75) / 0.25);
+        m4.compose(P.p, q.identity(), sc.set(s, s, s));
+        sprayMesh.setMatrixAt(i, m4);
+      }
+      sprayMesh.instanceMatrix.needsUpdate = true;
 
       // 沙线：活着的数量跟阵风走
       const want = Math.round(3 + gust * 14);

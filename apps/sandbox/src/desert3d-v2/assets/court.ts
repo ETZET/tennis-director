@@ -3,7 +3,7 @@
 //   每格一个标签（外场 / 内场 / 晒白 / 白线 / 沥青），同标签的格子贪心合并成矩形，每种材质一个网格（几百个三角形）。
 // - 旧：三块大的晒白块（courtBleach）、三条粗裂缝（3 纹素宽，沥青色）、三块剥落（沥青），白线只在裂缝/剥落处断开。
 // - 积沙：一张厚度格（userData.sand），高度场网格 + alphaMap 切出圆滑的轮廓；沙堆是"迎风缓坡 + 背风陡坡"的小沙丘，
-//   背风坡朝镜头落中档，坡顶那条折线出凸边亮线。userData.sand.sweep(x, z, r, amount) 扫掉一部分，画面下一帧更新。
+//   背风坡朝镜头落中档，坡顶那条折线出凸边亮线。userData.sand.sweep(x, z, r, amount) 扫掉一部分，blow(…) 吹叶机把沙沿锥往前推，画面下一帧更新。
 import * as THREE from 'three';
 import { COURT } from '../layout';
 import { vnoise } from '../noise';
@@ -26,6 +26,11 @@ export interface SandGrid {
   at(x: number, z: number): number;
   /** 以 (x, z) 为心、半径 r 扫掉最多 amount 米厚的沙（边缘衰减），返回扫掉的量（米³ 近似） */
   sweep(x: number, z: number, r: number, amount: number): number;
+  /**
+   * 吹叶机：从 (x, z) 沿 (dirX, dirZ) 一个长 length、末端宽 width 的锥里吹走最多 amount 米厚的沙（近处、中线吹得最狠），
+   * 吹走的六成堆到锥尖往前 0.3～1.1 米的一条带上（出了格子就没了）→ 沙丘变小、往下风挪、最后被推出场边。返回吹走的量（米³ 近似）。
+   */
+  blow(x: number, z: number, dirX: number, dirZ: number, length: number, width: number, amount: number): number;
   /** 风把沙吹回来：在 (x, z) 半径 r 内加最多 amount 米（每格不超过初始沙丘的厚度 + 2 厘米 → 沙只往原来的沙丘上堆） */
   deposit(x: number, z: number, r: number, amount: number): void;
   /** 最脏的 1 米见方（场内 + 缓冲区），没有就 null；amount = 平均厚度（米） */
@@ -64,7 +69,8 @@ export function build(ctx: AssetCtx): THREE.Object3D {
   ];
   // 剥落：小一点的圆块，露沥青（一块压在南底线上，把线断开）
   // （组装时删掉了两块：小的暗圆块在画面里读成油渍/洞，不是剥落）
-  const peels = [{ x: 1.1 + jit(0.3), z: hl - 0.15, rx: 0.7, rz: 0.42, p: 2.4 }];
+  // 最后一块也删了：正好在南底线发球位，总像人脚下一滩影子
+  const peels: { x: number; z: number; rx: number; rz: number; p: number }[] = [];
   const blob = (b: { x: number; z: number; rx: number; rz: number; p: number }, x: number, z: number, seed: number) => {
     const n = (vnoise(x * 0.9 + seed * 7.1, z * 0.9 - seed * 3.3, 11 + seed) - 0.5) * 0.35;
     const d = Math.abs((x - b.x) / b.rx) ** b.p + Math.abs((z - b.z) / b.rz) ** b.p;
@@ -474,6 +480,61 @@ export function build(ctx: AssetCtx): THREE.Object3D {
       }
       if (removed > 0) dirty = true;
       return removed;
+    },
+    blow(x, z, dirX, dirZ, length, width, amount) {
+      const dl = Math.hypot(dirX, dirZ) || 1;
+      const ux = dirX / dl;
+      const uz = dirZ / dl;
+      const reach = length + 1.2;
+      const i0 = Math.max(0, Math.floor((Math.min(x, x + ux * reach) - width - sx0) / SX));
+      const i1 = Math.min(MX - 1, Math.ceil((Math.max(x, x + ux * reach) + width - sx0) / SX));
+      const j0 = Math.max(0, Math.floor((Math.min(z, z + uz * reach) - width - sz0) / SZ));
+      const j1 = Math.min(MZ - 1, Math.ceil((Math.max(z, z + uz * reach) + width - sz0) / SZ));
+      // 锥的半宽：嘴边 0.15 米，到末端 width / 2
+      const half = (a: number) => 0.15 + (width * 0.5 - 0.15) * Math.min(1, Math.max(0, a / length));
+      let removed = 0;
+      for (let j = j0; j <= j1; j++) {
+        for (let i = i0; i <= i1; i++) {
+          const rx = sx0 + i * SX - x;
+          const rz = sz0 + j * SZ - z;
+          const a = rx * ux + rz * uz;
+          if (a < 0 || a > length) continue;
+          const b = Math.abs(-rx * uz + rz * ux) / half(a);
+          if (b >= 1) continue;
+          const k = j * MX + i;
+          const take = Math.min(T[k], amount * Math.sqrt(1 - a / length) * (1 - b * b));
+          T[k] -= take;
+          removed += take;
+        }
+      }
+      if (removed <= 0) return 0;
+      // 堆到锥尖往前的一条带（按横向权重分），每格不超过 0.3 米
+      const dep: number[] = [];
+      let wsum = 0;
+      for (let j = j0; j <= j1; j++) {
+        for (let i = i0; i <= i1; i++) {
+          const rx = sx0 + i * SX - x;
+          const rz = sz0 + j * SZ - z;
+          const a = rx * ux + rz * uz;
+          if (a < length + 0.3 || a > length + 1.1) continue;
+          const b = Math.abs(-rx * uz + rz * ux) / (width * 0.5);
+          if (b >= 1) continue;
+          const w = (1 - b * b) * (1 - Math.abs(a - length - 0.7) / 0.4);
+          if (w <= 0) continue;
+          dep.push(j * MX + i, w);
+          wsum += w;
+        }
+      }
+      // 带整个在格子外（推出场外很远）就丢掉
+      if (wsum > 0) {
+        const put = removed * 0.6;
+        for (let q = 0; q < dep.length; q += 2) {
+          const k = dep[q];
+          T[k] = Math.min(0.3, T[k] + (put * dep[q + 1]) / wsum);
+        }
+      }
+      dirty = true;
+      return removed * SX * SZ;
     },
     deposit(x, z, r, amount) {
       const i0 = Math.max(0, Math.floor((x - r - sx0) / SX));

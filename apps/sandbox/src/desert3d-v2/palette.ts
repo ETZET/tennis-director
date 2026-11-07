@@ -119,6 +119,8 @@ export const PAL = {
   clothWhite: s([0xf4f0e8, 0xc6bcd4, 0x7a6ea0], 0.7, 0.4, ROUND),
   clothRed: s([0xe85a48, 0xb43c4c, 0x62285a], 0.7, 0.4, ROUND),
   clothBlue: s([0x4a82dc, 0x3a5cac, 0x2a3274], 0.7, 0.4, ROUND),
+  /** 教练的 Polo：深紫（比 flowerPurple 深、偏蓝，和紫红的沙影、靛紫崖壁分得开） */
+  clothPurple: s([0x9a5ae0, 0x6c40b0, 0x3a2a7a], 0.7, 0.4, ROUND),
   clothTeal: s([0x3cb4a4, 0x2a8890, 0x24506e], 0.7, 0.4, ROUND),
   /** 总监的草帽 */
   straw: s([0xf6d47a, 0xd4a062, 0x8a6a74], 0.7, 0.6, ROUND),

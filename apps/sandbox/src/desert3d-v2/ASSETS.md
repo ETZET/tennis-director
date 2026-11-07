@@ -115,8 +115,8 @@
 
 ## 组装以后（2026-11-07 第二轮）
 
-- 场景模块：`terrain.ts`（地形）、`ground.ts`（中间层地面细节：手摆的草团/小花/碎石簇 + 几块深沙斑 + 球场裂缝里的草）、`fx.ts`（阵风、贴地沙线、风滚草、尘团、风把沙吹回球场）、`life.ts`（来打球的人、发球对打得分、分间总监扫沙、一组走一组来）。
-- `court.userData.sand`：`at / sweep / deposit / dirtiest(min, near?) / homes / total / flush`。`deposit` 每格不超过初始沙丘厚度 + 2 厘米（沙只往原来的沙丘上堆）。
+- 场景模块：`terrain.ts`（地形）、`ground.ts`（中间层地面细节：手摆的草团/小花/碎石簇 + 几块深沙斑 + 球场裂缝里的草）、`fx.ts`（阵风、贴地沙线、风滚草、尘团、风把沙吹回球场）、`life.ts`（四幕轮播 ≈ 3 分钟：对打 + 分间扫沙 → 教练喂多球 → 总监推捡球器捡球、倒回球车 → 教练吹沙；`?scene=rally|drill|pick|blow` 只演一幕。击球按"拍面到达击球点的时刻 = 球到的时刻"倒推挥拍，球不停顿）。
+- `court.userData.sand`：`at / sweep / blow(x, z, dirX, dirZ, length, width, amount) / deposit / dirtiest(min, near?) / homes / total / flush`。`blow` = 吹叶机：锥里吹走、六成堆到锥尖前面（推出场边就没了）。`deposit` 每格不超过初始沙丘厚度 + 2 厘米（沙只往原来的沙丘上堆）。
 - 人物：`userData.pose(name, phase)`（idle/walk/ready/forehand/backhand/serve/sweep），给 phase = 固定帧；不给 = 自动播放。正面朝 +z，右手在 −x。
 - URL：`life=0`、`fx=0`、`detail=0`、`clouds=`（默认 0.25 的移动云影）、`sunel`/`sunaz`（默认 50° / 偏东 22°）、`dstr`（描边压暗，默认 0.48）。
 - 钩子：`window.__d3v2 = { step(秒), life.state, fx, setSun, setHour }`；序列截图：`node docs/lab/2026-11-07-3d-pixel/tools/v2-seq.mjs "<url>&pause=1" <前缀> 19,20,24,28`。

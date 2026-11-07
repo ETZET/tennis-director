@@ -187,7 +187,7 @@ function buildScene() {
     updaters.push((dt, t) => f.update(dt, t));
   }
   if (params.get('life') !== '0') {
-    const f: Fx = fx ?? { puff() {}, update() {}, gust: () => 0 };
+    const f: Fx = fx ?? { puff() {}, spray() {}, update() {}, gust: () => 0 };
     life = createLife(
       ctxFor(0),
       scene,
@@ -198,6 +198,7 @@ function buildScene() {
       court,
       f,
       document.getElementById('hud'),
+      (asset) => !!ASSETS[asset],
     );
     const l = life;
     updaters.push((dt, t) => l.update(dt, t));
