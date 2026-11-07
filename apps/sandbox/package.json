@@ -14,6 +14,10 @@
     "@td/iso": "workspace:*",
     "@td/shared": "workspace:*",
     "@td/ui": "workspace:*",
-    "preact": "10.29.8"
+    "preact": "10.29.8",
+    "three": "0.180.0"
+  },
+  "devDependencies": {
+    "@types/three": "0.180.0"
   }
 }

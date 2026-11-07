@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<link rel="icon" href="data:,">
+<title>Desert 3D v2 · Tennis Director</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #5fb0e8; overflow: hidden; font: 11px/1.3 system-ui, sans-serif; }
+  canvas { display: block; touch-action: none; image-rendering: pixelated; }
+  #c { position: fixed; inset: 0; width: 100vw; height: 100vh; height: 100dvh; }
+  #c2 { display: none; }
+  body.gallery #c { inset: 0 0 auto 0; height: 42dvh; }
+  body.gallery #c2 { display: block; position: fixed; inset: auto 0 0 0; width: 100vw; height: 58dvh; border-top: 2px solid #1b1410; }
+  @media (orientation: landscape) {
+    body.gallery #c { inset: 0 auto 0 0; width: 40vw; height: 100dvh; }
+    body.gallery #c2 { inset: 0 0 0 auto; width: 60vw; height: 100dvh; border-top: 0; border-left: 2px solid #1b1410; }
+  }
+  #labels { position: fixed; inset: 0; pointer-events: none; }
+  .lab { position: absolute; left: 0; top: 0; padding: 1px 4px; border-radius: 3px; background: rgba(40, 36, 60, 0.75); color: #e8e4f0; white-space: nowrap; font-size: 10px; }
+  .lab.real { background: rgba(30, 90, 70, 0.75); }
+  #info { position: fixed; left: 6px; bottom: 6px; padding: 2px 6px; border-radius: 3px; background: rgba(27, 20, 16, 0.6); color: #f4ead8; pointer-events: none; }
+  body.gallery #info { top: 6px; bottom: auto; }
+  #hud { position: fixed; top: max(10px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); font: 700 15px/1 ui-monospace, monospace; color: #fff8e8; text-shadow: 0 2px 0 #3e3070, 2px 0 0 #3e3070, -2px 0 0 #3e3070, 0 -2px 0 #3e3070; pointer-events: none; letter-spacing: 1px; }
+  #hud:empty { display: none; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<canvas id="c2"></canvas>
+<div id="labels"></div>
+<div id="info"></div>
+<div id="hud"></div>
+<script type="module" src="./src/desert3d-v2/main.ts"></script>
+</body>
+</html>

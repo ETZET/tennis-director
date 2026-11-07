@@ -27,6 +27,10 @@ export default defineConfig({
         'chars-c': resolve(import.meta.dirname, 'chars-c.html'),
         'chars-d': resolve(import.meta.dirname, 'chars-d.html'),
         'chars-e': resolve(import.meta.dirname, 'chars-e.html'),
+        // 3D 像素画实验（three.js，只在 sandbox）
+        desert3d: resolve(import.meta.dirname, 'desert3d.html'),
+        pond3d: resolve(import.meta.dirname, 'pond3d.html'),
+        'desert3d-v2': resolve(import.meta.dirname, 'desert3d-v2.html'),
       },
     },
   },
