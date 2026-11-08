@@ -1,13 +1,16 @@
 // desert3d-v2：手摆构图的沙漠球场（美术方向底子）+ 资产画廊。
 // 场景：  desert3d-v2.html                 （占位 = 冷灰体块 + id 标签；资产文件存在就换成资产）
 // 画廊：  desert3d-v2.html?asset=<id>      （一块小沙台上只放这个资产：上/左 = 最终缩放，下/右 = 同一画面放大 3 倍）
+// 模式：默认 play（玩家操控总监，control.ts + hud.ts）；?mode=watch = 原来的自动演出（?scene=rally|drill|pick|blow 只在 watch 里有用）。
 // URL：zoom（米/纹素，默认 layout.MPT）、tx/tz、yaw/pitch（度）、hour、wind、seed、warm、pause=1、
 //      labels=0（不显示标签）、ph=0（不放占位，只看地形和已画的资产）、edges=1（只看描边）、
 //      画廊：v（变体）、ref=0（不放 1.8 米的人形比例尺）、bg=sky|sand。
 import './colors';
 import * as THREE from 'three';
+import { type Control, createControl } from './control';
 import { createFx, type Fx } from './fx';
 import { buildGround } from './ground';
+import { createHud, type Hud } from './hud';
 import { H, MPT, SLOTS } from './layout';
 import { createLife, type Life } from './life';
 import { rngFactory } from './noise';
@@ -32,11 +35,14 @@ for (const [path, mod] of Object.entries(MODS)) {
 }
 
 const galleryId = params.get('asset');
+/** 玩法模式（默认）；画廊、?mode=watch 不是 */
+const PLAY = !galleryId && params.get('mode') !== 'watch';
 const canvas = document.getElementById('c') as HTMLCanvasElement;
 const canvas2 = document.getElementById('c2') as HTMLCanvasElement;
 const labelsEl = document.getElementById('labels') as HTMLDivElement;
 const infoEl = document.getElementById('info') as HTMLDivElement;
 document.body.classList.toggle('gallery', !!galleryId);
+document.body.classList.toggle('play', PLAY);
 
 const uniforms: SharedUniforms = {
   uTime: { value: 0 },
@@ -143,7 +149,7 @@ interface Label {
   p: THREE.Vector3;
 }
 const labels: Label[] = [];
-const showLabels = params.get('labels') !== '0';
+const showLabels = params.has('labels') ? params.get('labels') !== '0' : !PLAY;
 function addLabel(text: string, p: THREE.Vector3, real: boolean) {
   if (!showLabels) return;
   const el = document.createElement('div');
@@ -155,6 +161,8 @@ function addLabel(text: string, p: THREE.Vector3, real: boolean) {
 
 let fx: Fx | undefined;
 let life: Life | undefined;
+let control: Control | undefined;
+let hud: Hud | undefined;
 if (galleryId) buildGallery(galleryId);
 else buildScene();
 
@@ -199,9 +207,26 @@ function buildScene() {
       f,
       document.getElementById('hud'),
       (asset) => !!ASSETS[asset],
+      { play: PLAY },
     );
     const l = life;
     updaters.push((dt, t) => l.update(dt, t));
+    if (PLAY) {
+      control = createControl({
+        ctx: ctxFor(0),
+        scene,
+        pipe,
+        outlines: terrain.outlines,
+        play: l.play,
+        court,
+        fx: f,
+        rack: scene.getObjectByName('slot:tool-rack'),
+        start: new THREE.Vector3(num('px0', 6.4), 0, num('pz0', 12.2)),
+      });
+      const c = control;
+      updaters.push((dt, t) => c.update(dt, t));
+      hud = createHud(document.getElementById('play') as HTMLElement, canvas, pipe, c);
+    }
   }
 }
 
@@ -335,6 +360,7 @@ function frame(now: number) {
   pipe.render(scene);
   pipe2?.render(scene);
   placeLabels();
+  hud?.frame(life?.play.alerts() ?? []);
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
@@ -359,48 +385,71 @@ if (pipe2) {
   // ?cy=（米）：放大窗看向的高度
   if (params.has('cy')) pipe2.rig.target.y = num('cy', 0);
 }
+// 拖动平移、双指缩放（玩法模式下由 hud.ts 管：拖动 = 摇杆，相机跟着总监）
 const pointers = new Map<number, { x: number; y: number }>();
 let pinch0 = 0;
 let zoom0 = pipe.rig.metersPerTexel;
-canvas.addEventListener('pointerdown', (e) => {
-  canvas.setPointerCapture(e.pointerId);
-  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-  if (pointers.size === 2) {
-    const [a, b] = [...pointers.values()];
-    pinch0 = Math.hypot(a.x - b.x, a.y - b.y);
-    zoom0 = pipe.rig.metersPerTexel;
+if (!PLAY) wireViewer();
+function wireViewer() {
+  canvas.addEventListener('pointerdown', (e) => {
+    canvas.setPointerCapture(e.pointerId);
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pointers.size === 2) {
+      const [a, b] = [...pointers.values()];
+      pinch0 = Math.hypot(a.x - b.x, a.y - b.y);
+      zoom0 = pipe.rig.metersPerTexel;
+    }
+  });
+  canvas.addEventListener('pointermove', (e) => {
+    const prev = pointers.get(e.pointerId);
+    if (!prev) return;
+    const cur = { x: e.clientX, y: e.clientY };
+    pointers.set(e.pointerId, cur);
+    if (pointers.size === 1) {
+      const s = pipe.rig.metersPerTexel / pipe.px;
+      const dx = (cur.x - prev.x) * s;
+      const dy = (cur.y - prev.y) * s;
+      const yaw = pipe.rig.yaw;
+      const sinP = Math.sin(pipe.rig.pitch);
+      pipe.rig.target.x += -dx * Math.cos(yaw) + (dy / sinP) * -Math.sin(yaw);
+      pipe.rig.target.z += -dx * -Math.sin(yaw) + (dy / sinP) * -Math.cos(yaw);
+    } else if (pointers.size === 2) {
+      const [a, b] = [...pointers.values()];
+      const d = Math.hypot(a.x - b.x, a.y - b.y);
+      pipe.rig.metersPerTexel = THREE.MathUtils.clamp((zoom0 * pinch0) / Math.max(d, 1), 0.05, 0.3);
+    }
+  });
+  const up = (e: PointerEvent) => pointers.delete(e.pointerId);
+  canvas.addEventListener('pointerup', up);
+  canvas.addEventListener('pointercancel', up);
+  canvas.addEventListener(
+    'wheel',
+    (e) => {
+      e.preventDefault();
+      pipe.rig.metersPerTexel = THREE.MathUtils.clamp(pipe.rig.metersPerTexel * Math.exp(e.deltaY * 0.001), 0.05, 0.3);
+    },
+    { passive: false },
+  );
+}
+
+/** 测试钩子：按住摇杆往世界方向 (dx, dz) 走 seconds 秒（推进模拟） */
+function move(dx: number, dz: number, seconds: number) {
+  control?.setMove(dx, dz);
+  step(seconds);
+  control?.setMove(0, 0);
+  return control?.state();
+}
+/** 点地面走过去，最多推进 max 秒（走到为止） */
+function walkTo(x: number, z: number, max = 20) {
+  if (!control) return;
+  control.tapGround(x, z);
+  let t = 0;
+  while (control.pathLeft() > 0 && t < max) {
+    step(0.1);
+    t += 0.1;
   }
-});
-canvas.addEventListener('pointermove', (e) => {
-  const prev = pointers.get(e.pointerId);
-  if (!prev) return;
-  const cur = { x: e.clientX, y: e.clientY };
-  pointers.set(e.pointerId, cur);
-  if (pointers.size === 1) {
-    const s = pipe.rig.metersPerTexel / pipe.px;
-    const dx = (cur.x - prev.x) * s;
-    const dy = (cur.y - prev.y) * s;
-    const yaw = pipe.rig.yaw;
-    const sinP = Math.sin(pipe.rig.pitch);
-    pipe.rig.target.x += -dx * Math.cos(yaw) + (dy / sinP) * -Math.sin(yaw);
-    pipe.rig.target.z += -dx * -Math.sin(yaw) + (dy / sinP) * -Math.cos(yaw);
-  } else if (pointers.size === 2) {
-    const [a, b] = [...pointers.values()];
-    const d = Math.hypot(a.x - b.x, a.y - b.y);
-    pipe.rig.metersPerTexel = THREE.MathUtils.clamp((zoom0 * pinch0) / Math.max(d, 1), 0.05, 0.3);
-  }
-});
-const up = (e: PointerEvent) => pointers.delete(e.pointerId);
-canvas.addEventListener('pointerup', up);
-canvas.addEventListener('pointercancel', up);
-canvas.addEventListener(
-  'wheel',
-  (e) => {
-    e.preventDefault();
-    pipe.rig.metersPerTexel = THREE.MathUtils.clamp(pipe.rig.metersPerTexel * Math.exp(e.deltaY * 0.001), 0.05, 0.3);
-  },
-  { passive: false },
-);
+  return control.state();
+}
 
 Object.assign(window, {
   __d3v2: {
@@ -417,5 +466,15 @@ Object.assign(window, {
       return fx;
     },
     assets: Object.keys(ASSETS),
+    get control() {
+      return control;
+    },
+    move,
+    walkTo,
+    tap: (x: number, z: number) => control?.tapGround(x, z),
+    tapScreen: (x: number, y: number) => control?.tapScreen(x, y, canvas.clientWidth, canvas.clientHeight),
+    action: (down: boolean) => control?.setAction(down),
+    pick: () => control?.context(),
+    state: () => control?.state(),
   },
 });

@@ -2,9 +2,13 @@
 // 骨骼 = 一层层 THREE.Group（臀 → 躯干 → 头 / 肩 → 手；臀 → 腿），每个部件一个小网格，法线按部件中心算（blobNormals）→ 每块都是清楚的亮顶、中腰、暗底。
 // 尺寸按 0.09 米/纹素：手臂、腿 ≥ 0.24 米粗（≈ 3 纹素），头直径 0.62 米（≈ 7 纹素），总高 ≈ 1.8 米。
 // 正面朝 +z（镜头）；人物的右手在 −x。
-// userData.pose(name, phase)：idle / walk / ready / forehand / backhand / serve / sweep / feed / blow / push，phase 0..1。
+// userData.pose(name, phase)：idle / walk / ready / forehand / backhand / serve / sweep / feed / blow / push / pickup / dump，phase 0..1。
+//   pickup：弯腰下去再起来（PICKUP_LOW = 0.5 时手到地面，捡/放工具在这一刻 setProp）；拿着什么就把什么往地上送。
+//   dump：拿着捡球器时把笼子抬到身前腰高、抖几下、放回去（0.3..0.75 笼子停在 userData.dumpPoint()，球车放在它下面）。
+//   blow：默认左右扫；userData.setBlowSweep(false) 后管口固定朝正前下方（顺着人物朝向，玩家用朝向瞄准）。
 // userData.setProp('racket' | 'broom' | 'blower' | 'picker' | null)：换手里的道具（只认 Look 里建了的）。
 // 拿吹叶机时 userData.nozzle() / nozzleDir()（世界坐标）；拿捡球器时 userData.picker 是捡球器对象（roll / setCount）。
+// 扫帚、吹叶机的网格由 makeBroom / makeBlower 建（assets/tool.ts 放在地上的工具也用它们）。
 // userData.update(dt, t)：idle 时呼吸；没有固定 phase 时其他姿势按时间循环播放。
 import * as THREE from 'three';
 import { blobNormals } from '../../toon';
@@ -53,12 +57,16 @@ export const POSES = [
   'feed',
   'blow',
   'push',
+  'pickup',
+  'dump',
 ] as const;
 export type PoseName = (typeof POSES)[number];
 /** 手里的道具（setProp）：只有这个人建了的才能拿 */
 export type PropName = 'racket' | 'broom' | 'blower' | 'picker';
 /** feed：球离手（被球拍送出去）的 phase */
 export const FEED_RELEASE = 0.6;
+/** pickup：手碰到地面的 phase（捡起/放下工具时在这一刻 setProp） */
+export const PICKUP_LOW = 0.5;
 
 /** 每个姿势循环一次的秒数（画廊里自动播放用） */
 const PERIOD: Record<PoseName, number> = {
@@ -72,6 +80,8 @@ const PERIOD: Record<PoseName, number> = {
   feed: 1.6,
   blow: 2.4,
   push: 0.9,
+  pickup: 0.5,
+  dump: 1.6,
 };
 
 const V = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
@@ -95,6 +105,45 @@ function limb(geo: THREE.BufferGeometry, mat: Mat, at: THREE.Vector3): THREE.Mes
 
 const HIP_Y = 0.5;
 const SH_X = 0.27;
+
+/** 推扫帚：原点在扫帚头底面中心（地面上），木柄沿本地 +y。stickR 柄的半径（拿在手上 0.055；放在地上的要粗一点） */
+export function makeBroom(m: { wood: Mat; head: Mat }, stickR = 0.055): THREE.Group {
+  const broom = new THREE.Group();
+  const bristle = new THREE.BoxGeometry(0.66, 0.16, 0.22);
+  broom.add(part(bristle, m.head, V(0, 0.08, 0), V(0, -0.05, 0)));
+  const back = new THREE.BoxGeometry(0.7, 0.1, 0.16);
+  broom.add(part(back, m.wood, V(0, 0.21, 0), V(0, 0.1, 0)));
+  const stick = new THREE.CylinderGeometry(stickR, stickR, 1.35, 6, 1);
+  broom.add(part(stick, m.wood, V(0, 0.26 + 0.675, 0)));
+  return broom;
+}
+/** 扫帚柄顶端（本地） */
+export const BROOM_TOP = V(0, 0.26 + 1.35, 0);
+
+/** 吹叶机管口（本地，makeBlower 的坐标） */
+export const BLOWER_NOZZLE = V(0, -1.0, 0.06);
+/**
+ * 手提吹叶机：本地原点 = 握把（拳头），管子沿本地 −y 伸出去，机身在握把"上面"（本地 +z）。
+ * 管子粗 0.26 米（3 纹素），管口一圈深色箍。
+ */
+export function makeBlower(b: { body: Mat; tube: Mat; dark: Mat }): THREE.Group {
+  const blower = new THREE.Group();
+  // 机身：一个胖圆角块（4 × 4 纹素），握把在它下面
+  const body = new THREE.CapsuleGeometry(0.16, 0.1, 3, 8);
+  body.scale(1.05, 1, 1);
+  blower.add(part(body, b.body, V(0, 0.1, 0.15), V(0, 0.14, 0.2)));
+  // 机身侧面的深色进风口（一块 3 纹素的圆盘，朝右/外侧）
+  const intake = new THREE.CylinderGeometry(0.13, 0.13, 0.06, 10, 1);
+  intake.rotateZ(Math.PI / 2);
+  blower.add(part(intake, b.dark, V(-0.18, 0.12, 0.15), V(0, 0.12, 0.15)));
+  // 管子：从机身前端到管口，略收窄
+  const tube = new THREE.CylinderGeometry(0.115, 0.135, 0.82, 10, 1);
+  blower.add(limb(tube, b.tube, V(0, -0.5, 0.06)));
+  // 管口：一圈深色箍（2 纹素长）—— 管子的末端一眼看得出来
+  const tip = new THREE.CylinderGeometry(0.14, 0.135, 0.16, 10, 1);
+  blower.add(limb(tip, b.dark, V(0, -0.93, 0.06)));
+  return blower;
+}
 
 export function buildPerson(ctx: AssetCtx, look: Look, name: string): THREE.Group {
   const root = new THREE.Group();
@@ -282,37 +331,15 @@ export function buildPerson(ctx: AssetCtx, look: Look, name: string): THREE.Grou
     ball.visible = false;
     root.add(ball);
   } else {
-    broom = new THREE.Group();
-    // 推扫帚：原点在扫帚头底面中心（地面上），木柄沿本地 +y
-    const bristle = new THREE.BoxGeometry(0.66, 0.16, 0.22);
-    broom.add(part(bristle, hold.head, V(0, 0.08, 0), V(0, -0.05, 0)));
-    const back = new THREE.BoxGeometry(0.7, 0.1, 0.16);
-    broom.add(part(back, hold.wood, V(0, 0.21, 0), V(0, 0.1, 0)));
-    const stick = new THREE.CylinderGeometry(0.055, 0.055, 1.35, 6, 1);
-    broom.add(part(stick, hold.wood, V(0, 0.26 + 0.675, 0)));
+    broom = makeBroom(hold);
     root.add(broom);
   }
   // 吹叶机：挂在右手上。本地原点 = 握把（拳头），管子沿本地 −y 伸出去（pointIn 让 −y 指向吹的方向），
   // 机身在握把"上面"（本地 +z：管子朝前下时 +z 朝上偏前）。管子粗 0.26 米（3 纹素），管口一圈橙色。
   let blower: THREE.Group | null = null;
-  const NOZZLE = V(0, -1.0, 0.06);
+  const NOZZLE = BLOWER_NOZZLE;
   if (look.blower) {
-    const b = look.blower;
-    blower = new THREE.Group();
-    // 机身：一个胖圆角块（4 × 4 纹素），握把在它下面
-    const body = new THREE.CapsuleGeometry(0.16, 0.1, 3, 8);
-    body.scale(1.05, 1, 1);
-    blower.add(part(body, b.body, V(0, 0.1, 0.15), V(0, 0.14, 0.2)));
-    // 机身侧面的深色进风口（一块 3 纹素的圆盘，朝右/外侧）
-    const intake = new THREE.CylinderGeometry(0.13, 0.13, 0.06, 10, 1);
-    intake.rotateZ(Math.PI / 2);
-    blower.add(part(intake, b.dark, V(-0.18, 0.12, 0.15), V(0, 0.12, 0.15)));
-    // 管子：从机身前端到管口，略收窄
-    const tube = new THREE.CylinderGeometry(0.115, 0.135, 0.82, 10, 1);
-    blower.add(limb(tube, b.tube, V(0, -0.5, 0.06)));
-    // 管口：一圈深色箍（2 纹素长）—— 管子的末端一眼看得出来
-    const tip = new THREE.CylinderGeometry(0.14, 0.135, 0.16, 10, 1);
-    blower.add(limb(tip, b.dark, V(0, -0.93, 0.06)));
+    blower = makeBlower(look.blower);
     blower.visible = false;
     armR.hand.add(blower);
   }
@@ -466,8 +493,18 @@ export function buildPerson(ctx: AssetCtx, look: Look, name: string): THREE.Grou
     // 拍面中心沿拍面法线（球拍本地 +z；送球时朝上）挪一个球的半径 + 拍框厚：球躺在拍面上，不被拍子挡住
     return root.worldToLocal(racket!.localToWorld(V(0, -0.5, 0.2)));
   };
-  /** 吹叶机：一个来回 = 左右扫一趟 */
-  const blowYaw = (p: number) => -0.75 + Math.sin(p * Math.PI * 2) * 0.35;
+  /** 吹叶机：一个来回 = 左右扫一趟；setBlowSweep(false) → 固定朝正前方（玩家用朝向瞄准） */
+  let blowSweep = true;
+  const blowYaw = (p: number) => (blowSweep ? -0.75 + Math.sin(p * Math.PI * 2) * 0.35 : 0);
+  /** dump：笼子抬到最高时（0.3..0.75）笼轴的位置（root 本地）和柄的倾角 */
+  const DUMP_CAGE = V(-0.42, 0.95, 0.95);
+  const DUMP_TILT = -1.28;
+  /** 捡球器柄上离笼轴 u 米处（root 本地） */
+  const shaftAt = (u: number) => {
+    root.updateMatrixWorld(true);
+    const h = picker!.userData.handle as THREE.Object3D;
+    return root.worldToLocal(h.localToWorld(V(0, u, 0)));
+  };
 
   let current: PoseName = 'idle';
   let phase = 0;
@@ -726,6 +763,61 @@ export function buildPerson(ctx: AssetCtx, look: Look, name: string): THREE.Grou
         else walkLegs(p, 0.42);
         break;
       }
+      case 'pickup': {
+        // 弯腰：0..0.5 下去（膝盖往外分、臀往下、上身前倾），PICKUP_LOW 手到地面，0.5..1 起来
+        const d = smooth(0, PICKUP_LOW * 0.9, p) * (1 - smooth(PICKUP_LOW + 0.05, 1, p));
+        hips.position.y = HIP_Y - 0.1 * d;
+        legR.rotation.set(-0.6 * d, 0, -0.3 * d);
+        legL.rotation.set(-0.6 * d, 0, 0.3 * d);
+        torso.rotation.x = 0.8 * d;
+        // 头往回仰一点：帽檐别整个盖住人
+        head.rotation.x = -0.4 * d;
+        // 空着的手（左手；空手时两只手）伸到身前的地上
+        const reach = (side: 1 | -1) => V(side * 0.3, 0.42, 0.05).lerp(V(side * 0.14, 0.1, 0.62), d);
+        aim(armL, reach(1));
+        if (held === 'blower' && blower) {
+          // 吹叶机：右手把它送到地上，管子放平朝前
+          holdBlower(V(-0.42, 0.5, 0.08).lerp(V(-0.24, 0.16, 0.5), d), V(-0.1, -1, 0.35).lerp(V(0, -0.12, 1), d));
+        } else if (held === 'broom' && broom) {
+          // 扫帚：从身侧立着往前放倒
+          placeBroom(-0.55 + 0.2 * d, 0.14 + 0.25 * d, 0.08 + 1.1 * d, Math.PI / 4);
+          aim(armR, broomPoint(0.55 - 0.15 * d));
+        } else if (held === 'picker' && picker) {
+          // 捡球器：立在身侧，柄跟着往前倾，右手一直搭在横把上
+          placePicker(-0.6, 0.2 + 0.3 * d, -0.25 + 0.55 * d, 0);
+          aim(armR, gripAt(0));
+        } else {
+          aim(armR, reach(-1));
+        }
+        break;
+      }
+      case 'dump': {
+        // 倒球：0..0.3 把笼子从推着的位置（身前 1.5 米地上）抬到右前方腰高（球车放在下面）→ 0.3..0.75 抖三下 → 放回地上
+        const up = smooth(0, 0.3, p) * (1 - smooth(0.75, 1, p));
+        const shake = p > 0.3 && p < 0.75 ? Math.sin(((p - 0.3) / 0.45) * Math.PI * 6) : 0;
+        hips.position.y = HIP_Y - 0.03 - 0.03 * up;
+        legR.rotation.set(-0.15 * up, 0, -0.15);
+        legL.rotation.set(0.12 * up, 0, 0.15);
+        torso.rotation.x = 0.2 - 0.08 * up;
+        torso.rotation.y = -0.25 * up;
+        head.rotation.x = -0.18;
+        if (picker && held === 'picker') {
+          placePicker(
+            lerp(0, DUMP_CAGE.x, up),
+            lerp(1.5, DUMP_CAGE.z, up),
+            lerp(-1.1, DUMP_TILT, up) + shake * 0.05,
+            0,
+          );
+          picker.position.y = (DUMP_CAGE.y - (picker.userData.handle as THREE.Object3D).position.y) * up + shake * 0.03;
+          // 双手握柄：右手在上（离笼轴 1.05 米），左手在下（0.65 米）
+          aim(armR, shaftAt(lerp(1.2, 1.05, up)));
+          aim(armL, shaftAt(lerp(1.2, 0.65, up)));
+        } else {
+          armR.sh.rotation.set(-0.9 * up, 0, -0.2);
+          armL.sh.rotation.set(-0.9 * up, 0, 0.2);
+        }
+        break;
+      }
     }
   };
 
@@ -784,7 +876,19 @@ export function buildPerson(ctx: AssetCtx, look: Look, name: string): THREE.Grou
       return V(0, -1, 0).applyQuaternion(blower!.getWorldQuaternion(new THREE.Quaternion())).normalize();
     };
   }
-  if (picker) root.userData.picker = picker;
+  if (picker) {
+    root.userData.picker = picker;
+    /** dump 时（0.3..0.75）笼子中心的世界坐标：球车的筐口放在它正下方 */
+    root.userData.dumpPoint = () => {
+      root.updateMatrixWorld(true);
+      return root.localToWorld(DUMP_CAGE.clone());
+    };
+  }
+  /** blow 姿势是否左右扫（默认扫）；false = 管口固定朝人物正前下方 */
+  root.userData.setBlowSweep = (on: boolean) => {
+    blowSweep = on;
+    if (current === 'blow') pose(current, phase);
+  };
   if (racket) {
     /** feed：FEED_RELEASE 时球（拍面中心）的世界坐标 —— 演出从这里把球送出去（朝人物的 +z） */
     root.userData.feedPoint = () => {
@@ -804,7 +908,8 @@ export function buildPerson(ctx: AssetCtx, look: Look, name: string): THREE.Grou
     held = h0;
   }
   applyProp();
-  // 画廊/截图：?pose=<name>&phase=<0..1>（不给 phase → 自动播放）；?prop=<racket|broom|blower|picker|none>
+  // 画廊/截图：?pose=<name>&phase=<0..1>（不给 phase → 自动播放）；?prop=<racket|broom|blower|picker|none>；?sweep=0 吹叶机不扫
+  if (ctx.params.get('sweep') === '0') blowSweep = false;
   const prq = ctx.params.get('prop');
   if (prq !== null) root.userData.setProp(prq === 'none' ? null : prq);
   const pq = ctx.params.get('pose');

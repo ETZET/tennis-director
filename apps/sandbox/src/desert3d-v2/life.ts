@@ -6,6 +6,8 @@
 // 击球不等球：每一拍都在出手那一刻就算好球的整条轨迹（落地点、到达接球点的时刻和位置），
 // 接球的人立刻起动去截球，挥拍按"拍面到达击球点的时刻 = 球到的时刻"倒推开始时间；球在那一刻直接换方向飞走。
 // 演出随机只用种子随机流。截图钩子：window.__d3v2.life = { state, ball(), racket(i) }
+// 玩法模式（opts.play，main 的默认）：总监交给玩家（control.ts），这里不再派他扫沙/捡球，教练也不吹沙；
+// 只轮播"对打 → 多球"，球员站位上有积沙或散球就停下来冒"!"等一会儿，球车空了教练就喂不了。life.play 是给 control 的接口。
 import * as THREE from 'three';
 import { FEED_RELEASE } from './assets/coach';
 import type { SandGrid } from './assets/court';
@@ -135,6 +137,35 @@ export interface Life {
   debug(): unknown;
   /** 第 i 个球员的拍面中心（世界坐标） */
   racket(i: number): { x: number; y: number; z: number } | null;
+  /** 玩法模式的接口（watch 模式下也在，只是没人用） */
+  play: PlayApi;
+}
+
+/** 散落在地上的球（物理在跑的那些） */
+export interface LooseBall {
+  p: V3;
+  v: V3;
+  rest: number;
+}
+/** 头顶冒的小气泡（"!"、"没球了"），hud 按相机投影摆 */
+export interface Alert {
+  p: V3;
+  text: string;
+}
+export interface PlayApi {
+  /** 总监（玩法模式下 life 不碰他） */
+  director: THREE.Object3D;
+  loose(): LooseBall[];
+  /** 捡走一个球（进笼子） */
+  collect(b: LooseBall): void;
+  /** 推一下球（吹叶机） */
+  kick(b: LooseBall, vx: number, vz: number, vy?: number): void;
+  cart: THREE.Object3D | null;
+  cartCount(): number;
+  setCartCount(n: number): void;
+  /** 走来走去的人（挡路的圆）：教练、球员 */
+  people(): { x: number; z: number; r: number }[];
+  alerts(): Alert[];
 }
 
 /** 找球拍的拍面网格（rig：拍头几何体中心在握点下方 0.5 米）；找不到就 null */
@@ -164,7 +195,9 @@ export function createLife(
   fx: Fx,
   hud: HTMLElement | null,
   has: (asset: string) => boolean = () => true,
+  opts: { play?: boolean } = {},
 ): Life {
+  const PLAY = !!opts.play;
   const rnd = ctx.rng('life');
   const sand = court?.userData.sand as SandGrid | undefined;
   const state: Life['state'] = {
@@ -178,7 +211,7 @@ export function createLife(
     shots: 0,
   };
   /** ?scene=rally|drill|pick|blow：只演这一幕 */
-  const forcedScene = ctx.params.get('scene');
+  const forcedScene = PLAY ? null : ctx.params.get('scene');
   /** 演出时钟（秒）：所有时间轴都按它排 */
   let now = 0;
 
@@ -388,7 +421,7 @@ export function createLife(
   director.pos.copy(DIRECTOR_HOME);
   director.yaw = Math.PI / 2;
   scene.add(director.obj);
-  director.obj.userData.setProp?.('broom');
+  director.obj.userData.setProp?.(PLAY ? null : 'broom');
   const coach = has('coach') ? actor(make('coach', 0)) : null;
   if (coach) {
     coach.pos.copy(COACH_HOME);
@@ -409,7 +442,9 @@ export function createLife(
   setCart(cartCount);
   let players: Actor[] = [];
   /** 每个人都要每帧更新的列表 */
-  const cast = () => [director, ...(coach ? [coach] : []), ...players];
+  const cast = () => [...(PLAY ? [] : [director]), ...(coach ? [coach] : []), ...players];
+  /** 头顶气泡：actor → 文字（hud 画） */
+  const bubbles = new Map<Actor, string>();
 
   const sync = (a: Actor) => {
     a.obj.position.copy(a.pos);
@@ -693,6 +728,7 @@ export function createLife(
     );
     srv.yaw = server === 0 ? 0 : Math.PI;
     rcv.yaw = server === 0 ? Math.PI : 0;
+    if (PLAY) yield* standCheck(pl);
     for (const a of pl) {
       a.ctl = { netYaw: a.yaw, move: null, swings: [], readyPh: 0 };
       a.pose('ready', 0);
@@ -742,6 +778,41 @@ export function createLife(
       a.pose('idle');
     }
     return winner;
+  }
+
+  /** 玩法：站位上有散球或积沙 → 冒气泡等着（最多 9 秒，之后凑合着打） */
+  const standIssue = (a: Actor): string | null => {
+    for (const b of balls) if (b !== RALLY && b.on && b.free && !b.held && flat(b.p, a.pos) < 1.6) return '有球！';
+    if (sand) {
+      let m = 0;
+      for (const [dx, dz] of [
+        [0, 0],
+        [0.6, 0],
+        [-0.6, 0],
+        [0, 0.6],
+        [0, -0.6],
+      ])
+        m = Math.max(m, sand.at(a.pos.x + dx, a.pos.z + dz));
+      if (m > 0.035) return '有沙！';
+    }
+    return null;
+  };
+  function* standCheck(pl: Actor[]): Co {
+    let t = 0;
+    while (t < 9) {
+      let any = false;
+      for (const a of pl) {
+        const w = standIssue(a);
+        if (w) {
+          bubbles.set(a, w);
+          any = true;
+        } else bubbles.delete(a);
+      }
+      if (!any) break;
+      state.phase = 'waiting';
+      t += yield;
+    }
+    for (const a of pl) bubbles.delete(a);
   }
 
   /** 分间：总监去扫最脏的一堆沙 */
@@ -852,7 +923,8 @@ export function createLife(
       state.score[w]++;
       if (hud) hud.textContent = scoreText();
       // 演示轮播里只在第一分后扫一次（单演 rally 时每分都扫）
-      if (k < nPoints - 1 && (forcedScene === 'rally' || k === 0)) yield* sweepBreak();
+      if (PLAY) yield* wait(1.2);
+      else if (k < nPoints - 1 && (forcedScene === 'rally' || k === 0)) yield* sweepBreak();
       if (k % 4 === 3) server = 1 - server;
     }
     if (hud) hud.textContent = '';
@@ -892,6 +964,14 @@ export function createLife(
       scene.add(P.obj);
     }
     const pl = P;
+    // 玩法：球车里没几个球了 → 教练喂不了，冒个气泡，球员走掉
+    if (PLAY && cartCount < 4) {
+      bubbles.set(coach, '没球了！');
+      yield* wait(4);
+      bubbles.delete(coach);
+      leave(pl, [v(4.9, PAD_Y, COURT.hl + 0.4)]);
+      return;
+    }
     coach.obj.userData.setProp?.('racket');
     setCart(cartCount);
     const C = coach;
@@ -930,7 +1010,7 @@ export function createLife(
         } else {
           C.pose('feed', ph);
           if (ph >= release && nextFeed <= now) {
-            const b = takeBall();
+            const b = cartCount > 0 ? takeBall() : null;
             if (b) {
               setCart(cartCount - 1);
               const P0 = coachFeedPoint();
@@ -984,7 +1064,15 @@ export function createLife(
     leave(pl, [v(4.9, PAD_Y, COURT.hl + 0.4)]);
     coach.obj.userData.setProp?.(null);
     yield* walk(C, [v(C.pos.x - 0.2, PAD_Y, C.pos.z - 0.7)], 1.2);
-    yield* face(C, Math.PI / 2, 0.3);
+    if (PLAY && cart) {
+      // 玩法：教练自己把球车推回场边（总监要去那儿倒球）
+      const cp = cart.position.clone();
+      yield* walk(C, [v(cp.x, PAD_Y, cp.z - 0.85)], 1.6);
+      yield* walk(C, [v(7.4, PAD_Y, -3.3), COACH_HOME], 1.6, 'walk', 1.25, cartFollow);
+      cart.position.copy(CART_HOME);
+      cart.rotation.y = -Math.PI / 2;
+      yield* face(C, -Math.PI / 2, 0.3);
+    } else yield* face(C, Math.PI / 2, 0.3);
     C.pose('idle');
   }
   /** 喂一个球：低平地送到球员正手、反弹后到击球点 */
@@ -1271,7 +1359,21 @@ export function createLife(
     setCart(cartCount - n);
   };
 
+  function* playLoop(): Co {
+    yield* wait(0.3);
+    while (true) {
+      yield* rallyScene(3);
+      const [N, S] = players;
+      leave(N, [v(7.0, PAD_Y, -6), v(7.0, PAD_Y, 6)]);
+      yield* drillScene(12, S);
+      yield* wait(2);
+    }
+  }
   function* main(): Co {
+    if (PLAY) {
+      yield* playLoop();
+      return;
+    }
     yield* wait(0.3);
     const forced = forcedScene;
     while (true) {
@@ -1301,8 +1403,10 @@ export function createLife(
   }
   const co = main();
   co.next(0);
-  sync(director);
-  director.pose('idle');
+  if (!PLAY) {
+    sync(director);
+    director.pose('idle');
+  }
   if (coach) {
     sync(coach);
     coach.pose('idle');
@@ -1322,6 +1426,27 @@ export function createLife(
         .toArray()
         .map((x) => +x.toFixed(2)),
     }),
+    play: {
+      director: director.obj,
+      loose: () => balls.filter((b, i) => i > 0 && b.on && b.free && !b.held),
+      collect: (b) => {
+        const B = b as Ball;
+        B.on = false;
+        B.held = false;
+        B.free = false;
+      },
+      kick: (b, vx, vz, vy = 0) => {
+        b.v.x += vx;
+        b.v.z += vz;
+        b.v.y += vy;
+        b.rest = 0;
+      },
+      cart,
+      cartCount: () => cartCount,
+      setCartCount: setCart,
+      people: () => [...(coach ? [coach] : []), ...players].map((a) => ({ x: a.pos.x, z: a.pos.z, r: 0.35 })),
+      alerts: () => [...bubbles].map(([a, text]) => ({ p: a.pos.clone().setY(a.pos.y + 2.25), text })),
+    },
     racket: (i) => {
       const a = players[i];
       if (!a) return null;

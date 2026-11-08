@@ -78,6 +78,8 @@ export const PAL = {
   /** 漆过的金属（青绿，网柱、裁判椅、球车） */
   metal: s([0x5cb0a0, 0x3e8488, 0x2c4a6e], 0.6, 0.6),
   rust: s([0xd8703e, 0xa84c44, 0x5a3456], 0.6, 0.6),
+  /** 工具橙（吹叶机）：比 fabricStripe 更亮更黄，在沙上、球场上都跳出来（原来是 coach.ts 里的局部色） */
+  toolOrange: s([0xff9a30, 0xd8603a, 0x7a3456], 0.45, 0.5),
   /** 遮阳帆：奶油 */
   fabric: s([0xf6dcae, 0xdc9e8c, 0x8a6498], 0.4, 0.2, { noShadowReceive: true }),
   /** 条纹布（遮阳帆、毛巾）：珊瑚橙 */

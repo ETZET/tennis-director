@@ -39,6 +39,8 @@ export interface SandGrid {
   homes: { x: number; z: number }[];
   /** 总量（米³ 近似），给玩法读 */
   total(): number;
+  /** 铺面上被沙盖住的面积占比 0..1（玩法的"场地清洁度" = 1 − 它）：每格按厚度算，≤ thr 米算干净，≥ full 米算整格盖住，中间按比例 */
+  coverage(thr?: number, full?: number): number;
   /** 立刻刷新画面（不然下一帧 update 时刷新） */
   flush(): void;
 }
@@ -581,6 +583,23 @@ export function build(ctx: AssetCtx): THREE.Object3D {
       let s = 0;
       for (let k = 0; k < T.length; k++) s += T[k];
       return s * SX * SZ;
+    },
+    coverage(thr = 0.015, full = 0.08) {
+      const i0 = Math.max(0, Math.ceil((-padHw - sx0) / SX));
+      const i1 = Math.min(MX - 1, Math.floor((padHw - sx0) / SX));
+      const j0 = Math.max(0, Math.ceil((-padHl - sz0) / SZ));
+      const j1 = Math.min(MZ - 1, Math.floor((padHl - sz0) / SZ));
+      let n = 0;
+      let hit = 0;
+      const k = 1 / Math.max(1e-6, full - thr);
+      for (let j = j0; j <= j1; j++) {
+        for (let i = i0; i <= i1; i++) {
+          n++;
+          const t = T[j * MX + i];
+          if (t > thr) hit += Math.min(1, (t - thr) * k);
+        }
+      }
+      return n ? hit / n : 0;
     },
     flush() {
       if (dirty) rebuild();

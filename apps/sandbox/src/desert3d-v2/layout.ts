@@ -210,6 +210,8 @@ export const SLOTS: Slot[] = [
   { id: 'umpire', asset: 'umpire-chair', x: 7.0, z: 0.6, y: 0, rotY: -Math.PI / 2 },
   { id: 'hopper', asset: 'ball-hopper', x: -5.9, z: -12.6, y: 0 },
   { id: 'bench-court', asset: 'bench', x: 9.3, z: 5.2, y: 0, rotY: -Math.PI / 2 },
+  // 工具架（玩法：吹叶机、捡球器、扫帚住在这里）：球场台地东南角、通往台阶的步道旁，开口朝西南
+  { id: 'tool-rack', asset: 'tool-rack', x: 9.4, z: 12.6, y: 0, rotY: -Math.PI / 4 },
   // 左上框：北台上的蒲葵林（3 棵，高低错开，叶冠伸进竖屏）+ 台地上的烟树
   { id: 'palm-n1', asset: 'fan-palm', x: -7.4, z: -18.8, y: N, variant: 0, s: 1.1 },
   { id: 'palm-n2', asset: 'fan-palm', x: -5.0, z: -20.6, y: N, variant: 1 },
