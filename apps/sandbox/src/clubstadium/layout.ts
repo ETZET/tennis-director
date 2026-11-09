@@ -1,5 +1,5 @@
 // clubstadium 的构图：中心球场（表演赛的球场）。手摆，不是程序撒点。
-// 世界坐标和 clubmap2/layout.ts 共用（米，y 朝上，北 = −z，东 = +x）；COURTS、PATHS、GROUNDS、TERRACE、PLAZA 从那边 import（只读）。
+// 世界坐标和 clubsite/world.ts 共用（米，y 朝上，北 = −z，东 = +x）；COURTS、PATHS、GROUNDS、TERRACE、PLAZA 从那边 import（只读）。
 // 和东边的 clubplaza 接得上：它建议加的 STADIUM_LINK（广场西台阶 + 去东看台背后的小路）直接 import（只读），这里在东看台背后接一段上看台的台阶。
 // 这里只放这个场景自己的东西（看台的级数尺寸、记分牌、球员通道、观众、站位、路线、资产位置、云），也写在同一套世界坐标里。
 // 相机 yaw 0（看向北）：+x 画面右，+z 朝镜头（画面下方）。屏幕竖直坐标 v = (y − (z − tz))·cos45°（米），等效地面 z_eq = z − y。
@@ -27,8 +27,9 @@
 // （头和帽子伸出影子、是亮的）+ 踏面前沿一条亮边。人群是亮的点子带、立面是暗带：明暗横带就是这么来的，不靠颜色。
 // 视线：左下长廊 → 西南角总监吹沙（走道和沙堆）→ 球员 A → 网 → 裁判 → 看台中间那块 → 记分牌。
 // 安静的地方：场地本身（蓝的内场、绿的外圈只有线和人）、北看台两头的空座位、长廊、墙外的沙漠。
-import { COURTS, GROUNDS, PATHS, PLAZA, type Rect, TERRACE, type V2 } from '../clubmap2/layout';
+
 import { STADIUM_LINK } from '../clubplaza/layout';
+import { COURTS, GROUNDS, PATHS, PLAZA, type Rect, TERRACE, type V2 } from '../clubsite/world';
 
 export type { Rect, V2 };
 export { COURTS, PATHS, PLAZA, STADIUM_LINK, TERRACE };

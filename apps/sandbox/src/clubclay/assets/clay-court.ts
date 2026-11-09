@@ -26,8 +26,8 @@
 //   state                                             ClayState（本地坐标，直接改数组后设 dirtyGrid = true）
 // 代价：一片场 1 个 draw call、2 个三角形；片元里 9 条线 + 记号循环（离得 > 1.6 米直接跳过）+ 湿边处 ≤ 8 次取样。
 import * as THREE from 'three';
+import type { AssetCtx } from '../ctx';
 import { DIM, LW } from '../layout';
-import type { AssetCtx } from '../world';
 import { applyPreset, PRESETS, type PresetName } from './clay/presets';
 import { type ClayMaterial, clayMaterial, dataTex, paletteTexture } from './clay/shader';
 import { ClayState, MAX_MARKS, TAPE_STEP, type V2 } from './clay/state';

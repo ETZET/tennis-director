@@ -1,5 +1,7 @@
 # Wave 1 接口契约：修复变体、升级改造（B1）和星级（P1）
 
+> **2026-11-08 起：** 画面改成 3D 像素（ADR 0027），本文的"画面（iso Site 覆盖层）"一节作废；模拟、内容、界面和"最终 schema"仍是 `packages/sim` 的现状。文中说的 `game-design.md` 规则来源，现在是归档的 [`docs/archive/pre-3d/game-design-v0.5.md`](../archive/pre-3d/game-design-v0.5.md)。
+
 Wave 1 的几路（模拟、内容、界面、画面）按这份同时开工。规则来源：`game-design.md` 的"修复分叉、升级和改造""星级"，ADR 0020。
 **模拟这一路做完以后，把最终的 schema 和字段名回写到这里**（下游只认这份文件）。
 

@@ -2,7 +2,7 @@
 // 但水量（flow）和水面上的落叶（leaves）是同一件事：水量小了，帘子、水柱、涟漪一起变小；叶子多了，水面变暗、闪光变少。
 // 按场景的 SharedUniforms 对象分组（同一个场景里两件资产拿到的是同一份 ctx.uniforms），不同场景 / 画廊各管各的。
 import type * as THREE from 'three';
-import type { SharedUniforms } from '../../world';
+import type { SharedUniforms } from '../../ctx';
 
 export interface FountainLink {
   /** 水量 0..1（1 = 正常；0 = 关水：帘子、水柱、涟漪都没了，水面只剩闪光） */

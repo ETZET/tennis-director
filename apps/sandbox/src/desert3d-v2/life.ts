@@ -9,7 +9,7 @@
 // 玩法模式（opts.play，main 的默认）：总监交给玩家（control.ts），这里不再派他扫沙/捡球，教练也不吹沙；
 // 只轮播"对打 → 多球"，球员站位上有积沙或散球就停下来冒"!"等一会儿，球车空了教练就喂不了。life.play 是给 control 的接口。
 import * as THREE from 'three';
-import { FEED_RELEASE } from './assets/coach';
+import { FEED_RELEASE } from '../clubsite/people/rig/coach';
 import type { SandGrid } from './assets/court';
 import type { Fx } from './fx';
 import { COURT, H, STAIRS } from './layout';

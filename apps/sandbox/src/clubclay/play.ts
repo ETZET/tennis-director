@@ -14,9 +14,9 @@
 // 顶栏：远场的状况（clay.stats()：拖平 / 线 / 湿 / 起尘 → 一句结论）、近场比分、水站水位。
 import * as THREE from 'three';
 import { footprint, type Item, type Play, type Shape } from '../clubsite/play';
+import type { AssetCtx } from './ctx';
 import { BLOCK_SHAPES, DRY_SECONDS, FAR, type Rect, WALK_RECTS } from './layout';
 import type { ClayLife } from './life';
-import type { AssetCtx } from './world';
 
 /** 远场红土的 API（clay-court.ts 的 userData.clay） */
 export interface FarClay {

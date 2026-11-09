@@ -1,17 +1,17 @@
 // 地形：地面（clubsite/ground.ts，铺到画外）+ 墙里的压实沙地 + 南墙（土坯、压顶、壁柱）+ 碎花岗岩步道 + 下沉草坪（clubdesk 那块）
 // + 球场：两片红土场（白模：底色 + 状态区块 + 胶带线，stage 2 换成 #1 clay-court 资产）、会员硬地场和青训场的一角（平涂）
 // + 围网（clubdesk 的 fence-screen，只读）+ 墙外高尔夫（球道照 clubmap2/build.ts 的公式）。
-// 几何工具从 clubfront/terrain.ts、clubmap/build.ts import（只读）；地图常量从 clubmap2/layout.ts import（只读）。
+// 几何工具从 clubsite/render/geo.ts import；世界坐标从 clubsite/world.ts import（只读）。
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { buildFences, type FenceRun } from '../clubdesk/assets/fence-screen';
-import type { AssetCtx as DeskCtx } from '../clubdesk/world';
-import { insidePoly, smoothLoop, topGeo, wallGeo } from '../clubfront/terrain';
-import type { ToonOpts } from '../clubfront/toon';
-import { box, quad } from '../clubmap/build';
-import { type Court, GOLF, GROUNDS } from '../clubmap2/layout';
+import type { AssetCtx as DeskCtx } from '../clubdesk/ctx';
 import { groundGeo } from '../clubsite/ground';
 import { buildMountains } from '../clubsite/mountains';
+import { box, insidePoly, quad, smoothLoop, topGeo, wallGeo } from '../clubsite/render/geo';
+import type { ToonOpts } from '../clubsite/render/toon';
+import { type Court, GOLF, GROUNDS } from '../clubsite/world';
+import type { AssetCtx } from './ctx';
 import {
   CLIP,
   cellOf,
@@ -30,7 +30,6 @@ import {
   WALL,
 } from './layout';
 import { EL, type Pal } from './palette';
-import type { AssetCtx } from './world';
 
 type Key = keyof Pal;
 

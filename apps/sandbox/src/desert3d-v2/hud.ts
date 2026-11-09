@@ -5,9 +5,9 @@
 // - 球员头顶的"有沙！""有球！"、教练的"没球了！"气泡按相机投影摆；人在画面外就贴着画面边（.edge）。
 // - 键盘（桌面）：WASD/方向键走，空格/E 按住干活，F/回车 拿放。
 import * as THREE from 'three';
+import type { PixelPipeline } from '../clubsite/render/pipeline';
 import type { Control } from './control';
 import type { Alert } from './life';
-import type { PixelPipeline } from './pipeline';
 
 export interface Hud {
   /** 每帧（渲染后）刷新文字、按钮、气泡 */

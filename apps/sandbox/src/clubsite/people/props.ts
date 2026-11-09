@@ -2,7 +2,7 @@
 // 原点 = 拳头（握把），本地 −y 顺着手臂往外（拍头那头），+z = 拍面朝外的那面。
 // 还有几样"代用工具"（standIn）：工具代理的正式资产到之前，画廊和白模演出用它们试姿势；每个都带 userData.grip（见 hold.ts）。
 import * as THREE from 'three';
-import { blobNormals, type Mats, type ToonOpts } from '../../clubfront/toon';
+import { blobNormals, type Mats, type ToonOpts } from '../render/toon';
 
 type Mat = THREE.Material;
 type Ramp = [number, number, number];

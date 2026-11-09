@@ -1,5 +1,5 @@
 // 俱乐部各场景共用的人：球员、教练、总监（desert3d-v2 的 Q 版人，比例、衣服一模一样）+ 孩子，外加新姿势、匹克球拍、手里挂工具。
-// 骨骼和原来的姿势在 desert3d-v2/assets/player/rig.ts（只读，不改）；这里包一层（person.ts）。
+// 骨骼和原来的姿势在 rig/rig.ts（原 desert3d-v2/assets/player/rig.ts）；这里包一层（person.ts）。
 //
 // ── 用法 ──
 //   场景的 reuse.ts：player / coach / director / kid / ball-kid / umpire 从这里拿（player v0..3 同 desert3d-v2，kid v0..2，
@@ -48,13 +48,13 @@
 //   lookAt(世界坐标 | null)  头转过去（所有姿势都生效：观众看球、裁判看球）
 //   画廊参数：?pose=&phase=&prop=&seat=&foot=&water=&look=x,y,z
 import type * as THREE from 'three';
-import { build as coachBuild } from '../../desert3d-v2/assets/coach';
-import { build as directorBuild } from '../../desert3d-v2/assets/director';
-import { build as playerBuild } from '../../desert3d-v2/assets/player';
-import { buildPerson, type Look } from '../../desert3d-v2/assets/player/rig';
-import type { AssetCtx as D3Ctx } from '../../desert3d-v2/world';
+import type { BaseCtx as D3Ctx } from '../render/ctx';
 import { KID, TEEN, wrapPerson } from './person';
 import { matOr, PADDLE_KEYS, PERSON } from './props';
+import { build as coachBuild } from './rig/coach';
+import { build as directorBuild } from './rig/director';
+import { build as playerBuild } from './rig/player';
+import { buildPerson, type Look } from './rig/rig';
 
 export type { GripSpec } from './hold';
 export { ALL_POSES, KID, RIG_PERIOD, TEEN } from './person';

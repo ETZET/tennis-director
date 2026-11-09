@@ -5,7 +5,7 @@
 // 本地原点 = 旗杆脚（SLOTS 里 y = 后墙顶 6.8）。
 // userData.update(dt, t)：每帧按风改旗面（场景的 collectUpdaters 已经在调）；userData.flag = 旗面那个 Group。
 import * as THREE from 'three';
-import type { AssetCtx } from '../world';
+import type { AssetCtx } from '../ctx';
 import { Bag, PROP } from './court/kit';
 
 const POLE = { h: 4.2, w: 0.18 };

@@ -17,7 +17,7 @@
 
 ## 决定（提议）
 
-详细规则和初值见 `docs/design/game-design.md` 的"推进结构"一节。
+详细规则和初值见 `docs/archive/pre-3d/game-design-v0.5.md`（原 `docs/design/game-design.md`，2026-11-08 归档）的"推进结构"一节。
 
 - **星级 0–5：**
   - 每一星是一张复合清单：修复、会员、声望、奖杯。

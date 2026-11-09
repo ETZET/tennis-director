@@ -10,8 +10,8 @@
 // 材质：帆布 canvas（paint 元素 12×8，几乎干净）、条纹 / 包边 canvasStripe、木 timber（柱子竖向板缝；梁、椽不加元素，太细）、
 // 垫石 granite。帆布 noShadowReceive（palette 的 THIN）、要投影（投影池是构图的一部分）。
 import * as THREE from 'three';
+import type { AssetCtx } from '../ctx';
 import { CANOPY, DESK } from '../layout';
-import type { AssetCtx } from '../world';
 import { boxR, type G, meshOf, quad } from './desk/kit';
 
 /** 本地坐标的范围（世界 → 本地：减去落地点） */

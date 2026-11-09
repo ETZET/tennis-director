@@ -21,7 +21,7 @@ import {
   POOL_DECK,
   type Rect,
   TERRACE,
-} from './layout';
+} from '../clubsite/world';
 
 export interface Place {
   asset: string;

@@ -38,10 +38,12 @@ docs/archive/** 不参与构建，谁也不能引用
 ## 目录约定
 
 - `apps/sandbox`：three.js 3D 像素场景（ADR 0027，t3ssel8r 风格：低分辨率正交渲染、纹素对齐相机、深度/法线描边、三档 toon 光）。一个场景一个页面 `<name>.html` + `src/<name>/`，在 `vite.config.ts` 的 input 里登记；`index.html` 是页面目录。
-  - `src/club*/`：俱乐部的各个场景（`clubmap2` 整座俱乐部的微缩地图和共用世界坐标 `clubmap2/layout.ts`；`clubpark`、`clubdesk`、`clubpickle`、`clubclay`、`clubplaza`、`clubstadium`、`clubcourts`、`clubfood` 是各处小景）。每个场景自己有 `layout.ts`（构图、站位、路线）、`nav.ts`（能走的范围）、`terrain.ts`、`assets/`、`palette.ts`、`placeholders.ts`（白模）、`reuse.ts`（只读引用别处的素材）；做到演出的有 `life.ts`，能操控总监的有 `play.ts`；各场景用同一套世界坐标（米，y 朝上，北 = −z，东 = +x）。
-  - `src/clubsite/`：各场景共用：`ground.ts`（铺出画面的地面，不再是浮空岛）、`mountains.ts`（地图边低成本的山和只写深度的天幕）、`framing.ts`（取景）、`people/`（骨骼 Q 版人：球员、教练、总监、孩子，姿势、手里的东西）、`play/`（总监操控：走、拿/用工具、HUD）、`assets/`（球网、球场灯、记分牌、匹克球……）、`tools/`（总监工具的合并几何、握点、水管）。
-  - `src/clubfront/`：渲染核心，各场景复制或引用它：`toon.ts`（色阶材质）、`pipeline.ts`（低分辨率渲染、描边、纹素对齐）、`palette.ts` + `colors.ts`（调色板，关掉颜色管理）、`palettes/`（配色方案覆盖层，`?pal=<id>` 切换，默认 `golden` 6 午后金光）。
-  - `src/desert3d-v2/`、`src/pond3d/`、`src/desert3d/`：早期实验，素材接口和"材质规范 v2"的 API 在 `desert3d-v2/ASSETS.md`；club* 场景复用它的素材，不要改它本身。
+  - `src/club*/`：俱乐部的各个场景（`clubmap2` 整座俱乐部的微缩地图；`clubpark`、`clubdesk`、`clubpickle`、`clubclay`、`clubplaza`、`clubstadium`、`clubcourts`、`clubfood` 是各处小景；`clubfront`、`clubmap` 是早期的前台和地图）。每个场景自己有 `layout.ts`（构图、站位、路线）、`nav.ts`（能走的范围）、`terrain.ts`、`assets/`、`ctx.ts`（`AssetCtx<本场景的 Pal>`）、`palette.ts`（核心调色板的超集）、`placeholders.ts`（白模）、`reuse.ts`（只读引用别处的素材）；做到演出的有 `life.ts`，能操控总监的有 `play.ts`。
+  - `src/clubsite/`：各场景共用，不引用任何场景（`pnpm check:deps` 的 `clubsite-not-from-scenes`）：
+    - `render/`：渲染核心，只有一份，场景 import 它、不复制：`pipeline.ts`（低分辨率渲染、描边、纹素对齐；`dist`/`far` 给地图拉远）、`toon.ts`（色阶材质）、`colors.ts`（关掉颜色管理，main 第一个 import）、`noise.ts`、`ctx.ts`（`AssetCtx`、`SharedUniforms`）、`palette-base.ts`（底表，原 desert3d-v2 的）+ `palette.ts`（俱乐部的表）、`palettes/`（配色方案覆盖层，`?pal=<id>`，默认 `golden` 6 午后金光）、`geo.ts`（`topGeo`、`wallGeo`、`smoothLoop`、`box`、`quad`……）。
+    - `world.ts`：整座俱乐部的世界坐标（米，y 朝上，北 = −z，东 = +x；`SITE`、`COURTS`、`GATE`、`DESK`、`PATHS`、围网……），所有场景从这里 import。
+    - `ground.ts`（铺出画面的地面，不再是浮空岛）、`mountains.ts`（地图边低成本的山和只写深度的天幕）、`framing.ts`（取景）、`people/`（骨骼 Q 版人，`rig/` 是骨骼和球员/教练/总监）、`play/`（总监操控）、`nature/`（沙漠植物、石头）、`assets/`（长椅、遮阳帆、工具、工具架、裁判椅、球车、球网、球场灯、记分牌、匹克球……）、`tools/`（总监工具的合并几何、握点、水管）、`reuse.ts`（共用的现成资产表）。
+  - `src/desert3d-v2/`、`src/pond3d/`、`src/desert3d/`：早期实验，素材接口和"材质规范 v2"的 API 在 `desert3d-v2/ASSETS.md`。desert3d-v2 用 `clubsite/render` 和搬走的素材（`assets/` 里留一行 re-export）；反过来 club* 和 clubsite 不能引用实验（`club-not-from-experiments`）。
   - 新场景按 `.claude/skills/pixel-scene` 的流程做（白模 → 素材 → 组装演出 → 数字验收）；经验、材质规范、地图边界、截图和量图工具在 `docs/lab/2026-11-07-3d-pixel/`（`lessons.md`、`material-spec.md`、`boundary.md`、`tools/`）。
 - `docs/archive/iso-2.5d/`：归档的 2.5D 等距像素画面（原 `packages/iso`、sandbox 的查看器/活动库/demo/人物页、游戏的画面层，ADR 0019 → 0027）。只作参考，不能构建，不要引用。
 - `docs/adr/`：重要决策一个文件。违反架构原则的改动先写 ADR。
@@ -62,7 +64,7 @@ docs/archive/** 不参与构建，谁也不能引用
 - 场景接回游戏前（另写 ADR 定新的场景接口），`apps/game` 不引用 sandbox 的代码，也不引用 three。内容里的 `nav` 分钟数暂时没有地图检查（原来的检查归档在 `docs/archive/iso-2.5d/apps/game/src/map-nav.test.ts`），接回时要重建。
 - 新的界面文字放进 i18n 的 `ui.*`，两种语言都要有。
 - three 只在 `apps/sandbox` 里用，直到游戏把场景接回来（`pnpm check:deps` 的 `three-only-in-sandbox`）。
-- 不要改 `src/desert3d-v2/` 和别的场景的文件来给新场景用：复制到自己的场景目录再改（`reuse.ts` 只读引用）。
+- 不要改别的场景的文件来给新场景用：复制到自己的场景目录再改（`reuse.ts` 只读引用）；几个场景都要的东西收进 `clubsite/`。渲染核心不复制，改 `clubsite/render/` 就是改所有场景，改完每个页面截图对比。
 - 参考图（别人作品的截图、裁剪、含参考图的对比图）永远不进仓库，只放本地 `~/workspace/tennis-director-refs/`。提交 PNG 前跑 `node docs/lab/2026-11-07-3d-pixel/tools/refcheck.mjs <图或目录>`，标 `REF?` 的不要提交。
 - 不要引用或修改 `docs/archive/` 里的代码；要用里面的想法就在新代码里重写。
 

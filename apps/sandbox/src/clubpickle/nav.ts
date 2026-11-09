@@ -1,9 +1,9 @@
 // 白模的调试层（照 clubdesk/nav.ts）：站位（洋红小圆盘）、路线（每 0.9 米一个小点）、南围网挡住半身的界线（SOUTH_HIDE_Z，一排小方点）。
 // 只在标签开着时画（?labels=0 的截图里没有）。玩法（stage 3）照 layout.ts 的 SPOTS / ROUTES / WALKABLE 做。
 import * as THREE from 'three';
-import { smoothLine } from '../clubfront/terrain';
+import { smoothLine } from '../clubsite/render/geo';
+import type { AssetCtx } from './ctx';
 import { PICKLE, ROUTES, SOUTH_HIDE_Z, SPOTS, type V2 } from './layout';
-import type { AssetCtx } from './world';
 
 /** 给标签用的站位中文名（没列的不贴字） */
 export const SPOT_NAMES: Partial<Record<keyof typeof SPOTS, string>> = {

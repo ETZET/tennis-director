@@ -20,9 +20,9 @@
 //   count / blocks / stats                         —— 人数、每块的人数、三角形和 draw call
 // URL（场景里试）：crowdMode=clap|cheer|wave、crowdFill=0..1、crowdLook=x,z（配 warm=秒 看某一刻）；crowd=grey 换成灰的。
 import * as THREE from 'three';
+import type { AssetCtx } from '../ctx';
 import { CROWD } from '../layout';
 import type { Pal } from '../palette';
-import type { AssetCtx } from '../world';
 import { build as buildStands } from './stadium-stands';
 import { type CrowdUniforms, crowdMaterial, crowdUniforms, MAX_BLOCKS } from './stands/crowd-shader';
 import { GeoBuf } from './stands/geo';

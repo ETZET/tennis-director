@@ -7,7 +7,7 @@ import { build as drinksCart } from '../clubplaza/assets/drinks-cart';
 import { build as grackle } from '../clubplaza/assets/grackle';
 import { build as grackles } from '../clubplaza/assets/grackles';
 import { REUSED as PLAZA_REUSED } from '../clubplaza/reuse';
-import type { AssetBuild } from './world';
+import type { AssetBuild } from './ctx';
 
 export const REUSED: Record<string, AssetBuild> = {
   ...(PLAZA_REUSED as unknown as Record<string, AssetBuild>),

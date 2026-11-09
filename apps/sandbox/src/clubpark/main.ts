@@ -1,4 +1,4 @@
-// clubpark：俱乐部大门外的停车场 / 到达区（和 clubdesk 场景以东墙大门为界，世界坐标同 clubmap2/layout.ts）—— 白模阶段。
+// clubpark：俱乐部大门外的停车场 / 到达区（和 clubdesk 场景以东墙大门为界，世界坐标同 clubsite/world.ts）—— 白模阶段。
 // 场景：  clubpark.html                 （占位 = 冷灰体块 + id 标签；src/clubpark/assets/<id>.ts 存在就换成资产）
 // 画廊：  clubpark.html?asset=<id>      （一块小台子上只放这个资产：上/左 = 最终缩放，下/右 = 同一画面放大 3 倍）
 // 标签：灰 = 占位（要画的新资产），绿 = 已画的新资产，青 = 复用的资产，米黄 = 区域名。洋红 = 站位 / 路线（nav.ts）。
@@ -7,18 +7,19 @@
 // 共用的 three.js 核心（管线、色阶材质、配色方案、复用资产）从 ../clubfront 只读 import，不复制、不改。
 // stage 3（演出）：life.ts 跑停车场的日常（来车、落客、代客停车、取车、门童、球包车），SLOTS 里动的那些（车、会员、代客、门童、
 // 停着的车 park-*）交给它建；?life=0 = 原来的白模定格（截图对比用）。默认玩法模式（总监由玩家操控，play.ts）；?play=0 = 只看。
-import '../clubfront/colors';
+import '../clubsite/render/colors';
 import * as THREE from 'three';
-import { rngFactory } from '../clubfront/noise';
-import type { Pal as ClubPal } from '../clubfront/palette';
-import { SCHEMES, schemeById, schemeMats, schemeOpts } from '../clubfront/palettes';
-import { mountPaletteSwitcher } from '../clubfront/palettes/switcher';
-import { PixelPipeline } from '../clubfront/pipeline';
-import { CLOUD_N, createMats, type ToonOpts } from '../clubfront/toon';
-import { DRIVE, GATE } from '../clubmap2/layout';
 import { director as clubDirector } from '../clubsite/people';
 import type { Hud, Play } from '../clubsite/play';
-import type { AssetCtx as D3Ctx } from '../desert3d-v2/world';
+import type { BaseCtx as D3Ctx } from '../clubsite/render/ctx';
+import { rngFactory } from '../clubsite/render/noise';
+import type { Pal as ClubPal } from '../clubsite/render/palette';
+import { SCHEMES, schemeById, schemeMats, schemeOpts } from '../clubsite/render/palettes';
+import { mountPaletteSwitcher } from '../clubsite/render/palettes/switcher';
+import { PixelPipeline } from '../clubsite/render/pipeline';
+import { CLOUD_N, createMats, type ToonOpts } from '../clubsite/render/toon';
+import { DRIVE, GATE } from '../clubsite/world';
+import type { AssetBuild, AssetCtx, SharedUniforms } from './ctx';
 import { AISLE_Z, CLOUD_VEL, CLOUDS, MPT, SLOTS, SUN, VIEW, WALL_OUT } from './layout';
 import { createParkLife, type ParkLife } from './life';
 import { buildNav } from './nav';
@@ -27,7 +28,6 @@ import { placeholder, SPECS } from './placeholders';
 import { setupParkPlay } from './play';
 import { REUSED } from './reuse';
 import { buildTerrain } from './terrain';
-import type { AssetBuild, AssetCtx, SharedUniforms } from './world';
 
 const params = new URLSearchParams(location.search);
 const num = (k: string, d: number) => (params.has(k) ? Number(params.get(k)) : d);

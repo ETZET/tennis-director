@@ -17,8 +17,8 @@
 //                             停着的车：每个零件一个 InstancedMesh（paint 按车漆分组，一种车漆一个），矩阵 = 车位矩阵（× 轴的平移）；
 //                             材质是缓存共享的，别改材质本身（刹车灯改的是 trim 的顶点色，实例化以后用 instanceColor 或单独拿出来）。
 import * as THREE from 'three';
+import type { AssetCtx } from '../../ctx';
 import { CAR_PAINTS } from '../../palette';
-import type { AssetCtx } from '../../world';
 import { box, disc, frustum, merge, quad, type RGB, sideExtrude, type V3, WHITE, wheel } from './geo';
 import type { VehicleSpec } from './specs';
 

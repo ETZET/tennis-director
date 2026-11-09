@@ -5,7 +5,7 @@
 import type * as THREE from 'three';
 import { build as plazaBuild } from '../../clubplaza/assets/drink-fountain';
 import { PAL as PLAZA_PAL } from '../../clubplaza/palette';
-import type { AssetCtx } from '../world';
+import type { AssetCtx } from '../ctx';
 
 type PlazaCtx = Parameters<typeof plazaBuild>[0];
 

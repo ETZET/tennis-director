@@ -6,7 +6,7 @@
 //
 // 叠的顺序（下 → 上）：漆面（低频深浅块 + 很少的擦痕）→ 水（水洼 / 潮；线在水下面还看得见）→ 线 → 沙（盖在线上面）。
 import * as THREE from 'three';
-import type { Mats, ToonOpts } from '../../../clubfront/toon';
+import type { Mats, ToonOpts } from '../../../clubsite/render/toon';
 import { T_DAMP, T_SAND, T_THIN, T_WET } from './state';
 
 /** 调色板纹理的行（shader 里同一组数） */

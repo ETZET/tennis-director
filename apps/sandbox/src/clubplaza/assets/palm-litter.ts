@@ -10,7 +10,7 @@
 // - `setFloating(on)`：开关水纹圈（v3/v4 默认开）
 // - `update(dt, t)`：漂着的时候慢慢转（±2°，7 秒一轮）
 import * as THREE from 'three';
-import type { AssetCtx } from '../world';
+import type { AssetCtx } from '../ctx';
 import { merge, tint, tris, v3 } from './life/kit';
 
 /** 枯叶（局部新色）：亮 #f2d488 L213、中 #c8a070 L165、暗 #9a8090 L135（暗档故意亮：蒲葵荫里的陶砖影子 L 97） */

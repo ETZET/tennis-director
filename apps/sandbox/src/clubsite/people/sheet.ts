@@ -1,9 +1,9 @@
 // 姿势一览（画廊用，不放进场景）：<场景>.html?asset=people-sheet（&px=1 看 1×；&phase=0.3 全部定格；&row=0..3 只看一排）。
 // 一排排摆好：总监的干活姿势（拿代用工具）、匹克球 / 孩子、坐着的人（长椅、裁判椅）、球童 / 裁判 / 刮水 / 推划线车。
 import * as THREE from 'three';
-import { build as bench } from '../../desert3d-v2/assets/bench';
-import { build as umpireChair } from '../../desert3d-v2/assets/umpire-chair';
-import type { AssetCtx as D3Ctx } from '../../desert3d-v2/world';
+import { build as bench } from '../assets/bench';
+import { build as umpireChair } from '../assets/umpire-chair';
+import type { BaseCtx as D3Ctx } from '../render/ctx';
 import { ballKid, coach, director, kid, player, umpire } from './index';
 
 type Entry = {

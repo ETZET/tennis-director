@@ -2,11 +2,16 @@
 // + 门外的铺地（落客区、车道、停车场、花坛：和 clubpark 同一份几何，clubpark/terrain.ts 的 buildApproach）
 // + 喷泉广场（抬高 1.2，挡土墙 = 暗带）+ 下沉的球员草坪（北沿矮墙 = 暗带）+ 匹克球场和西边两片球场的一角（平涂）。
 // 围网（fence-screen）是新资产：这里先用灰色占位盒子建（一大片，合并成一个网格），标签在 main.ts 里贴。
-// 几何工具从 clubfront/terrain.ts、clubmap/build.ts import（只读）；地图常量从 clubmap2/layout.ts import（只读）。
+// 几何工具从 clubsite/render/geo.ts import；世界坐标从 clubsite/world.ts import（只读）。
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { insidePoly, smoothLine, topGeo, wallGeo } from '../clubfront/terrain';
-import { box, quad, ring } from '../clubmap/build';
+import type { AssetCtx as ParkCtx } from '../clubpark/ctx';
+import { PAL as PARK_PAL } from '../clubpark/palette';
+import { approachAt, buildApproach } from '../clubpark/terrain';
+import { groundGeo } from '../clubsite/ground';
+import { buildMountains } from '../clubsite/mountains';
+import { box, insidePoly, quad, ring, smoothLine, topGeo, wallGeo } from '../clubsite/render/geo';
+import type { ToonOpts } from '../clubsite/render/toon';
 import {
   COURT_FENCES,
   COURTS,
@@ -19,13 +24,9 @@ import {
   PATHS,
   PICKLE_DOORS,
   PICKLE_FENCE_H,
-} from '../clubmap2/layout';
-import { PAL as PARK_PAL } from '../clubpark/palette';
-import { approachAt, buildApproach } from '../clubpark/terrain';
-import type { AssetCtx as ParkCtx } from '../clubpark/world';
-import { groundGeo } from '../clubsite/ground';
-import { buildMountains } from '../clubsite/mountains';
+} from '../clubsite/world';
 import { buildFences, type FenceRun } from './assets/fence-screen';
+import type { AssetCtx } from './ctx';
 import {
   CLIP,
   FORECOURT,
@@ -43,8 +44,6 @@ import {
   WALL,
 } from './layout';
 import { EL, type Pal } from './palette';
-import type { ToonOpts } from './toon';
-import type { AssetCtx } from './world';
 
 type Key = keyof Pal;
 

@@ -12,9 +12,9 @@
 //   叶绿借 plants 组。见 PROXY。
 // L = 0.2126R + 0.7152G + 0.0722B。
 
-import type { Tones } from '../clubdesk/toon';
-import type { Swatch } from '../clubfront/palette';
 import { EL as PLAZA_EL, PAL as PLAZA_PAL, PROXY as PLAZA_PROXY, SKY as PLAZA_SKY } from '../clubplaza/palette';
+import type { Swatch } from '../clubsite/render/palette';
+import type { Tones } from '../clubsite/render/toon';
 
 type Ramp = [number, number, number];
 const s = (ramp: Ramp, edge: number, convex: number, tones?: Tones): Swatch => ({ ramp, edge, convex, tones });

@@ -15,7 +15,7 @@
 //   update(dt)         场景每帧调
 import * as THREE from 'three';
 import { Parts } from '../../clubsite/tools/kit';
-import type { AssetCtx } from '../world';
+import type { AssetCtx } from '../ctx';
 import { flakeGeo } from './comfort/surface';
 
 const LEN = 9.6;

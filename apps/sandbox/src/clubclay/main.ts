@@ -7,15 +7,16 @@
 //      pause=1（时间停在 0：截图稳定）、labels=0（不显示标签和站位）、ph=0（不放占位）、nav=0、clouds=0、edges=1（只看描边）、
 //      pal=<id>（配色，不带 = 6 午后金光；右上角切换）；画廊：v（变体）、ref=0、ground=clay|sand、cy。
 // 核心（pipeline / toon / noise / colors）只读 import clubfront 的那份（同 clubpark）。
-import '../clubfront/colors';
+import '../clubsite/render/colors';
 import * as THREE from 'three';
-import { rngFactory } from '../clubfront/noise';
-import { SCHEMES, schemeById, schemeMats, schemeOpts } from '../clubfront/palettes';
-import { mountPaletteSwitcher } from '../clubfront/palettes/switcher';
-import { PixelPipeline } from '../clubfront/pipeline';
-import { topGeo, wallGeo } from '../clubfront/terrain';
-import { CLOUD_N, createMats, type ToonOpts } from '../clubfront/toon';
 import { type Hud, mountPlay, type Play } from '../clubsite/play';
+import { topGeo, wallGeo } from '../clubsite/render/geo';
+import { rngFactory } from '../clubsite/render/noise';
+import { SCHEMES, schemeById, schemeMats, schemeOpts } from '../clubsite/render/palettes';
+import { mountPaletteSwitcher } from '../clubsite/render/palettes/switcher';
+import { PixelPipeline } from '../clubsite/render/pipeline';
+import { CLOUD_N, createMats, type ToonOpts } from '../clubsite/render/toon';
+import type { AssetBuild, AssetCtx, SharedUniforms } from './ctx';
 import {
   AREA_LABELS,
   CLOUD_VEL,
@@ -36,7 +37,6 @@ import { NEW_SPECS, placeholder, SPECS } from './placeholders';
 import { type ClayPlay, type FarClay, navShapes, setupClayPlay } from './play';
 import { REUSED } from './reuse';
 import { buildTerrain } from './terrain';
-import type { AssetBuild, AssetCtx, SharedUniforms } from './world';
 
 const params = new URLSearchParams(location.search);
 const num = (k: string, d: number) => (params.has(k) ? Number(params.get(k)) : d);

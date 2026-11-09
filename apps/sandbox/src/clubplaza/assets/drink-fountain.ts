@@ -7,7 +7,7 @@
 // - `setRunning(on)`：有人在喝 = 出水嘴冒一小股弧形的水（1 纹素粗，亮水色）
 // - `spots.drink`：喝水的人站哪（本地 [x, z]，面朝 −z）
 import * as THREE from 'three';
-import type { AssetCtx } from '../world';
+import type { AssetCtx } from '../ctx';
 import { box, boxOn, merge, v3 } from './life/kit';
 
 /** 死水（局部新色）：亮 #8ec890 L181、中 #5a9a7e L132、暗 #2e5a66 L78 —— 和池水的青拉开，一眼看出"脏了" */

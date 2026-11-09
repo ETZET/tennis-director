@@ -1,9 +1,9 @@
 // 白模的调试层：站位（洋红小圆盘）和路线（每 0.9 米一个小点）。只在标签开着时画（?labels=0 的截图里没有）。
 // 玩法（总监走动、会员到柜台）以后照 layout.ts 的 SPOTS / ROUTES / WALKABLE 做，这里只是让构图评审时看得到。
 import * as THREE from 'three';
+import type { AssetCtx } from '../clubsite/render/ctx';
+import { smoothLine } from '../clubsite/render/geo';
 import { ROUTES, SPOTS, type V2 } from './layout';
-import { smoothLine } from './terrain';
-import type { AssetCtx } from './world';
 
 export function buildNav(ctx: AssetCtx, groundAt: (x: number, z: number) => number): THREE.Group {
   const g = new THREE.Group();

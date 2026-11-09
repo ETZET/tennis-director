@@ -18,6 +18,7 @@
 | `apps/game/src/` | `apps/game/src/` | 游戏的画面层：`main.ts`（舞台、镜头、地点牌、拖放落点、镜头跟随）、`scene.ts`（员工走位、演出、设施画面层）、`life.ts`（园区日常）、`labels.ts`、`perform.ts`、`heads.ts`、`courts.ts`、`walkpath.ts`、`idle.ts`、`care/`（亲手扫场小游戏）和它们的测试 |
 | `apps/game/src/map-nav.test.ts`、`wave5-land.test.ts` | 从 `game.test.ts`、`wave5.test.ts` 里拆出来的 | 查地图站位、步道长度和内容 `nav` 分钟数对得上；地块并进站位、选路卡找地块 |
 | `docs/design/iso-architecture.md` | `docs/design/` | 画面契约（包结构、投影和像素、渲染分层、接口、素材格式） |
+| `docs/art/style-demos/isometric-2.5d/` | 同名（2026-11-08 晚些时候搬过来） | 定案前的 2.5D 画风样片：独立的 HTML（Palm Oasis 布局、三个复原阶段和昼夜），`packages/iso` 的光栅器照搬它；`notes.md`、`shots/` |
 
 `apps/game` 里留下的是只用 sim / ui / content 的部分（`session.ts`、`project.ts`、`text.ts`、`chips.ts`、`settle.ts`、`persist.ts`、`debug.ts`），
 `main.ts` 换成了一个没有画面的入口：HUD + 模拟 + 一排地点按钮，整局照样能玩，试玩桥（`window.__td`）也还在。
@@ -32,9 +33,9 @@
 ## 它的想法现在在哪儿
 
 - **画面本身**：`apps/sandbox` 的 club* 场景（`clubmap2`、`clubpark`、`clubdesk`、`clubpickle`、`clubclay`、`clubplaza`、`clubstadium`、`clubcourts`、`clubfood`），
-  共用模块在 `src/clubsite/`（地面、山、取景、人物、总监操控、共享素材、工具）和 `src/clubfront/`（toon 光照、渲染管线、配色方案）。
+  共用模块在 `src/clubsite/`（渲染核心 `render/`：toon 光照、渲染管线、调色板和配色方案；世界坐标 `world.ts`；地面、山、取景、人物、总监操控、共享素材、植物、工具）。
   做法见 `.claude/skills/pixel-scene` 和 `docs/lab/2026-11-07-3d-pixel/`（`lessons.md`、`material-spec.md`、`boundary.md`）。
-- **地图和锚点**：Indian Wells / Palm Oasis 的布局（`packages/iso/src/site/indian-wells/layout.ts`）照抄进了 `apps/sandbox/src/clubmap2/layout.ts`，
+- **地图和锚点**：Indian Wells / Palm Oasis 的布局（`packages/iso/src/site/indian-wells/layout.ts`）照抄进了 `apps/sandbox/src/clubsite/world.ts`（原 `clubmap2/layout.ts`），
   各个 club* 场景都用这一套世界坐标。模拟只按名字引用位置（锚点）这条没变。
 - **浮空岛**（ADR 0005）：不再是岛，地面铺出画面，地图边上是低成本的山（`clubsite/ground.ts`、`clubsite/mountains.ts`、`docs/lab/2026-11-07-3d-pixel/boundary.md`）。
 - **人物和演出**：像素精灵人物换成了骨骼 Q 版人（`clubsite/people/`），打球、教学、维护这些演出写在各场景的 `life.ts` 里；

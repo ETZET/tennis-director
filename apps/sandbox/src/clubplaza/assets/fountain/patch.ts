@@ -1,4 +1,4 @@
-// 给色阶材质（clubdesk/toon.ts 的 MeshToonMaterial）接一段自己的着色：在 toon 算完"本档元素色"那一行后面插代码。
+// 给色阶材质（clubsite/render/toon.ts 的 MeshToonMaterial）接一段自己的着色：在 toon 算完"本档元素色"那一行后面插代码。
 // 插进去的代码能用 toon 里现成的东西：band（0 暗 / 1 中 / 2 亮，改它会影响后面的太阳色）、sh（投影）、col、base、
 // vElemP（世界位置）、vElemL（本地位置）、vElemUv、vElemA、eScr / eh / evn / eTone / eToneOf、uSeamC / uHiC / uElX、uTexel、eRpm、uTime。
 // 材质必须带 elem（随便一个 kind，用它的 uTone 那套颜色），而且不能和别处共用：elem.seed 给一个这里专用的数，缓存就是独占的。

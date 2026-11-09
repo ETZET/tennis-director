@@ -14,7 +14,7 @@
 //   update(dt)                       翻牌动画（场景的 collectUpdaters 已经在调）
 // 画廊：?asset=stadium-scoreboard（`&score=6-4,3-2&pts=30-15&srv=1` 换比分）。
 import * as THREE from 'three';
-import type { AssetCtx } from '../world';
+import type { AssetCtx } from '../ctx';
 import { Bag, DU, DV, FACE_LIT, FACE_MID, glyphGeo, LED } from './court/kit';
 
 /** 牌面（和 layout.ts SCOREBOARD 一致）：宽、高、厚、底高 */

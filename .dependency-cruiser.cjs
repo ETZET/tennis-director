@@ -30,6 +30,23 @@ module.exports = {
       to: { path: 'node_modules/(three|@types/three)/' },
     },
     {
+      name: 'club-not-from-experiments',
+      comment:
+        '俱乐部场景（src/club*/）和它们共用的 src/clubsite/ 不引用早期实验 desert3d、desert3d-v2、pond3d：' +
+        '要用那边的东西就搬进 clubsite（渲染核心在 clubsite/render）。实验可以反过来引用 clubsite。',
+      severity: 'error',
+      from: { path: '^apps/sandbox/src/club[^/]*/' },
+      to: { path: '^apps/sandbox/src/(desert3d[^/]*|pond3d)/' },
+    },
+    {
+      name: 'clubsite-not-from-scenes',
+      comment:
+        'clubsite 是各俱乐部场景共用的一层（渲染核心、世界坐标、人、素材），不引用任何一个场景（src/club*/ 里除了 clubsite 自己）。',
+      severity: 'error',
+      from: { path: '^apps/sandbox/src/clubsite/' },
+      to: { path: '^apps/sandbox/src/club(?!site/)[^/]*/' },
+    },
+    {
       name: 'content-only-via-sim',
       comment: '内容数据只由模拟核心读取。',
       severity: 'error',

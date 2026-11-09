@@ -4,7 +4,7 @@
 // 再从材质的 uniform 里取出来，排成一张 15 × 6 的调色板纹理（行 = 材质，列 = 暗/中/亮 × 本色/高一级/低一级 + 三档缝 + 三档亮边）。
 // 一片场 = 一个网格（2 个三角形）+ 一个材质；状态变了只重传小纹理（68 KB + 3 KB + 4 KB），不重建几何。
 import * as THREE from 'three';
-import type { AssetCtx } from '../../world';
+import type { AssetCtx } from '../../ctx';
 import { MAX_MARKS, T_BRUSHED, T_DUSTY } from './state';
 
 /** 调色板纹理的行（shader 里同一组数） */

@@ -2,10 +2,10 @@
 // 原则：手摆的簇（崖脚的阴影带里、植物脚下、步道转弯处、铺面边上冒出来的杂草），不是满地均匀撒；每个东西 ≥ 2～3 纹素。
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { blob } from './assets/creosote/kit';
+import { blob } from '../clubsite/nature/creosote/kit';
+import { vnoise } from '../clubsite/render/noise';
+import { EL } from '../clubsite/render/palette-base';
 import { COURT, H, PATHS, SLOTS, STAIRS, type V2 } from './layout';
-import { vnoise } from './noise';
-import { EL } from './palette';
 import { smoothLine, type Terrain, topGeo } from './terrain';
 import type { AssetCtx } from './world';
 

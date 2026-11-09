@@ -1,5 +1,5 @@
-// clubpark 的构图（手摆）。世界坐标和 clubmap2/layout.ts 共用（米，y 朝上，北 = −z，东 = +x）：
-// 共用的常量（围墙、大门、车道、两片停车场、前台、到达小院）只从 ../clubmap2/layout import，这里不改、不复制数值；
+// clubpark 的构图（手摆）。世界坐标和 clubsite/world.ts 共用（米，y 朝上，北 = −z，东 = +x）：
+// 共用的常量（围墙、大门、车道、两片停车场、前台、到达小院）只从 ../clubsite/world import，这里不改、不复制数值；
 // 这里只放这个场景自己的东西（岗亭、遮阳棚、花坛、车位、步道、台地、站位、路线、云）。
 // 相机 yaw 0：+x 画面右，+z 朝镜头（画面下方）。屏幕竖直坐标 v = (y − (z − tz))·cos45°（米）；
 // 竖屏 390×844 在 px 1 下是 17.5 × 38 米的画面（地面纵深 ±26.9 米），横屏 1280×720 是 57.6 × 32.4 米。
@@ -23,7 +23,7 @@
 // 原则：主角 = 大门 + 岗亭 + 落客区（竖屏中间偏上，画面左边）；车道是从右边画外引到大门的一条横线，
 // 尽头是最亮的连锁砖落客区；北花坛的矮墙、遮阳棚的投影、两头的台地崖壁是暗带；南停车场近排基本空着（安静）。
 // 高的蒲葵只放在不会把投影甩到落客区的地方（墙边步道、南花坛东段、北花坛东段），落客区附近的花坛只种矮的。
-import { DESK, DRIVE, GATE, LOT_N, LOT_S } from '../clubmap2/layout';
+import { DESK, DRIVE, GATE, LOT_N, LOT_S } from '../clubsite/world';
 
 export type V2 = [number, number];
 export interface Rect {

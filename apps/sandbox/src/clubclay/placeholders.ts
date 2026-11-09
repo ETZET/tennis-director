@@ -4,8 +4,8 @@
 // 红土场面（#1 clay-court）在白模里由 terrain.ts 平涂（底色 + 状态区块 + 胶带线），水管（#7 的一部分）也在 terrain.ts 里画。
 import * as THREE from 'three';
 import { SPECS as DESK_SPECS, type Spec as DeskSpec } from '../clubdesk/placeholders';
+import type { AssetCtx } from './ctx';
 import { DIM } from './layout';
-import type { AssetCtx } from './world';
 
 /** 每个资产的大致外形（米）：w 宽（x）、d 深（z）、h 高；shape 决定占位的样子；n = 清单编号（标签里显示） */
 export interface Spec {

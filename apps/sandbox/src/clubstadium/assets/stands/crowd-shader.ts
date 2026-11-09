@@ -7,7 +7,7 @@
 // 每个顶点的 aRig = (胳膊的带符号权重 −1..1：0 = 肩、±1 = 手，符号 = 左右；大腿前端的权重 0..1，手 = −1)。
 // 偏移量都按 uCrQ（半个设计纹素 = 1× 下的一个纹素）取整：人一格一格地动，不在像素之间游。
 import * as THREE from 'three';
-import { packEdge } from '../../../clubdesk/toon';
+import { packEdge } from '../../../clubsite/render/toon';
 
 export const MAX_BLOCKS = 8;
 

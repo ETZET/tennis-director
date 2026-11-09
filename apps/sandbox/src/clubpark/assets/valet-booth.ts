@@ -16,8 +16,8 @@
 //   setLamp(on)   壁灯开/关（傍晚、夜里）
 //   setOpen(open) 窗口开/关（关 = 一块木百叶盖住窗口，钥匙看不见；下班）
 import * as THREE from 'three';
+import type { AssetCtx } from '../ctx';
 import { EL } from '../palette';
-import type { AssetCtx } from '../world';
 import { box, cyl, merge, polyShape, ringShape, shapeAt, WallFaces, xf } from './valet/kit';
 
 /** 主体（墙外皮） */

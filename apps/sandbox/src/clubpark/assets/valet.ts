@@ -15,10 +15,10 @@
 //   update(dt)：idle 呼吸 / 没定格的姿势循环播放。poses：用得上的姿势名（idle / walk / pickup / wave / usher / handoff）。
 //   默认：v0 拿着钥匙 idle；v1 空手、wave 循环（从 0.4 开始 → 暂停的截图里手是举着的）。
 import * as THREE from 'three';
-import { PERSON } from '../../desert3d-v2/assets/player';
-import { buildPerson } from '../../desert3d-v2/assets/player/rig';
+import { PERSON } from '../../clubsite/people/rig/player';
+import { buildPerson } from '../../clubsite/people/rig/rig';
+import type { AssetCtx } from '../ctx';
 import type { Pal } from '../palette';
-import type { AssetCtx } from '../world';
 import { findBones } from './staff/bones';
 import { applyStaffPose, STAFF_PERIOD, STAFF_POSES, type StaffPose } from './staff/poses';
 import { addCoat, addTopHat, addVest, glove, makeKeys } from './staff/uniform';

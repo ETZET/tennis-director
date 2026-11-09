@@ -14,7 +14,7 @@
 //   nearest(x, z, r = ∞) → 下标 | −1   离 (x, z) 最近的那个（捡球器用）
 // 别的资产要用同一个球（发球机的球斗）：import { ballKit, BALL_R }。
 import * as THREE from 'three';
-import type { Mats } from '../../clubfront/toon';
+import type { Mats } from '../render/toon';
 import type { NetCtx } from './nets/kit';
 
 /** 网球的三档 [亮, 中, 暗]（本地色，建议核心代理提成调色板的 `tennisBall`）：L 200 / 157 / 109 */

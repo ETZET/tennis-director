@@ -8,15 +8,16 @@
 // 渲染核心（pipeline / toon / colors / noise）只读 import clubdesk 的那份：两个场景同一套着色。
 // stage 3（演出 + 玩法）：默认 = 玩法模式（clubsite/play：摇杆 / 点地面 / WASD，总监的活在 play.ts）+ 园区日常（life.ts）；
 //   ?play=0 = 原来的看图模式（静止，截图、画廊不变）；?play=0&life=1 = 看日常，总监自己做一遍活（autopilot）；?life=0 = 玩法但没有日常。
-import '../clubdesk/colors';
+import '../clubsite/render/colors';
 import * as THREE from 'three';
-import { rngFactory } from '../clubdesk/noise';
-import { PixelPipeline } from '../clubdesk/pipeline';
-import { CLOUD_N, createMats, type Mats, type ToonOpts } from '../clubdesk/toon';
-import { SCHEMES, schemeById, schemeMats, schemeOpts } from '../clubfront/palettes';
-import { mountPaletteSwitcher } from '../clubfront/palettes/switcher';
-import { topGeo, wallGeo } from '../clubfront/terrain';
 import { playEnabled } from '../clubsite/play';
+import { topGeo, wallGeo } from '../clubsite/render/geo';
+import { rngFactory } from '../clubsite/render/noise';
+import { SCHEMES, schemeById, schemeMats, schemeOpts } from '../clubsite/render/palettes';
+import { mountPaletteSwitcher } from '../clubsite/render/palettes/switcher';
+import { PixelPipeline } from '../clubsite/render/pipeline';
+import { CLOUD_N, createMats, type ToonOpts } from '../clubsite/render/toon';
+import type { AssetBuild, AssetCtx, SharedUniforms } from './ctx';
 import { AREA_LABELS, CLOUD_VEL, CLOUDS, MPT, SLOTS, type Slot, SPOTS, SUN, TARGET } from './layout';
 import { type Bubble, createLife, type Life } from './life';
 import { buildNav, SPOT_NAMES } from './nav';
@@ -25,7 +26,6 @@ import { NEW_SPECS, placeholder, SPECS } from './placeholders';
 import { type PicklePlay, setupPicklePlay } from './play';
 import { REUSED } from './reuse';
 import { buildTerrain } from './terrain';
-import type { AssetBuild, AssetCtx, SharedUniforms } from './world';
 
 const params = new URLSearchParams(location.search);
 const num = (k: string, d: number) => (params.has(k) ? Number(params.get(k)) : d);
@@ -125,7 +125,7 @@ setSun(num('sunel', SUN.el), num('sunaz', SUN.az));
 
 const mats = createMats(uniforms, () => pipe.rig.metersPerTexel);
 /**
- * 这个场景新加的材质不在 clubfront/palettes 的 GROUP 表里（那个文件不归这里改）：借同一家的现成名字过方案的分组调色
+ * 这个场景新加的材质不在 clubsite/render/palettes 的 GROUP 表里（那个文件不归这里改）：借同一家的现成名字过方案的分组调色
  * （同 clubdesk/terrain.ts 的 parkCtx 做法）。厨房跟场面一组（court：午后亮档只染 10%，蓝不发灰；只吃全局调色时成了灰石板色），
  * 球拍跟 club 组（珊瑚不被染成土橙，暗档留酒紫）。以后 GROUP 表加了这两行，这里就可以删。
  */
@@ -145,8 +145,7 @@ function palOpts(key: keyof Pal, extra?: ToonOpts): ToonOpts {
   return scheme ? (schemeOpts(scheme, (GRADE_AS[key] ?? key) as any, o as any) as ToonOpts) : o;
 }
 const ctxBase = {
-  // biome-ignore lint/suspicious/noExplicitAny: clubfront/toon 和这里的 toon 是同一份代码的两份拷贝，类型结构相同
-  mats: scheme ? (schemeMats(scheme, mats as any) as unknown as Mats) : mats,
+  mats: scheme ? schemeMats(scheme, mats) : mats,
   pal: PAL,
   mat(key: keyof Pal, extra?: ToonOpts) {
     return mats.toon(0xffffff, palOpts(key, extra));

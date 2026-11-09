@@ -1,5 +1,5 @@
 // clubpickle 的构图：前台西边的匹克球围场（两片场 + 中间一条场边生活带）。手摆，不是程序撒点。
-// 世界坐标和 clubmap2/layout.ts 共用（米，y 朝上，北 = −z，东 = +x）：PICKLE、COURTS（pickle_1 / pickle_2）、PATHS、LAWN 从那边 import，只读。
+// 世界坐标和 clubsite/world.ts 共用（米，y 朝上，北 = −z，东 = +x）：PICKLE、COURTS（pickle_1 / pickle_2）、PATHS、LAWN 从那边 import，只读。
 // 和 clubdesk 重叠的部分（围网、步道、广场挡土墙、下沉草坪、前台、门、植物）原样用 clubdesk 的数据（只读 import 它的 layout），
 // 两个场景画的是同一块地。这里只放这个场景自己的东西（取景、场边那一排、站位、路线、资产位置）。
 // 相机 yaw 0（看向北）：+x 画面右，+z 朝镜头（画面下方）。屏幕竖直坐标 v = (y − (z − tz))·cos45°（米）。
@@ -26,7 +26,7 @@
 // 视线：左边南北步道 → 西门 → 拍架（排队）→ 场边一排往右 → 总监 → 记分牌 → 水站；2 号场的球在网上来回。
 
 import { CLOUD_VEL, CLOUDS, SLOTS as DESK_SLOTS, type Slot as DeskSlot } from '../clubdesk/layout';
-import { COURTS, type Court, LAWN, PATHS, PICKLE, type Rect, type V2 } from '../clubmap2/layout';
+import { COURTS, type Court, LAWN, PATHS, PICKLE, type Rect, type V2 } from '../clubsite/world';
 
 export type { Court, Rect, V2 };
 export { CLOUD_VEL, CLOUDS, LAWN, PATHS, PICKLE };
@@ -68,7 +68,7 @@ export const STRIP: Rect = {
   z0: COURT1.z + PK.W / 2 + PK.padZ,
   z1: COURT2.z - PK.W / 2 - PK.padZ,
 };
-/** 西门（和地图的 PICKLE_DOORS 一致：clubmap2/layout.ts，各场景的 terrain.ts 都按它拉围网） */
+/** 西门（和地图的 PICKLE_DOORS 一致：clubsite/world.ts，各场景的 terrain.ts 都按它拉围网） */
 export const WEST_DOOR = { x: PICKLE.x0, z0: 4.5, z1: 7.5 } as const;
 
 /**

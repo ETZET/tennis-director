@@ -1,8 +1,8 @@
 // 占位：新资产还没画时，每个位置放一个冷灰的体块（明显是占位），大小 = ASSETS.md 里的规格。
 // 复用的 desert3d-v2 资产（植物、人、长椅、遮阳帆）不用占位，直接是真的（reuse.ts）。
 import * as THREE from 'three';
-import { SPECS as DESERT_SPECS, type Spec as DesertSpec } from '../desert3d-v2/placeholders';
-import type { AssetCtx } from './world';
+import { SPECS as DESERT_SPECS, type Spec as DesertSpec } from '../clubsite/assets/specs';
+import type { AssetCtx } from '../clubsite/render/ctx';
 
 /** 每个资产的大致外形（米）：w 宽（x）、d 深（z）、h 高；shape 决定占位的样子 */
 export interface Spec {

@@ -2,9 +2,9 @@
 // 复用的资产（植物、人、长椅、遮阳帆、工具架）不用占位，直接是真的（reuse.ts）。
 // 本地原点 = 落地点（y 0 = 地面），+z 朝镜头（南），+x 朝东；尺寸米。
 import * as THREE from 'three';
-import { SPECS as DESERT_SPECS, type Spec as DesertSpec } from '../desert3d-v2/placeholders';
+import { SPECS as DESERT_SPECS, type Spec as DesertSpec } from '../clubsite/assets/specs';
+import type { AssetCtx } from './ctx';
 import { CANOPY, COUNTER, GATE_SPEC } from './layout';
-import type { AssetCtx } from './world';
 
 /** 每个资产的大致外形（米）：w 宽（x）、d 深（z）、h 高；shape 决定占位的样子；n = 清单编号（标签里显示） */
 export interface Spec {

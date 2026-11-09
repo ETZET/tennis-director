@@ -4,10 +4,11 @@
 // - 厨房（非截击区）平涂一块深一级的钴蓝（palette.ts 的 kitchen），网两边两条深色带 = 匹克球场的记号；
 // - 匹克球的网不在地形里建了（clubdesk 是一个灰盒），换成 SLOTS 里的 pickle-net 资产（#1，现在是占位）；
 // - ?sfh=<米>：南围网（朝镜头那段）的高度，默认 2.2（同 clubdesk）。试矮围网（1.1）露出 2 号场的南边线，见 clubpickle.md「要商量的」。
-// 几何工具从 clubfront/terrain.ts、clubmap/build.ts import（只读）；地图常量从 clubmap2/layout.ts import（只读）。
+// 几何工具从 clubsite/render/geo.ts import；世界坐标从 clubsite/world.ts import（只读）。
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { buildFences, type FenceRun } from '../clubdesk/assets/fence-screen';
+import type { AssetCtx as DeskCtx } from '../clubdesk/ctx';
 import {
   CLIP,
   FORECOURT,
@@ -24,10 +25,13 @@ import {
   type V2,
   WALL,
 } from '../clubdesk/layout';
-import type { ToonOpts } from '../clubdesk/toon';
-import type { AssetCtx as DeskCtx } from '../clubdesk/world';
-import { insidePoly, smoothLine, topGeo, wallGeo } from '../clubfront/terrain';
-import { box, quad, ring } from '../clubmap/build';
+import type { AssetCtx as ParkCtx } from '../clubpark/ctx';
+import { PAL as PARK_PAL } from '../clubpark/palette';
+import { approachAt, buildApproach } from '../clubpark/terrain';
+import { groundGeo } from '../clubsite/ground';
+import { buildMountains } from '../clubsite/mountains';
+import { box, insidePoly, quad, ring, smoothLine, topGeo, wallGeo } from '../clubsite/render/geo';
+import type { ToonOpts } from '../clubsite/render/toon';
 import {
   COURT_FENCES,
   COURTS,
@@ -40,15 +44,10 @@ import {
   PATHS,
   PICKLE_DOORS,
   PICKLE_FENCE_H,
-} from '../clubmap2/layout';
-import { PAL as PARK_PAL } from '../clubpark/palette';
-import { approachAt, buildApproach } from '../clubpark/terrain';
-import type { AssetCtx as ParkCtx } from '../clubpark/world';
-import { groundGeo } from '../clubsite/ground';
-import { buildMountains } from '../clubsite/mountains';
+} from '../clubsite/world';
+import type { AssetCtx } from './ctx';
 import { PK } from './layout';
 import { EL, type Pal } from './palette';
-import type { AssetCtx } from './world';
 
 type Key = keyof Pal;
 

@@ -17,8 +17,8 @@
 import * as THREE from 'three';
 import { findBones } from './assets/staff/bones';
 import { HANDOFF_AT } from './assets/staff/poses';
+import type { AssetCtx } from './ctx';
 import { AISLE_Z, CAR_EDGE_X, ENTRY, GATE_TIMING, LOOP, ROWS, SPOTS, stallCenter, type V2 } from './layout';
-import type { AssetCtx } from './world';
 
 type Co = Generator<void, void, number>;
 const P = Math.PI;

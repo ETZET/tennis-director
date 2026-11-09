@@ -1,5 +1,5 @@
 // 地图边的山（棕榈泉 / 科切拉谷：圣哈辛托、圣罗莎那样光秃、一层层的岩山）—— clubmap2、clubpark、clubdesk 共用，世界坐标同
-// clubmap2/layout.ts（米，y 朝上，北 = −z，东 = +x）。
+// clubsite/world.ts（米，y 朝上，北 = −z，东 = +x）。
 //
 // 便宜、画面简单：三道低多边形山梁，一道一个网格、一个材质，每道沿地图边（DESERT）绕一圈；再加一圈只写深度的"天幕"。
 // 截面只有 5 个点（内山脚、内肩、山脊、外肩、外山脚），沿边每 8～14 米取一个截面，每个点按种子抖一点 → 一个个平直的岩面，
@@ -20,8 +20,8 @@
 // 地理（大致照实，第二轮）：西、北高（圣哈辛托在西北），南边矮一点（圣罗莎），东南是科切拉谷敞开的口子；
 // 东边正对车道是一个山口 —— 第二道山梁在那里断开成两座山，最外一道压成一个低鞍部，车道翻过去出地图（passRoadGeo）。
 import * as THREE from 'three';
-import { DESERT, ROAD_OUT } from '../clubmap2/layout';
 import { axes, PITCH, skylineV, VIEW_YAW } from './framing';
+import { DESERT, ROAD_OUT } from './world';
 
 export type V2 = [number, number];
 type Ramp = [number, number, number];

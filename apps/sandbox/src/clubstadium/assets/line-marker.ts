@@ -10,7 +10,7 @@
 //   roll(dt, speed)  轮子按地速转（米/秒）；画线车被推着走时每帧调
 //   wheels           两只大轮 + 小滚轮（转的那几个网格）
 import * as THREE from 'three';
-import type { AssetCtx } from '../world';
+import type { AssetCtx } from '../ctx';
 import { Bag, PROP, pipe, V } from './court/kit';
 
 const WHEEL = { r: 0.19, w: 0.12, x: 0.3, z: 0 };

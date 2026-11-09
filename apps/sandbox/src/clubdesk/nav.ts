@@ -1,9 +1,9 @@
 // 白模的调试层：站位（洋红小圆盘）、路线（每 0.9 米一个小点）、凉棚下总监的可见界线（HEAD_LINE_Z，一排小方点）。
 // 只在标签开着时画（?labels=0 的截图里没有）。玩法（stage 3）照 layout.ts 的 SPOTS / ROUTES / WALKABLE 做。
 import * as THREE from 'three';
-import { smoothLine } from '../clubfront/terrain';
+import { smoothLine } from '../clubsite/render/geo';
+import type { AssetCtx } from './ctx';
 import { CANOPY, HEAD_LINE_Z, ROUTES, SPOTS, type V2 } from './layout';
-import type { AssetCtx } from './world';
 
 /** 给标签用的站位中文名（没列的不贴字） */
 export const SPOT_NAMES: Partial<Record<keyof typeof SPOTS, string>> = {

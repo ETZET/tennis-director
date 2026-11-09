@@ -5,8 +5,8 @@
 // 材质规范 v2：外壳上是 `blades` 竖向的枯枝划（亮档里是茶褐的枝、中档里是浅草色的枝、暗档里是浅紫的枝），
 // 斑块疏密；`space: 'local'` 跟着球走（滚的时候图案不在球上"游"，跟着球心平移）。团与团之间的缝露出暗的枝芯 = 空隙。
 import * as THREE from 'three';
+import { Bucket, blob, tones } from '../../clubsite/nature/creosote/kit';
 import type { AssetCtx } from '../world';
-import { Bucket, blob, tones } from './creosote/kit';
 
 /** 干草（手挑）：[亮, 中, 暗] 各 [本色, 高一级, 低一级]；亮边色 = 枝划 */
 const SHELL = tones(

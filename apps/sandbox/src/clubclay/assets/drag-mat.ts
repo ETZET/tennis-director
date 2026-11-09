@@ -15,7 +15,7 @@
 //   trailEdge(): 垫子后沿的两端（本地，'drag' 状态）—— 走过的这条线段 dust → brushed（court 的 drag()）、扬土 fx 从这里出
 import * as THREE from 'three';
 import { type Grip, Parts, perpUp, type V3 } from '../../clubsite/tools/kit';
-import type { AssetCtx } from '../world';
+import type { AssetCtx } from '../ctx';
 
 type K = 'woodWeathered' | 'ironwork' | 'straw' | 'clayDust';
 

@@ -5,8 +5,8 @@
 // 白模里球员先拿网球拍、观众先站着，清单见 clubpickle.md #7、#8。
 import * as THREE from 'three';
 import { SPECS as DESK_SPECS, type Spec as DeskSpec } from '../clubdesk/placeholders';
+import type { AssetCtx } from './ctx';
 import { PK } from './layout';
-import type { AssetCtx } from './world';
 
 /** 每个资产的大致外形（米）：w 宽（x）、d 深（z）、h 高；shape 决定占位的样子；n = 清单编号（标签里显示） */
 export interface Spec {

@@ -18,7 +18,7 @@
 //   width: 0.9
 import * as THREE from 'three';
 import { type Grip, Parts, xfGrip } from '../../clubsite/tools/kit';
-import type { AssetCtx } from '../world';
+import type { AssetCtx } from '../ctx';
 
 type K = 'counter' | 'ironwork' | 'timber';
 type State = 'held' | 'ground' | 'lean';

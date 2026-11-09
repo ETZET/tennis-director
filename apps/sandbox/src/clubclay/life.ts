@@ -11,8 +11,8 @@
 // 截图 / 调试钩子：window.__clay.life = { state, ball(), racket(i), debug() }
 import * as THREE from 'three';
 import { CLAP_HIT } from '../clubsite/people';
+import type { AssetCtx } from './ctx';
 import { DIM, NEAR, SPOTS } from './layout';
-import type { AssetCtx } from './world';
 
 type V3 = THREE.Vector3;
 const v = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);

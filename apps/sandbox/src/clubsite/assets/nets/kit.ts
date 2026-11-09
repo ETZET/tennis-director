@@ -3,7 +3,7 @@
 // 单位米，y 朝上，+z 朝镜头（南），+x 朝东。设计纹素 0.09 米：横向一格 0.09，竖直面上一行 ≈ 0.127 米（俯角 45°）。
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import type { Mats, ToonOpts } from '../../../clubfront/toon';
+import type { Mats, ToonOpts } from '../../render/toon';
 
 export type { ToonOpts };
 

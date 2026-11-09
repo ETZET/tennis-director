@@ -9,8 +9,8 @@
 // 本地原点 = 占地中心，+z 朝南（镜头），单位米。
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import type { ToonOpts } from '../../clubfront/toon';
-import type { AssetCtx } from '../world';
+import type { ToonOpts } from '../../clubsite/render/toon';
+import type { AssetCtx } from '../ctx';
 import { fabricGrid, type Surface } from './shade/fabric';
 
 const W = 10.8;

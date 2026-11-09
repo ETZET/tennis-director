@@ -1,17 +1,17 @@
 // clubclay 的调色板 = clubdesk 的整张表（= clubmap2 + clubfront + desert3d-v2 + 前台的 granite / slate / brass，只读 import）
 // + 这个场景新加的红土几种状态和胶带线（CLAY）。红土是这一片的主角色、饱和度的主力。
-// 规则同 clubfront/palette.ts：每档 [本色, 高一级, 低一级]，高/低一级差 6～12，缝 −15…−38、亮边 +15…+33；暗档换冷色相（梅紫），不是亮档乘系数。
+// 规则同 clubsite/render/palette.ts：每档 [本色, 高一级, 低一级]，高/低一级差 6～12，缝 −15…−38、亮边 +15…+33；暗档换冷色相（梅紫），不是亮档乘系数。
 // L = 0.2126R + 0.7152G + 0.0722B（sRGB 原值）。
 //
 // 午后配色（golden）的全局调色会：亮档往 62°（OKLCH）染 25%、L +9；中档往 40° 染 35%、彩度 ×0.9；暗档往 32° 染 70%、彩度夹到 ≤ 0.06（玫瑰褐）。
-// 这几种名字不在 clubfront/palettes 的 GROUP 表里 → 只吃全局调色。所以底色故意挑得更红（OKLCH 色相 ~36°）、彩度更高（C 0.166）：
+// 这几种名字不在 clubsite/render/palettes 的 GROUP 表里 → 只吃全局调色。所以底色故意挑得更红（OKLCH 色相 ~36°）、彩度更高（C 0.166）：
 // 红土调完落在 #ed763f（色相 ~44°，HSV 饱和 0.73，L 139）—— 比陶砖铺地（#faae7c，L 187）暗、比沙（#edbd83，色相 71°）红得多，
 // 和金色的沙分得开，不撞色；L 139 落在亮度直方图第 5 档，和暗带（围网、投影 L 73～100）分成两个峰（2026-11-08 提亮，见下）。
-// （node --experimental-strip-types 跑 clubfront/palettes/grade.ts 的 gradeHex 算的，见 clubclay.md「调色板」）
+// （node --experimental-strip-types 跑 clubsite/render/palettes/grade.ts 的 gradeHex 算的，见 clubclay.md「调色板」）
 
 import { EL as DESK_EL, PAL as DESK_PAL, SKY as DESK_SKY } from '../clubdesk/palette';
-import type { Swatch } from '../clubfront/palette';
-import type { Elem, Tones } from '../clubfront/toon';
+import type { Swatch } from '../clubsite/render/palette';
+import type { Elem, Tones } from '../clubsite/render/toon';
 
 type Ramp = [number, number, number];
 const s = (ramp: Ramp, edge: number, convex: number, tones?: Tones): Swatch => ({ ramp, edge, convex, tones });

@@ -5,20 +5,20 @@
 // URL：px（每纹素 CSS 像素，默认 1；画廊 2）、zoom（米/纹素，默认 MPT×px/2）、tx/tz、yaw/pitch（度）、hour、wind、seed、warm、pause=1、
 //      labels=0（不显示标签）、ph=0（不放占位，只看地形和已画的资产）、edges=1（只看描边）、
 //      画廊：v（变体）、ref=0（不放 1.8 米的人形比例尺）、bg=sky|sand。
-import './colors';
+import '../clubsite/render/colors';
 import * as THREE from 'three';
+import { rngFactory } from '../clubsite/render/noise';
+import { PAL, type Pal, SKY } from '../clubsite/render/palette-base';
+import { PixelPipeline } from '../clubsite/render/pipeline';
+import { CLOUD_N, createMats } from '../clubsite/render/toon';
 import { type Control, createControl } from './control';
 import { CLOUD_VEL, CLOUDS, createFx, type Fx } from './fx';
 import { buildGround } from './ground';
 import { createHud, type Hud } from './hud';
 import { H, MPT, SLOTS } from './layout';
 import { createLife, type Life } from './life';
-import { rngFactory } from './noise';
-import { PAL, type Pal, SKY } from './palette';
-import { PixelPipeline } from './pipeline';
 import { placeholder, SPECS } from './placeholders';
 import { buildTerrain, topGeo, wallGeo } from './terrain';
-import { CLOUD_N, createMats } from './toon';
 import type { AssetBuild, AssetCtx, SharedUniforms } from './world';
 
 const params = new URLSearchParams(location.search);

@@ -1,6 +1,6 @@
 // clubmap 的调色板 = clubfront 的整张表（= desert3d-v2 + 前台那批新材质）+ 微缩地图要的几样：红土、草地、按功能分色的屋顶、车。
 // 微缩地图是看"什么在哪"的，颜色按功能分得开就行：硬地青蓝 + 外场绿、红土陶红、草地两种绿的条纹、屋顶一种功能一个颜色。
-import { EL as CLUB_EL, PAL as CLUB_PAL, SKY as CLUB_SKY, type Swatch } from '../clubfront/palette';
+import { EL as CLUB_EL, PAL as CLUB_PAL, SKY as CLUB_SKY, type Swatch } from '../clubsite/render/palette';
 
 type Ramp = [number, number, number];
 const s = (ramp: Ramp, edge: number, convex: number): Swatch => ({ ramp, edge, convex });

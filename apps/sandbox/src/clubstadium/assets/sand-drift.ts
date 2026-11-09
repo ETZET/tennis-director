@@ -11,7 +11,7 @@
 //   regrow             阵风把沙积回来的速度（每秒，阵风 uGust = 1 时）；默认 0.004（远小于吹的 0.35）；0 = 不长
 //   update(dt)         按 uGust 慢慢积回来（场景的 collectUpdaters 已经在调）
 import * as THREE from 'three';
-import type { AssetCtx } from '../world';
+import type { AssetCtx } from '../ctx';
 
 const SEGS = 24;
 const RINGS = 5;

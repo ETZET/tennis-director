@@ -2,7 +2,7 @@
 // 牌面一个奶油色的小车图标（侧面：车身、车顶、两个轮子的缺口），不写字。
 // 牌面朝镜头：lightUp + 低 bands 落中档，图标同样落中档（奶油金）。
 import * as THREE from 'three';
-import type { AssetCtx } from '../world';
+import type { AssetCtx } from '../ctx';
 import { box, cyl, merge, polyShape, shapeAt, xf } from './valet/kit';
 
 /** 牌子：宽、高、底边高、后仰（弧度） */

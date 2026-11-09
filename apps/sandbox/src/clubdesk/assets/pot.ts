@@ -4,7 +4,7 @@
 // 罐身用球面法线（球心在鼓肚）：亮顶、中腰、暗底三档分开，加陶土斑；口沿和箍用真法线，上沿出一条凸边亮线。
 // 罐子本身不投影（太阳在后面，自投影会把朝镜头的半边全压暗），接收别的影子（门柱、蒲葵）；地上的影子由背后一张看不见的剪影卡投。
 import type * as THREE from 'three';
-import type { AssetCtx } from '../world';
+import type { AssetCtx } from '../ctx';
 import { cyl, DT, lathe, noCast, Parts, shadowCard } from './props/kit';
 
 const SEG = 14;

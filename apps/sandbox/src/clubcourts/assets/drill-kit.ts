@@ -10,7 +10,7 @@
 // userData.cones() → [x, z][]（本地；目标锥的位置，喂球的落点）、userData.spots() → [x, z][]（地标点）。
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import type { AssetCtx } from '../world';
+import type { AssetCtx } from '../ctx';
 
 type V2 = [number, number];
 

@@ -7,8 +7,8 @@
 // - 落点的涟漪、帘脚的落水圈、水面闪光在 palm-fountain 的水面 shader 里（同一份 flow / leaves，fountain/link.ts）。
 // userData：setFlow(0..1)（帘子变稀、水珠变少、弧变低；0 = 关水）、setLeaves(n)、update(dt, t)（摆水珠）。
 import * as THREE from 'three';
-import type { ToonOpts } from '../../clubdesk/toon';
-import type { AssetCtx } from '../world';
+import type { ToonOpts } from '../../clubsite/render/toon';
+import type { AssetCtx } from '../ctx';
 import { cylWall } from './fountain/geo';
 import { CURTAIN, CURTAIN_DECL, DROP } from './fountain/glsl';
 import { fountainLink, linkApi } from './fountain/link';

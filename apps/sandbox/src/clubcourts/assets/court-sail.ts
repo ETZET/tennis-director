@@ -12,7 +12,7 @@
 //   corners     帆面四角（后西、后东、前西、前东，本地坐标）
 import * as THREE from 'three';
 import { Parts, type V3 } from '../../clubsite/tools/kit';
-import type { AssetCtx } from '../world';
+import type { AssetCtx } from '../ctx';
 import { type SailSpec, sailSurface } from './comfort/surface';
 
 /** 杆的位置：x ±POST_X，后 z −POST_Z、前 z +POST_Z */

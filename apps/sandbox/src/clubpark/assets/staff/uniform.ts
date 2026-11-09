@@ -2,7 +2,7 @@
 // 尺寸和 rig 一样按 0.09 米设计纹素：看得见的部分 ≥ 2～3 纹素；不加白领口、白袖口（小人身上细碎的对比色 = 噪点）。
 // 部件的法线照 rig 的做法从部件中心往外（blobNormals）→ 每块都是亮顶、中腰、暗底。
 import * as THREE from 'three';
-import { blobNormals } from '../../../clubfront/toon';
+import { blobNormals } from '../../../clubsite/render/toon';
 import type { Bones } from './bones';
 
 type Mat = THREE.Material;

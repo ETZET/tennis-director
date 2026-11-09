@@ -1,5 +1,5 @@
 // clubfood 的构图：会所旁边的餐车院子（餐厅小景）。手摆，不是程序撒点。
-// 世界坐标和 clubmap2/layout.ts 共用（米，y 朝上，北 = −z，东 = +x）；CLUBHOUSE、TERRACE、GROUNDS、COURTS、PATHS、POOL… 从那边 import（只读）。
+// 世界坐标和 clubsite/world.ts 共用（米，y 朝上，北 = −z，东 = +x）；CLUBHOUSE、TERRACE、GROUNDS、COURTS、PATHS、POOL… 从那边 import（只读）。
 // 和东边的 clubstadium 接得上：它的球员通道（WALKOUT、PLAYERS_GATE）、西头端梯那条观众路（x −20.6）只读 import / 让开。
 // 这里只放这个场景自己的东西（院子范围、一排餐车、凉棚、桌子、站位、路线、资产位置、云），也写在同一套世界坐标里。
 // 相机 yaw 0（看向北）：+x 画面右，+z 朝镜头（画面下方）。屏幕竖直坐标 v = (y − (z − tz))·cos45°（米），等效地面 z_eq = z − y。
@@ -27,7 +27,7 @@
 // 太阳在北偏东 8°（仰角 44°）：所有朝镜头（朝南）的车身侧面都在暗档（资产用 lightUp + 低 bands 留住颜色，clubdesk 柜台的做法）；
 // 车顶、近乎水平的遮阳篷、伞面、凉棚顶是亮的 → **主色放在朝天的面上**。遮阳篷挂在车顶线、伸出 ≤ 0.8 米、近乎水平：45° 俯视下才不挡窗口里的摊主。
 // 安静的地方：餐车和凉棚之间的那条碎花岗岩（排队的人站在这里，地面别再加东西）、球员通道的石板、长廊、北墙外的沙漠。
-import { CLUBHOUSE, COURTS, GROUNDS, PATHS, POOL, POOL_DECK, type Rect, TERRACE, type V2 } from '../clubmap2/layout';
+import { CLUBHOUSE, COURTS, GROUNDS, PATHS, POOL, POOL_DECK, type Rect, TERRACE, type V2 } from '../clubsite/world';
 import { PLAYERS_GATE, WALKOUT } from '../clubstadium/layout';
 
 export type { Rect, V2 };

@@ -1,5 +1,8 @@
 # 美术
 
+> **2.5D 时期的说明，待按 3D 重写**（见 backlog）。画面 2026-11-08 起是 three.js 3D 像素（ADR 0027）：做法看 `.claude/skills/pixel-scene`、`docs/lab/2026-11-07-3d-pixel/`（`lessons.md`、`material-spec.md`），
+> 场景在 `apps/sandbox/src/club*/`，共用的渲染核心、调色板和配色方案在 `apps/sandbox/src/clubsite/render/`。下面说的 `packages/iso` 和 2.5D 样片都已归档到 `docs/archive/iso-2.5d/`。
+
 游戏的画风是 **2.5D 等距像素**（ADR 0019，已定案）：固定 2:1 等距视角，Q/E 转 90°，Canvas 2D 软件光栅，暖色沙漠、Kairosoft 式饱和度。
 实现在 `packages/iso`，接口契约见 [`iso-architecture.md`](../archive/iso-2.5d/docs/design/iso-architecture.md)（2.5D 已归档，ADR 0027）。
 
@@ -20,21 +23,21 @@
 ## 怎么看、怎么改
 
 - **人物**：帧名、尺寸、锚点、挂点、槽位、帽子和球拍的约定，以及怎么用 node 脚本画成联系表预览，都在
-  [`packages/iso/src/art/people/README.md`](../../packages/iso/src/art/people/README.md)。改完重点看 1× 档：轮廓清楚、朝向和动作看得出。
+  [`packages/iso/src/art/people/README.md`](../archive/iso-2.5d/packages/iso/src/art/people/README.md)。改完重点看 1× 档：轮廓清楚、朝向和动作看得出。
 - **在场景里看**：`pnpm dev` 打开 sandbox。`index.html` 是场景查看器（设施状态、昼夜、雨、风、磨损、旋转缩放，状态可以写进 URL，方便脚本化截图）；
   `activities.html` 是活动动画库（每个活动一座小岛，可以调天气、疲劳、教练、变量）。
 - 改了画面要更新截图，并在提交里说明原因（CLAUDE.md）。
 
-## 画风样片（style-demos）
+## 画风样片（style-demos，已归档）
 
-定案前的样片，**不进游戏构建**，留作参考。独立的 HTML 文件，直接用浏览器打开，不用构建。
+定案前的样片，**不进游戏构建**，留作参考。2026-11-08 随 2.5D 画面一起归档到 [`docs/archive/iso-2.5d/docs/art/style-demos/`](../archive/iso-2.5d/docs/art/style-demos/)。独立的 HTML 文件，直接用浏览器打开，不用构建。
 
 | 目录 | 画风 | 状态 |
 | --- | --- | --- |
-| [isometric-2.5d/](style-demos/isometric-2.5d/) | 2.5D 等距像素：Palm Oasis 布局，三个复原阶段和昼夜，纯 Canvas 2D 软件光栅，无素材无库 | 已定案（ADR 0019），`packages/iso` 的光栅器照搬它 |
+| [isometric-2.5d/](../archive/iso-2.5d/docs/art/style-demos/isometric-2.5d/) | 2.5D 等距像素：Palm Oasis 布局，三个复原阶段和昼夜，纯 Canvas 2D 软件光栅，无素材无库 | 定案（ADR 0019），归档的 `packages/iso` 光栅器照搬它；ADR 0027 换成 3D 后归档 |
 
 操作：`1/2/3` 切荒废、修复中、全面复原，`N` 昼夜，`Q/E` 旋转，`L` 标签，拖动平移，滚轮或双指缩放。也可以用 URL 参数直接打开某个状态，例如 `index.html?lv=3&night=1&ang=45`。
 
 目录里有 `index.html`（样片本身）、`notes.md`（实现、优缺点、手机可读性、成本、风险）、`shots/`（桌面 1440×900 和手机 390×844 截图）。
 
-![2.5D 全面复原夜景](style-demos/isometric-2.5d/shots/lv3-night-desktop.png)
+![2.5D 全面复原夜景](../archive/iso-2.5d/docs/art/style-demos/isometric-2.5d/shots/lv3-night-desktop.png)

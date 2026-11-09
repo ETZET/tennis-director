@@ -7,12 +7,12 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { buildFences, type FenceRun } from '../clubdesk/assets/fence-screen';
 import { WALL } from '../clubdesk/layout';
-import type { ToonOpts } from '../clubdesk/toon';
-import { topGeo } from '../clubfront/terrain';
-import { box, quad } from '../clubmap/build';
-import { COURT_FENCES, COURTS, type Court, type FenceLine, fencePieces, GROUNDS } from '../clubmap2/layout';
 import { groundGeo } from '../clubsite/ground';
 import { buildMountains } from '../clubsite/mountains';
+import { box, quad, topGeo } from '../clubsite/render/geo';
+import type { ToonOpts } from '../clubsite/render/toon';
+import { COURT_FENCES, COURTS, type Court, type FenceLine, fencePieces, GROUNDS } from '../clubsite/world';
+import type { AssetCtx } from './ctx';
 import {
   ARCADE_YARD,
   CLIP,
@@ -31,7 +31,6 @@ import {
   WALKOUT,
 } from './layout';
 import { EL, type Pal } from './palette';
-import type { AssetCtx } from './world';
 
 type Key = keyof Pal;
 

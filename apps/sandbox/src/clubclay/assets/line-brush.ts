@@ -8,7 +8,7 @@
 //   headCenter(): 刷头底边中点（本地坐标，当前状态）—— stage 3 扫线：这个点走过的线段 tapeDust → tape
 import * as THREE from 'three';
 import { type Grip, Parts, xfGrip } from '../../clubsite/tools/kit';
-import type { AssetCtx } from '../world';
+import type { AssetCtx } from '../ctx';
 
 type K = 'counter' | 'dryGrass' | 'woodWeathered' | 'ironwork';
 

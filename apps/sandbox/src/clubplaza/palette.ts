@@ -2,13 +2,13 @@
 // 喷泉广场的颜色基本都是现成的：石板（广场）、陶砖（喷泉一圈的铺装、压顶）、土坯（挡土墙）、蒲葵、长椅、人。
 // 新加的只有主角的冷色：池水（比 desert3d-v2 的小池更饱和）和池壁上一圈塔拉韦拉蓝釉砖。
 // 午后配色（golden）的全局调色会把暗档往玫瑰褐拉、彩度压到 0.06 —— 池水在影子里会变成褐水。所以这两种在 main.ts 里**借 club 组调色**
-// （PROXY：fountainWater → jug、talavera → signBoard；club 组暗档往 285° 蓝紫走），不改 clubfront/palettes。建议核心代理把它们归进 GROUP。
+// （PROXY：fountainWater → jug、talavera → signBoard；club 组暗档往 285° 蓝紫走），不改 clubsite/render/palettes。建议核心代理把它们归进 GROUP。
 // 规则同 clubdesk/palette.ts：每档 [本色, 高一级, 低一级]，高/低一级差 6～12，缝 −15…−38、亮边 +15…+33；暗档换冷色相。
 // L = 0.2126R + 0.7152G + 0.0722B。
 
 import { EL as DESK_EL, PAL as DESK_PAL, SKY as DESK_SKY } from '../clubdesk/palette';
-import type { Tones } from '../clubdesk/toon';
-import type { Swatch } from '../clubfront/palette';
+import type { Swatch } from '../clubsite/render/palette';
+import type { Tones } from '../clubsite/render/toon';
 
 type Ramp = [number, number, number];
 const s = (ramp: Ramp, edge: number, convex: number, tones?: Tones): Swatch => ({ ramp, edge, convex, tones });

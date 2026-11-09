@@ -7,15 +7,16 @@
 //      pal=<id>（配色，不带 = 6 午后金光；右上角切换）；画廊：v（变体）、ref=0、ground=tile|sand、cy。
 // 演出（stage 3，life.ts）：默认 = 玩法模式（广场日常 + 总监交给玩家，play.ts）；?play=0 = 白模的静态画面（截图、画廊不变）；
 //      ?play=0&life=1 = 看戏模式（日常照跑，总监自己干活）；leaves=<倍数>（落叶速度）。玩法模式下标签默认关（labels=1 打开）。
-import '../clubdesk/colors';
+import '../clubsite/render/colors';
 import * as THREE from 'three';
-import { rngFactory } from '../clubdesk/noise';
-import { PixelPipeline } from '../clubdesk/pipeline';
-import { CLOUD_N, createMats, type Mats, type ToonOpts } from '../clubdesk/toon';
-import { SCHEMES, schemeById, schemeMats, schemeOpts } from '../clubfront/palettes';
-import { mountPaletteSwitcher } from '../clubfront/palettes/switcher';
-import { topGeo, wallGeo } from '../clubfront/terrain';
 import { type Hud, type Play, playEnabled } from '../clubsite/play';
+import { topGeo, wallGeo } from '../clubsite/render/geo';
+import { rngFactory } from '../clubsite/render/noise';
+import { SCHEMES, schemeById, schemeMats, schemeOpts } from '../clubsite/render/palettes';
+import { mountPaletteSwitcher } from '../clubsite/render/palettes/switcher';
+import { PixelPipeline } from '../clubsite/render/pipeline';
+import { CLOUD_N, createMats, type ToonOpts } from '../clubsite/render/toon';
+import type { AssetBuild, AssetCtx, SharedUniforms } from './ctx';
 import { AREA_LABELS, CLOUD_VEL, CLOUDS, MPT, SLOTS, type Slot, SPOTS, SUN, TARGET } from './layout';
 import { createLife, type PlazaLife } from './life';
 import { buildNav, SPOT_NAMES } from './nav';
@@ -24,7 +25,6 @@ import { NEW_SPECS, placeholder, SPECS } from './placeholders';
 import { mountPlazaPlay, registerPlazaJobs } from './play';
 import { REUSED } from './reuse';
 import { buildTerrain } from './terrain';
-import type { AssetBuild, AssetCtx, SharedUniforms } from './world';
 
 const params = new URLSearchParams(location.search);
 const num = (k: string, d: number) => (params.has(k) ? Number(params.get(k)) : d);
@@ -153,7 +153,7 @@ const SUN_SKIP: Partial<Record<keyof Pal, number>> = { fountainWater: 0.75 };
 function unSun(o: ToonOpts, sunHex: number, k: number): ToonOpts {
   const sc = new THREE.Color(sunHex);
   const m = Math.max(sc.r, sc.g, sc.b, 1e-3);
-  // 颜色管理是关的（clubdesk/colors.ts）：Color(hex) 和 shader 里的太阳色都是 sRGB 原值，逐通道除就是精确的
+  // 颜色管理是关的（clubsite/render/colors.ts）：Color(hex) 和 shader 里的太阳色都是 sRGB 原值，逐通道除就是精确的
   const f = [sc.r, sc.g, sc.b].map((c) => 1 / (1 + (c / m - 1) * 0.35 * k));
   const fix = (c: THREE.ColorRepresentation) => {
     const x = new THREE.Color(c);
@@ -174,8 +174,7 @@ function unSun(o: ToonOpts, sunHex: number, k: number): ToonOpts {
   return out;
 }
 const ctxBase = {
-  // biome-ignore lint/suspicious/noExplicitAny: clubfront/toon 和这里的 toon 是同一份代码的两份拷贝，类型结构相同
-  mats: scheme ? (schemeMats(scheme, mats as any) as unknown as Mats) : mats,
+  mats: scheme ? schemeMats(scheme, mats) : mats,
   pal: PAL,
   mat(key: keyof Pal, extra?: ToonOpts) {
     return mats.toon(0xffffff, palOpts(key, extra));

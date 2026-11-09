@@ -6,7 +6,7 @@
 //   anchors.handle  推车的人站的位置（把手后面，北边）
 //   setBags(n)      车上放几个包（0..4：先红、蓝、白躺包，第 4 个是立着的球包）；卸包、装包的演出用
 import * as THREE from 'three';
-import type { AssetCtx } from '../world';
+import type { AssetCtx } from '../ctx';
 import { box, cyl, merge, xf } from './valet/kit';
 
 /** 底板：宽（x）、长（z）、板面高 */
