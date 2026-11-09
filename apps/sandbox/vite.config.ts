@@ -29,6 +29,11 @@ export default defineConfig({
         clubstadium: resolve(import.meta.dirname, 'clubstadium.html'),
         clubcourts: resolve(import.meta.dirname, 'clubcourts.html'),
         clubfood: resolve(import.meta.dirname, 'clubfood.html'),
+        clubhouse: resolve(import.meta.dirname, 'clubhouse.html'),
+        clubpool: resolve(import.meta.dirname, 'clubpool.html'),
+        // 所有做好的场景连成一个大世界（按区域加载，src/clubwalk）
+        clubwalk: resolve(import.meta.dirname, 'clubwalk.html'),
+        clubgolf: resolve(import.meta.dirname, 'clubgolf.html'),
       },
     },
   },

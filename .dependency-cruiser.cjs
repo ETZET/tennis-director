@@ -47,6 +47,14 @@ module.exports = {
       to: { path: '^apps/sandbox/src/club(?!site/)[^/]*/' },
     },
     {
+      name: 'clubwalk-is-top',
+      comment:
+        'src/clubwalk（所有场景连成的大世界）是唯一 import 各场景模块（scene.ts）拼在一起的地方；反过来谁也不 import clubwalk。',
+      severity: 'error',
+      from: { pathNot: '^apps/sandbox/src/clubwalk/' },
+      to: { path: '^apps/sandbox/src/clubwalk/' },
+    },
+    {
       name: 'content-only-via-sim',
       comment: '内容数据只由模拟核心读取。',
       severity: 'error',

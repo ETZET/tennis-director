@@ -229,7 +229,7 @@ export interface ParkLife {
 
 export interface ParkLifeOpts {
   ctx: AssetCtx;
-  scene: THREE.Scene;
+  scene: THREE.Object3D;
   make(asset: string, variant: number): THREE.Object3D;
   groundAt(x: number, z: number): number;
   /** main 已经建好的物件（岗亭、代客台、球包车、总监） */

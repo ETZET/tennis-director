@@ -524,3 +524,72 @@ export const CLOUDS: [number, number, number, number][] = [
   [wrapX(22), -2.0, 4.2, 1.5],
 ];
 export const CLOUD_VEL = 0.12;
+
+// ── stage 3 · 玩法（play.ts / life.ts 用）──────────────────────────────────
+/**
+ * 总监的导航范围（点地面寻路的网格）：西到球员通道外的小路，东到东看台，北到看台最高一级，南到长廊。
+ * 西边的会所露台、东边去喷泉广场的小路 = 别的场景（clubwalk 接起来以后再连）。
+ */
+export const NAV_BOUNDS: Rect = { x0: -27.6, x1: 24, z0: -37.4, z1: -4.4 };
+/**
+ * 地面上能走的（并集）：场地、西头（球员通道 + 工具角）、长廊、南看台和东看台之间的东南角。
+ * 看台的走道、端梯、最高一级的横走道在 STAND_RAMPS 里（坡道本身算能走）。
+ */
+export const PLAY_WALK: Rect[] = [
+  CELL,
+  { x0: -27.4, x1: CELL.x0, z0: CELL.z0 + 0.4, z1: -9.7 },
+  { x0: -27.4, x1: 24, z0: -9.7, z1: -4.4 },
+  { x0: CELL.x1, x1: 21.6, z0: CELL.z1, z1: -9.7 },
+];
+/**
+ * 看台上走的路（坡道：高度按 z 线性插值，覆盖地面高度）。北看台的广告板（0.9 高）挡住走道的下口，
+ * 所以上看台只有一条路：西头端梯（x −21.2…−20）→ 最高一级的横走道（z −36.75…−35.95，y 5.4）→ 四条走道往下（到第 0 级，y ≈ 1）。
+ * 走道的台阶当坡道走：第 k 级前沿 z = −30 − 1.2k、高 0.9(k + 1) → y(z) = 0.9 + 0.75 × (−30 − z)。
+ */
+export const STAND_TOP_Y = northTread(STANDS.north.n - 1).y;
+export const STAND_RAMPS = [
+  // 横走道（放在最前面：和端梯、走道重叠的地方以它为准）
+  {
+    x0: STANDS.north.x0 - 1.2,
+    x1: STANDS.north.x1,
+    z0: -36.75,
+    z1: -35.95,
+    from: STAND_TOP_Y,
+    to: STAND_TOP_Y,
+    axis: 'z' as const,
+  },
+  // 西头端梯：从场地北沿的西头（z −29.6，地面）往北上到横走道
+  {
+    x0: STANDS.north.x0 - 1.2,
+    x1: STANDS.north.x0,
+    z0: -35.95,
+    z1: -29.6,
+    from: STAND_TOP_Y,
+    to: 0,
+    axis: 'z' as const,
+  },
+  // 四条走道（下口到第 0 级前沿，被广告板挡住）
+  ...STANDS.aisles.map((c) => ({
+    x0: c - STANDS.aisleW / 2,
+    x1: c + STANDS.aisleW / 2,
+    z0: -35.95,
+    z1: STANDS.north.front - 0.1,
+    from: STAND_TOP_Y,
+    to: 0.9 + 0.75 * 0.1,
+    axis: 'z' as const,
+  })),
+];
+/** 看台上某点的高度（走道、端梯、横走道；不在上面 = null）：给 NPC 走路用（总监走路由 play 的导航算） */
+export function standY(x: number, z: number): number | null {
+  for (const r of STAND_RAMPS)
+    if (x >= r.x0 && x <= r.x1 && z >= r.z0 && z <= r.z1)
+      return r.from + (r.to - r.from) * ((z - r.z0) / (r.z1 - r.z0));
+  return null;
+}
+/**
+ * 比赛的地方（双打边线外、底线后 3 米）：比赛中总监不能进（导航挡住，换边的时候放开）。
+ * 场边那一条（南看台脚下 z > −14.3、底线后 |x| > 15）能走：西南的沙堆、两个北角的沙堆比赛中也够得着。
+ */
+export const MATCH_RECT: Rect = { x0: -15, x1: 15, z0: -29.35, z1: -14.3 };
+/** 玩法模式的取景范围（相机不出这个世界范围）：西到会所露台东沿，东到东看台背后，北边竖屏最多看到记分牌上面一点沙漠，南到青训场 */
+export const PLAY_VIEW: Rect = { x0: -36, x1: 30, z0: -54, z1: 10 };

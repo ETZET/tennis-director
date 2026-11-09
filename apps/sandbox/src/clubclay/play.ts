@@ -60,7 +60,7 @@ export function setupClayPlay(o: {
   far: FarClay;
   near: { step(x: number, z: number, dirX: number, dirZ: number, side?: number): void } | null;
   ctx: AssetCtx;
-  scene: THREE.Scene;
+  scene: THREE.Object3D;
 }): ClayPlay {
   const { play, objs, life, far, near, ctx, scene } = o;
   const D = play.director;

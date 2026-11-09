@@ -83,13 +83,20 @@ const VERT = /* glsl */ `
   // 胳膊：鼓掌 = 两手合到胸前、一上一下（0.3 秒一拍，各人错开）；欢呼 / 人浪 = 举过头顶
   float aw = abs(aRig.x);
   float side = sign(aRig.x);
+  // stage 3：鼓掌加大 —— 六成的人把手举过头顶拍（手在帽子上面一开一合），其余在胸前拍；拍的时候整个人一颠一颠（1 纹素），
+  // 头和帽子左右抖（1 纹素）。原来只有胸前 1 纹素的手，一分打完看不出看台在鼓掌。
+  float clapK = uCrMode.x * (1.0 - stand);
+  float beat = step(0.5, fract(uCrT / 0.3 + ph * 7.3));
+  off.y += clapK * beat * uCrQ;
   if (aw > 0.0) {
-    float beat = step(0.5, fract(uCrT / 0.3 + ph * 7.3));
-    vec3 clapOff = vec3(-side * (0.13 + 0.045 * beat), 0.2 + 0.09 * beat, 0.19);
+    float high = step(ph, 0.6);
+    vec3 chest = vec3(-side * (0.12 + 0.05 * beat), 0.22 + 0.09 * beat, 0.19);
+    vec3 over = vec3(-side * (0.09 + 0.06 * beat), 0.74 + 0.05 * beat, 0.02);
+    vec3 clapOff = mix(chest, over, high);
     vec3 upOff = vec3(side * 0.04, 0.8, -0.04);
-    float clapK = uCrMode.x * (1.0 - stand);
     off += aw * (clapOff * clapK + upOff * stand);
   }
+  if (uCrPart > 0.5 && aRig.y > -0.5) off.x += clapK * (beat * 2.0 - 1.0) * uCrQ * step(fract(ph * 5.7), 0.7);
   // 头（和帽子 / 头发）：转头看球 = 左右挪 0～2 纹素；闲着的时候三成的人偶尔转一下头（每人 3～6 秒换一次）
   if (uCrPart > 0.5 && aRig.y > -0.5) {
     vec3 dl = transpose(mat3(modelMatrix * instanceMatrix)) * (uCrLook.xyz - seatW);

@@ -10,37 +10,26 @@
 //   ?play=0 = 原来的看图模式（静止，截图、画廊不变）；?play=0&life=1 = 看日常，总监自己做一遍活（autopilot）；?life=0 = 玩法但没有日常。
 import '../clubsite/render/colors';
 import * as THREE from 'three';
-import { playEnabled } from '../clubsite/play';
+import { type Hud, mountPlay, type Play, playEnabled } from '../clubsite/play';
+import type { RegionJobs } from '../clubsite/region';
 import { topGeo, wallGeo } from '../clubsite/render/geo';
-import { rngFactory } from '../clubsite/render/noise';
-import { SCHEMES, schemeById, schemeMats, schemeOpts } from '../clubsite/render/palettes';
+import { SCHEMES, schemeById } from '../clubsite/render/palettes';
 import { mountPaletteSwitcher } from '../clubsite/render/palettes/switcher';
 import { PixelPipeline } from '../clubsite/render/pipeline';
-import { CLOUD_N, createMats, type ToonOpts } from '../clubsite/render/toon';
-import type { AssetBuild, AssetCtx, SharedUniforms } from './ctx';
-import { AREA_LABELS, CLOUD_VEL, CLOUDS, MPT, SLOTS, type Slot, SPOTS, SUN, TARGET } from './layout';
-import { type Bubble, createLife, type Life } from './life';
-import { buildNav, SPOT_NAMES } from './nav';
-import { PAL, type Pal, SKY } from './palette';
-import { NEW_SPECS, placeholder, SPECS } from './placeholders';
-import { type PicklePlay, setupPicklePlay } from './play';
+import { CLOUD_N } from '../clubsite/render/toon';
+import type { SharedUniforms } from './ctx';
+import { CLOUD_VEL, CLOUDS, MPT, SUN, TARGET } from './layout';
+import type { Bubble } from './life';
+import { SKY } from './palette';
+import { placeholder, SPECS } from './placeholders';
 import { REUSED } from './reuse';
-import { buildTerrain } from './terrain';
+import { createPickleKit, createPickleRegion, type Kind, OWN, type PickleRegion } from './scene';
 
 const params = new URLSearchParams(location.search);
 const num = (k: string, d: number) => (params.has(k) ? Number(params.get(k)) : d);
 const deg = Math.PI / 180;
-const rng = rngFactory(num('seed', 17));
 /** 配色：不带 ?pal = 默认（6 午后金光 golden）；?pal=current = 原来的沙漠配色 */
 const scheme = schemeById(params.get('pal'));
-
-/** 这个场景自己画的资产（assets/<id>.ts，export function build）；同名的优先于复用的 */
-const MODS = import.meta.glob<{ build: AssetBuild }>('./assets/*.ts', { eager: true });
-const OWN: Record<string, AssetBuild> = {};
-for (const [path, mod] of Object.entries(MODS)) {
-  const id = path.replace('./assets/', '').replace(/\.ts$/, '');
-  if (typeof mod.build === 'function') OWN[id] = mod.build;
-}
 
 const galleryId = params.get('asset');
 /** 玩法模式（默认）；?play=0 看图 */
@@ -123,56 +112,18 @@ function setSun(elevDeg: number, azDeg: number) {
 }
 setSun(num('sunel', SUN.el), num('sunaz', SUN.az));
 
-const mats = createMats(uniforms, () => pipe.rig.metersPerTexel);
-/**
- * 这个场景新加的材质不在 clubsite/render/palettes 的 GROUP 表里（那个文件不归这里改）：借同一家的现成名字过方案的分组调色
- * （同 clubdesk/terrain.ts 的 parkCtx 做法）。厨房跟场面一组（court：午后亮档只染 10%，蓝不发灰；只吃全局调色时成了灰石板色），
- * 球拍跟 club 组（珊瑚不被染成土橙，暗档留酒紫）。以后 GROUP 表加了这两行，这里就可以删。
- */
-const GRADE_AS: Partial<Record<keyof Pal, keyof Pal>> = { kitchen: 'court', paddle: 'counter' };
-/** 调色板名字 → 材质参数；配色（?pal=）在这里换色 */
-function palOpts(key: keyof Pal, extra?: ToonOpts): ToonOpts {
-  const sw = PAL[key];
-  const o: ToonOpts = {
-    ramp: sw.ramp,
-    edge: sw.edge,
-    convex: sw.convex,
-    tones: sw.tones,
-    ...('opts' in sw ? sw.opts : {}),
-    ...extra,
-  };
-  // biome-ignore lint/suspicious/noExplicitAny: 这个场景新加的材质名不在 clubfront 的 Pal 里，按全局调色走
-  return scheme ? (schemeOpts(scheme, (GRADE_AS[key] ?? key) as any, o as any) as ToonOpts) : o;
-}
-const ctxBase = {
-  mats: scheme ? schemeMats(scheme, mats) : mats,
-  pal: PAL,
-  mat(key: keyof Pal, extra?: ToonOpts) {
-    return mats.toon(0xffffff, palOpts(key, extra));
-  },
-  rng,
+const host = {
+  scene,
+  parent: scene,
   uniforms,
-  layers: { FX: 1 },
-  texel: designTexel,
   params,
+  texelMeters: () => pipe.rig.metersPerTexel,
+  designTexel,
+  life: LIFE,
+  play: PLAY,
 };
-const ctxFor = (variant: number): AssetCtx => ({ ...ctxBase, variant });
-
-const updaters: ((dt: number, t: number) => void)[] = [];
-const collectUpdaters = (o: THREE.Object3D) =>
-  o.traverse((c) => {
-    const u = c.userData.update as ((dt: number, t: number) => void) | undefined;
-    if (u) updaters.push(u);
-  });
-
-type Kind = 'own' | 'reused' | 'placeholder' | 'spot' | 'area' | 'propose';
-function makeAsset(asset: string, variant: number): { obj: THREE.Object3D; kind: Kind } {
-  const own = OWN[asset];
-  if (own) return { obj: own(ctxFor(variant)), kind: 'own' };
-  const reused = REUSED[asset];
-  if (reused) return { obj: reused(ctxFor(variant)), kind: 'reused' };
-  return { obj: placeholder(ctxFor(variant), asset), kind: 'placeholder' };
-}
+const kit = createPickleKit(host);
+const { ctxFor, makeAsset, palOpts } = kit;
 
 interface Label {
   el: HTMLDivElement;
@@ -190,89 +141,21 @@ function addLabel(text: string, p: THREE.Vector3, kind: Kind, below = kind === '
   labelsEl.appendChild(el);
   labels.push({ el, p, below });
 }
-/** 占位的标签："#编号 名字" */
-const phText = (asset: string, id: string) => {
-  const sp = NEW_SPECS[asset];
-  return sp?.n ? `#${sp.n} ${sp.name ?? asset}` : id;
-};
+const updaters: ((dt: number, t: number) => void)[] = [];
+const collectUpdaters = (o: THREE.Object3D) =>
+  o.traverse((c) => {
+    const u = c.userData.update as ((dt: number, t: number) => void) | undefined;
+    if (u) updaters.push(u);
+  });
 
-let groundAt: (x: number, z: number) => number = () => 0;
+let region: PickleRegion | null = null;
 if (galleryId) buildGallery(galleryId);
-else buildScene();
-
-function buildScene() {
-  const ctx = ctxFor(0);
-  const terrain = buildTerrain(ctx);
-  groundAt = terrain.groundAt;
-  scene.add(terrain.root);
-  const showPh = params.get('ph') !== '0';
-  const count: Record<string, number> = { own: 0, reused: 0, placeholder: 0 };
-  const labelled = new Set<string>();
-  /** 摇绞盘的人 → 网的摇把跟着右手转（网的 setCrank(rad)：绕 z，0 = 朝东） */
-  const cranks: { who: THREE.Object3D; net: string; axis: THREE.Vector3 }[] = [];
-  for (const s of SLOTS) {
-    const { obj, kind } = makeAsset(s.asset, s.variant ?? 0);
-    if (kind === 'placeholder' && !showPh) continue;
-    count[kind]++;
-    const y = s.y ?? terrain.groundAt(s.x, s.z);
-    obj.position.set(s.x, y, s.z);
-    obj.rotation.y = s.rotY ?? 0;
-    obj.scale.setScalar(s.s ?? 1);
-    obj.name = `slot:${s.id}`;
-    if (s.prop !== undefined) obj.userData.setProp?.(s.prop);
-    if (s.pose) obj.userData.pose?.(s.pose[0], s.pose[1]);
-    scene.add(obj);
-    applySlot(obj, s);
-    if (s.crankNet && s.crank) cranks.push({ who: obj, net: s.crankNet, axis: new THREE.Vector3(...s.crank) });
-    collectUpdaters(obj);
-    const sp = SPECS[s.asset];
-    const top = new THREE.Vector3(s.x, y + (sp?.h ?? 1) * (s.s ?? 1) + 0.3, s.z);
-    if (s.noLabel) continue;
-    if (kind === 'placeholder' || kind === 'own')
-      addLabel(phText(s.asset, s.id), s.labelBelow ? new THREE.Vector3(s.x, y, s.z) : top, kind, s.labelBelow);
-    else if (s.label) addLabel(s.label, top, kind);
-    else if (!labelled.has(s.asset) && !['player', 'agave', 'brittlebush', 'creosote', 'fan-palm'].includes(s.asset)) {
-      labelled.add(s.asset);
-      addLabel(s.asset, top, kind);
-    }
-  }
-  // 日常开着时网的摇把由 life 管（总监摇的时候才跟着手转）
-  for (const c of LIFE ? [] : cranks) {
-    const net = scene.getObjectByName(`slot:${c.net}`);
-    if (net) linkCrank(c.who, net, c.axis);
-  }
-  // 围网是 clubdesk 画好的 fence-screen（地形里一次建好），不标
-  for (const a of AREA_LABELS) addLabel(a.text, new THREE.Vector3(a.x, a.y, a.z), a.kind ?? 'area');
-  if (showLabels && params.get('nav') !== '0') {
-    scene.add(buildNav(ctx, terrain.groundAt));
-    for (const [k, name] of Object.entries(SPOT_NAMES)) {
-      const [x, z] = SPOTS[k as keyof typeof SPOTS];
-      addLabel(name, new THREE.Vector3(x, terrain.groundAt(x, z) + 0.05, z + 0.3), 'spot');
-    }
-  }
+else {
+  region = createPickleRegion({ ...host, label: showLabels ? addLabel : undefined }, kit);
+  const count = region.counts;
   if (showLabels)
     infoEl.textContent = `clubpickle 白模 · 占位 ${count.placeholder} · 复用 ${count.reused} · 新画 ${count.own}`;
   else infoEl.style.display = 'none';
-}
-
-/** SLOT 的额外字段：人物坐（setSeat）、绞盘（setCrank，要世界坐标 → 放进场景以后）、看哪里（lookAt）；散一地的球（setBalls） */
-function applySlot(obj: THREE.Object3D, s: Slot) {
-  const ud = obj.userData;
-  if (s.seat) ud.setSeat?.(s.seat[0], s.seat[1] ?? 0);
-  obj.updateMatrixWorld(true);
-  if (s.crank) ud.setCrank?.(new THREE.Vector3(...s.crank));
-  if (s.look) ud.lookAt?.(new THREE.Vector3(...s.look));
-  if (s.balls) ud.setBalls?.(s.balls.map(([x, z]) => [x - s.x, z - s.z]));
-}
-
-/** 网的摇把指向人的右手（摇把组绕 z 轴转：0 = 朝东 +x，正 = 往上 +y）；axis = 转轴的世界坐标（SLOT 的 crank） */
-function linkCrank(who: THREE.Object3D, net: THREE.Object3D, axis: THREE.Vector3) {
-  const sync = () => {
-    const h = who.userData.handPoint?.('R') as THREE.Vector3 | undefined;
-    if (h) net.userData.setCrank?.(Math.atan2(h.y - axis.y, h.x - axis.x));
-  };
-  sync();
-  updaters.push(sync);
 }
 
 function buildGallery(id: string) {
@@ -346,29 +229,25 @@ function skyTexture(): THREE.Texture {
   return t;
 }
 
-// ── 演出 + 玩法 ──
-let life: Life | null = null;
-let play: PicklePlay | null = null;
-if (LIFE) {
-  const lifeCtx = ctxFor(0);
-  life = createLife({
-    ctx: lifeCtx,
+// ── 演出 + 玩法（life 在 scene.ts 里建；总监的活在 play.ts） ──
+const life = region?.life ?? null;
+let play: (Play & { hud: Hud }) | null = null;
+let jobs: RegionJobs | null = null;
+if (PLAY && region && life) {
+  const st = region.start;
+  play = mountPlay({
     scene,
-    slot: (id) => scene.getObjectByName(`slot:${id}`),
-    make: (asset, variant) => {
-      const { obj } = makeAsset(asset, variant);
-      scene.add(obj);
-      collectUpdaters(obj);
-      return obj;
-    },
-    groundAt: (x, z) => groundAt(x, z),
-    play: PLAY,
-    say: PLAY ? (obj, text, secs, dy) => play?.say(obj, text, secs, dy) : undefined,
+    pipe,
+    canvas,
+    director: region.director() as THREE.Object3D,
+    start: st.start,
+    yaw: st.yaw,
+    nav: { groundAt: region.groundAt, ...region.nav() },
+    camera: st.camera,
+    hint: st.hint,
   });
-  const lu = life.update;
-  updaters.unshift((dt) => lu(dt));
+  jobs = region.attach(play);
 }
-if (PLAY && life) play = setupPicklePlay({ scene, pipe, canvas, groundAt: (x, z) => groundAt(x, z) }, life);
 
 /** 看日常（?play=0&life=1）时头顶的字：没有 play 的 hud，自己摆 */
 const bubbleEls: HTMLDivElement[] = [];
@@ -475,9 +354,10 @@ function step(seconds: number) {
     simT += DT;
     uniforms.uTime.value = simT;
     uniforms.uGust.value = 0.5 + 0.35 * Math.sin(simT * 0.7) * Math.sin(simT * 0.23);
+    region?.update(DT, simT);
     for (const u of updaters) u(DT, simT);
     play?.update(DT, simT);
-    play?.step(DT);
+    jobs?.step(DT);
   }
 }
 step(num('warm', 0));
@@ -608,5 +488,6 @@ Object.assign(window, {
     palOpts,
     life,
     play,
+    region,
   },
 });

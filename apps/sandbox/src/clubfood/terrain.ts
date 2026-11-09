@@ -1,6 +1,6 @@
 // 地形：地面（clubsite/ground.ts，铺到画外）+ 墙里的压实沙地 + 北围墙、西围墙（土坯、压顶、壁柱）
 // + 会所（照 clubmap2/build.ts 的体块：主楼、东翼、南翼、钟楼、拱廊、窗 —— 邻居 / 背景，以后归会所场景）
-// + 餐车院子的地面（建议：碎花岗岩一整块；凉棚下陶砖；球员通道石板；孩子的草皮角）+ 长廊、西步道
+// + 餐车院子的地面（红砂碎石一整块；凉棚下陶砖；球员通道石板；孩子的草皮角）+ 长廊、西步道
 // + 泳池（池畔石板、池子、池沿、躺椅、三间帐篷，照 clubmap2）+ 中心球场西半和看台体块、青训西场北半（邻居）+ 围网（clubdesk 的 fence-screen）。
 // 一排车、凉棚、桌子都是资产（占位）；地面只管平的东西。
 import * as THREE from 'three';
@@ -208,8 +208,10 @@ export function buildTerrain(ctx: AssetCtx): Terrain {
 
   // ── 餐车院子（建议）：碎花岗岩一整块；凉棚下陶砖；球员通道石板；孩子的草皮角 ──
   const granite = ctx.mat('granite', { elem: EL.granite });
-  add(quad(FOOD_COURT, H.ground + 0.01), granite, 'top:court', { cast: false });
-  add(quad(ARCADE_YARD, H.ground + 0.01), granite, 'top:yard', { cast: false });
+  // 院子自己的铺地：暖一点的红砂碎石（palette.ts 的 yardGranite），长廊、西步道照旧是 granite
+  const yard = ctx.mat('yardGranite', { elem: { ...EL.granite, seed: 3 } });
+  add(quad(FOOD_COURT, H.ground + 0.01), yard, 'top:court', { cast: false });
+  add(quad(ARCADE_YARD, H.ground + 0.01), yard, 'top:yard', { cast: false });
   add(
     quad({ x0: PERGOLA.x0 - 0.5, x1: PERGOLA.x1 + 0.5, z0: PERGOLA.z0 - 0.4, z1: PERGOLA.z1 + 0.4 }, H.ground + 0.014),
     ctx.mat('tile', { elem: EL.tile }),

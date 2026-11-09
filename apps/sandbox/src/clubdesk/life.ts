@@ -135,11 +135,13 @@ export interface DeskLife {
 
 export interface DeskLifeOpts {
   ctx: AssetCtx;
-  scene: THREE.Scene;
+  scene: THREE.Object3D;
   make(asset: string, variant: number): THREE.Object3D;
   groundAt(x: number, z: number): number;
   /** 玩法模式（总监归玩家；这里不演他） */
   play: boolean;
+  /** 大世界（clubwalk）：共用的总监，用它，不换 slot:director、不自己建 */
+  director?: THREE.Object3D;
 }
 
 export function createDeskLife(o: DeskLifeOpts): DeskLife {
@@ -178,9 +180,11 @@ export function createDeskLife(o: DeskLifeOpts): DeskLife {
   setTowels(4);
 
   // ── 总监：换成 clubsite/people 的那个（play 的 hold() 要它）；play 在这之后建，拿到的是这个 ──
-  const oldDir = find('director');
-  const dirObj = clubDirector(ctx as unknown as D3Ctx);
-  if (oldDir) {
+  const oldDir = o.director ? undefined : find('director');
+  const dirObj = o.director ?? clubDirector(ctx as unknown as D3Ctx);
+  if (o.director) {
+    // 大世界：总监已经在场景里，由 play 管
+  } else if (oldDir) {
     dirObj.position.copy(oldDir.position);
     dirObj.rotation.copy(oldDir.rotation);
     dirObj.name = oldDir.name;
@@ -190,9 +194,11 @@ export function createDeskLife(o: DeskLifeOpts): DeskLife {
     dirObj.rotation.y = 1.25;
     dirObj.name = 'slot:director';
   }
-  dirObj.userData.setProp?.(null);
-  dirObj.userData.pose?.('idle');
-  scene.add(dirObj);
+  if (!o.director) {
+    dirObj.userData.setProp?.(null);
+    dirObj.userData.pose?.('idle');
+    scene.add(dirObj);
+  }
   const director: Person = {
     obj: dirObj,
     x: dirObj.position.x,

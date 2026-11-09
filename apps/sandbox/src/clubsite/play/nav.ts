@@ -65,6 +65,11 @@ export interface NavSpec {
   body?: number;
   /** 网格边长（米，默认 0.2） */
   cell?: number;
+  /**
+   * 能站的地面高度（null = 不能走）。给了就代替 walkable + groundAt（坡道照旧优先）：
+   * 大世界（clubwalk）按区域拼导航用。不给 = 原来的行为。
+   */
+  surface?(x: number, z: number): number | null;
 }
 
 const isRect = (s: Shape): s is Rect => 'x0' in s;
@@ -254,9 +259,9 @@ export class NavMap {
   }
 
   /** 静态挡路的变了（门开了、车停进来了）：加/换形状后重建网格 */
-  setBlocked(shapes: Shape[]) {
+  setBlocked(shapes: Shape[], rect?: Rect) {
     this.blocked = shapes.map((s) => ({ s, b: bbox(s) }));
-    this.rebuild();
+    this.rebuild(rect);
   }
 
   /** 地面高度（不能站 = null）：坡道 → 能走的并集里的 groundAt。不管挡路的东西 */
@@ -269,6 +274,7 @@ export class NavMap {
         return r.from + (r.to - r.from) * Math.min(1, Math.max(0, k));
       }
     }
+    if (this.spec.surface) return this.spec.surface(x, z);
     if (this.walk && !this.walk.some((s) => contains(s, x, z))) return null;
     return this.spec.groundAt(x, z);
   }
@@ -329,10 +335,15 @@ export class NavMap {
   }
 
   // ── 网格 ──
-  private rebuild() {
+  /** 重建网格；给 rect = 只重建这个范围（世界米）里的格子（别处的能走/挡路没变时用） */
+  private rebuild(rect?: Rect) {
     const { nx, nz, cell, bounds: B } = this;
-    for (let j = 0; j < nz; j++)
-      for (let i = 0; i < nx; i++) {
+    const i0 = rect ? Math.max(0, Math.floor((rect.x0 - B.x0) / cell)) : 0;
+    const i1 = rect ? Math.min(nx, Math.ceil((rect.x1 - B.x0) / cell)) : nx;
+    const j0 = rect ? Math.max(0, Math.floor((rect.z0 - B.z0) / cell)) : 0;
+    const j1 = rect ? Math.min(nz, Math.ceil((rect.z1 - B.z0) / cell)) : nz;
+    for (let j = j0; j < j1; j++)
+      for (let i = i0; i < i1; i++) {
         const x = B.x0 + (i + 0.5) * cell;
         const z = B.z0 + (j + 0.5) * cell;
         const h = this.standAt(x, z);

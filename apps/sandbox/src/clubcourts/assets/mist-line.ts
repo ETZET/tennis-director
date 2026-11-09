@@ -2,8 +2,9 @@
 // 每 1.2 米一个喷头（8 个，x = −4.2 + 1.2k）；东头一根竖管顺着帆的前杆下到地上的小水泵（俱乐部蓝的小箱子，侧面一个小灯）。
 // 本地原点 = 管子正下方的地面，z 0 = 帆的前梁（世界 z 19.2），+z 朝镜头（南）。
 //
-// 雾 = 每个喷头 6 片竖着的半透明白色小团（FX 图层：不描边、不投影、不接影），从喷头冒出来、往下往顺风飘、
-// 慢慢变大变淡（两层不透明度：刚冒出来 0.6、后半程 0.32；团和团叠起来的地方更白），≈ 2.4 秒一片。一共 48 片，一个 InstancedMesh 一层。
+// 雾 = 每个喷头 2 片竖着的半透明白色小片（FX 图层：不描边、不投影、不接影），从喷头冒出来、往下往顺风飘、
+// 慢慢变大变淡（两层不透明度：刚冒出来 0.75、后半程 0.4），≈ 1.8 秒一片，只飘到人头顶以上。一共 16 片，一个 InstancedMesh 一层。
+// （U-11，2026-11-09：比喷泉的水花轻 —— 原来每个喷头 6 片、0.7 米宽，帆下是一片灰雪。）
 // 静止截图（pause）也有雾：建好时就按错开的年龄摆好了。
 //
 // userData（stage 3）：
@@ -23,10 +24,10 @@ const PIPE_Y = 2.4;
 /** 管子：0.1 米粗（1× 下屏幕上 2 纹素，稳定不闪） */
 const PIPE_T = 0.1;
 const NOZZLES = Array.from({ length: 8 }, (_, k) => -4.2 + 1.2 * k);
-/** 每个喷头几片雾 */
-const PER = 6;
+/** 每个喷头几片雾（U-11：几片半透明的小白片，比喷泉轻 —— 原来 6 片一个喷头，帆下读成一片灰雪，挡住长椅上的人） */
+const PER = 2;
 /** 一片雾飘多久（秒） */
-const LIFE = 2.4;
+const LIFE = 1.8;
 /** 前多少比例算"浓"（不透明度高的那一层） */
 const THICK = 0.45;
 /** 风把雾片带走多远（风速 × 寿命 × 这个比例）：看得见的雾只飘 ≈ 1 米，更细的水珠落得更远（landing） */
@@ -89,7 +90,7 @@ export function build(ctx: AssetCtx): THREE.Object3D {
   };
   const N = NOZZLES.length * PER;
   const geo = flakeGeo();
-  const tiers = [fogMat(-1.27, 0.6), fogMat(-1.31, 0.32)].map((m) => {
+  const tiers = [fogMat(-1.27, 0.75), fogMat(-1.31, 0.4)].map((m) => {
     const im = new THREE.InstancedMesh(geo, m, N);
     im.layers.set(ctx.layers.FX);
     im.castShadow = false;
@@ -134,11 +135,11 @@ export function build(ctx: AssetCtx): THREE.Object3D {
       const ease = k * k * 0.6 + k * 0.4;
       pos.set(
         f.nozzle + f.jx * (0.12 + 0.7 * k) + wind.x * ease * LIFE * DRIFT,
-        PIPE_Y - 0.16 - k * 0.6 - k * k * 0.35,
+        PIPE_Y - 0.14 - k * 0.4 - k * k * 0.2,
         0.12 + f.jz * 0.15 + 0.25 * k + wind.y * ease * LIFE * DRIFT,
       );
-      // 大小：0.26 → 0.68 米宽，最后一段缩回去（散了）
-      const w = (0.26 + 0.42 * Math.min(1, k * 1.5)) * f.s * (k > 0.82 ? 1 - (k - 0.82) / 0.18 : 1);
+      // 大小：0.22 → 0.48 米宽，最后一段缩回去（散了）
+      const w = (0.22 + 0.26 * Math.min(1, k * 1.5)) * f.s * (k > 0.82 ? 1 - (k - 0.82) / 0.18 : 1);
       scl.set(w, w, 1);
       m4.compose(pos, q, scl);
       tiers[tier].setMatrixAt(counts[tier]++, m4);

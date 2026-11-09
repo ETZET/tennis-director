@@ -1,42 +1,40 @@
-// clubstadium：中心球场（表演赛的球场；印第安维尔斯沙漠，和 clubmap2 / clubplaza 同一套世界坐标）—— 白模阶段：手摆构图 + 调色板 + 占位。
+// clubstadium：中心球场（表演赛的球场；印第安维尔斯沙漠，和 clubmap2 / clubplaza 同一套世界坐标）—— stage 3：资产 + 演出（life.ts）+ 总监操控（play.ts）。
 // 场景：  clubstadium.html                （占位 = 冷灰体块 + "#编号 名字" 标签；src/clubstadium/assets/<id>.ts 存在就换成资产）
 // 画廊：  clubstadium.html?asset=<id>      （一块小台子上只放这个资产：上/左 = 最终缩放，下/右 = 同一画面放大 3 倍）
 // 标签颜色：深灰 = 占位（要画的新资产），绿 = 已画的新资产，青 = 复用的资产，洋红 = 站位，半透明黑 = 区域名。
 // URL：px（每纹素 CSS 像素，默认 1；画廊 2）、zoom（米/纹素）、tx/tz、yaw/pitch（度）、sunel/sunaz、seed、warm、
 //      pause=1（时间停在 0：截图稳定）、labels=0（不显示标签和站位）、ph=0（不放占位）、nav=0、clouds=0、edges=1（只看描边）、
 //      pal=<id>（配色，不带 = 6 午后金光；右上角切换）、crowd=grey（观众换成灰的占位）；画廊：v（变体）、ref=0、ground=tile|sand、cy。
+// 演出 + 玩法（stage 3）：默认 = 玩法模式（表演赛一场一场地打 life.ts，总监交给玩家 play.ts）；?play=0 = stage 2 的静态画面
+//      （截图、画廊不变）；?play=0&life=1 = 看戏模式（只看比赛，沙、伞、杯子自己好）。games=<抢几局>（默认 2）、pre=<开场倒计时秒>（默认 40）。
+//      玩法模式下标签默认关（labels=1 打开）；竖屏开局对准西半场（U-8），相机跟着总监。
 import '../clubsite/render/colors';
 import * as THREE from 'three';
+import { type Hud, mountPlay, type Play, playEnabled } from '../clubsite/play';
+import type { RegionJobs } from '../clubsite/region';
 import { topGeo, wallGeo } from '../clubsite/render/geo';
-import { rngFactory } from '../clubsite/render/noise';
-import { SCHEMES, schemeById, schemeMats, schemeOpts } from '../clubsite/render/palettes';
+import { SCHEMES, schemeById } from '../clubsite/render/palettes';
 import { mountPaletteSwitcher } from '../clubsite/render/palettes/switcher';
 import { PixelPipeline } from '../clubsite/render/pipeline';
-import { CLOUD_N, createMats, type ToonOpts } from '../clubsite/render/toon';
-import type { AssetBuild, AssetCtx, SharedUniforms } from './ctx';
-import { AREA_LABELS, CLOUD_VEL, CLOUDS, MPT, SLOTS, SPOTS, SUN, TARGET } from './layout';
-import { buildNav, SPOT_NAMES } from './nav';
-import { PAL, type Pal, PROXY, SKY } from './palette';
-import { NEW_SPECS, placeholder, SPECS } from './placeholders';
+import { CLOUD_N } from '../clubsite/render/toon';
+import type { SharedUniforms } from './ctx';
+import { CLOUD_VEL, CLOUDS, MPT, SUN, TARGET } from './layout';
+import type { StadiumLife } from './life';
+import { SKY } from './palette';
+import { placeholder, SPECS } from './placeholders';
 import { REUSED } from './reuse';
-import { buildTerrain } from './terrain';
+import { createStadiumKit, createStadiumRegion, type Kind, OWN, type StadiumRegion } from './scene';
 
 const params = new URLSearchParams(location.search);
 const num = (k: string, d: number) => (params.has(k) ? Number(params.get(k)) : d);
 const deg = Math.PI / 180;
-const rng = rngFactory(num('seed', 17));
 /** 配色：不带 ?pal = 默认（6 午后金光 golden）；?pal=current = 原来的沙漠配色 */
 const scheme = schemeById(params.get('pal'));
 
-/** 这个场景自己画的资产（assets/<id>.ts，export function build）；同名的优先于复用的 */
-const MODS = import.meta.glob<{ build: AssetBuild }>('./assets/*.ts', { eager: true });
-const OWN: Record<string, AssetBuild> = {};
-for (const [path, mod] of Object.entries(MODS)) {
-  const id = path.replace('./assets/', '').replace(/\.ts$/, '');
-  if (typeof mod.build === 'function') OWN[id] = mod.build;
-}
-
 const galleryId = params.get('asset');
+/** 玩法模式（默认）：比赛演出 + 总监交给玩家；?play=0 = stage 2 的静态画面，?play=0&life=1 = 只看演出 */
+const PLAY = !galleryId && playEnabled(params);
+const LIFE = PLAY || (!galleryId && params.get('life') === '1');
 const canvas = document.getElementById('c') as HTMLCanvasElement;
 const canvas2 = document.getElementById('c2') as HTMLCanvasElement;
 const labelsEl = document.getElementById('labels') as HTMLDivElement;
@@ -113,54 +111,18 @@ function setSun(elevDeg: number, azDeg: number) {
 }
 setSun(num('sunel', SUN.el), num('sunaz', SUN.az));
 
-const mats = createMats(uniforms, () => pipe.rig.metersPerTexel);
-/**
- * 调色板名字 → 材质参数；配色（?pal=）在这里换色。这个场景新加的走道水泥不在 clubfront 的 GROUP 表里：
- * 借 palette.ts 的 PROXY（concrete）过 grade，和看台台阶同一组调色。
- */
-function palOpts(key: keyof Pal, extra?: ToonOpts): ToonOpts {
-  const sw = PAL[key];
-  const o: ToonOpts = {
-    ramp: sw.ramp,
-    edge: sw.edge,
-    convex: sw.convex,
-    tones: sw.tones,
-    ...('opts' in sw ? sw.opts : {}),
-    ...extra,
-  };
-  const via = PROXY[key] ?? key;
-  // biome-ignore lint/suspicious/noExplicitAny: 这个场景新加的材质名不在 clubfront 的 Pal 里，按 PROXY 借组调色
-  return scheme ? (schemeOpts(scheme, via as any, o as any) as ToonOpts) : o;
-}
-const ctxBase = {
-  mats: scheme ? schemeMats(scheme, mats) : mats,
-  pal: PAL,
-  mat(key: keyof Pal, extra?: ToonOpts) {
-    return mats.toon(0xffffff, palOpts(key, extra));
-  },
-  rng,
+const host = {
+  scene,
+  parent: scene,
   uniforms,
-  layers: { FX: 1 },
-  texel: designTexel,
   params,
+  texelMeters: () => pipe.rig.metersPerTexel,
+  designTexel,
+  life: LIFE,
+  play: PLAY,
 };
-const ctxFor = (variant: number): AssetCtx => ({ ...ctxBase, variant });
-
-const updaters: ((dt: number, t: number) => void)[] = [];
-const collectUpdaters = (o: THREE.Object3D) =>
-  o.traverse((c) => {
-    const u = c.userData.update as ((dt: number, t: number) => void) | undefined;
-    if (u) updaters.push(u);
-  });
-
-type Kind = 'own' | 'reused' | 'placeholder' | 'spot' | 'area' | 'propose';
-function makeAsset(asset: string, variant: number): { obj: THREE.Object3D; kind: Kind } {
-  const own = OWN[asset];
-  if (own) return { obj: own(ctxFor(variant)), kind: 'own' };
-  const reused = REUSED[asset];
-  if (reused) return { obj: reused(ctxFor(variant)), kind: 'reused' };
-  return { obj: placeholder(ctxFor(variant), asset), kind: 'placeholder' };
-}
+const kit = createStadiumKit(host);
+const { ctxFor, makeAsset, palOpts } = kit;
 
 interface Label {
   el: HTMLDivElement;
@@ -169,7 +131,7 @@ interface Label {
   below: boolean;
 }
 const labels: Label[] = [];
-const showLabels = params.get('labels') !== '0' && !galleryId;
+const showLabels = !galleryId && (PLAY ? params.get('labels') === '1' : params.get('labels') !== '0');
 function addLabel(text: string, p: THREE.Vector3, kind: Kind, below = kind === 'spot') {
   if (!showLabels) return;
   const el = document.createElement('div');
@@ -178,67 +140,40 @@ function addLabel(text: string, p: THREE.Vector3, kind: Kind, below = kind === '
   labelsEl.appendChild(el);
   labels.push({ el, p, below });
 }
-/** 占位的标签："#编号 名字" */
-const phText = (asset: string, id: string) => {
-  const sp = NEW_SPECS[asset];
-  return sp?.n ? `#${sp.n} ${sp.name ?? asset}` : id;
-};
+const updaters: ((dt: number, t: number) => void)[] = [];
+const collectUpdaters = (o: THREE.Object3D) =>
+  o.traverse((c) => {
+    const u = c.userData.update as ((dt: number, t: number) => void) | undefined;
+    if (u) updaters.push(u);
+  });
 
+let region: StadiumRegion | null = null;
+let life: StadiumLife | null = null;
+let play: (Play & { hud: Hud }) | null = null;
+let jobs: RegionJobs | null = null;
 if (galleryId) buildGallery(galleryId);
-else buildScene();
-
-function buildScene() {
-  const ctx = ctxFor(0);
-  // 看台：资产（stadium-stands）还没画时，terrain 里先用色块白模（看台的明暗横带要用真颜色才判断得了）
-  const terrain = buildTerrain(ctx, { stands: !OWN['stadium-stands'] });
-  scene.add(terrain.root);
-  if (OWN['stadium-stands']) scene.add(OWN['stadium-stands'](ctx));
-  const showPh = params.get('ph') !== '0';
-  let crowdCount = 0;
-  const count: Record<string, number> = { own: 0, reused: 0, placeholder: 0 };
-  const labelled = new Set<string>();
-  for (const s of SLOTS) {
-    const { obj, kind } = makeAsset(s.asset, s.variant ?? 0);
-    if (kind === 'placeholder' && !showPh) continue;
-    count[kind]++;
-    const y = s.y ?? terrain.groundAt(s.x, s.z);
-    obj.position.set(s.x, y, s.z);
-    obj.rotation.y = s.rotY ?? 0;
-    obj.scale.setScalar(s.s ?? 1);
-    obj.name = `slot:${s.id}`;
-    if (s.prop !== undefined) obj.userData.setProp?.(s.prop);
-    if (s.pose) obj.userData.pose?.(s.pose[0], s.pose[1]);
-    scene.add(obj);
-    collectUpdaters(obj);
-    if (s.asset === 'crowd')
-      obj.traverse((o) => {
-        if (o.userData.count) crowdCount = o.userData.count as number;
-      });
-    const sp = SPECS[s.asset];
-    const top = new THREE.Vector3(s.x, y + (sp?.h ?? 1) * (s.s ?? 1) + 0.3, s.z);
-    if (s.noLabel) continue;
-    if (s.labelAt) addLabel(phText(s.asset, s.id), new THREE.Vector3(...s.labelAt), kind, true);
-    else if (kind === 'placeholder' || kind === 'own')
-      addLabel(phText(s.asset, s.id), s.labelBelow ? new THREE.Vector3(s.x, y, s.z) : top, kind, s.labelBelow);
-    else if (s.label) addLabel(s.label, top, kind);
-    else if (
-      !labelled.has(s.asset) &&
-      !['player', 'agave', 'brittlebush', 'creosote', 'bench', 'smoke-tree', 'palo-verde', 'fan-palm'].includes(s.asset)
-    ) {
-      labelled.add(s.asset);
-      addLabel(s.asset, top, kind);
-    }
+else {
+  region = createStadiumRegion({ ...host, label: showLabels ? addLabel : undefined }, kit);
+  life = region.life;
+  const director = region.director();
+  if (PLAY && life && director) {
+    const st = region.start;
+    play = mountPlay({
+      scene,
+      pipe,
+      canvas,
+      director,
+      start: st.start,
+      yaw: st.yaw,
+      nav: { groundAt: region.groundAt, ...region.nav() },
+      camera: st.camera,
+      hint: st.hint,
+    });
+    jobs = region.attach(play);
   }
-  for (const a of AREA_LABELS) addLabel(a.text, new THREE.Vector3(a.x, a.y, a.z), a.kind ?? 'area');
-  if (showLabels && params.get('nav') !== '0') {
-    scene.add(buildNav(ctx, terrain.groundAt));
-    for (const [k, name] of Object.entries(SPOT_NAMES)) {
-      const [x, z] = SPOTS[k as keyof typeof SPOTS];
-      addLabel(name, new THREE.Vector3(x, terrain.groundAt(x, z) + 0.05, z + 0.3), 'spot');
-    }
-  }
+  const count = region.counts;
   if (showLabels)
-    infoEl.textContent = `clubstadium 白模 · 占位 ${count.placeholder} · 复用 ${count.reused} · 新画 ${count.own} · 观众 ${crowdCount}`;
+    infoEl.textContent = `clubstadium 白模 · 占位 ${count.placeholder} · 复用 ${count.reused} · 新画 ${count.own} · 观众 ${region.crowd}`;
   else infoEl.style.display = 'none';
 }
 
@@ -388,6 +323,10 @@ function step(seconds: number) {
     simT += DT;
     uniforms.uTime.value = simT;
     uniforms.uGust.value = 0.5 + 0.35 * Math.sin(simT * 0.7) * Math.sin(simT * 0.23);
+    region?.update(DT, simT);
+    play?.update(DT, simT);
+    jobs?.step(DT);
+    region?.post?.(DT, simT);
     for (const u of updaters) u(DT, simT);
   }
 }
@@ -424,6 +363,7 @@ function frame(now: number) {
   }
   pipe.render(scene);
   pipe2?.render(scene);
+  play?.hud.frame();
   placeLabels();
   requestAnimationFrame(frame);
 }
@@ -454,6 +394,7 @@ const pointers = new Map<number, { x: number; y: number }>();
 let pinch0 = 0;
 let zoom0 = pipe.rig.metersPerTexel;
 canvas.addEventListener('pointerdown', (e) => {
+  if (play) return;
   canvas.setPointerCapture(e.pointerId);
   pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
   if (pointers.size === 2) {
@@ -491,6 +432,7 @@ canvas.addEventListener('pointercancel', up);
 canvas.addEventListener(
   'wheel',
   (e) => {
+    if (play) return;
     e.preventDefault();
     pipe.rig.metersPerTexel = THREE.MathUtils.clamp(
       pipe.rig.metersPerTexel * Math.exp(e.deltaY * 0.001),
@@ -502,5 +444,21 @@ canvas.addEventListener(
 );
 
 Object.assign(window, {
-  __stadium: { scene, pipe, pipe2, step, setSun, own: Object.keys(OWN), reused: Object.keys(REUSED), palOpts },
+  __stadium: {
+    scene,
+    pipe,
+    pipe2,
+    step,
+    setSun,
+    own: Object.keys(OWN),
+    reused: Object.keys(REUSED),
+    palOpts,
+    get life() {
+      return life;
+    },
+    get play() {
+      return play;
+    },
+    region,
+  },
 });
