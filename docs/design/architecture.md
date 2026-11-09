@@ -146,7 +146,7 @@ tennis-director/
 ## 表现层（`packages/iso`）
 
 表现层把模拟状态画出来、把领域事件演出来。它只读状态；游戏 app 里唯一能影响模拟的方式是发命令。
-接口契约（`IsoWorld`、`IsoCamera`、`Site`、`Person`、素材格式）见 [iso-architecture.md](iso-architecture.md)，决策见 ADR 0019。
+接口契约（`IsoWorld`、`IsoCamera`、`Site`、`Person`、素材格式）见 [iso-architecture.md](../archive/iso-2.5d/docs/design/iso-architecture.md)（已归档，ADR 0027），决策见 ADR 0019。
 
 ### 画法
 
@@ -307,7 +307,7 @@ tennis-director/
   - `IsoView` 的地台侧面按合并后的整体画，土层按高度对齐，切角只留在外角；
   - `GroundPainter` 覆盖合并轮廓的外框，轮廓外的纹素透明。
 
-  这些改的是 iso 的接口，要同时更新 [iso-architecture.md](iso-architecture.md)。
+  这些改的是 iso 的接口，要同时更新 [iso-architecture.md](../archive/iso-2.5d/docs/design/iso-architecture.md)（已归档，ADR 0027）。
 - **地块的画面：** 伏笔（砌死的南门、荒掉的高尔夫西段、天上的小岛）和每块地每个状态的画面层，都加在 `build.ts`、`ground.ts` 构建顺序的最后，或者用单独的随机流。地块没启用时，原来那座岛的像素必须一个不差。
 - **Site 接口：**
   - 锚点、站位、`routeLine` 要能按已启用的地块增减；

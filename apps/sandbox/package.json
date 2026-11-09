@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "场景查看器和活动动画库：美术和动画可以脱离完整游戏单独开发和展示",
+  "description": "3D 像素场景（three.js，ADR 0027）：美术和演出脱离完整游戏单独开发和展示",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -11,9 +11,9 @@
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
-    "@td/iso": "workspace:*",
-    "@td/shared": "workspace:*",
-    "@td/ui": "workspace:*",
-    "preact": "10.29.8"
+    "three": "0.180.0"
+  },
+  "devDependencies": {
+    "@types/three": "0.180.0"
   }
 }

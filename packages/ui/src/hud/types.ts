@@ -323,7 +323,7 @@ export interface SettlementRow {
   icon?: SeasonInfo['weather'];
 }
 
-/** "今天的人"里的一个人：head 是像素头像（游戏用 @td/iso 的 personHead 烘出来的 data URL，没有就画首字母） */
+/** "今天的人"里的一个人：head 是像素头像（游戏给的 data URL；没有就画首字母。2.5D 时由 @td/iso 的 personHead 烘，画面迁移中暂时不给） */
 export interface SettlementPerson {
   id: string;
   name: string;

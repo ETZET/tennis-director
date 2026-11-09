@@ -4,29 +4,31 @@ import { defineConfig } from 'vite';
 export default defineConfig({
   // 相对路径，方便部署到任意静态托管的子目录
   base: './',
-  // @td/ui 的界面组件是 Preact TSX
-  oxc: { jsx: { runtime: 'automatic', importSource: 'preact' } },
   build: {
     target: 'es2022',
     // 单页应用暂不拆包
     chunkSizeWarningLimit: 800,
     rollupOptions: {
       input: {
+        // 页面目录（2.5D 的场景查看器、活动库、demo、人物方案页已归档：docs/archive/iso-2.5d，ADR 0027）
         index: resolve(import.meta.dirname, 'index.html'),
-        activities: resolve(import.meta.dirname, 'activities.html'),
-        // 玩法 demo 第二轮（docs/lab/2026-11-04-playability）
-        demos: resolve(import.meta.dirname, 'demos.html'),
-        'demo-shop': resolve(import.meta.dirname, 'demo-shop.html'),
-        'demo-court': resolve(import.meta.dirname, 'demo-court.html'),
-        'demo-staff': resolve(import.meta.dirname, 'demo-staff.html'),
-        'demo-social': resolve(import.meta.dirname, 'demo-social.html'),
-        // 人物设计方向（docs/lab/2026-11-04-characters）
-        chars: resolve(import.meta.dirname, 'chars.html'),
-        'chars-a': resolve(import.meta.dirname, 'chars-a.html'),
-        'chars-b': resolve(import.meta.dirname, 'chars-b.html'),
-        'chars-c': resolve(import.meta.dirname, 'chars-c.html'),
-        'chars-d': resolve(import.meta.dirname, 'chars-d.html'),
-        'chars-e': resolve(import.meta.dirname, 'chars-e.html'),
+        // 3D 像素画实验（three.js，只在 sandbox）
+        desert3d: resolve(import.meta.dirname, 'desert3d.html'),
+        pond3d: resolve(import.meta.dirname, 'pond3d.html'),
+        'desert3d-v2': resolve(import.meta.dirname, 'desert3d-v2.html'),
+        // 俱乐部前台和大门（白模 → 素材，.claude/skills/pixel-scene）
+        clubfront: resolve(import.meta.dirname, 'clubfront.html'),
+        // 整座俱乐部的微缩地图（确认大布局）
+        clubmap: resolve(import.meta.dirname, 'clubmap.html'),
+        clubmap2: resolve(import.meta.dirname, 'clubmap2.html'),
+        clubpark: resolve(import.meta.dirname, 'clubpark.html'),
+        clubdesk: resolve(import.meta.dirname, 'clubdesk.html'),
+        clubpickle: resolve(import.meta.dirname, 'clubpickle.html'),
+        clubclay: resolve(import.meta.dirname, 'clubclay.html'),
+        clubplaza: resolve(import.meta.dirname, 'clubplaza.html'),
+        clubstadium: resolve(import.meta.dirname, 'clubstadium.html'),
+        clubcourts: resolve(import.meta.dirname, 'clubcourts.html'),
+        clubfood: resolve(import.meta.dirname, 'clubfood.html'),
       },
     },
   },

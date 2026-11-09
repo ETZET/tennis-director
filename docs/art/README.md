@@ -1,7 +1,7 @@
 # 美术
 
 游戏的画风是 **2.5D 等距像素**（ADR 0019，已定案）：固定 2:1 等距视角，Q/E 转 90°，Canvas 2D 软件光栅，暖色沙漠、Kairosoft 式饱和度。
-实现在 `packages/iso`，接口契约见 [`docs/design/iso-architecture.md`](../design/iso-architecture.md)。
+实现在 `packages/iso`，接口契约见 [`iso-architecture.md`](../archive/iso-2.5d/docs/design/iso-architecture.md)（2.5D 已归档，ADR 0027）。
 
 ## 素材在哪
 
