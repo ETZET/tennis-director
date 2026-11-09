@@ -51,6 +51,9 @@ docs/archive/** 不参与构建，谁也不能引用
 
 不变，2.5D 归档没有动它。存档版本 15。
 
+2026-11-09 起 2.5D 时期的主线和派工的**设计**归档（[main-line-2.5d.md](../archive/pre-3d/main-line-2.5d.md)，游戏流程重新设计中）：下表里的 `staff.ts`（派工）和
+`stars.ts`、`tournaments.ts`、`growth.ts`、`potential.ts`、`plots.ts`、`ending.ts`（主线）是它的实现，代码照旧在、照旧跑，重新设计定了再删改。
+
 | 文件 | 管什么 |
 | --- | --- |
 | `state.ts` | `GameState`（可序列化）、存档版本 |

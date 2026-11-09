@@ -4,6 +4,7 @@
 - 编号说明：原来是 0023（和 [0023 无极旋转](0023-free-rotation.md) 撞号），2026-11-08 改成 0028（0025、0026 留给没合并的分支，0027 已占）。
 - 日期：2026-11-05
 - 修订：玩法准则 5（"日常经营靠招人和排人"，`CLAUDE.md` 和设计文档）
+- 注（2026-11-09）：准则 5 和它依托的派工模型（0012、0014）已归档（[tenet-5-staffing.md](../archive/pre-3d/tenet-5-staffing.md)），员工要不要有在重新设计里定；本提议跟着重新设计再看。
 - 补充：[0012](0012-staffing-loop.md)（岗位和工单）、[0014](0014-routines.md)（习惯）、[0010](0010-activity-library.md)（演出不决定数值）、[0022](0022-court-usability.md)（信号说档不说数）
 - 依据：`docs/design/people-sim.md`（完稿 v3，两轮评审）、`docs/design/people.md`
 

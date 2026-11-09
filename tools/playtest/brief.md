@@ -4,6 +4,10 @@
 > (where the player walks the director directly, ADR 0029) live in `apps/sandbox` and are not wired into the game yet. This brief
 > reviews the simulation, cards and HUD only: places are a row of buttons on the stage instead of markers on a map, so judge
 > visuals and scene layout as "not there yet", not as a defect. Rewrite this brief when the scenes come back (docs/design/backlog.md, M-B).
+>
+> **2026-11-09:** the main line this build plays (restoration, 16 weeks, stars, tournaments, ending) and the staffing loop (tenet 5 below)
+> are archived design (`docs/archive/pre-3d/main-line-2.5d.md`); the game flow is being redesigned (backlog M-0). The current tenet list has five:
+> old tenet 5 was removed and tenet 6 is now 5. The sim still runs the archived design, so this brief still reviews it as-is.
 
 You are an independent playtester. You have NOT worked on this game. Judge only what a player sees.
 

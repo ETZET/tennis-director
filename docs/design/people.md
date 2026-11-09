@@ -3,6 +3,8 @@
 2026-11-01 · 第一版。研究在前，设计在中间，第一版做了什么和以后做什么在最后。
 数值以 `packages/content/data/people/`、`traits.yaml`、`posts/`、`orders/` 为准，本文跟着更新。
 
+> **2026-11-09 起：** 招聘日、把人派到岗位和工单上属于归档的主线和派工（[`main-line-2.5d.md`](../archive/pre-3d/main-line-2.5d.md)、[`tenet-5-staffing.md`](../archive/pre-3d/tenet-5-staffing.md)）；模拟照旧按本文跑，员工要不要有归 `backlog.md` 的 M-0。
+
 ## 为什么要做
 
 v0.3 的人物只有三项能力（教学、维护、服务）、工资、士气和几个特质。8 个候选人彼此差别不大：
