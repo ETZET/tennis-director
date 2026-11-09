@@ -5,7 +5,8 @@
 //   desk-handover  柜台台面：拿着毛巾时"递毛巾"（样板：放回台面那叠）
 // 毛巾随手放在地上 → "拿起 毛巾"。
 import * as THREE from 'three';
-import { footprint, type Hud, mountPlay, type Play, type Rect, rampFromStairs, type Shape } from '../clubsite/play';
+import { footprint, type Play, type Rect, rampFromStairs, type Shape } from '../clubsite/play';
+import type { RegionJobs, RegionNav, RegionStart } from '../clubsite/region';
 import { GATE } from '../clubsite/world';
 import type { AssetCtx } from './ctx';
 import { CANOPY, COUNTER, GATE_SPEC, HEAD_LINE_Z, PICKLE, SLOTS, SPOTS, STAIRS, WALL } from './layout';
@@ -28,16 +29,21 @@ const PLANT_R: Record<string, number> = {
 const BOXED = ['back-cabinet', 'towel-cart', 'water-station', 'tool-rack', 'checkin-board', 'bench-prom', 'bench-lawn'];
 
 export interface DeskPlayEnv {
-  scene: THREE.Scene;
-  // biome-ignore lint/suspicious/noExplicitAny: 场景自己那份 PixelPipeline（结构同 clubsite/play 的 PipeLike）
-  pipe: any;
-  canvas: HTMLCanvasElement;
-  groundAt(x: number, z: number): number;
+  /** 区域的根（独立页面 = scene）：按 slot:<id> 找摆件 */
+  scene: THREE.Object3D;
   ctx: AssetCtx;
 }
 
-export function setupDeskPlay(env: DeskPlayEnv): Play & { hud: Hud } {
-  const { scene, ctx } = env;
+/** 独立页面的开局（main.ts 的 mountPlay） */
+export const DESK_START: RegionStart = {
+  start: SPOTS.deskStand,
+  yaw: 1.25,
+  camera: { lead: { portrait: 1.6, landscape: 0.6 } },
+  hint: '拖动走路 · 点地面走过去',
+};
+
+/** 导航：能走 / 挡路（按摆好的家具量）/ 台阶；场景建好以后调 */
+export function deskNav(scene: THREE.Object3D): RegionNav {
   const slot = (id: string) => scene.getObjectByName(`slot:${id}`) ?? null;
 
   // ── 挡路的 ──
@@ -73,30 +79,23 @@ export function setupDeskPlay(env: DeskPlayEnv): Play & { hud: Hud } {
   }
   // 陶罐（上面种着龙舌兰）
   blocked.push({ x: 58.4, z: -7.3, r: 0.45 });
+  return {
+    bounds: NAV_BOUNDS,
+    walkable: [
+      // 墙里（广场、草坪的高差由 groundAt 给，崖壁 > 0.3 米挡住，走台阶）
+      { x0: NAV_BOUNDS.x0, x1: WALL_IN, z0: NAV_BOUNDS.z0, z1: NAV_BOUNDS.z1 },
+      // 门洞 → 门外几米（gateOut 那边是 clubpark）
+      { x0: WALL_IN - 0.5, x1: NAV_BOUNDS.x1, z0: GATE.z0 + 0.05, z1: GATE.z1 - 0.05 },
+    ],
+    blocked,
+    ramps: STAIRS.map(rampFromStairs),
+  };
+}
 
-  const play = mountPlay({
-    scene,
-    pipe: env.pipe,
-    canvas: env.canvas,
-    director: slot('director') as THREE.Object3D,
-    start: SPOTS.deskStand,
-    yaw: 1.25,
-    nav: {
-      groundAt: env.groundAt,
-      bounds: NAV_BOUNDS,
-      walkable: [
-        // 墙里（广场、草坪的高差由 groundAt 给，崖壁 > 0.3 米挡住，走台阶）
-        { x0: NAV_BOUNDS.x0, x1: WALL_IN, z0: NAV_BOUNDS.z0, z1: NAV_BOUNDS.z1 },
-        // 门洞 → 门外几米（gateOut 那边是 clubpark）
-        { x0: WALL_IN - 0.5, x1: NAV_BOUNDS.x1, z0: GATE.z0 + 0.05, z1: GATE.z1 - 0.05 },
-      ],
-      blocked,
-      ramps: STAIRS.map(rampFromStairs),
-    },
-    camera: { lead: { portrait: 1.6, landscape: 0.6 } },
-    hint: '拖动走路 · 点地面走过去',
-  });
-
+/** 总监的活登记到 play：站着的人挡路、样板互动点（life.attachPlay 用同 id 替换） */
+export function attachDeskJobs(play: Play, env: DeskPlayEnv): RegionJobs {
+  const { scene, ctx } = env;
+  const slot = (id: string) => scene.getObjectByName(`slot:${id}`) ?? null;
   // 站着的人当挡路圆（life 接管这些人以后照样跟着他们走：按世界位置算）
   for (const s of SLOTS) {
     if (s.asset !== 'player') continue;
@@ -105,7 +104,7 @@ export function setupDeskPlay(env: DeskPlayEnv): Play & { hud: Hud } {
   }
 
   addDemos(play, scene, ctx);
-  return play;
+  return { step: () => {} };
 }
 
 /** 卷起来的毛巾（白 + 两道俱乐部蓝），0.32 米长，握在中间 */
@@ -133,7 +132,7 @@ export function buildTowel(ctx: AssetCtx): THREE.Object3D {
 }
 
 /** 样板互动点（life.ts 用同 id 替换） */
-function addDemos(play: Play, scene: THREE.Scene, ctx: AssetCtx) {
+function addDemos(play: Play, scene: THREE.Object3D, ctx: AssetCtx) {
   const counter = scene.getObjectByName('slot:desk-counter');
   const cart = scene.getObjectByName('slot:towel-cart');
   const member = scene.getObjectByName('slot:member-serve');

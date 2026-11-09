@@ -315,7 +315,7 @@ export function build(ctx: AssetCtx): THREE.Object3D {
     m.w = toward(m.w, st.target.w, k);
     if (st.mode === 'wave') {
       const w = U.uCrWave.value;
-      w.x += st.waveDir * 12 * dt;
+      w.x += st.waveDir * 8 * dt;
       if (w.x > WAVE_LOOP) w.x -= WAVE_LOOP;
       if (w.x < 0) w.x += WAVE_LOOP;
     }

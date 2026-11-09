@@ -14,7 +14,7 @@
 //          │          │ 补货 ↗ 排队        排队          排队   鲜果水 │
 //   z −34  │          │ 箱子   ┌────────── 凉棚（串灯）──────────┐ 冰棍车 │
 //   z −27  ├──────────┤ 回收台 │ 长桌 ×6（一排排坐着吃的人）      │      │
-//          │ 银色拖车（波奇碗）  └──────────────────────────────────┘      │
+//          │ 银色拖车（汉堡）  └──────────────────────────────────┘      │
 //   z −21  │ 拱廊 ═══════ 球员通道（石板）════════════════════════ → 球员拱门（clubstadium）
 //          │ 钟楼    │  垃圾 / 回收站（总监）   野餐桌 + 伞 ×3（一张上有偷薯条的鸟）
 //   z −14  │ 南翼    │ 奶茶三轮  ┌── 孩子的草皮角：沙包投洞、大号叠叠乐 ──┐ 吉事果车 │ 工具角（stadium）
@@ -27,11 +27,23 @@
 // 太阳在北偏东 8°（仰角 44°）：所有朝镜头（朝南）的车身侧面都在暗档（资产用 lightUp + 低 bands 留住颜色，clubdesk 柜台的做法）；
 // 车顶、近乎水平的遮阳篷、伞面、凉棚顶是亮的 → **主色放在朝天的面上**。遮阳篷挂在车顶线、伸出 ≤ 0.8 米、近乎水平：45° 俯视下才不挡窗口里的摊主。
 // 安静的地方：餐车和凉棚之间的那条碎花岗岩（排队的人站在这里，地面别再加东西）、球员通道的石板、长廊、北墙外的沙漠。
-import { CLUBHOUSE, COURTS, GROUNDS, PATHS, POOL, POOL_DECK, type Rect, TERRACE, type V2 } from '../clubsite/world';
+import {
+  ARCADE_YARD,
+  CLUBHOUSE,
+  COURTS,
+  FOOD_COURT,
+  GROUNDS,
+  PATHS,
+  POOL,
+  POOL_DECK,
+  type Rect,
+  TERRACE,
+  type V2,
+} from '../clubsite/world';
 import { PLAYERS_GATE, WALKOUT } from '../clubstadium/layout';
 
 export type { Rect, V2 };
-export { CLUBHOUSE, COURTS, GROUNDS, PATHS, PLAYERS_GATE, POOL, POOL_DECK, TERRACE, WALKOUT };
+export { ARCADE_YARD, CLUBHOUSE, COURTS, FOOD_COURT, GROUNDS, PATHS, PLAYERS_GATE, POOL, POOL_DECK, TERRACE, WALKOUT };
 
 /** 设计纹素（米/纹素，2× 像素级别时）。默认 1× 像素时实际 0.045 米/纹素，素材仍按 0.09 建模 */
 export const MPT = 0.09;
@@ -56,16 +68,7 @@ export const CLIP: Rect = { x0: GROUNDS.x0, x1: -2, z0: GROUNDS.z0, z1: 20 };
 /** 各层高度（米）：这个场景没有台地（都在 0）；暗带靠北围墙、会所南立面、车身侧面、青训围网 */
 export const H = { ground: 0 } as const;
 
-// ── 建议的范围（共享坐标的提议，见 clubfood.md「共享坐标」）──────────────────
-/**
- * 建议：地图的露台（TERRACE x −37…−26、z −36…−11）扩成餐车院子。
- * 北到北围墙脚（z −42.4，墙南面 −42.65），南到长廊北沿（z −8.6 前留 0.8 米），西到会所东翼的东墙（x −40），
- * 东到 x −21.4（再往东 x −21.4…−19.8 留给 clubstadium 西头端梯那条观众路 x −20.6；北看台西端在 x −20、z −37.4…−30）。
- * z > −30 那段东沿收到 x −22.6（clubstadium 的球员通道 WALKOUT x −26…−18、z −22.4…−19.6 从这里穿过，工具角 x ≥ −24.5、z ≥ −15.4 不占）。
- */
-export const FOOD_COURT: Rect = { x0: -40, x1: -21.4, z0: -42.4, z1: -9.4 };
-/** 建议：会所拱廊前的小院（主楼东墙 x −46 和露台之间，东翼南墙 z −27 以南）也归餐厅：银色拖车、奶茶三轮、回收台 */
-export const ARCADE_YARD: Rect = { x0: -46, x1: -40, z0: -27, z1: -9.4 };
+// ── 餐车院子的范围：FOOD_COURT（露台扩成的院子）、ARCADE_YARD（会所拱廊前的小院）在 clubsite/world.ts（2026-11-09 用户同意，见 clubfood.md「共享坐标」）──
 /** 会所的体块（照 clubmap2/build.ts 的 house() 抄，没导出）：主楼、东翼、南翼、钟楼、东面拱廊 */
 export const HOUSE = {
   main: { x0: CLUBHOUSE.x0, x1: -46, z0: CLUBHOUSE.z0, z1: -16, h: 8, roof: 3.4 },
@@ -231,7 +234,8 @@ const vendor = (t: { x: number; z: number; dep: number }, lx: number, v: number,
   id,
   asset: 'player',
   x: t.x + lx,
-  z: t.z + t.dep / 2 - 0.45,
+  // 窗后 0.25 米（再往里 45° 俯视下头被窗上沿挡住）
+  z: t.z + t.dep / 2 - 0.25,
   y: TRUCK_FLOOR,
   rotY: 0,
   variant: v,
@@ -271,10 +275,10 @@ const AGUA: V2 = [-24.3, -34.2];
 const AGUA_ROT = -0.5;
 const PALETA: V2 = [-23.9, -29.2];
 const PALETA_ROT = -0.75;
-const TRAILER: V2 = [-42.0, -24.7];
+const TRAILER: V2 = [-40.8, -24.6];
 const TRAILER_ROT = 0.22;
 const BOBA: V2 = [-40.0, -14.4];
-const BOBA_ROT = 0.35;
+const BOBA_ROT = -0.35;
 const CHURRO: V2 = [-26.3, -12.6];
 const CHURRO_ROT = -0.3;
 
@@ -285,19 +289,24 @@ export const SLOTS: Slot[] = [
   { id: 'truck-pizza', asset: 'truck-pizza', x: TP.x, z: TP.z, labelAt: [TP.x + 0.6, 3.7, TP.z] },
   vendor(TC, -0.3, 1, 'vendor-coffee'),
   vendor(TT, 0.2, 3, 'vendor-taco'),
-  vendor(TT, -1.3, 0, 'vendor-taco2'),
   vendor(TP, 1.0, 2, 'vendor-pizza'),
-  // 车与车之间：煤气罐 / 箱子（补货的东西）
-  { id: 'gap-1', asset: 'supply-stack', x: -34.75, z: -40.4, variant: 1, s: 0.8, noLabel: true },
+  // 车与车之间：塔可和披萨之间一摞箱子（咖啡和塔可之间空着 = 去车背后补货的小道）
   { id: 'gap-2', asset: 'supply-stack', x: -28.1, z: -40.6, variant: 2, s: 0.8, noLabel: true },
-  // 串灯：凉棚北梁 → 车顶前沿（三条，下垂）
-  ...([-34.6, -31.4, -28.2] as const).map((x, i) => ({
+  // 串灯：凉棚北梁（挂在板条头上 x −34.7 / −32.35 / −28.3，梁顶外沿 y 2.82、z −33.6）→ 车顶前沿（三条，下垂）。
+  // 中间那条挂在塔可车窗口西头（不压在摊主脸前）
+  ...(
+    [
+      [-34.7, -36.0],
+      [-32.35, -32.6],
+      [-28.3, -27.2],
+    ] as const
+  ).map(([x, toX], i) => ({
     id: `festoon-${i}`,
     asset: 'festoon',
     x,
-    z: PERGOLA.z0,
-    y: PERGOLA.h,
-    to: [x + (i - 1) * 0.6, 2.95, -38.3] as [number, number, number],
+    z: PERGOLA.z0 + 0.2,
+    y: PERGOLA.h - 0.18,
+    to: [toX, 2.95, -38.3] as [number, number, number],
     noLabel: i !== 1,
   })),
   // ── 排队：三个窗口前各一队（斜着往西南排，45° 下人不叠在一起）──────────
@@ -335,8 +344,8 @@ export const SLOTS: Slot[] = [
   {
     id: 'vendor-paleta',
     asset: 'player',
-    x: local(PALETA, PALETA_ROT, 0.95, -0.2)[0],
-    z: local(PALETA, PALETA_ROT, 0.95, -0.2)[1],
+    x: local(PALETA, PALETA_ROT, 1.0, -0.35)[0],
+    z: local(PALETA, PALETA_ROT, 1.0, -0.35)[1],
     rotY: PALETA_ROT,
     variant: 0,
     pose: ['idle', 0.2],
@@ -366,13 +375,13 @@ export const SLOTS: Slot[] = [
     prop: null,
     noLabel: true,
   },
-  // ── 西边：会所拱廊前的银色拖车（波奇碗 / 沙拉），朝南偏东 ─────────────
-  { id: 'trailer-poke', asset: 'trailer-poke', x: TRAILER[0], z: TRAILER[1], rotY: TRAILER_ROT },
+  // ── 西边：会所拱廊前的银色拖车（汉堡），朝南偏东 ─────────────
+  { id: 'trailer-burger', asset: 'trailer-burger', x: TRAILER[0], z: TRAILER[1], rotY: TRAILER_ROT },
   {
-    id: 'vendor-poke',
+    id: 'vendor-burger',
     asset: 'player',
-    x: local(TRAILER, TRAILER_ROT, 1.0, 0.75)[0],
-    z: local(TRAILER, TRAILER_ROT, 1.0, 0.75)[1],
+    x: local(TRAILER, TRAILER_ROT, 0.25, 0.9)[0],
+    z: local(TRAILER, TRAILER_ROT, 0.25, 0.9)[1],
     y: 0.7,
     rotY: TRAILER_ROT,
     variant: 3,
@@ -380,7 +389,7 @@ export const SLOTS: Slot[] = [
     prop: null,
     noLabel: true,
   },
-  queuer('q-poke', ...local(TRAILER, TRAILER_ROT, 1.2, 2.25), 1, 0.6, { rotY: TRAILER_ROT + N }),
+  queuer('q-burger', ...local(TRAILER, TRAILER_ROT, 0.25, 2.25), 1, 0.6, { rotY: TRAILER_ROT + N }),
   // ── 凉棚 + 长桌（中线）──────────────────────────────────────
   {
     id: 'pergola',
@@ -482,7 +491,7 @@ export const SLOTS: Slot[] = [
   },
   { id: 'trash-bag', asset: 'trash-bag', x: -39.5, z: -21.5, rotY: 0.6, labelAt: [-39.9, 0.9, -20.8] },
   // 补货堆 + 手推车（会所东翼东墙下，厨房后门旁）
-  { id: 'supply', asset: 'supply-stack', x: SPOTS.supply[0] - 0.3, z: SPOTS.supply[1] - 0.3, variant: 0 },
+  { id: 'supply', asset: 'supply-stack', x: SPOTS.supply[0] + 0.2, z: SPOTS.supply[1] - 0.3, variant: 0 },
   { id: 'hand-truck', asset: 'hand-truck', x: -38.6, z: -33.6, rotY: 0.4, labelBelow: true },
   // ── 球员通道：两个球员从会所走出来去中心球场（往东）──────────────────
   {
@@ -525,7 +534,7 @@ export const SLOTS: Slot[] = [
   },
   { id: 'umbrella-1', asset: 'patio-umbrella', x: PICNIC_XS[1], z: PICNIC_Z, variant: 1, noLabel: true },
   // 收起来的伞（东边那张：鸟在亮处才看得见）
-  { id: 'umbrella-2', asset: 'patio-umbrella', x: PICNIC_XS[2] + 0.1, z: PICNIC_Z - 0.1, variant: 2, noLabel: true },
+  { id: 'umbrella-2', asset: 'patio-umbrella', x: PICNIC_XS[2], z: PICNIC_Z, variant: 2, noLabel: true },
   // 一家人吃饭（野餐桌 0）：家长 + 两个孩子
   {
     id: 'fam-1',
@@ -670,15 +679,15 @@ export const SLOTS: Slot[] = [
   {
     id: 'vendor-boba',
     asset: 'player',
-    x: local(BOBA, BOBA_ROT, 0.5, -1.05)[0],
-    z: local(BOBA, BOBA_ROT, 0.5, -1.05)[1],
+    x: local(BOBA, BOBA_ROT, 0.72, -0.95)[0],
+    z: local(BOBA, BOBA_ROT, 0.72, -0.95)[1],
     rotY: BOBA_ROT,
     variant: 2,
     pose: ['idle', 0.8],
     prop: null,
     noLabel: true,
   },
-  queuer('q-boba', ...local(BOBA, BOBA_ROT, 0.2, 1.3), 3, 0.4, { rotY: BOBA_ROT + N, prop: 'racket' }),
+  queuer('q-boba', ...local(BOBA, BOBA_ROT, -0.08, 1.47), 3, 0.4, { rotY: BOBA_ROT + N, prop: 'racket' }),
   { id: 'cart-churros', asset: 'cart-churros', x: CHURRO[0], z: CHURRO[1], rotY: CHURRO_ROT },
   {
     id: 'vendor-churro',

@@ -197,7 +197,7 @@ export interface ClayLife {
 
 export interface LifeOpts {
   ctx: AssetCtx;
-  scene: THREE.Scene;
+  scene: THREE.Object3D;
   /** SLOTS 建出来的对象（id → 对象） */
   objs: Map<string, THREE.Object3D>;
   near: ClayApi | null;

@@ -85,14 +85,14 @@ export const NEW_SPECS: Record<string, Spec> = {
     kind: 'oven',
     base: 'ironwork',
   },
-  'trailer-poke': {
+  'trailer-burger': {
     w: 6.4,
     d: 2.4,
     h: 2.8,
     shape: 'trailer',
     n: 4,
-    name: '银色拖车（波奇碗）',
-    acc: 'accPoke',
+    name: '银色拖车（汉堡）',
+    acc: 'accBurger',
     base: 'concrete',
   },
   'cart-paletas': {
@@ -156,8 +156,8 @@ export const SPECS: Record<string, Spec> = {
   kid: { w: 0.4, d: 0.3, h: 1.0, shape: 'person' },
 };
 
-/** 托盘上的吃的：塔可（橙）、披萨（红）、波奇碗（绿）、薯条（黄） */
-const TRAY_FOOD: Accent[] = ['accTaco', 'accPizza', 'accPoke', 'accChurro'];
+/** 托盘上的吃的：塔可（橙）、披萨（红）、汉堡（绿：生菜）、薯条（黄） */
+const TRAY_FOOD: Accent[] = ['accTaco', 'accPizza', 'accBurger', 'accChurro'];
 /** 伞面：三把伞三种主色（和旁边的车错开） */
 const UMB_ACC: Accent[] = ['accPaleta', 'accChurro', 'accCoffee'];
 

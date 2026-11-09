@@ -10,16 +10,8 @@
 // 放着不管：叶子越积越多 → 长椅上的人皱眉走掉、鸟不回来（life.ts）。总监在这里干活的时候，前台那边就没人（clubdesk 的取舍）。
 import * as THREE from 'three';
 import { STAIRS } from '../clubdesk/layout';
-import {
-  footprint,
-  type Hud,
-  type Item,
-  mountPlay,
-  type Play,
-  type Rect,
-  rampFromStairs,
-  type Shape,
-} from '../clubsite/play';
+import { footprint, type Item, type Play, type Rect, rampFromStairs, type Shape } from '../clubsite/play';
+import type { RegionNav, RegionStart } from '../clubsite/region';
 import { FOUNTAIN, FOUNTAIN_SPEC, PLAZA, SLOTS, SPOTS, STADIUM_LINK } from './layout';
 import type { LeafRef, PlazaLife } from './life';
 
@@ -38,17 +30,17 @@ const PLANT_R: Record<string, number> = {
 /** 按包围盒挡路的东西（slot id） */
 const BOXED = ['bench-w', 'bench-n', 'bench-prom', 'bench-link', 'drinks-cart', 'drink-fountain'];
 
-export interface PlazaPlayEnv {
-  scene: THREE.Scene;
-  // biome-ignore lint/suspicious/noExplicitAny: 场景自己那份 PixelPipeline（结构同 clubsite/play 的 PipeLike）
-  pipe: any;
-  canvas: HTMLCanvasElement;
-  groundAt(x: number, z: number): number;
-}
+/** 独立页面的开局（main.ts 的 mountPlay） */
+export const PLAZA_START: RegionStart = {
+  start: [SPOTS.leafCart[0] - 0.4, SPOTS.leafCart[1] - 0.6],
+  yaw: -Math.PI / 2,
+  // 横屏的取景范围就是白模的横屏（左边看台、右边东墙和大门）：横屏下相机不左右跑，竖屏跟着总监
+  camera: { lead: { portrait: 1.4, landscape: 0.5 }, view: { x0: 15.2, x1: 72.8, z0: -58, z1: 12 } },
+  hint: '拖动走路 · 点地面走过去',
+};
 
-/** 第一步：导航 + 相机（life 建好之前；life 的气泡要用 play.say） */
-export function mountPlazaPlay(env: PlazaPlayEnv): Play & { hud: Hud } {
-  const { scene } = env;
+/** 第一步：导航（life 建好之前；独立页面先 mountPlay，life 的气泡要用 play.say）。scene = 区域的根 */
+export function plazaNav(scene: THREE.Object3D): RegionNav {
   const slot = (id: string) => scene.getObjectByName(`slot:${id}`) ?? null;
   const blocked: Shape[] = [
     // 喷泉池（池壁外沿）
@@ -67,36 +59,23 @@ export function mountPlazaPlay(env: PlazaPlayEnv): Play & { hud: Hud } {
   for (const s of SLOTS) if (s.asset === 'pot') blocked.push({ x: s.x, z: s.z, r: 0.42 });
 
   const st = STADIUM_LINK.stairs;
-  const play = mountPlay({
-    scene,
-    pipe: env.pipe,
-    canvas: env.canvas,
-    director: slot('director') as THREE.Object3D,
-    start: [SPOTS.leafCart[0] - 0.4, SPOTS.leafCart[1] - 0.6],
-    yaw: -Math.PI / 2,
-    nav: {
-      groundAt: env.groundAt,
-      bounds: NAV_BOUNDS,
-      walkable: [
-        // 广场顶面（北沿、东沿是 1.2 米的落差：高差挡住）
-        { x0: PLAZA.x0, x1: PLAZA.x1, z0: PLAZA.z0, z1: PLAZA.z1 },
-        // 两段台阶 + 绿带 + 长廊（往南出画 = clubdesk）
-        { x0: 30, x1: NAV_BOUNDS.x1, z0: PLAZA.z1, z1: NAV_BOUNDS.z1 },
-        // 西沿的台阶 + 去看台的小路（横屏左边）
-        { x0: STADIUM_LINK.path.x0, x1: PLAZA.x0, z0: STADIUM_LINK.path.z0, z1: STADIUM_LINK.path.z1 },
-        { x0: st.x0, x1: st.x1, z0: st.z0, z1: st.z1 },
-      ],
-      blocked,
-      ramps: [
-        ...STAIRS.slice(0, 2).map(rampFromStairs),
-        { x0: st.x0, x1: st.x1, z0: st.z0, z1: st.z1, from: 0, to: 1.2, axis: 'x' },
-      ],
-    },
-    // 横屏的取景范围就是白模的横屏（左边看台、右边东墙和大门）：横屏下相机不左右跑，竖屏跟着总监
-    camera: { lead: { portrait: 1.4, landscape: 0.5 }, view: { x0: 15.2, x1: 72.8, z0: -58, z1: 12 } },
-    hint: '拖动走路 · 点地面走过去',
-  });
-  return play;
+  return {
+    bounds: NAV_BOUNDS,
+    walkable: [
+      // 广场顶面（北沿、东沿是 1.2 米的落差：高差挡住）
+      { x0: PLAZA.x0, x1: PLAZA.x1, z0: PLAZA.z0, z1: PLAZA.z1 },
+      // 两段台阶 + 绿带 + 长廊（往南出画 = clubdesk）
+      { x0: 30, x1: NAV_BOUNDS.x1, z0: PLAZA.z1, z1: NAV_BOUNDS.z1 },
+      // 西沿的台阶 + 去看台的小路（横屏左边）
+      { x0: STADIUM_LINK.path.x0, x1: PLAZA.x0, z0: STADIUM_LINK.path.z0, z1: STADIUM_LINK.path.z1 },
+      { x0: st.x0, x1: st.x1, z0: st.z0, z1: st.z1 },
+    ],
+    blocked,
+    ramps: [
+      ...STAIRS.slice(0, 2).map(rampFromStairs),
+      { x0: st.x0, x1: st.x1, z0: st.z0, z1: st.z1, from: 0, to: 1.2, axis: 'x' },
+    ],
+  };
 }
 
 /** 第二步：总监的活（互动点 + 工具），life 建好之后 */

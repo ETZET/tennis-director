@@ -6,35 +6,30 @@
 //   伞 B        按"撑伞"（开始是收着的；撑开以后两个人过来坐）
 // 每步：拿着捡球器走路 → jobs.sweep；顶栏（1 号场、排队、水、2 号场比分）；life 的提示 → toast。
 import * as THREE from 'three';
-import { type Hud, mountPlay, type Play } from '../clubsite/play';
-import { NAV, SPOTS } from './layout';
+import type { Play } from '../clubsite/play';
+import type { RegionJobs, RegionStart } from '../clubsite/region';
+import { SPOTS } from './layout';
 import type { Life } from './life';
 
-export interface PicklePlayEnv {
-  scene: THREE.Scene;
-  // biome-ignore lint/suspicious/noExplicitAny: 场景自己那份 PixelPipeline（结构同 clubsite/play 的 PipeLike）
-  pipe: any;
-  canvas: HTMLCanvasElement;
+export interface PickleJobsEnv {
+  /** 区域的根（独立页面 = scene）：按 slot:<id> 找摆件、收起摇把 */
+  scene: THREE.Object3D;
   groundAt(x: number, z: number): number;
 }
 
-export type PicklePlay = Play & { hud: Hud; step(dt: number): void };
+/** 独立页面的开局（main.ts 的 mountPlay；导航是 layout.ts 的 NAV） */
+export const PICKLE_START: RegionStart = {
+  start: [44.9, 5.75],
+  yaw: 0,
+  camera: { lead: { portrait: 1.4, landscape: 0.5 } },
+  hint: '拖动走路 · 点地面走过去',
+};
 
-export function setupPicklePlay(env: PicklePlayEnv, life: Life): PicklePlay {
+/** 总监的活登记到 play（互动点、手里的东西、挡路的人、顶栏）；返回每步要调的 step */
+export function attachPickleJobs(play: Play, env: PickleJobsEnv, life: Life): RegionJobs {
   const { scene } = env;
   const slot = (id: string) => scene.getObjectByName(`slot:${id}`) ?? null;
   const jobs = life.jobs;
-  const play = mountPlay({
-    scene,
-    pipe: env.pipe,
-    canvas: env.canvas,
-    director: jobs.director,
-    start: [44.9, 5.75],
-    yaw: 0,
-    nav: { groundAt: env.groundAt, bounds: NAV.bounds, walkable: NAV.walkable, blocked: NAV.blocked },
-    camera: { lead: { portrait: 1.4, landscape: 0.5 } },
-    hint: '拖动走路 · 点地面走过去',
-  });
   play.addBlocker(() => life.people());
 
   const at = (o: THREE.Object3D | null, dy = 0.6, fallback: readonly [number, number] = [0, 0]) =>
@@ -193,5 +188,5 @@ export function setupPicklePlay(env: PicklePlayEnv, life: Life): PicklePlay {
       play.stat('score', '比分', st.score);
     }
   };
-  return Object.assign(play, { step });
+  return { step };
 }

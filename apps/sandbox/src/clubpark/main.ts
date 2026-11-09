@@ -9,61 +9,30 @@
 // 停着的车 park-*）交给它建；?life=0 = 原来的白模定格（截图对比用）。默认玩法模式（总监由玩家操控，play.ts）；?play=0 = 只看。
 import '../clubsite/render/colors';
 import * as THREE from 'three';
-import { director as clubDirector } from '../clubsite/people';
-import type { Hud, Play } from '../clubsite/play';
-import type { BaseCtx as D3Ctx } from '../clubsite/render/ctx';
-import { rngFactory } from '../clubsite/render/noise';
-import type { Pal as ClubPal } from '../clubsite/render/palette';
-import { SCHEMES, schemeById, schemeMats, schemeOpts } from '../clubsite/render/palettes';
+import { type Hud, mountPlay, type Play } from '../clubsite/play';
+import type { RegionJobs } from '../clubsite/region';
+import { SCHEMES, schemeById } from '../clubsite/render/palettes';
 import { mountPaletteSwitcher } from '../clubsite/render/palettes/switcher';
 import { PixelPipeline } from '../clubsite/render/pipeline';
-import { CLOUD_N, createMats, type ToonOpts } from '../clubsite/render/toon';
-import { DRIVE, GATE } from '../clubsite/world';
-import type { AssetBuild, AssetCtx, SharedUniforms } from './ctx';
-import { AISLE_Z, CLOUD_VEL, CLOUDS, MPT, SLOTS, SUN, VIEW, WALL_OUT } from './layout';
-import { createParkLife, type ParkLife } from './life';
-import { buildNav } from './nav';
-import { EL, PAL, type Pal, SKY } from './palette';
+import { CLOUD_N } from '../clubsite/render/toon';
+import type { SharedUniforms } from './ctx';
+import { CLOUD_VEL, CLOUDS, MPT, SUN, VIEW } from './layout';
+import { EL, type Pal, SKY } from './palette';
 import { placeholder, SPECS } from './placeholders';
-import { setupParkPlay } from './play';
 import { REUSED } from './reuse';
-import { buildTerrain } from './terrain';
+import { createParkKit, createParkRegion, type Kind, OWN, type ParkRegion } from './scene';
 
 const params = new URLSearchParams(location.search);
 const num = (k: string, d: number) => (params.has(k) ? Number(params.get(k)) : d);
 const deg = Math.PI / 180;
-const rng = rngFactory(num('seed', 17));
 /** 配色：不带 ?pal = 6 午后金光（golden）；pal=current = 原来的沙漠配色 */
 const scheme = schemeById(params.get('pal'));
-
-/** 这个场景自己画的资产（assets/<id>.ts，export function build）；同名的优先于复用的 */
-const MODS = import.meta.glob<{ build: AssetBuild }>('./assets/*.ts', { eager: true });
-const OWN: Record<string, AssetBuild> = {};
-for (const [path, mod] of Object.entries(MODS)) {
-  const id = path.replace('./assets/', '').replace(/\.ts$/, '');
-  if (typeof mod.build === 'function') OWN[id] = mod.build;
-}
 
 const galleryId = params.get('asset');
 /** 玩法模式（默认）：总监交给玩家；?play=0 = 只看（拖动平移、白模标签） */
 const PLAY = !galleryId && params.get('play') !== '0';
 /** 日常演出（默认开）；?life=0 = 白模定格 */
 const LIFE = !galleryId && params.get('life') !== '0';
-/** life.ts 自己建、自己动的 SLOTS（白模里定格的车、人、停着的车） */
-const LIFE_SLOTS = new Set([
-  'car-dropoff',
-  'member-driver',
-  'valet',
-  'doorman',
-  'member-walk',
-  'member-n',
-  'member-lot',
-  'car-arrive',
-  'car-search',
-  'car-leave',
-]);
-let life: ParkLife | undefined;
-let play: (Play & { hud: Hud }) | null = null;
 const canvas = document.getElementById('c') as HTMLCanvasElement;
 const canvas2 = document.getElementById('c2') as HTMLCanvasElement;
 const labelsEl = document.getElementById('labels') as HTMLDivElement;
@@ -139,55 +108,18 @@ function setSun(elevDeg: number, azDeg: number) {
 }
 setSun(num('sunel', SUN.el), num('sunaz', SUN.az));
 
-const mats = createMats(uniforms, () => pipe.rig.metersPerTexel);
-/**
- * 调色板名字 → 材质参数；配色方案（默认 golden）在这里换色。
- * 停车场新加的名字不在 palettes/index.ts 的 GROUP 表里 → 只吃方案的全局 grade（见 palette.ts 开头）。
- */
-function palOpts(key: keyof Pal, extra?: ToonOpts): ToonOpts {
-  const sw = PAL[key];
-  const o: ToonOpts = {
-    ramp: sw.ramp,
-    edge: sw.edge,
-    convex: sw.convex,
-    tones: sw.tones,
-    ...('opts' in sw ? sw.opts : {}),
-    ...extra,
-  };
-  return scheme ? schemeOpts(scheme, key as keyof ClubPal, o) : o;
-}
-const ctxBase = {
-  mats: scheme ? schemeMats(scheme, mats) : mats,
-  pal: PAL,
-  mat(key: keyof Pal, extra?: ToonOpts) {
-    return mats.toon(0xffffff, palOpts(key, extra));
-  },
-  rng,
+const host = {
+  scene,
+  parent: scene,
   uniforms,
-  layers: { FX: 1 },
-  texel: designTexel,
   params,
+  texelMeters: () => pipe.rig.metersPerTexel,
+  designTexel,
+  life: LIFE,
+  play: PLAY,
 };
-const ctxFor = (variant: number): AssetCtx => ({ ...ctxBase, variant });
-
-const updaters: ((dt: number, t: number) => void)[] = [];
-const collectUpdaters = (o: THREE.Object3D) =>
-  o.traverse((c) => {
-    const u = c.userData.update as ((dt: number, t: number) => void) | undefined;
-    if (u) updaters.push(u);
-  });
-
-type Kind = 'own' | 'reused' | 'placeholder';
-function makeAsset(asset: string, variant: number): { obj: THREE.Object3D; kind: Kind } {
-  // 总监：clubsite/people 的那个（玩法模块要它的 hold / handPoint）
-  if (asset === 'director' && !galleryId)
-    return { obj: clubDirector(ctxFor(variant) as unknown as D3Ctx), kind: 'reused' };
-  const own = OWN[asset];
-  if (own) return { obj: own(ctxFor(variant)), kind: 'own' };
-  const reused = REUSED[asset];
-  if (reused) return { obj: reused(ctxFor(variant)), kind: 'reused' };
-  return { obj: placeholder(ctxFor(variant), asset), kind: 'placeholder' };
-}
+const kit = createParkKit(host, { gallery: !!galleryId });
+const { mats, ctxFor, makeAsset, palOpts } = kit;
 
 interface Label {
   el: HTMLDivElement;
@@ -204,74 +136,41 @@ function addLabel(text: string, p: THREE.Vector3, kind: Kind | 'zone') {
   labels.push({ el, p });
 }
 
-/** 区域名（米黄标签） */
-const ZONES: [string, number, number, number][] = [
-  ['大门（东墙）', GATE.x + 1.4, 6.6, -2.4],
-  ['落客区', 63.0, 0.4, 0.6],
-  ['车道 → 往东出画', 92, 0.4, (DRIVE.z0 + DRIVE.z1) / 2 + 0.2],
-  ['北停车场', 70.5, 0.6, AISLE_Z.n + 2.6],
-  ['南停车场', 70.5, 0.6, AISLE_Z.s + 2.2],
-  ['墙里（clubdesk 场景）', WALL_OUT - 4.5, 0.4, 13.5],
-  ['北台地 +1.2', 88, 1.6, -30.5],
-  ['南低地 −1.0', 88, -0.6, 31.5],
-];
+const updaters: ((dt: number, t: number) => void)[] = [];
+const collectUpdaters = (o: THREE.Object3D) =>
+  o.traverse((c) => {
+    const u = c.userData.update as ((dt: number, t: number) => void) | undefined;
+    if (u) updaters.push(u);
+  });
 
+let region: ParkRegion | null = null;
+let life: ParkRegion['life'];
+let play: (Play & { hud: Hud }) | null = null;
+let jobs: RegionJobs | null = null;
 if (galleryId) buildGallery(galleryId);
-else buildScene();
-
-function buildScene() {
-  const ctx = ctxFor(0);
-  const terrain = buildTerrain(ctx);
-  scene.add(terrain.root);
-  const showPh = params.get('ph') !== '0';
-  const count: Record<Kind, number> = { own: 0, reused: 0, placeholder: 0 };
-  for (const s of SLOTS) {
-    if (LIFE && (LIFE_SLOTS.has(s.id) || s.id.startsWith('park-'))) continue;
-    const { obj, kind } = makeAsset(s.asset, s.variant ?? 0);
-    if (kind === 'placeholder' && !showPh) continue;
-    count[kind]++;
-    const x = s.x;
-    const y = s.y ?? terrain.groundAt(x, s.z);
-    obj.position.set(x, y, s.z);
-    obj.rotation.y = s.rotY ?? 0;
-    obj.scale.setScalar(s.s ?? 1);
-    obj.name = `slot:${s.id}`;
-    if (s.prop !== undefined) obj.userData.setProp?.(s.prop);
-    if (s.pose) obj.userData.pose?.(s.pose[0], s.pose[1]);
-    scene.add(obj);
-    collectUpdaters(obj);
-    const sp = SPECS[s.asset];
-    // 停着的车太多：标签只给"一类"的第一辆，其余不标
-    if (s.id.startsWith('park-') && s.id !== 'park-n-near-0') continue;
-    addLabel(s.id, new THREE.Vector3(x, y + (sp?.h ?? 1) * (s.s ?? 1) + 0.3, s.z), kind);
-  }
-  for (const [text, x, y, z] of ZONES) addLabel(text, new THREE.Vector3(x, y, z), 'zone');
-  if (showLabels && params.get('nav') !== '0') scene.add(buildNav(ctx, terrain.groundAt));
+else {
+  region = createParkRegion({ ...host, label: showLabels ? addLabel : undefined }, kit);
+  const count = region.counts;
   if (showLabels)
     infoEl.textContent = `clubpark 白模 · 占位 ${count.placeholder} · 复用 ${count.reused} · 新画 ${count.own}`;
   else infoEl.style.display = 'none';
-  Object.assign(window, { __parkTerrain: terrain });
-  if (LIFE) {
-    life = createParkLife({
-      ctx,
+  Object.assign(window, { __parkTerrain: region.terrain });
+  life = region.life;
+  if (PLAY) {
+    const st = region.start;
+    play = mountPlay({
       scene,
-      make: (asset, variant) => makeAsset(asset, variant).obj,
-      groundAt: terrain.groundAt,
-      find: (id) => scene.getObjectByName(`slot:${id}`),
-      parked: SLOTS.filter((s) => s.id.startsWith('park-')).map((s) => ({
-        id: s.id,
-        asset: s.asset,
-        x: s.x,
-        z: s.z,
-        rotY: s.rotY ?? 0,
-        variant: s.variant ?? 0,
-      })),
-      play: PLAY,
-      director: () => play?.director ?? null,
-      onSay: (obj, text, sec) => play?.say(obj, text, sec),
+      pipe,
+      canvas,
+      director: region.director() as THREE.Object3D,
+      start: st.start,
+      yaw: st.yaw,
+      nav: { groundAt: region.groundAt, ...region.nav() },
+      camera: st.camera,
+      hint: st.hint,
     });
+    jobs = region.attach(play);
   }
-  if (PLAY) play = setupParkPlay({ scene, pipe, canvas, groundAt: terrain.groundAt, ctx, life });
 }
 
 function buildGallery(id: string) {
@@ -408,9 +307,10 @@ function step(seconds: number) {
     simT += DT;
     uniforms.uTime.value = simT;
     uniforms.uGust.value = 0.5 + 0.35 * Math.sin(simT * 0.7) * Math.sin(simT * 0.23);
+    region?.update(DT, simT);
     for (const u of updaters) u(DT, simT);
-    life?.update(DT);
     play?.update(DT, simT);
+    jobs?.step(DT);
   }
 }
 step(num('warm', 0));
@@ -542,5 +442,6 @@ Object.assign(window, {
     get play() {
       return play;
     },
+    region,
   },
 });

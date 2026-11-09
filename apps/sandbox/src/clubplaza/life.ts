@@ -150,7 +150,7 @@ function crownOf(p: (typeof PALMS)[number]) {
 
 // ── 对外的接口 ─────────────────────────────────────────
 export interface LifeEnv {
-  scene: THREE.Scene;
+  scene: THREE.Object3D;
   ctx: AssetCtx;
   /** SLOTS 的 id → 场景里的对象 */
   slot(id: string): THREE.Object3D | undefined;
@@ -163,6 +163,8 @@ export interface LifeEnv {
   leafRate?: number;
   /** 玩法模式：气泡交给 play.say（人、文字、秒、头顶多高） */
   say?(obj: THREE.Object3D, text: string, sec: number, dy: number): void;
+  /** 大世界（clubwalk）：slot('director') 是共用的总监，开局不动它手里的东西 */
+  sharedDirector?: boolean;
 }
 
 export type ToolName = 'net' | 'broom' | 'can';
@@ -1277,7 +1279,7 @@ export function createLife(env: LifeEnv): PlazaLife {
   if (!directorOrNull) throw new Error('clubplaza life: 没有 director');
   // 函数声明里收窄会丢，这里落成非空常量
   const director: Actor = directorOrNull;
-  director.obj.userData.setProp?.(null);
+  if (!env.sharedDirector) director.obj.userData.setProp?.(null);
   if (drive) pose(director, 'idle');
   const net = env.slot('skim-net') as THREE.Object3D;
   const tools = cart.userData.tools as Record<'broom' | 'rake' | 'can', THREE.Object3D>;

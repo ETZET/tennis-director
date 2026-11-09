@@ -54,6 +54,13 @@ export const PICKLE = { x0: 36, x1: 52, z0: -3, z1: 15 } as const;
 /** 会所（西班牙复兴式，红瓦）和东边的露台餐厅 */
 export const CLUBHOUSE = { x0: -62, x1: -40, z0: -40, z1: -10 } as const;
 export const TERRACE = { x0: -37, x1: -26, z0: -36, z1: -11 } as const;
+/**
+ * 餐车院子（clubfood；2026-11-09 用户同意把露台 TERRACE 扩成它）：北到北围墙脚，西到会所东翼东墙，东到中心球场西头那条观众路（x −20.6）前；
+ * z > −30 那段东沿实际收到 x −22.6（clubstadium 的球员通道 WALKOUT 和工具角从那里过）。地图上露台那一段（陶砖 + 木凉棚 + 四张桌）由它代替。
+ */
+export const FOOD_COURT = { x0: -40, x1: -21.4, z0: -42.4, z1: -9.4 } as const;
+/** 会所拱廊前的小院（主楼东墙 x −46 到东翼东墙 x −40、东翼南墙 z −27 以南）：也归餐厅（银色汉堡拖车、奶茶三轮） */
+export const ARCADE_YARD = { x0: -46, x1: -40, z0: -27, z1: -9.4 } as const;
 /** 泳池：池子和一圈池畔 */
 export const POOL = { x0: -57, x1: -43, z0: 3, z1: 13 } as const;
 export const POOL_DECK = { x0: -61, x1: -39, z0: -1, z1: 18 } as const;
@@ -259,3 +266,17 @@ export const ROAD_OUT = { z: 0, half: 24, x1: 380 } as const;
  * 东南角收到高尔夫的角上（默认视角里它是画面最下沿），上面留给远边的山和天（clubsite/framing.ts）。
  */
 export const FIT = { x0: -70, x1: 94, z0: -52, z1: 76 } as const;
+
+/**
+ * 会所的门（clubhouse 场景，2026-11-09 白模；详见 src/clubhouse/layout.ts 的 DOORS 和 docs/lab/2026-11-07-3d-pixel/clubhouse.md）。
+ * x, z = 门洞中心（墙中线上），w 宽，facing = 朝哪边开向外面。会所里面在同一套世界坐标里（会所的脚印内），
+ * 进门以后 clubhouse 的 setInside(true) 把屋顶、二楼和朝镜头的墙收起来（剖面）。
+ * main：东立面（拱廊立面）正门，正对 clubfood 的球员通道（z −22.4…−19.6）；south：钟楼底的南门，出到拱廊转角 → 南拱廊（朝泳池）；
+ * kitchen / kitchenBack：后厨（东翼）的厨房门、后门（clubfood 补货 / 倒垃圾用）。
+ */
+export const CLUBHOUSE_DOORS = {
+  main: { x: -46, z: -21, w: 2.0, facing: 'e' },
+  south: { x: -47.6, z: -15.6, w: 1.4, facing: 's' },
+  kitchen: { x: -43, z: -27, w: 1.3, facing: 's' },
+  kitchenBack: { x: -40, z: -35.6, w: 1.2, facing: 'e' },
+} as const;

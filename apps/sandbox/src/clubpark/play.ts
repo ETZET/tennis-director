@@ -10,7 +10,8 @@
 // 递钥匙让会员自己去取车：代客能腾出手接下一辆，可是总监离开了大门口（门童装满推车、落客的人没人接）。
 // 玩法模式比只看模式多一辆落客、一个取车（layout.ts GATE_TIMING.rush）：代客一个人忙不过来。
 import * as THREE from 'three';
-import { type Hud, mountPlay, type Play, type Shape } from '../clubsite/play';
+import type { Play, Shape } from '../clubsite/play';
+import type { RegionJobs, RegionNav, RegionStart } from '../clubsite/region';
 import { GATE } from '../clubsite/world';
 import { makeKeys } from './assets/staff/uniform';
 import type { AssetCtx } from './ctx';
@@ -18,11 +19,8 @@ import { BLOCKED, GATE_POSTS, SLOTS, SPOTS, WALKABLE, WALL_OUT } from './layout'
 import type { ParkLife } from './life';
 
 export interface ParkPlayEnv {
-  scene: THREE.Scene;
-  // biome-ignore lint/suspicious/noExplicitAny: clubfront 的 PixelPipeline（结构同 clubsite/play 的 PipeLike）
-  pipe: any;
-  canvas: HTMLCanvasElement;
-  groundAt(x: number, z: number): number;
+  /** 区域的根（独立页面 = scene） */
+  scene: THREE.Object3D;
   ctx: AssetCtx;
   life: ParkLife | undefined;
 }
@@ -30,10 +28,16 @@ export interface ParkPlayEnv {
 /** 挡路的植物（树干半径） */
 const PLANT_R: Record<string, number> = { 'fan-palm': 0.45, agave: 0.5, brittlebush: 0.4, 'barrel-cactus': 0.35 };
 
-export function setupParkPlay(env: ParkPlayEnv): Play & { hud: Hud } {
-  const { scene, ctx, life } = env;
-  const slot = (id: string) => scene.getObjectByName(`slot:${id}`) ?? null;
+/** 独立页面的开局（main.ts 的 mountPlay） */
+export const PARK_START: RegionStart = {
+  start: SPOTS.director,
+  yaw: 0,
+  camera: { lead: { portrait: 1.6, landscape: 0.6 }, view: { x0: 52, x1: 108, z0: -32, z1: 32 } },
+  hint: '拖动走路 · 点地面走过去',
+};
 
+/** 导航：落客区、两片停车场、门洞 */
+export function parkNav(): RegionNav {
   const blocked: Shape[] = [
     ...BLOCKED,
     // 代客台、立牌、长椅
@@ -47,28 +51,22 @@ export function setupParkPlay(env: ParkPlayEnv): Play & { hud: Hud } {
     const r = PLANT_R[s.asset];
     if (r && Math.abs((s.y ?? 0) - 0.15) < 0.1) blocked.push({ x: s.x, z: s.z, r: r * (s.s ?? 1) });
   }
+  return {
+    bounds: { x0: 57.5, x1: 92, z0: -27, z1: 27 },
+    walkable: [
+      ...WALKABLE,
+      // 门洞（走进去一点 = 门里，clubdesk 的地方）
+      { x0: 57.6, x1: WALL_OUT + 0.4, z0: GATE.z0 + 0.1, z1: GATE.z1 - 0.1 },
+    ],
+    blocked,
+  };
+}
 
-  const play = mountPlay({
-    scene,
-    pipe: env.pipe,
-    canvas: env.canvas,
-    director: slot('director') as THREE.Object3D,
-    start: SPOTS.director,
-    yaw: 0,
-    nav: {
-      groundAt: env.groundAt,
-      bounds: { x0: 57.5, x1: 92, z0: -27, z1: 27 },
-      walkable: [
-        ...WALKABLE,
-        // 门洞（走进去一点 = 门里，clubdesk 的地方）
-        { x0: 57.6, x1: WALL_OUT + 0.4, z0: GATE.z0 + 0.1, z1: GATE.z1 - 0.1 },
-      ],
-      blocked,
-    },
-    camera: { lead: { portrait: 1.6, landscape: 0.6 }, view: { x0: 52, x1: 108, z0: -32, z1: 32 } },
-    hint: '拖动走路 · 点地面走过去',
-  });
-  if (!life) return play;
+/** 总监的活登记到 play（钥匙、岗亭、取车、球包车、大门）；返回每步的 step（推车放下、顶栏） */
+export function attachParkJobs(play: Play, env: ParkPlayEnv): RegionJobs {
+  const { scene, ctx, life } = env;
+  const slot = (id: string) => scene.getObjectByName(`slot:${id}`) ?? null;
+  if (!life) return { step: () => {} };
   const H = life.hooks;
 
   // 车、人、推车：会动的挡路圆
@@ -212,9 +210,8 @@ export function setupParkPlay(env: ParkPlayEnv): Play & { hud: Hud } {
     play.stat('served', '已停', st.served);
   };
   stats();
-  const update = play.update.bind(play);
-  play.update = (dt: number, t: number) => {
-    update(dt, t);
+  // 每步（play.update 之后）
+  const step = (dt: number) => {
     const h = play.held()?.id ?? '';
     if (lastHeld.startsWith('trolley-push') && !h.startsWith('trolley-push')) {
       // 推车被放下了（随手放下 / 门口）：随手放下的那个"推车"东西删掉
@@ -229,5 +226,5 @@ export function setupParkPlay(env: ParkPlayEnv): Play & { hud: Hud } {
       stats();
     }
   };
-  return play;
+  return { step };
 }

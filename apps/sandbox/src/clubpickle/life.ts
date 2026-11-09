@@ -146,7 +146,7 @@ export interface Life {
 
 export interface LifeEnv {
   ctx: AssetCtx;
-  scene: THREE.Scene;
+  scene: THREE.Object3D;
   /** 场景里按 SLOTS 建好的对象（slot id） */
   slot(id: string): THREE.Object3D | undefined;
   /** 新建一个资产（加进场景、登记 update） */

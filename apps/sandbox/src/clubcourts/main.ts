@@ -8,38 +8,34 @@
 //      pause=1（时间停在 0：截图稳定）、labels=0（不显示标签和站位）、ph=0（不放占位）、nav=0、clouds=0、edges=1（只看描边）、
 //      pal=<id>（配色，不带 = 6 午后金光；右上角切换）；画廊：v（变体）、ref=0、ground=court|sand、cy。
 // 核心（pipeline / toon / noise / colors）只读 import clubfront 的那份（同 clubpark / clubclay）。
+// 演出（stage 3，life.ts）：默认 = 玩法模式（三片场的日常 + 总监交给玩家，play.ts）；?play=0 = stage 2 的静态画面（截图、画廊不变）；
+//      ?play=0&life=1 = 看戏模式（日常照跑，总监自己吹沙）。玩法 / 看戏模式下标签默认关（labels=1 打开）。
 import '../clubsite/render/colors';
 import * as THREE from 'three';
+import { type Hud, mountPlay, type Play, playEnabled } from '../clubsite/play';
 import { topGeo, wallGeo } from '../clubsite/render/geo';
-import { rngFactory } from '../clubsite/render/noise';
-import { SCHEMES, schemeById, schemeMats, schemeOpts } from '../clubsite/render/palettes';
+import { SCHEMES, schemeById } from '../clubsite/render/palettes';
 import { mountPaletteSwitcher } from '../clubsite/render/palettes/switcher';
 import { PixelPipeline } from '../clubsite/render/pipeline';
-import { CLOUD_N, createMats, type ToonOpts } from '../clubsite/render/toon';
-import type { AssetBuild, AssetCtx, SharedUniforms } from './ctx';
-import { AREA_LABELS, CLOUD_VEL, CLOUDS, MPT, SLOTS, SPOTS, SUN, TARGET } from './layout';
-import { buildNav, SPOT_NAMES } from './nav';
-import { EL, GROUP_AS, PAL, type Pal, SKY } from './palette';
-import { NEW_SPECS, placeholder, SPECS } from './placeholders';
+import { CLOUD_N } from '../clubsite/render/toon';
+import type { SharedUniforms } from './ctx';
+import { CLOUD_VEL, CLOUDS, MPT, SUN, TARGET } from './layout';
+import type { CourtsLife } from './life';
+import { EL, SKY } from './palette';
+import { placeholder, SPECS } from './placeholders';
 import { REUSED } from './reuse';
-import { buildTerrain } from './terrain';
+import { type CourtsRegion, createCourtsKit, createCourtsRegion, type Kind, OWN } from './scene';
 
 const params = new URLSearchParams(location.search);
 const num = (k: string, d: number) => (params.has(k) ? Number(params.get(k)) : d);
 const deg = Math.PI / 180;
-const rng = rngFactory(num('seed', 17));
 /** 配色：不带 ?pal = 默认（6 午后金光 golden）；?pal=current = 原来的沙漠配色 */
 const scheme = schemeById(params.get('pal'));
 
-/** 这个场景自己画的资产（assets/<id>.ts，export function build）；同名的优先于复用的 */
-const MODS = import.meta.glob<{ build: AssetBuild }>('./assets/*.ts', { eager: true });
-const OWN: Record<string, AssetBuild> = {};
-for (const [path, mod] of Object.entries(MODS)) {
-  const id = path.replace('./assets/', '').replace(/\.ts$/, '');
-  if (typeof mod.build === 'function') OWN[id] = mod.build;
-}
-
 const galleryId = params.get('asset');
+/** 玩法模式（默认）/ 看戏模式（?play=0&life=1）都跑日常；?play=0 = stage 2 的静态画面 */
+const PLAY = !galleryId && playEnabled(params);
+const LIFE = PLAY || (!galleryId && params.get('life') === '1');
 const canvas = document.getElementById('c') as HTMLCanvasElement;
 const canvas2 = document.getElementById('c2') as HTMLCanvasElement;
 const labelsEl = document.getElementById('labels') as HTMLDivElement;
@@ -116,50 +112,18 @@ function setSun(elevDeg: number, azDeg: number) {
 }
 setSun(num('sunel', SUN.el), num('sunaz', SUN.az));
 
-const mats = createMats(uniforms, () => pipe.rig.metersPerTexel);
-/** 调色板名字 → 材质参数；配色（?pal=）在这里换色。新名字（湿的硬地）按 GROUP_AS 借同一家颜色的组（court / surround）调色 */
-function palOpts(key: keyof Pal, extra?: ToonOpts): ToonOpts {
-  const sw = PAL[key];
-  const o: ToonOpts = {
-    ramp: sw.ramp,
-    edge: sw.edge,
-    convex: sw.convex,
-    tones: sw.tones,
-    ...('opts' in sw ? sw.opts : {}),
-    ...extra,
-  };
-  // biome-ignore lint/suspicious/noExplicitAny: 这个场景新加的材质名不在 clubfront 的 Pal 里：借组（GROUP_AS），没借的按全局调色走
-  return scheme ? (schemeOpts(scheme, (GROUP_AS[key] ?? key) as any, o as any) as ToonOpts) : o;
-}
-const ctxBase = {
-  mats: scheme ? schemeMats(scheme, mats) : mats,
-  pal: PAL,
-  mat(key: keyof Pal, extra?: ToonOpts) {
-    return mats.toon(0xffffff, palOpts(key, extra));
-  },
-  rng,
+const host = {
+  scene,
+  parent: scene,
   uniforms,
-  layers: { FX: 1 },
-  texel: designTexel,
   params,
+  texelMeters: () => pipe.rig.metersPerTexel,
+  designTexel,
+  life: LIFE,
+  play: PLAY,
 };
-const ctxFor = (variant: number): AssetCtx => ({ ...ctxBase, variant });
-
-const updaters: ((dt: number, t: number) => void)[] = [];
-const collectUpdaters = (o: THREE.Object3D) =>
-  o.traverse((c) => {
-    const u = c.userData.update as ((dt: number, t: number) => void) | undefined;
-    if (u) updaters.push(u);
-  });
-
-type Kind = 'own' | 'reused' | 'placeholder' | 'spot' | 'area' | 'propose' | 'state';
-function makeAsset(asset: string, variant: number): { obj: THREE.Object3D; kind: Kind } {
-  const own = OWN[asset];
-  if (own) return { obj: own(ctxFor(variant)), kind: 'own' };
-  const reused = REUSED[asset];
-  if (reused) return { obj: reused(ctxFor(variant)), kind: 'reused' };
-  return { obj: placeholder(ctxFor(variant), asset), kind: 'placeholder' };
-}
+const kit = createCourtsKit(host);
+const { ctxFor, makeAsset, palOpts } = kit;
 
 interface Label {
   el: HTMLDivElement;
@@ -168,7 +132,7 @@ interface Label {
   below: boolean;
 }
 const labels: Label[] = [];
-const showLabels = params.get('labels') !== '0' && !galleryId;
+const showLabels = !galleryId && (LIFE ? params.get('labels') === '1' : params.get('labels') !== '0');
 function addLabel(text: string, p: THREE.Vector3, kind: Kind, below = kind === 'spot') {
   if (!showLabels) return;
   const el = document.createElement('div');
@@ -177,65 +141,44 @@ function addLabel(text: string, p: THREE.Vector3, kind: Kind, below = kind === '
   labelsEl.appendChild(el);
   labels.push({ el, p, below });
 }
-/** 占位的标签："#编号 名字" */
-const phText = (asset: string, id: string) => {
-  const sp = NEW_SPECS[asset];
-  return sp?.n ? `#${sp.n} ${sp.name ?? asset}` : id;
-};
+const updaters: ((dt: number, t: number) => void)[] = [];
+const collectUpdaters = (o: THREE.Object3D) =>
+  o.traverse((c) => {
+    const u = c.userData.update as ((dt: number, t: number) => void) | undefined;
+    if (u) updaters.push(u);
+  });
 
+let region: CourtsRegion | null = null;
+let life: CourtsLife | null = null;
+let play: (Play & { hud: Hud }) | null = null;
 if (galleryId) buildGallery(galleryId);
-else buildScene();
-
-function buildScene() {
-  const ctx = ctxFor(0);
-  const terrain = buildTerrain(ctx);
-  scene.add(terrain.root);
-  const showPh = params.get('ph') !== '0';
-  const count: Record<string, number> = { own: 0, reused: 0, placeholder: 0 };
-  const labelled = new Set<string>();
-  for (const s of SLOTS) {
-    const { obj, kind } = makeAsset(s.asset, s.variant ?? 0);
-    if (kind === 'placeholder' && !showPh) continue;
-    count[kind]++;
-    const y = s.y ?? terrain.groundAt(s.x, s.z);
-    obj.position.set(s.x, y, s.z);
-    obj.rotation.y = s.rotY ?? 0;
-    obj.scale.setScalar(s.s ?? 1);
-    obj.name = `slot:${s.id}`;
-    if (s.prop !== undefined) obj.userData.setProp?.(s.prop);
-    if (s.pose) obj.userData.pose?.(s.pose[0], s.pose[1]);
-    for (const [fn, ...args] of s.call ?? []) obj.userData[fn]?.(...args);
-    scene.add(obj);
-    collectUpdaters(obj);
-    const sp = SPECS[s.asset];
-    const top = new THREE.Vector3(s.x, y + (sp?.h ?? 1) * (s.s ?? 1) + 0.3, s.z);
-    if (kind === 'placeholder' || kind === 'own') {
-      // 同一种占位只贴一次编号（灯杆 16 根、球十几个……）
-      if (labelled.has(s.asset)) continue;
-      labelled.add(s.asset);
-      addLabel(phText(s.asset, s.id), s.labelBelow ? new THREE.Vector3(s.x, y, s.z) : top, kind, s.labelBelow);
-    } else if (s.label) addLabel(s.label, top, kind);
-    else if (
-      !labelled.has(s.asset) &&
-      !['player', 'kid', 'agave', 'brittlebush', 'creosote', 'bench', 'court-light', 'smoke-tree'].includes(s.asset)
-    ) {
-      labelled.add(s.asset);
-      addLabel(s.asset, top, kind);
-    }
-  }
-  // 硬地场面（#1）在白模里是地形画的：标签贴在场角
-  addLabel('fence-screen（clubdesk）', new THREE.Vector3(-8.5, 2.8, 16.7), 'reused');
-  for (const a of AREA_LABELS) addLabel(a.text, new THREE.Vector3(a.x, a.y, a.z), a.kind ?? 'area');
-  if (showLabels && params.get('nav') !== '0') {
-    scene.add(buildNav(ctx, terrain.groundAt));
-    for (const [k, name] of Object.entries(SPOT_NAMES)) {
-      const [x, z] = SPOTS[k as keyof typeof SPOTS];
-      addLabel(name, new THREE.Vector3(x, terrain.groundAt(x, z) + 0.05, z + 0.3), 'spot');
-    }
-  }
+else {
+  region = createCourtsRegion({ ...host, label: showLabels ? addLabel : undefined }, kit);
+  const count = region.counts;
   if (showLabels)
     infoEl.textContent = `clubcourts 白模 · 占位 ${count.placeholder} · 复用 ${count.reused} · 新画 ${count.own}`;
   else infoEl.style.display = 'none';
+  // 玩法（clubsite/play）：先建导航和相机，再建日常，最后登记总监的活
+  if (PLAY) {
+    const st = region.start;
+    play = mountPlay({
+      scene,
+      pipe,
+      canvas,
+      director: region.director() as THREE.Object3D,
+      start: st.start,
+      yaw: st.yaw,
+      nav: { groundAt: region.groundAt, ...region.nav() },
+      camera: st.camera,
+      hint: st.hint,
+    });
+    const land = innerWidth > innerHeight;
+    const T0 = land ? TARGET.landscape : TARGET.portrait;
+    play.director.updateMatrixWorld(true);
+    pipe.rig.target.set(T0.x, 0, T0.z);
+  }
+  life = region.startLife(play);
+  if (play && life) region.attach(play);
 }
 
 function buildGallery(id: string) {
@@ -389,6 +332,9 @@ function step(seconds: number) {
     simT += DT;
     uniforms.uTime.value = simT;
     uniforms.uGust.value = 0.5 + 0.35 * Math.sin(simT * 0.7) * Math.sin(simT * 0.23);
+    region?.update(DT, simT);
+    play?.update(DT, simT);
+    region?.post(DT, simT);
     for (const u of updaters) u(DT, simT);
   }
 }
@@ -425,6 +371,7 @@ function frame(now: number) {
   }
   pipe.render(scene);
   pipe2?.render(scene);
+  play?.hud.frame();
   placeLabels();
   requestAnimationFrame(frame);
 }
@@ -450,58 +397,79 @@ if (pipe2) {
   if (params.has('cy')) pipe2.rig.target.y = num('cy', 0);
 }
 
-// 拖动平移、双指/滚轮缩放（白模查看；玩法阶段换成摇杆 + 相机跟着总监，desert3d-v2 的 control.ts）
-const pointers = new Map<number, { x: number; y: number }>();
-let pinch0 = 0;
-let zoom0 = pipe.rig.metersPerTexel;
-canvas.addEventListener('pointerdown', (e) => {
-  canvas.setPointerCapture(e.pointerId);
-  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-  if (pointers.size === 2) {
-    const [a, b] = [...pointers.values()];
-    pinch0 = Math.hypot(a.x - b.x, a.y - b.y);
-    zoom0 = pipe.rig.metersPerTexel;
-  }
-});
-canvas.addEventListener('pointermove', (e) => {
-  const prev = pointers.get(e.pointerId);
-  if (!prev) return;
-  const cur = { x: e.clientX, y: e.clientY };
-  pointers.set(e.pointerId, cur);
-  if (pointers.size === 1) {
-    const s = pipe.rig.metersPerTexel / pipe.px;
-    const dx = (cur.x - prev.x) * s;
-    const dy = (cur.y - prev.y) * s;
-    const yaw = pipe.rig.yaw;
-    const sinP = Math.sin(pipe.rig.pitch);
-    pipe.rig.target.x += -dx * Math.cos(yaw) + (dy / sinP) * -Math.sin(yaw);
-    pipe.rig.target.z += -dx * -Math.sin(yaw) + (dy / sinP) * -Math.cos(yaw);
-  } else if (pointers.size === 2) {
-    const [a, b] = [...pointers.values()];
-    const d = Math.hypot(a.x - b.x, a.y - b.y);
-    pipe.rig.metersPerTexel = THREE.MathUtils.clamp(
-      (zoom0 * pinch0) / Math.max(d, 1),
-      (0.05 * pipe.px) / 2,
-      (0.3 * pipe.px) / 2,
-    );
-  }
-});
-const up = (e: PointerEvent) => pointers.delete(e.pointerId);
-canvas.addEventListener('pointerup', up);
-canvas.addEventListener('pointercancel', up);
-canvas.addEventListener(
-  'wheel',
-  (e) => {
-    e.preventDefault();
-    pipe.rig.metersPerTexel = THREE.MathUtils.clamp(
-      pipe.rig.metersPerTexel * Math.exp(e.deltaY * 0.001),
-      (0.05 * pipe.px) / 2,
-      (0.3 * pipe.px) / 2,
-    );
-  },
-  { passive: false },
-);
+// 拖动平移、双指/滚轮缩放（白模查看；玩法模式下交给 clubsite/play 的摇杆 + 相机跟着总监）
+if (!PLAY) panZoom();
+function panZoom() {
+  const pointers = new Map<number, { x: number; y: number }>();
+  let pinch0 = 0;
+  let zoom0 = pipe.rig.metersPerTexel;
+  canvas.addEventListener('pointerdown', (e) => {
+    canvas.setPointerCapture(e.pointerId);
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pointers.size === 2) {
+      const [a, b] = [...pointers.values()];
+      pinch0 = Math.hypot(a.x - b.x, a.y - b.y);
+      zoom0 = pipe.rig.metersPerTexel;
+    }
+  });
+  canvas.addEventListener('pointermove', (e) => {
+    const prev = pointers.get(e.pointerId);
+    if (!prev) return;
+    const cur = { x: e.clientX, y: e.clientY };
+    pointers.set(e.pointerId, cur);
+    if (pointers.size === 1) {
+      const s = pipe.rig.metersPerTexel / pipe.px;
+      const dx = (cur.x - prev.x) * s;
+      const dy = (cur.y - prev.y) * s;
+      const yaw = pipe.rig.yaw;
+      const sinP = Math.sin(pipe.rig.pitch);
+      pipe.rig.target.x += -dx * Math.cos(yaw) + (dy / sinP) * -Math.sin(yaw);
+      pipe.rig.target.z += -dx * -Math.sin(yaw) + (dy / sinP) * -Math.cos(yaw);
+    } else if (pointers.size === 2) {
+      const [a, b] = [...pointers.values()];
+      const d = Math.hypot(a.x - b.x, a.y - b.y);
+      pipe.rig.metersPerTexel = THREE.MathUtils.clamp(
+        (zoom0 * pinch0) / Math.max(d, 1),
+        (0.05 * pipe.px) / 2,
+        (0.3 * pipe.px) / 2,
+      );
+    }
+  });
+  const up = (e: PointerEvent) => pointers.delete(e.pointerId);
+  canvas.addEventListener('pointerup', up);
+  canvas.addEventListener('pointercancel', up);
+  canvas.addEventListener(
+    'wheel',
+    (e) => {
+      e.preventDefault();
+      pipe.rig.metersPerTexel = THREE.MathUtils.clamp(
+        pipe.rig.metersPerTexel * Math.exp(e.deltaY * 0.001),
+        (0.05 * pipe.px) / 2,
+        (0.3 * pipe.px) / 2,
+      );
+    },
+    { passive: false },
+  );
+}
 
 Object.assign(window, {
-  __courts: { scene, pipe, pipe2, step, setSun, own: Object.keys(OWN), reused: Object.keys(REUSED), palOpts },
+  __courts: {
+    scene,
+    pipe,
+    pipe2,
+    step,
+    setSun,
+    own: Object.keys(OWN),
+    reused: Object.keys(REUSED),
+    palOpts,
+    objs: region?.objs ?? new Map(),
+    region,
+    get life() {
+      return life;
+    },
+    get play() {
+      return play;
+    },
+    debug: () => life?.debug() ?? null,
+  },
 });

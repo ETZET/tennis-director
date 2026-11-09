@@ -8,37 +8,24 @@
 //      pal=<id>（配色，不带 = 6 午后金光；右上角切换）；画廊：v（变体）、ref=0、ground=tile|sand、cy。
 import '../clubsite/render/colors';
 import * as THREE from 'three';
-import { playEnabled } from '../clubsite/play';
+import { type Hud, mountPlay, type Play, playEnabled } from '../clubsite/play';
 import { topGeo, wallGeo } from '../clubsite/render/geo';
-import { rngFactory } from '../clubsite/render/noise';
-import { SCHEMES, schemeById, schemeMats, schemeOpts } from '../clubsite/render/palettes';
+import { SCHEMES, schemeById } from '../clubsite/render/palettes';
 import { mountPaletteSwitcher } from '../clubsite/render/palettes/switcher';
 import { PixelPipeline } from '../clubsite/render/pipeline';
-import { CLOUD_N, createMats, type ToonOpts } from '../clubsite/render/toon';
-import type { AssetBuild, AssetCtx, SharedUniforms } from './ctx';
-import { AREA_LABELS, CLOUD_VEL, CLOUDS, MPT, SLOTS, SPOTS, SUN, TARGET } from './layout';
-import { createDeskLife } from './life';
-import { buildNav, SPOT_NAMES } from './nav';
-import { PAL, type Pal, SKY } from './palette';
-import { NEW_SPECS, placeholder, SPECS } from './placeholders';
-import { setupDeskPlay } from './play';
+import { CLOUD_N } from '../clubsite/render/toon';
+import type { SharedUniforms } from './ctx';
+import { CLOUD_VEL, CLOUDS, MPT, SUN, TARGET } from './layout';
+import { SKY } from './palette';
+import { placeholder, SPECS } from './placeholders';
 import { REUSED } from './reuse';
-import { buildTerrain } from './terrain';
+import { createDeskKit, createDeskRegion, type DeskRegion, type Kind, OWN } from './scene';
 
 const params = new URLSearchParams(location.search);
 const num = (k: string, d: number) => (params.has(k) ? Number(params.get(k)) : d);
 const deg = Math.PI / 180;
-const rng = rngFactory(num('seed', 17));
 /** 配色：不带 ?pal = 默认（6 午后金光 golden）；?pal=current = 原来的沙漠配色 */
 const scheme = schemeById(params.get('pal'));
-
-/** 这个场景自己画的资产（assets/<id>.ts，export function build）；同名的优先于复用的 */
-const MODS = import.meta.glob<{ build: AssetBuild }>('./assets/*.ts', { eager: true });
-const OWN: Record<string, AssetBuild> = {};
-for (const [path, mod] of Object.entries(MODS)) {
-  const id = path.replace('./assets/', '').replace(/\.ts$/, '');
-  if (typeof mod.build === 'function') OWN[id] = mod.build;
-}
 
 const galleryId = params.get('asset');
 /** 玩法模式（画廊里没有） */
@@ -119,50 +106,18 @@ function setSun(elevDeg: number, azDeg: number) {
 }
 setSun(num('sunel', SUN.el), num('sunaz', SUN.az));
 
-const mats = createMats(uniforms, () => pipe.rig.metersPerTexel);
-/** 调色板名字 → 材质参数；配色（?pal=）在这里换色。新加的 granite / slate / brass 不在 clubfront 的 GROUP 表里 → 只吃全局调色 */
-function palOpts(key: keyof Pal, extra?: ToonOpts): ToonOpts {
-  const sw = PAL[key];
-  const o: ToonOpts = {
-    ramp: sw.ramp,
-    edge: sw.edge,
-    convex: sw.convex,
-    tones: sw.tones,
-    ...('opts' in sw ? sw.opts : {}),
-    ...extra,
-  };
-  // biome-ignore lint/suspicious/noExplicitAny: 这个场景新加的材质名不在 clubfront 的 Pal 里，按全局调色走
-  return scheme ? (schemeOpts(scheme, key as any, o as any) as ToonOpts) : o;
-}
-const ctxBase = {
-  mats: scheme ? schemeMats(scheme, mats) : mats,
-  pal: PAL,
-  mat(key: keyof Pal, extra?: ToonOpts) {
-    return mats.toon(0xffffff, palOpts(key, extra));
-  },
-  rng,
+const host = {
+  scene,
+  parent: scene,
   uniforms,
-  layers: { FX: 1 },
-  texel: designTexel,
   params,
+  texelMeters: () => pipe.rig.metersPerTexel,
+  designTexel,
+  life: !galleryId && params.get('life') !== '0',
+  play: PLAY,
 };
-const ctxFor = (variant: number): AssetCtx => ({ ...ctxBase, variant });
-
-const updaters: ((dt: number, t: number) => void)[] = [];
-const collectUpdaters = (o: THREE.Object3D) =>
-  o.traverse((c) => {
-    const u = c.userData.update as ((dt: number, t: number) => void) | undefined;
-    if (u) updaters.push(u);
-  });
-
-type Kind = 'own' | 'reused' | 'placeholder' | 'spot' | 'area' | 'propose';
-function makeAsset(asset: string, variant: number): { obj: THREE.Object3D; kind: Kind } {
-  const own = OWN[asset];
-  if (own) return { obj: own(ctxFor(variant)), kind: 'own' };
-  const reused = REUSED[asset];
-  if (reused) return { obj: reused(ctxFor(variant)), kind: 'reused' };
-  return { obj: placeholder(ctxFor(variant), asset), kind: 'placeholder' };
-}
+const kit = createDeskKit(host);
+const { ctxFor, makeAsset, palOpts } = kit;
 
 interface Label {
   el: HTMLDivElement;
@@ -181,56 +136,18 @@ function addLabel(text: string, p: THREE.Vector3, kind: Kind, below = kind === '
   labelsEl.appendChild(el);
   labels.push({ el, p, below });
 }
-/** 占位的标签："#编号 名字" */
-const phText = (asset: string, id: string) => {
-  const sp = NEW_SPECS[asset];
-  return sp?.n ? `#${sp.n} ${sp.name ?? asset}` : id;
-};
+const updaters: ((dt: number, t: number) => void)[] = [];
+const collectUpdaters = (o: THREE.Object3D) =>
+  o.traverse((c) => {
+    const u = c.userData.update as ((dt: number, t: number) => void) | undefined;
+    if (u) updaters.push(u);
+  });
 
-let groundAt: (x: number, z: number) => number = () => 0;
+let region: DeskRegion | null = null;
 if (galleryId) buildGallery(galleryId);
-else buildScene();
-
-function buildScene() {
-  const ctx = ctxFor(0);
-  const terrain = buildTerrain(ctx);
-  scene.add(terrain.root);
-  groundAt = terrain.groundAt;
-  const showPh = params.get('ph') !== '0';
-  const count: Record<string, number> = { own: 0, reused: 0, placeholder: 0 };
-  const labelled = new Set<string>();
-  for (const s of SLOTS) {
-    const { obj, kind } = makeAsset(s.asset, s.variant ?? 0);
-    if (kind === 'placeholder' && !showPh) continue;
-    count[kind]++;
-    const y = s.y ?? terrain.groundAt(s.x, s.z);
-    obj.position.set(s.x, y, s.z);
-    obj.rotation.y = s.rotY ?? 0;
-    obj.scale.setScalar(s.s ?? 1);
-    obj.name = `slot:${s.id}`;
-    if (s.prop !== undefined) obj.userData.setProp?.(s.prop);
-    if (s.pose) obj.userData.pose?.(s.pose[0], s.pose[1]);
-    scene.add(obj);
-    collectUpdaters(obj);
-    const sp = SPECS[s.asset];
-    const top = new THREE.Vector3(s.x, y + (sp?.h ?? 1) * (s.s ?? 1) + 0.3, s.z);
-    if (kind === 'placeholder' || kind === 'own')
-      addLabel(phText(s.asset, s.id), s.labelBelow ? new THREE.Vector3(s.x, y, s.z) : top, kind, s.labelBelow);
-    else if (s.label) addLabel(s.label, top, kind);
-    else if (!labelled.has(s.asset) && !['player', 'agave', 'brittlebush', 'creosote', 'bench'].includes(s.asset)) {
-      labelled.add(s.asset);
-      addLabel(s.asset, top, kind);
-    }
-  }
-  // 围网已经是真资产（assets/fence-screen），不再标占位
-  for (const a of AREA_LABELS) addLabel(a.text, new THREE.Vector3(a.x, a.y, a.z), a.kind ?? 'area');
-  if (showLabels && params.get('nav') !== '0') {
-    scene.add(buildNav(ctx, terrain.groundAt));
-    for (const [k, name] of Object.entries(SPOT_NAMES)) {
-      const [x, z] = SPOTS[k as keyof typeof SPOTS];
-      addLabel(name, new THREE.Vector3(x, terrain.groundAt(x, z) + 0.05, z + 0.3), 'spot');
-    }
-  }
+else {
+  region = createDeskRegion({ ...host, label: showLabels ? addLabel : undefined }, kit);
+  const count = region.counts;
   if (showLabels)
     infoEl.textContent = `clubdesk 白模 · 占位 ${count.placeholder} · 复用 ${count.reused} · 新画 ${count.own}`;
   else infoEl.style.display = 'none';
@@ -307,21 +224,25 @@ function skyTexture(): THREE.Texture {
   return t;
 }
 
-// ── 玩法：总监（clubsite/play）。life.ts 在这里接：const life = createLife({ scene, play, ctx: ctxFor(0), groundAt });
-//    life 的每步更新 push 进 updaters（play.update 之前跑），互动点用 play.add 登记（同 id 替换 play.ts 的样板）。
-// ══ clubdesk-life（归 life 代理：src/clubdesk/life.ts）══════════════════════════════════════════════
-// 会员排队 / 签到 / 毛巾 / 水站的演出（?life=0 = 白模定格）。要在 setupDeskPlay 之前建：life 把 slot:director 换成
-// clubsite/people 的总监（play 的 hold() 要它）；play 建好以后 attachPlay 登记互动点（同 id 替换 play.ts 的样板）。
-const life =
-  !galleryId && params.get('life') !== '0'
-    ? createDeskLife({ ctx: ctxFor(0), scene, make: (a, v) => makeAsset(a, v).obj, groundAt, play: PLAY })
-    : null;
-if (life) updaters.push((dt) => life.update(dt));
-// ══ /clubdesk-life ══════════════════════════════════════════════════════════════════════════════
-const play = PLAY ? setupDeskPlay({ scene, pipe, canvas, groundAt, ctx: ctxFor(0) }) : null;
-// ══ clubdesk-life ══
-if (life && play) life.attachPlay(play);
-// ══ /clubdesk-life ══
+// ── 玩法：总监（clubsite/play）。前台的日常（life.ts）在 scene.ts 里建；play 建好以后 attach 登记互动点
+//    （样板在 play.ts，life.attachPlay 用同 id 替换）。
+const life = region?.life ?? null;
+let play: (Play & { hud: Hud }) | null = null;
+if (PLAY && region) {
+  const st = region.start;
+  play = mountPlay({
+    scene,
+    pipe,
+    canvas,
+    director: region.director() as THREE.Object3D,
+    start: st.start,
+    yaw: st.yaw,
+    nav: { groundAt: region.groundAt, ...region.nav() },
+    camera: st.camera,
+    hint: st.hint,
+  });
+  region.attach(play);
+}
 
 function resize() {
   const dpr = Math.min(devicePixelRatio, 3);
@@ -398,6 +319,7 @@ function step(seconds: number) {
     simT += DT;
     uniforms.uTime.value = simT;
     uniforms.uGust.value = 0.5 + 0.35 * Math.sin(simT * 0.7) * Math.sin(simT * 0.23);
+    region?.update(DT, simT);
     for (const u of updaters) u(DT, simT);
     play?.update(DT, simT);
   }
@@ -516,5 +438,17 @@ canvas.addEventListener(
 );
 
 Object.assign(window, {
-  __desk: { scene, pipe, pipe2, step, play, life, setSun, own: Object.keys(OWN), reused: Object.keys(REUSED), palOpts },
+  __desk: {
+    scene,
+    pipe,
+    pipe2,
+    step,
+    play,
+    life,
+    region,
+    setSun,
+    own: Object.keys(OWN),
+    reused: Object.keys(REUSED),
+    palOpts,
+  },
 });
