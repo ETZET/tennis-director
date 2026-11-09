@@ -1,5 +1,5 @@
 {
- "version": "47bb02ed",
+ "version": "4abd4c09",
  "stats": [
   {
    "id": "cash",
@@ -10976,6 +10976,7 @@
    "ui.club.badge": "PO",
    "ui.cash": "Cash",
    "ui.you": "You",
+   "ui.stage_placeholder": "Visuals are moving to 3D: see the club* scenes in apps/sandbox (ADR 0027). Places:",
    "ui.closed": "Club closed for the night",
    "ui.left": "{time} left",
    "ui.decided": "Decided",
@@ -12248,6 +12249,7 @@
    "ui.club.badge": "PO",
    "ui.cash": "现金",
    "ui.you": "你",
+   "ui.stage_placeholder": "画面迁移中：见 apps/sandbox 的 club* 场景（ADR 0027）。地点：",
    "ui.closed": "俱乐部已关门过夜",
    "ui.left": "还剩 {time}",
    "ui.decided": "已决定",

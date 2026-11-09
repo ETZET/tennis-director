@@ -10,9 +10,11 @@ export interface SharedUniforms {
   uWind: { value: THREE.Vector2 };
   /** 阵风 0..1 */
   uGust: { value: number };
-  uCloudTex: { value: THREE.Texture };
-  uCloudScale: { value: number };
+  /** 云影：每团 (x, z, rx, rz)（米，t = 0 时的位置；rx 0 = 空位），长度 toon.ts 的 CLOUD_N。手摆的在 fx.ts CLOUDS */
+  uClouds: { value: THREE.Vector4[] };
+  /** 云飘的速度（米/秒；只用 x，云不离开自己那条带） */
   uCloudVel: { value: THREE.Vector2 };
+  /** 0 = 关云影（画廊），> 0 = 开 */
   uCloudStrength: { value: number };
 }
 

@@ -2,9 +2,20 @@
 // 规格 0.9 × 0.8 × 0.9 米（≈ 10 × 6 纹素），0.6k 三角形以内。
 // 滚动：obj.userData.roll(dt, velocity) —— velocity 是世界坐标的地面速度（米/秒；Vector3 取 x、z，或 {x, z}），
 // 只转球、不移动位置（位置由调用方推）。画廊里静止。
+// 材质规范 v2：外壳上是 `blades` 竖向的枯枝划（亮档里是茶褐的枝、中档里是浅草色的枝、暗档里是浅紫的枝），
+// 斑块疏密；`space: 'local'` 跟着球走（滚的时候图案不在球上"游"，跟着球心平移）。团与团之间的缝露出暗的枝芯 = 空隙。
 import * as THREE from 'three';
 import type { AssetCtx } from '../world';
-import { Bucket, blob } from './creosote/kit';
+import { Bucket, blob, tones } from './creosote/kit';
+
+/** 干草（手挑）：[亮, 中, 暗] 各 [本色, 高一级, 低一级]；亮边色 = 枝划 */
+const SHELL = tones(
+  [0xf2d68a, 0xf8e29a, 0xecce7e],
+  [0xc8945e, 0xd29e66, 0xbc8a58],
+  [0x6e5a8c, 0x78649a, 0x64508a],
+  [0xd8b06c, 0xa8745a, 0x5a4a7e],
+  [0xdab272, 0xe2c27c, 0x8c76a4],
+);
 
 const R = 0.44;
 
@@ -15,7 +26,16 @@ export function build(ctx: AssetCtx): THREE.Object3D {
   spin.position.y = R * 0.92;
   root.add(spin);
   const B = new Bucket();
-  const shell = ctx.mat('dryGrass', { bands: [-0.3, 0.32], lightUp: 0.45, noise: 0.22, edge: 0.4, convex: 0.15 });
+  const shell = ctx.mat('dryGrass', {
+    ramp: [SHELL.bands[0][0], SHELL.bands[1][0], SHELL.bands[2][0]],
+    tones: SHELL,
+    elem: { kind: 'blades', space: 'local', density: [0.16, 0.34], patch: 0.6 },
+    bands: [-0.3, 0.32],
+    lightUp: 0.45,
+    noise: 0.15,
+    edge: 0.4,
+    convex: 0.15,
+  });
   const core = ctx.mat('branch', { bands: [-2, 2], edge: 0.1, convex: 0, noShadowReceive: true });
 
   // 外壳：4～5 个起伏的草团挤成一个球，团与团之间的缝露出里面暗的枝芯（成块的"缝"，不是逐纹素的洞）

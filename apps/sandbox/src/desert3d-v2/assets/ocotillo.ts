@@ -1,9 +1,30 @@
 // 墨西哥刺木（ocotillo）：从同一个根放射、略往外弯的几根粗茎（≥ 3 纹素），茎梢一簇红花。
 // 少而胖：6 根茎、每根 0.32 米粗，往左右张开；茎梢花穗是一个拉长的团（试过茎上挂叶团：单独一团亮绿反而怪）。
+// 材质规范 v2：茎上是很淡的"节"——茎的 uv 换成米（x 绕茎、y 顺着茎），`stones`（墙空间）的格子比茎一圈还宽、
+// 顺着茎 5 行一节 → 一节一节的段，段与段之间 1 纹素暗缝（只深一级），一成半的段上沿有亮边；每根茎的节错开。颜色手挑（灰绿，暗档冷靛）。
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import type { Tones } from '../toon';
 import { blobNormals } from '../toon';
 import type { AssetCtx } from '../world';
+
+/** 茎：灰绿 → 灰青 → 冷靛；缝深一级、亮边亮一级（差 ≈ 20 个亮度） */
+const CANE: Tones = {
+  bands: [
+    [0xa0bc7c, 0xaac484, 0x98b476],
+    [0x6a9074, 0x72987a, 0x62886c],
+    [0x3a5672, 0x405e7a, 0x34506a],
+  ],
+  seam: [0x8eac70, 0x5c866e, 0x30486a],
+  hi: [0xb8d092, 0x84aa82, 0x4a6a84],
+};
+
+/** 管子的 uv 换成米：x = 绕茎一圈的弧长 + 偏移（每根茎的节错开），y = 离茎梢的长度（墙空间 y = 离墙顶多深） */
+function caneUv(g: THREE.BufferGeometry, len: number, r: number, off: number) {
+  const uv = g.getAttribute('uv') as THREE.BufferAttribute;
+  for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getY(i) * Math.PI * 2 * r + off * 7, (1 - uv.getX(i)) * len + off);
+  uv.needsUpdate = true;
+}
 
 /** 把管子的法线往"上 + 离开主轴"偏一点：茎朝上的一侧整条亮，朝镜头的一侧是中档而不是全黑 */
 function liftNormals(g: THREE.BufferGeometry, k: number) {
@@ -53,6 +74,7 @@ export function build(ctx: AssetCtx): THREE.Object3D {
       .add(new THREE.Vector3(dx * out * len * 0.55, len * Math.cos(tilt * 0.9), dz * out * len * 0.55));
     const curve = new THREE.QuadraticBezierCurve3(base, mid, tip);
     const tube = new THREE.TubeGeometry(curve, 6, R, 5, false).toNonIndexed();
+    caneUv(tube, curve.getLength(), R, rnd() * 3);
     liftNormals(tube, 0.9);
     canes.push(tube);
     // 花穗：茎梢一个拉长的红团（顺着茎方向）
@@ -66,7 +88,18 @@ export function build(ctx: AssetCtx): THREE.Object3D {
 
   const g = new THREE.Group();
   const sway = { sway: 0.1, swayH: 3.6, noShadowReceive: true };
-  const caneMat = ctx.mat('cactus', { ...sway, lightUp: 0.65, bands: [-0.1, 0.4], edge: 0.6, convex: 0.5 });
+  // 节：格子宽 60 纹素（比茎一圈 ≈ 11 纹素宽得多 → 一节横跨整根茎）、高 5 行；亮边只给一成半的节，三档里少挑高/低一级（淡）
+  const caneMat = ctx.mat('cactus', {
+    ...sway,
+    ramp: [CANE.bands[0][0], CANE.bands[1][0], CANE.bands[2][0]],
+    tones: CANE,
+    elem: { kind: 'stones', space: 'wall', size: [60, 5], seam: 0.6, hi: 0.15 },
+    toneW: [0.18, 0.18],
+    lightUp: 0.65,
+    bands: [-0.1, 0.4],
+    edge: 0.6,
+    convex: 0.5,
+  });
   g.add(new THREE.Mesh(mergeGeometries([...canes, root]), caneMat));
   g.add(new THREE.Mesh(mergeGeometries(flowers), ctx.mat('flowerRed', { ...sway, lightUp: 0.5, bands: [-0.1, 0.35] })));
   ctx.mats.prepare(g);

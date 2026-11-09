@@ -51,13 +51,35 @@ function top(pts: V2[], h: number, holes: V2[][] = []): THREE.BufferGeometry {
   return g;
 }
 
-/** 垂直墙：沿闭合轮廓从 h 到 hb；outward = 法线朝多边形外 */
-function wall(pts: V2[], h: number, hb: number, outward: boolean): THREE.BufferGeometry {
+/** 点 (x, z) 是否在闭合折线里 */
+function inLoop(x: number, z: number, pts: V2[]): boolean {
+  let inside = false;
+  for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+    const [xi, zi] = pts[i];
+    const [xj, zj] = pts[j];
+    if (zi > z !== zj > z && x < ((xj - xi) * (z - zi)) / (zj - zi) + xi) inside = !inside;
+  }
+  return inside;
+}
+
+/**
+ * 垂直墙：沿闭合轮廓从 h 到 hb；outward = 法线朝多边形外。
+ * vis(x, z, nx, nz) = 这一段墙在画面上露出来的高度（米：墙顶 − 墙外的地面），写进 aPad.x —— 材质按它分"矮墙/高墙"
+ *（规范：屏幕上露出不到 uEl.z 行的墙不挂长苔藓缕，只有草沿 + 一两行短须）。
+ */
+function wall(
+  pts: V2[],
+  h: number,
+  hb: number,
+  outward: boolean,
+  vis: (x: number, z: number, nx: number, nz: number) => number,
+): THREE.BufferGeometry {
   const ccw = area(pts) > 0; // 在 (x, z) 平面里
   const n = pts.length;
   const pos: number[] = [];
   const nor: number[] = [];
   const uv: number[] = [];
+  const pad: number[] = [];
   const idx: number[] = [];
   // 每个点的法线：两侧线段法线平均（墙面光照平滑）
   const segN = (i: number): V2 => {
@@ -94,6 +116,8 @@ function wall(pts: V2[], h: number, hb: number, outward: boolean): THREE.BufferG
     pos.push(p[0], h, p[1], p[0], hb, p[1]);
     nor.push(nx / l, 0, nz / l, nx / l, 0, nz / l);
     uv.push(s, 0, s, h - hb);
+    const v = vis(p[0], p[1], nx / l, nz / l);
+    pad.push(v, 0, 0, 0, v, 0, 0, 0);
   }
   for (let i = 0; i < n; i++) {
     const a = i * 2;
@@ -109,6 +133,7 @@ function wall(pts: V2[], h: number, hb: number, outward: boolean): THREE.BufferG
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
   g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
   g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  g.setAttribute('aPad', new THREE.Float32BufferAttribute(pad, 4));
   g.setIndex(idx);
   return g;
 }
@@ -154,13 +179,42 @@ export function buildTerrain(mats: Mats, pal: Palette, rng: (s: string) => () =>
   const root = new THREE.Group();
   const rnd = rng('terrain');
   const ground = mats.get('ground', { ramp: pal.grass, alt: pal.grassAlt, kind: 'ground', edge: 0.03 });
-  const cliff = mats.get('cliff', { ramp: pal.cliff, alt: pal.cliffAlt, kind: 'cliff', edge: 0.35, snow: false });
-  const path = mats.get('path', { ramp: pal.path, alt: pal.pathAlt, kind: 'path', edge: 0.03 });
+  // 崖壁：不规则石块 7×5 屏幕纹素（规范：高 4～6、宽 6～10）
+  const cliff = mats.get('cliff', {
+    ramp: pal.cliff,
+    alt: pal.cliffAlt,
+    kind: 'cliff',
+    edge: 0.35,
+    snow: false,
+    tones: pal.cliffTones,
+    // el.z：露出超过 20 屏幕行（≈ 1.8 米，只有池塘那圈墙）才挂长苔藓缕和中间的苔藓带；北边 0.8 米的台地墙只有 9 行
+    el: [7, 5, 20, 0],
+    extra: pal.cliffLip,
+  });
+  // 石板路：Voronoi 石块 10×7 屏幕纹素
+  const path = mats.get('path', {
+    ramp: pal.path,
+    alt: pal.pathAlt,
+    kind: 'path',
+    edge: 0.03,
+    tones: pal.pathTones,
+    el: [8.5, 6, 1, 0],
+  });
   const floorMat = mats.get('floor', { ramp: [0x3a4a7a, 0x3a4a7a, 0x3a4a7a], snow: false, edge: 0 });
 
   const pond = smoothLoop(POND, 0.22, rnd, 0.05);
   const tops: THREE.BufferGeometry[] = [];
   const walls: THREE.BufferGeometry[] = [];
+  const loops = PLATEAUS.map((p) => ({ h: p.h, loop: smoothLoop(p.pts, 0.22, rnd, 0.05) }));
+  // 墙外 0.3 米那一点的地面高度：池塘里是水面，否则取包含它的最高台面
+  const groundOut = (x: number, z: number, nx: number, nz: number) => {
+    const qx = x + nx * 0.3;
+    const qz = z + nz * 0.3;
+    if (inLoop(qx, qz, pond)) return H.water;
+    let g = H.base;
+    for (const l of loops) if (l.h > g && inLoop(qx, qz, l.loop)) g = l.h;
+    return g;
+  };
 
   // 底层地面：大矩形挖掉池塘
   const big: V2[] = [
@@ -170,12 +224,11 @@ export function buildTerrain(mats: Mats, pal: Palette, rng: (s: string) => () =>
     [-45, 45],
   ];
   tops.push(top(big, H.base, [pond]));
-  walls.push(wall(pond, H.base, H.floor, false));
+  walls.push(wall(pond, H.base, H.floor, false, () => H.base - H.water));
 
-  for (const p of PLATEAUS) {
-    const loop = smoothLoop(p.pts, 0.22, rnd, 0.05);
-    tops.push(top(loop, p.h));
-    walls.push(wall(loop, p.h, H.floor - 0.1, true));
+  for (const { h, loop } of loops) {
+    tops.push(top(loop, h));
+    walls.push(wall(loop, h, H.floor - 0.1, true, (x, z, nx, nz) => Math.max(0, h - groundOut(x, z, nx, nz))));
   }
 
   const groundMesh = new THREE.Mesh(mergeGeometries(tops.map((g) => g.toNonIndexed())), ground);
@@ -250,7 +303,16 @@ export function buildTerrain(mats: Mats, pal: Palette, rng: (s: string) => () =>
   root.add(pathMesh);
   const stairMesh = new THREE.Mesh(
     mergeGeometries(stairs.map(stripUv)),
-    mats.get('stairs', { ramp: pal.path, alt: [0x3e437d, 0x555b89, 0x6368a2], kind: 'stairs', edge: 0.6 }),
+    mats.get('stairs', {
+      ramp: pal.path,
+      alt: [0x3e437d, 0x555b89, 0x6368a2],
+      kind: 'stairs',
+      edge: 0.2,
+      tones: pal.stairTones,
+      // 顶端、朝下的方向 / 每级长度（踏面按级号分），级数、石条长 6～14 纹素
+      plank: [tx, tz, dirx / len / (len / steps), dirz / len / (len / steps)],
+      el: [steps, 6, 14, H.up],
+    }),
   );
   root.add(stairMesh);
 

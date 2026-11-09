@@ -41,9 +41,6 @@ importers:
 
   apps/game:
     dependencies:
-      '@td/iso':
-        specifier: workspace:*
-        version: link:../../packages/iso
       '@td/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -63,18 +60,6 @@ importers:
 
   apps/sandbox:
     dependencies:
-      '@td/iso':
-        specifier: workspace:*
-        version: link:../../packages/iso
-      '@td/shared':
-        specifier: workspace:*
-        version: link:../../packages/shared
-      '@td/ui':
-        specifier: workspace:*
-        version: link:../../packages/ui
-      preact:
-        specifier: 10.29.8
-        version: 10.29.8
       three:
         specifier: 0.180.0
         version: 0.180.0
@@ -114,12 +99,6 @@ importers:
       vite:
         specifier: 8.3.5
         version: 8.3.5(@types/node@22.20.5)(esbuild@0.28.2)(tsx@4.23.15)(yaml@2.9.1)
-
-  packages/iso:
-    dependencies:
-      '@td/shared':
-        specifier: workspace:*
-        version: link:../shared
 
   packages/shared: {}
 

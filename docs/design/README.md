@@ -13,7 +13,7 @@
 | [testing.md](testing.md) | 测试文档 v0.2：测试分层、CI、现有测试、机器人和平衡区间、评审和试玩、验收用例 | [v0.1](https://claude.ai/artifact/Y4gjfnCQmgERrZe9dDYv7s) |
 | [backlog.md](backlog.md) | 待办：按界面、玩法、逻辑、美术拆成可以派给子 agent 的任务，标了能力档位；完成记录 | [Hollow Creek 版](https://claude.ai/artifact/69umTr3eFLkUnDqbbfPUL6) |
 | [architecture.md](architecture.md) | 技术架构文档 v0.2：原则、分层、模拟核心、画面（2.5D 等距像素）、Site 接口、内容管线、存档、扩展点 | [v0.1](https://claude.ai/artifact/Cy2ae8npLfYgtEwufEtr7s) |
-| [iso-architecture.md](iso-architecture.md) | **画面契约**（ADR 0019）：`packages/iso` 的包结构、投影和像素、渲染分层、`IsoWorld` / `IsoCamera` / `Site` / `Person` 接口、素材格式 | — |
+| [iso-architecture.md](../archive/iso-2.5d/docs/design/iso-architecture.md) | **已归档**（ADR 0027）。旧的画面契约（ADR 0019）：`packages/iso` 的包结构、投影和像素、渲染分层、`IsoWorld` / `IsoCamera` / `Site` / `Person` 接口、素材格式 | — |
 | [indian-wells-migration.md](indian-wells-migration.md) | 主游戏迁到 Indian Wells 的计划（已完成，留作记录） | — |
 | [daily-settlement-contract.md](daily-settlement-contract.md) | 每日结算的接口契约（ADR 0024）：每天收盘结算钱、声望、会员，停下来弹结算卡；`DayReport`、`rules.day`、存档 15、两个代理的文件归属 | — |
 

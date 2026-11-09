@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<link rel="icon" href="data:,">
+<title>Club Pickleball · Tennis Director</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #5fb0e8; overflow: hidden; font: 11px/1.3 system-ui, sans-serif; }
+  canvas { display: block; touch-action: none; image-rendering: pixelated; }
+  #c { position: fixed; inset: 0; width: 100vw; height: 100vh; height: 100dvh; }
+  #c2 { display: none; }
+  body.gallery #c { inset: 0 0 auto 0; height: 42dvh; }
+  body.gallery #c2 { display: block; position: fixed; inset: auto 0 0 0; width: 100vw; height: 58dvh; border-top: 2px solid #1b1410; }
+  @media (orientation: landscape) {
+    body.gallery #c { inset: 0 auto 0 0; width: 40vw; height: 100dvh; }
+    body.gallery #c2 { inset: 0 0 0 auto; width: 60vw; height: 100dvh; border-top: 0; border-left: 2px solid #1b1410; }
+  }
+  #labels { position: fixed; inset: 0; pointer-events: none; }
+  .lab { position: absolute; left: 0; top: 0; padding: 1px 4px; border-radius: 3px; background: rgba(40, 36, 60, 0.78); color: #e8e4f0; white-space: nowrap; font-size: 10px; }
+  .lab.own { background: rgba(30, 90, 70, 0.78); }
+  .lab.reused { background: rgba(30, 80, 110, 0.6); color: #d8ecf4; font-size: 9px; }
+  .lab.placeholder { background: rgba(70, 70, 84, 0.86); color: #f4f4f8; font-weight: 700; }
+  .lab.spot { background: rgba(150, 30, 120, 0.8); color: #ffe4f6; font-size: 9px; }
+  .lab.area { background: rgba(27, 20, 16, 0.55); color: #fff3d6; font-size: 11px; font-weight: 700; }
+  .lab.propose { background: rgba(200, 90, 20, 0.88); color: #fff; font-size: 9px; }
+  #info { position: fixed; left: 6px; bottom: 6px; padding: 2px 6px; border-radius: 3px; background: rgba(27, 20, 16, 0.6); color: #f4ead8; pointer-events: none; }
+  body.gallery #info { top: 6px; bottom: auto; }
+  .pxsel { position: fixed; left: max(12px, calc(env(safe-area-inset-left) + 4px)); top: max(12px, calc(env(safe-area-inset-top) + 4px)); z-index: 5; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; font: 700 13px/1 "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", ui-monospace, monospace; color: #fff3d6; letter-spacing: 1px; }
+  .pxsel button { border: 0; margin: 3px; color: #fff3d6; font: inherit; cursor: pointer; background: #2c2450; -webkit-tap-highlight-color: transparent; box-shadow: 3px 0 0 0 #fff3d6, -3px 0 0 0 #fff3d6, 0 3px 0 0 #fff3d6, 0 -3px 0 0 #fff3d6, 0 6px 0 0 #171230; }
+  .pxsel button:focus-visible { outline: 3px solid #ffd23c; outline-offset: 4px; }
+  .px-chip { min-height: 44px; padding: 0 12px; }
+  .px-list { display: flex; flex-direction: column; gap: 10px; }
+  .px-list[hidden] { display: none; }
+  .px-list button { min-height: 44px; min-width: 104px; padding: 0 12px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .px-list button span { font-size: 11px; opacity: 0.75; }
+  .px-list button[aria-pressed="true"] { background: #fff3d6; color: #2c2450; }
+  body.gallery .pxsel { display: none; }
+  .palsel { left: auto; right: max(12px, calc(env(safe-area-inset-right) + 4px)); align-items: flex-end; }
+  .palsel .px-list button { min-width: 132px; }
+  /* 看日常（?play=0&life=1）时头顶的字；玩法模式下气泡归 clubsite/play 的 hud */
+  .bub { position: absolute; left: 0; top: 0; padding: 3px 7px; background: #fff3d6; color: #2c2450; white-space: nowrap; font: 700 12px/1.2 "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", system-ui, sans-serif; box-shadow: 2px 0 0 0 #2c2450, -2px 0 0 0 #2c2450, 0 2px 0 0 #2c2450, 0 -2px 0 0 #2c2450; }
+  .bub.shout { background: #ffd23c; font-size: 14px; }
+  .bub.score { background: #2c2450; color: #fff3d6; letter-spacing: 1px; box-shadow: 2px 0 0 0 #fff3d6, -2px 0 0 0 #fff3d6, 0 2px 0 0 #fff3d6, 0 -2px 0 0 #fff3d6; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<canvas id="c2"></canvas>
+<div id="labels"></div>
+<div id="info"></div>
+<div id="pxsel" class="pxsel"></div>
+<div id="palsel" class="pxsel palsel"></div>
+<script type="module" src="./src/clubpickle/main.ts"></script>
+</body>
+</html>

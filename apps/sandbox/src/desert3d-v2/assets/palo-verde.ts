@@ -1,8 +1,36 @@
 // 假紫荆（palo verde）：绿树皮的短干，离地不高就分成 3～4 根胖枝，托着 5 团扁的黄绿叶团，团与团之间留空露枝。
 // v1 开花：每团朝上的叶簇换成亮黄（成簇在冠顶，不撒点）。
+// 材质规范 v2：冠 = 叶团（leaves，池塘树的做法：档位交界按 2.4 纹素的叶团切开，15% 的团有亮顶）；
+// 枝 = 绿树皮（stones 的小块深浅 + 少量上沿亮边，不画缝）；花帽也是叶团（2.1 纹素）。颜色在这里手挑（PALETTE-SUGGEST）。
 import * as THREE from 'three';
 import type { AssetCtx } from '../world';
-import { knot, limb, mass, merge, type V3 } from './palo-verde/tree';
+import { knot, limb, mass, merge, tn, type V3 } from './palo-verde/tree';
+
+// PALETTE-SUGGEST yellowGreen.tones（冠）：中档本色从 #8ebc48（L 170，正压在中/亮分界上）降到 #84b044（L 159）
+const LEAF_TONES = tn(
+  [0xcce050, 0xd8ea60, 0xbcd44c],
+  [0x84b044, 0x8ebb4a, 0x74a24c],
+  [0x3a7c62, 0x42866a, 0x346c66],
+  [0xa8c444, 0x5e8e48, 0x28565c],
+  [0xe4f27a, 0xa0c858, 0x468868],
+);
+// PALETTE-SUGGEST barkGreen（新条目）：假紫荆的绿树皮，比冠暗一档、偏橄榄；暗档青
+const BARK_RAMP: [number, number, number] = [0xa8c45c, 0x6e9a58, 0x2e5e5e];
+const BARK_TONES = tn(
+  [0xa8c45c, 0xb2cc64, 0x9cba58],
+  [0x6e9a58, 0x78a45c, 0x648e58],
+  [0x2e5e5e, 0x366864, 0x2a5460],
+  [0x90b058, 0x58805a, 0x244a58],
+  [0xc4dc74, 0x86b064, 0x40766a],
+);
+// PALETTE-SUGGEST flowerYellow.tones：花帽（亮黄 → 橙黄 → 暗档紫红）
+const BLOOM_TONES = tn(
+  [0xffd23c, 0xffdc58, 0xf4c434],
+  [0xe49c34, 0xeca840, 0xd89238],
+  [0x8a5466, 0x945e70, 0x7e4a62],
+  [0xe8b030, 0xc07c3a, 0x6a4060],
+  [0xfff09a, 0xf4bc54, 0x9e6676],
+);
 
 export function build(ctx: AssetCtx): THREE.Object3D {
   const v = ctx.variant % 2;
@@ -62,12 +90,16 @@ export function build(ctx: AssetCtx): THREE.Object3D {
   }
   const barkMat = ctx.mat('yellowGreen', {
     ...sway,
+    ramp: BARK_RAMP,
     noise: 0,
     bands: [-0.55, 0.6],
     lightUp: 0.3,
     edge: 0.3,
     convex: 0.1,
     noShadowReceive: true,
+    // 树皮：屏幕上 5×3 纹素的小块深浅（不画缝，枝只有 4～6 纹素粗），三成的块上沿亮一纹素
+    elem: { kind: 'stones', size: [5, 3], seam: 0, hi: 0.3, seed: 4 },
+    tones: BARK_TONES,
   });
   g.add(new THREE.Mesh(merge(bark), barkMat));
 
@@ -98,7 +130,16 @@ export function build(ctx: AssetCtx): THREE.Object3D {
       }
     }
   }
-  const leafMat = ctx.mat('yellowGreen', { ...sway, noise: 0.22, edge: 0.25 });
+  const leafMat = ctx.mat('yellowGreen', {
+    ...sway,
+    noise: 0.36,
+    edge: 0.25,
+    bands: [0.02, 0.5],
+    elem: { kind: 'leaves', size: [2.4, 2.4], hi: 0.15 },
+    tones: LEAF_TONES,
+    // 团内少换色（全换 = 满冠碎点），纹理主要在档位交界
+    toneW: [0.22, 0.2],
+  });
   g.add(new THREE.Mesh(merge(leaves), leafMat));
   if (bloom.length) {
     const fl = ctx.mat('flowerYellow', {
@@ -108,6 +149,8 @@ export function build(ctx: AssetCtx): THREE.Object3D {
       bands: [-0.6, 0.25],
       edge: 0.25,
       noShadowReceive: true,
+      elem: { kind: 'leaves', size: [2.1, 2.1], hi: 0.15, seed: 2 },
+      tones: BLOOM_TONES,
     });
     g.add(new THREE.Mesh(merge(bloom), fl));
   }

@@ -2,13 +2,13 @@
 // 场景：  desert3d-v2.html                 （占位 = 冷灰体块 + id 标签；资产文件存在就换成资产）
 // 画廊：  desert3d-v2.html?asset=<id>      （一块小沙台上只放这个资产：上/左 = 最终缩放，下/右 = 同一画面放大 3 倍）
 // 模式：默认 play（玩家操控总监，control.ts + hud.ts）；?mode=watch = 原来的自动演出（?scene=rally|drill|pick|blow 只在 watch 里有用）。
-// URL：zoom（米/纹素，默认 layout.MPT）、tx/tz、yaw/pitch（度）、hour、wind、seed、warm、pause=1、
+// URL：px（每纹素 CSS 像素，默认 1；画廊 2）、zoom（米/纹素，默认 MPT×px/2）、tx/tz、yaw/pitch（度）、hour、wind、seed、warm、pause=1、
 //      labels=0（不显示标签）、ph=0（不放占位，只看地形和已画的资产）、edges=1（只看描边）、
 //      画廊：v（变体）、ref=0（不放 1.8 米的人形比例尺）、bg=sky|sand。
 import './colors';
 import * as THREE from 'three';
 import { type Control, createControl } from './control';
-import { createFx, type Fx } from './fx';
+import { CLOUD_VEL, CLOUDS, createFx, type Fx } from './fx';
 import { buildGround } from './ground';
 import { createHud, type Hud } from './hud';
 import { H, MPT, SLOTS } from './layout';
@@ -18,7 +18,7 @@ import { PAL, type Pal, SKY } from './palette';
 import { PixelPipeline } from './pipeline';
 import { placeholder, SPECS } from './placeholders';
 import { buildTerrain, topGeo, wallGeo } from './terrain';
-import { createMats, makeNoiseTexture } from './toon';
+import { CLOUD_N, createMats } from './toon';
 import type { AssetBuild, AssetCtx, SharedUniforms } from './world';
 
 const params = new URLSearchParams(location.search);
@@ -48,16 +48,22 @@ const uniforms: SharedUniforms = {
   uTime: { value: 0 },
   uWind: { value: new THREE.Vector2(0.8, 0.35).normalize().multiplyScalar(num('wind', 0.5)) },
   uGust: { value: 0.5 },
-  uCloudTex: { value: makeNoiseTexture(128, rng('clouds')) },
-  uCloudScale: { value: 1 / 40 },
-  uCloudVel: { value: new THREE.Vector2(1.6, 0.7) },
-  uCloudStrength: { value: num('clouds', galleryId ? 0 : 0.25) },
+  uClouds: {
+    value: Array.from({ length: CLOUD_N }, (_, i) => new THREE.Vector4(...(CLOUDS[i] ?? [0, 0, 0, 0]))),
+  },
+  uCloudVel: { value: new THREE.Vector2(CLOUD_VEL, 0) },
+  uCloudStrength: { value: num('clouds', galleryId ? 0 : 1) },
 };
 
 const scene = new THREE.Scene();
 scene.background = skyTexture(params.get('bg') === 'sand' ? 'sand' : 'sky');
 
-const zoom = num('zoom', MPT);
+// 默认每纹素 1 个 CSS 像素（2026-11-08 起；画廊仍是 2，素材在 2× 下画的）。
+// zoom = 实际的米/纹素；默认按 2× 时的 MPT 等比换算，取景不变。
+const PX0 = num('px', galleryId ? 2 : 1);
+const zoom = num('zoom', (MPT * PX0) / 2);
+/** 素材按 2× 的纹素大小建模（线宽、板缝、球场漆格子），和当前像素级别无关 */
+const designTexel = (zoom * 2) / PX0;
 const landscape = innerWidth > innerHeight;
 const edges = {
   depthStrength: num('dstr', 0.48),
@@ -65,7 +71,7 @@ const edges = {
   topStrength: num('tstr', 0.35),
 };
 const pipe = new PixelPipeline(canvas, {
-  px: num('px', 2),
+  px: PX0,
   fxLayer: 1,
   rig: {
     target: new THREE.Vector3(num('tx', 0), 0, num('tz', landscape ? 2 : 3)),
@@ -79,7 +85,7 @@ pipe.showEdges = params.get('edges') === '1';
 // 画廊的放大窗：同一个纹素大小，每纹素 3 倍 CSS 像素（像素一个不差，只是放大）
 const pipe2 = galleryId
   ? new PixelPipeline(canvas2, {
-      px: num('px', 2) * 3,
+      px: PX0 * 3,
       fxLayer: 1,
       rig: { ...pipe.rig, target: pipe.rig.target.clone() },
       edges,
@@ -119,6 +125,7 @@ const ctxBase = {
       ramp: sw.ramp,
       edge: sw.edge,
       convex: sw.convex,
+      tones: sw.tones,
       ...('opts' in sw ? sw.opts : {}),
       ...extra,
     });
@@ -126,7 +133,7 @@ const ctxBase = {
   rng,
   uniforms,
   layers: { FX: 1 },
-  texel: zoom,
+  texel: designTexel,
   params,
 };
 const ctxFor = (variant: number): AssetCtx => ({ ...ctxBase, variant });
@@ -315,6 +322,61 @@ function resize() {
 addEventListener('resize', resize);
 resize();
 
+// 像素级别：每个纹素占几个 CSS 像素。切换时米/纹素按同样比例变，取景范围不变，只换像素的粗细。
+// 素材的尺寸规则按每纹素 2 像素（0.09 米/纹素）定的；1 和 1.5 会让元素纹理在世界里变小、更细碎。
+const PX_LEVELS = [1, 1.5, 2, 3];
+const pxEl = document.getElementById('pxsel');
+if (pxEl && !galleryId) {
+  const chip = document.createElement('button');
+  chip.className = 'px-chip';
+  chip.type = 'button';
+  chip.setAttribute('aria-haspopup', 'true');
+  chip.setAttribute('aria-expanded', 'false');
+  const list = document.createElement('div');
+  list.className = 'px-list';
+  list.hidden = true;
+  const fmt = (v: number) => `${v}×`;
+  const sync = () => {
+    chip.textContent = `像素 ${fmt(pipe.px)}`;
+    for (const b of list.querySelectorAll('button'))
+      b.setAttribute('aria-pressed', String(Number(b.dataset.px) === pipe.px));
+  };
+  const setPx = (px: number) => {
+    if (px === pipe.px) return;
+    pipe.rig.metersPerTexel *= px / pipe.px;
+    pipe.px = px;
+    resize();
+    sync();
+    try {
+      localStorage.setItem('d3v2.px.v2', String(px));
+    } catch {}
+  };
+  for (const v of PX_LEVELS) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.dataset.px = String(v);
+    b.innerHTML = `<b>${fmt(v)}</b><span>${v === 2 ? '默认' : v < 2 ? '更细' : '更粗'}</span>`;
+    b.addEventListener('click', () => {
+      setPx(v);
+      list.hidden = true;
+      chip.setAttribute('aria-expanded', 'false');
+    });
+    list.appendChild(b);
+  }
+  chip.addEventListener('click', () => {
+    list.hidden = !list.hidden;
+    chip.setAttribute('aria-expanded', String(!list.hidden));
+  });
+  pxEl.append(chip, list);
+  if (!params.has('px')) {
+    try {
+      const saved = Number(localStorage.getItem('d3v2.px.v2'));
+      if (PX_LEVELS.includes(saved)) setPx(saved);
+    } catch {}
+  }
+  sync();
+}
+
 const DT = 1 / 60;
 let simT = 0;
 function step(seconds: number) {
@@ -416,7 +478,11 @@ function wireViewer() {
     } else if (pointers.size === 2) {
       const [a, b] = [...pointers.values()];
       const d = Math.hypot(a.x - b.x, a.y - b.y);
-      pipe.rig.metersPerTexel = THREE.MathUtils.clamp((zoom0 * pinch0) / Math.max(d, 1), 0.05, 0.3);
+      pipe.rig.metersPerTexel = THREE.MathUtils.clamp(
+        (zoom0 * pinch0) / Math.max(d, 1),
+        (0.05 * pipe.px) / 2,
+        (0.3 * pipe.px) / 2,
+      );
     }
   });
   const up = (e: PointerEvent) => pointers.delete(e.pointerId);
@@ -426,7 +492,11 @@ function wireViewer() {
     'wheel',
     (e) => {
       e.preventDefault();
-      pipe.rig.metersPerTexel = THREE.MathUtils.clamp(pipe.rig.metersPerTexel * Math.exp(e.deltaY * 0.001), 0.05, 0.3);
+      pipe.rig.metersPerTexel = THREE.MathUtils.clamp(
+        pipe.rig.metersPerTexel * Math.exp(e.deltaY * 0.001),
+        (0.05 * pipe.px) / 2,
+        (0.3 * pipe.px) / 2,
+      );
     },
     { passive: false },
   );

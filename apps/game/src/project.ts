@@ -124,7 +124,7 @@ export class Projector {
     private text: Text,
   ) {}
 
-  /** 每日结算卡的像素头像（main.ts 接上 @td/iso 的 personHead；测试里不接，画首字母） */
+  /** 每日结算卡的像素头像（2.5D 时 main.ts 接 personHead；画面迁移中暂时不接，画首字母） */
   headOf?: (id: string) => string | undefined;
 
   /** 现在的内容包（结算卡等辅助投影读） */

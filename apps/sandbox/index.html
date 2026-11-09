@@ -3,57 +3,40 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>场景查看器 · Tennis Director</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Semi+Condensed:wght@500;600;700;800&family=Saira:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="./src/viewer/style.css">
+<link rel="icon" href="data:,">
+<title>Sandbox · Tennis Director</title>
+<style>
+  :root { color-scheme: light dark; --bg: #f3ecdc; --ink: #14223a; --line: #c9bfa8; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #14223a; --ink: #f3ecdc; --line: #3a4a66; } }
+  body { margin: 0; padding: 24px 16px 40px; background: var(--bg); color: var(--ink); font: 15px/1.5 system-ui, sans-serif; }
+  main { max-width: 520px; margin: 0 auto; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  p { margin: 0 0 16px; opacity: .75; font-size: 13px; }
+  h2 { font-size: 13px; margin: 20px 0 6px; opacity: .7; }
+  a { display: flex; align-items: center; min-height: 44px; padding: 0 12px; border-bottom: 1px solid var(--line); color: inherit; text-decoration: none; }
+  a span { margin-left: auto; opacity: .6; font-size: 12px; }
+</style>
 </head>
 <body>
-<div id="world"></div>
-<div id="labels" aria-hidden="true"></div>
-<div id="ui">
-  <header class="top">
-    <div class="brand"><span class="badge">TD</span><span class="t"><b>场景查看器</b><small>Palm Oasis · Indian Wells</small></span></div>
-    <a class="lib" href="./activities.html">活动动画库 →</a>
-  </header>
-  <section class="more" id="more" hidden aria-label="更多设置">
-    <h4>设施状态 <small>点一下换下一档</small></h4>
-    <div class="facs" id="facs"></div>
-    <label class="ctl"><span class="k">时间</span><input type="range" id="time" min="0" max="1439" step="5"><output id="timeV"></output></label>
-    <label class="ctl"><span class="k">风</span><input type="range" id="wind" min="0" max="100" step="5"><output id="windV"></output></label>
-    <label class="ctl"><span class="k">磨损</span><input type="range" id="wear" min="0" max="150" step="5"><output id="wearV"></output></label>
-    <h4>场地脏乱 <small>可用度的画面，court-care-contract.md</small></h4>
-    <div class="row">
-      <button type="button" id="bMessCourt">会员场</button>
-      <button type="button" id="bMessAll">全脏</button>
-      <button type="button" id="bMessClear">清空</button>
-      <button type="button" id="bHeat" aria-pressed="false">酷热</button>
-    </div>
-    <div id="messCtl"></div>
-    <div class="row">
-      <button type="button" id="bWalk">路人 +4</button>
-      <button type="button" id="bClear">清空路人</button>
-      <button type="button" id="bHome">重置镜头</button>
-    </div>
-    <p class="url">截图参数：<code id="url"></code></p>
-  </section>
-  <nav class="dock" aria-label="场景控制">
-    <div class="r">
-      <button type="button" id="bRuin">荒废</button>
-      <button type="button" id="bFresh">复原</button>
-      <button type="button" id="bNight" aria-pressed="false">夜</button>
-      <button type="button" id="bRain" aria-pressed="false">雨</button>
-      <button type="button" id="bMore" aria-expanded="false" aria-controls="more">更多</button>
-    </div>
-    <div class="r">
-      <button type="button" id="bQ" title="转 90°（Q）" aria-label="向左转 90°">⟲ Q</button>
-      <button type="button" id="bE" title="转 90°（E）" aria-label="向右转 90°">E ⟳</button>
-      <button type="button" id="bOut" aria-label="缩小">−</button>
-      <button type="button" id="bIn" aria-label="放大">+</button>
-      <button type="button" id="bLabels" aria-pressed="false">锚点</button>
-    </div>
-  </nav>
-</div>
-<script type="module" src="./src/viewer/main.ts"></script>
+<main>
+<h1>Sandbox · 3D 像素场景</h1>
+<p>three.js 低分辨率正交渲染（ADR 0027）。做法见 .claude/skills/pixel-scene 和 docs/lab/2026-11-07-3d-pixel；旧的 2.5D 页面在 docs/archive/iso-2.5d。</p>
+<h2>俱乐部场景</h2>
+<a href="./clubmap2.html">clubmap2<span>整座俱乐部的微缩地图</span></a>
+<a href="./clubpark.html">clubpark<span>停车场 / 到达区</span></a>
+<a href="./clubdesk.html">clubdesk<span>露天前台</span></a>
+<a href="./clubfront.html">clubfront<span>前台和大门</span></a>
+<a href="./clubpickle.html">clubpickle<span>匹克球</span></a>
+<a href="./clubclay.html">clubclay<span>红土</span></a>
+<a href="./clubplaza.html">clubplaza<span>棕榈喷泉广场</span></a>
+<a href="./clubstadium.html">clubstadium<span>中心球场</span></a>
+<a href="./clubcourts.html">clubcourts<span>会员场 + 青训</span></a>
+<a href="./clubfood.html">clubfood<span>餐车院子</span></a>
+<a href="./clubmap.html">clubmap<span>地图第一版</span></a>
+<h2>早期实验</h2>
+<a href="./desert3d-v2.html">desert3d-v2<span>沙漠球场 v2</span></a>
+<a href="./desert3d.html">desert3d<span>沙漠球场 v1</span></a>
+<a href="./pond3d.html">pond3d<span>池塘复刻</span></a>
+</main>
 </body>
 </html>

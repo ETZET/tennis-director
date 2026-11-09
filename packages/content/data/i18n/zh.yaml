@@ -712,6 +712,7 @@ ui:
   club: { name: Palm Oasis 网球俱乐部, badge: PO }
   cash: 现金
   you: 你
+  stage_placeholder: "画面迁移中：见 apps/sandbox 的 club* 场景（ADR 0027）。地点："
   closed: 俱乐部已关门过夜
   left: "还剩 {time}"
   decided: 已决定

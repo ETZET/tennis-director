@@ -14,7 +14,8 @@ import {
   type V2,
   WEST_TERRACE,
 } from './layout';
-import { vnoise, white } from './noise';
+import { vnoise } from './noise';
+import { EL } from './palette';
 import type { AssetCtx } from './world';
 
 /** 闭合折线按 Catmull-Rom 平滑重采样（间距约 step 米）+ 一点抖动 */
@@ -62,13 +63,24 @@ export function topGeo(pts: V2[], h: number, holes: V2[][] = []): THREE.BufferGe
   return g;
 }
 
-/** 竖直墙：沿闭合轮廓从 h 到 hb；outward = 法线朝多边形外 */
-export function wallGeo(pts: V2[], h: number, hb: number, outward: boolean, depth0 = 0): THREE.BufferGeometry {
+/**
+ * 竖直墙：沿闭合轮廓从 h 到 hb；outward = 法线朝多边形外。
+ * expo（可选）：按墙顶点 (x, z) 和朝外法线算"这段墙在画面上露出多高"（米），写进 aElem.x（材质规范 v2 的矮墙规则用）
+ */
+export function wallGeo(
+  pts: V2[],
+  h: number,
+  hb: number,
+  outward: boolean,
+  depth0 = 0,
+  expo?: (x: number, z: number, nx: number, nz: number) => number,
+): THREE.BufferGeometry {
   const ccw = area(pts) > 0;
   const n = pts.length;
   const pos: number[] = [];
   const nor: number[] = [];
   const uv: number[] = [];
+  const ex: number[] = [];
   const idx: number[] = [];
   const segN = (i: number): V2 => {
     const [x0, z0] = pts[i];
@@ -95,6 +107,10 @@ export function wallGeo(pts: V2[], h: number, hb: number, outward: boolean, dept
     pos.push(p[0], h, p[1], p[0], hb, p[1]);
     nor.push(nx / l, 0, nz / l, nx / l, 0, nz / l);
     uv.push(s, depth0, s, depth0 + h - hb);
+    if (expo) {
+      const e = expo(p[0], p[1], nx / l, nz / l);
+      ex.push(e, 0, 0, 0, e, 0, 0, 0);
+    }
   }
   for (let i = 0; i < n; i++) {
     const a = i * 2;
@@ -108,6 +124,7 @@ export function wallGeo(pts: V2[], h: number, hb: number, outward: boolean, dept
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
   g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
   g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  if (expo) g.setAttribute('aElem', new THREE.Float32BufferAttribute(ex, 4));
   g.setIndex(idx);
   return g;
 }
@@ -132,44 +149,6 @@ function ribbon(line: V2[], w: number): V2[] {
   return [...L, ...R.reverse()];
 }
 
-/** 崖壁石纹贴图（乘在三档上，接近白）：横向岩层 + 少量竖缝，按纹素画 */
-function strataTexture(texel: number): { tex: THREE.DataTexture; metres: number } {
-  const N = 64;
-  const d = new Uint8Array(N * N * 4);
-  for (let j = 0; j < N; j++) {
-    for (let i = 0; i < N; i++) {
-      // 岩层：每 5～7 纹素一条暗缝，缝高度沿墙缓慢起伏
-      const wob = Math.round((vnoise(i / 9, 0, 401) - 0.5) * 2);
-      const row = j + wob;
-      const layer = Math.floor(row / 6);
-      const seam = row % 6 === 5;
-      // 竖缝：每层几条，错开
-      const jointAt = Math.floor(white(Math.floor(i / 11), layer, 402) * 11);
-      const joint = i % 11 === jointAt && !seam;
-      // 每层整体明暗略有不同（大块，不是噪点）
-      const tone = 0.93 + 0.07 * white(layer, 0, 403);
-      const v = seam || joint ? 0.8 : tone;
-      const k = (j * N + i) * 4;
-      d[k] = d[k + 1] = d[k + 2] = Math.round(v * 255);
-      d[k + 3] = 255;
-    }
-  }
-  const tex = new THREE.DataTexture(d, N, N, THREE.RGBAFormat);
-  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-  tex.magFilter = tex.minFilter = THREE.NearestFilter;
-  tex.generateMipmaps = false;
-  tex.colorSpace = THREE.NoColorSpace;
-  tex.needsUpdate = true;
-  return { tex, metres: N * texel };
-}
-
-/** uv 从米换成贴图周期 */
-function scaleUv(g: THREE.BufferGeometry, metres: number) {
-  const uv = g.getAttribute('uv') as THREE.BufferAttribute;
-  for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) / metres, uv.getY(i) / metres);
-  return g;
-}
-
 export interface Terrain {
   root: THREE.Group;
   /** 低地顶面轮廓（平滑后），画廊/布置用 */
@@ -180,9 +159,6 @@ export function buildTerrain(ctx: AssetCtx): Terrain {
   const root = new THREE.Group();
   root.name = 'terrain';
   const rnd = ctx.rng('terrain:outline');
-  const { tex, metres } = strataTexture(ctx.texel);
-  const cliffMat = ctx.mat('cliff', { map: tex });
-  const lipMat = ctx.mat('cliffLip');
   const LIP = ctx.texel * 1.2; // 一纹素多一点的亮边
 
   const island = smoothLoop(ISLAND, 0.6, rnd, 0.1);
@@ -194,6 +170,21 @@ export function buildTerrain(ctx: AssetCtx): Terrain {
     { id: 'north', pts: smoothLoop(NORTH_TERRACE, 0.5, rnd), h: H.north, mat: 'sandHigh' },
     { id: 'mesa', pts: smoothLoop(MESA, 0.5, rnd), h: H.mesa, mat: 'sandHigh' },
   ];
+  // 某点的地面高度（最高的那层台面；池里是水面，岛外是岛底）—— 算每段崖壁在画面上露出多高
+  const byHeight = [...levels].sort((a, b) => b.h - a.h);
+  const groundAt = (x: number, z: number) => {
+    const p: V2 = [x, z];
+    for (const L of byHeight) if (insidePoly(p, L.pts)) return L.h;
+    if (insidePoly(p, pool)) return H.water;
+    return insidePoly(p, island) ? H.low : H.skirt;
+  };
+  const expoOf = (top: number) => (x: number, z: number, nx: number, nz: number) =>
+    Math.max(0, top - groundAt(x + nx * 0.35, z + nz * 0.35));
+
+  // ── 材质规范 v2：大面积表面的元素（预设在 palette.ts 的 EL，资产也可以拿来用） ──
+  const sandEl = EL.sand;
+  const cliffMat = ctx.mat('cliff', { elem: EL.strata });
+  const lipMat = ctx.mat('cliffLip');
 
   const add = (g: THREE.BufferGeometry, m: THREE.Material, name: string) => {
     const mesh = new THREE.Mesh(g, m);
@@ -203,33 +194,51 @@ export function buildTerrain(ctx: AssetCtx): Terrain {
   };
 
   // 低地（岛顶）+ 池子的洞
-  add(topGeo(island, H.low, [pool]), ctx.mat('sand'), 'top:low');
+  add(topGeo(island, H.low, [pool]), ctx.mat('sand', { elem: sandEl }), 'top:low');
   // 岛外沿：亮边 + 崖壁 + 收拢的岛底
   add(wallGeo(island, H.low, H.low - LIP, true), lipMat, 'lip:island');
-  add(scaleUv(wallGeo(island, H.low - LIP, H.skirt, true, LIP), metres), cliffMat, 'wall:island');
+  add(
+    wallGeo(island, H.low - LIP, H.skirt, true, 0, () => H.low - H.skirt),
+    cliffMat,
+    'wall:island',
+  );
   add(undersideGeo(island), ctx.mat('underside', { side: THREE.DoubleSide }), 'underside');
 
   // 各层台地：顶面 + 亮边 + 崖壁（下到低地以下，被前面的顶面挡住）
   for (const L of levels) {
-    add(topGeo(L.pts, L.h), ctx.mat(L.mat), `top:${L.id}`);
+    add(topGeo(L.pts, L.h), ctx.mat(L.mat, { elem: { ...sandEl, seed: L.h } }), `top:${L.id}`);
     add(wallGeo(L.pts, L.h, L.h - LIP, true), lipMat, `lip:${L.id}`);
-    add(scaleUv(wallGeo(L.pts, L.h - LIP, H.low - 0.3, true, LIP), metres), cliffMat, `wall:${L.id}`);
+    add(wallGeo(L.pts, L.h - LIP, H.low - 0.3, true, 0, expoOf(L.h)), cliffMat, `wall:${L.id}`);
   }
 
-  // 绿洲池：池壁（朝池里）+ 水面 + 贴着岸脚的一纹素泡沫
+  // 绿洲池：池壁（朝池里，0.7 米 = 矮墙）+ 水面（一块格子网格，顶点带"到北岸/到岸的距离"）+ 贴着岸脚的泡沫虚线
   add(wallGeo(pool, H.low, H.low - LIP, false), lipMat, 'lip:pool');
-  add(scaleUv(wallGeo(pool, H.low - LIP, H.water - 0.4, false, LIP), metres), cliffMat, 'wall:pool');
-  add(topGeo(pool, H.water), ctx.mat('water'), 'water');
+  add(
+    wallGeo(pool, H.low - LIP, H.water - 0.4, false, 0, () => H.low - H.water),
+    cliffMat,
+    'wall:pool',
+  );
+  add(waterGeo(pool, H.water), ctx.mat('water', { elem: EL.water }), 'water');
   const foam = ringInside(pool, ctx.texel * 1.1);
-  add(topGeo(pool, H.water + 0.005, [foam]), ctx.mat('foam'), 'foam');
+  add(topGeo(pool, H.water + 0.005, [foam]), ctx.mat('foam', { elem: EL.foam }), 'foam');
 
-  // 台阶
-  add(stairsGeo(), ctx.mat('stair'), 'stairs');
+  // 台阶：每级踏面分几段石条、前沿磨亮条、立面顶上一行暗线（描边压到 0.18 / 0.25，不然凸边白线盖掉纹理）
+  const { x0: sx0, z0: sz0, steps, run, from, to } = STAIRS;
+  add(
+    stairsGeo(),
+    ctx.mat('stair', {
+      edge: 0.18,
+      convex: 0.25,
+      elem: { kind: 'treads', size: [6, 14], p: [sx0, sz0, 0, 1 / run], q: [steps, from, (from - to) / steps, 0] },
+    }),
+    'stairs',
+  );
 
-  // 步道
+  // 步道：踩实的钙质土（大块土团、少数地方有裂缝、脚印、嵌着的碎石）
+  const pathMat = ctx.mat('path', { elem: EL.path });
   for (const [i, p] of PATHS.entries()) {
     const line = smoothLine(p.pts, 0.4);
-    add(topGeo(ribbon(line, p.w), p.level + 0.01), ctx.mat('path'), `path:${i}`);
+    add(topGeo(ribbon(line, p.w), p.level + 0.01), pathMat, `path:${i}`);
   }
 
   ctx.mats.prepare(root);
@@ -242,6 +251,72 @@ export function buildTerrain(ctx: AssetCtx): Terrain {
   const outlines: Record<string, V2[]> = { island, pool };
   for (const L of levels) outlines[L.id] = L.pts;
   return { root, outlines };
+}
+
+function insidePoly(p: V2, poly: V2[]): boolean {
+  let c = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const [xi, zi] = poly[i];
+    const [xj, zj] = poly[j];
+    if (zi > p[1] !== zj > p[1] && p[0] < ((xj - xi) * (p[1] - zi)) / (zj - zi) + xi) c = !c;
+  }
+  return c;
+}
+
+/**
+ * 水面：盖住池子包围盒的一块格子（池外的部分被地面、池壁挡住），顶点 aElem = [往北到岸的距离, 到岸的距离]（米），
+ * 水面材质（elem water）靠它画北岸脚下的天光亮带和中间的深水
+ */
+function waterGeo(pool: V2[], y: number): THREE.BufferGeometry {
+  let x0 = Infinity;
+  let x1 = -Infinity;
+  let z0 = Infinity;
+  let z1 = -Infinity;
+  for (const [x, z] of pool) {
+    x0 = Math.min(x0, x);
+    x1 = Math.max(x1, x);
+    z0 = Math.min(z0, z);
+    z1 = Math.max(z1, z);
+  }
+  const m = 0.4;
+  const g = new THREE.PlaneGeometry(
+    x1 - x0 + 2 * m,
+    z1 - z0 + 2 * m,
+    Math.ceil((x1 - x0) / 0.2),
+    Math.ceil((z1 - z0) / 0.2),
+  );
+  g.rotateX(-Math.PI / 2);
+  g.translate((x0 + x1) / 2, y, (z0 + z1) / 2);
+  g.deleteAttribute('uv');
+  const pos = g.getAttribute('position');
+  const ex = new Float32Array(pos.count * 4);
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i);
+    const z = pos.getZ(i);
+    let north = 0;
+    let shore = 0;
+    if (insidePoly([x, z], pool)) {
+      // 往北（−z）第一个和池岸的交点
+      let best = Infinity;
+      shore = Infinity;
+      for (let k = 0; k < pool.length; k++) {
+        const [ax, az] = pool[k];
+        const [bx, bz] = pool[(k + 1) % pool.length];
+        if (ax > x !== bx > x) {
+          const zc = az + ((x - ax) / (bx - ax)) * (bz - az);
+          if (zc < z) best = Math.min(best, z - zc);
+        }
+        const dx = bx - ax;
+        const dz = bz - az;
+        const t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / (dx * dx + dz * dz || 1)));
+        shore = Math.min(shore, Math.hypot(x - ax - dx * t, z - az - dz * t));
+      }
+      north = Number.isFinite(best) ? best : 0;
+    }
+    ex.set([north, shore, 0, 0], i * 4);
+  }
+  g.setAttribute('aElem', new THREE.BufferAttribute(ex, 4));
+  return g;
 }
 
 /** 往多边形里缩 d 米（按顶点法线，小 d 够用） */

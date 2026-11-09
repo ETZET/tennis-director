@@ -3,6 +3,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { AssetCtx } from '../world';
+import { boards, FABRIC_TONES, METAL_TONES, paint, STRIPE_TONES, WEATHERED_TONES } from './bench/mats';
 
 function box(w: number, h: number, d: number, x: number, y: number, z: number, rx = 0, ry = 0, rz = 0) {
   const g = new THREE.BoxGeometry(w, h, d);
@@ -42,7 +43,10 @@ export function build(ctx: AssetCtx): THREE.Object3D {
   }
   // 遮阳杆：从座位后面伸上去
   metal.push(bar(v(0, platY, -0.3), v(0, 2.18, -0.34), 0.18));
-  const metalMesh = new THREE.Mesh(mergeGeometries(metal), ctx.mat('metal', PROP));
+  const metalMesh = new THREE.Mesh(
+    mergeGeometries(metal),
+    ctx.mat('metal', { ...PROP, elem: paint([5, 4], [0, 0.04], 2), tones: METAL_TONES }),
+  );
   g.add(metalMesh);
 
   // ── 木：平台、座、靠背、脚踏、三根横档 ──
@@ -58,7 +62,17 @@ export function build(ctx: AssetCtx): THREE.Object3D {
     const z = -0.5 + 0.28 * t;
     wood.push(box(0.76, 0.14, 0.2, 0, y, z - 0.02, 0, 0, (rnd() - 0.5) * 0.05));
   }
-  const woodMesh = new THREE.Mesh(mergeGeometries(wood), ctx.mat('woodWeathered', PROP));
+  // 材质规范 v2：木板沿 z 每 0.24 米一块（平台三块、座两块；横档、脚踏各落在自己那块），每块一个深浅、冷暗缝、缝后一行断续亮条。
+  // 场景里椅子转了 −90°（本地 z = 屏幕横向，缝一列）；画廊里 z 是纵深（一纹素 0.7 行）→ sk 0.85 两边都稳
+  const woodMesh = new THREE.Mesh(
+    mergeGeometries(wood),
+    ctx.mat('woodWeathered', {
+      ...PROP,
+      elem: boards([0, 0, 1], 0.24, { seam: 1, sk: 0.85, seed: 4 }),
+      tones: WEATHERED_TONES,
+      toneW: [0.34, 0.3],
+    }),
+  );
   g.add(woodMesh);
 
   // ── 遮阳顶：三条布（条纹 / 奶油 / 条纹），整块歪了一点，前沿垂一条边 ──
@@ -72,8 +86,18 @@ export function build(ctx: AssetCtx): THREE.Object3D {
     dst.push(box(w, 0.09, 0.62, x, 0, 0));
     dst.push(box(w, 0.18, 0.09, x, -0.1, 0.31)); // 前沿垂边
   }
-  top.add(new THREE.Mesh(mergeGeometries(cream), ctx.mat('fabric', PROP)));
-  top.add(new THREE.Mesh(mergeGeometries(stripe), ctx.mat('fabricStripe', PROP)));
+  top.add(
+    new THREE.Mesh(
+      mergeGeometries(cream),
+      ctx.mat('fabric', { ...PROP, elem: paint([6, 4], [0, 0], 3), tones: FABRIC_TONES }),
+    ),
+  );
+  top.add(
+    new THREE.Mesh(
+      mergeGeometries(stripe),
+      ctx.mat('fabricStripe', { ...PROP, elem: paint([6, 4], [0, 0], 4), tones: STRIPE_TONES }),
+    ),
+  );
   top.position.set(0.02, 2.24, -0.24);
   top.rotation.set(0.18, 0, -0.14 - rnd() * 0.06); // 往前低、往一边歪（螺丝松了）
   g.add(top);

@@ -16,6 +16,7 @@ export interface Hud {
 
 const ZOOM_MIN = 0.06;
 const ZOOM_MAX = 0.14;
+// 上面两个是每纹素 2 像素时的范围；像素级别变了，按比例换算（取景范围不变）
 /** 摇杆最大半径（CSS 像素） */
 const JOY_R = 52;
 /** 轻点：多短、挪多少以内 */
@@ -123,7 +124,11 @@ export function createHud(root: HTMLElement, canvas: HTMLCanvasElement, pipe: Pi
     if (others.length >= 2) {
       const [a, b] = others.map((id) => ptrs.get(id)!);
       const d = Math.hypot(a.x - b.x, a.y - b.y);
-      pipe.rig.metersPerTexel = THREE.MathUtils.clamp((zoom0 * pinch0) / Math.max(d, 1), ZOOM_MIN, ZOOM_MAX);
+      pipe.rig.metersPerTexel = THREE.MathUtils.clamp(
+        (zoom0 * pinch0) / Math.max(d, 1),
+        (ZOOM_MIN * pipe.px) / 2,
+        (ZOOM_MAX * pipe.px) / 2,
+      );
       return;
     }
     // 单指拖动（不在拇指区按下的）：也当摇杆
@@ -152,8 +157,8 @@ export function createHud(root: HTMLElement, canvas: HTMLCanvasElement, pipe: Pi
       e.preventDefault();
       pipe.rig.metersPerTexel = THREE.MathUtils.clamp(
         pipe.rig.metersPerTexel * Math.exp(e.deltaY * 0.001),
-        ZOOM_MIN,
-        ZOOM_MAX,
+        (ZOOM_MIN * pipe.px) / 2,
+        (ZOOM_MAX * pipe.px) / 2,
       );
     },
     { passive: false },

@@ -41,7 +41,7 @@ export interface Projector {
 }
 
 export interface SettleDeps {
-  /** 人的像素头像（data URL，main.ts 用 @td/iso 的 personHead 画；测试里没有） */
+  /** 人的像素头像（data URL，由 Projector.headOf 给；画面迁移中暂时不接，画首字母） */
   headOf?: ((id: string) => string | undefined) | undefined;
 }
 

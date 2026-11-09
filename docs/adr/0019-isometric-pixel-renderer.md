@@ -1,6 +1,6 @@
 # 0019 画面从 three.js 体素 3D 换成 2.5D 等距像素（Canvas 2D 软件光栅）
 
-- 状态：已采纳
+- 状态：已采纳；已被 [0027](0027-3d-pixel-three.md) 取代（2026-11-08，2.5D 画面归档到 `docs/archive/iso-2.5d`）
 - 日期：2026-11-02
 - 取代：[0003](0003-m0-split-before-upgrade.md) 里"M0 只用升级 three.js 的方式改画面"的约束；[0004](0004-typescript-7-tooling.md) 之外的 three 相关约定
 - 修订：[0005](0005-scenes-are-islands.md)（浮空岛保留，画法换成像素立体模型）、[0010](0010-activity-library.md)（活动库搬到新包，API 不变）、[0016](0016-single-map-site.md)（Site 接口去掉 three 类型）

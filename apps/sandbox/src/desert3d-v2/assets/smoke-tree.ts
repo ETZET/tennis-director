@@ -1,11 +1,28 @@
 // 烟树（smoke tree）：银蓝灰的一团"烟"——5 团圆的叶团挤成一朵云，几乎看不出叶子；底下露一点浅灰的枝。
 // 剪影比假紫荆圆、比蒲葵矮。
+// 材质规范 v2：冠 = 叶团（leaves，格子 2.8 纹素更蓬，亮顶只给 10% 的团）；枝 = 浅灰树皮（stones 小块深浅）。颜色在这里手挑。
 import * as THREE from 'three';
 import type { AssetCtx } from '../world';
-import { knot, limb, mass, merge, type V3 } from './palo-verde/tree';
+import { knot, limb, mass, merge, tn, type V3 } from './palo-verde/tree';
 
 // PALETTE-REQUEST branchPale：烟树的浅灰枝（palette 的 branch 是深棕紫，太重）
 const BRANCH_PALE: [number, number, number] = [0xd4ccd4, 0xa49cb4, 0x55507e];
+// PALETTE-SUGGEST branchPale.tones
+const BRANCH_TONES = tn(
+  [0xd4ccd4, 0xdcd6dc, 0xc8c0cc],
+  [0xa49cb4, 0xaea6bc, 0x9890ac],
+  [0x55507e, 0x5e5a88, 0x4c4876],
+  [0xbcb2c4, 0x8a82a0, 0x433e6c],
+  [0xe8e2e8, 0xbeb6cc, 0x6c6898],
+);
+// PALETTE-SUGGEST silverBlue.tones（烟树冠）：亮档银灰青、中档灰蓝、暗档靛（冷）；高/低一级 ±9～13，亮边 +22～25
+const SMOKE_TONES = tn(
+  [0xb2ccd2, 0xc0d8dc, 0xa4c0cc],
+  [0x7c9ec0, 0x88a8c8, 0x7290b6],
+  [0x4c5a92, 0x56649a, 0x46508a],
+  [0x94b0c4, 0x6886ac, 0x3c4880],
+  [0xcce2e6, 0x98b8d0, 0x62729e],
+);
 
 export function build(ctx: AssetCtx): THREE.Object3D {
   const v = ctx.variant % 3;
@@ -51,6 +68,8 @@ export function build(ctx: AssetCtx): THREE.Object3D {
     bands: [-0.5, 0.6],
     lightUp: 0.3,
     noShadowReceive: true,
+    elem: { kind: 'stones', size: [5, 3], seam: 0, hi: 0.3, seed: 5 },
+    tones: BRANCH_TONES,
   });
   g.add(new THREE.Mesh(merge(bark), barkMat));
 
@@ -59,7 +78,18 @@ export function build(ctx: AssetCtx): THREE.Object3D {
   for (const m of masses)
     leaves.push(...mass(rnd, { c: m.c, r: m.r, clumps: 6, clumpR: 0.45, minY: -0.5, wSub: 0.32 }).geo);
   g.add(
-    new THREE.Mesh(merge(leaves), ctx.mat('silverBlue', { ...sway, noise: 0.15, edge: 0.25, bands: [-0.08, 0.48] })),
+    new THREE.Mesh(
+      merge(leaves),
+      ctx.mat('silverBlue', {
+        ...sway,
+        noise: 0.4,
+        edge: 0.25,
+        bands: [-0.08, 0.48],
+        elem: { kind: 'leaves', size: [2.8, 2.8], hi: 0.1, seed: 3 },
+        tones: SMOKE_TONES,
+        toneW: [0.3, 0.3],
+      }),
+    ),
   );
   ctx.mats.prepare(g);
   return g;

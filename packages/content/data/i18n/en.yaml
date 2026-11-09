@@ -712,6 +712,7 @@ ui:
   club: { name: Palm Oasis Racquet Club, badge: PO }
   cash: Cash
   you: You
+  stage_placeholder: "Visuals are moving to 3D: see the club* scenes in apps/sandbox (ADR 0027). Places:"
   closed: Club closed for the night
   left: "{time} left"
   decided: Decided

@@ -1,5 +1,11 @@
 # 3D 像素画：照着池塘参考图复刻的经验（成功配方）
 
+> **参考图和含参考图的对比图只放本地，不进仓库**（参考图是别人的作品截图）。
+> 参考图：`~/workspace/tennis-director-refs/pixel-pond/ref/{summer,spring,autumn,winter}.{jpg,png}`（文中旧路径 `/private/tmp/claude-501/pond/refN.png` 对应这里）。
+> 含参考图的对比图（`cmp-*`、`detail-*`、`mat-*`、`fix2-*`、`godot-cmp-*`、`godot-renderer-*`、部分 `desert-b-*` 等，文中引用的 `shots/…` 找不到时就在这里）：`~/workspace/tennis-director-refs/pixel-pond/shots/`。
+> 提交前跑 `node docs/lab/2026-11-07-3d-pixel/tools/refcheck.mjs docs/lab/2026-11-07-3d-pixel/shots`，标 REF? 的图不要提交。
+
+
 2026-11-07 · 研究页 `apps/sandbox/pond3d.html`（代码 `apps/sandbox/src/pond3d/`，从 desert3d 的 pipeline/toon 分出来改的，desert3d 本身没动）。
 打开：`http://localhost:5190/pond3d.html?season=summer|spring|autumn|winter`，参考框是 1280×720 横屏，390×844 竖屏也能跑（`?tx=2&tz=3` 对准栈桥）。
 

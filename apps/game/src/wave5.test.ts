@@ -1,8 +1,6 @@
 import { CONTENT, type ContentBundle, type Order, type Post, plot } from '@td/content';
-import { indianWells } from '@td/iso';
 import { at, type GameState, newGame, placeAvailable, placeOpen, worldOf } from '@td/sim';
 import { describe, expect, it } from 'vitest';
-import { plotForRoute, withLand } from './courts';
 import { Projector } from './project';
 import { Session } from './session';
 import { createText } from './text';
@@ -88,23 +86,6 @@ const build = (s: GameState, state: 'building' | 'open') => {
 };
 
 describe('W5 land in the game', () => {
-  const site = withLand(indianWells.INDIAN_WELLS);
-
-  it('withLand adds the plot anchors to anchors and stands without touching the map', () => {
-    expect(site.stands.south_courts).toEqual(indianWells.LAND_STANDS.south_courts);
-    expect(site.anchors.academy_isle).toEqual(indianWells.LAND_ANCHORS.academy_isle);
-    expect(indianWells.INDIAN_WELLS.stands.south_courts).toBeUndefined();
-    // 其余字段照旧（routeLine 认新地点）
-    expect(site.routeLine('south_courts', 'entrance')).not.toBeNull();
-    for (const a of FIX.acts[0]?.anchors ?? []) expect(site.stands[a], a).toBeDefined();
-  });
-
-  it('a route card option finds its plot: content plots first, then the map table', () => {
-    expect(plotForRoute(site, FIX.acts[0]?.plots, 's3', 'oasis_lawn')).toBe('golf_west');
-    expect(plotForRoute(site, CONTENT.acts[0]?.plots, 's4', 'academy_isle')).toBe('se_corner');
-    expect(plotForRoute(site, undefined, 's2', 'youth')).toBeNull();
-  });
-
   it('new places are named after their route when anchors.<id> is missing', () => {
     const T = createText(FIX, 'en');
     const own = FIX.i18n.en?.['anchors.south_courts'];

@@ -21,7 +21,7 @@ import {
   ROD_TIP,
   TREES,
 } from './layout';
-import type { Mats, Shared } from './ramp';
+import type { Mats, Shared, Tones } from './ramp';
 import type { Palette } from './season';
 
 type Rnd = () => number;
@@ -30,7 +30,7 @@ type Rnd = () => number;
 function norm(g: THREE.BufferGeometry, sway = 0): THREE.BufferGeometry {
   const out = g.index ? g.toNonIndexed() : g;
   for (const k of Object.keys(out.attributes))
-    if (k !== 'position' && k !== 'normal' && k !== 'uv') out.deleteAttribute(k);
+    if (k !== 'position' && k !== 'normal' && k !== 'uv' && k !== 'aPad') out.deleteAttribute(k);
   const n = out.getAttribute('position').count;
   if (!out.getAttribute('uv')) out.setAttribute('uv', new THREE.Float32BufferAttribute(new Float32Array(n * 2), 2));
   if (!out.getAttribute('aSway'))
@@ -144,19 +144,31 @@ export function buildProps(
       noise: 0.4,
     }),
   );
+  // 灌木（参考图逐丛量明暗：顶上亮档 + 一圈往下挂的短草须，中腰中档，下三分之一暗档，底沿更暗，地上一圈青色团影）
   const bushMats = pal.bush.map((r, i) =>
     mats.get(`bush${i}`, {
       ramp: r,
       kind: 'foliage',
       edge: 0.25,
       sway: 0.03,
-      bands: [-0.1, 0.42],
+      bands: pal.bushBands?.[i] ?? [0.55, 0.8],
       lightUp: 0.5,
       specks: true,
-      snowT: 0.15,
-      noise: 0.4,
+      snowT: 0.32,
+      noise: 0.45,
+      bush: true,
+      extra: [pal.bushRim[i % pal.bushRim.length], 0, 0],
     }),
   );
+  // 灌木脚下的团影：地面材质固定在暗档（阴影草地那套颜色和草叶），比灌木大一圈、往南（画面下方）挪一点
+  const bushShade = mats.get('bushShade', {
+    ramp: pal.grass,
+    alt: pal.grassAlt,
+    kind: 'ground',
+    edge: 0,
+    bands: [9, 9],
+    noShadow: true,
+  });
 
   // —— 树 ——
   const rt = rng('trees');
@@ -225,34 +237,74 @@ export function buildProps(
   for (const b of BUSHES) {
     if (b.r <= 0) continue;
     const [x, z] = b.at;
-    const mat = bushMats[Math.floor(rb() * bushMats.length)];
+    const pickV = rb(); // 原来按随机挑色阶；现在按 layout 的 v（保留这次取数，后面的形状不变）
+    const mat = bushMats[(b.v ?? Math.floor(pickV * bushMats.length)) % bushMats.length];
     const n = 3 + Math.floor(rb() * 2);
+    const parts: THREE.BufferGeometry[] = [];
+    let sx = 0;
+    let sz = 0;
+    let sw = 0;
     for (let i = 0; i < n; i++) {
       const a = (i / n) * Math.PI * 2 + rb();
       const rr = b.r * (0.55 + rb() * 0.2);
-      const g = place(blob(rr, rb, 1, 0.8), x + Math.cos(a) * b.r * 0.4, b.h + rr * 0.6, z + Math.sin(a) * b.r * 0.35);
+      const bx = x + Math.cos(a) * b.r * 0.4;
+      const bz = z + Math.sin(a) * b.r * 0.35;
+      parts.push(place(blob(rr, rb, 1, 0.8), bx, b.h + rr * 0.6, bz));
+      sx += bx * rr;
+      sz += bz * rr;
+      sw += rr;
+    }
+    parts.push(place(blob(b.r * 0.6, rb, 1, 0.8), x, b.h + b.r * 0.85, z));
+    // 整丛一个"圆顶"：每个顶点的法线 = 团自己的球面法线和整丛椭球法线各一半 → 顶上亮、中腰中档、下三分之一暗
+    //（只用团法线时，下面每一团都有自己的亮顶，整丛偏亮、像一摞球）
+    const cx = sx / sw;
+    const cz = sz / sw;
+    const cy = b.h + b.r * 0.3;
+    const dn = new THREE.Vector3();
+    for (const g of parts) {
+      const p = g.getAttribute('position');
+      const nr = g.getAttribute('normal');
+      // 参考图的灌木是矮胖的圆顶（宽 : 高 ≈ 1.4 : 1）：绕重心横向拉宽 1.18、竖向压到 0.88
+      for (let i = 0; i < p.count; i++)
+        p.setXYZ(i, cx + (p.getX(i) - cx) * 1.18, b.h + (p.getY(i) - b.h) * 0.88, cz + (p.getZ(i) - cz) * 1.05);
+      for (let i = 0; i < p.count; i++) {
+        dn.set((p.getX(i) - cx) / 1.1, (p.getY(i) - cy) / 0.85, (p.getZ(i) - cz) / 1.0).normalize();
+        dn.multiplyScalar(0.55).add(new THREE.Vector3(nr.getX(i), nr.getY(i), nr.getZ(i)).multiplyScalar(0.45));
+        dn.normalize();
+        nr.setXYZ(i, dn.x, dn.y, dn.z);
+      }
       setSway(g, b.h, b.r * 1.5, 1);
       B.add(mat, g);
     }
-    const g = place(blob(b.r * 0.6, rb, 1, 0.8), x, b.h + b.r * 0.85, z);
-    setSway(g, b.h, b.r * 1.5, 1);
-    B.add(mat, g);
+    // 团影：比灌木宽一圈、往画面下方（南）多露 3～4 纹素，圆心跟着几团的重心
+    const shade = new THREE.CircleGeometry(1, 24);
+    shade.rotateX(-Math.PI / 2);
+    shade.scale(b.r * 1.15 + 0.12, 1, b.r * 0.8 + 0.12);
+    shade.translate(cx, b.h + 0.012, cz + b.r * 0.32);
+    B.add(bushShade, shade);
   }
 
   // —— 石头 ——
-  const rock = mats.get('rock', { ramp: pal.rock, alt: pal.moss, kind: 'rock', edge: 0.25, bands: [0.3, 0.72] });
   const rr = rng('rock');
-  {
-    const [x, z] = ROCK;
-    // 大石头：面法线（一块块的平面，参考图石头是有棱角的三档）
-    const g = facet(1.2, rr);
-    g.scale(1.1, 1, 0.9);
-    place(g, x, H.water + 0.35, z, 0.4);
-    B.add(rock, g);
-    const g2 = place(facet(0.6, rr, 0.7), x + 1.0, H.water + 0.15, z + 0.5);
-    B.add(rock, g2);
-    foam.push({ x, z, r: 1.12 }, { x: x + 1.0, z: z + 0.5, r: 0.5 });
-  }
+  // 大石头：面法线（一块块的平面，参考图石头是有棱角的三档）
+  const [rkx, rkz] = ROCK;
+  const rockG = facet(1.2, rr);
+  rockG.scale(1.1, 1, 0.9);
+  place(rockG, rkx, H.water + 0.35, rkz, 0.4);
+  rockG.computeBoundingBox();
+  // 苔藓帽按石顶高度和石头中心画（ramp.ts KIND_ROCK）
+  const rock = mats.get('rock', {
+    ramp: pal.rock,
+    alt: pal.moss,
+    kind: 'rock',
+    edge: 0.25,
+    bands: [0.3, 0.72],
+    plank: [rkx, rockG.boundingBox?.max.y ?? H.water + 1.5, rkz, 1.25],
+    extra: pal.mossEdge,
+  });
+  B.add(rock, rockG);
+  B.add(rock, place(facet(0.6, rr, 0.7), rkx + 1.0, H.water + 0.15, rkz + 0.5));
+  foam.push({ x: rkx, z: rkz, r: 1.12 }, { x: rkx + 1.0, z: rkz + 0.5, r: 0.5 });
   const pebble = mats.get('pebble', { ramp: pal.rock, edge: 1.0 });
   for (const p of PEBBLES) {
     const g = blob(p.r, rr, 0, 0.6);
@@ -300,7 +352,15 @@ export function buildProps(
   // —— 睡莲 ——
   // 参考图：叶面是中档绿 #6cba52，上沿一纹素亮边（描边提亮），下面一纹素深色的厚度；缺口很小或没有，有的是两片叠着；
   // 在阴影里的叶子是暗档。花是一朵粉色小杯（约 6 纹素宽），上亮下偏淡紫。
-  const lily = mats.get('lily', { ramp: pal.lily, edge: 0.6, bands: [0.0, 0.9], noShadow: true });
+  const lily = mats.get('lily', {
+    ramp: pal.lily,
+    kind: 'lily',
+    edge: 0.6,
+    // 顶面要落中档：太阳仰角 71° 时朝上的面 N·L = 0.95，阈值放到 0.97
+    bands: [0.0, 0.97],
+    noShadow: true,
+    tones: pal.lilyTones,
+  });
   const flower = mats.get('flower', {
     ramp: [0x8a70b8, 0xd49ccb, 0xf4c8e0],
     edge: 0.5,
@@ -316,19 +376,38 @@ export function buildProps(
     light: [0, 1, 0.8],
   });
   const rl = rng('lilies');
-  const pad = (x: number, z: number, r: number, notch: boolean) => {
-    const g = notch
-      ? new THREE.CylinderGeometry(r, r, 0.08, 18, 1, false, 0.3, Math.PI * 2 - 0.16)
-      : new THREE.CylinderGeometry(r, r, 0.08, 18);
-    place(g, x, H.water + 0.03, z, rl() * 6);
+  // aPad = (旁边那片叶子的圆心 − 本片圆心（顶盖 uv 单位）, 它的半径（uv）, 有没有缺口)：
+  // 葫芦形的两片叶子互相知道对方，叠着的地方不画边（ramp.ts 的 LILY_OUT）。缺口 θ ∈ (0, 0.2)。
+  const pad = (x: number, z: number, r: number, notch: boolean, other?: [number, number, number], dy = 0) => {
+    // 有缺口的叶子也是整圆，缺口在 ramp.ts 里挖（尖是圆的）
+    const g = new THREE.CylinderGeometry(r, r, 0.1, 24);
+    const ry = rl() * 6;
+    place(g, x, H.water + 0.03 + dy, z, ry);
+    const n = g.getAttribute('position').count;
+    const a = new Float32Array(n * 4);
+    let cu = 0;
+    let cv = 0;
+    let cr = 0;
+    if (other) {
+      // 顶盖 uv − 0.5 = 0.5·(本地 z, 本地 x) / r
+      const lo = new THREE.Vector3(other[0] - x, 0, other[1] - z).applyAxisAngle(new THREE.Vector3(0, 1, 0), -ry);
+      cu = (0.5 * lo.z) / r;
+      cv = (0.5 * lo.x) / r;
+      cr = (0.5 * other[2]) / r;
+    }
+    for (let i = 0; i < n; i++) a.set([cu, cv, cr, notch ? 1 : 0], i * 4);
+    g.setAttribute('aPad', new THREE.Float32BufferAttribute(a, 4));
     B.add(lily, g);
   };
   for (const [i, l] of (season === 'winter' ? [] : LILIES).entries()) {
     if (pal.lilyKeep && !pal.lilyKeep.includes(i)) continue;
     const [x, z] = l.at;
-    pad(x, z, l.r * 1.15, i % 3 === 1);
-    // 大叶子旁边再叠一片（参考图左边那种葫芦形）
-    if (l.r > 0.68) pad(x - l.r * 0.75, z + l.r * 0.9, l.r * 0.85, false);
+    // 大叶子旁边再叠一片（参考图左边那种葫芦形）；旁边那片低一点，被大叶子盖住
+    const big = l.r > 0.68;
+    const cx = x - l.r * 0.75;
+    const cz = z + l.r * 0.9;
+    pad(x, z, l.r * 1.15, i % 3 === 1, big ? [cx, cz, l.r * 0.85] : undefined);
+    if (big) pad(cx, cz, l.r * 0.85, false, [x, z, l.r * 1.15], -0.006);
     if (l.flower && season !== 'winter' && season !== 'autumn') {
       const fx = x + (rl() - 0.5) * 0.3;
       const fz = z - l.r * 0.2;
@@ -385,22 +464,35 @@ export function buildProps(
   root.add(dockGroup);
 
   // —— 箱子、桶、挂灯的架子 ——
+  // 木箱（参考图是条板箱）：侧面 3 行一组（亮边 + 板 + 暗缝），顶面箱沿 + 暗的箱里；uPlank.xyz = 箱子尺寸
+  const CRATE_SIZE: [number, number, number] = [0.78, 0.66, 0.7];
   const crate = mats.get('crate', {
-    ramp: [0xc07430, 0xd8963c, 0xf0b448],
+    ramp: [0xc68a57, 0xe6a666, 0xfbb866],
+    alt: [0x695555, 0x5a4648, 0x78625b],
+    kind: 'crate',
     edge: 0.7,
     light: [0.3, 0.8, 0.7],
     noShadow: true,
+    plank: [...CRATE_SIZE, 0],
+    tones: {
+      bands: [
+        [0xc68a57, 0xd09460, 0xb07a50],
+        [0xe6a666, 0xf0b070, 0xd29458],
+        [0xe6a666, 0xf2b06a, 0xd29458],
+      ],
+      seam: [0x695555, 0x695555, 0x695555],
+      hi: [0xe6a666, 0xfbb866, 0xfbb866],
+    },
   });
-  const crateBand = mats.get('crateBand', { ramp: [0x4a3438, 0x6a4a40, 0x8a6450], edge: 0.6, noShadow: true });
   const bucket = mats.get('bucket', { ramp: [0x3a4a8a, 0x4c619d, 0x6a88d0], edge: 0.9 });
   const blobs: THREE.Vector4[] = [];
   {
     const [cx, cz] = CRATE;
-    const cg = new THREE.BoxGeometry(0.78, 0.66, 0.7);
-    place(cg, cx, DOCK.y + 0.35, cz, 0.15);
-    B.add(crate, cg);
-    for (const by of [0.16, 0.48])
-      B.add(crateBand, place(new THREE.BoxGeometry(0.81, 0.08, 0.73), cx, DOCK.y + by, cz, 0.15));
+    // 单独一个网格（不合并），vLocal 才是箱子自己的坐标
+    const cm = new THREE.Mesh(norm(new THREE.BoxGeometry(...CRATE_SIZE)), crate);
+    cm.position.set(cx, DOCK.y + 0.35, cz);
+    cm.rotation.y = 0.15;
+    root.add(cm);
     blobs.push(new THREE.Vector4(cx - 0.1, cz + 0.35, 0.6, 0.55));
     // 栈桥东沿站着的小孩（参考图：黑头发、圆滚滚的蓝身子、深色腿，背对镜头）
     const [bx, bz] = BUCKET;
@@ -513,9 +605,20 @@ export function buildProps(
     kind: 'stone',
     edge: 0.6,
     snow: false,
+    tones: pal.wallTones,
+    // 不规则石块 8×4.5 屏幕纹素；uv 是房子本地米，× 房子缩放才是世界米
+    el: [11, 6, HOUSE.scale, 0],
   });
   const roofLight: [number, number, number] = [1, 0.75, 0.1];
-  const roof = mats.get('roof', { ramp: pal.roof, alt: pal.roofAlt, edge: 0.8, bands: [0.25, 0.62], light: roofLight });
+  const roof = mats.get('roof', {
+    ramp: pal.roof,
+    alt: pal.roofAlt,
+    edge: 0.8,
+    bands: [0.25, 0.62],
+    light: roofLight,
+    roofShade: true,
+    plank: [0.8, 0.45, -1.4, 4.4],
+  });
   const roofEdge = mats.get('roofEdge', {
     ramp: pal.roofAlt,
     alt: [0x4f2d35, 0x4f2d35, 0x4f2d35],
@@ -531,6 +634,16 @@ export function buildProps(
     snow: false,
     light: [0.3, 0.6, 1],
   });
+  // 门板（参考图 #2b5262 为主，缝 #264856，亮条 #3a6c78）
+  const doorTones: Tones = {
+    bands: [
+      [0x2b5262, 0x2e5a68, 0x284c5c],
+      [0x2e5c6a, 0x326270, 0x2a5262],
+      [0x3a6c78, 0x3e7480, 0x346470],
+    ],
+    seam: [0x1f4350, 0x1f4350, 0x24485a],
+    hi: [0x3a6c78, 0x3e7482, 0x4a8090],
+  };
   const door = mats.get('door', {
     ramp: [0x2a5361, 0x2e5c6a, 0x3a6c78],
     alt: [0x1f4350, 0x1f4350, 0x1f4350],
@@ -538,6 +651,8 @@ export function buildProps(
     plank: [1, 0, 0, 0.26],
     edge: 0.5,
     snow: false,
+    tones: doorTones,
+    el: [0, 0, HOUSE.scale, 0],
   });
   const glass = mats.get('glass', { ramp: [0x252b5a, 0x2e3a7a, 0x3e4a8a], edge: 0.5, snow: false });
   const lamp = mats.get('lamp', { ramp: [0xfff0c0, 0xfff0c0, 0xfff4d0], emissive: true, edge: 0.3 });
@@ -618,6 +733,8 @@ export function buildProps(
       plank: [0, 1, 0, 0.2],
       edge: 0.5,
       snow: false,
+      tones: doorTones,
+      el: [0, 0, HOUSE.scale, 0],
     });
     for (const sx of [-1, 1]) add(shutter, box(0.32, 0.9, 0.1, WX + sx * 0.7, WY, zf + 0.06));
     add(frame, box(1.2, 0.22, 0.3, WX, WY - 0.5, zf + 0.16));
@@ -641,7 +758,15 @@ export function buildProps(
     add(frame, box(0.12, 0.12, 0.3, -1.75, 1.75, zf + 0.15));
     add(lamp, box(0.24, 0.3, 0.24, -1.75, 1.55, zf + 0.3));
     // 门口两级石阶
-    const stepMat = mats.get('pathStep', { ramp: pal.path, alt: pal.pathAlt, kind: 'stairs', edge: 1.0 });
+    // 门前石板：同石板路（Voronoi 石块 + 每块深浅），侧面暗档
+    const stepMat = mats.get('pathStep', {
+      ramp: pal.path,
+      alt: pal.pathAlt,
+      kind: 'path',
+      edge: 0.3,
+      tones: pal.landingTones,
+      el: [8, 5, 1, 0],
+    });
     add(stepMat, box(1.8, 0.22, 0.9, -0.92, 0.11, zf + 0.45));
     add(stepMat, box(1.4, 0.12, 0.45, -0.92, 0.28, zf + 0.25));
     // 东侧（+x）披檐（板缝平行于屋檐）+ 柱子 + 柴堆
@@ -656,6 +781,7 @@ export function buildProps(
         kind: 'wood',
         plank: [0, 0, 1, 0.75],
         edge: 0.6,
+        el: [0, 0, HOUSE.scale, 0],
         light: roofLight,
         bands: [0.25, 0.62],
       }),
@@ -698,13 +824,14 @@ export function buildProps(
   house.scale.setScalar(HOUSE.scale);
   root.add(house);
 
-  const reflectSet = new Set<THREE.Material>([reed, reedHead, post, rock, bobber, crate, crateBand, bucket]);
+  const reflectSet = new Set<THREE.Material>([reed, reedHead, post, rock, bobber, crate, bucket]);
   B.build(root);
   mats.prepare(root);
   // 睡莲、花、浮漂不投影
   root.traverse((o) => {
     const m = o as THREE.Mesh;
-    if (m.isMesh && (m.material === lily || m.material === bobber || fisher.includes(m))) m.castShadow = false;
+    if (m.isMesh && (m.material === lily || m.material === bobber || m.material === bushShade || fisher.includes(m)))
+      m.castShadow = false;
     // 只有挨着水的东西进反射 pass（参考图里看得到芦苇、桩子的倒影，看不到树和崖的）
     if (
       m.isMesh &&

@@ -1,18 +1,19 @@
 /**
  * 分层规则（技术文档「协作规范：分层由工具强制」）。
  *
- * 依赖方向只能往下：apps → iso / ui → sim → shared。
- * content 只由 sim 读取；iso 和 ui 互不直接引用，只通过模拟快照和命令沟通。
+ * 依赖方向只能往下：apps → ui → sim → shared。content 只由 sim 读取。
+ * 画面换成 three.js 3D 像素（ADR 0027）：three 暂时只在 apps/sandbox 里，接回游戏时另写 ADR 再放开。
+ * 旧的 2.5D 等距画面（@td/iso）归档在 docs/archive/iso-2.5d，不参与构建，谁也不能引用。
  */
 /** @type {import('dependency-cruiser').IConfiguration} */
 module.exports = {
   forbidden: [
     {
       name: 'sim-is-pure',
-      comment: '模拟核心不能依赖画面、界面、three.js、Preact。它要能在命令行里无头跑。',
+      comment: '模拟核心不能依赖界面、three.js、Preact。它要能在命令行里无头跑。',
       severity: 'error',
       from: { path: '^packages/sim/' },
-      to: { path: ['^packages/(iso|ui)/', 'node_modules/(three|preact|@preact)/'] },
+      to: { path: ['^packages/ui/', 'node_modules/(three|@types/three|preact|@preact)/'] },
     },
     {
       name: 'shared-is-leaf',
@@ -22,25 +23,25 @@ module.exports = {
       to: { path: '^packages/(?!shared/)' },
     },
     {
-      name: 'iso-not-ui',
-      comment: '等距画面层不直接引用界面层，也不依赖 three 和 Preact（ADR 0019）。',
+      name: 'three-only-in-sandbox',
+      comment: 'three.js 暂时只在 apps/sandbox 的 3D 像素场景里用（ADR 0027）；游戏和各个包都不引用。',
       severity: 'error',
-      from: { path: '^packages/iso/' },
-      to: { path: ['^packages/ui/', 'node_modules/(three|preact|@preact)/'] },
-    },
-    {
-      name: 'ui-not-iso',
-      comment: '界面层不直接引用画面层。',
-      severity: 'error',
-      from: { path: '^packages/ui/' },
-      to: { path: '^packages/iso/' },
+      from: { pathNot: '^apps/sandbox/' },
+      to: { path: 'node_modules/(three|@types/three)/' },
     },
     {
       name: 'content-only-via-sim',
       comment: '内容数据只由模拟核心读取。',
       severity: 'error',
-      from: { path: '^packages/(iso|ui|shared)/' },
+      from: { path: '^packages/(ui|shared)/' },
       to: { path: '^packages/content/' },
+    },
+    {
+      name: 'no-archive',
+      comment: '归档的代码（docs/archive，例如 2.5D 等距画面）不参与构建，不能引用。',
+      severity: 'error',
+      from: { pathNot: '^docs/' },
+      to: { path: '^docs/' },
     },
     {
       name: 'packages-not-apps',
@@ -51,16 +52,17 @@ module.exports = {
     },
     {
       name: 'no-unresolvable',
-      comment: '引用了 package.json 里没声明的包（pnpm 的包边界会让它解析失败），例如在 sim 里 import @td/iso。',
+      comment: '引用了 package.json 里没声明的包（pnpm 的包边界会让它解析失败），例如在 sim 里 import three。',
       severity: 'error',
       from: {},
       to: { couldNotResolve: true, dependencyTypesNot: ['type-only'] },
     },
     {
       name: 'no-circular',
+      comment: '只看运行时的环；纯类型的互相引用（import type）编译后就没了，不算。',
       severity: 'error',
       from: {},
-      to: { circular: true },
+      to: { circular: true, viaOnly: { dependencyTypesNot: ['type-only'] } },
     },
   ],
   options: {

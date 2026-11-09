@@ -7,6 +7,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { blobNormals } from '../toon';
 import type { AssetCtx } from '../world';
+import { METAL_TONES, paint } from './bench/mats';
 
 export const CART_MAX = 60;
 /** 筐口高度（教练左手探进去的高度） */
@@ -58,7 +59,13 @@ export function build(ctx: AssetCtx): THREE.Object3D {
   // 推把：后面两根立柱往上到 1.1 米，顶上一根横把
   for (const sx of [-1, 1]) metal.push(box(0.1, 0.32, 0.1, sx * (W / 2), Y1 + 0.12, -lz - 0.02));
   metal.push(box(W + 0.1, 0.1, 0.12, 0, Y1 + 0.28, -lz - 0.02));
-  root.add(new THREE.Mesh(mergeGeometries(metal), ctx.mat('metal', PROP)));
+  // 材质规范 v2：筐壁是平的漆面 → 很轻的有机深浅（差 6～8），不画擦痕；球车会被推着走 → local（图案跟着车，不游）
+  root.add(
+    new THREE.Mesh(
+      mergeGeometries(metal),
+      ctx.mat('metal', { ...PROP, elem: { ...paint([5, 4], [0, 0], 8), space: 'local' }, tones: METAL_TONES }),
+    ),
+  );
 
   // 筐底：暗靛（球少了露出来的"筐里面"）
   root.add(new THREE.Mesh(box(W, 0.06, D, 0, Y0 + 0.03, 0), ctx.mat('net', { ...PROP, edge: 0.2, convex: 0 })));

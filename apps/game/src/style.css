@@ -144,3 +144,9 @@ body{background:var(--sky);color:var(--navy);font-family:var(--f-text);overflow:
 #labels .hub.lbl-dot.hub-care-meh{background:#ffc04a}
 /* 扫场小游戏开着：场景上的牌子收起来 */
 body.td-care #labels{display:none}
+/* 画面迁移中（ADR 0027）：舞台占位，说明 + 地点按钮（代替地点牌），放在 HUD 记分牌和员工条之间 */
+#stage{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:10px;padding:205px 16px 120px;box-sizing:border-box;color:var(--paper)}
+.stage-note{margin:0;max-width:340px;text-align:center;font-size:12px;line-height:1.4;opacity:.8}
+.stage-places{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;max-width:420px}
+.stage-places button{min-height:44px;padding:0 14px;border:2px solid var(--navy);border-radius:6px;background:var(--paper);color:var(--navy);font:inherit;font-weight:600;cursor:pointer}
+.stage-places button.on,.stage-places button.drop-hover{background:#ffd34a}

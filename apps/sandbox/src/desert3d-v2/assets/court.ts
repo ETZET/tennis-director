@@ -1,12 +1,14 @@
 // 球场（主角）：废弃、晒旧的 Indian Wells 硬地。
 // - 铺面按"屏幕纹素格"画：x 每格 1 纹素（0.09 米），z 每格 1 屏幕行（0.09 / cos45 = 0.127 米）→ 每条边都是整纹素、不闪。
 //   每格一个标签（外场 / 内场 / 晒白 / 白线 / 沥青），同标签的格子贪心合并成矩形，每种材质一个网格（几百个三角形）。
-// - 旧：三块大的晒白块（courtBleach）、三条粗裂缝（3 纹素宽，沥青色）、三块剥落（沥青），白线只在裂缝/剥落处断开。
+// - 旧：三块大的晒白块（courtBleach，里面偏一边一块更白的 courtBleachCore；硬边、两色、低频的圆角形状）、
+//   三条粗裂缝（3 纹素宽，沥青色）、三块剥落（沥青），白线只在裂缝/剥落处断开。
 // - 积沙：一张厚度格（userData.sand），高度场网格 + alphaMap 切出圆滑的轮廓；沙堆是"迎风缓坡 + 背风陡坡"的小沙丘，
 //   背风坡朝镜头落中档，坡顶那条折线出凸边亮线。userData.sand.sweep(x, z, r, amount) 扫掉一部分，blow(…) 吹叶机把沙沿锥往前推，画面下一帧更新。
 import * as THREE from 'three';
 import { COURT } from '../layout';
 import { vnoise } from '../noise';
+import type { Elem } from '../toon';
 import type { AssetCtx } from '../world';
 
 /** 格子标签 */
@@ -20,6 +22,8 @@ const CRACK_C = 5;
 const CRACK_S = 6;
 const LIP_C = 7;
 const LIP_S = 8;
+/** 晒白块里更白的一块（偏向一边，不同心：两块形状，不是一圈渐变） */
+const BLEACH_CORE = 9;
 
 export interface SandGrid {
   /** 本地坐标（米）处的积沙厚度（米） */
@@ -45,6 +49,15 @@ export interface SandGrid {
   flush(): void;
 }
 
+/**
+ * 漆面的元素（材质规范 v2）：块大、深浅差 5～8 个亮度，擦痕 ≤ 3%。球场是主角，要干净。
+ * 晒白块不加元素：硬边、两色（courtBleach + courtBleachCore），里面再有深浅斑就读成一团糊（第二轮审查）。
+ */
+const PAINT: Partial<Record<string, Elem>> = {
+  court: { kind: 'paint', size: [26, 15], density: [0, 0.03], patch: 4 },
+  surround: { kind: 'paint', size: [22, 13], density: [0, 0.03], patch: 4 },
+};
+
 export function build(ctx: AssetCtx): THREE.Object3D {
   const g = new THREE.Group();
   const v = ctx.variant;
@@ -63,7 +76,7 @@ export function build(ctx: AssetCtx): THREE.Object3D {
   const lbl = new Uint8Array(NX * NZ);
   const jit = (k: number) => (rnd() - 0.5) * 2 * k;
 
-  // 晒白块：低频的圆角方块（超椭圆 + 低频噪声扰边），只在内场
+  // 晒白块：低频的圆角方块（超椭圆 + 低频噪声扰边，不加高频：边是干净的阶梯，不是一圈毛），只在内场
   const bleach = [
     { x: -2.3 + jit(0.4), z: -7.2 + jit(0.4), rx: 2.0, rz: 1.7, p: 3.2 },
     { x: 2.5 + jit(0.4), z: 4.0 + jit(0.4), rx: 1.6, rz: 2.4, p: 3.0 },
@@ -74,10 +87,21 @@ export function build(ctx: AssetCtx): THREE.Object3D {
   // 最后一块也删了：正好在南底线发球位，总像人脚下一滩影子
   const peels: { x: number; z: number; rx: number; rz: number; p: number }[] = [];
   const blob = (b: { x: number; z: number; rx: number; rz: number; p: number }, x: number, z: number, seed: number) => {
-    const n = (vnoise(x * 0.9 + seed * 7.1, z * 0.9 - seed * 3.3, 11 + seed) - 0.5) * 0.35;
+    // 两层低频（周期 ≥ 6 纹素）：边是成段的阶梯和鼓包，没有单纹素的毛刺
+    const n =
+      (vnoise(x * 0.8 + seed * 7.1, z * 0.8 - seed * 3.3, 11 + seed) - 0.5) * 0.55 +
+      (vnoise(x * 1.9 - seed * 2.3, z * 1.9 + seed * 5.9, 23 + seed) - 0.5) * 0.2;
     const d = Math.abs((x - b.x) / b.rx) ** b.p + Math.abs((z - b.z) / b.rz) ** b.p;
     return d < 1 + n;
   };
+  // 更白的一块：偏向西北（迎光、晒得最狠的那边）贴着边，大小约一半，自己的噪声 → 两块形状，不是一圈光晕
+  const cores = bleach.map((b) => ({
+    x: b.x - b.rx * 0.38,
+    z: b.z - b.rz * 0.3,
+    rx: b.rx * 0.55,
+    rz: b.rz * 0.45,
+    p: 2.2,
+  }));
 
   // 裂缝：粗折线（3 纹素宽），手摆起点和方向，每段方向小抖动
   const cracks: [number, number][][] = [];
@@ -141,7 +165,8 @@ export function build(ctx: AssetCtx): THREE.Object3D {
       const inside = i >= iIn0 && i < iIn1 && j >= jIn0 && j < jIn1;
       if (inside) {
         L = COURT_IN;
-        if (bleach.some((b, k) => blob(b, x, z, k))) L = BLEACH;
+        if (bleach.some((b, k) => blob(b, x, z, k)))
+          L = cores.some((b, k) => blob(b, x, z, k + 3)) ? BLEACH_CORE : BLEACH;
       }
       const inZ = j >= jIn0 - 1 && j < jIn1 + 1;
       const inX = i >= iIn0 - 1 && i < iIn1 + 1;
@@ -185,6 +210,7 @@ export function build(ctx: AssetCtx): THREE.Object3D {
     'surroundCrack',
     'courtBleach',
     'surroundLight',
+    'courtBleachCore',
   ] as const;
   const quads: number[][] = keys.map(() => []);
   {
@@ -233,7 +259,9 @@ export function build(ctx: AssetCtx): THREE.Object3D {
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     geo.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
     geo.setIndex(new THREE.BufferAttribute(idx, 1));
-    const m = new THREE.Mesh(geo, ctx.mat(key));
+    // 材质规范 v2：漆面 = 大块（size 纹素）的轻微深浅 + 很少的擦痕；白线、裂缝、沥青保持平涂（主角要干净）
+    const paint = PAINT[key];
+    const m = new THREE.Mesh(geo, ctx.mat(key, paint ? { elem: paint } : undefined));
     m.name = `court:${key}`;
     surfaceMeshes.push(m);
     g.add(m);
@@ -385,7 +413,10 @@ export function build(ctx: AssetCtx): THREE.Object3D {
         const a = Math.round(Math.min(1, Math.max(0, 0.5 + (t - tMin) / 0.06)) * 255);
         alphaData[k * 4] = a;
         alphaData[k * 4 + 1] = a;
-        alphaData[k * 4 + 2] = a;
+        // b 通道 = 背风脚下的暗边（沙堆朝镜头/下风的最外一圈：南边或东边的格子已经没沙）→ 材质 drift 画成缝色
+        const vis = t > tMin * 0.6;
+        const toe = vis && (tAt(i, j + 1) <= tMin * 0.6 || tAt(i + 1, j) <= tMin * 0.6);
+        alphaData[k * 4 + 2] = toe ? 255 : 0;
         alphaData[k * 4 + 3] = 255;
         const keep = T0[k] > 0 ? Math.min(1, Math.max(0, (t / T0[k] - 0.8) / 0.12)) : 0;
         crestData[k * 4] = crestData[k * 4 + 1] = crestData[k * 4 + 2] = Math.round(C[k] * keep * 255);
@@ -427,7 +458,9 @@ export function build(ctx: AssetCtx): THREE.Object3D {
   };
   let dirty = true;
   rebuild();
+  // 积沙（材质规范 v2）：迎风坡（朝西北）上有沙纹，背风脚下一圈暗边（alphaTex 的 b 通道，扫/吹/风积以后跟着更新）
   const sandMat = ctx.mat('sandDrift', {
+    elem: { kind: 'drift', size: [8, 3], density: [0, 0.4], p: [wind.x, wind.y, 0, 0] },
     alphaMap: alphaTex,
     alphaTest: 0.5,
     edge: 0.3,

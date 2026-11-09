@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { blobNormals } from '../toon';
 import type { AssetCtx } from '../world';
+import { METAL_TONES, paint } from './bench/mats';
 
 function box(w: number, h: number, d: number, x: number, y: number, z: number) {
   const g = new THREE.BoxGeometry(w, h, d);
@@ -46,7 +47,17 @@ export function build(ctx: AssetCtx): THREE.Object3D {
   const tipped = ctx.variant % 2 === 0;
   // 翻倒时腿只露短短两截（长腿朝后翘着像一对耳朵，认不出是篮子）
   const legLen = tipped ? 0.2 : 0.4;
-  cage.add(new THREE.Mesh(basket(legLen), ctx.mat('metal', PROP)));
+  // 材质规范 v2：青绿漆，几乎干净 —— 有机形状的轻微深浅（差 6～8）+ 很少的擦痕；跟着篮子走（local）
+  cage.add(
+    new THREE.Mesh(
+      basket(legLen),
+      ctx.mat('metal', {
+        ...PROP,
+        elem: { ...paint([4, 3], [0, 0.05], 7), space: 'local' },
+        tones: METAL_TONES,
+      }),
+    ),
+  );
   g.add(cage);
 
   if (tipped) {

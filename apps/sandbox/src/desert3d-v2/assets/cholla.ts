@@ -1,10 +1,33 @@
 // 泰迪熊仙人掌（cholla）：深色的老茎干（下半截）+ 一堆金色毛茸茸的短粗节（上半截），像一个举着手的小人。
-// 节 = 拉长的团，每团球面法线单独算（亮顶、中腰、紫暗底）+ 档位噪声当"毛"。
+// 节 = 拉长的团，每团球面法线单独算（亮顶、中腰、紫暗底）。
+// 材质规范 v2：节上是 `blades` 竖向的刺（1 × 2～4 纹素，亮档里是逆光发白的刺、暗档里是浅紫的刺），暗档往冷紫走；
+// 老茎干也带一点稀疏的刺。颜色手挑（金 → 茶金 → 冷紫）。
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { PAL } from '../palette';
+import type { Tones } from '../toon';
 import { blobNormals } from '../toon';
 import type { AssetCtx } from '../world';
+
+/** 金色的节：[亮, 中, 暗] 各 [本色, 高一级, 低一级]；亮边色 = 刺 */
+const FUZZ: Tones = {
+  bands: [
+    [0xf4d07a, 0xfadb8a, 0xecc672],
+    [0xc8985e, 0xd2a266, 0xbc8e58],
+    [0x76608e, 0x806a98, 0x6c5686],
+  ],
+  seam: [0xe2b874, 0xae8058, 0x5c4a7e],
+  hi: [0xfff0bc, 0xe2b874, 0x8a76a2],
+};
+/** 老茎干（枯死的节，深紫褐）：刺是灰紫 */
+const OLD: Tones = {
+  bands: [
+    [0x8a6070, 0x946a78, 0x7e5868],
+    [0x6c4c66, 0x76566e, 0x62445e],
+    [0x463a68, 0x4e4270, 0x40345e],
+  ],
+  seam: [0x6c4c66, 0x54405e, 0x382e58],
+  hi: [0xa88a94, 0x8a7088, 0x5e5280],
+};
 
 function joint(r: number, len: number, at: THREE.Vector3, dir: THREE.Vector3) {
   const g = new THREE.IcosahedronGeometry(r, 1);
@@ -48,26 +71,33 @@ export function build(ctx: AssetCtx): THREE.Object3D {
   g.add(
     new THREE.Mesh(
       mergeGeometries(fuzz),
-      // 金色"发光"：干草的亮档和沙子的亮档几乎一样（#e8c46c vs #eab46c），会融进沙里 →
-      // 三档整体上移一档：亮 = 草帽亮档（更黄更亮）、中 = 干草亮档、暗 = 干草暗档（紫）。都是表里的颜色。
-      // 亮档占大半（bands 下移），档位噪声 = 毛刺；凸边高光关掉（团与团的交界会亮成一片奶油色）。
+      // 金色"发光"：亮档比沙亮、偏黄（#f4d07a vs 沙 #eab46c），亮档占一半多；中档茶金只在腰上一圈，暗档冷紫。
+      // 刺 = blades（斑块里 22% → 40% 的列有一段亮划）；凸边高光关掉（团与团的交界会亮成一片奶油色）。
       ctx.mat('dryGrass', {
-        ramp: [PAL.straw.ramp[0], PAL.dryGrass.ramp[0], PAL.dryGrass.ramp[2]],
-        lightUp: 0.55,
-        noise: 0.25,
-        bands: [-0.2, 0.36],
+        ramp: [FUZZ.bands[0][0], FUZZ.bands[1][0], FUZZ.bands[2][0]],
+        tones: FUZZ,
+        elem: { kind: 'blades', density: [0.22, 0.4], patch: 0.8 },
+        lightUp: 0.4,
+        noise: 0.2,
+        bands: [0.08, 0.5],
         edge: 0.35,
         convex: 0,
         noShadowReceive: true,
       }),
     ),
   );
-  // 老茎：干草色的暗档往下挪一档（同一张表里的颜色：枝干的中/暗档）
-  const br = PAL.branch.ramp;
+  // 老茎：深紫褐，稀疏的灰紫刺
   g.add(
     new THREE.Mesh(
       mergeGeometries(dark),
-      ctx.mat('branch', { ramp: [br[1], br[2], br[2]], lightUp: 0.4, bands: [-0.1, 0.4], noShadowReceive: true }),
+      ctx.mat('branch', {
+        ramp: [OLD.bands[0][0], OLD.bands[1][0], OLD.bands[2][0]],
+        tones: OLD,
+        elem: { kind: 'blades', density: [0.08, 0.18], patch: 0.8 },
+        lightUp: 0.4,
+        bands: [-0.1, 0.4],
+        noShadowReceive: true,
+      }),
     ),
   );
   ctx.mats.prepare(g);

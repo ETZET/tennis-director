@@ -21,6 +21,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import { blobNormals } from '../toon';
 import type { AssetCtx } from '../world';
 import { buildPicker } from './ball-picker';
+import { boards, grain, WEATHERED_TONES, WOOD_TONES } from './bench/mats';
 import { makeBlower, makeBroom } from './player/rig';
 import { type ToolKind, toolMats } from './tool';
 
@@ -44,8 +45,10 @@ function plank(w: number, h: number, d: number, x: number, y: number, z: number,
 export function build(ctx: AssetCtx): THREE.Object3D {
   const root = new THREE.Group();
   root.name = 'tool-rack';
-  const wood = ctx.mat('wood', { edge: 0.6, convex: 0.5 });
-  const board = ctx.mat('woodWeathered', { edge: 0.5, convex: 0.4 });
+  // 材质规范 v2：柱子、横梁 = 整根木料的木纹（竖长条深浅）；背板 = 三块横板（每块一个深浅、上沿一行冷暗缝、缝下一行断续亮条）；
+  // 檐 = 前后走向的木板（竖缝）。背板正对镜头落暗档：纹理在暗档三色里，不抢架上的工具
+  const wood = ctx.mat('wood', { edge: 0.6, convex: 0.5, elem: grain(2), tones: WOOD_TONES, toneW: [0.26, 0.26] });
+  const boardOpts = { edge: 0.5, convex: 0.4, tones: WEATHERED_TONES };
 
   const W = 2.4;
   const PZ = -0.3; // 柱子、背板的 z
@@ -55,17 +58,35 @@ export function build(ctx: AssetCtx): THREE.Object3D {
     root.add(new THREE.Mesh(mergeGeometries(gs), wood));
   }
   // ── 背板：三块横板叠成护墙板（上一块压在下一块前面 3 厘米，接缝处深度一跳 → 描边画出一条板缝），离地 0.3 米 ──
+  // 木板元素沿 −y 每 0.55 米一块：每块看得见的那段 [0.28 + 0.55i, 0.83 + 0.55i] 对齐到 y = k·0.55（几何体抬 DY、网格放回去），
+  // 板的上沿 = 上一块板压下来的那条缝（冷暗一行），缝下一行亮条；竖直面一纹素 0.7 行 → sk 0.75
   {
     const gs: THREE.BufferGeometry[] = [];
     const H = 0.55;
-    for (let i = 0; i < 3; i++) gs.push(plank(W - 0.3, H + 0.04, 0.1, 0, 0.3 + H / 2 + i * H, PZ - 0.1 + i * 0.03));
-    root.add(new THREE.Mesh(mergeGeometries(gs), board));
+    const DY = H - 0.28;
+    for (let i = 0; i < 3; i++)
+      gs.push(plank(W - 0.3, H + 0.04, 0.1, 0, 0.3 + H / 2 + i * H + DY, PZ - 0.1 + i * 0.03));
+    const back = new THREE.Mesh(
+      mergeGeometries(gs),
+      ctx.mat('woodWeathered', { ...boardOpts, elem: boards([0, -1, 0], H, { seam: 1, sk: 0.75, seed: 5 }) }),
+    );
+    back.position.y = -DY;
+    root.add(back);
   }
   // ── 檐：一块往前斜的板（顶面亮），两头搭在柱子上；下面一根横梁 ──
+  // 檐的木板前后走向、沿 x 每 0.4 米一块（竖缝 1 列；亮面上不画缝后亮条，不然一缝一亮每 4 纹素一对 = 条纹）
   {
     const roof = plank(W + 0.3, 0.1, 0.5, 0, 2.17, PZ + 0.08, 0.28);
     const beam = plank(W - 0.1, 0.18, 0.2, 0, 2.02, PZ + 0.02);
-    root.add(new THREE.Mesh(roof, board));
+    root.add(
+      new THREE.Mesh(
+        roof,
+        ctx.mat('woodWeathered', {
+          ...boardOpts,
+          elem: boards([1, 0, 0], 0.4, { seam: 1, sk: 1, seed: 7, streak: false }),
+        }),
+      ),
+    );
     root.add(new THREE.Mesh(beam, wood));
   }
   // ── 木钉、钩子：胖胖的深色小块（2 纹素），扫帚挂在两根木钉上，吹叶机挂在一根钩子上 ──

@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { AssetCtx } from '../world';
+import { FABRIC_TONES, grain, paint, STRIPE_TONES, WEATHERED_TONES } from './bench/mats';
 
 /** 两点之间的一根方杆（粗 t） */
 function bar(a: THREE.Vector3, b: THREE.Vector3, t: number) {
@@ -38,7 +39,13 @@ export function build(ctx: AssetCtx): THREE.Object3D {
     cap.translate(tops[i].x, tops[i].y + 0.07, tops[i].z);
     posts.push(cap);
   }
-  g.add(new THREE.Mesh(mergeGeometries(posts), ctx.mat('woodWeathered', PROP)));
+  // 材质规范 v2：整根晒白的木杆 = 顺着杆的木纹（屏幕上 2 × 7 纹素的竖长条，三档里挑色，不画缝）
+  g.add(
+    new THREE.Mesh(
+      mergeGeometries(posts),
+      ctx.mat('woodWeathered', { ...PROP, elem: grain(6), tones: WEATHERED_TONES, toneW: [0.26, 0.26] }),
+    ),
+  );
 
   // ── 帆布：(u, v) 网格，u 沿 x（左→右），v 沿 z（后→前）。所有顶点共用一个 position 属性，
   //    按条纹分成两个网格（各自的 index）：一份数据，每帧改一次 ──
@@ -86,8 +93,16 @@ export function build(ctx: AssetCtx): THREE.Object3D {
   };
   const all = mkGeo(idxAll); // 只用来算法线
   const side = { side: THREE.DoubleSide };
-  const cream = new THREE.Mesh(mkGeo(idxCream), ctx.mat('fabric', { ...PROP, ...side }));
-  const stripe = new THREE.Mesh(mkGeo(idxStripe), ctx.mat('fabricStripe', { ...PROP, ...side }));
+  // 材质规范 v2：帆布 = 漆面那套有机深浅（晒褪/积灰的斑，13 × 7 纹素）+ 少量织纹短划（按斑块疏密）；条纹边是网格的边，干净利落。
+  // 深浅斑按世界 xz 取：绷着的部分只上下鼓（xz 不动），斑不会在布上游
+  const cream = new THREE.Mesh(
+    mkGeo(idxCream),
+    ctx.mat('fabric', { ...PROP, ...side, elem: paint([13, 7], [0.01, 0.1], 5), tones: FABRIC_TONES }),
+  );
+  const stripe = new THREE.Mesh(
+    mkGeo(idxStripe),
+    ctx.mat('fabricStripe', { ...PROP, ...side, elem: paint([13, 7], [0.01, 0.1], 6), tones: STRIPE_TONES }),
+  );
   g.add(cream, stripe);
 
   // 断角：以 uu + vv = HINGE 这条斜线为折痕，外面那一角的布折下来挂着（像一扇翻下来的门），在风里绕折痕翻。

@@ -5,6 +5,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import { blob } from './assets/creosote/kit';
 import { COURT, H, PATHS, SLOTS, STAIRS, type V2 } from './layout';
 import { vnoise } from './noise';
+import { EL } from './palette';
 import { smoothLine, type Terrain, topGeo } from './terrain';
 import type { AssetCtx } from './world';
 
@@ -253,8 +254,8 @@ export function buildGround(ctx: AssetCtx, terrain: Terrain): THREE.Object3D {
   );
   mk(pebbleGeo, ctx.mat('rockCool', { edge: 0.6, convex: 0.6 }), items.pebble, 'ground:pebble');
 
-  // 沙斑：平贴地面的圆滑块
-  const patchMat = ctx.mat('sandPatch', { edge: 0, convex: 0 });
+  // 沙斑：平贴地面的圆滑块（材质规范 v2：和沙地同一套沙纹/碎石，只是整套深一点，不是一块平涂）
+  const patchMat = ctx.mat('sandPatch', { edge: 0, convex: 0, elem: { ...EL.sand, seed: 5 } });
   for (const P of PATCHES) {
     const y = at(P.x, P.z, 0.2);
     if (y === null) continue;

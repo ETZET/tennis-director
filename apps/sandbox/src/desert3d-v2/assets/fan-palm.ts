@@ -3,9 +3,42 @@
 // 外沿挂几颗粗叶尖（≥ 4 纹素）让剪影读成扇叶而不是西兰花；冠下是一大团下垂的枯叶裙（草秆棕，下摆参差），
 // 再下面是 ≥ 6 纹素粗的树干，几道一纹素的环纹。三种材质同一套风摆参数 → 整棵树一起弯。
 // 变体 v0..2：高度、倾斜方向、裙子长短、冠大小不同。
+// 材质规范 v2：冠 = 叶团（leaves，档位交界按 2.4 纹素的叶团切开，15% 的团有亮顶）；裙 = 竖向枯叶须（blades，草秆色、暗档冷紫）；
+// 干 = 横向叶痕环（planks 沿本地 y，环缝一行 + 缝下一纹素亮条）。三套颜色都在这里手挑（PALETTE-SUGGEST，见下）。
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import type { Tones } from '../toon';
 import type { AssetCtx } from '../world';
+
+type R3 = [number, number, number];
+/** tn(亮, 中, 暗, 缝, 亮边)：每档 [本色, 高一级, 低一级]（同 palette.ts） */
+const tn = (lit: R3, mid: R3, dark: R3, seam: R3, hi: R3): Tones => ({ bands: [lit, mid, dark], seam, hi });
+
+// PALETTE-SUGGEST palm.tones：亮黄绿 → 中绿 → 青暗（暗档往青蓝走）；高/低一级差 ±9～12，亮边 +20～23
+const PALM_TONES = tn(
+  [0xb4d04a, 0xc2da56, 0xa6c446],
+  [0x6ea046, 0x7aac4a, 0x629450],
+  [0x2c6a62, 0x347466, 0x2a5a64],
+  [0x8cae4a, 0x4e7e4c, 0x204a58],
+  [0xd0e468, 0x8cba50, 0x3e8068],
+);
+// PALETTE-SUGGEST palmSkirt（ramp + tones）：枯叶是灰白的草秆色（饱和度 0.3，和金杏色的沙分得开），中档草秆褐，暗档冷紫
+const SKIRT_RAMP: R3 = [0xd6bc94, 0xa88a6c, 0x5a4a78];
+const SKIRT_TONES = tn(
+  [0xd6bc94, 0xe0c8a2, 0xccb08a],
+  [0xa88a6c, 0xb2967a, 0x9c806a],
+  [0x5a4a78, 0x645482, 0x50406e],
+  [0xb89a7c, 0x8a6c66, 0x42365e],
+  [0xe8d2ac, 0xbea284, 0x6e6090],
+);
+// PALETTE-SUGGEST palmTrunk.tones：灰褐树干，环缝 −20 左右，缝下亮条 +20 左右，暗档冷紫
+const TRUNK_TONES = tn(
+  [0xd4a87c, 0xdeb486, 0xc89c76],
+  [0xa07a6c, 0xac8674, 0x926e6a],
+  [0x5a4874, 0x64527c, 0x50406c],
+  [0xc09672, 0x886468, 0x4a3c62],
+  [0xe2ba8c, 0xb08a78, 0x685882],
+);
 
 interface Variant {
   /** 总高（米，冠顶） */
@@ -56,34 +89,30 @@ export function build(ctx: AssetCtx): THREE.Object3D {
   // 三种材质同一套风摆：整棵树按高度平方一起弯
   const sway = { sway: 0.16, swayH: V.h };
 
-  // ── 树干：锥柱（底 0.36、顶 0.28 半径 ≈ 6～8 纹素宽），按中心线弯；环纹用顶点色（0.84）──
+  // ── 树干：锥柱（底 0.36、顶 0.28 半径 ≈ 6～8 纹素宽），按中心线弯；叶痕环在材质里（planks 沿本地 y）──
   const trunkGeo = (() => {
     const segH = T * 2;
     const rows = Math.ceil(trunkTop / segH);
     const g = new THREE.CylinderGeometry(0.28, 0.36, trunkTop, 8, rows, true);
     g.translate(0, trunkTop / 2, 0);
     const p = g.getAttribute('position') as THREE.BufferAttribute;
+    const n = g.getAttribute('normal') as THREE.BufferAttribute;
     for (let i = 0; i < p.count; i++) {
       const y = p.getY(i);
       const c = bend(y);
       // 根部略张开
       const flare = 1 + Math.max(0, 0.6 - y) * 0.45;
       p.setXYZ(i, p.getX(i) * flare + c.x, y, p.getZ(i) * flare + c.z);
+      // 法线按弯过的中心线径向算（柱面 uv 接缝的顶点是两份，computeVertexNormals 在那里会折一下）
+      const nx = p.getX(i) - c.x;
+      const nz = p.getZ(i) - c.z;
+      const k = 1 / Math.hypot(nx, nz, 0.03);
+      n.setXYZ(i, nx * k, 0.03 * k, nz * k);
     }
-    g.computeVertexNormals();
+    // 原来的环纹位置（顶点色）换成了材质的叶痕环；这里照旧取数，后面裙子、叶冠的随机流不变
+    let ry = 0.7 + rnd() * 0.4;
+    while (ry < trunkTop * (1 - V.skirt)) ry += 0.75 + rnd() * 0.6;
     const ng = g.toNonIndexed();
-    const pp = ng.getAttribute('position');
-    const col = new Float32Array(pp.count * 3);
-    // 环纹：几道 1 行（≈1.5 纹素）深一点的环，间距不等
-    const rings: number[] = [];
-    for (let y = 0.7 + rnd() * 0.4; y < trunkTop * (1 - V.skirt); y += 0.75 + rnd() * 0.6) rings.push(y);
-    for (let i = 0; i < pp.count; i += 3) {
-      const yc = (pp.getY(i) + pp.getY(i + 1) + pp.getY(i + 2)) / 3;
-      const ring = rings.some((r) => Math.abs(yc - r) < segH * 0.55);
-      const v = ring ? 0.82 : 1;
-      for (let k = 0; k < 3; k++) col.set([v, v, v], (i + k) * 3);
-    }
-    ng.setAttribute('color', new THREE.BufferAttribute(col, 3));
     ng.deleteAttribute('uv');
     return ng;
   })();
@@ -236,15 +265,45 @@ export function build(ctx: AssetCtx): THREE.Object3D {
   const g = new THREE.Group();
   const trunk = new THREE.Mesh(
     trunkGeo,
-    ctx.mat('palmTrunk', { ...sway, vertexColors: true, lightUp: 0.5, bands: [-0.4, 0.35], noShadowReceive: true }),
+    ctx.mat('palmTrunk', {
+      ...sway,
+      lightUp: 0.5,
+      bands: [-0.4, 0.35],
+      noShadowReceive: true,
+      // 细柱轮廓旁那一列法线转得快，凸边提亮会画出一条竖白线：压低 convex
+      //（注：现在法线 pass 的 alpha 被 three 的 OPAQUE 定成 1，材质的 edge/convex 都当 1 用，这一行要等 toon.ts 修了才起作用）
+      convex: 0.1,
+      // 叶痕环：每 0.42 米一道（屏幕上约 3.3 行），环缝 1 行（竖直 1 纹素 = 0.707 行 → 1.42），缝下一纹素亮条（断续）
+      elem: { kind: 'planks', p: [0, 1, 0, 0.42], seam: 1.42, hi: 1 },
+      tones: TRUNK_TONES,
+    }),
   );
   const skirt = new THREE.Mesh(
     skirtGeo,
-    ctx.mat('palmSkirt', { ...sway, noShadowReceive: true, bands: [-0.3, 0.1], noise: 0.12, lightUp: 0.65 }),
+    ctx.mat('palmSkirt', {
+      ...sway,
+      ramp: SKIRT_RAMP,
+      noShadowReceive: true,
+      // 裙子在冠下：亮档只留肩上一圈，腰身中档，下摆和背光面暗档
+      bands: [-0.15, 0.42],
+      noise: 0.3,
+      lightUp: 0.65,
+      // 枯叶须：竖向 1 × 2～4 的浅草秆划，按斑块疏密
+      elem: { kind: 'blades', density: [0.22, 0.5], patch: 1.6 },
+      tones: SKIRT_TONES,
+    }),
   );
   const crown = new THREE.Mesh(
     mergeGeometries(crownParts)!,
-    ctx.mat('palm', { ...sway, noShadowReceive: true, bands: [-0.08, 0.45] }),
+    ctx.mat('palm', {
+      ...sway,
+      noShadowReceive: true,
+      bands: [-0.2, 0.2],
+      noise: 0.32,
+      elem: { kind: 'leaves', size: [2.4, 2.4], hi: 0.15 },
+      tones: PALM_TONES,
+      toneW: [0.22, 0.2],
+    }),
   );
   g.add(trunk, skirt);
   g.userData.tris = [trunkGeo, skirtGeo, crown.geometry].reduce((n, q) => n + q.getAttribute('position').count / 3, 0);

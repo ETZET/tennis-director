@@ -2,9 +2,13 @@
 // 法线 = 团心法线和簇心法线混合 → 每团有清楚的亮顶/中腰/暗底，亮暗交界是一小团一小团的叶簇（不是竖条纹）。
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import type { Tones } from '../../toon';
 
 export type Rnd = () => number;
 export type V3 = [number, number, number];
+
+/** 材质规范 v2 的元素调色板：tn(亮, 中, 暗, 缝, 亮边)，每档 [本色, 高一级, 低一级]（同 palette.ts 的 tn） */
+export const tn = (lit: V3, mid: V3, dark: V3, seam: V3, hi: V3): Tones => ({ bands: [lit, mid, dark], seam, hi });
 
 /** 统一成非索引、只有 position + normal，才能合并 */
 export function clean(g: THREE.BufferGeometry): THREE.BufferGeometry {
