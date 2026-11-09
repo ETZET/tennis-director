@@ -3,8 +3,8 @@
 // （只写深度，露出背景的天）；近边（镜头这边）的沙地一直铺到画面下沿外面，竖屏下面、转过来以后都不会露出底。
 // 场景自己的高差（台地、下沉草坪……）在场景的 terrain.ts 里挖洞、加墙。
 import type * as THREE from 'three';
-import { topGeo } from '../clubfront/terrain';
 import { CURTAIN_TOP, edgeLoop, type V2 } from './mountains';
+import { topGeo } from './render/geo';
 
 /**
  * 地面铺到离 DESERT 多远（米）：竖屏（clubmap2 默认取景竖向有大量富余）画面下沿要用到地图边外 ~200 米的近处沙地。

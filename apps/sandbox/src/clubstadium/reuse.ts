@@ -1,13 +1,13 @@
-// 复用的资产（原样 import，不复制）：clubdesk 的那份（= clubfront 的植物、人、长椅、遮阳帆 + desert3d-v2 的工具架）
-// + desert3d-v2 的裁判椅（中心球场北边网柱旁）。围网在 terrain.ts 里用 clubdesk 的 buildFences。
+// 复用的资产（原样 import，不复制）：clubdesk 的那份（= clubsite/reuse.ts 的植物、人、长椅、遮阳帆 + 工具架）
+// + clubsite/assets 的裁判椅（中心球场北边网柱旁）。围网在 terrain.ts 里用 clubdesk 的 buildFences。
 // 这些文件归各自的场景管：要改样子就复制到 src/clubstadium/assets/ 再改（同名的本地资产优先），不要改那边的。
 // 共享资产（src/clubsite/assets/<id>.ts，court-umbrella、court-net、drink-fountain …）由资产代理画好以后，
 // 在 src/clubstadium/assets/<本场景的占位 id>.ts 里一行 re-export，占位自动换掉（见 clubstadium.md「共享资产」）。
 import { REUSED as DESK_REUSED } from '../clubdesk/reuse';
+import { build as umpireChair } from '../clubsite/assets/umpire-chair';
 import * as people from '../clubsite/people';
 import { build as peopleSheet } from '../clubsite/people/sheet';
-import { build as umpireChair } from '../desert3d-v2/assets/umpire-chair';
-import type { AssetBuild } from './world';
+import type { AssetBuild } from './ctx';
 
 export const REUSED: Record<string, AssetBuild> = {
   ...(DESK_REUSED as unknown as Record<string, AssetBuild>),

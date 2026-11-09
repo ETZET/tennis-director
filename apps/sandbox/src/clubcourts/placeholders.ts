@@ -5,8 +5,8 @@
 // #2～#5 是几个场景共用的资产（实现在 src/clubsite/assets/，这里的 assets/<id>.ts 一行 re-export 就换掉占位）。
 import * as THREE from 'three';
 import { SPECS as DESK_SPECS } from '../clubdesk/placeholders';
+import type { AssetCtx } from './ctx';
 import { DIM } from './layout';
-import type { AssetCtx } from './world';
 
 /** 每个资产的大致外形（米）：w 宽（x）、d 深（z）、h 高；shape 决定占位的样子；n = 清单编号（标签里显示） */
 export interface Spec {

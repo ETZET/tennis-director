@@ -13,8 +13,8 @@
 // - spots：本地坐标的站位（米）：director 总监接待位 [x, z]、member 签到的会员 [x, z]、handover 递毛巾的交接点 [x, y, z]
 //   （东段台面上方，总监和会员之间）、bell 铃 [x, y, z]、towels 毛巾叠的底 [x, y, z]（每条高 towelH = 0.08，第 n 条的顶 = y + n·towelH）。世界坐标 = 本地 + (56.3, 0, 9.4)。
 import * as THREE from 'three';
+import type { AssetCtx } from '../ctx';
 import { COUNTER, SPOTS } from '../layout';
-import type { AssetCtx } from '../world';
 import { box, boxR, type G, meshOf, quad } from './desk/kit';
 
 /** 落地点（转角） */

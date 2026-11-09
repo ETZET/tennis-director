@@ -1,5 +1,5 @@
 // clubdesk 的构图：俱乐部东墙大门里面的露天前台（会员进门 → 排队签到 → 拿毛巾和水 → 去球场）。手摆，不是程序撒点。
-// 世界坐标和 clubmap2/layout.ts 共用（米，y 朝上，北 = −z，东 = +x）：大门、围墙、前台、到达小院、长廊、匹克球、广场、草坪都从那边 import，
+// 世界坐标和 clubsite/world.ts 共用（米，y 朝上，北 = −z，东 = +x）：大门、围墙、前台、到达小院、长廊、匹克球、广场、草坪都从那边 import，
 // 那个文件只读。这里只放这个场景自己的东西（高差、画到哪 CLIP、小路、站位、资产位置、云），也写在同一套世界坐标里。
 // 不是浮空岛了（2026-11-08）：地面铺到画外（clubsite/ground.ts）；门外那块地（落客区、停车场）和 clubpark 是同一份几何。
 // 相机 yaw 0（看向北）：+x 画面右，+z 朝镜头（画面下方）。屏幕竖直坐标 v = (y − (z − tz))·cos45°（米）。
@@ -26,7 +26,7 @@
 // 原则：主角 = 凉棚 + 柜台 + 排队的人（中间偏上），大门两根高柱在右边做竖的框，四条朝镜头的暗带分层（以前最下面的岛沿崖壁没了）；
 // 视线：右边门洞 → 排队斜着往左下 → 柜台转角（总监）→ 小路往下 → 草坪边的小路往左出画；长廊在上面横着往西。
 // 安静的地方：匹克球场面、东墙脚的沙地（x 56.8…59.6、z 11…25）、草坪中段。
-import { DESK, FORECOURT, GATE, LAWN, PICKLE, PLAZA, type Rect, type V2 } from '../clubmap2/layout';
+import { DESK, FORECOURT, GATE, LAWN, PICKLE, PLAZA, type Rect, type V2 } from '../clubsite/world';
 
 export type { Rect, V2 };
 

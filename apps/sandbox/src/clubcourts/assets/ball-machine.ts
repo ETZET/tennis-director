@@ -15,9 +15,9 @@
 // 动画：userData.update(dt) 只管出球管的回弹。
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import type { ToonOpts } from '../../clubfront/toon';
 import { BALL_RAMP, ballKit } from '../../clubsite/assets/tennis-ball';
-import type { AssetCtx } from '../world';
+import type { ToonOpts } from '../../clubsite/render/toon';
+import type { AssetCtx } from '../ctx';
 
 const MAX = 80;
 /** 斗里球的缩放（网球是 ⌀ 0.2 的放大球；斗里 ⌀ 0.16，一层 3 × 3 放得下） */

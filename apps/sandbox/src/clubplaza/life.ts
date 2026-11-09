@@ -11,8 +11,8 @@
 // ?play=0&life=1 的看戏模式由这里的 directorDemo 自己走过去做（截图、连拍用）。
 import * as THREE from 'three';
 import { POUR_FLOW, SKIM_WET } from '../clubsite/people';
+import type { AssetCtx } from './ctx';
 import { FOUNTAIN, FOUNTAIN_SPEC, H, PALMS, SPOTS, type V2 } from './layout';
-import type { AssetCtx } from './world';
 
 type V3 = THREE.Vector3;
 const v = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);

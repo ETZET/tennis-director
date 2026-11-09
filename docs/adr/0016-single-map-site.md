@@ -4,6 +4,7 @@
 - 日期：2026-11-01
 - 取代：三幕结构（Hollow Creek → 枫岭高中 → 顶级网球中心）和跨幕继承
 - 补充：[0008](0008-game-app-vertical-slice.md)、[0012](0012-staffing-loop.md)、[0015](0015-jobs-unlock-from-repairs.md)
+- 注（2026-11-09）："通关和失败""招聘日"两条随 2.5D 主线 / 派工归档（[main-line-2.5d.md](../archive/pre-3d/main-line-2.5d.md)），游戏流程重新设计中；整局一张地图照旧。
 
 ## 背景
 

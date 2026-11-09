@@ -7,7 +7,7 @@
 // userData.seats = [[x, y, z], …]：两把椅子的座心（本地，座面顶 0.5；人物 sit 默认座高 0.52）。
 // userData.cooler = [x, y, z]：冰箱盖中心（换边时球童递水、总监补水的点）。
 import * as THREE from 'three';
-import type { AssetCtx } from '../world';
+import type { AssetCtx } from '../ctx';
 import { Bag, DU, FACE_MID, PROP, rod, V } from './court/kit';
 
 const SEAT = 0.5;

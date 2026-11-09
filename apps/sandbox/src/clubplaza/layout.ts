@@ -1,5 +1,5 @@
 // clubplaza 的构图：棕榈喷泉广场（喷泉小景）。手摆，不是程序撒点。
-// 世界坐标和 clubmap2/layout.ts 共用（米，y 朝上，北 = −z，东 = +x）；PLAZA、FOUNTAIN、PATHS、GROUNDS、GATE、PICKLE 从那边 import（只读）。
+// 世界坐标和 clubsite/world.ts 共用（米，y 朝上，北 = −z，东 = +x）；PLAZA、FOUNTAIN、PATHS、GROUNDS、GATE、PICKLE 从那边 import（只读）。
 // 和南边的 clubdesk 接得上：广场抬高、挡土墙、两段台阶、绿带里的植物直接 import clubdesk/layout.ts 的常量（只读），位置照抄它的 SLOTS。
 // 这里只放这个场景自己的东西（喷泉的尺寸、棕榈的位置、站位、路线、资产位置、云），也写在同一套世界坐标里。
 // 相机 yaw 0（看向北）：+x 画面右，+z 朝镜头（画面下方）。屏幕竖直坐标 v = (y − (z − tz))·cos45°（米），等效地面 z_eq = z − y。
@@ -27,7 +27,7 @@
 // 太阳在北偏东 8°：蒲葵的影子往镜头落 ~7 米 → 影子池正好落在两张长椅、工具车上（"会员在棕榈荫里歇脚"），水面和孩子、总监都在亮处。
 // 视线：西边台阶上来的会员 → 孩子在池边 → 水花 → 总监捞叶子 → 上面一对会员 / 饮料车。
 // 安静的地方：北边墙里的沙地、广场北半的石板（扫地以后就是这里）、匹克球场面。
-import { FOUNTAIN, GATE, GROUNDS, PICKLE, PLAZA, type Rect, type V2 } from '../clubmap2/layout';
+import { FOUNTAIN, GATE, GROUNDS, PICKLE, PLAZA, type Rect, type V2 } from '../clubsite/world';
 
 export type { Rect, V2 };
 export { FOUNTAIN, PICKLE, PLAZA };

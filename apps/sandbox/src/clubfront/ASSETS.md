@@ -14,13 +14,11 @@
 
 | 文件 | 来源 | 说明 |
 |---|---|---|
-| `pipeline.ts`、`toon.ts`、`colors.ts`、`noise.ts` | desert3d-v2 原样复制（含法线材质 `NoBlending` 的修正） | 只在这里改；别去改 desert3d-v2 的那份 |
-| `world.ts` | 同 desert3d-v2 的形状 | `AssetCtx` 一样 → desert3d-v2 的资产能直接拿这里的 ctx 建 |
-| `palette.ts` | desert3d-v2 的整张表 + `CLUB`（新材质） | `PAL = { ...DESERT_PAL, ...CLUB }`；`EL` 同理多了 `tile` / `flagstone` / `adobe` |
+| （渲染核心） | 2026-11-08 搬到 `src/clubsite/render/` | `pipeline.ts`、`toon.ts`、`colors.ts`、`noise.ts`、`ctx.ts`（原 `world.ts`：`AssetCtx`）、`palette.ts`（底表 `palette-base.ts` + `CLUB` 新材质：`PAL = { ...BASE_PAL, ...CLUB }`；`EL` 同理多了 `tile` / `flagstone` / `adobe`）、`palettes/`（配色方案）、`geo.ts`（几何工具）。clubfront 直接 import 那里的，没有自己的拷贝 |
 | `layout.ts` | 新 | 构图：层高、轮廓、步道、台阶、`SLOTS`、站位 `SPOTS`、路线 `ROUTES`、云 `CLOUDS` |
-| `terrain.ts` | 新（几何工具从 desert3d-v2 复制） | 岛、前庭、球场台地、花坛、女儿墙、陶砖铺地、步道、台阶、球场一角；`groundAt(x, z)` |
+| `terrain.ts` | 新（几何工具在 `clubsite/render/geo.ts`） | 岛、前庭、球场台地、花坛、女儿墙、陶砖铺地、步道、台阶、球场一角；`groundAt(x, z)` |
 | `placeholders.ts` | 新 | 新资产的规格 `NEW_SPECS` 和灰盒 |
-| `reuse.ts` | 新 | 复用的 desert3d-v2 资产：**直接 import `../desert3d-v2/assets/*`，没复制**。要改样子就复制到 `assets/` 再改（同名的本地资产优先） |
+| （复用资产表） | 2026-11-08 搬到 `src/clubsite/reuse.ts` | 共用的植物、人、长椅、遮阳帆（`clubsite/nature`、`clubsite/people/rig`、`clubsite/assets`，原 desert3d-v2 的资产）：**直接 import，没复制**。要改样子就复制到 `assets/` 再改（同名的本地资产优先） |
 | `nav.ts` | 新 | 站位、路线的调试层 |
 | `main.ts` | desert3d-v2/main.ts 删掉 life/control/hud/fx | 画廊、像素级别选择器（默认 1×，localStorage `clubfront.px`）、标签 |
 | `assets/<id>.ts` | **还没有** | 新资产放这里；文件一存在，场景里 `asset: '<id>'` 的占位自动换成它 |
@@ -120,7 +118,7 @@
 
 **golf-cart**——Q 版电瓶车：白车身、奶油帆布顶（和凉棚同一块布）、俱乐部蓝座椅、4 个胖黑轮子、后面一个装网球的筐。顶靠 2 根 ≥ 2 纹素的杆撑着。只是"停车区"的暗示，细节别多。
 
-## 复用的资产（desert3d-v2，原样 import）
+## 复用的资产（原 desert3d-v2 的，现在在 clubsite，原样 import）
 
 | id | 用在 | 备注 |
 |---|---|---|

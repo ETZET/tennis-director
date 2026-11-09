@@ -2,7 +2,7 @@
 // 本地 x 沿着池沿排开（±0.27 米），z 几乎不动 —— 压顶只有 0.62 米宽：slot 的 rotY 让本地 x 顺着池沿走最稳。
 // userData.birds = [喝水的, 站着的]，每只都有 pose(name, phase?)（life/bird.ts）；userData.pose(name, phase?) 一起换。
 import * as THREE from 'three';
-import type { AssetCtx } from '../world';
+import type { AssetCtx } from '../ctx';
 import { makeBird } from './life/bird';
 
 export function build(ctx: AssetCtx): THREE.Object3D {

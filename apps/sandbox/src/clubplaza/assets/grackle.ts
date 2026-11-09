@@ -2,7 +2,7 @@
 // 变体 = 起始姿势（自动播放）：v0 站着（偶尔甩尾）、v1 低头喝水、v2 飞、v3 跳。
 // SLOTS：bird-bowl（上碗沿）建议 v1，bird-fly 建议 v2。userData.pose(name, phase?) 见 life/bird.ts。
 import type * as THREE from 'three';
-import type { AssetCtx } from '../world';
+import type { AssetCtx } from '../ctx';
 import { BIRD_POSES, makeBird } from './life/bird';
 
 export function build(ctx: AssetCtx): THREE.Object3D {

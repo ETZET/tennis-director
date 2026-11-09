@@ -1,4 +1,13 @@
-# Playtest review brief · Tennis Director, Indian Wells · staffing loop, phone
+# Playtest review brief · Tennis Director, Palm Oasis · staffing loop, phone (sim + HUD, no scene yet)
+
+> **Status 2026-11-08:** the game has no scene right now. The 2.5D renderer was archived (ADR 0027) and the new 3D pixel scenes
+> (where the player walks the director directly, ADR 0029) live in `apps/sandbox` and are not wired into the game yet. This brief
+> reviews the simulation, cards and HUD only: places are a row of buttons on the stage instead of markers on a map, so judge
+> visuals and scene layout as "not there yet", not as a defect. Rewrite this brief when the scenes come back (docs/design/backlog.md, M-B).
+>
+> **2026-11-09:** the main line this build plays (restoration, 16 weeks, stars, tournaments, ending) and the staffing loop (tenet 5 below)
+> are archived design (`docs/archive/pre-3d/main-line-2.5d.md`); the game flow is being redesigned (backlog M-0). The current tenet list has five:
+> old tenet 5 was removed and tenet 6 is now 5. The sim still runs the archived design, so this brief still reviews it as-is.
 
 You are an independent playtester. You have NOT worked on this game. Judge only what a player sees.
 
@@ -22,31 +31,32 @@ containers print a blocked-font warning; ignore it. `GET /quit` stops the bridge
 whole game with a dumb strategy).
 
 ## The game in one paragraph
-Phone-first management sim (portrait, 390×844). You are the new director of the **Indian Wells Tennis Garden**, which
+Phone-first management sim (portrait, 390×844). You are the new director of the **Palm Oasis Racquet Club** (Indian Wells, CA), which
 has been abandoned for ten years. The investors give you **sixteen weeks (112 days)**: repair the garden place by place
 (8 facilities: Outer court 1, Outer courts 2–3, Practice courts, Clubhouse, Plaza, Stadium 3, Stadium 2, Stadium 1) and
-hold an **exhibition match** in the rebuilt Stadium 1 to win. If day 112 closes (18:00) first, or cash falls below
-−$2000, the gates close again and you lose. There are no acts or board votes: one map, one clock.
+hold an **exhibition match** in the rebuilt Stadium 1. Day 112 (18:00) ends the season with a score and a grade (an early
+exhibition can settle sooner); cash below −$2000 ends the game (bankrupt). There are no acts or board votes: one map, one clock.
 Day-to-day play is about **hiring people and putting them where they're needed**:
 - **Your people**: a strip of faces along the bottom. At the start it's only you (the director) and Coach Dale. You
-  are a worker too. Tap a face to pick them up, then tap a place in the scene; or press and drag the face onto it.
-- **Posts** (round markers): ongoing spots like Outer court 1's court desk (`o1_rental`), the afternoon lessons
+  are a worker too. Tap a face to pick them up, then tap a place button; or press and drag the face onto it.
+- **Posts**: ongoing spots like Outer court 1's court desk (`o1_rental`), the afternoon lessons
   (`o1_lesson`) or the Clubhouse front desk (`ch_desk`). A post earns a little every round while someone is on it, but
   only during its hours (morning regulars, after-school kids, after-work adults). Pulling someone off mid-round loses
   that round. `*_upkeep` posts have no hours and keep a place in repair.
-- **Jobs** (⚒ markers): one-off work on a problem — sweep the sand off Court 1 (`o1_sweep`), put up a new net
+- **Jobs** (⚒): one-off work on a problem — sweep the sand off Court 1 (`o1_sweep`), put up a new net
   (`o1_net`), repair the Clubhouse (`ch_repair`), rebuild Stadium 1 (`st1_rebuild`). Most cost materials when the first
   person arrives (no cash, no start). Several people can work together up to the job's crew limit; pulling people off
   keeps the progress. **Finishing a repair restores that facility** and opens its posts and the next repair; locked jobs
   show what to fix first.
-- **Places**: ten places, one marker each (its name, the posts that need someone, a ⚒ count). Tap it for the list of
+- **Places**: ten places, one button each in the row on the stage (its name, the posts that need someone, a ⚒ count). Tap it for the list of
   posts and jobs; drop a person on it and they take the only job that fits, or you choose from the list.
   Place ids: `entrance` (Main gate), `parking`, `plaza`, `clubhouse`, `stadium_1`, `stadium_2`, `stadium_3`,
   `practice`, `outer_1`, `outer_23`. Walking between places takes 13–69 game minutes.
 - **Routines**: people remember the posts you put them on and walk to their next shift on their own when their
   post closes or a job ends.
 - **Upkeep**: places nobody looks after slowly wear down (sand, cracks), first on screen, then in the numbers.
-  Members and reputation settle each Sunday on the week's **service rate** (how much of the demand someone covered).
+  Cash, members and reputation settle once a day at closing (20:00) on the day's **service rate** (how much of the demand
+  someone covered); a settlement card explains why, and Sundays add a weekly review page.
 - **Hiring days** start once the Clubhouse is repaired and come every two weeks; the card shows each candidate's best
   skills and weekly wage. **Other events** are occasional cards with a countdown and 1–3 options; some options send the
   director away for a while (he leaves his post). Ignored cards resolve by default. On day 85 the investors visit.
@@ -65,13 +75,13 @@ the exact command on this machine), then wait until `curl -s http://127.0.0.1:<P
 - `GET /state` — everything on screen: `day`, `clock`, `restored` ("3/8" facilities repaired), `daysLeft` (until the
   day-112 deadline), season/weather/service rate, status, stat strip (Quality, Members, Restored + days left, Cash),
   the event card (who, context, options with cost chips and hints), news ticker, place names, your people (what each
-  is doing; `staffIds` lines up with `staff`), `placeIds`, the post and job markers visible in the scene, `place` (the
+  is doing; `staffIds` lines up with `staff`), `placeIds`, `place` (the
   open place list: each row has a `target`, or `null` + the reason when locked), the open info sheet (`sheet`), and
   `outcome` once the game is over (`result` won/lost, `ending`, `day`, `headline`, `body`).
-- People: `GET /pick/<person|none>` taps a face (picks it up). `GET /tap/<target>` taps a place marker (target = place
+- People: `GET /pick/<person|none>` taps a face (picks it up). `GET /tap/<target>` taps a place button (target = place
   id) or a row in the open place list (target = post/job id) — with someone picked up it sends them there; otherwise it
   opens the list / the info sheet (what it is, its hours, what it earns, and each person's fit and walk time). Tapping
-  a place again toggles its list, so use `/close` when unsure. `GET /assign/<person>/<target|none>` is the same as dragging a face onto a marker
+  a place again toggles its list, so use `/close` when unsure. `GET /assign/<person>/<target|none>` is the same as dragging a face onto a place or a list row
   (`none` = stop). `GET /sheet/<target>` reads a sheet without opening it. `GET /close` puts down / closes.
   Person and target ids are in `state.staffIds` and `state.targets`.
 - `GET /answer/1|2|3` — pick an option on the current card.
@@ -82,7 +92,7 @@ the exact command on this machine), then wait until `curl -s http://127.0.0.1:<P
   clock by itself between your calls (the game is paused), but answer it before it counts down in later waits.
 - `GET /report` — the club report (details + "How we got here" cause→effect story).
 - `GET /shot/<name>` — phone screenshot; returns a PNG path you can look at with the Read tool. Take several (the
-  people strip, a picked-up person, a place list, a card, a repaired place vs a ruin, the ending): visuals and touch layout are
+  people strip, a picked-up person, a place list, a card, the settlement card, the ending): visuals and touch layout are
   part of the experience.
 - `GET /new/<seed>` — restart. `GET /errors` — console errors seen so far. `GET /quit` when done.
 
@@ -105,7 +115,7 @@ A card with "59 min left" gives a real player ~10 s. A club day is ~2 real minut
    screen — the schedule is implicit in where you put people).
 6. **Left alone, the world keeps running and the club drifts back to how you set it up**: staffed places hold,
    unattended facilities slowly wear (visible first, then in numbers); income only flows where someone works; members
-   and reputation settle on weekly averages, not in real time.
+   and reputation settle once a day at closing on that day's service rate, not in real time.
 
 Also: **phone-first.** Judge thumb reach, tap target size, text legibility, overlap, and whether drag/tap flows make
 sense on a 390-wide screen.

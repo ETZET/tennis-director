@@ -20,9 +20,10 @@
 //   撑伞 · 去器材箱拿摇把 → 1 号场南网柱摇绞盘（crank，4 秒 0→1）→ 还摇把 · 拿捡球器在 1 号场推（笼子 0.4 米内的球收进去）→ 到捡球篮倒球
 //   · 水站空了 → 从员工小门出去拿备用水桶 → 换上。
 import * as THREE from 'three';
+import { buildPicker } from '../clubsite/assets/ball-picker';
 import { DINK_HIT, NEW_PERIOD, RIG_PERIOD } from '../clubsite/people';
 import { buildStandIn, PADDLE_FACE_Y } from '../clubsite/people/props';
-import { buildPicker } from '../desert3d-v2/assets/ball-picker';
+import type { AssetCtx } from './ctx';
 import {
   ARRIVE,
   COURT1,
@@ -39,7 +40,6 @@ import {
   STRIP_LANE,
   type V2,
 } from './layout';
-import type { AssetCtx } from './world';
 
 type V3 = THREE.Vector3;
 const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);

@@ -13,7 +13,7 @@
 // - `setLevel(red, yellow)`：两只饮料桶里还剩多少（0..1；卖一杯少一点，见底了要补货）
 // - `setOpen(on)`：伞开 / 收（收起 = 伞柄上一卷布；收摊、大风）
 import * as THREE from 'three';
-import type { AssetCtx } from '../world';
+import type { AssetCtx } from '../ctx';
 import { box, boxOn, cyl, merge, roundNormals, v3 } from './life/kit';
 
 /** 车厢 */

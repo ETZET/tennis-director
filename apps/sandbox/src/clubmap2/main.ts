@@ -1,16 +1,16 @@
 // clubmap2：照主游戏 2.5D 地图（Palm Oasis）的布局做的俱乐部缩略图，3D 像素风格，加了露天前台。
 // 镜头像游戏一样斜着看（默认从东南看，yaw 38°），右下角两个按钮转 90°；拖动平移、双指/滚轮缩放。
 // URL：px（每纹素 CSS 像素，默认 1）、yaw（度）、zoom（米/纹素，不给 = 自动取景）、labels=0、pal=<配色>、sunel/sunaz、pause=1。
-import '../clubfront/colors';
+import '../clubsite/render/colors';
 import * as THREE from 'three';
-import { rngFactory } from '../clubfront/noise';
-import { SCHEMES, schemeById, schemeMats, schemeOpts } from '../clubfront/palettes';
-import { mountPaletteSwitcher } from '../clubfront/palettes/switcher';
-import { REUSED } from '../clubfront/reuse';
-import { CLOUD_N, createMats, type ToonOpts } from '../clubfront/toon';
-import type { AssetCtx, SharedUniforms } from '../clubfront/world';
-import { PixelPipeline } from '../clubmap/pipeline';
 import { axes, FIT_TIGHT, fitRange, HEADROOM, PITCH, SKY_STRIP, screenOf } from '../clubsite/framing';
+import type { AssetCtx, SharedUniforms } from '../clubsite/render/ctx';
+import { rngFactory } from '../clubsite/render/noise';
+import { SCHEMES, schemeById, schemeMats, schemeOpts } from '../clubsite/render/palettes';
+import { mountPaletteSwitcher } from '../clubsite/render/palettes/switcher';
+import { PixelPipeline } from '../clubsite/render/pipeline';
+import { CLOUD_N, createMats, type ToonOpts } from '../clubsite/render/toon';
+import { REUSED } from '../clubsite/reuse';
 import { buildMap } from './build';
 import { LABELS } from './layout';
 import { PAL, type Pal, SKY } from './palette';

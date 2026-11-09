@@ -8,8 +8,8 @@
 //   level         现在的水位 0..1；levels = 一共几档（每个会员接一杯掉一档：setLevel(level − 1 / levels)）
 //   jug           水桶那一组（总监换桶时可以整个拿走 / 放回：本地位置 jugSeat）
 import * as THREE from 'three';
-import { blobNormals } from '../toon';
-import type { AssetCtx } from '../world';
+import { blobNormals } from '../../clubsite/render/toon';
+import type { AssetCtx } from '../ctx';
 import { box, cyl, DT, lathe, noCast, Parts, ROW } from './props/kit';
 
 /** 朝镜头的竖面（太阳在画面后方）：光往上偏、档位阈值往下挪 */

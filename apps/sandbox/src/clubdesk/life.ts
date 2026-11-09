@@ -20,10 +20,10 @@ import * as THREE from 'three';
 import { GATE_TIMING, LOOP } from '../clubpark/layout';
 import { director as clubDirector } from '../clubsite/people';
 import type { Play } from '../clubsite/play';
-import type { AssetCtx as D3Ctx } from '../desert3d-v2/world';
+import type { BaseCtx as D3Ctx } from '../clubsite/render/ctx';
+import type { AssetCtx } from './ctx';
 import { COUNTER, SPOTS, type V2 } from './layout';
 import { buildTowel } from './play';
-import type { AssetCtx } from './world';
 
 type Co = Generator<void, void, number>;
 const P = Math.PI;

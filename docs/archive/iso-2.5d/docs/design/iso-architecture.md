@@ -1,7 +1,7 @@
 # 2.5D 等距像素画面 · 架构契约（ADR 0019）
 
 这份是 `packages/iso`（`@td/iso`）的接口契约和参考，按 2026-11-03 的代码写。改下面列出的接口（尤其是 `core/graph.ts`、
-`art/format.ts`、`Site`）要同时改这份文件。画法的参考实现是样片 `docs/art/style-demos/isometric-2.5d/index.html`，光栅器照搬它。
+`art/format.ts`、`Site`）要同时改这份文件。画法的参考实现是样片 `docs/art/style-demos/isometric-2.5d/index.html`（现在归档在 `docs/archive/iso-2.5d/docs/art/style-demos/isometric-2.5d/`），光栅器照搬它。
 
 ## 目标
 

@@ -8,7 +8,7 @@
 //   setStock(n)  架上还剩几卷（0..9；从上层的上面那层东头开始拿），返回实际的数
 //   stock        现在的卷数
 import * as THREE from 'three';
-import type { AssetCtx } from '../world';
+import type { AssetCtx } from '../ctx';
 import { box, cyl, DT, Parts } from './props/kit';
 
 const W = 1.2;

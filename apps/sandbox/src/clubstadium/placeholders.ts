@@ -6,9 +6,9 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { SPECS as DESK_SPECS, type Spec as DeskSpec } from '../clubdesk/placeholders';
+import type { AssetCtx } from './ctx';
 import { CROWD, northTread, SCOREBOARD, STANDS, tier } from './layout';
 import type { Pal } from './palette';
-import type { AssetCtx } from './world';
 
 /** 每个资产的大致外形（米）：w 宽（x）、d 深（z）、h 高；shape 决定占位的样子；n = 清单编号（标签里显示） */
 export interface Spec {

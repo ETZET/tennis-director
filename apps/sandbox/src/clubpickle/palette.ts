@@ -1,13 +1,13 @@
 // clubpickle 的调色板 = clubdesk 的整张表（clubmap2 + 前台的 granite / slate / brass；只读 import）+ 匹克球场新加的两种（PICKLE）。
 // 场面、围网、步道、草坪的颜色全部沿用 clubdesk（它的画面左边已经画着这个围场，两边要一模一样）。
-// 新材质照 clubfront/palette.ts 的规则手挑：每档 [本色, 高一级, 低一级]，高/低一级差 6～12，缝 −15…−38、亮边 +15…+33；
+// 新材质照 clubsite/render/palette.ts 的规则手挑：每档 [本色, 高一级, 低一级]，高/低一级差 6～12，缝 −15…−38、亮边 +15…+33；
 // 暗档换冷色相（不是亮档乘系数）。L = 0.2126R + 0.7152G + 0.0722B，S = HSV 饱和度。
 // 用户定的（2026-11-08）：饱和度目标 ≥ 0.42 靠"主角材质彩度高一点"来够，不改配色方案 → 这两种都挑得比周围艳。
-// 这两种不在 clubfront/palettes 的 GROUP 表里（那个文件不归这个场景改）→ 午后配色只吃全局调色（见 clubpickle.md「要商量的」）。
+// 这两种不在 clubsite/render/palettes 的 GROUP 表里（那个文件不归这个场景改）→ 午后配色只吃全局调色（见 clubpickle.md「要商量的」）。
 
 import { EL as DESK_EL, PAL as DESK_PAL, SKY as DESK_SKY } from '../clubdesk/palette';
-import type { Tones } from '../clubdesk/toon';
-import type { Swatch } from '../clubfront/palette';
+import type { Swatch } from '../clubsite/render/palette';
+import type { Tones } from '../clubsite/render/toon';
 
 type Ramp = [number, number, number];
 const s = (ramp: Ramp, edge: number, convex: number, tones?: Tones): Swatch => ({ ramp, edge, convex, tones });

@@ -6,9 +6,10 @@
 // 不在 GROUP 表里的（stallGravel、paver、tyre）只吃全局 grade：亮档挑得比"想要的"稍冷一点，暗档只管亮度（色相大半会被换成玫瑰褐）。
 // 暗档亮度按规范：大块暗面 L 65～100。
 // L = 0.2126R + 0.7152G + 0.0722B（sRGB 原值，未调色）。
-import type { Swatch } from '../clubfront/palette';
-import type { Elem, Tones, ToonOpts } from '../clubfront/toon';
+
 import { EL as MAP_EL, PAL as MAP_PAL, SKY as MAP_SKY } from '../clubmap2/palette';
+import type { Swatch } from '../clubsite/render/palette';
+import type { Elem, Tones, ToonOpts } from '../clubsite/render/toon';
 
 type Ramp = [number, number, number];
 const s = (ramp: Ramp, edge: number, convex: number, opts?: ToonOpts, tones?: Tones): Swatch => ({

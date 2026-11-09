@@ -10,7 +10,7 @@
 //   count()                    还剩几个
 //   ballAt(i, out?)            第 i 个的本地坐标（球心）
 import * as THREE from 'three';
-import type { Mats } from '../../clubfront/toon';
+import type { Mats } from '../render/toon';
 import type { NetCtx } from './nets/kit';
 
 const R = 0.09;

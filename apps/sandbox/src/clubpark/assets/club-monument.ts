@@ -3,7 +3,7 @@
 // 朝南的深蓝牌面（陶砖边框），奶油金的徽标（网球 + 交叉的两把球拍）和"俱乐部名"（假字：名字还没定，只画像字的笔画）。
 // 牌面、边框、字都朝镜头：lightUp + 低 bands → 落中档，在暗档的灰泥墙前面读得出来。
 import * as THREE from 'three';
-import type { AssetCtx } from '../world';
+import type { AssetCtx } from '../ctx';
 import {
   BRICK,
   Bucket,

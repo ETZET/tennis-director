@@ -5,21 +5,21 @@
 // URL：px（每纹素 CSS 像素，默认 1；画廊 2）、zoom（米/纹素）、tx/tz、yaw/pitch（度）、sunel/sunaz、seed、warm、
 //      pause=1（时间停在 0：截图稳定）、labels=0（不显示标签和站位）、ph=0（不放占位）、nav=0、clouds=0、edges=1（只看描边）、
 //      pal=<id>（配色，不带 = 6 午后金光；右上角切换）、crowd=grey（观众换成灰的占位）；画廊：v（变体）、ref=0、ground=tile|sand、cy。
-import '../clubdesk/colors';
+import '../clubsite/render/colors';
 import * as THREE from 'three';
-import { rngFactory } from '../clubdesk/noise';
-import { PixelPipeline } from '../clubdesk/pipeline';
-import { CLOUD_N, createMats, type Mats, type ToonOpts } from '../clubdesk/toon';
-import { SCHEMES, schemeById, schemeMats, schemeOpts } from '../clubfront/palettes';
-import { mountPaletteSwitcher } from '../clubfront/palettes/switcher';
-import { topGeo, wallGeo } from '../clubfront/terrain';
+import { topGeo, wallGeo } from '../clubsite/render/geo';
+import { rngFactory } from '../clubsite/render/noise';
+import { SCHEMES, schemeById, schemeMats, schemeOpts } from '../clubsite/render/palettes';
+import { mountPaletteSwitcher } from '../clubsite/render/palettes/switcher';
+import { PixelPipeline } from '../clubsite/render/pipeline';
+import { CLOUD_N, createMats, type ToonOpts } from '../clubsite/render/toon';
+import type { AssetBuild, AssetCtx, SharedUniforms } from './ctx';
 import { AREA_LABELS, CLOUD_VEL, CLOUDS, MPT, SLOTS, SPOTS, SUN, TARGET } from './layout';
 import { buildNav, SPOT_NAMES } from './nav';
 import { PAL, type Pal, PROXY, SKY } from './palette';
 import { NEW_SPECS, placeholder, SPECS } from './placeholders';
 import { REUSED } from './reuse';
 import { buildTerrain } from './terrain';
-import type { AssetBuild, AssetCtx, SharedUniforms } from './world';
 
 const params = new URLSearchParams(location.search);
 const num = (k: string, d: number) => (params.has(k) ? Number(params.get(k)) : d);
@@ -133,8 +133,7 @@ function palOpts(key: keyof Pal, extra?: ToonOpts): ToonOpts {
   return scheme ? (schemeOpts(scheme, via as any, o as any) as ToonOpts) : o;
 }
 const ctxBase = {
-  // biome-ignore lint/suspicious/noExplicitAny: clubfront/toon 和这里的 toon 是同一份代码的两份拷贝，类型结构相同
-  mats: scheme ? (schemeMats(scheme, mats as any) as unknown as Mats) : mats,
+  mats: scheme ? schemeMats(scheme, mats) : mats,
   pal: PAL,
   mat(key: keyof Pal, extra?: ToonOpts) {
     return mats.toon(0xffffff, palOpts(key, extra));

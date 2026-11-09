@@ -1,13 +1,14 @@
 // 地形：地面（clubsite/ground.ts，铺到画外）+ 地图边的山（clubsite/mountains.ts；默认取景看不到，往东平移 ~25 米到山口）+
 // 北边高一级的沙漠台地 + 南边低一级的沙漠 + 东墙（土坯 + 压顶 + 壁柱）+
 // 墙里面的一角（clubdesk 场景的地：砂石、到达小院的陶砖、长廊、草坪）+ 车道、两片停车场（沥青、车位线、车轮挡、路缘）+
-// 落客区连锁砖 + 墙边石板步道 + 花坛 + 种植带。几何工具从 clubfront/terrain.ts import（只读）。
+// 落客区连锁砖 + 墙边石板步道 + 花坛 + 种植带。几何工具从 clubsite/render/geo.ts import。
 // 朝镜头的立面 = 暗带：台地崖壁（cliff）、花坛和围墙（adobe + 陶砖压顶）、路缘（kerb）。立面一律不接收投影。
 import * as THREE from 'three';
-import { insidePoly, smoothLoop, topGeo, wallGeo } from '../clubfront/terrain';
-import { DRIVE, FORECOURT, GATE, GROUNDS, LAWN, LOT_N, LOT_S, PATHS } from '../clubmap2/layout';
 import { groundGeo } from '../clubsite/ground';
 import { buildMountains, passRoadGeo } from '../clubsite/mountains';
+import { insidePoly, smoothLoop, topGeo, wallGeo } from '../clubsite/render/geo';
+import { DRIVE, FORECOURT, GATE, GROUNDS, LAWN, LOT_N, LOT_S, PATHS } from '../clubsite/world';
+import type { AssetCtx } from './ctx';
 import {
   BERMS,
   CAR_EDGE_X,
@@ -26,7 +27,6 @@ import {
   WALL,
 } from './layout';
 import { EL } from './palette';
-import type { AssetCtx } from './world';
 
 const rectPts = (r: Rect): V2[] => [
   [r.x0, r.z0],

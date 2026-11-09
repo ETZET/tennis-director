@@ -1,13 +1,14 @@
 // clubdesk 的调色板 = clubmap2 的整张表（= desert3d-v2 + clubfront 的前台材质 + 地图要的红土、草地、匹克球、灰泥……）
 // + 这个场景新加的三种材质（DESK）。前台的主角色（帆布、柜台、木构、陶砖、土坯、招牌、挡风布、水桶、陶罐）原样沿用 clubfront 的手挑色，
-// 它们都在 clubfront/palettes 的 GROUP 表里（club / terracotta / wall / dry），午后配色按组调。
-// 新加的三种 2026-11-08 归进了 clubfront/palettes/index.ts 的 GROUP：granite → ground（步道一家）、slate → club（黑板留青蓝）、
+// 它们都在 clubsite/render/palettes 的 GROUP 表里（club / terracotta / wall / dry），午后配色按组调。
+// 新加的三种 2026-11-08 归进了 clubsite/render/palettes/index.ts 的 GROUP：granite → ground（步道一家）、slate → club（黑板留青蓝）、
 // brass → accent（午后没有 accent 覆盖 = 全局调色）。底色按"调完以后对"挑（见每条的说明）。
-// 规则同 clubfront/palette.ts：每档 [本色, 高一级, 低一级]，高/低一级差 6～12，缝 −15…−38、亮边 +15…+33（都 < 60，不出强边缘）；
+// 规则同 clubsite/render/palette.ts：每档 [本色, 高一级, 低一级]，高/低一级差 6～12，缝 −15…−38、亮边 +15…+33（都 < 60，不出强边缘）；
 // 大面积亮面的亮档低一级 ≥ 170，暗档高一级 ≤ 120；暗档换冷色相，不是亮档乘系数。L = 0.2126R + 0.7152G + 0.0722B。
-import type { Swatch } from '../clubfront/palette';
+
 import { EL as MAP_EL, PAL as MAP_PAL, SKY as MAP_SKY } from '../clubmap2/palette';
-import type { Elem, Tones } from './toon';
+import type { Swatch } from '../clubsite/render/palette';
+import type { Elem, Tones } from '../clubsite/render/toon';
 
 type Ramp = [number, number, number];
 const s = (ramp: Ramp, edge: number, convex: number, tones?: Tones): Swatch => ({ ramp, edge, convex, tones });

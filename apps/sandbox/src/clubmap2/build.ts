@@ -4,11 +4,10 @@
 // 同一种材质合并成一个网格。植物、长椅、人是复用的资产，main.ts 里放（位置在 scatter.ts）。
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { smoothLoop, topGeo } from '../clubfront/terrain';
-import type { Mats, ToonOpts } from '../clubfront/toon';
-import { box, quad, ring } from '../clubmap/build';
 import { groundGeo } from '../clubsite/ground';
 import { buildMountains, passRoadGeo } from '../clubsite/mountains';
+import { box, quad, ring, smoothLoop, topGeo } from '../clubsite/render/geo';
+import type { Mats, ToonOpts } from '../clubsite/render/toon';
 import {
   CLUBHOUSE,
   COURT_FENCES,
@@ -37,7 +36,7 @@ import {
   type Rect,
   TERRACE,
   type V2,
-} from './layout';
+} from '../clubsite/world';
 import { EL, type Pal } from './palette';
 
 type Key = keyof Pal;

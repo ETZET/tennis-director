@@ -5,7 +5,7 @@
 // 门楣南头朝东挑出一块俱乐部蓝的立牌（正对镜头，"CENTRE COURT"：一颗网球 + 两条奶油粗划，不写真字）。
 // 本地原点 = 门洞中心的地面；门洞沿 x 穿过，两根柱子在 z = ±2.6。宽（x）1.2、高 4.2、长（z）6.2。
 import * as THREE from 'three';
-import type { AssetCtx } from '../world';
+import type { AssetCtx } from '../ctx';
 import { Bag, DU, DV, FACE_LIT, FACE_MID, tris, V } from './court/kit';
 
 /** 门洞宽（两柱内沿之间）、柱宽、柱高、门楣底 / 顶、门楣宽 */

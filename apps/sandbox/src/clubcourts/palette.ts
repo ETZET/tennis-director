@@ -1,15 +1,15 @@
 // clubcourts 的调色板 = clubdesk 的整张表（= clubmap2 + clubmap + clubfront + desert3d-v2 + 前台的 granite / slate / brass，只读 import）
 // + 这个场景新加的两种"湿"的硬地（喷雾滴下来的水洼、刮水之前）。硬地的青蓝 `court`、外场绿 `surround`、白线 `line`、
 // 场上积的沙 `sandDrift`、红土 `clay`（地图那个，红土代理统一调过）都用现成的。
-// 规则同 clubfront/palette.ts：每档 [本色, 高一级, 低一级]，高/低一级差 6～12，缝 −10…−20、亮边 +15…+20；暗档换冷色相，不是亮档乘系数。
+// 规则同 clubsite/render/palette.ts：每档 [本色, 高一级, 低一级]，高/低一级差 6～12，缝 −10…−20、亮边 +15…+20；暗档换冷色相，不是亮档乘系数。
 // L = 0.2126R + 0.7152G + 0.0722B（sRGB 原值）。
 //
-// 新名字不在 clubfront/palettes 的 GROUP 表里：main.ts 的 GROUP_AS 让 courtWet 按 `court` 组、surroundWet 按 `surround` 组调色
+// 新名字不在 clubsite/render/palettes 的 GROUP 表里：main.ts 的 GROUP_AS 让 courtWet 按 `court` 组、surroundWet 按 `surround` 组调色
 // （同一家颜色，同一种调法；只吃全局调色的话亮档会被往金色染 25%，蓝的湿面发灰 —— 匹克球场面就是这么灰的，见 material-spec.md）。
 
 import { EL as DESK_EL, PAL as DESK_PAL, SKY as DESK_SKY } from '../clubdesk/palette';
-import type { Swatch } from '../clubfront/palette';
-import type { Elem, Tones } from '../clubfront/toon';
+import type { Swatch } from '../clubsite/render/palette';
+import type { Elem, Tones } from '../clubsite/render/toon';
 
 type Ramp = [number, number, number];
 const s = (ramp: Ramp, edge: number, convex: number, tones?: Tones): Swatch => ({ ramp, edge, convex, tones });

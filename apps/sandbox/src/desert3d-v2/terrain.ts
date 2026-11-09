@@ -1,6 +1,8 @@
 // 地形：浮空岛 + 几层台地（顶面 ShapeGeometry + 竖直崖壁）+ 绿洲池 + 台阶 + 步道。
 // 崖壁 uv：x = 沿墙长度（米），y = 离墙顶多深（米）。崖壁一律下到低地以下（被前面的顶面挡住），岛外沿再往下接岛底。
 import * as THREE from 'three';
+import { vnoise } from '../clubsite/render/noise';
+import { EL } from '../clubsite/render/palette-base';
 import {
   COURT_TERRACE,
   EAST_TERRACE,
@@ -14,8 +16,6 @@ import {
   type V2,
   WEST_TERRACE,
 } from './layout';
-import { vnoise } from './noise';
-import { EL } from './palette';
 import type { AssetCtx } from './world';
 
 /** 闭合折线按 Catmull-Rom 平滑重采样（间距约 step 米）+ 一点抖动 */

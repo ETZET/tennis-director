@@ -18,8 +18,8 @@
 //   crank：摇把（Object3D，绕卷盘轴转），crank.userData.grip = 握头（摇把自己的坐标）；setCrank(角度)：摇把和那卷管一起转。
 import * as THREE from 'three';
 import { type Grip, Parts, smoothPath, Tube, type V3 } from '../../clubsite/tools/kit';
+import type { AssetCtx } from '../ctx';
 import { HOSE, SLOTS } from '../layout';
-import type { AssetCtx } from '../world';
 
 type K = 'ironwork' | 'counter' | 'seat' | 'toolOrange';
 

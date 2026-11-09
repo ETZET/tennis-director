@@ -8,7 +8,7 @@
 // userData.seat = { at: [0, 1.77, 0], foot: [0, 1.54, 0.3] }（本地坐标）。
 // 场景里要用它：SLOTS 里 umpire-chair 那一行把 asset 改成 'umpire-chair-cc'（现在是复用 desert3d-v2 的 umpire-chair）。
 import * as THREE from 'three';
-import type { AssetCtx } from '../world';
+import type { AssetCtx } from '../ctx';
 import { Bag, DU, DV, FACE_MID, PROP, rod, V } from './court/kit';
 
 const SEAT_Y = 1.77;

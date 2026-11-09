@@ -2,8 +2,8 @@
 // 全是胖方块：同一种材质合并成一个网格（draw call 少）。只为看"什么在哪、多大"，不是素材。
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { smoothLoop, topGeo, wallGeo } from '../clubfront/terrain';
-import type { ToonOpts } from '../clubfront/toon';
+import { box, quad, ring, smoothLoop, topGeo, wallGeo } from '../clubsite/render/geo';
+import type { ToonOpts } from '../clubsite/render/toon';
 import {
   BLOCKS,
   BUILDINGS,
@@ -72,16 +72,6 @@ export class Bucket {
     }
   }
 }
-
-/** 水平矩形面（y 高） */
-export const quad = (r: Rect, y: number) => {
-  const g = new THREE.PlaneGeometry(r.x1 - r.x0, r.z1 - r.z0).rotateX(-Math.PI / 2);
-  g.translate((r.x0 + r.x1) / 2, y, (r.z0 + r.z1) / 2);
-  return g;
-};
-/** 盒子：中心 x、z，底在 y */
-export const box = (w: number, h: number, d: number, x: number, y: number, z: number) =>
-  new THREE.BoxGeometry(w, h, d).translate(x, y + h / 2, z);
 
 /** 圆角矩形轮廓 */
 function roundRect(r: Rect, rad: number): V2[] {
@@ -353,13 +343,6 @@ function outline(B: Bucket, r: Rect, y: number, LW: number) {
   L(r.x0, r.x1, r.z1 - LW, r.z1);
   L(r.x0, r.x0 + LW, r.z0, r.z1);
   L(r.x1 - LW, r.x1, r.z0, r.z1);
-}
-
-/** 圆环墙（池沿）：外径、内径、高 */
-export function ring(outer: number, inner: number, h: number): THREE.BufferGeometry {
-  const shape = new THREE.Shape().absarc(0, 0, outer, 0, Math.PI * 2, false);
-  shape.holes.push(new THREE.Path().absarc(0, 0, inner, 0, Math.PI * 2, true));
-  return new THREE.ExtrudeGeometry(shape, { depth: h, bevelEnabled: false, curveSegments: 20 }).rotateX(-Math.PI / 2);
 }
 
 /** 岛底：外沿一圈往下、往里收（从 clubfront/terrain.ts 的 undersideGeo 简化） */

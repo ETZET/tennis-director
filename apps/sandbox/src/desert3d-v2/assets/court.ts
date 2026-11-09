@@ -6,9 +6,9 @@
 // - 积沙：一张厚度格（userData.sand），高度场网格 + alphaMap 切出圆滑的轮廓；沙堆是"迎风缓坡 + 背风陡坡"的小沙丘，
 //   背风坡朝镜头落中档，坡顶那条折线出凸边亮线。userData.sand.sweep(x, z, r, amount) 扫掉一部分，blow(…) 吹叶机把沙沿锥往前推，画面下一帧更新。
 import * as THREE from 'three';
+import { vnoise } from '../../clubsite/render/noise';
+import type { Elem } from '../../clubsite/render/toon';
 import { COURT } from '../layout';
-import { vnoise } from '../noise';
-import type { Elem } from '../toon';
 import type { AssetCtx } from '../world';
 
 /** 格子标签 */

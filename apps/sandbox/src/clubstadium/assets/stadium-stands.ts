@@ -13,8 +13,8 @@
 // 1 纹素的缝，每座自己一个深浅；几乎全在影子里 = 深青绿，空座成片的地方就是看台上安静的地方。
 // 走道（`aisle`，比看台亮一档的冷灰白，台阶 treads 元素）竖着把横带切成块；广告板俱乐部蓝（`counter`，lightUp 落中档）+ 奶油色的字块和网球徽标。
 import * as THREE from 'three';
+import type { AssetCtx } from '../ctx';
 import { NORTH_BACK, northTread, STANDS, SUN, tier } from '../layout';
-import type { AssetCtx } from '../world';
 import { GeoBuf, meshOf } from './stands/geo';
 import { northRuns, P, SEAT, seatRuns } from './stands/seats';
 

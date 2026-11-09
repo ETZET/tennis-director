@@ -1,9 +1,9 @@
 // 白模的调试层：站位（洋红小圆盘）、路线（每 0.9 米一个小点）、总监能走的范围（洋红细框的四角）。
 // 只在标签开着时画（?labels=0 的截图里没有）。stage 3 的演出、操控照 layout.ts 的 SPOTS / ROUTES / WALKABLE 做。
 import * as THREE from 'three';
-import { smoothLine } from '../clubfront/terrain';
+import { smoothLine } from '../clubsite/render/geo';
+import type { AssetCtx } from './ctx';
 import { ROUTES, SPOTS, type V2 } from './layout';
-import type { AssetCtx } from './world';
 
 export function buildNav(ctx: AssetCtx, groundAt: (x: number, z: number) => number): THREE.Group {
   const g = new THREE.Group();

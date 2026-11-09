@@ -3,8 +3,8 @@
 // 3×5 的点阵字（数字 + 记分牌要的几个字母）、局部新色（还没进调色板的，交给核心代理以后收）。
 // 单位米，y 朝上，+z 朝镜头（南），+x 朝东。设计纹素 0.09 米：横向一格 0.09，竖直面上一行 ≈ 0.127 米（俯角 45°）。
 import * as THREE from 'three';
-import type { ToonOpts } from '../../../clubdesk/toon';
 import { Bag, place, tris } from '../../../clubsite/assets/courtside/kit';
+import type { ToonOpts } from '../../../clubsite/render/toon';
 
 export { Bag, place, tris };
 

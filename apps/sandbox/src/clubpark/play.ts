@@ -10,12 +10,12 @@
 // 递钥匙让会员自己去取车：代客能腾出手接下一辆，可是总监离开了大门口（门童装满推车、落客的人没人接）。
 // 玩法模式比只看模式多一辆落客、一个取车（layout.ts GATE_TIMING.rush）：代客一个人忙不过来。
 import * as THREE from 'three';
-import { GATE } from '../clubmap2/layout';
 import { type Hud, mountPlay, type Play, type Shape } from '../clubsite/play';
+import { GATE } from '../clubsite/world';
 import { makeKeys } from './assets/staff/uniform';
+import type { AssetCtx } from './ctx';
 import { BLOCKED, GATE_POSTS, SLOTS, SPOTS, WALKABLE, WALL_OUT } from './layout';
 import type { ParkLife } from './life';
-import type { AssetCtx } from './world';
 
 export interface ParkPlayEnv {
   scene: THREE.Scene;

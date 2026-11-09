@@ -7,9 +7,13 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { buildFences, type FenceRun } from '../clubdesk/assets/fence-screen';
 import { STAIRS as DESK_STAIRS, type Stairs, WALL } from '../clubdesk/layout';
-import type { ToonOpts } from '../clubdesk/toon';
-import { insidePoly, topGeo, wallGeo } from '../clubfront/terrain';
-import { box, quad } from '../clubmap/build';
+import type { AssetCtx as ParkCtx } from '../clubpark/ctx';
+import { PAL as PARK_PAL } from '../clubpark/palette';
+import { approachAt, buildApproach } from '../clubpark/terrain';
+import { groundGeo } from '../clubsite/ground';
+import { buildMountains } from '../clubsite/mountains';
+import { box, insidePoly, quad, topGeo, wallGeo } from '../clubsite/render/geo';
+import type { ToonOpts } from '../clubsite/render/toon';
 import {
   COURT_FENCES,
   COURTS,
@@ -22,12 +26,8 @@ import {
   PATHS,
   PICKLE_DOORS,
   PICKLE_FENCE_H,
-} from '../clubmap2/layout';
-import { PAL as PARK_PAL } from '../clubpark/palette';
-import { approachAt, buildApproach } from '../clubpark/terrain';
-import type { AssetCtx as ParkCtx } from '../clubpark/world';
-import { groundGeo } from '../clubsite/ground';
-import { buildMountains } from '../clubsite/mountains';
+} from '../clubsite/world';
+import type { AssetCtx } from './ctx';
 import {
   CLIP,
   FOUNTAIN,
@@ -41,7 +41,6 @@ import {
   type V2,
 } from './layout';
 import { EL, type Pal } from './palette';
-import type { AssetCtx } from './world';
 
 type Key = keyof Pal;
 

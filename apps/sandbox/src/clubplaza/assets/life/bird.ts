@@ -4,7 +4,7 @@
 // 帧是离散的（像素画本来就是一帧一帧的，中间帧的转动会让像素爬）。
 // 本地原点 = 两脚中间的落脚点（y 0），头朝 +z（rotY 0 = 面朝镜头；侧身朝 ±x 时尾巴的剪影最清楚）。
 import * as THREE from 'three';
-import type { AssetCtx } from '../../world';
+import type { AssetCtx } from '../../ctx';
 import { merge, roundNormals, v3 } from './kit';
 
 /** 姿势名（userData.pose 的第一个参数） */

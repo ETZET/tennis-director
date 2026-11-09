@@ -1,5 +1,9 @@
 # 场地养护接口契约：场地可用度、打扫、亲手扫、门口等人、酷热
 
+> **2026-11-08 起：** 画面改成 3D 像素（ADR 0027），本文的"画面（`@td/iso`）"一节和 `apps/game` 里亲手扫场小游戏（`care/`、`courtcare.test.ts`）随 2.5D 画面归档（`docs/archive/iso-2.5d/`），下面说的 demo 页 `demo-court.html` 和它的实验笔记也是 2.5D 时期的；模拟、内容和"最终 schema"仍是现状。3D 场景里的吹沙、拖场、扫线、浇水、刮水是这五种脏乱的新画面，接回游戏时对上（`backlog.md` 的 M-B）。
+>
+> **2026-11-09 起：** 五种脏乱、三档、亲手扫仍是现行的模拟；其中"打扫工单、维护岗位、派人去扫"属于归档的派工模型（[`tenet-5-staffing.md`](../archive/pre-3d/tenet-5-staffing.md)），文中的"准则 6"是现在的准则 5。
+
 规则来源：制作人 2026-11-04 拍板（把 sandbox 的场地养护 demo 做进正式游戏），ADR 0022，玩法准则 2、4、5、6。
 demo：`apps/sandbox/demo-court.html`，代码 `apps/sandbox/src/demos/court/`，笔记 `docs/lab/2026-11-04-playability/demos/06-court-care/notes-r2.md`。
 Wave 0 已经落地了**类型和桩**（见文末"Wave 0 已落地"），四个实现代理照这份文件并行做，文件归属互不重叠（"文件归属"一节）。

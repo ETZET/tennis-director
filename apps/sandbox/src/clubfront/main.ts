@@ -6,20 +6,21 @@
 //      pause=1、labels=0（不显示标签和站位）、ph=0（不放占位）、nav=0（标签开着也不画站位）、clouds=0、edges=1（只看描边）、
 //      画廊：v（变体）、ref=0（不放 1.8 米的人形比例尺）、ground=tile|sand、cy（放大窗看的高度）。
 //      pal=<id>：配色实验（palettes/，右上角切换；不带 = 现在的配色，原样）。
-import './colors';
+import '../clubsite/render/colors';
 import * as THREE from 'three';
+import type { AssetBuild, AssetCtx, SharedUniforms } from '../clubsite/render/ctx';
+import { topGeo, wallGeo } from '../clubsite/render/geo';
+import { rngFactory } from '../clubsite/render/noise';
+import { PAL, type Pal, SKY } from '../clubsite/render/palette';
+import { SCHEMES, schemeById, schemeMats, schemeOpts } from '../clubsite/render/palettes';
+import { mountPaletteSwitcher } from '../clubsite/render/palettes/switcher';
+import { PixelPipeline } from '../clubsite/render/pipeline';
+import { CLOUD_N, createMats, type ToonOpts } from '../clubsite/render/toon';
+import { REUSED } from '../clubsite/reuse';
 import { CLOUD_VEL, CLOUDS, H, MPT, SLOTS, TARGET_Z } from './layout';
 import { buildNav } from './nav';
-import { rngFactory } from './noise';
-import { PAL, type Pal, SKY } from './palette';
-import { SCHEMES, schemeById, schemeMats, schemeOpts } from './palettes';
-import { mountPaletteSwitcher } from './palettes/switcher';
-import { PixelPipeline } from './pipeline';
 import { placeholder, SPECS } from './placeholders';
-import { REUSED } from './reuse';
-import { buildTerrain, topGeo, wallGeo } from './terrain';
-import { CLOUD_N, createMats, type ToonOpts } from './toon';
-import type { AssetBuild, AssetCtx, SharedUniforms } from './world';
+import { buildTerrain } from './terrain';
 
 const params = new URLSearchParams(location.search);
 const num = (k: string, d: number) => (params.has(k) ? Number(params.get(k)) : d);

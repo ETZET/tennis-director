@@ -3,6 +3,8 @@
 页面：`http://localhost:5190/desert3d-v2.html`（构图 + 占位）· 画廊：`desert3d-v2.html?asset=<id>`（`&v=1` 变体、`&cy=1.5` 放大窗看的高度、`&ref=0` 去掉 1.8 米人形比例尺；放大窗可拖）。
 核心照搬 desert3d/pond3d：`pipeline.ts`（像素管线、描边）、`toon.ts`（三档色阶材质 + 材质规范 v2 的元素库）、`colors.ts`。**不要从 `desert3d/parts/` 拿任何东西。**
 
+**2026-11-08 起**：核心（`pipeline.ts`、`toon.ts`、`colors.ts`、`noise.ts`、调色板 `palette.ts` → `palette-base.ts`、`world.ts` 的契约 → `ctx.ts`）在 `src/clubsite/render/`，各 club* 场景和这里共用一份；俱乐部场景复用的资产（人物骨骼 `player/rig.ts`、球员/教练/总监、植物、岩石、长椅、遮阳帆、工具、工具架、裁判椅、球车、捡球篮、捡球器）搬到了 `src/clubsite/people/rig/`、`clubsite/nature/`、`clubsite/assets/`。`assets/` 里留着同名的一行 re-export（资产表照旧能找到）；下面写的文件路径按搬家前的读。
+
 ## 材质规范 v2（2026-11-08，先读这一节）
 
 用户的评价是"大块平涂"：每个表面只有三档光照色，朝同一方向的一整片就是一个颜色。池塘复刻（`docs/lab/2026-11-07-3d-pixel/material-spec.md`）解决这个问题的办法搬过来了：**表面由"元素"组成**（沙纹、岩层里的石块、土团、踏面石条、板条、叶团……），每个元素在本档的三色里挑一个，外加缝色和亮边色。所有资产都可以用，不用的资产和以前完全一样。

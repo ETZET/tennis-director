@@ -9,7 +9,7 @@
 //   anchors.ledger  钥匙本（台面上，递钥匙、签字）
 //   setUmbrella(open)  伞撑开 / 收起（收起 = 一根捆好的布卷；风大、下班）
 import * as THREE from 'three';
-import type { AssetCtx } from '../world';
+import type { AssetCtx } from '../ctx';
 import { box, cyl, merge, xf } from './valet/kit';
 
 /** 台子：宽、深、台面前沿高、后沿高 */

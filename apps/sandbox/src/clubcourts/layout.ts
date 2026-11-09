@@ -1,5 +1,5 @@
 // clubcourts 的构图：会员场（outer_1）+ 两片青训场（practice_w / practice_e）。手摆，不是程序撒点。
-// 世界坐标和 clubmap2/layout.ts 共用（米，y 朝上，北 = −z，东 = +x）：球场、步道、围墙从那边 import（只读）；
+// 世界坐标和 clubsite/world.ts 共用（米，y 朝上，北 = −z，东 = +x）：球场、步道、围墙从那边 import（只读）；
 // 墙的尺寸从 clubdesk/layout.ts import（只读）。这里只放这个场景自己的东西（围网怎么拉、场地状态、站位、资产位置、云），也写在同一套世界坐标里。
 // 相机 yaw 0（看向北）：+x 画面右，+z 朝镜头（画面下方）。屏幕竖直坐标 v = (y − (z − tz))·cos45°（米）。
 // 竖屏 390×844 在 1× 下是 17.6 × 38 米的画面（地面纵深 54 米），横屏 1280×720 是 57.6 × 32.4 米（纵深 46 米）。
@@ -28,7 +28,7 @@
 // 视线：左上的水站和家长 → 教练和球车 → 球（亮黄）飞过网 → 打球的孩子和排队的孩子 → 下面的遮阳帆和喷雾 → 水洼 → 网前的四个人 → 总监的橙色吹叶机和沙。
 // 安静的地方：两片场的东半场（只有几个球）、南边的沙地。
 import { WALL as DESK_WALL } from '../clubdesk/layout';
-import { COURTS, type Court, GROUNDS, PATHS, type Rect, type V2 } from '../clubmap2/layout';
+import { COURTS, type Court, GROUNDS, PATHS, type Rect, type V2 } from '../clubsite/world';
 
 export type { Court, Rect, V2 };
 
@@ -117,7 +117,7 @@ export const FENCES: FenceDef[] = [
 // ── 步道（碎花岗岩，同 clubdesk / clubclay）───────────────────────────────
 /**
  * 地图的步道：会员场南边那条 1.4 米的小路（z 33.6…35.0，西接西步道、东到红土场的西围网）是这个场景提的，
- * 2026-11-08 地图（clubmap2/layout.ts 的 PATHS）采纳了 —— 这里不再另加。工具架靠在它南边。
+ * 2026-11-08 地图（clubsite/world.ts 的 PATHS）采纳了 —— 这里不再另加。工具架靠在它南边。
  */
 export const SOUTH_WALK: Rect = PATHS.find((p) => p.z0 === 33.6 && p.z1 === 35.0) as Rect;
 export const SCENE_PATHS: Rect[] = [...PATHS];

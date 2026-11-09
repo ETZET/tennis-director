@@ -7,8 +7,8 @@
 // L = 0.2126R + 0.7152G + 0.0722B。
 
 import { EL as DESK_EL, PAL as DESK_PAL, SKY as DESK_SKY } from '../clubdesk/palette';
-import type { Tones } from '../clubdesk/toon';
-import type { Swatch } from '../clubfront/palette';
+import type { Swatch } from '../clubsite/render/palette';
+import type { Tones } from '../clubsite/render/toon';
 
 type Ramp = [number, number, number];
 const s = (ramp: Ramp, edge: number, convex: number, tones?: Tones): Swatch => ({ ramp, edge, convex, tones });

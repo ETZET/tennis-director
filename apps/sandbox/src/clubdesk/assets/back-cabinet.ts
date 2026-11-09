@@ -4,7 +4,7 @@
 // 只做剪影：木柜身（横板）+ 顶板 + 缩进的深色踢脚；朝东的开口里三层隔板 + 一排卷毛巾的端头（白 / 蓝），转镜头时读得出是毛巾柜。
 // 全部合并成 4 个网格，三角形 < 300。
 import * as THREE from 'three';
-import type { AssetCtx } from '../world';
+import type { AssetCtx } from '../ctx';
 import { boxR, type G, meshOf } from './desk/kit';
 
 const W = 0.5;

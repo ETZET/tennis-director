@@ -1,6 +1,7 @@
 # 0020 推进结构：星级主轴、赛事阶梯、员工成长做钥匙；结局两套方案待定
 
-- 状态：方向已采纳（2026-11-03 问卷，见下面的修订）；数值仍是初值，还没做进游戏
+- 状态：已归档（2026-11-09：主线 / 派工归档，游戏流程重新设计），见 [main-line-2.5d.md](../archive/pre-3d/main-line-2.5d.md)；归档前是"方向已采纳"
+- 注：星级、选路、赛事、成长、结局都已做进模拟（`stars.ts`、`tournaments.ts`、`growth.ts`、`ending.ts`），代码照旧在跑。
 - 日期：2026-11-03
 - 补充：[0015](0015-jobs-unlock-from-repairs.md)（修好设施解锁工单）、[0016](0016-single-map-site.md)（16 周期限、表演赛通关）
 - 依据：GM-1 评审、E2 难度曲线（`docs/lab/2026-11-02/`）、开罗游戏研究（`docs/design/research-kairosoft.md`）
@@ -17,7 +18,7 @@
 
 ## 决定（提议）
 
-详细规则和初值见 `docs/design/game-design.md` 的"推进结构"一节。
+详细规则和初值见 `docs/archive/pre-3d/game-design-v0.5.md`（原 `docs/design/game-design.md`，2026-11-08 归档）的"推进结构"一节。
 
 - **星级 0–5：**
   - 每一星是一张复合清单：修复、会员、声望、奖杯。

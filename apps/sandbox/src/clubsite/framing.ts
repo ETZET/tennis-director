@@ -3,7 +3,7 @@
 // 正交相机，俯角 PITCH，方位 yaw：屏幕横向 sx = p·r，竖向 v = y·cosφ − (p·c)·sinφ（c = 朝镜头的水平方向）。
 // 默认横屏取景（yaw 38°，从东南看，远边 = 西北）：先框住 FIT（围墙、停车场、高尔夫），再在上面加最多 HEADROOM 的余量
 // （俱乐部缩小约 15%），余量里是远边的山梁和一条天。横屏比 1.38 宽的画面都是竖向卡住，所以天际线和画面比例无关。
-import { FIT } from '../clubmap2/layout';
+import { FIT } from './world';
 
 export const PITCH = (45 * Math.PI) / 180;
 /** 默认视角（横屏）的方位（度）；竖屏默认 62° */

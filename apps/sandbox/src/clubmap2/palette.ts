@@ -1,7 +1,7 @@
 // clubmap2 的调色板 = clubmap（= clubfront + 红土、草、车、功能屋顶）+ 游戏地图要的几样：会所的白灰泥和红瓦、看台座椅、高尔夫果岭。
 
-import type { Swatch } from '../clubfront/palette';
 import { EL as MAP_EL, PAL as MAP_PAL, SKY as MAP_SKY } from '../clubmap/palette';
+import type { Swatch } from '../clubsite/render/palette';
 
 type Ramp = [number, number, number];
 const s = (ramp: Ramp, edge: number, convex: number): Swatch => ({ ramp, edge, convex });

@@ -1,5 +1,5 @@
 // clubclay 的构图：两片红土场（南北叠着，场地东西向）—— 近的一片（outer_3）在比赛，远的一片（outer_2）总监在维护。手摆，不是程序撒点。
-// 世界坐标和 clubmap2/layout.ts 共用（米，y 朝上，北 = −z，东 = +x）：球场、步道、草坪、围墙都从那边 import（只读）；
+// 世界坐标和 clubsite/world.ts 共用（米，y 朝上，北 = −z，东 = +x）：球场、步道、草坪、围墙都从那边 import（只读）；
 // clubdesk 定下来的草坪下沉、墙的尺寸、草坪上的遮阳帆和假紫荆也从 clubdesk/layout.ts import（只读），两个场景横屏里接得上。
 // 这里只放这个场景自己的东西（围网怎么拉、场地状态、站位、资产位置、云），也写在同一套世界坐标里。
 // 相机 yaw 0（看向北）：+x 画面右，+z 朝镜头（画面下方）。屏幕竖直坐标 v = (y − (z − tz))·cos45°（米）。
@@ -29,7 +29,7 @@
 // 视线：右上的水管卷盘 → 绿色水管斜着往左下 → 湿的那一块和网 → 总监和拖垫 → 场边的伞 → 近场的发球人。
 // 安静的地方：远场南边起尘的那一片、近场中间（只有几个球印）、墙外高尔夫的沙地。
 import { H as DESK_H, SLOTS as DESK_SLOTS, WALL as DESK_WALL, LAWN_PIT } from '../clubdesk/layout';
-import { COURTS, type Court, GROUNDS, LAWN, PATHS, type Rect, type V2 } from '../clubmap2/layout';
+import { COURTS, type Court, GROUNDS, LAWN, PATHS, type Rect, type V2 } from '../clubsite/world';
 
 export type { Court, Rect, V2 };
 

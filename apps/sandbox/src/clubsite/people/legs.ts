@@ -3,7 +3,7 @@
 // 大腿 0.22 + 小腿到鞋底 0.28 = 0.5 米（和原来的腿一样长，比例不变）；小腿可以顺着自己拉长（坐在 0.5 米的长椅上脚要着地）。
 // 腿组自己的 rotation 就是髋：rotation.x = −π/2 大腿朝前平伸；knee.rotation.x > 0 小腿往后弯。鞋（踝组）始终保持水平。
 import * as THREE from 'three';
-import { blobNormals } from '../../clubfront/toon';
+import { blobNormals } from '../render/toon';
 import type { Bones } from './bones';
 
 type Mat = THREE.Material;

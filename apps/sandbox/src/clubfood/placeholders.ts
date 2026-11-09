@@ -3,11 +3,11 @@
 // ?accent=0 = 全灰（和别的场景一样）。复用的资产（人、蒲葵、陶罐、龙舌兰、饮料车、拟八哥、水站）不用占位，直接是真的（reuse.ts）。
 // 本地原点 = 落地点（y 0 = 地面），+z 朝镜头（南），+x 朝东；尺寸米。
 import * as THREE from 'three';
-import type { ToonOpts } from '../clubdesk/toon';
 import { SPECS as PLAZA_SPECS, type Spec as PlazaSpec } from '../clubplaza/placeholders';
+import type { ToonOpts } from '../clubsite/render/toon';
+import type { AssetCtx } from './ctx';
 import { PERGOLA, TABLE, TRUCK_FLOOR, TRUCKS } from './layout';
 import type { Accent, Pal } from './palette';
-import type { AssetCtx } from './world';
 
 /** 每个资产的大致外形（米）：w 宽（x）、d 深（z）、h 高；shape 决定占位的样子；n = 清单编号（标签里显示） */
 export interface Spec {

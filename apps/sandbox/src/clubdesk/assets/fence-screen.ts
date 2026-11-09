@@ -14,8 +14,8 @@
 //    门用 `door: { at, gap }`（离起点多少米、口子多宽）。返回的对象放在原点、不要再平移。
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import type { ToonOpts } from '../toon';
-import type { AssetCtx } from '../world';
+import type { ToonOpts } from '../../clubsite/render/toon';
+import type { AssetCtx } from '../ctx';
 
 /** 一段围网（米）：从 (x0, z0) 到 (x1, z1)，高 h；door = 离起点 at 米处留 gap 米宽的口子 */
 export interface FenceRun {

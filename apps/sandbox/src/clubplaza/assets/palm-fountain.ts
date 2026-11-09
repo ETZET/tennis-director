@@ -7,8 +7,8 @@
 //   → 顶上陶罐形的出水口（cap，3.6 米）。碗是浅石（flagstone 亮档 L 222），比池壁亮，碗沿顶面在暗底前读得出来。
 // userData：setFlow(0..1)、setLeaves(n)（和 fountain-spray 共用一份，见 fountain/link.ts）、water = { y, r }（水面高、半径，本地）。
 import * as THREE from 'three';
+import type { AssetCtx } from '../ctx';
 import { EL } from '../palette';
-import type { AssetCtx } from '../world';
 import { annulus, cylWall, lathe, octo, waterDisc } from './fountain/geo';
 import { COPING, COPING_DECL, TILES, TILES_DECL, WATER, WATER_DECL } from './fountain/glsl';
 import { fountainLink, linkApi } from './fountain/link';

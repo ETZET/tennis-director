@@ -3,8 +3,8 @@
 // 车的本地朝向：车头朝 −z（rotY 0 = 车头朝北）。
 import * as THREE from 'three';
 import { SPECS as CLUB_SPECS } from '../clubfront/placeholders';
-import { DESK } from '../clubmap2/layout';
-import type { AssetCtx } from './world';
+import { DESK } from '../clubsite/world';
+import type { AssetCtx } from './ctx';
 
 export interface Spec {
   w: number;

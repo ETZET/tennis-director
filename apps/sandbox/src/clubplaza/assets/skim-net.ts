@@ -13,7 +13,7 @@
 //   tool：真正的几何（状态切换只改它的变换）
 import * as THREE from 'three';
 import { type Grip, Parts, perpUp, type V3, xfGrip } from '../../clubsite/tools/kit';
-import type { AssetCtx } from '../world';
+import type { AssetCtx } from '../ctx';
 
 type K = 'metal' | 'ironwork' | 'windscreen';
 

@@ -15,7 +15,7 @@
 //     can.grip：浇水壶的提把，axis 指向壶嘴，pose 'pour'；can.userData.spout = 壶嘴口（浇水 fx 从这里出）
 import * as THREE from 'three';
 import { type Grip, Parts, type V3 } from '../../clubsite/tools/kit';
-import type { AssetCtx } from '../world';
+import type { AssetCtx } from '../ctx';
 
 const BIN = { x: 0.16, y0: 0.24, r: 0.31, h: 0.7 };
 const RIM_Y = BIN.y0 + BIN.h;

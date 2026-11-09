@@ -3,7 +3,7 @@
 // 本地原点 = 脚印中心，+z 朝镜头；场景里 rotY −0.35（微微转向排队的人）。
 // 粉笔格按"1× 下每格 2×2 个屏幕纹素"排：沿斜板的行距 PITCH 让每行正好落 2 个屏幕行（45° 俯视 + 板的倾角）。
 import * as THREE from 'three';
-import type { AssetCtx } from '../world';
+import type { AssetCtx } from '../ctx';
 import { box, DT, Parts } from './props/kit';
 
 const W = 0.81; // 9 纹素：两边框各 1、板面 7

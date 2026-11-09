@@ -8,11 +8,11 @@
 //   捡球器：推着走就捡（笼子下面的球进笼），到球车旁按"倒球"倒进车里。
 // 资产文件还没有时（tool / tool-rack / marker）用简单的方块代替，不报错。
 import * as THREE from 'three';
+import type { PixelPipeline } from '../clubsite/render/pipeline';
 import type { SandGrid } from './assets/court';
 import type { Fx } from './fx';
 import { COURT, H, SLOTS, STAIRS, type V2 } from './layout';
 import type { LooseBall, PlayApi } from './life';
-import type { PixelPipeline } from './pipeline';
 import type { AssetCtx } from './world';
 
 export type ToolKind = 'blower' | 'picker' | 'broom';

@@ -1,10 +1,11 @@
 # 0021 地图跟着选路长出去：★3 收回高尔夫西段，★4 岛在东南角长出去
 
-- 状态：提议
+- 状态：已归档（2026-11-09：主线 / 派工归档，游戏流程重新设计），见 [main-line-2.5d.md](../archive/pre-3d/main-line-2.5d.md)；归档前是"提议"
+- 注：地块已做进模拟（`plots.ts`），代码照旧在跑；3D 地图要不要长，在重新设计里定。
 - 日期：2026-11-03
 - 修订：[0005](0005-scenes-are-islands.md)（浮空岛是一块方形地台）、[0018](0018-palm-oasis-map.md)（高尔夫只是景观）
 - 补充：[0016](0016-single-map-site.md)（整局一张地图）、[0020](0020-progression-structure.md)（★3、★4 的选路卡）
-- 依据：`docs/design/research-map-growth.md`；预览见 `docs/design/v0.5-preview-deck.pdf` 的"地图"一节
+- 依据：`docs/design/research-map-growth.md`；预览见 `docs/archive/pre-3d/v0.5-preview-deck.pdf` 的"地图"一节
 
 ## 背景
 

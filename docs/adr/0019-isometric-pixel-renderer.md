@@ -7,7 +7,7 @@
 
 ## 背景
 
-美术样片 `docs/art/style-demos/isometric-2.5d/` 用纯 Canvas 2D 自己写的软件光栅器画出了 Palm Oasis 的三个复原阶段和昼夜，
+美术样片 `docs/art/style-demos/isometric-2.5d/`（2026-11-08 归档到 `docs/archive/iso-2.5d/docs/art/style-demos/isometric-2.5d/`）用纯 Canvas 2D 自己写的软件光栅器画出了 Palm Oasis 的三个复原阶段和昼夜，
 效果明显好过 three.js 体素版：轮廓清楚、像 Kairosoft 一样一眼看得懂、夜景氛围好，而且不用建模和调光。
 three.js 在这个画风里只剩负担：体积（gzip 约 300 kB 的大头）、色彩管理兼容模式、正交相机和体素批次都要绕路才能出像素感。
 

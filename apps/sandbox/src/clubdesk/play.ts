@@ -5,10 +5,10 @@
 //   desk-handover  柜台台面：拿着毛巾时"递毛巾"（样板：放回台面那叠）
 // 毛巾随手放在地上 → "拿起 毛巾"。
 import * as THREE from 'three';
-import { GATE } from '../clubmap2/layout';
 import { footprint, type Hud, mountPlay, type Play, type Rect, rampFromStairs, type Shape } from '../clubsite/play';
+import { GATE } from '../clubsite/world';
+import type { AssetCtx } from './ctx';
 import { CANOPY, COUNTER, GATE_SPEC, HEAD_LINE_Z, PICKLE, SLOTS, SPOTS, STAIRS, WALL } from './layout';
-import type { AssetCtx } from './world';
 
 /** 墙里面的脸（东墙中心 x 60、厚 0.7） */
 const WALL_IN = GATE.x - WALL.t / 2;

@@ -1,18 +1,18 @@
 // clubmap：整座俱乐部的微缩地图（一座浮空岛），给用户确认大布局：最前面到达和前台，前台后面是公共区（商店、穿线店、球员休息室），
 // 中间是访客也能用的地方，最里面是三组球场（硬地、红土、草地）。只有胖方块和真尺寸，不画细节。
-// 核心照用 clubfront（toon、调色板、颜色管理、复用的 desert3d-v2 资产）；pipeline 复制了一份（相机距离可配）。
+// 核心用 clubsite/render（toon、调色板、颜色管理、pipeline：相机距离 / 远裁剪面用构造参数 dist / far 拉远）+ clubsite/reuse.ts 的复用资产。
 // URL：px（每纹素 CSS 像素，默认 1）、zoom（米/纹素；不给 = 自动取景，整座俱乐部装进画面）、tx/tz、labels=0、sunel/sunaz、pause=1。
 // 拖动平移、双指/滚轮缩放。
-import '../clubfront/colors';
+import '../clubsite/render/colors';
 import * as THREE from 'three';
-import { rngFactory } from '../clubfront/noise';
-import { REUSED } from '../clubfront/reuse';
-import { CLOUD_N, createMats } from '../clubfront/toon';
-import type { AssetCtx, SharedUniforms } from '../clubfront/world';
+import type { AssetCtx, SharedUniforms } from '../clubsite/render/ctx';
+import { rngFactory } from '../clubsite/render/noise';
+import { PixelPipeline } from '../clubsite/render/pipeline';
+import { CLOUD_N, createMats } from '../clubsite/render/toon';
+import { REUSED } from '../clubsite/reuse';
 import { buildMap } from './build';
 import { FRAME, LABELS, LANDMARKS, PEOPLE } from './layout';
 import { PAL, type Pal, SKY } from './palette';
-import { PixelPipeline } from './pipeline';
 
 const params = new URLSearchParams(location.search);
 const num = (k: string, d: number) => (params.has(k) ? Number(params.get(k)) : d);
