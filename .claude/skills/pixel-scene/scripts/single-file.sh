@@ -28,6 +28,6 @@ style = re.search(r'<style>(.*?)</style>', html, re.S)
 body = re.search(r'<body>(.*?)</body>', html, re.S).group(1)
 body = re.sub(r'<script[^>]*src=[^>]*></script>', '', body)
 open(out, 'w').write(
-    f"<title>{title.group(1) if title else page}</title>\n<style>\n{style.group(1) if style else ''}\n</style>\n{body}\n<script type=\"module\">\n{js}\n</script>\n")
+    f"<meta charset=\"utf-8\">\n<title>{title.group(1) if title else page}</title>\n<style>\n{style.group(1) if style else ''}\n</style>\n{body}\n<script type=\"module\">\n{js}\n</script>\n")
 print('wrote', out, round(len(js) / 1e6, 2), 'MB js')
 PY

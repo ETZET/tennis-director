@@ -104,6 +104,65 @@ function limb(geo: THREE.BufferGeometry, mat: Mat, at: THREE.Vector3): THREE.Mes
 }
 
 const HIP_Y = 0.5;
+/** 髋到踝的长度（腿是一根直胶囊，鞋中心在腿本地 y −0.44；鞋底在踝下 0.06 = 站直时正好在地面） */
+const LEVER = 0.44;
+/** 腿摆 ±0.55 弧度时 walk 一个周期（两步）身子走多远（米）≈ 0.92。各场景推 walk 的 phase 用它（或 strideOf(obj)） */
+export const WALK_STRIDE = 4 * LEVER * Math.sin(0.55);
+/** 一个周期走 stride 米，腿要摆多大（弧度） */
+export const strideAmp = (stride: number) => Math.asin(THREE.MathUtils.clamp(stride / (4 * LEVER), 0.05, 0.9));
+/** 这个人 walk 一个周期实际走多远：userData.stride（成人尺寸的步幅，默认 WALK_STRIDE）× 身材比例（孩子的腿短） */
+export const strideOf = (obj: THREE.Object3D) =>
+  ((obj.userData.stride as number | undefined) ?? WALK_STRIDE) * ((obj.userData.strideK as number | undefined) ?? 1);
+/** 走路函数开头调：给了步幅就记在人身上（rig 的腿按它摆），没给就用默认；返回这个人一个周期实际走多远 */
+export function setStride(obj: THREE.Object3D, stride?: number): number {
+  if (stride) obj.userData.stride = stride;
+  else delete obj.userData.stride;
+  return strideOf(obj);
+}
+
+interface WalkBones {
+  hips: THREE.Object3D;
+  legR: THREE.Object3D;
+  legL: THREE.Object3D;
+}
+/** 腿下面那只鞋（BoxGeometry 的网格）绕腿轴上的踝点反着转 th，保持水平 */
+function levelShoe(leg: THREE.Object3D, th: number) {
+  for (const c of leg.children) {
+    const m = c as THREE.Mesh;
+    if (!m.isMesh || m.geometry.type !== 'BoxGeometry') continue;
+    m.rotation.x = -th;
+    m.position.set(0, -LEVER + LEVER * Math.cos(th), -LEVER * Math.sin(th));
+  }
+}
+/**
+ * 走路的腿（p 0..1 一个周期两步，amp = 腿摆到头的角度）。着地的半个周期脚相对髋匀速往后（= 身子往前的速度，脚不溜），
+ * 另半个周期缓进缓出摆回前面（比着地脚慢半拍 → 离地一点，从不低于地面）；髋的高度按着地那条腿算（倒摆），鞋保持水平。
+ * 返回 sin(2πp)（手臂、身子跟着摆用）。
+ */
+export function walkLegs(b: WalkBones, p: number, amp: number, hipY = HIP_Y): number {
+  const A = Math.sin(amp);
+  let stance = 0;
+  const one = (leg: THREE.Object3D, q0: number) => {
+    const q = (((q0 + 0.25) % 1) + 1) % 1;
+    let z: number;
+    if (q < 0.5) {
+      z = A * (1 - 4 * q);
+    } else {
+      const u = (q - 0.5) * 2;
+      z = A * (-1 + 2 * u * u * (3 - 2 * u));
+      leg.position.y += 0.015 * Math.sin(Math.PI * u);
+    }
+    // rotation.x 正 = 脚往后（−z）
+    const th = -Math.asin(z);
+    leg.rotation.x = th;
+    levelShoe(leg, th);
+    if (q < 0.5) stance = th;
+  };
+  one(b.legR, p);
+  one(b.legL, p + 0.5);
+  b.hips.position.y = hipY - LEVER + LEVER * Math.cos(stance);
+  return Math.sin(p * Math.PI * 2);
+}
 const SH_X = 0.27;
 
 /** 推扫帚：原点在扫帚头底面中心（地面上），木柄沿本地 +y。stickR 柄的半径（拿在手上 0.055；放在地上的要粗一点） */
@@ -375,6 +434,8 @@ export function buildPerson(ctx: AssetCtx, look: Look, name: string): THREE.Grou
       b.rotation.set(0, 0, 0);
     });
     torso.scale.set(1, 1, 1);
+    levelShoe(legR, 0);
+    levelShoe(legL, 0);
     if (racket) racket.rotation.set(-0.35, 0, 0);
     if (ball) ball.visible = false;
     if (feedBall) feedBall.visible = false;
@@ -440,17 +501,14 @@ export function buildPerson(ctx: AssetCtx, look: Look, name: string): THREE.Grou
     const t = root.worldToLocal(blower.localToWorld(V(0, -0.36, 0.06)));
     aim(armL, t);
   };
-  const walkLegs = (p: number, amp: number) => {
-    const s = Math.sin(p * Math.PI * 2);
-    legR.rotation.x = s * amp;
-    legL.rotation.x = -s * amp;
-    hips.position.y = HIP_Y + Math.abs(Math.cos(p * Math.PI * 2)) * 0.04 - 0.02;
-    return s;
-  };
+  /** 走路的腿：摆幅按 userData.stride（默认 WALK_STRIDE；跑着的人给大一点），调用方按同一个步幅推 phase */
+  const legBones = { hips, legR, legL };
+  const stepLegs = (p: number) =>
+    walkLegs(legBones, p, strideAmp((root.userData.stride as number | undefined) ?? WALK_STRIDE));
 
   /** 推捡球器：走路的腿，身子前倾，双手低低地握住横把两端，笼子在身前 1.5 米处的地上 */
   const pushPose = (p: number) => {
-    const s = walkLegs(p, 0.42);
+    const s = stepLegs(p);
     torso.rotation.set(0.2, 0, 0);
     head.rotation.x = -0.18;
     // 柄跟着步子轻轻一推一推（笼子前后挪 4 厘米，柄角不变）
@@ -531,7 +589,7 @@ export function buildPerson(ctx: AssetCtx, look: Look, name: string): THREE.Grou
         break;
       }
       case 'walk': {
-        const s = walkLegs(p, 0.55);
+        const s = stepLegs(p);
         armR.sh.rotation.x = s * 0.6;
         armL.sh.rotation.x = -s * 0.6;
         armR.sh.rotation.z = -0.1;
@@ -760,7 +818,7 @@ export function buildPerson(ctx: AssetCtx, look: Look, name: string): THREE.Grou
       }
       case 'push': {
         if (picker && held === 'picker') pushPose(p);
-        else walkLegs(p, 0.42);
+        else stepLegs(p);
         break;
       }
       case 'pickup': {

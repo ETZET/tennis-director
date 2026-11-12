@@ -177,8 +177,9 @@ export function buildTerrain(ctx: AssetCtx): Terrain {
   return { root, outlines, groundAt, edgeX };
 }
 
-const BERM_PTS = BERMS.map((b) => ({ id: b.id, r: b.r, pts: roundRect(b.r, 0.5) }));
-const STRIP_PTS = STRIPS.map((s) => ({ id: s.id, r: s.r, pts: roundRect(s.r, 0.2) }));
+/** 花坛、种植带画出来的圆角轮廓（play.ts 的导航按这个挡路，和画面、approachAt 一致） */
+export const BERM_PTS = BERMS.map((b) => ({ id: b.id, r: b.r, pts: roundRect(b.r, 0.5) }));
+export const STRIP_PTS = STRIPS.map((s) => ({ id: s.id, r: s.r, pts: roundRect(s.r, 0.2) }));
 /** 大门外铺地上的高度：花坛顶 / 种植带顶；不在上面 = null */
 export function approachAt(x: number, z: number): number | null {
   const p: V2 = [x, z];

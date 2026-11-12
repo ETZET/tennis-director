@@ -8,7 +8,7 @@
 import * as THREE from 'three';
 import type { Play } from '../clubsite/play';
 import type { RegionJobs, RegionStart } from '../clubsite/region';
-import { SPOTS } from './layout';
+import { SLOTS, SPOTS } from './layout';
 import type { Life } from './life';
 
 export interface PickleJobsEnv {
@@ -31,6 +31,12 @@ export function attachPickleJobs(play: Play, env: PickleJobsEnv, life: Life): Re
   const slot = (id: string) => scene.getObjectByName(`slot:${id}`) ?? null;
   const jobs = life.jobs;
   play.addBlocker(() => life.people());
+  // 前台那边站着的会员（clubdesk 的 SLOTS，这个场景里不动）：当挡路圆（同 clubdesk 的 attachDeskJobs；藏起来的不挡）
+  for (const s of SLOTS) {
+    if (s.asset !== 'player' || !s.id.startsWith('member-')) continue;
+    const o = slot(s.id);
+    if (o) play.blockPerson(o, 0.28);
+  }
 
   const at = (o: THREE.Object3D | null, dy = 0.6, fallback: readonly [number, number] = [0, 0]) =>
     o

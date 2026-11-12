@@ -13,13 +13,15 @@
 import '../clubsite/render/colors';
 import * as THREE from 'three';
 import { type Hud, mountPlay, type Play, playEnabled } from '../clubsite/play';
+import { snapDelta, ViewLerp } from '../clubsite/play/smooth';
+import type { RegionNav } from '../clubsite/region';
 import { topGeo, wallGeo } from '../clubsite/render/geo';
 import { SCHEMES, schemeById } from '../clubsite/render/palettes';
 import { mountPaletteSwitcher } from '../clubsite/render/palettes/switcher';
 import { PixelPipeline } from '../clubsite/render/pipeline';
 import { CLOUD_N } from '../clubsite/render/toon';
 import type { SharedUniforms } from './ctx';
-import { CLOUD_VEL, CLOUDS, MPT, SUN, TARGET } from './layout';
+import { CLOUD_VEL, CLOUDS, MPT, PLAY_VIEW, SUN, TARGET } from './layout';
 import type { CourtsLife } from './life';
 import { EL, SKY } from './palette';
 import { placeholder, SPECS } from './placeholders';
@@ -168,7 +170,7 @@ else {
       director: region.director() as THREE.Object3D,
       start: st.start,
       yaw: st.yaw,
-      nav: { groundAt: region.groundAt, ...region.nav() },
+      nav: { groundAt: region.groundAt, ...standaloneNav(region.nav()) },
       camera: st.camera,
       hint: st.hint,
     });
@@ -179,6 +181,24 @@ else {
   }
   life = region.startLife(play);
   if (play && life) region.attach(play);
+}
+
+/**
+ * 独立页面：导航裁到画到的范围里（PLAY_VIEW 往里 0.6 米：x0 = −43.4，网格格心落在 x ±0.1，中间步道有两列格子）。场景只画到 x 27（CLIP），东青训场的东头（x 27…33.5）没画，
+ * 相机也不过去 —— 不裁的话总监能走出画面。大世界（clubwalk）用 region.nav() 原样（x 34：中心球场借这一段长廊）。
+ */
+function standaloneNav(nav: RegionNav): RegionNav {
+  const b = nav.bounds;
+  const m = 0.6;
+  return {
+    ...nav,
+    bounds: {
+      x0: Math.max(b.x0, PLAY_VIEW.x0 + m),
+      x1: Math.min(b.x1, PLAY_VIEW.x1 - m),
+      z0: Math.max(b.z0, PLAY_VIEW.z0 + m),
+      z1: Math.min(b.z1, PLAY_VIEW.z1 - m),
+    },
+  };
 }
 
 function buildGallery(id: string) {
@@ -360,19 +380,25 @@ function placeLabels() {
 const paused = params.get('pause') === '1';
 let last = performance.now();
 let acc = 0;
+// 走路平顺（clubsite/play/smooth.ts）：帧间隔贴 1/60 的整数倍；渲染时总监和镜头插值到两步之间（画完放回，模拟不变）
+let lerp: ViewLerp | null = null;
 function frame(now: number) {
-  acc += Math.min(0.1, (now - last) / 1000);
+  acc += snapDelta(Math.min(0.1, (now - last) / 1000));
   last = now;
+  if (play && !lerp) lerp = new ViewLerp(play.director, pipe.rig, scene);
   if (!paused) {
     while (acc >= DT) {
+      lerp?.mark();
       step(DT);
       acc -= DT;
     }
+    lerp?.begin(acc / DT);
   }
   pipe.render(scene);
   pipe2?.render(scene);
   play?.hud.frame();
   placeLabels();
+  lerp?.end();
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);

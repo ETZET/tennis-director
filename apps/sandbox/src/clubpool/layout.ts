@@ -25,6 +25,7 @@
 // 视线：右下东门进来的会员 → 南边一排躺椅 → 池里游泳的人和火烈鸟浮床 → 北边救生员高椅（最高的竖向元素）→ 北门 → 会所。
 // 太阳在北偏东 8°（仰角 44°）：救生员椅、帐篷、伞的影子落向池里 / 池畔南边 —— 救生员椅的影子正好一条斜进北边池水（水面受影）。
 // 安静的地方：池畔石板（除了躺椅、人不放东西）、草坪、北边的石板小路。
+import type { Ramp } from '../clubsite/play/nav';
 import { CLUBHOUSE, COURTS, GROUNDS, PATHS, POOL, POOL_DECK, type Rect, type V2 } from '../clubsite/world';
 
 export type { Rect, V2 };
@@ -77,6 +78,15 @@ export const DECK_STEPS = {
   east: { x0: DECK.x1, x1: DECK.x1 + 0.9, z0: 14.4, z1: 16.6, dir: 'e' as const },
   service: { x0: DECK.x0 - 0.6, x1: DECK.x0, z0: 14.0, z1: 15.2, dir: 'w' as const },
 };
+/**
+ * 三处台阶的导航坡道（clubsite/play 的 Ramp：台阶当坡道走，高度从地面线性升到平台顶）。平台高 0.45 > 能迈的 0.3，
+ * 不给坡道平台就上不去。北门台阶整段在 clubwalk 里归会所的范围（z < −1），会所的 nav() 也带上这一段（clubhouse/nav.ts）。
+ */
+export const DECK_RAMPS = {
+  north: { ...DECK_STEPS.north, from: H.ground, to: H.deck, axis: 'z' },
+  east: { ...DECK_STEPS.east, from: H.deck, to: H.ground, axis: 'x' },
+  service: { ...DECK_STEPS.service, from: H.ground, to: H.deck, axis: 'x' },
+} satisfies Record<string, Ramp & { dir: string }>;
 /** 会所 → 北门的石板小路（建议）：只画到 z −10（再往北是 CLUBHOUSE 的范围，归会所场景） */
 export const NORTH_WALK: Rect = { x0: -48.7, x1: -46.5, z0: CLUBHOUSE.z1, z1: DECK_STEPS.north.z0 };
 /** 平台南边晒太阳的草坪（建议，安静）：围栏外 1.4 米起 */
@@ -104,12 +114,12 @@ const N = P; // 面朝 −z（北，背对镜头）
  * 入口（clubwalk 把场景连起来时用；世界坐标，站在台阶外面的地上）：
  * - fromClub：会所 → 石板小路 → 北门台阶脚下（会所的门 / 小路北头归 clubhouse，见 NORTH_WALK）；
  * - fromWestPath：西步道（x −38.5…−34.5）→ 东门台阶脚下（正对两排场之间的步道 z 14.4…16.6）；
- * - service：泵房门口（只有总监）。
+ * - service：泵房门口（只有总监；工作门台阶上，泵房东墙 x −61.4 前面 0.3 米 —— 泵房是实心的，再往西就进墙了）。
  */
 export const ENTRANCES = {
   fromClub: [-47.6, -2.4] as V2,
   fromWestPath: [-37.6, 15.5] as V2,
-  service: [-61.5, 14.6] as V2,
+  service: [-61.1, 14.6] as V2,
 } satisfies Record<string, V2>;
 
 /**

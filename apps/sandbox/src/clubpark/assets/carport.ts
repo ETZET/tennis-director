@@ -30,8 +30,11 @@ const STRIPES: [number, number][] = [
 ];
 const VAL = 0.3; // 南沿垂边
 const POST = 0.27; // 钢柱 3 设计纹素见方
-const POST_X = [-5.1, 0, 5.1];
-const POST_Z = 2.72;
+/** 柱子的本地 x、z（play.ts 的导航按这个挡路） */
+export const POST_X = [-5.1, 0, 5.1];
+export const POST_Z = 2.72;
+/** 柱脚的水泥墩（见方）：导航挡路的范围 */
+export const PIER = 0.45;
 
 /** 帆布顶的高度场：沿南北线性下降 + 每个枕头的双向下兜（椽子 x = 0、±2.7、±5.4 和前后梁上为 0） */
 const roof: Surface = {
@@ -135,7 +138,7 @@ export function build(ctx: AssetCtx): THREE.Object3D {
 
   const piers: THREE.BufferGeometry[] = [];
   for (const x of POST_X)
-    for (const z of [-POST_Z, POST_Z]) piers.push(new THREE.BoxGeometry(0.45, 0.18, 0.45).translate(x, 0.09, z));
+    for (const z of [-POST_Z, POST_Z]) piers.push(new THREE.BoxGeometry(PIER, 0.18, PIER).translate(x, 0.09, z));
   const pier = new THREE.Mesh(mergeGeometries(piers.map(clean)), ctx.mat('kerb'));
   pier.name = 'pier';
   g.add(pier);

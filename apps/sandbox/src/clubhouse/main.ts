@@ -6,12 +6,14 @@
 // URL：inside=1、px（每纹素 CSS 像素，默认 1；画廊 2）、zoom（米/纹素）、tx/tz、yaw/pitch（度）、sunel/sunaz、seed、warm、
 //      pause=1（时间停在 0：截图稳定）、labels=0（不显示标签和站位）、ph=0（不放占位）、nav=0、clouds=0、
 //      edges=1（只看描边）、pal=<id>（配色，不带 = 6 午后金光；右上角切换）；画廊：v（变体）、ref=0、ground=tile|sand、cy。
+//      life=0（不要演出和总监的活：stage 3，stage3.ts 的 createHouseLife —— 三层各一个模块 life-1f / 2f / b1.ts）。
 //
 // 给 clubwalk 的接口：terrain.ts 的 buildHouse(ctx)（会所的壳，世界坐标）+ setInside(组, on)（按 userData.houseMode 切换）；
 // 摆好的资产照 SLOTS 的 mode 打上同一个 userData.houseMode（这里的 buildScene 就是这么做的），同一个 setInside 一起切。
 // 门的世界坐标：layout.ts 的 DOORS（clubsite/world.ts 的 CLUBHOUSE_DOORS 同一份数）；导航：layout.ts 的 WALKABLE + nav.ts 的 houseBlocked()。
 import '../clubsite/render/colors';
 import * as THREE from 'three';
+import { type Hud, mountPlay, type Play, playEnabled } from '../clubsite/play';
 import { topGeo, wallGeo } from '../clubsite/render/geo';
 import { rngFactory } from '../clubsite/render/noise';
 import { SCHEMES, schemeById, schemeMats, schemeOpts } from '../clubsite/render/palettes';
@@ -19,12 +21,33 @@ import { mountPaletteSwitcher } from '../clubsite/render/palettes/switcher';
 import { PixelPipeline } from '../clubsite/render/pipeline';
 import { CLOUD_N, createMats, type ToonOpts } from '../clubsite/render/toon';
 import type { AssetBuild, AssetCtx, SharedUniforms } from './ctx';
-import { AREA_LABELS, CLOUD_VEL, CLOUDS, MPT, SLOTS, type Slot, SPOTS, SUN, TARGET } from './layout';
-import { buildNav, SPOT_NAMES } from './nav';
+import {
+  AREA_LABELS,
+  CLOUD_VEL,
+  CLOUDS,
+  CLUBHOUSE,
+  DOORS,
+  FLOOR_NAME,
+  FLOOR_Y,
+  type Floor,
+  FOOT,
+  GOODS_LIFT,
+  GROUNDS,
+  LIFT,
+  MPT,
+  SUN,
+  TARGET,
+} from './layout';
+import { buildNav, floorFor, houseNav, liftNext, SPOT_NAMES } from './nav';
 import { PAL, type Pal, PROXY, SKY } from './palette';
+import { gymPerson } from './people';
 import { NEW_SPECS, placeholder, SPECS } from './placeholders';
 import { REUSED } from './reuse';
-import { buildTerrain, type HouseMode, setInside as setHouseInside } from './terrain';
+import { SPOTS } from './routes';
+import { SLOTS, type Slot } from './slots';
+import { createHouseLife, type HouseLife } from './stage3';
+import { buildTerrain, setView as setHouseView } from './terrain';
+import { type HouseMode, type HouseView, viewOf, viewsFor } from './view';
 
 const params = new URLSearchParams(location.search);
 const num = (k: string, d: number) => (params.has(k) ? Number(params.get(k)) : d);
@@ -42,6 +65,8 @@ for (const [path, mod] of Object.entries(MODS)) {
 }
 
 const galleryId = params.get('asset');
+/** 玩法模式（默认开）：总监能走、自己进出会所、上下楼、坐电梯；?play=0 = 原来的看图模式（拖动平移、双指缩放） */
+const PLAY = playEnabled(params) && !galleryId;
 const canvas = document.getElementById('c') as HTMLCanvasElement;
 const canvas2 = document.getElementById('c2') as HTMLCanvasElement;
 const labelsEl = document.getElementById('labels') as HTMLDivElement;
@@ -70,7 +95,11 @@ const designTexel = (zoom * 2) / PX0;
 const landscape = innerWidth > innerHeight;
 /** 外观 / 里面（剖面） */
 let inside = params.get('inside') === '1';
-const targetFor = (on: boolean) => TARGET[on ? 'inside' : 'outside'][landscape ? 'landscape' : 'portrait'];
+/** 看哪一层（剖面）：?floor=-1 | 1 | 2 */
+let floor: Floor = (([-1, 1, 2] as const).find((f) => String(f) === params.get('floor')) ?? 1) as Floor;
+/** 取景：外观 / 里面（负一层比会所大，单独一个取景） */
+const targetFor = (on: boolean) =>
+  TARGET[on ? (floor === -1 ? 'b1' : 'inside') : 'outside'][landscape ? 'landscape' : 'portrait'];
 const T0 = targetFor(inside);
 const edges = {
   depthStrength: num('dstr', scheme?.edges?.depthStrength ?? 0.48),
@@ -176,18 +205,18 @@ interface Label {
   p: THREE.Vector3;
   /** 贴在点的下面（站位、挤在一起的小东西），默认在上面 */
   below: boolean;
-  /** 只在外观 / 里面显示 */
-  mode?: HouseMode;
+  /** 在哪几种看法里显示（不给 = 都显示） */
+  views?: HouseView[];
 }
 const labels: Label[] = [];
 const showLabels = !galleryId && params.get('labels') !== '0';
-function addLabel(text: string, p: THREE.Vector3, kind: Kind, below = kind === 'spot', mode?: HouseMode) {
+function addLabel(text: string, p: THREE.Vector3, kind: Kind, below = kind === 'spot', views?: HouseView[]) {
   if (!showLabels) return;
   const el = document.createElement('div');
   el.className = `lab ${kind}`;
   el.textContent = text;
   labelsEl.appendChild(el);
-  labels.push({ el, p, below, mode });
+  labels.push({ el, p, below, views });
 }
 /** 占位的标签："#编号 名字" */
 const phText = (asset: string, id: string) => {
@@ -195,10 +224,19 @@ const phText = (asset: string, id: string) => {
   return sp?.n ? `#${sp.n} ${sp.name ?? asset}` : id;
 };
 
-const counts: Record<HouseMode, Record<string, number>> = {
-  in: { own: 0, reused: 0, placeholder: 0 },
+/** 演出 + 总监的活（stage 3）：建场景之后建；?life=0 = 没有 */
+let life: HouseLife | null = null;
+let lifeJobs: { step(dt: number): void } | null = null;
+
+const counts: Record<HouseView, Record<string, number>> = {
   out: { own: 0, reused: 0, placeholder: 0 },
+  b1: { own: 0, reused: 0, placeholder: 0 },
+  '1f': { own: 0, reused: 0, placeholder: 0 },
+  '2f': { own: 0, reused: 0, placeholder: 0 },
 };
+const slotViews = (s: Slot) => s.views ?? viewsFor(s.level ?? 1, s.mode);
+/** 标签：'out' 的只在外观（屋顶、钟楼上的字不进剖面）；别的照摆件的规则 */
+const lv = (m?: HouseMode, level: Floor = 1): HouseView[] => (m === 'out' ? ['out'] : viewsFor(level, m));
 if (galleryId) buildGallery(galleryId);
 else buildScene();
 
@@ -212,13 +250,16 @@ function buildScene() {
   for (const s of SLOTS) {
     const { obj, kind } = makeAsset(s.asset, s.variant ?? 0);
     if (kind === 'placeholder' && !showPh) continue;
-    for (const m of ['in', 'out'] as const) if (!s.mode || s.mode === m) counts[m][kind]++;
-    const y = s.y ?? terrain.groundAt(s.x, s.z);
+    // 人：包一层健身姿势（不认识的姿势名照旧交给 clubsite/people）；场景里从 slot 的 phase 接着循环
+    gymPerson(obj, ctxFor(s.variant ?? 0), { loop: true });
+    const vs = slotViews(s);
+    for (const v of vs) counts[v][kind]++;
+    const y = s.y ?? FLOOR_Y[s.level ?? 1];
     obj.position.set(s.x, y, s.z);
     obj.rotation.y = s.rotY ?? 0;
     obj.scale.setScalar(s.s ?? 1);
     obj.name = `slot:${s.id}`;
-    if (s.mode) obj.userData.houseMode = s.mode;
+    obj.userData.houseViews = vs;
     if (s.prop !== undefined) obj.userData.setProp?.(s.prop);
     if (s.pose) obj.userData.pose?.(s.pose[0], s.pose[1]);
     scene.add(obj);
@@ -227,28 +268,37 @@ function buildScene() {
     const sp = SPECS[s.asset];
     const top = new THREE.Vector3(s.x, y + (sp?.h ?? 1) * (s.s ?? 1) + 0.3, s.z);
     if (s.noLabel) continue;
-    if (s.labelAt) addLabel(s.label ?? phText(s.asset, s.id), new THREE.Vector3(...s.labelAt), kind, true, s.mode);
+    // 玩法模式：总监会走，摆的位置上的标签就不对了
+    if (PLAY && s.asset === 'director') continue;
+    if (s.labelAt) addLabel(s.label ?? phText(s.asset, s.id), new THREE.Vector3(...s.labelAt), kind, true, vs);
     else if (kind === 'placeholder' || kind === 'own')
       addLabel(
         s.label ?? phText(s.asset, s.id),
         s.labelBelow ? new THREE.Vector3(s.x, y, s.z) : top,
         kind,
         s.labelBelow,
-        s.mode,
+        vs,
       );
-    else if (s.label) addLabel(s.label, top, kind, false, s.mode);
+    else if (s.label) addLabel(s.label, top, kind, false, vs);
     else if (!labelled.has(s.asset) && !QUIET.includes(s.asset)) {
       labelled.add(s.asset);
-      addLabel(s.asset, top, kind, false, s.mode);
+      addLabel(s.asset, top, kind, false, vs);
     }
   }
   for (const a of AREA_LABELS)
-    addLabel(a.text, new THREE.Vector3(a.x, a.y, a.z), (a.kind ?? 'area') as Kind, false, a.mode);
+    addLabel(a.text, new THREE.Vector3(a.x, a.y, a.z), (a.kind ?? 'area') as Kind, false, lv(a.mode, a.level));
   if (showLabels && params.get('nav') !== '0') {
     scene.add(buildNav(ctx, terrain.groundAt));
     for (const [k, name] of Object.entries(SPOT_NAMES)) {
-      const [x, z] = SPOTS[k as keyof typeof SPOTS];
-      addLabel(name, new THREE.Vector3(x, terrain.groundAt(x, z) + 0.05, z + 0.3), 'spot', true, 'in');
+      const at = SPOTS[k].at;
+      const y = at.length > 2 ? (at[2] as number) : 0;
+      addLabel(
+        name,
+        new THREE.Vector3(at[0], y + 0.05, at[1] + 0.3),
+        'spot',
+        true,
+        lv('in', y > 2 ? 2 : y < -2 ? -1 : 1),
+      );
     }
   }
 }
@@ -267,28 +317,38 @@ function applyPerson(obj: THREE.Object3D, s: Slot) {
  */
 function setInside(on: boolean, frame = true) {
   inside = on;
-  setHouseInside(scene, on);
-  for (const l of labels) l.el.style.display = !l.mode || (l.mode === 'in') === on ? '' : 'none';
+  const view = viewOf(on, floor);
+  setHouseView(scene, view);
+  life?.setView(on, floor);
+  for (const l of labels) l.el.style.display = !l.views || l.views.includes(view) ? '' : 'none';
   if (frame) {
     const t = targetFor(on);
-    pipe.rig.target.set(t.x, 0, t.z);
+    pipe.rig.target.set(t.x, on ? FLOOR_Y[floor] : 0, t.z);
   }
-  if (modeBtn) modeBtn.textContent = on ? '看外观' : '进会所';
+  syncFloorBtns();
   if (showLabels) {
-    const c = counts[on ? 'in' : 'out'];
-    infoEl.textContent = `clubhouse 白模 · ${on ? '里面（剖面）' : '外观'} · 占位 ${c.placeholder} · 复用 ${c.reused} · 新画 ${c.own}`;
+    const c = counts[view];
+    infoEl.textContent = `clubhouse 白模 · ${on ? `里面（剖面 ${view.toUpperCase()}）` : '外观'} · 占位 ${c.placeholder} · 复用 ${c.reused} · 新画 ${c.own}`;
   } else infoEl.style.display = 'none';
   try {
     const u = new URL(location.href);
     if (on) u.searchParams.set('inside', '1');
     else u.searchParams.delete('inside');
+    if (floor !== 1) u.searchParams.set('floor', String(floor));
+    else u.searchParams.delete('floor');
     history.replaceState(null, '', u);
   } catch {}
+}
+/** 看哪一层（剖面）：换层 + 切进剖面 */
+function setFloor(f: Floor, frame = true) {
+  floor = f;
+  setInside(true, frame);
 }
 
 function buildGallery(id: string) {
   const variant = num('v', 0);
   const { obj, kind } = makeAsset(id, variant);
+  gymPerson(obj, ctxFor(variant));
   if (params.has('pose')) obj.userData.pose?.(params.get('pose'), params.has('phase') ? num('phase', 0) : undefined);
   scene.add(obj);
   collectUpdaters(obj);
@@ -424,17 +484,182 @@ if (pxEl && !galleryId) {
 const palEl = document.getElementById('palsel');
 if (palEl && !galleryId) mountPaletteSwitcher(palEl, SCHEMES, scheme?.id ?? 'current');
 
-// 外观 ↔ 里面（右下角，拇指够得着）
-const modeEl = document.getElementById('modesel');
-let modeBtn: HTMLButtonElement | null = null;
-if (modeEl && !galleryId) {
-  modeBtn = document.createElement('button');
-  modeBtn.type = 'button';
-  modeBtn.className = 'px-chip';
-  modeBtn.addEventListener('click', () => setInside(!inside));
-  modeEl.append(modeBtn);
+// 换层（右下角一列，拇指够得着；玩法模式下挪到动作键上面）：2F / 1F / B1 / 外观，当前的那个 aria-pressed。
+// 看图模式：点一层 = setFloor（剖面看那一层，相机挪过去），外观 = setInside(false)。
+// 玩法模式：像坐电梯 —— 总监传送到那一层的电梯门口（外观 = 一层正门外），导航、剖面跟着换（画面永远是总监所在的那一层）。
+type FloorKey = Floor | 'out';
+const FLOOR_BTNS: [FloorKey, string][] = [
+  [2, '2F'],
+  [1, '1F'],
+  [-1, 'B1'],
+  ['out', '外观'],
+];
+const floorBtns = new Map<FloorKey, HTMLButtonElement>();
+function syncFloorBtns() {
+  const cur: FloorKey = inside ? floor : 'out';
+  for (const [k, b] of floorBtns) b.setAttribute('aria-pressed', String(k === cur));
 }
-if (!galleryId) setInside(inside, false);
+const modeEl = document.getElementById('modesel');
+if (modeEl && !galleryId) {
+  document.body.classList.toggle('play', PLAY);
+  for (const [k, text] of FLOOR_BTNS) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = `px-chip floor-btn${k === 'out' ? ' out' : ''}`;
+    b.textContent = text;
+    b.setAttribute('aria-label', k === 'out' ? '看外观' : `看 ${text}`);
+    b.addEventListener('click', () => {
+      if (play) goFloor(k);
+      else if (k === 'out') setInside(false);
+      else setFloor(k);
+    });
+    floorBtns.set(k, b);
+    modeEl.append(b);
+  }
+}
+
+// ── 玩法：总监（clubsite/play）。导航每层一张（nav.ts 的 houseNav）：surface 是个壳，读当前层的 surface
+//    （NavMap 留着 spec 对象，换层时只换 curSurface + setBlocked 重建网格）。楼梯段在 surface 里，不给 ramps。
+type HouseNav = ReturnType<typeof houseNav>;
+const navCache = new Map<Floor, HouseNav>();
+const navOf = (f: Floor): HouseNav => {
+  let n = navCache.get(f);
+  if (!n) navCache.set(f, (n = houseNav(f)));
+  return n;
+};
+/** 总监现在用哪一层的导航 */
+let navFloor: Floor = 1;
+let curSurface = navOf(1).surface;
+const YAW_W = -Math.PI / 2;
+const YAW_E = Math.PI / 2;
+/** 进了会所的脚印（一层的 L 形，往里缩 0.2 米）= 剖面 */
+const inFoot = (x: number, z: number) =>
+  FOOT[1].some((r) => x > r.x0 + 0.2 && x < r.x1 - 0.2 && z > r.z0 + 0.2 && z < r.z1 - 0.2);
+let play: (Play & { hud: Hud }) | null = null;
+const director = PLAY ? scene.getObjectByName('slot:director') : undefined;
+if (PLAY && director) {
+  // 外观那个总监变成会走的那个：三种看法里都显示；剖面里摆着的那个（director-in）拿掉
+  delete director.userData.houseViews;
+  delete director.userData.houseMode;
+  const dirIn = scene.getObjectByName('slot:director-in');
+  if (dirIn) dirIn.removeFromParent();
+  // ?inside=1（&floor=…）开局在那一层的电梯门口，不然在正门外（朝西，往里走）
+  const startIn = inside;
+  if (startIn) {
+    navFloor = floor;
+    curSurface = navOf(floor).surface;
+  }
+  play = mountPlay({
+    scene,
+    pipe,
+    canvas,
+    director,
+    start: startIn ? LIFT.door : DOORS.main.out,
+    yaw: startIn ? YAW_E : YAW_W,
+    nav: {
+      groundAt: () => 0,
+      bounds: { x0: GROUNDS.x0, x1: CLUBHOUSE.x1 + 0.5, z0: GROUNDS.z0, z1: -1 },
+      walkable: navOf(navFloor).walkable,
+      blocked: navOf(navFloor).blocked,
+      surface: (x, z) => curSurface(x, z),
+    },
+    camera: { lead: { portrait: 1.4, landscape: 0.5 } },
+    hint: '拖动走路 · 点地面走过去 · 右边换层',
+  });
+  // 电梯：站在门口（三层同一个 x、z）按动作键 → 下一层（往上，到顶回负一层）
+  const liftAt = new THREE.Vector3();
+  play.add({
+    id: 'lift',
+    at: () => liftAt.set(LIFT.x1, FLOOR_Y[navFloor] + 1.2, LIFT.door[1]),
+    stand: () => LIFT.door,
+    radius: 1.0,
+    label: () => `坐电梯 → ${FLOOR_NAME[liftNext(navFloor)]}`,
+    onUse: (p) =>
+      p.busy({
+        name: 'lift',
+        dur: 0.6,
+        pose: 'idle',
+        face: [LIFT.x1, LIFT.door[1]],
+        mid: () => ride(liftNext(navFloor)),
+      }),
+  });
+  // 货梯（东翼，后门边上）：同样往上一层（1F 货梯厅 → 2F 后厨 → B1 洗衣房）
+  const goodsAt = new THREE.Vector3();
+  play.add({
+    id: 'goods-lift',
+    at: () => goodsAt.set((GOODS_LIFT.x0 + GOODS_LIFT.x1) / 2, FLOOR_Y[navFloor] + 1.2, GOODS_LIFT.z1),
+    stand: () => GOODS_LIFT.door,
+    radius: 1.0,
+    label: () => `坐货梯 → ${FLOOR_NAME[liftNext(navFloor)]}`,
+    onUse: (p) =>
+      p.busy({
+        name: 'goods-lift',
+        dur: 0.6,
+        pose: 'idle',
+        face: [(GOODS_LIFT.x0 + GOODS_LIFT.x1) / 2, GOODS_LIFT.z1],
+        mid: () => ride(liftNext(navFloor), GOODS_LIFT.door),
+      }),
+  });
+}
+/** 换导航的层：先换 surface 再重建网格（rebuild 读 surface） */
+function setNavFloor(f: Floor) {
+  if (!play || f === navFloor) return;
+  navFloor = f;
+  curSurface = navOf(f).surface;
+  play.nav.setBlocked(navOf(f).blocked);
+}
+/** 坐电梯 / 点换层按钮：到那一层的电梯门口（出电梯，朝东），剖面跟过去 */
+function ride(f: Floor, at: readonly [number, number] = LIFT.door) {
+  if (!play) return;
+  setNavFloor(f);
+  play.teleport(at[0], at[1], at === LIFT.door ? YAW_E : 0);
+  setFloor(f, false);
+  play.toast(FLOOR_NAME[f]);
+}
+/** 玩法模式的换层按钮 */
+function goFloor(k: FloorKey) {
+  if (!play) return;
+  if (k === 'out') {
+    if (!inside) return;
+    setNavFloor(1);
+    floor = 1;
+    play.teleport(DOORS.main.out[0], DOORS.main.out[1], YAW_W);
+    setInside(false, false);
+    return;
+  }
+  if (inside && k === navFloor) return;
+  ride(k);
+}
+/** 每个模拟步（play.update 之后）：进出会所 → 剖面 / 外观；脚下高度过了阈值 → 换那一层的导航和剖面 */
+function housePost() {
+  if (!play || !director) return;
+  const p = director.position;
+  const next = floorFor(navFloor, p.y);
+  if (next !== navFloor) {
+    setNavFloor(next);
+    setFloor(next, false);
+  }
+  const inHouse = navFloor !== 1 || inFoot(p.x, p.z);
+  if (inHouse !== inside) setInside(inHouse, false);
+}
+
+if (!galleryId && params.get('life') !== '0') {
+  life = createHouseLife({
+    parent: scene,
+    ctxFor,
+    rng,
+    texel: designTexel,
+    make: (asset, variant) => makeAsset(asset, variant).obj,
+    playing: !!play,
+    director: () => (play && director) || null,
+  });
+  if (play) lifeJobs = life.attach(play);
+}
+
+if (!galleryId) {
+  setInside(PLAY && director ? inFoot(director.position.x, director.position.z) || navFloor !== 1 : inside, false);
+  if (inside && !play) pipe.rig.target.y = FLOOR_Y[floor];
+}
 
 const DT = 1 / 60;
 let simT = 0;
@@ -445,6 +670,10 @@ function step(seconds: number) {
     uniforms.uTime.value = simT;
     uniforms.uGust.value = 0.5 + 0.35 * Math.sin(simT * 0.7) * Math.sin(simT * 0.23);
     for (const u of updaters) u(DT, simT);
+    life?.update(DT, simT);
+    play?.update(DT, simT);
+    lifeJobs?.step(DT);
+    housePost();
   }
 }
 step(num('warm', 0));
@@ -482,6 +711,7 @@ function frame(now: number) {
   pipe.render(scene);
   pipe2?.render(scene);
   placeLabels();
+  play?.hud.frame();
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
@@ -506,57 +736,60 @@ if (pipe2) {
   if (params.has('cy')) pipe2.rig.target.y = num('cy', 0);
 }
 
-// 拖动平移、双指/滚轮缩放（白模查看；玩法阶段换成 clubsite/play 的摇杆 + 相机跟着总监）
-const pointers = new Map<number, { x: number; y: number }>();
-let pinch0 = 0;
-let zoom0 = pipe.rig.metersPerTexel;
-canvas.addEventListener('pointerdown', (e) => {
-  canvas.setPointerCapture(e.pointerId);
-  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-  if (pointers.size === 2) {
-    const [a, b] = [...pointers.values()];
-    pinch0 = Math.hypot(a.x - b.x, a.y - b.y);
-    zoom0 = pipe.rig.metersPerTexel;
-  }
-});
-canvas.addEventListener('pointermove', (e) => {
-  const prev = pointers.get(e.pointerId);
-  if (!prev) return;
-  const cur = { x: e.clientX, y: e.clientY };
-  pointers.set(e.pointerId, cur);
-  if (pointers.size === 1) {
-    const s = pipe.rig.metersPerTexel / pipe.px;
-    const dx = (cur.x - prev.x) * s;
-    const dy = (cur.y - prev.y) * s;
-    const yaw = pipe.rig.yaw;
-    const sinP = Math.sin(pipe.rig.pitch);
-    pipe.rig.target.x += -dx * Math.cos(yaw) + (dy / sinP) * -Math.sin(yaw);
-    pipe.rig.target.z += -dx * -Math.sin(yaw) + (dy / sinP) * -Math.cos(yaw);
-  } else if (pointers.size === 2) {
-    const [a, b] = [...pointers.values()];
-    const d = Math.hypot(a.x - b.x, a.y - b.y);
-    pipe.rig.metersPerTexel = THREE.MathUtils.clamp(
-      (zoom0 * pinch0) / Math.max(d, 1),
-      (0.05 * pipe.px) / 2,
-      (0.3 * pipe.px) / 2,
-    );
-  }
-});
-const up = (e: PointerEvent) => pointers.delete(e.pointerId);
-canvas.addEventListener('pointerup', up);
-canvas.addEventListener('pointercancel', up);
-canvas.addEventListener(
-  'wheel',
-  (e) => {
-    e.preventDefault();
-    pipe.rig.metersPerTexel = THREE.MathUtils.clamp(
-      pipe.rig.metersPerTexel * Math.exp(e.deltaY * 0.001),
-      (0.05 * pipe.px) / 2,
-      (0.3 * pipe.px) / 2,
-    );
-  },
-  { passive: false },
-);
+// 拖动平移、双指/滚轮缩放（白模查看，只在 ?play=0；玩法模式是 clubsite/play 的摇杆 + 相机跟着总监）
+if (!PLAY) mountViewerDrag();
+function mountViewerDrag() {
+  const pointers = new Map<number, { x: number; y: number }>();
+  let pinch0 = 0;
+  let zoom0 = pipe.rig.metersPerTexel;
+  canvas.addEventListener('pointerdown', (e) => {
+    canvas.setPointerCapture(e.pointerId);
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pointers.size === 2) {
+      const [a, b] = [...pointers.values()];
+      pinch0 = Math.hypot(a.x - b.x, a.y - b.y);
+      zoom0 = pipe.rig.metersPerTexel;
+    }
+  });
+  canvas.addEventListener('pointermove', (e) => {
+    const prev = pointers.get(e.pointerId);
+    if (!prev) return;
+    const cur = { x: e.clientX, y: e.clientY };
+    pointers.set(e.pointerId, cur);
+    if (pointers.size === 1) {
+      const s = pipe.rig.metersPerTexel / pipe.px;
+      const dx = (cur.x - prev.x) * s;
+      const dy = (cur.y - prev.y) * s;
+      const yaw = pipe.rig.yaw;
+      const sinP = Math.sin(pipe.rig.pitch);
+      pipe.rig.target.x += -dx * Math.cos(yaw) + (dy / sinP) * -Math.sin(yaw);
+      pipe.rig.target.z += -dx * -Math.sin(yaw) + (dy / sinP) * -Math.cos(yaw);
+    } else if (pointers.size === 2) {
+      const [a, b] = [...pointers.values()];
+      const d = Math.hypot(a.x - b.x, a.y - b.y);
+      pipe.rig.metersPerTexel = THREE.MathUtils.clamp(
+        (zoom0 * pinch0) / Math.max(d, 1),
+        (0.05 * pipe.px) / 2,
+        (0.3 * pipe.px) / 2,
+      );
+    }
+  });
+  const up = (e: PointerEvent) => pointers.delete(e.pointerId);
+  canvas.addEventListener('pointerup', up);
+  canvas.addEventListener('pointercancel', up);
+  canvas.addEventListener(
+    'wheel',
+    (e) => {
+      e.preventDefault();
+      pipe.rig.metersPerTexel = THREE.MathUtils.clamp(
+        pipe.rig.metersPerTexel * Math.exp(e.deltaY * 0.001),
+        (0.05 * pipe.px) / 2,
+        (0.3 * pipe.px) / 2,
+      );
+    },
+    { passive: false },
+  );
+}
 
 Object.assign(window, {
   __house: {
@@ -567,7 +800,18 @@ Object.assign(window, {
     setSun,
     /** 外观 ↔ 里面（frame = 相机挪到默认取景） */
     setInside,
+    /** 看哪一层（-1 | 1 | 2）；玩法模式下 = 坐电梯过去 */
+    setFloor: (f: Floor, frame = true) => {
+      if (![-1, 1, 2].includes(f)) return;
+      if (play) goFloor(f);
+      else setFloor(f, frame);
+    },
+    play,
+    /** 演出 + 总监的活（?life=0 = null）：life.debug['1f' | '2f' | 'b1']、life.walkers() */
+    life,
+    navFloor: () => navFloor,
     isInside: () => inside,
+    floor: () => floor,
     own: Object.keys(OWN),
     reused: Object.keys(REUSED),
     palOpts,

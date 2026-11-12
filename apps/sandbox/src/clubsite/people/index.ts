@@ -71,6 +71,7 @@ export {
   SQUEEGEE_PUSH,
 } from './poses';
 export { buildPaddle, buildStandIn, buildUmbrella, STAND_INS } from './props';
+export { setStride, strideOf, WALK_STRIDE } from './rig/rig';
 
 /** 场景之间的差别 */
 export interface SceneOpts {

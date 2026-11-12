@@ -224,7 +224,7 @@ export function createPickleRegion(host: RegionHost, kit = createPickleKit(host)
     kit,
     life,
     groundAt: (x, z) => groundAt(x, z),
-    nav: () => ({ bounds: NAV.bounds, walkable: NAV.walkable, blocked: NAV.blocked }),
+    nav: () => ({ bounds: NAV.bounds, walkable: NAV.walkable, blocked: NAV.blocked, ramps: NAV.ramps }),
     director: () => life?.jobs.director ?? slot('director') ?? null,
     start: PICKLE_START,
     update(dt, t) {

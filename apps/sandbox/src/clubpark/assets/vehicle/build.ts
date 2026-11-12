@@ -13,6 +13,8 @@
 //   setDoor(open, side = 'both', instant = false)   前门开关（0.4 秒；side 'left' = 司机侧 = 本地 −x，'right' = +x）；
 //   setBrake(on)              刹车灯；
 //   setSpeed(米/秒)           轮子转（负数 = 倒车）；update(dt) 里推进轮子和车门；
+//   setMotion(steer, ax, ay)  前轮转角（弧度，正 = 往左 = 本地 −x）、纵向 / 横向加速度（米/秒²，ay 正 = 朝本地 +x）：
+//                             前轮两个转向节打方向；车身挂在弹簧上（1.3 Hz），刹车点头、起步抬头、转弯往外倾、停下回弹一下；
 //   parts                     做 InstancedMesh 用的几何体和材质：paint / glass / trim 相对车的原点，axle 相对每根轴（at）。
 //                             停着的车：每个零件一个 InstancedMesh（paint 按车漆分组，一种车漆一个），矩阵 = 车位矩阵（× 轴的平移）；
 //                             材质是缓存共享的，别改材质本身（刹车灯改的是 trim 的顶点色，实例化以后用 instanceColor 或单独拿出来）。
@@ -201,8 +203,31 @@ export function buildVehicle(ctx: AssetCtx, sp: VehicleSpec): THREE.Object3D {
   const trimG = merge(trimGeo);
   const trim = new THREE.Mesh(trimG, trimMat);
   trim.name = 'trim';
-  pivot.add(body, glass, trim);
-  const axles = sp.wheel.z.map((z, i) => {
+  // 车身（车漆、玻璃、黑件、车门）挂在弹簧上：sprung 绕车的原点轻轻点头 / 侧倾；轮子不跟着动
+  const sprung = new THREE.Group();
+  sprung.name = 'sprung';
+  sprung.add(body, glass, trim);
+  pivot.add(sprung);
+  // 后轴：一个网格；前轴：左右各一个转向节（绕竖轴打方向），里面的轮子绕横轴转
+  const wheelGeo1 = merge([wheel(r, w, 10, 0, TYRE), wheel(r * 0.48, w + 0.03, 8, 0, WHITE)]);
+  const spins: THREE.Group[] = [];
+  const knuckles: THREE.Group[] = [];
+  sp.wheel.z.forEach((z, i) => {
+    if (i === 0) {
+      for (const s of [-1, 1]) {
+        const k = new THREE.Group();
+        k.position.set(s * xw, r, z);
+        const g = new THREE.Group();
+        const m = new THREE.Mesh(wheelGeo1, wheelMat);
+        m.name = 'wheels';
+        g.add(m);
+        k.add(g);
+        pivot.add(k);
+        knuckles.push(k);
+        spins.push(g);
+      }
+      return;
+    }
     const g = new THREE.Group();
     g.position.set(0, r, z);
     g.rotation.x = i * 0.4; // 前后轴错开一点，静止时轮子的切面不一样
@@ -210,7 +235,7 @@ export function buildVehicle(ctx: AssetCtx, sp: VehicleSpec): THREE.Object3D {
     m.name = 'wheels';
     g.add(m);
     pivot.add(g);
-    return g;
+    spins.push(g);
   });
 
   // ── 前门（关着的时候不显示：侧板就是车门；开的时候门板 + 门窗转出来，门洞是深色）─────────────
@@ -233,7 +258,7 @@ export function buildVehicle(ctx: AssetCtx, sp: VehicleSpec): THREE.Object3D {
     const d: V3 = [xf, dr.y1, dr.z0];
     const hole = new THREE.Mesh(s > 0 ? quad(b, a, d, c, OPENING) : quad(a, b, c, d, OPENING), trimMat);
     hinge.visible = hole.visible = false;
-    pivot.add(hinge, hole);
+    sprung.add(hinge, hole);
     return { s, hinge, panel, hole, t: 0, goal: 0 };
   });
 
@@ -281,8 +306,24 @@ export function buildVehicle(ctx: AssetCtx, sp: VehicleSpec): THREE.Object3D {
   ud.setSpeed = (mps: number) => {
     speed = mps;
   };
+  // 车身的弹簧：点头（绕 x）、侧倾（绕 z）各一个二阶系统
+  const SPRING_W = Math.PI * 2 * 1.3;
+  const SPRING_Z = 0.45;
+  const sway = { pitch: 0, pitchV: 0, pitchTo: 0, roll: 0, rollV: 0, rollTo: 0 };
+  ud.setMotion = (steer: number, ax: number, ay: number) => {
+    for (const k of knuckles) k.rotation.y = steer;
+    // 车头 = 本地 −z：加速（ax > 0）抬头 = 绕 x 正转；横向加速度朝 +x → 车身往 −x 倒 = 绕 z 正转
+    sway.pitchTo = THREE.MathUtils.clamp(ax * 0.012, -0.05, 0.05);
+    sway.rollTo = THREE.MathUtils.clamp(ay * 0.016, -0.05, 0.05);
+  };
   ud.update = (dt: number) => {
-    if (speed !== 0) for (const a of axles) a.rotation.x -= (speed / r) * dt;
+    if (speed !== 0) for (const a of spins) a.rotation.x -= (speed / r) * dt;
+    const h = Math.min(dt, 1 / 30);
+    sway.pitchV += (SPRING_W * SPRING_W * (sway.pitchTo - sway.pitch) - 2 * SPRING_Z * SPRING_W * sway.pitchV) * h;
+    sway.pitch += sway.pitchV * h;
+    sway.rollV += (SPRING_W * SPRING_W * (sway.rollTo - sway.roll) - 2 * SPRING_Z * SPRING_W * sway.rollV) * h;
+    sway.roll += sway.rollV * h;
+    sprung.rotation.set(sway.pitch, 0, sway.roll);
     for (const d of doors) {
       if (d.t === d.goal) continue;
       d.t = d.goal > d.t ? Math.min(d.goal, d.t + dt / 0.4) : Math.max(d.goal, d.t - dt / 0.4);

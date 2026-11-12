@@ -42,8 +42,13 @@ const BOXED = [
   'water-m',
   'tool-rack',
   'ball-machine',
-  'umbrella-parents',
   'bench-parents',
+  // 球包（躺在地上 0.95 × 0.32）
+  'bag-kids-1',
+  'bag-kids-2',
+  'bag-m-1',
+  'bag-m-2',
+  'bag-teen',
 ];
 
 /** 独立页面的开局（main.ts 的 mountPlay；之后相机对准白模的构图 TARGET） */
@@ -64,6 +69,17 @@ export function courtsNav(objs: Map<string, THREE.Object3D>): RegionNav {
     const r = o && footprint(o, 0.06);
     if (r) blocked.push(r);
   }
+  // 家长的伞：只挡底座和杆（clubsite/assets/umbrella 的 CLAY：底座 0.62 见方）；伞面 2.4 米在头顶上，不挡北边长廊
+  const um = objs.get('umbrella-parents');
+  if (um)
+    blocked.push({
+      x0: um.position.x - 0.31,
+      x1: um.position.x + 0.31,
+      z0: um.position.z - 0.31,
+      z1: um.position.z + 0.31,
+    });
+  // 喷雾的小水泵（mist-line 东头的小箱子 0.42 × 0.32，水泥垫 0.5 × 0.4）
+  blocked.push({ x0: PUMP[0] - 0.25, x1: PUMP[0] + 0.25, z0: PUMP[1] - 0.2, z1: PUMP[1] + 0.2 });
   // 记分牌：只挡两条腿那一条
   const sb = objs.get('scoreboard');
   if (sb) blocked.push({ a: [sb.position.x - 0.8, sb.position.z], b: [sb.position.x + 0.8, sb.position.z], r: 0.16 });
@@ -284,6 +300,10 @@ export function registerCourtsJobs(
     carrySpeed: 2.0,
   });
   hopperItem.place(hopper.position.x, hopper.position.z, hopper.rotation.y);
+  // 篮子放在地上时挡路（0.55 米见方）；拎着走时不挡
+  play.addBlocker(() =>
+    hopperItem.where === 'ground' ? { x: hopper.position.x, z: hopper.position.z, r: 0.3 } : null,
+  );
   const machine = life.machine.obj;
   play.add({
     id: 'machine',

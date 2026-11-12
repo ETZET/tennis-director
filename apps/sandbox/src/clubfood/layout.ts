@@ -156,10 +156,10 @@ export const SPOTS = {
 
 /** 路线 */
 export const ROUTES: { id: string; pts: V2[] }[] = [
-  // 总监：补货（补货堆 → 三辆车的后门，沿北墙走车背后那条 1.9 米的缝）
+  // 总监：补货（补货堆 → 咖啡车和塔可车之间的小道 → 车背后那条 1.9 米的缝；咖啡车西头离东翼墙只有 0.4 米，走不了）
   {
     id: 'director-restock',
-    pts: [SPOTS.supply, [-39.0, -36.0], [-39.6, -41.6], SPOTS.restockCoffee, SPOTS.restockTaco, SPOTS.restockPizza],
+    pts: [SPOTS.supply, [-36.3, -35.3], [-34.9, -38.0], SPOTS.restockCoffee, SPOTS.restockTaco, SPOTS.restockPizza],
   },
   // 总监：收桌子（回收台 → 三排桌子南沿 → 野餐桌 → 回收台）
   {

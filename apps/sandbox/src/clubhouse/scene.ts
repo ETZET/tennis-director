@@ -1,4 +1,5 @@
-// clubhouse 的场景模块（clubsite/region.ts 的 Region）—— 白模（stage 1/2，没有演出和总监的活）。给大世界（src/clubwalk）用。
+// clubhouse 的场景模块（clubsite/region.ts 的 Region）。给大世界（src/clubwalk）用。
+// stage 3：演出 + 总监的活在 stage3.ts 的 createHouseLife（三层各一个模块），这里和 main.ts 接法一样（update / attach / setView）；host.life = false 或 ?life=0 关。
 // 建场景的代码从 main.ts 的 buildScene 照搬（标签、导航调试层不要）；独立页面 main.ts 暂时没改成用这里（第二阶段的白模，先接进大世界），
 // 两边改一处要同步另一处，等它们做到 stage 3 再把 main.ts 收成薄壳（照 clubpickle/scene.ts）。
 import * as THREE from 'three';
@@ -8,12 +9,16 @@ import { schemeById, schemeMats, schemeOpts } from '../clubsite/render/palettes'
 import { createMats, type ToonOpts } from '../clubsite/render/toon';
 import { CLUBHOUSE, GROUNDS } from '../clubsite/world';
 import type { AssetBuild, AssetCtx } from './ctx';
-import { SLOTS, type Slot, WALKABLE } from './layout';
-import { houseBlocked } from './nav';
+import { FLOOR_NAME, FLOOR_Y, type Floor, GOODS_LIFT, LIFT } from './layout';
+import { houseNav, liftNext } from './nav';
 import { PAL, type Pal, PROXY } from './palette';
+import { gymPerson } from './people';
 import { placeholder, SPECS } from './placeholders';
 import { REUSED } from './reuse';
-import { buildTerrain, setInside as setHouseInside } from './terrain';
+import { SLOTS, type Slot } from './slots';
+import { createHouseLife } from './stage3';
+import { buildTerrain, setView as setHouseView } from './terrain';
+import { viewOf, viewsFor } from './view';
 
 /** 这个场景自己画的资产（assets/<id>.ts，export function build）；同名的优先于复用的 */
 const MODS = import.meta.glob<{ build: AssetBuild }>('./assets/*.ts', { eager: true });
@@ -24,7 +29,16 @@ for (const [path, mod] of Object.entries(MODS)) {
 }
 
 export interface HouseRegion extends Region {
+  /** 外观 ↔ 里面（剖面，当前这一层） */
   setInside(on: boolean): void;
+  /** 看哪一层（−1 / 1 / 2）；导航也换成这一层的（nav() 读当前层：之后要重取 blocked、surface）。换了才通知 onFloor */
+  setFloor(f: Floor): void;
+  floor(): Floor;
+  /**
+   * 换层以后（setFloor 换了层、坐电梯）同步调 fn：用这个区域导航的一方（clubwalk）在里面重取 nav()、重建网格。
+   * 坐电梯先换层（fn 里导航已经是新的一层）再传送，所以传送落地的高度是新那一层的。返回撤销函数。
+   */
+  onFloor(fn: (f: Floor) => void): () => void;
 }
 
 export function createHouseRegion(host: RegionHost): HouseRegion {
@@ -84,6 +98,8 @@ export function createHouseRegion(host: RegionHost): HouseRegion {
     return { obj: placeholder(ctxFor(variant), asset), kind: 'placeholder' };
   }
 
+  let inside = false;
+  let floor: Floor = 1;
   // biome-ignore lint/suspicious/noExplicitAny: 白模的建场景照搬 main.ts
   let terrain: any = null;
   const counts: Record<string, number> = {};
@@ -99,12 +115,13 @@ export function createHouseRegion(host: RegionHost): HouseRegion {
       if (s.id === 'director') continue;
       const { obj, kind } = makeAsset(s.asset, s.variant ?? 0);
       if (kind === 'placeholder' && !showPh) continue;
-      const y = s.y ?? terrain.groundAt(s.x, s.z);
+      gymPerson(obj, ctxFor(s.variant ?? 0), { loop: true });
+      const y = s.y ?? FLOOR_Y[s.level ?? 1];
       obj.position.set(s.x, y, s.z);
       obj.rotation.y = s.rotY ?? 0;
       obj.scale.setScalar(s.s ?? 1);
       obj.name = `slot:${s.id}`;
-      if (s.mode) obj.userData.houseMode = s.mode;
+      obj.userData.houseViews = s.views ?? viewsFor(s.level ?? 1, s.mode);
       if (s.prop !== undefined) obj.userData.setProp?.(s.prop);
       if (s.pose) obj.userData.pose?.(s.pose[0], s.pose[1]);
       parent.add(obj);
@@ -138,23 +155,89 @@ export function createHouseRegion(host: RegionHost): HouseRegion {
     if (s.look) ud.lookAt?.(new THREE.Vector3(...s.look));
   }
 
+  /** 演出 + 总监的活（stage 3） */
+  const life =
+    host.life && params.get('life') !== '0'
+      ? createHouseLife({
+          parent,
+          ctxFor,
+          rng,
+          texel: designTexel,
+          make: (asset, variant) => makeAsset(asset, variant).obj,
+          playing: host.play,
+          director: () => (host.play ? (host.director ?? null) : null),
+        })
+      : null;
+
+  const floorFns = new Set<(f: Floor) => void>();
+  const setFloor = (f: Floor) => {
+    if (f === floor) return;
+    floor = f;
+    setHouseView(parent, viewOf(inside, floor));
+    life?.setView(inside, floor);
+    for (const fn of floorFns) fn(floor);
+  };
+
   return {
     id: 'clubhouse',
     root: parent,
     groundAt: (x, z) => terrain.groundAt(x, z),
     nav: () => ({
       bounds: { x0: GROUNDS.x0, x1: CLUBHOUSE.x1 + 0.5, z0: GROUNDS.z0, z1: -1 },
-      walkable: WALKABLE,
-      blocked: houseBlocked(),
+      ...houseNav(floor),
     }),
     director: () => null,
     start: { start: [0, 0] },
     update(dt, t) {
       for (const u of updaters) u(dt, t);
+      life?.update(dt, t);
     },
-    attach: () => null,
-    setInside: (on: boolean) => setHouseInside(parent, on),
+    /**
+     * 总监的活：只有电梯（钟楼里，三层同一个门口 LIFT.door，门朝东）和货梯（东翼后门边上，GOODS_LIFT.door，门朝南）——
+     * 站在门口按动作键 → 去下一层（liftNext：B1 → 1F → 2F → B1）。
+     * 先 setFloor（onFloor 的回调把导航换成那一层），再原地传送（高度 = 那一层的地面）。只在剖面里、脚下就是当前这一层时能按。
+     */
+    attach(play) {
+      const at = new THREE.Vector3();
+      const at2 = new THREE.Vector3();
+      play.add({
+        id: 'lift',
+        at: () => at.set(LIFT.x1, FLOOR_Y[floor] + 1.2, (LIFT.z0 + LIFT.z1) / 2),
+        radius: 1.0,
+        stand: () => LIFT.door,
+        label: () => `坐电梯 → ${FLOOR_NAME[liftNext(floor)]}`,
+        canUse: (s) => inside && Math.abs(s.y - FLOOR_Y[floor]) < 0.5,
+        onUse: (p) => {
+          setFloor(liftNext(floor));
+          p.teleport(LIFT.door[0], LIFT.door[1]);
+        },
+      });
+      play.add({
+        id: 'goods-lift',
+        at: () => at2.set((GOODS_LIFT.x0 + GOODS_LIFT.x1) / 2, FLOOR_Y[floor] + 1.2, GOODS_LIFT.z1),
+        radius: 1.0,
+        stand: () => GOODS_LIFT.door,
+        label: () => `坐货梯 → ${FLOOR_NAME[liftNext(floor)]}`,
+        canUse: (s) => inside && Math.abs(s.y - FLOOR_Y[floor]) < 0.5,
+        onUse: (p) => {
+          setFloor(liftNext(floor));
+          p.teleport(GOODS_LIFT.door[0], GOODS_LIFT.door[1]);
+        },
+      });
+      return life ? life.attach(play) : null;
+    },
+    setInside: (on: boolean) => {
+      inside = on;
+      setHouseView(parent, viewOf(inside, floor));
+      life?.setView(inside, floor);
+    },
+    setFloor,
+    floor: () => floor,
+    onFloor: (fn) => {
+      floorFns.add(fn);
+      return () => floorFns.delete(fn);
+    },
     counts,
-    debug: { own: Object.keys(OWN), reused: Object.keys(REUSED) },
+    debug: { own: Object.keys(OWN), reused: Object.keys(REUSED), life },
   };
 }

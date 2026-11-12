@@ -120,7 +120,7 @@ export { createPlay } from './control';
 export type { Hud } from './hud';
 export { createHud } from './hud';
 export type { Circle, NavSpec, Poly, Ramp, Rect, Seg, Shape, V2 } from './nav';
-export { inPoly, NavMap, rampFromStairs } from './nav';
+export { inPoly, NavMap, rampFromStairs, stairCheeks } from './nav';
 
 /** 玩法模式开不开：默认开，?play=0 关 */
 export const playEnabled = (params: URLSearchParams) => params.get('play') !== '0';

@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import { type Bones, env, HIP_Y, keys, keysV, lerp, orient, pointIn, reach, smooth, V } from './bones';
 import type { Holder } from './hold';
 import type { KneeLegs } from './legs';
+import { walkLegs } from './rig/rig';
 
 export const NEW_POSES = [
   'sit',
@@ -220,10 +221,7 @@ export function applyNewPose(e: PoseEnv, name: NewPose, p: number): void {
     case 'drag': {
       // 拖垫（总监拖红土场）：拉绳搭在右肩上、双手在胸前攥着绳往前拉；身子前倾 0.32、步子小而沉。走路循环。
       // 绳子从拳头翻过右肩垂到背后腰高（userData.ropePoint()，拖垫的绳从这里接下去）
-      const s = Math.sin(p * Math.PI * 2);
-      b.legR.rotation.x = s * 0.42;
-      b.legL.rotation.x = -s * 0.42;
-      b.hips.position.y = HIP_Y - 0.035 + Math.abs(Math.cos(p * Math.PI * 2)) * 0.035;
+      const s = walkLegs(b, p, 0.42);
       b.torso.rotation.x = 0.32;
       b.torso.rotation.y = s * 0.06;
       b.head.rotation.x = -0.3;

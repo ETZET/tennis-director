@@ -11,6 +11,7 @@
 import '../clubsite/render/colors';
 import * as THREE from 'three';
 import { type Hud, mountPlay, type Play, playEnabled } from '../clubsite/play';
+import { snapDelta, ViewLerp } from '../clubsite/play/smooth';
 import type { RegionJobs } from '../clubsite/region';
 import { topGeo, wallGeo } from '../clubsite/render/geo';
 import { SCHEMES, schemeById } from '../clubsite/render/palettes';
@@ -382,20 +383,26 @@ function placeLabels() {
 const paused = params.get('pause') === '1';
 let last = performance.now();
 let acc = 0;
+// 走路平顺（clubsite/play/smooth.ts）：帧间隔贴 1/60 的整数倍；渲染时总监和镜头插值到两步之间（画完放回，模拟不变）
+let lerp: ViewLerp | null = null;
 function frame(now: number) {
-  acc += Math.min(0.1, (now - last) / 1000);
+  acc += snapDelta(Math.min(0.1, (now - last) / 1000));
   last = now;
+  if (play && !lerp) lerp = new ViewLerp(play.director, pipe.rig, scene);
   if (!paused) {
     while (acc >= DT) {
+      lerp?.mark();
       step(DT);
       acc -= DT;
     }
+    lerp?.begin(acc / DT);
   }
   pipe.render(scene);
   pipe2?.render(scene);
   placeLabels();
   placeBubbles();
   play?.hud.frame();
+  lerp?.end();
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);

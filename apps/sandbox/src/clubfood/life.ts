@@ -12,6 +12,7 @@
 // 总监的活（倒垃圾、收托盘、补货、上塔可车帮忙）由 play.ts 登记成互动点，活本身在这里（jobs）；
 // ?play=0&life=1 的看戏模式由这里的 directorDemo 自己走过去做（截图、连拍用）。
 import * as THREE from 'three';
+import { strideOf } from '../clubsite/people';
 import { type Circle, NavMap } from '../clubsite/play';
 import type { AssetCtx } from './ctx';
 import {
@@ -289,7 +290,7 @@ export function createLife(env: LifeEnv): FoodLife {
   }
   /** 沿折线走（米/秒）；走路姿势按步子；端着托盘 = push */
   function* walkPts(a: Actor, pts: V3[], speed = 1.25): Co {
-    const stride = a.kid ? 0.9 : 1.25;
+    const stride = strideOf(a.obj);
     for (const p of pts) {
       while (true) {
         const dt = yield;
@@ -310,10 +311,18 @@ export function createLife(env: LifeEnv): FoodLife {
       }
     }
   }
-  /** 寻路走到 (x, z)（导航网格的 A*；走不通就直着走） */
+  /**
+   * 寻路走到 (x, z)（导航网格的 A*）。起点离网格太远（findPath 只在 1.5 米内找起点，例如从中心球场那条观众路
+   * 走进来的人）→ 先直着走到 6 米内最近的能站点，再从那里寻路；还是走不通才直着走。
+   */
   function* goTo(a: Actor, to: V3, speed = 1.45): Co {
     a.doing = `go ${to.x.toFixed(1)},${to.z.toFixed(1)}`;
-    const path = nav.findPath(a.pos.x, a.pos.z, to.x, to.z);
+    let path = nav.findPath(a.pos.x, a.pos.z, to.x, to.z);
+    if (!path) {
+      const s = nav.nearestFree(a.pos.x, a.pos.z, 6);
+      const rest = s && nav.findPath(s[0], s[1], to.x, to.z);
+      if (s && rest) path = [s, ...rest];
+    }
     const pts = path ? path.map(([x, z]) => v(x, 0, z)) : [];
     if (pts.length) pts[pts.length - 1] = to.clone();
     else pts.push(to.clone());
@@ -523,6 +532,13 @@ export function createLife(env: LifeEnv): FoodLife {
         return free(p.x, p.z);
       })()
     : free(SPOTS.trayReturn[0], SPOTS.trayReturn[1]);
+  // 客人还托盘站在回收台南头（本地 −x 0.6 米），正中那个位子留给总监（trayReturnAt）
+  const trayRetGuest = (() => {
+    const f = trayRet?.userData.spots?.front as [number, number] | undefined;
+    if (!trayRet || !f) return trayRetFront;
+    const p = toWorld(trayRet, f[0] - 0.6, f[1]);
+    return free(p.x, p.z);
+  })();
   const handTruck = env.slot('hand-truck') ?? null;
   let truckLoad = 0;
   handTruck?.userData.setLoad?.(0);
@@ -609,10 +625,11 @@ export function createLife(env: LifeEnv): FoodLife {
       'truck-coffee',
       'vendor-coffee',
       SPOTS.orderCoffee,
+      // 往南排、别贴着东翼墙拐：墙根那条是总监去厨房后门（kitchenDoor）的路，第 4 位以前正好站在门口
       [
-        [-0.5, 0.9],
-        [-1.0, 1.2],
-        [0, 1.6],
+        [-0.3, 0.9],
+        [0, 1.2],
+        [0.3, 1.6],
       ],
       { gives: 'cup', serveT: 6.3, weight: 1.0, maxQ: 5 },
     ),
@@ -881,7 +898,12 @@ export function createLife(env: LifeEnv): FoodLife {
   function* cleanUp(a: Actor): Co {
     const i = a.cup ? (rG() < 0.7 ? 1 : 0) : rG() < 0.6 ? 2 : 0;
     const lid = binLid(i);
-    yield* goTo(a, free(lid.x + rnd(rG, -0.2, 0.2), lid.z + 0.75));
+    // 总监换袋子站在中间那只桶前（binFront）：客人往旁边让 0.6 米（伸手还够得着桶口），别占着那个位子
+    let gx = lid.x + rnd(rG, -0.2, 0.2);
+    const gz = lid.z + 0.75;
+    if (Math.abs(gx - binFront.x) < 0.6 && Math.abs(gz - binFront.z) < 0.6)
+      gx = binFront.x + (gx < binFront.x ? -0.6 : 0.6);
+    yield* goTo(a, free(gx, gz));
     yield* face(a, Math.PI, 0.25);
     yield* act(a, 'dump', 1.1, 0, 0.99);
     bins[i] = Math.min(1.15, bins[i] + (a.cup ? 0.025 : 0.04));
@@ -892,7 +914,7 @@ export function createLife(env: LifeEnv): FoodLife {
     }
     if (bins[i] >= 1 && rG() < 0.5) say(a, '桶满了…', 2);
     if (a.tray) {
-      yield* goTo(a, trayRetFront);
+      yield* goTo(a, trayRetGuest);
       yield* face(a, yawTo(a.pos, trayRet?.position ?? a.pos), 0.25);
       yield* act(a, 'pickup', 0.6, 0.2, 0.6);
       putTray(a.tray);
@@ -1474,6 +1496,8 @@ export function createLife(env: LifeEnv): FoodLife {
     stackTrays.push(o);
   }
   stackObj.visible = false;
+  // 每步按总监的手摆：渲染插值时跟着总监一起挪（clubsite/play/smooth.ts）
+  stackObj.userData.followsDirector = true;
   scene.add(stackObj);
   let stack = 0;
   const setStack = (n: number) => {
@@ -1594,7 +1618,7 @@ export function createLife(env: LifeEnv): FoodLife {
         D.pos.z += (dz / L) * step;
         D.pos.y = dnav.height(D.pos.x, D.pos.z) ?? h;
         D.yaw = turnTo(D.yaw, Math.atan2(dx, dz), dt * 10);
-        D.walkPh = (D.walkPh + step / 1.25) % 1;
+        D.walkPh = (D.walkPh + step / strideOf(D.obj)) % 1;
         pose(D, carry || stack ? 'push' : 'walk', D.walkPh);
       }
     }

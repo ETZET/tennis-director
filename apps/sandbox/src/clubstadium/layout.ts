@@ -532,28 +532,33 @@ export const CLOUD_VEL = 0.12;
  */
 export const NAV_BOUNDS: Rect = { x0: -27.6, x1: 24, z0: -37.4, z1: -4.4 };
 /**
- * 地面上能走的（并集）：场地、西头（球员通道 + 工具角）、长廊、南看台和东看台之间的东南角。
+ * 地面上能走的（并集）：场地、西头（球员通道 + 工具角）、端梯西边的沙地（北到导航北沿）、长廊、南看台和东看台之间的东南角。
  * 看台的走道、端梯、最高一级的横走道在 STAND_RAMPS 里（坡道本身算能走）。
  */
 export const PLAY_WALK: Rect[] = [
   CELL,
   { x0: -27.4, x1: CELL.x0, z0: CELL.z0 + 0.4, z1: -9.7 },
+  { x0: -27.4, x1: STANDS.north.x0 - 1.2, z0: NAV_BOUNDS.z0, z1: CELL.z0 + 0.4 },
   { x0: -27.4, x1: 24, z0: -9.7, z1: -4.4 },
   { x0: CELL.x1, x1: 21.6, z0: CELL.z1, z1: -9.7 },
 ];
 /**
  * 看台上走的路（坡道：高度按 z 线性插值，覆盖地面高度）。北看台的广告板（0.9 高）挡住走道的下口，
- * 所以上看台只有一条路：西头端梯（x −21.2…−20）→ 最高一级的横走道（z −36.75…−35.95，y 5.4）→ 四条走道往下（到第 0 级，y ≈ 1）。
+ * 所以上看台只有一条路：西头端梯（x −21.2…−20）→ 最高一级的横走道（y 5.4）→ 四条走道往下（到第 0 级，y ≈ 1）。
+ * 横走道 = 最高一级踏面座椅前面那条（画出来 z −36.68…−36.0）：坡道放宽到 z −36.95…−35.8（身体可以挨着座椅、探出踏面前沿一点），
+ * 南沿靠 play.ts 的座位块挡路（圆角，摇杆带一点南偏也能滑过走道口），不靠坡道边。
  * 走道的台阶当坡道走：第 k 级前沿 z = −30 − 1.2k、高 0.9(k + 1) → y(z) = 0.9 + 0.75 × (−30 − z)。
  */
 export const STAND_TOP_Y = northTread(STANDS.north.n - 1).y;
+/** 横走道的 z 范围；端梯、走道从它的南沿（z1）起坡，接缝处不起台阶（寻路每格最多升 stepUp / 2） */
+const CROSS_Z = { z0: -36.95, z1: -35.8 } as const;
 export const STAND_RAMPS = [
   // 横走道（放在最前面：和端梯、走道重叠的地方以它为准）
   {
     x0: STANDS.north.x0 - 1.2,
     x1: STANDS.north.x1,
-    z0: -36.75,
-    z1: -35.95,
+    z0: CROSS_Z.z0,
+    z1: CROSS_Z.z1,
     from: STAND_TOP_Y,
     to: STAND_TOP_Y,
     axis: 'z' as const,
@@ -562,7 +567,7 @@ export const STAND_RAMPS = [
   {
     x0: STANDS.north.x0 - 1.2,
     x1: STANDS.north.x0,
-    z0: -35.95,
+    z0: CROSS_Z.z1,
     z1: -29.6,
     from: STAND_TOP_Y,
     to: 0,
@@ -572,10 +577,10 @@ export const STAND_RAMPS = [
   ...STANDS.aisles.map((c) => ({
     x0: c - STANDS.aisleW / 2,
     x1: c + STANDS.aisleW / 2,
-    z0: -35.95,
-    z1: STANDS.north.front - 0.1,
+    z0: CROSS_Z.z1,
+    z1: STANDS.north.front,
     from: STAND_TOP_Y,
-    to: 0.9 + 0.75 * 0.1,
+    to: 0.9,
     axis: 'z' as const,
   })),
 ];

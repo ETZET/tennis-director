@@ -234,7 +234,8 @@ export const SLOTS: Slot[] = [
   { id: 'club-gate', asset: 'club-gate', x: GATE.x, z: 0 },
   { id: 'valet-booth', asset: 'valet-booth', x: 63.5, z: -8.55 },
   { id: 'valet-podium', asset: 'valet-podium', x: SPOTS.podium[0], z: SPOTS.podium[1] },
-  { id: 'bag-trolley', asset: 'bag-trolley', x: 61.4, z: -6.4, rotY: 0.2 },
+  // 球包车的家：北门柱东边（z −5.0；原来 −6.4 时 0.7 米的挡路圆把墙和岗亭之间的走廊堵死了）
+  { id: 'bag-trolley', asset: 'bag-trolley', x: 61.5, z: -5.0, rotY: 0.2 },
   { id: 'valet-sign', asset: 'valet-sign', x: 64.3, z: -3.75 },
   { id: 'club-monument', asset: 'club-monument', x: 69.0, z: 5.75 },
   // 落客的车（车门开着）+ 刚下车的会员 + 迎上去的代客；门童在南门柱外
@@ -258,8 +259,9 @@ export const SLOTS: Slot[] = [
   { id: 'carport-c', asset: 'carport', x: STALL.x0 + STALL.w * 2, z: (ROWS[3].z0 + ROWS[3].z1) / 2 },
   { id: 'carport-d', asset: 'carport', x: STALL.x0 + STALL.w * 6, z: (ROWS[3].z0 + ROWS[3].z1) / 2 },
   // ── 框：蒲葵（墙边步道两头、北花坛东段、南花坛东段）──
-  { id: 'palm-nw', asset: 'fan-palm', x: 63.3, z: -19.0, y: H.kerb, variant: 0 },
-  { id: 'palm-sw', asset: 'fan-palm', x: 63.3, z: 15.6, y: H.kerb, variant: 1, s: 1.05 },
+  // 墙边两棵种在种植带上（strip-n1 南头、strip-s2 北头）：原来 z −19.0 / 15.6 落在通道接步道的石板上，悬空一道路缘高、挡在走道中间
+  { id: 'palm-nw', asset: 'fan-palm', x: 63.2, z: -20.6, y: H.kerb, variant: 0 },
+  { id: 'palm-sw', asset: 'fan-palm', x: 63.2, z: 20.6, y: H.kerb, variant: 1, s: 1.05 },
   { id: 'palm-ne', asset: 'fan-palm', x: 82.6, z: -5.6, y: H.berm, variant: 2 },
   { id: 'palm-se', asset: 'fan-palm', x: 82.1, z: 5.6, y: H.berm, variant: 0, s: 0.95 },
   { id: 'palm-se2', asset: 'fan-palm', x: 88.4, z: 5.8, y: H.berm, variant: 1 },
@@ -350,19 +352,22 @@ export const ROUTES: { id: string; pts: V2[] }[] = [
  * 大门口（x < 60.35，z −5…5）走进去 = 切到 clubdesk 场景。
  */
 export const WALKABLE: Rect[] = [
-  { x0: WALL_OUT + 0.3, x1: 64.9, z0: -9.9, z1: 9.9 }, // 落客区靠墙的院子
-  { x0: 64.9, x1: ENTRY.x1, z0: DRIVE.z0 - 0.4, z1: DRIVE.z1 + 0.4 }, // 落客区 + 车道西段
+  { x0: WALL_OUT, x1: 64.9, z0: -9.9, z1: 9.9 }, // 落客区靠墙的院子（连锁砖从墙外皮铺起，人能贴着墙走）
+  // 落客区 + 车道（沥青画到 DRIVE.x1；导航只到 parkNav 的 bounds x 92 为止）
+  { x0: 64.9, x1: DRIVE.x1, z0: DRIVE.z0 - 0.4, z1: DRIVE.z1 + 0.4 },
   { x0: 60.8, x1: 62.3, z0: LOT_N.z0 + 0.4, z1: LOT_S.z1 - 0.4 }, // 墙边步道
   { x0: 62.3, x1: LOT_N.x1, z0: ROWS[0].z1, z1: ROWS[1].z0 }, // 北通道
   { x0: 62.3, x1: LOT_S.x1, z0: ROWS[2].z1, z1: ROWS[3].z0 }, // 南通道
   { x0: ENTRY.x0, x1: ENTRY.x1, z0: ROWS[1].z0, z1: ROWS[2].z1 }, // 两个进出口
+  // 两片停车场整片（车位里也能走：停着的车是 life 的挡路圆，遮阳棚的柱子在 play.ts 的 blocked 里；花坛、种植带照样挡）
+  LOT_N,
+  LOT_S,
 ];
-/** 不能走的（静态）：岗亭、代客台、长椅、花坛、种植带（另加车、人的脚印） */
-export const BLOCKED: Rect[] = [
-  { x0: 62.2, x1: 64.8, z0: -9.7, z1: -7.3 },
-  ...BERMS.map((b) => b.r),
-  ...STRIPS.map((s) => s.r),
-];
+/**
+ * 不能走的（静态）：岗亭。代客台、长椅、门柱、遮阳棚柱子、植物，和花坛、种植带（按画出来的圆角轮廓，terrain.ts 的
+ * BERM_PTS / STRIP_PTS）在 play.ts 的 parkNav 里加；车、人的脚印是 life 的挡路圆
+ */
+export const BLOCKED: Rect[] = [{ x0: 62.2, x1: 64.8, z0: -9.7, z1: -7.3 }];
 
 // ── 云影（手摆，硬边）：只走两片停车场的通道那两条带，不上落客区 ──
 /** 云的 x 在 shader 里按 ±48 绕回（CLOUD_W 96）：世界 x 换成绕回后的 */

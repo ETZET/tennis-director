@@ -5,8 +5,12 @@
 //   · 20 秒一辆自己停车的车：车道 → 北进出口 → 北通道慢慢找车位（刹车灯一闪一闪）→ 开过车位、倒进去 → 车主走墙边步道进门。
 //   · 38 秒一个会员从大门出来要取车：站到代客台前等；代客去岗亭摘钥匙、去南停车场把他的车开到落客点、递钥匙，会员开车从车道往东出画。
 //   · 52 秒一个会员从大门出来、走去北停车场自己的车，倒出来 / 开出来，车道往东出画。
-// 车：沿圆角折线按弧长走，车头 = 切线方向（倒车反过来），轮子按速度转（setSpeed），减速 / 停着亮刹车灯（setBrake），
-// 车门 setDoor 开关。前方 1.5 米探测：前面有车、人、总监、球包车就减速停住（够了，不做真物理）。人只躲开着的车。
+// 车（运动学自行车模型，后轮不侧滑）：作者画的是车中心的路（圆角折线 / 贝塞尔），leaderPath 换算成带头那根轴的路 ——
+//   前进时前轴沿路走、后轴被拖着（拖车曲线），倒车时后轴沿路走、车头每米最多转 0.6 弧度。过弯按曲率限速（横向加速度 ≤ 2.2 米/秒²）。
+//   避让：sweep 沿路往前摆整个车身的矩形，按离障碍多远限速；wouldHit 是硬约束（这一步会压得更深就不走）；两车顶牛，该让的那辆往后倒几米。
+//   交通规则：一条通道同时只有一辆在开的车（askAisle 排号）；落客点一次一辆（bay）；落客点掉头 = 三点掉头 turnBack（倒进进出口再开出去）。
+//   轮子按速度转（setSpeed），前轮打方向、车身点头 / 侧倾（carMotion → setMotion），减速 / 停着亮刹车灯（setBrake），车门 setDoor 开关。
+// 人：有加减速，身子朝哪走哪（转身每秒最多 7 弧度，拐角走成小圆弧），躲开着的车、给别的人让一点。
 // 车位：南停车场是代客的池子（s-near 1/2、s-far 1/2），北停车场是自己停车的池子（n-near 1/2、n-far 1/2）；
 // 停着的车由这里建（main.ts 跳过 SLOTS 里的 park-*），开走的车回池子。随机只用种子随机流（ctx.rng('park:life')）。
 //
@@ -15,6 +19,7 @@
 // 门童装满球包车（4 个）以后就没地方放包了（"推车满了"）：总监把推车推到大门口 = 送进去（setBags(0)）。
 // 不在玩法模式（?play=0）时门童自己推车进门，总监站在岗亭前不动。
 import * as THREE from 'three';
+import { setStride } from '../clubsite/people';
 import { findBones } from './assets/staff/bones';
 import { HANDOFF_AT } from './assets/staff/poses';
 import type { AssetCtx } from './ctx';
@@ -95,6 +100,79 @@ function pathAt(p: Path, s: number): V2 {
   return [lerp(p.pts[i - 1][0], p.pts[i][0], k), lerp(p.pts[i - 1][1], p.pts[i][1], k)];
 }
 
+/** 按弧长取点；s 超出两头就顺着头尾的方向直着延长 */
+function pathAtX(p: Path, s: number): V2 {
+  if (s >= 0 && s <= p.len) return pathAt(p, s);
+  const n = p.pts.length;
+  const [a, b] = s < 0 ? [p.pts[1], p.pts[0]] : [p.pts[n - 2], p.pts[n - 1]];
+  const l = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+  const over = s < 0 ? -s : s - p.len;
+  return [b[0] + ((b[0] - a[0]) / l) * over, b[1] + ((b[1] - a[1]) / l) * over];
+}
+function tangentAt(p: Path, s: number, e = 0.3): V2 {
+  const a = pathAtX(p, s - e);
+  const b = pathAtX(p, s + e);
+  const l = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+  return [(b[0] - a[0]) / l, (b[1] - a[1]) / l];
+}
+/** 前后轴离车中心（米；car ±1.4，suv −1.5 / +1.42） */
+const AXLE = 1.4;
+/** 车中心的路 → 带头那根轴的路（前进 = 前轴，倒车 = 后轴）：每个点顺着走的方向往前挪 AXLE */
+function leaderPath(center: Path): Path {
+  const n = Math.max(2, Math.ceil(center.len / 0.2));
+  const pts: V2[] = [];
+  for (let k = 0; k <= n; k++) {
+    const s = (center.len * k) / n;
+    const q = pathAt(center, s);
+    const u = tangentAt(center, s);
+    pts.push([q[0] + u[0] * AXLE, q[1] + u[1] * AXLE]);
+  }
+  return finish(pts);
+}
+const smooth01 = (k: number) => {
+  const u = clamp(k, 0, 1);
+  return u * u * (3 - 2 * u);
+};
+const wrapPi = (a: number) => a - Math.round(a / (P * 2)) * P * 2;
+
+// ── 碰撞：车是矩形（中心、车头方向、半长、半宽），人和推车是圆 ─────────────────
+interface Box {
+  x: number;
+  z: number;
+  /** 车头方向（单位向量） */
+  nx: number;
+  nz: number;
+  hl: number;
+  hw: number;
+}
+/** 两个矩形压进去多深（分离轴；不相交 = 0） */
+function boxPen(a: Box, b: Box): number {
+  const dx = b.x - a.x;
+  const dz = b.z - a.z;
+  let pen = Infinity;
+  for (const [ux, uz] of [
+    [a.nx, a.nz],
+    [a.nz, -a.nx],
+    [b.nx, b.nz],
+    [b.nz, -b.nx],
+  ]) {
+    const ra = a.hl * Math.abs(ux * a.nx + uz * a.nz) + a.hw * Math.abs(ux * a.nz - uz * a.nx);
+    const rb = b.hl * Math.abs(ux * b.nx + uz * b.nz) + b.hw * Math.abs(ux * b.nz - uz * b.nx);
+    const o = ra + rb - Math.abs(ux * dx + uz * dz);
+    if (o <= 0) return 0;
+    if (o < pen) pen = o;
+  }
+  return pen;
+}
+/** 圆压进矩形多深 */
+function boxCircPen(a: Box, cx: number, cz: number, r: number): number {
+  const dx = cx - a.x;
+  const dz = cz - a.z;
+  const qx = Math.max(Math.abs(dx * a.nx + dz * a.nz) - a.hl, 0);
+  const qz = Math.max(Math.abs(dx * a.nz - dz * a.nx) - a.hw, 0);
+  return Math.max(0, r - Math.hypot(qx, qz));
+}
+
 // ── 车位 ─────────────────────────────────────────
 interface Stall {
   id: string;
@@ -117,12 +195,8 @@ const ENTRY_E = ENTRY.x1 - 1.6;
 /** 车道：西行（进来）在北、东行（出去）在南 */
 const DRIVE_WB = -2.0;
 const DRIVE_EB = 2.0;
-/** 落客区里掉头（落客点 → 西头绕一个小圈 → 东行车道）：代客开走落客的车、取车的会员开走都走这条 */
-const UTURN: V2[] = [
-  [64.6, -1.5],
-  [63.4, 0.4],
-  [65.2, DRIVE_EB],
-];
+/** 开着的车进落客区（等落客点空出来）之前停在这条线东边：三点掉头的车要往东倒到进出口 */
+const BAY_LINE_X = 84;
 
 // ── 车 ─────────────────────────────────────────
 interface Car {
@@ -136,17 +210,29 @@ interface Car {
   /** +1 前进、−1 倒车 */
   dir: 1 | -1;
   halfLen: number;
+  halfW: number;
+  /** 编号（顶牛时编号大的让） */
+  id: number;
   /** 在动（引擎开着）：停着的车不亮刹车灯、别人不把它当"开着的车"躲 */
   live: boolean;
   /** 倒车入位 / 倒出来：不躲两边停着的车 */
   ignoreParked: boolean;
-  /** 被挡住多久了（防死锁：两辆车互相挡 4 秒以上就无视别的开着的车 2 秒） */
+  /** 被一辆开着的车挡着不动多久了 */
   blockedFor: number;
   /** 现在挡着我的车 */
   blocker: Car | null;
-  /** 连续被挡了几秒（不管被谁） */
+  /** 连续停着等了几秒（被挡、等通道、等落客点） */
   stuckFor: number;
-  ghost: number;
+  /** 现在挡着我的人（等久了请他往旁边让） */
+  waitP: Person | null;
+  /** 保险：被一辆停着的车真卡死了 20 秒（路画得不好）就不管它，开过去（这一段路有效） */
+  pass: Car | null;
+  /** 上一帧的位姿、纵向速度（carMotion 差分用）；前轮转角 */
+  mx: number;
+  mz: number;
+  mrot: number;
+  mv: number;
+  steer: number;
   brake: boolean;
   /** 刹车灯一闪（找车位） */
   tap: number;
@@ -164,6 +250,10 @@ interface Person {
   z: number;
   yaw: number;
   ph: number;
+  /** 现在走多快（米/秒；walk 的加减速） */
+  v: number;
+  /** 正往哪走（调试用） */
+  to?: string;
   r: number;
   /** 在车里（不显示、不挡路） */
   inCar: boolean;
@@ -221,7 +311,7 @@ export interface ParkLife {
   alerts(): ParkAlert[];
   /** 挡路的圆：车（每辆三个）、人、推车（给总监的碰撞用） */
   obstacles(): { x: number; z: number; r: number }[];
-  stats(): { wait: number; queue: number; bags: number; valet: string; served: number; cars: number };
+  stats(): { wait: number; queue: number; bags: number; valet: string; served: number; cars: number; stuck: number };
   hooks: ParkPlayHooks;
   /** 截图诊断 */
   debug(): unknown;
@@ -273,7 +363,7 @@ export function createParkLife(o: ParkLifeOpts): ParkLife {
   const POD_STAND = w2(podium, podium?.userData.anchors?.stand, [SPOTS.podium[0], SPOTS.podium[1] - 0.8]);
   /** 取车的会员在代客台前（南边）等 */
   const POD_FRONT: V2 = [SPOTS.podium[0] + 0.3, SPOTS.podium[1] + 1.3];
-  const TROLLEY_HOME: V2 = trolley ? [trolley.position.x, trolley.position.z] : [61.4, -6.4];
+  const TROLLEY_HOME: V2 = trolley ? [trolley.position.x, trolley.position.z] : [61.5, -5.0];
   const trolleyHandle = (trolley?.userData.anchors?.handle as THREE.Vector3 | undefined)?.z ?? -1.1;
   let bags = 1;
   trolley?.userData.setBags?.(bags);
@@ -282,6 +372,8 @@ export function createParkLife(o: ParkLifeOpts): ParkLife {
   const cars: Car[] = [];
   const pool: Car[] = [];
   const HALF = { car: 2.17, suv: 2.42 };
+  const HALF_W = { car: 0.95, suv: 1.0 };
+  let carSeq = 0;
   const newCar = (kind: 'car' | 'suv', paint: number): Car => {
     let c = pool.find((p) => p.kind === kind);
     if (c) pool.splice(pool.indexOf(c), 1);
@@ -297,12 +389,20 @@ export function createParkLife(o: ParkLifeOpts): ParkLife {
         v: 0,
         dir: 1,
         halfLen: HALF[kind],
+        halfW: HALF_W[kind],
+        id: 0,
         live: false,
         ignoreParked: false,
         blockedFor: 0,
         blocker: null,
         stuckFor: 0,
-        ghost: 0,
+        waitP: null,
+        pass: null,
+        mx: Number.NaN,
+        mz: 0,
+        mrot: 0,
+        mv: 0,
+        steer: 0,
         brake: false,
         tap: 0,
         stall: null,
@@ -321,7 +421,11 @@ export function createParkLife(o: ParkLifeOpts): ParkLife {
       blockedFor: 0,
       blocker: null,
       stuckFor: 0,
-      ghost: 0,
+      waitP: null,
+      pass: null,
+      mx: Number.NaN,
+      steer: 0,
+      id: ++carSeq,
       stall: null,
     });
     c.keySlot = -1;
@@ -330,6 +434,8 @@ export function createParkLife(o: ParkLifeOpts): ParkLife {
     return c;
   };
   const dropCar = (c: Car) => {
+    releaseAisle(c);
+    releaseBay(c);
     c.obj.visible = false;
     c.obj.userData.setSpeed?.(0);
     cars.splice(cars.indexOf(c), 1);
@@ -409,7 +515,7 @@ export function createParkLife(o: ParkLifeOpts): ParkLife {
   const people: Person[] = [];
   const mkPerson = (obj: THREE.Object3D, role: Person['role'], x: number, z: number, yaw = 0): Person => {
     scene.add(obj);
-    const p: Person = { obj, x, z, yaw, ph: 0, r: 0.32, inCar: false, posed: '', say: '', sayT: 0, role };
+    const p: Person = { obj, x, z, yaw, ph: 0, v: 0, r: 0.32, inCar: false, posed: '', say: '', sayT: 0, role };
     people.push(p);
     placeP(p);
     return p;
@@ -479,7 +585,7 @@ export function createParkLife(o: ParkLifeOpts): ParkLife {
     if (p) {
       memberPool.splice(memberPool.indexOf(p), 1);
       people.push(p);
-      Object.assign(p, { x, z, yaw, inCar: false, say: '', sayT: 0, posed: '' });
+      Object.assign(p, { x, z, yaw, v: 0, inCar: false, say: '', sayT: 0, posed: '' });
     } else {
       const obj = o.make('player', v);
       obj.userData.variant = v;
@@ -509,6 +615,8 @@ export function createParkLife(o: ParkLifeOpts): ParkLife {
     r: number;
     car?: Car;
     moving?: boolean;
+    /** 这个圆是哪个人（车等久了请他让一让） */
+    person?: Person;
   }
   const carCircles = (c: Car, out: Circ[]) => {
     const [nx, nz] = noseOf(c.rot);
@@ -516,39 +624,173 @@ export function createParkLife(o: ParkLifeOpts): ParkLife {
     for (const s of [-k, 0, k]) out.push({ x: c.x + nx * s, z: c.z + nz * s, r: 0.95, car: c, moving: c.live });
   };
   const circles: Circ[] = [];
+  /** 车的矩形（车和车按矩形比：三个圆盖不住车角） */
+  const boxes: { b: Box; car: Car }[] = [];
+  /** 人、总监、球包车（车要躲的圆） */
+  const soft: Circ[] = [];
+  const bodyBox = (c: Car, x = c.x, z = c.z, rot = c.rot, padL = 0, padW = 0): Box => {
+    const [nx, nz] = noseOf(rot);
+    return { x, z, nx, nz, hl: c.halfLen + padL, hw: c.halfW + padW };
+  };
   const gatherCircles = () => {
     circles.length = 0;
-    for (const c of cars) if (c.obj.visible) carCircles(c, circles);
+    boxes.length = 0;
+    soft.length = 0;
+    for (const c of cars) {
+      if (!c.obj.visible) continue;
+      carCircles(c, circles);
+      boxes.push({ b: bodyBox(c), car: c });
+    }
+    for (const p of people) if (!p.inCar && p.obj.visible) soft.push({ x: p.x, z: p.z, r: 0.28, person: p });
+    const dd = dirPos();
+    if (dd) soft.push({ x: dd[0], z: dd[1], r: 0.33 });
+    if (trolley) soft.push({ x: trolley.position.x, z: trolley.position.z, r: 0.7 });
     for (const p of people) if (!p.inCar && p.obj.visible) circles.push({ x: p.x, z: p.z, r: p.r });
     const d = dirPos();
     if (d) circles.push({ x: d[0], z: d[1], r: 0.35 });
     if (trolley) circles.push({ x: trolley.position.x, z: trolley.position.z, r: 0.75 });
   };
 
-  /** 车往前（travel 方向）能开多快：前面有东西就按距离限速 */
-  const clearance = (c: Car, tx: number, tz: number): number => {
-    let vmax = 99;
+  /**
+   * 车沿带头那根轴的路从弧长 s0 走到 s1 以后的位姿（运动学自行车模型，后轮不侧滑）：
+   * 前进：前轴到 at(s1)，后轴原地被拖过去（车头 = 后轴 → 前轴）；倒车：后轴到 at(s1)，车头 = 路的反切线（每米最多转 0.6 弧度）。
+   */
+  const stepPose = (
+    x: number,
+    z: number,
+    rot: number,
+    at: (s: number) => V2,
+    s0: number,
+    s1: number,
+    rev: boolean,
+  ): [number, number, number] => {
+    const [nx, nz] = noseOf(rot);
+    const q = at(s1);
+    if (!rev) {
+      const rx = x - nx * AXLE;
+      const rz = z - nz * AXLE;
+      const l = Math.hypot(q[0] - rx, q[1] - rz);
+      const r1 = l > 1e-6 ? rotOfNose((q[0] - rx) / l, (q[1] - rz) / l) : rot;
+      const [mx, mz] = noseOf(r1);
+      return [q[0] - mx * AXLE, q[1] - mz * AXLE, r1];
+    }
+    const a = at(s1 - 0.3);
+    const b = at(s1 + 0.3);
+    const lim = 0.6 * Math.abs(s1 - s0);
+    const r1 = rot + clamp(wrapPi(rotOfNose(a[0] - b[0], a[1] - b[1]) - rot), -lim, lim);
+    const [mx, mz] = noseOf(r1);
+    return [q[0] + mx * AXLE, q[1] + mz * AXLE, r1];
+  };
+  /**
+   * 沿路往前把整个车身的矩形一步步摆过去（和真开的时候同一个模型；前后余量 0.25 米，两侧 0.3、进出车位时 0.08），
+   * 看多远会碰到东西，按那段距离限速。现在就挨着的（并排的车、站在车门外的人）只要不是越压越深就不算。
+   * tight：被停着的车卡住了（余量蹭到）→ 不留余量慢慢挪，真碰不碰由 wouldHit 管。at(s) = 带头那根轴在弧长 s 处的位置。
+   */
+  const sweep = (c: Car, at: (s: number) => V2, s: number, rev: boolean, tight = false): number => {
+    const padW = tight ? 0.02 : c.ignoreParked ? 0.08 : 0.3;
+    const padL = tight ? 0.05 : 0.25;
+    const look = Math.min(9, (c.v * c.v) / (2 * 2.2) + 2.5);
+    const reach = look + c.halfLen + 4;
+    const nb = boxes.filter(
+      (o) => o.car !== c && o.car !== c.pass && Math.abs(o.b.x - c.x) + Math.abs(o.b.z - c.z) < reach + 3,
+    );
+    const ns = soft.filter((q) => Math.abs(q.x - c.x) + Math.abs(q.z - c.z) < reach);
     c.blocker = null;
-    for (const q of circles) {
-      if (q.car === c) continue;
-      if (q.car && q.moving && c.ghost > 0) continue;
-      if (q.car && !q.moving && c.ignoreParked) continue;
-      const rx = q.x - c.x;
-      const rz = q.z - c.z;
-      const along = rx * tx + rz * tz;
-      if (along <= 0) continue;
-      const lat = Math.abs(rx * tz - rz * tx);
-      if (lat > 0.95 + q.r + 0.12) continue;
-      const gap = along - c.halfLen - q.r;
-      if (gap > 6) continue;
-      const lim = Math.max(0, gap - 0.7) * 1.3;
-      if (lim < vmax) {
-        vmax = lim;
-        c.blocker = q.car ?? null;
+    c.waitP = null;
+    if (!nb.length && !ns.length) return 99;
+    const b0 = bodyBox(c, c.x, c.z, c.rot, padL, padW);
+    const pen0 = nb.map((o) => boxPen(b0, o.b));
+    const pen0s = ns.map((q) => boxCircPen(b0, q.x, q.z, q.r));
+    let [x, z, rot] = [c.x, c.z, c.rot];
+    for (let d = 0.25; d <= look; d += 0.25) {
+      [x, z, rot] = stepPose(x, z, rot, at, s + d - 0.25, s + d, rev);
+      const b = bodyBox(c, x, z, rot, padL, padW);
+      for (let i = 0; i < nb.length; i++) {
+        if (boxPen(b, nb[i].b) > pen0[i] + 0.03) {
+          c.blocker = nb[i].car;
+          return Math.max(0, d - 0.5) * 1.3;
+        }
+      }
+      for (let i = 0; i < ns.length; i++) {
+        if (boxCircPen(b, ns[i].x, ns[i].z, ns[i].r) > pen0s[i] + 0.03) {
+          c.waitP = ns[i].person ?? null;
+          return Math.max(0, d - 0.5) * 1.3;
+        }
       }
     }
-    return vmax;
+    return 99;
   };
+  /** 硬约束：车走到这个位姿会不会比现在压得更深（车、人、推车） */
+  const wouldHit = (c: Car, x: number, z: number, rot: number): boolean => {
+    const cur = bodyBox(c);
+    const nxt = bodyBox(c, x, z, rot);
+    for (const o of boxes) {
+      if (o.car === c || o.car === c.pass) continue;
+      if (Math.abs(o.b.x - x) + Math.abs(o.b.z - z) > 9) continue;
+      const p1 = boxPen(nxt, o.b);
+      if (p1 > 0.02 && p1 > boxPen(cur, o.b) + 1e-4) return true;
+    }
+    for (const q of soft) {
+      const p1 = boxCircPen(nxt, q.x, q.z, q.r);
+      // 人已经在车身里了（圆心在矩形里）：不动，等他出去
+      if ((p1 > 0.02 && p1 > boxCircPen(cur, q.x, q.z, q.r) + 1e-4) || p1 >= q.r * 0.999) {
+        c.waitP = q.person ?? null;
+        return true;
+      }
+    }
+    return false;
+  };
+  /** 两辆车顶牛，c 该不该让 o：不在进出车位的让正在进出的，前进的让倒车的，再不然编号大的让 */
+  const yieldsTo = (c: Car, o: Car) => {
+    if (c.ignoreParked !== o.ignoreParked) return !c.ignoreParked;
+    if (c.dir !== o.dir) return c.dir > 0;
+    return c.id > o.id;
+  };
+
+  // ── 交通规则：通道排号、落客点 ──
+  type AisleId = 'n' | 's';
+  const aisleOwner: Record<AisleId, Car | null> = { n: null, s: null };
+  /** 这一帧 / 上一帧在排号的车：车 → [排号的时刻, 离通道口多远] */
+  const askers: Record<AisleId, Map<Car, [number, number]>> = { n: new Map(), s: new Map() };
+  /**
+   * 要进通道（或进出口）先排号：一条通道同时只有一辆在开的车（倒车入位的车尾扫过整条通道）。
+   * 每帧问一次；号给离通道口最近的那辆（rank 小的；先排号的车可能堵在后面）。返回轮到了没有。
+   */
+  const askAisle = (c: Car, k: AisleId, rank = 0): boolean => {
+    if (aisleOwner[k] === c) return true;
+    const m = askers[k];
+    m.set(c, [now, rank]);
+    if (aisleOwner[k]) return false;
+    for (const [o, [t, r]] of m) {
+      if (now - t > 0.2 || !cars.includes(o)) {
+        m.delete(o);
+        continue;
+      }
+      if (o !== c && (r < rank || (r === rank && o.id < c.id))) return false;
+    }
+    m.delete(c);
+    aisleOwner[k] = c;
+    return true;
+  };
+  function releaseAisle(c: Car, k?: AisleId) {
+    for (const a of ['n', 's'] as const) if ((!k || k === a) && aisleOwner[a] === c) aisleOwner[a] = null;
+  }
+  /** 落客点（连着它东边到进出口的那段车道）：一次一辆。掉头要往东倒，后面不能排着车 */
+  let bay: Car | null = null;
+  const askBay = (c: Car): boolean => {
+    if (bay && bay !== c && !cars.includes(bay)) bay = null;
+    if (bay && bay !== c) return false;
+    bay = c;
+    return true;
+  };
+  function releaseBay(c: Car) {
+    if (bay === c) bay = null;
+  }
+  /** 条件成立时做一件事（放号、让出落客点） */
+  function* when(cond: () => boolean, fn: () => void): Co {
+    while (!cond()) yield;
+    fn();
+  }
 
   // ── 协程 ──
   let live: Co[] = [];
@@ -565,65 +807,147 @@ export function createParkLife(o: ParkLifeOpts): ParkLife {
     while (!cond() && t < max) t += yield;
   }
 
-  /** 开车：沿 path 按弧长走；rev = 倒车（车头 = 反切线）；vEnd = 段末速度（接下一段不停） */
-  function* drive(
-    c: Car,
-    path: Path,
-    vmax: number,
-    opt: { rev?: boolean; vEnd?: number; search?: boolean; giveUp?: () => boolean } = {},
-  ): Co {
+  /** 过弯的横向加速度上限（米/秒²） */
+  const LAT = 2.2;
+  interface DriveOpt {
+    rev?: boolean;
+    /** 段末速度（接下一段不停） */
+    vEnd?: number;
+    /** 找车位：刹车灯一闪一闪 */
+    search?: boolean;
+    /** 停车线（车中心的路上的弧长）：open() 不成立就在线前停着等（等通道的号、等落客点） */
+    gate?: { s: number; open(): boolean };
+    /** 给的就是带头那根轴的路（不用换算）：倒车入位按后轴画圆弧 */
+    lead?: boolean;
+  }
+  /**
+   * 开车：center = 车中心的路。前进：前轴沿 leaderPath 走，后轴被拖着（车头 = 后轴指向前轴）；
+   * 倒车（rev）：后轴沿 leaderPath 走，车头 = 反切线（每米最多转 0.6 弧度）。后轮都不侧滑。
+   */
+  function* drive(c: Car, center: Path, vmax: number, opt: DriveOpt = {}): Co {
     const rev = !!opt.rev;
     const vEnd = opt.vEnd ?? 0;
+    const sg = rev ? -1 : 1;
     c.dir = rev ? -1 : 1;
     c.live = true;
+    if (center.len < 0.05) return;
+    const lead = opt.lead ? center : leaderPath(center);
+    // 带头那根轴现在的位置和路的起点差多少：前 BLEND 米里慢慢并过去（路从车现在的位置起，起步不跳、不甩）
+    const [n0x, n0z] = noseOf(c.rot);
+    const q0 = pathAt(lead, 0);
+    let offX = c.x + n0x * AXLE * sg - q0[0];
+    let offZ = c.z + n0z * AXLE * sg - q0[1];
+    let blend0 = 0;
+    // 路很短、差得又多：并得慢一点（宁可到段尾还差一点，也不横着甩过去）
+    const BLEND = Math.max(Math.min(4, lead.len * 0.8), 8 * Math.hypot(offX, offZ));
+    const at = (s: number): V2 => {
+      const q = pathAtX(lead, s);
+      const k = 1 - smooth01((s - blend0) / BLEND);
+      return [q[0] + offX * k, q[1] + offZ * k];
+    };
+    const ACC = rev ? 2.0 : 2.6;
+    const DEC = rev ? 2.0 : 2.3;
+    // 每个点按曲率限速，从段尾往回推减速（提前减速）
+    const DS = 0.25;
+    const n = Math.ceil(lead.len / DS);
+    const cap = new Float64Array(n + 2);
+    {
+      const ang = (s: number) => {
+        const a = at(s - 0.4);
+        const b = at(s + 0.4);
+        return Math.atan2(b[0] - a[0], b[1] - a[1]);
+      };
+      cap[n + 1] = cap[n] = vEnd;
+      let h1 = ang(n * DS);
+      for (let k = n - 1; k >= 0; k--) {
+        const h0 = ang(k * DS);
+        const kappa = Math.abs(wrapPi(h1 - h0)) / DS;
+        h1 = h0;
+        const lim = kappa > 1e-3 ? Math.max(1.0, Math.sqrt(LAT / kappa)) : 99;
+        cap[k] = Math.min(lim, Math.sqrt(cap[k + 1] * cap[k + 1] + 2 * DEC * DS));
+      }
+    }
+    const capAt = (s: number) => {
+      const k = Math.min(n, Math.floor(s / DS));
+      const rem = Math.max(0, lead.len - s);
+      return Math.min(cap[k + 1] + 0.3, Math.sqrt(vEnd * vEnd + 2 * DEC * rem));
+    };
+    // 停车线：车中心的路上的弧长 ≈ 带头那根轴的路上同一个弧长（差一点没关系）
+    const gate = opt.gate;
     let s = 0;
-    const ACC = rev ? 2.2 : 2.6;
-    const DEC = rev ? 2.2 : 2.3;
+    let mutual = 0;
     while (true) {
       const dt = yield;
-      const rem = path.len - s;
+      const rem = lead.len - s;
       if (rem <= 0.005) break;
-      // 前进方向（切线，倒车时也是走的方向）
-      const a = pathAt(path, s);
-      const b = pathAt(path, Math.min(path.len, s + 0.25));
-      let tx = b[0] - a[0];
-      let tz = b[1] - a[1];
-      const tl = Math.hypot(tx, tz) || 1;
-      tx /= tl;
-      tz /= tl;
-      let vt = Math.min(vmax, Math.sqrt(vEnd * vEnd + 2 * DEC * rem));
-      const cl = clearance(c, tx, tz);
+      let vt = Math.min(vmax, capAt(s));
+      let held = false;
+      // 快到停车线了才问（问早了会占着号堵在后面）
+      if (gate && s <= gate.s && gate.s - s < (c.v * c.v) / (2 * DEC * 0.6) + 4 && !gate.open()) {
+        const g = gate.s - s;
+        held = g < 0.08;
+        vt = Math.min(vt, held ? 0 : Math.sqrt(2 * DEC * 0.6 * g) + 0.05);
+      }
+      // 被停着的车卡了 1 秒（余量蹭到了）：不留余量慢慢挪
+      const tight = (c.stuckFor > 1 && !!c.blocker && !c.blocker.live) || (c.stuckFor > 2 && !c.blocker && !!c.waitP);
+      const cl = Math.min(tight ? 0.6 : 99, sweep(c, at, s, rev, tight));
       const blocked = cl < Math.max(0.05, vt * 0.5);
       if (cl < vt) vt = cl;
       // 最后一点点慢慢挪到位（没被挡的时候）
-      if (vt < 0.3 && cl > 0.5 && rem > 0.01) vt = Math.min(0.3, vmax);
-      // 两辆车互相挡着太久：无视别的开着的车 2 秒（防死锁）
-      c.blockedFor = blocked && c.blocker?.blocker === c ? c.blockedFor + dt : 0;
-      c.stuckFor = blocked && c.v < 0.05 ? c.stuckFor + dt : 0;
-      if (opt.giveUp?.()) break;
-      if (c.blockedFor > 1.5) {
-        c.ghost = 2;
-        c.blockedFor = 0;
+      if (vt < 0.3 && cl > 0.5 && !held && rem > 0.01) vt = Math.min(0.3, vmax);
+      const o = c.blocker;
+      if (c.stuckFor > 20 && o && !o.live) {
+        console.warn(`clubpark: 车 ${c.id} 被停着的车 ${o.id} 卡死，放行`);
+        c.pass = o;
       }
-      if (c.ghost > 0) c.ghost -= dt;
+      const jam = blocked && c.v < 0.05 && !!o && o.live;
+      c.blockedFor = jam ? c.blockedFor + dt : 0;
+      mutual = jam && o?.blocker === c ? mutual + dt : 0;
+      c.stuckFor = c.v < 0.05 && (blocked || held) ? c.stuckFor + dt : 0;
+      // 顶牛 1.2 秒（或者被一辆开着的车挡了很久）：该让的那辆往后倒几米、等一会儿
+      if (o && (mutual > 1.2 || c.blockedFor > 8) && yieldsTo(c, o)) {
+        yield* backOff(c);
+        c.dir = rev ? -1 : 1;
+        mutual = 0;
+        c.blockedFor = 0;
+        // 带头那根轴现在在哪：回到路上离它最近的地方，再并回去
+        const [bx, bz] = noseOf(c.rot);
+        const ax = c.x + bx * AXLE * sg;
+        const az = c.z + bz * AXLE * sg;
+        let best = s;
+        let bestD = Infinity;
+        for (let u = Math.max(0, s - 6); u <= s + 1e-6; u += 0.1) {
+          const q = pathAtX(lead, u);
+          const d = Math.hypot(q[0] - ax, q[1] - az);
+          if (d < bestD) {
+            bestD = d;
+            best = u;
+          }
+        }
+        s = best;
+        const q = pathAtX(lead, s);
+        offX = ax - q[0];
+        offZ = az - q[1];
+        blend0 = s;
+        continue;
+      }
       const prev = c.v;
       if (c.v < vt) c.v = Math.min(vt, c.v + ACC * dt);
       else c.v = Math.max(vt, c.v - DEC * 2 * dt);
-      s = Math.min(path.len, s + c.v * dt);
-      const p = pathAt(path, s);
-      // 车头方向：前后各取一点（转弯平顺）
-      const q0 = pathAt(path, s - 0.35);
-      const q1 = pathAt(path, s + 0.35);
-      let hx = q1[0] - q0[0];
-      let hz = q1[1] - q0[1];
-      if (rev) {
-        hx = -hx;
-        hz = -hz;
+      // 段尾不停（vEnd > 0）：这一帧多走出去的顺着段尾往外推，下一段从车真正的位置接着走
+      let ns = s + c.v * dt;
+      if (vEnd === 0) ns = Math.min(lead.len, ns);
+      if (ns > s) {
+        const [x, z, rot] = stepPose(c.x, c.z, c.rot, at, s, ns, rev);
+        if (wouldHit(c, x, z, rot)) c.v = 0;
+        else {
+          s = ns;
+          c.x = x;
+          c.z = z;
+          c.rot = rot;
+          placeCar(c);
+        }
       }
-      if (Math.hypot(hx, hz) > 1e-4) c.rot = turnTo(c.rot, rotOfNose(hx, hz), Math.min(1, dt * 14));
-      c.x = p[0];
-      c.z = p[1];
-      placeCar(c);
       let br = c.v < prev - 0.4 * dt || c.v < 0.05;
       if (opt.search) {
         // 找车位：时不时点一下刹车
@@ -632,10 +956,41 @@ export function createParkLife(o: ParkLifeOpts): ParkLife {
         if (c.tap > 0) br = true;
       }
       setBrake(c, br);
+      // 到了段尾这一帧就结束（不白等一帧）
+      if (lead.len - s <= 0.005) break;
     }
     if (vEnd === 0) c.v = 0;
+    c.stuckFor = 0;
+    c.waitP = null;
+    c.pass = null;
     setBrake(c, c.v < 0.05);
   }
+  /** 让路：顺着车身直着往回退 dist 米（前进的车往后倒，倒车的车往前挪），退不动就停；然后等一会儿 */
+  function* backOff(c: Car, dist = 3.5): Co {
+    const back = (c.dir > 0 ? -1 : 1) as 1 | -1;
+    c.dir = back;
+    c.v = 0;
+    setBrake(c, false);
+    let moved = 0;
+    while (moved < dist) {
+      const dt = yield;
+      const [nx, nz] = noseOf(c.rot);
+      c.v = Math.min(1.4, Math.sqrt(2 * 1.5 * (dist - moved)) + 0.1, c.v + 1.8 * dt);
+      const st = c.v * dt;
+      const x = c.x + nx * st * back;
+      const z = c.z + nz * st * back;
+      if (wouldHit(c, x, z, c.rot)) break;
+      c.x = x;
+      c.z = z;
+      moved += st;
+      placeCar(c);
+    }
+    c.v = 0;
+    setBrake(c, true);
+    yield* wait(2.5);
+  }
+  /** 从车现在的位置出发的路（车中心的路）。车头和路的起点方向差的那一点由 drive 里的并线（BLEND）抹平 */
+  const pathFrom = (c: Car, pts: V2[], r?: number): Path => mkPath([[c.x, c.z], ...pts], r);
   /** 停车熄火 */
   const park = (c: Car) => {
     c.v = 0;
@@ -643,54 +998,155 @@ export function createParkLife(o: ParkLifeOpts): ParkLife {
     setBrake(c, false);
   };
 
-  /** 人沿折线走（米/秒）；前面有开着的车就停下等 */
-  function* walk(p: Person, pts: V2[], speed = 1.35, poseName = 'walk', stride = 1.25): Co {
+  /**
+   * 人沿折线走（米/秒）：有加减速；身子朝哪走哪，转身每秒最多 7 弧度（拐角走成小圆弧）；中间的拐点离 0.3 米就换下一个；
+   * 前面有开着的车就停下等；离终点还远时给前面的人让一点、贴到 0.5 米以内往外挪（终点附近不管：递钥匙要站得近）。
+   * stride：walk 一个周期走多远（不给 = rig 的默认步幅；跑着的给大一点，腿也按它摆）。
+   */
+  function* walk(p: Person, pts: V2[], speed = 1.35, poseName = 'walk', stride?: number): Co {
+    const len = setStride(p.obj, stride);
+    const ACC = 2.5;
+    const DEC = 2.2;
+    const TURN = 7;
     /** 被总监挡住了多久（挡 1.2 秒以后侧身挤过去） */
     let held = 0;
-    for (const t of pts) {
-      while (true) {
-        const dt = yield;
-        const dx = t[0] - p.x;
-        const dz = t[1] - p.z;
-        const L = Math.hypot(dx, dz);
-        if (L < 0.02) break;
-        // 让车：前方 1 米里有开着的车
-        let stop = false;
-        for (const q of circles) {
-          if (!q.car || !q.moving || Math.abs(q.car.v) < 0.1) continue;
+    /** 绕停着的车：从哪边绕（0 = 现在没在绕） */
+    let pass = 0;
+    const end = pts[pts.length - 1];
+    let i = 0;
+    while (true) {
+      const dt = yield;
+      // 中间的拐点离得够近就换下一个（同一帧接着走，不停）
+      while (i < pts.length - 1 && Math.hypot(pts[i][0] - p.x, pts[i][1] - p.z) < Math.max(0.3, (p.v / TURN) * 1.4))
+        i++;
+      const t = pts[i];
+      const last = i === pts.length - 1;
+      p.to = `${t[0].toFixed(1)},${t[1].toFixed(1)}`;
+      const dx = t[0] - p.x;
+      const dz = t[1] - p.z;
+      const L = Math.hypot(dx, dz);
+      if (L < 0.008) {
+        p.x = t[0];
+        p.z = t[1];
+        break;
+      }
+      const far = Math.hypot(end[0] - p.x, end[1] - p.z) > 1.3;
+      let want = yawOf(dx, dz);
+      let passing = false;
+      // 让车：前方 1 米里有开着的车；过马路先看车 —— 开过来的车接下来 1.2 秒要经过我面前就等它过去
+      let stop = false;
+      const ax = p.x + (dx / L) * 0.8;
+      const az = p.z + (dz / L) * 0.8;
+      for (const b of boxes) {
+        const c = b.car;
+        if (!c.live || c.v < 0.5) continue;
+        const ux = b.b.nx * c.dir;
+        const uz = b.b.nz * c.dir;
+        const al = (ax - c.x) * ux + (az - c.z) * uz;
+        const lat = Math.abs((ax - c.x) * uz - (az - c.z) * ux);
+        if (al > -c.halfLen && al < c.halfLen + c.v * 1.2 + 1 && lat < c.halfW + 0.7) stop = true;
+      }
+      for (const q of circles) {
+        if (!q.car || !q.moving) continue;
+        const rx = q.x - p.x;
+        const rz = q.z - p.z;
+        const al = (rx * dx + rz * dz) / L;
+        const side = (rx * dz - rz * dx) / L;
+        if (Math.abs(q.car.v) >= 0.1) {
+          if (al > 0 && al < 1.2 + q.r && Math.abs(side) < q.r + 0.4) stop = true;
+        } else if (far) {
+          // 停在路上的车（在等我、等别的车）：挡在我和下一个点之间就从旁边绕过去（贴着的时候顺着它的边走）
+          const dist = Math.hypot(rx, rz);
+          const reach = q.r + 0.3;
+          if (al > 0 && al < L && dist < reach + 1.2 && Math.abs(side) < reach) {
+            // 从哪边绕：定了就不换（正对着圆心时不左右摇摆）。side > 0 = 它在我转身的正方向那边 → 往反方向拐
+            if (!pass) pass = side >= 0 ? -1 : 1;
+            passing = true;
+            want += pass * 1.5 * clamp(1 - (dist - reach) / 1.2, 0, 1);
+          }
+        }
+      }
+      // 开着（没熄火）却停着的车（车身外扩 0.3 米）：已经站进去了就往旁边挪出来；下一步要走进去就先等着（或者上面那样绕过去）
+      if (far)
+        for (const b of boxes) {
+          const c = b.car;
+          if (!c.live || c.v >= 0.1) continue;
+          const inPad = (x: number, z: number) => {
+            const lx = (x - c.x) * b.b.nx + (z - c.z) * b.b.nz;
+            const lz = (x - c.x) * b.b.nz - (z - c.z) * b.b.nx;
+            return Math.abs(lx) < c.halfLen + 0.3 && Math.abs(lz) < c.halfW + 0.3 ? lz : null;
+          };
+          const lz = inPad(p.x, p.z);
+          if (lz !== null) {
+            const k = Math.min(c.halfW + 0.3 - Math.abs(lz), 1.5 * dt) * (lz >= 0 ? 1 : -1);
+            p.x += b.b.nz * k;
+            p.z -= b.b.nx * k;
+          } else if (inPad(p.x + Math.sin(p.yaw) * 0.35, p.z + Math.cos(p.yaw) * 0.35) !== null) stop = true;
+        }
+      const d = dirPos();
+      let ahead = false;
+      if (d) {
+        const rx = d[0] - p.x;
+        const rz = d[1] - p.z;
+        const al = (rx * dx + rz * dz) / L;
+        ahead = al > 0 && al < 0.9 && Math.abs(rx * dz - rz * dx) / L < 0.6;
+      }
+      if (!ahead) held = 0;
+      else if (held < 1.2) {
+        stop = true;
+        held += dt;
+        if (held > 0.5 && held - dt <= 0.5 && p.role === 'member') say(p, '借过', 1.2);
+      }
+      if (!passing) pass = 0;
+      // 离终点还远时前面的人往旁边让
+      if (far)
+        for (const q of people) {
+          if (q === p || q.inCar || !q.obj.visible) continue;
           const rx = q.x - p.x;
           const rz = q.z - p.z;
+          const dist = Math.hypot(rx, rz);
+          if (dist > 1.3 || dist < 1e-4) continue;
           const al = (rx * dx + rz * dz) / L;
-          if (al > 0 && al < 1.2 + q.r && Math.abs(rx * dz - rz * dx) / L < q.r + 0.4) stop = true;
+          const side = (rx * dz - rz * dx) / L;
+          if (al > 0 && Math.abs(side) < 0.6) want += (side >= 0 ? -1 : 1) * 0.7 * (1 - dist / 1.3);
+          // 贴得太近：往外挪
+          if (dist < 0.5) {
+            const k = Math.min(0.5 - dist, 1.0 * dt);
+            p.x -= (rx / dist) * k;
+            p.z -= (rz / dist) * k;
+          }
         }
-        const d = dirPos();
-        let ahead = false;
-        if (d) {
-          const rx = d[0] - p.x;
-          const rz = d[1] - p.z;
-          const al = (rx * dx + rz * dz) / L;
-          ahead = al > 0 && al < 0.9 && Math.abs(rx * dz - rz * dx) / L < 0.6;
-        }
-        if (!ahead) held = 0;
-        else if (held < 1.2) {
-          stop = true;
-          held += dt;
-          if (held > 0.5 && held - dt <= 0.5 && p.role === 'member') say(p, '借过', 1.2);
-        }
-        if (stop) {
-          pose(p, 'idle');
-          continue;
-        }
-        const step = Math.min(L, speed * dt);
+      const err = wrapPi(want - p.yaw);
+      p.yaw += clamp(err, -TURN * dt, TURN * dt);
+      // 目标速度：要停 = 0；最后一个点按减速度收住；身子还没转过来就慢慢走
+      let vt = stop ? 0 : speed;
+      if (last) vt = Math.min(vt, Math.sqrt(2 * DEC * L) + 0.1);
+      const off = Math.abs(err);
+      if (off > 0.6) vt *= clamp(1 - (off - 0.6) / 1.0, 0.12, 1);
+      if (p.v < vt) p.v = Math.min(vt, p.v + ACC * dt);
+      else p.v = Math.max(vt, p.v - (stop || last ? DEC * 2.5 : DEC) * dt);
+      if (p.v < 0.02 && stop) {
+        pose(p, 'idle');
+        placeP(p);
+        continue;
+      }
+      const step = Math.min(L, p.v * dt);
+      if (last && L < 0.25) {
+        // 最后一小段直接走到点上
         p.x += (dx / L) * step;
         p.z += (dz / L) * step;
-        p.yaw = turnTo(p.yaw, yawOf(dx, dz), dt * 10);
-        p.ph = (p.ph + step / stride) % 1;
-        pose(p, poseName, p.ph);
-        placeP(p);
+      } else {
+        p.x += Math.sin(p.yaw) * step;
+        p.z += Math.cos(p.yaw) * step;
       }
+      p.ph = (p.ph + step / len) % 1;
+      pose(p, poseName, p.ph);
+      placeP(p);
     }
+    p.v = 0;
+    p.to = undefined;
     pose(p, 'idle');
+    placeP(p);
   }
   function* face(p: Person, yaw: number, s = 0.35): Co {
     let t = 0;
@@ -762,17 +1218,20 @@ export function createParkLife(o: ParkLifeOpts): ParkLife {
     return [
       [ex + (fromDrive === 'wb' ? 3 : -3), dz],
       [ex, dz + (north ? -2.4 : 2.4)],
-      [ex, laneZ + (north ? 2.2 : -2.2)],
-      [ex - 2.5, laneZ],
+      // 直角拐进通道的车道，拐完留 5 米直道（车身摆正了再找车位）
+      [ex, laneZ],
+      [ex - 5, laneZ],
     ];
   };
-  /** 从通道（东行车道）出到车道：toWest = 去落客点（西行车道），否则往东出画 */
+  /**
+   * 从通道（东行车道）出到车道：toWest = 去落客点（西行车道），否则往东出画。
+   * 通道里同时只有一辆车在走（askAisle），进出口里不分车道：走中间偏东的一条 —— 拐弯前至少留 5 米直道，
+   * 拐完后轴还在往里切（拖车曲线），离进出口两边停着的车都留 1 米以上。
+   */
   const fromAisle = (north: boolean, toWest: boolean, cx: number): V2[] => {
     const aisle = north ? AISLE_Z.n : AISLE_Z.s;
     const laneZ = aisle + LANE;
-    // 北停车场出来往南开（西车道），南停车场出来往北开（东车道）；车已经贴着那条车道了就换另一条（转弯半径不够）
-    let ex = north ? ENTRY_W : ENTRY_E;
-    if (cx > ex - 1.2) ex = north ? ENTRY_E : ENTRY_W;
+    const ex = clamp(cx + 5, ENTRY_W + 1.2, ENTRY_E - 0.3);
     const dz = toWest ? DRIVE_WB : DRIVE_EB;
     return [
       [ex, laneZ],
@@ -781,50 +1240,58 @@ export function createParkLife(o: ParkLifeOpts): ParkLife {
     ];
   };
 
-  /** 倒车入位：车在通道西行车道上开过车位 3.6 米停下，倒车画弧进位；结束时车头朝通道反方向 */
+  /** 倒车入位：车在通道西行车道上开过车位 3.9 米停下，倒车画弧进位；结束时车头朝通道反方向 */
   function* reverseIn(c: Car, st: Stall): Co {
     const laneZ = st.aisleZ - LANE;
     const [sx, sz] = st.c;
-    const stopX = sx - 3.6;
+    const stopX = sx - 3.9;
     // 先在车道上开到停车点
-    yield* drive(
-      c,
-      mkPath([
-        [c.x, c.z],
-        [stopX, laneZ],
-      ]),
-      1.4,
-    );
+    yield* drive(c, pathFrom(c, [[stopX, laneZ]]), 1.4);
     yield* wait(0.5 + rnd() * 0.4);
-    // 倒车：起点切线朝东（车头朝西），终点进车位（车头朝通道的反方向 = 离开车位时开出去）
-    // 车位中心往里 0.1 米；第二个控制点在车位口外 3.2 米（从通道那边进来）
-    const inZ = sz - st.aisleSide * 0.1;
-    const path = bezier([stopX, laneZ], [stopX + 2.6, laneZ], [sx, sz + st.aisleSide * 3.2], [sx, inZ]);
+    // 倒车：按后轴画路（后轮不侧滑，车头每米最多转 0.6 弧度）：从后轴现在的位置往东一小段 → 四分之一圆弧（半径 = 到车位中线的距离）
+    // 拐进车位 → 直着倒到位（车位中心往里 0.1 米）。结束时车头朝通道 = 离开时直接开出去
+    const g = sz > laneZ ? 1 : -1;
+    const [hx, hz] = noseOf(c.rot);
+    const r0: V2 = [c.x - hx * AXLE, c.z - hz * AXLE];
+    // 圆弧从后轴现在的位置起（车停得偏一点也不拐折）
+    const R = clamp(sx - r0[0], 1.8, 3.2);
+    const cx = sx - R;
+    const cz = r0[1] + g * R;
+    const pts: V2[] = [r0];
+    for (let k = 1; k <= 14; k++) {
+      const a = (k / 14) * (P / 2);
+      pts.push([cx + Math.sin(a) * R, cz - g * Math.cos(a) * R]);
+    }
+    pts.push([sx, sz - st.aisleSide * 0.1 + g * AXLE]);
+    const path = finish(pts);
     c.ignoreParked = true;
-    yield* drive(c, path, 2.0, { rev: true });
+    yield* drive(c, path, 2.0, { rev: true, lead: true });
     c.ignoreParked = false;
     park(c);
     st.car = c;
     c.stall = st;
     c.parkedAt = now;
     st.reserved = false;
+    releaseAisle(c);
   }
   /** 从车位出来到通道的东行车道（车头朝通道 = 开出来；背对通道 = 倒出来） */
   function* leaveStall(c: Car, st: Stall): Co {
     const laneZ = st.aisleZ + LANE;
-    const [sx, sz] = st.c;
+    const sx = st.c[0];
+    // 路从车现在停的地方起（车位中心往车头 / 往里挪了一点）
+    const sz = c.z;
     const [nx, nz] = noseOf(c.rot);
     const noseToAisle = nz * (st.aisleZ - sz) > 0;
     c.ignoreParked = true;
     st.car = null;
     c.stall = null;
     if (noseToAisle) {
-      const path = bezier([sx, sz], [sx + nx * 2.6, sz + nz * 2.6], [sx - 0.4, laneZ], [sx + 1.2, laneZ]);
+      const path = bezier([c.x, sz], [c.x + nx * 2.6, sz + nz * 2.6], [sx - 0.4, laneZ], [sx + 1.2, laneZ]);
       yield* drive(c, path, 1.6, { vEnd: 1.2 });
     } else {
       // 倒出来：屁股朝通道，倒到西边，车头朝东
-      const back: V2 = [sx - nx * 3.2, sz - nz * 3.2];
-      const path = bezier([sx, sz], back, [sx - 0.6, laneZ], [sx - 3.4, laneZ]);
+      const back: V2 = [c.x - nx * 3.2, sz - nz * 3.2];
+      const path = bezier([c.x, sz], back, [sx - 0.6, laneZ], [sx - 3.4, laneZ]);
       setBrake(c, true);
       yield* wait(0.6);
       yield* drive(c, path, 1.8, { rev: true });
@@ -832,6 +1299,53 @@ export function createParkLife(o: ParkLifeOpts): ParkLife {
     }
     c.ignoreParked = false;
     st.reserved = false;
+  }
+  const aisleOf = (st: Stall): AisleId => (st.row < 2 ? 'n' : 's');
+  /**
+   * 从进出口开上车道之前的停车线：车道上有车开过来（进出口两边 22 米里在动的车）就在进出口里等它过去（车道上的车先走）。
+   * path = 车中心的路；线画在车头快出进出口的地方（车中心离车道中线 7.5 米）。
+   */
+  const mouthGate = (c: Car, path: Path): DriveOpt['gate'] => {
+    let s = 0;
+    while (s < path.len && Math.abs(pathAt(path, s)[1]) > 7.5) s += 0.25;
+    const x = pathAt(path, s)[0];
+    return {
+      s,
+      open: () => !cars.some((o) => o !== c && o.live && o.v > 0.3 && Math.abs(o.z) < 4.6 && Math.abs(o.x - x) < 22),
+    };
+  };
+  /** 开出通道、回到车道上就放号 */
+  const releaseOnDrive = (c: Car) =>
+    spawn(
+      when(
+        () => !cars.includes(c) || Math.abs(c.z) < 4.4,
+        () => releaseAisle(c),
+      ),
+    );
+
+  /** 三点掉头倒进哪条线：北进出口（之后往南 / 往东开）、南进出口（之后往北开） */
+  const TURN_X: Record<AisleId, number> = { n: ENTRY_W + 0.4, s: ENTRY_E - 0.2 };
+  /**
+   * 落客点掉头（车头朝西停着）：车道 8 米宽，U 形掉头掉不过来 → 三点掉头：沿西行车道往东倒、车尾甩进进出口（into），
+   * 停下以后车头朝车道，调用方接着往前开。倒之前等两条通道的号（进出口里、车道上没有别的车在走），倒完号还在手里（调用方放）。
+   */
+  function* turnBack(c: Car, into: AisleId): Co {
+    const clear = () => !cars.some((o) => o !== c && o.live && Math.abs(o.z) < 5 && o.x < BAY_LINE_X - 3);
+    c.live = true;
+    yield* until(() => {
+      c.stuckFor += 1 / 60;
+      return askAisle(c, 'n', -1) && askAisle(c, 's', -1) && clear();
+    });
+    c.stuckFor = 0;
+    setBrake(c, true);
+    yield* wait(0.4);
+    const X = TURN_X[into];
+    const sz = into === 'n' ? -1 : 1;
+    const x0 = Math.max(c.x + 0.2, X - 5.2);
+    const z1 = c.z + sz * 4.6;
+    const arc = bezier([x0, c.z], [x0 + (X - x0) * 0.6, c.z], [X, z1 - sz * 2.8], [X, z1], 16);
+    yield* drive(c, finish([[c.x, c.z], ...arc.pts, [X, sz * 7.3]]), 1.8, { rev: true });
+    yield* wait(0.5);
   }
 
   // ── 状态（统计、玩法） ──
@@ -952,7 +1466,6 @@ export function createParkLife(o: ParkLifeOpts): ParkLife {
       ],
       0.9,
       'push',
-      1.1,
     );
     yield* faceTo(doorman, SPOTS.gateIn[0], SPOTS.gateIn[1]);
     yield* wait(0.8);
@@ -968,7 +1481,6 @@ export function createParkLife(o: ParkLifeOpts): ParkLife {
       ],
       0.9,
       'push',
-      1.1,
     );
     pushing = null;
   }
@@ -999,7 +1511,8 @@ export function createParkLife(o: ParkLifeOpts): ParkLife {
         continue;
       }
       // 3. 取车
-      const pk = pickups.find((q) => q.ready);
+      // 取车要用落客点交车：落客点空着才去
+      const pk = bay ? undefined : pickups.find((q) => q.ready);
       if (pk) {
         yield* valetFetch(pk);
         continue;
@@ -1027,12 +1540,15 @@ export function createParkLife(o: ParkLifeOpts): ParkLife {
       [
         [valet.x + 0.85, valet.z],
         [valet.x + 0.85, valet.z + 1.7],
+        // 从车头前面（西边）绕过去，别从车头里穿过去
+        [c.x - c.halfLen - 0.75, c.z - 1.0],
+        [c.x - c.halfLen - 0.75, c.z + 1.0],
         [dx - 0.9, dz + 0.5],
         [dx - 0.3, dz + 0.35],
       ],
       2.2,
       'walk',
-      1.6,
+      1.3,
     );
     // 等会员下车站好
     yield* until(() => a.waiting || a.keys !== 'member', 8);
@@ -1088,34 +1604,60 @@ export function createParkLife(o: ParkLifeOpts): ParkLife {
     yield* enter(valet, c, -1);
     if (arrival === a) arrival = null;
     yield* wait(0.4);
-    // 落客区里掉头（往西南绕一个小圈）→ 车道东行 → 南进出口 → 通道往西
-    const turn = mkPath([[c.x, c.z], ...UTURN, [ENTRY_W - 3, DRIVE_EB]], 1.6);
-    yield* drive(c, turn, 3.5, { vEnd: 3.0 });
     if (!st) {
-      // 没车位：开出画（不会发生：池子比车多）
-      yield* drive(
-        c,
-        mkPath([
-          [c.x, c.z],
-          [CAR_EDGE_X + 2, DRIVE_EB],
-        ]),
-        7,
+      // 没车位：掉头开出画（不会发生：池子比车多）
+      yield* turnBack(c, 'n');
+      spawn(
+        when(
+          () => !cars.includes(c) || c.x > BAY_LINE_X - 2,
+          () => {
+            releaseAisle(c);
+            releaseBay(c);
+          },
+        ),
       );
+      yield* drive(c, exitEast(c), 7);
       dropCar(c);
       valet.inCar = false;
       valet.x = SPOTS.edgeOut[0];
       yield* walk(valet, [POD_STAND], 3);
       return;
     }
-    const lane = toAisle(north, 'eb');
-    yield* drive(c, mkPath([[c.x, c.z], ...lane], 2.4), 4.0, { vEnd: 1.4 });
+    // 三点掉头：去南停车场倒进北进出口、去北停车场倒进南进出口 → 直着开过车道 → 进出口 → 通道往西
+    const into: AisleId = north ? 's' : 'n';
+    yield* turnBack(c, into);
+    spawn(
+      when(
+        () => !cars.includes(c) || (north ? c.z < -3 : c.z > 3),
+        () => {
+          releaseAisle(c, into);
+          releaseBay(c);
+        },
+      ),
+    );
+    const ex = north ? ENTRY_E : ENTRY_W;
+    const laneZ = (north ? AISLE_Z.n : AISLE_Z.s) - LANE;
+    yield* drive(
+      c,
+      pathFrom(
+        c,
+        [
+          [ex, north ? -2.5 : 2.5],
+          [ex, laneZ],
+          [ex - 5, laneZ],
+        ],
+        2.4,
+      ),
+      4.0,
+      { vEnd: 1.4 },
+    );
     yield* reverseIn(c, st);
     yield* wait(0.3);
     yield* exit(valet, c, -1);
     yield* closeDoor(c, -1);
     // 走回岗亭：通道 → 墙边步道 →（南边来的经过落客区）→ 岗亭窗口
     valetBusy = '走回岗亭';
-    yield* walk(valet, [...lotToBooth(st), BOOTH_WIN], 2.6, 'walk', 1.8);
+    yield* walk(valet, [...lotToBooth(st), BOOTH_WIN], 2.6, 'walk', 1.55);
     yield* face(valet, P);
     yield* act(valet, 'handoff', 1.2, HANDOFF_AT, () => {
       valet.obj.userData.setProp?.(null);
@@ -1125,6 +1667,17 @@ export function createParkLife(o: ParkLifeOpts): ParkLife {
     });
     served++;
   }
+  /** 三点掉头倒进北进出口以后：往前开、右拐上东行车道、往东出画 */
+  const exitEast = (c: Car) =>
+    pathFrom(
+      c,
+      [
+        [TURN_X.n, -3.0],
+        [TURN_X.n + 4.8, DRIVE_EB],
+        [CAR_EDGE_X + 3, DRIVE_EB],
+      ],
+      4,
+    );
   /** 停车场某个车位前 → 岗亭窗口前（不含窗口）：南边走墙边步道经过落客区，北边走北步道 */
   const lotToBooth = (st: Stall): V2[] => {
     const front = st.aisleZ - st.aisleSide * 3.3;
@@ -1149,8 +1702,13 @@ export function createParkLife(o: ParkLifeOpts): ParkLife {
   const boothToLot = (st: Stall, c: Car): V2[] => [...lotToBooth(st).reverse(), doorPt(c, -1)];
   /** 取车：摘钥匙 → 去车位 → 开到落客点 → 递钥匙 → 会员开走 */
   function* valetFetch(pk: (typeof pickups)[number]): Co {
-    pk.ready = false;
     const c = pk.car;
+    // 落客点先占上（交车的地方；车开到之前来落客的车在车道上等）
+    if (!askBay(c)) {
+      yield;
+      return;
+    }
+    pk.ready = false;
     valetBusy = '取车';
     yield* walk(valet, [BOOTH_WIN], 1.6);
     yield* face(valet, P);
@@ -1162,7 +1720,7 @@ export function createParkLife(o: ParkLifeOpts): ParkLife {
     say(pk.m, '谢谢！', 1.2);
     valetBusy = '取车';
     const st = pk.st;
-    yield* walk(valet, boothToLot(st, c), 2.6, 'walk', 1.8);
+    yield* walk(valet, boothToLot(st, c), 2.6, 'walk', 1.55);
     yield* enter(valet, c, -1);
     // 会员看见车来了：先从代客台前走到落客区南边等（车头西边绕过去）
     const m = pk.m;
@@ -1177,10 +1735,12 @@ export function createParkLife(o: ParkLifeOpts): ParkLife {
         1.3,
       ),
     );
+    yield* until(() => askAisle(c, aisleOf(st)));
     yield* leaveStall(c, st);
-    // 进出口往北 → 车道西行 → 落客点；落客点上有车（等代客接的）就停在它后面，在那儿交钥匙
-    const back = mkPath([[c.x, c.z], ...fromAisle(st.row < 2, true, c.x), SPOTS.dropoff], 2.4);
-    yield* drive(c, back, 4.0, { giveUp: () => c.stuckFor > 0.8 && c.x < ENTRY.x0 && c.z < 0 });
+    releaseOnDrive(c);
+    // 进出口 → 车道西行 → 落客点
+    const back = pathFrom(c, [...fromAisle(st.row < 2, true, c.x), SPOTS.dropoff], 2.4);
+    yield* drive(c, back, 4.0, { gate: mouthGate(c, back) });
     park(c);
     c.live = true;
     yield* exit(valet, c, -1);
@@ -1206,16 +1766,23 @@ export function createParkLife(o: ParkLifeOpts): ParkLife {
     spawn(memberDriveOff(m, c));
     yield* wait(0.6);
   }
-  /** 会员上车 → （前面的落客车开走以后）落客区里掉头 → 车道往东出画 */
+  /** 会员上车 → 三点掉头（倒进北进出口）→ 车道往东出画 */
   function* memberDriveOff(m: Person, c: Car): Co {
     yield* walk(m, [doorPt(c, -1)], 1.2);
     yield* enter(m, c, -1);
     dropMember(m);
     yield* wait(0.5);
-    const pts: V2[] = [[c.x, c.z]];
-    if (c.x > SPOTS.dropoff[0] + 1) pts.push(SPOTS.dropoff);
-    pts.push(...UTURN, [CAR_EDGE_X + 3, DRIVE_EB]);
-    yield* drive(c, mkPath(pts, 1.6), 7);
+    yield* turnBack(c, 'n');
+    spawn(
+      when(
+        () => !cars.includes(c) || c.x > BAY_LINE_X - 2,
+        () => {
+          releaseAisle(c);
+          releaseBay(c);
+        },
+      ),
+    );
+    yield* drive(c, exitEast(c), 7);
     dropCar(c);
   }
   /** 会员从车边走进大门（driver：顺路把门关上） */
@@ -1256,8 +1823,10 @@ export function createParkLife(o: ParkLifeOpts): ParkLife {
       placeP(pass);
     }
     const a: Arrival = { car: c, driver: drv, waiting: false, waitT: 0, keys: 'member', handled: false };
-    // 落客点被占（上一辆还没开走）：在后面排队
-    yield* drive(c, mkPath([[c.x, c.z], [90, DRIVE_WB], SPOTS.dropoff]), 7);
+    // 落客点被占（上一辆还没开走、代客正在取车）：在车道上（BAY_LINE_X 东边）等
+    yield* drive(c, pathFrom(c, [[90, DRIVE_WB], SPOTS.dropoff]), 7, {
+      gate: { s: CAR_EDGE_X - (BAY_LINE_X + c.halfLen), open: () => askBay(c) },
+    });
     park(c);
     c.live = true; // 还算"在路上"（别人会躲它）
     arrival = a;
@@ -1295,19 +1864,15 @@ export function createParkLife(o: ParkLifeOpts): ParkLife {
     const drv = newMember(0, 0);
     drv.inCar = true;
     placeP(drv);
-    yield* drive(c, mkPath([[c.x, c.z], ...toAisle(true, 'wb')], 2.6), 6, { vEnd: 1.4 });
+    // 北通道里有车在走：在车道上（拐进进出口之前）等号
+    yield* drive(c, pathFrom(c, [...toAisle(true, 'wb')], 2.6), 6, {
+      vEnd: 1.4,
+      gate: { s: CAR_EDGE_X - (ENTRY_E + 3) - c.halfLen - 1.5, open: () => askAisle(c, 'n', 1) },
+    });
     // 通道里慢慢找（刹车灯一闪一闪）
     const laneZ = st.aisleZ - LANE;
     const sx = st.c[0];
-    yield* drive(
-      c,
-      mkPath([
-        [c.x, c.z],
-        [sx + 2.6, laneZ],
-      ]),
-      1.5,
-      { search: true, vEnd: 1.0 },
-    );
+    yield* drive(c, pathFrom(c, [[sx - 3.9, laneZ]]), 1.5, { search: true });
     yield* reverseIn(c, st);
     yield* wait(0.5);
     yield* exit(drv, c, -1);
@@ -1354,8 +1919,11 @@ export function createParkLife(o: ParkLifeOpts): ParkLife {
     yield* enter(m, c, -1);
     dropMember(m);
     yield* wait(0.5);
+    yield* until(() => askAisle(c, aisleOf(st)));
     yield* leaveStall(c, st);
-    yield* drive(c, mkPath([[c.x, c.z], ...fromAisle(st.row < 2, false, c.x), [CAR_EDGE_X + 3, DRIVE_EB]], 2.6), 6);
+    releaseOnDrive(c);
+    const out = pathFrom(c, [...fromAisle(st.row < 2, false, c.x), [CAR_EDGE_X + 3, DRIVE_EB]], 2.6);
+    yield* drive(c, out, 6, { gate: mouthGate(c, out) });
     dropCar(c);
   }
   // ── 出去：自己取车（北停车场） ──
@@ -1373,8 +1941,11 @@ export function createParkLife(o: ParkLifeOpts): ParkLife {
     yield* enter(m, c, -1);
     dropMember(m);
     yield* wait(0.6);
+    yield* until(() => askAisle(c, 'n'));
     yield* leaveStall(c, st);
-    yield* drive(c, mkPath([[c.x, c.z], ...fromAisle(true, false, c.x), [CAR_EDGE_X + 3, DRIVE_EB]], 2.6), 6);
+    releaseOnDrive(c);
+    const out = pathFrom(c, [...fromAisle(true, false, c.x), [CAR_EDGE_X + 3, DRIVE_EB]], 2.6);
+    yield* drive(c, out, 6, { gate: mouthGate(c, out) });
     dropCar(c);
   }
 
@@ -1422,6 +1993,27 @@ export function createParkLife(o: ParkLifeOpts): ParkLife {
     placeP(doorman);
   };
 
+  /**
+   * 从位姿差分出车真正的运动（不管是哪段代码在开车）：纵向速度 → 轮子转；横摆角速度 → 前轮转角（自行车模型 tanδ = 轴距·ω / v）；
+   * 纵向 / 横向加速度 → 车身点头、侧倾（车的 setMotion）。
+   */
+  const carMotion = (c: Car, dt: number) => {
+    const jump = !(Math.hypot(c.x - c.mx, c.z - c.mz) < 1) || dt <= 0;
+    const [nx, nz] = noseOf(c.rot);
+    const vl = jump ? 0 : ((c.x - c.mx) * nx + (c.z - c.mz) * nz) / dt;
+    const w = jump ? 0 : wrapPi(c.rot - c.mrot) / dt;
+    const ax = jump ? 0 : clamp((vl - c.mv) / dt, -6, 6);
+    if (Math.abs(vl) > 0.15)
+      c.steer = lerp(c.steer, clamp(Math.atan((2 * AXLE * w) / vl), -0.65, 0.65), Math.min(1, dt * 10));
+    c.mx = c.x;
+    c.mz = c.z;
+    c.mrot = c.rot;
+    c.mv = vl;
+    c.obj.userData.setSpeed?.(vl);
+    // 横向加速度（本地 +x 为正）：往左拐（ω > 0）向心加速度朝 −x
+    c.obj.userData.setMotion?.(c.steer, ax, clamp(-vl * w, -5, 5));
+  };
+
   const update = (dt: number) => {
     now += dt;
     const k = Math.floor(now / LOOP);
@@ -1443,8 +2035,20 @@ export function createParkLife(o: ParkLifeOpts): ParkLife {
       const d = o.director();
       if (d) placeTrolleyBy(d.position.x, d.position.z, d.rotation.y, Math.min(1, dt * 9));
     } else if (pushing) placeTrolleyBy(pushing.x, pushing.z, pushing.yaw, Math.min(1, dt * 9));
+    // 车被一个人挡了 2.5 秒（他站在车要走的路上）：请他往旁边让到车身外 0.75 米
     for (const c of cars) {
-      c.obj.userData.setSpeed?.(c.v * c.dir);
+      const p = c.waitP;
+      if (!c.live || !p || c.stuckFor < 2.5 || p.inCar) continue;
+      const [nx, nz] = noseOf(c.rot);
+      const lz = (p.x - c.x) * nz - (p.z - c.z) * nx;
+      if (Math.abs(lz) > c.halfW + 0.75) continue;
+      const k = 1.2 * dt * (lz >= 0 ? 1 : -1);
+      p.x += nz * k;
+      p.z -= nx * k;
+      placeP(p);
+    }
+    for (const c of cars) {
+      carMotion(c, dt);
       c.obj.userData.update?.(dt);
     }
     for (const p of people) {
@@ -1554,6 +2158,7 @@ export function createParkLife(o: ParkLifeOpts): ParkLife {
       valet: valetBusy || '空闲',
       served,
       cars: cars.length,
+      stuck: cars.reduce((m, c) => Math.max(m, c.live ? c.stuckFor : 0), 0),
     }),
     hooks,
     debug: () => ({
@@ -1566,13 +2171,21 @@ export function createParkLife(o: ParkLifeOpts): ParkLife {
         v: +c.v.toFixed(2),
         live: c.live,
         stall: c.stall?.id,
+        id: c.id,
+        stuck: +c.stuckFor.toFixed(1),
+        blocker: c.blocker?.id,
       })),
+      aisles: { n: aisleOwner.n?.id, s: aisleOwner.s?.id },
+      bay: bay?.id,
       people: people.map((p) => ({
         role: p.role,
         x: +p.x.toFixed(2),
         z: +p.z.toFixed(2),
         inCar: p.inCar,
         say: p.sayT > 0 ? p.say : '',
+        v: +p.v.toFixed(2),
+        yaw: +p.yaw.toFixed(2),
+        to: p.to,
       })),
       valet: valetBusy,
       bags,

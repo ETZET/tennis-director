@@ -17,7 +17,7 @@
 // 调试钩子：window.__courts.life（state、debug()）。
 import * as THREE from 'three';
 import { BALL_R, ballKit } from '../clubsite/assets/tennis-ball';
-import { CLAP_HIT } from '../clubsite/people';
+import { CLAP_HIT, strideOf } from '../clubsite/people';
 import { FEED_RELEASE } from '../clubsite/people/rig/rig';
 import type { AssetCtx } from './ctx';
 import {
@@ -118,13 +118,14 @@ interface Actor {
   contact: Map<string, V3>;
   rigBalls: THREE.Object3D[];
 }
-const actor = (id: string, obj: THREE.Object3D, stride = 1.25): Actor => ({
+const actor = (id: string, obj: THREE.Object3D): Actor => ({
   id,
   obj,
   pos: obj.position.clone(),
   yaw: obj.rotation.y,
   walkPh: 0,
-  stride,
+  // walk 一个周期走多远（孩子的腿短，走得也短）
+  stride: strideOf(obj),
   pose: (n, ph) => obj.userData.pose?.(n, ph),
   ctl: null,
   contact: new Map(),
@@ -521,7 +522,7 @@ export function createLife({ ctx, scene, objs, make, play }: LifeOpts): CourtsLi
   // ── 人 ──
   const coachObj = need('coach');
   const coach = actor('coach', coachObj);
-  const kids = ['kid-hit', 'kid-q1', 'kid-q2', 'kid-q3'].map((id) => actor(id, need(id), 0.8));
+  const kids = ['kid-hit', 'kid-q1', 'kid-q2', 'kid-q3'].map((id) => actor(id, need(id)));
   const parents = ['parent-1', 'parent-2'].map(need);
   const photographer = actor('parent-3', need('parent-3'));
   const teams: Actor[][] = [

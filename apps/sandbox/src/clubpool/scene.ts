@@ -6,9 +6,9 @@ import type { Region, RegionHost } from '../clubsite/region';
 import { rngFactory } from '../clubsite/render/noise';
 import { schemeById, schemeMats, schemeOpts } from '../clubsite/render/palettes';
 import { createMats, type ToonOpts } from '../clubsite/render/toon';
-import { GROUNDS, POOL } from '../clubsite/world';
 import type { AssetBuild, AssetCtx } from './ctx';
 import { SLOTS, type Slot } from './layout';
+import { poolNav } from './nav';
 import { PAL, type Pal, PROXY, SUN_SKIP } from './palette';
 import { placeholder, SPECS } from './placeholders';
 import { REUSED } from './reuse';
@@ -183,11 +183,7 @@ export function createPoolRegion(host: RegionHost): PoolRegion {
     id: 'clubpool',
     root: parent,
     groundAt: (x, z) => terrain.groundAt(x, z),
-    nav: () => ({
-      bounds: { x0: GROUNDS.x0, x1: -38.5, z0: -10, z1: 20 },
-      // 白模：池畔平台的高差由 groundAt 给（台阶迈得上去），池水挡住
-      blocked: [{ x0: POOL.x0 - 0.45, x1: POOL.x1 + 0.45, z0: POOL.z0 - 0.45, z1: POOL.z1 + 0.45 }],
-    }),
+    nav: poolNav,
     director: () => null,
     start: { start: [0, 0] },
     update(dt, t) {

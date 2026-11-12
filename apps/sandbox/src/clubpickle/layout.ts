@@ -25,8 +25,21 @@
 // 两片场面是大块安静的蓝，网两边的深色厨房带是匹克球一眼认得出的记号；北、南围网 + 广场挡土墙 + 草坪矮墙四条暗带分层。
 // 视线：左边南北步道 → 西门 → 拍架（排队）→ 场边一排往右 → 总监 → 记分牌 → 水站；2 号场的球在网上来回。
 
-import { CLOUD_VEL, CLOUDS, SLOTS as DESK_SLOTS, type Slot as DeskSlot } from '../clubdesk/layout';
-import { COURTS, type Court, LAWN, PATHS, PICKLE, type Rect, type V2 } from '../clubsite/world';
+import {
+  CANOPY,
+  CLIP,
+  CLOUD_VEL,
+  CLOUDS,
+  COUNTER,
+  SLOTS as DESK_SLOTS,
+  type Slot as DeskSlot,
+  GATE_SPEC,
+  HEAD_LINE_Z,
+  STAIRS,
+  WALL,
+} from '../clubdesk/layout';
+import { rampFromStairs, stairCheeks } from '../clubsite/play/nav';
+import { COURTS, type Court, FORECOURT, GATE, LAWN, PATHS, PICKLE, PLAZA, type Rect, type V2 } from '../clubsite/world';
 
 export type { Court, Rect, V2 };
 export { CLOUD_VEL, CLOUDS, LAWN, PATHS, PICKLE };
@@ -166,22 +179,53 @@ export const PROM_X: [number, number] = [10.0, 76.0];
 
 /**
  * 总监的导航（clubsite/play 的 NavSpec 形状：Rect / Circle / Seg / Poly）。
- * 能走：围场里（南边 z ≤ 12.8：再往南被南围网挡住半身）、南北步道、长廊、去草坪的小路、到达小院（员工小门、前台北边）。
+ * 能走：围场里（南边 z ≤ 12.8：再往南被南围网挡住半身）、南北步道、长廊、去草坪的小路、到达小院（整块，到东墙里面的脸）和大门、
+ * 广场挡土墙前的绿带、广场南边一片、草坪北沿一条（广场、草坪走台阶上下）。
  * 挡路：四边围网（胶囊，西门和东北员工小门留口）、两张网 + 网柱、拍架、两把伞的杆、两张长椅、记分牌、水站、器材箱、捡球篮、
- * 前台那边的后柜、毛巾车、柜台、水站。
+ * 前台那边（同 clubdesk：凉棚下 HEAD_LINE_Z 以北、柜台、凉棚西南柱、毛巾车、水站、今日场地板）、门柱、陶罐、植物、两张长椅。
  */
 const SOUTH_HIDE_Z0 = PICKLE.z1 - 2.2;
-const fence = (a: V2, b: V2) => ({ a, b, r: 0.14 });
+/**
+ * 围网胶囊：半径 0.1 = 画出来的柱子半宽（fence-screen 的柱 0.18 见方、顶杆 0.12、底杆 0.16）。
+ * 门边的线段端点就在门边：端头的半圆只伸进门洞 0.1（和门框柱一样），1.2 米的员工小门留得下 0.44 米宽的一条给身体中心走。
+ */
+const fence = (a: V2, b: V2) => ({ a, b, r: 0.1 });
 const netSeg = (c: Court) => ({ a: [c.x, c.z - 3.35] as V2, b: [c.x, c.z + 3.35] as V2, r: 0.18 });
+/** 东墙里面的脸（墙心 x 60、厚 0.7；同 clubdesk/play.ts 的 WALL_IN）：墙里能走的到这里为止 */
+const WALL_IN = GATE.x - WALL.t / 2;
+/**
+ * 导航网格范围：西到这个场景画到的地方（clubdesk 的 CLIP.x0：长廊一直画到那里，来打球的人从那头走来）、
+ * 北到广场上（竖屏上沿 z ≈ −19，喷泉池在外），南到下草坪的台阶脚下再 0.6 米
+ */
+const NAV_BOUNDS: Rect = { x0: CLIP.x0, x1: 62, z0: -19, z1: 18.6 };
+/** 挡路的植物（同 clubdesk/play.ts 的 PLANT_R：按资产 id 的树干/株半径，乘 slot 的缩放；摆在高处的不算） */
+const PLANT_R: Record<string, number> = {
+  'fan-palm': 0.45,
+  'palo-verde': 0.45,
+  'smoke-tree': 0.5,
+  creosote: 0.6,
+  brittlebush: 0.45,
+  agave: 0.6,
+};
+/** 广场两段台阶、下草坪一段 */
+const RAMPS = STAIRS.map(rampFromStairs);
 export const NAV = {
-  bounds: { x0: 30, x1: 62, z0: -9, z1: 17 },
+  bounds: NAV_BOUNDS,
   walkable: [
     { x0: PICKLE.x0, x1: PICKLE.x1, z0: PICKLE.z0, z1: SOUTH_HIDE_Z0 },
     { x0: 33.6, x1: 36.2, z0: -8.6, z1: 16.6 },
-    { x0: 30, x1: 60, z0: -8.6, z1: -4.4 },
+    { x0: NAV_BOUNDS.x0, x1: WALL_IN, z0: -8.6, z1: -4.4 },
     { x0: 33.6, x1: 56.8, z0: 15.25, z1: 16.6 },
-    { x0: 51.6, x1: 60, z0: -8.6, z1: 2.6 },
-    { x0: 54.8, x1: 56.8, z0: 10.6, z1: 15.25 },
+    // 到达小院（地图的 FORECOURT，整块；凉棚下、柜台在 blocked 里扣掉，同 clubdesk）；西边多 0.6 米接上员工小门
+    { x0: 51.6, x1: WALL_IN, z0: FORECOURT.z0, z1: FORECOURT.z1 },
+    // 门洞 → 门外（同 clubdesk：门洞 z 两边各收 0.05）
+    { x0: WALL_IN - 0.5, x1: NAV_BOUNDS.x1, z0: GATE.z0 + 0.05, z1: GATE.z1 - 0.05 },
+    // 广场（+1.2）南边一片、广场挡土墙和长廊之间的绿带、去草坪的小路以南到草坪里（−0.5）一条：高差由 groundAt 给，
+    // 挡土墙 / 草坪矮墙的高差 > stepUp 挡住，只能走 STAIRS（下面的 ramps；同 clubdesk）
+    { x0: PLAZA.x0, x1: PLAZA.x1, z0: NAV_BOUNDS.z0, z1: PLAZA.z1 },
+    { x0: PLAZA.x0, x1: WALL_IN, z0: PLAZA.z1, z1: -8.6 },
+    { x0: 33.6, x1: LAWN.x1, z0: 16.6, z1: NAV_BOUNDS.z1 },
+    { x0: 54.8, x1: 56.8, z0: FORECOURT.z1, z1: 15.25 },
   ],
   blocked: [
     // 围网（西门 z 4.5…7.5、东北员工小门 z −2.0…−0.8 留口）
@@ -203,12 +247,38 @@ export const NAV = {
     { x: 50.7, z: 6.3, r: 0.42 }, // 水站
     { x0: 51.12, x1: 51.98, z0: 5.32, z1: 5.88 }, // 器材箱
     { x: 42.5, z: 5.45, r: 0.34 }, // 捡球篮
-    // 前台那边（clubdesk 的 SLOTS）：后柜、毛巾车、柜台、水站
-    { x0: 52.3, x1: 53.4, z0: 4.6, z1: 6.0 },
-    { x0: 52.9, x1: 54.0, z0: 8.2, z1: 9.2 },
-    { x0: 55.2, x1: 57.4, z0: 8.6, z1: 10.2 },
-    { x: 53.4, z: 10.55, r: 0.42 },
+    // 前台那边（同 clubdesk/play.ts 的 deskNav）：凉棚下帽子会被帆布挡住的那块（HEAD_LINE_Z 以北，含后柜和北边两根柱）不让进、
+    // 柜台两段、凉棚南边西柱；毛巾车、水站、今日场地板按资产的包围盒（四边缩 0.04，同 clubdesk 的 footprint）
+    { x0: CANOPY.x0, x1: CANOPY.x1, z0: CANOPY.z0, z1: HEAD_LINE_Z },
+    COUNTER.east,
+    COUNTER.south,
+    { x: 52.6, z: 9.0, r: 0.2 },
+    { x0: 52.71, x1: 54.01, z0: 8.44, z1: 8.96 },
+    { x0: 53.1, x1: 53.7, z0: 10.15, z1: 10.95 },
+    { x0: 56.69, x1: 57.59, z0: 3.02, z1: 3.83 },
+    // 大门的两根门柱（1.7 见方，柱心 x 60、z = 门洞两边各外 0.8；同 clubdesk）
+    ...GATE_SPEC.pierZ.map((z) => ({
+      x0: GATE.x - GATE_SPEC.pier / 2,
+      x1: GATE.x + GATE_SPEC.pier / 2,
+      z0: z - GATE_SPEC.pier / 2,
+      z1: z + GATE_SPEC.pier / 2,
+    })),
+    // 门里北边的陶罐（上面种着龙舌兰；同 clubdesk）
+    { x: 58.4, z: -7.3, r: 0.45 },
+    // 绿带上的长椅、草坪北沿的长椅（资产包围盒四边缩 0.04，同 clubdesk 的 footprint）
+    { x0: 52.49, x1: 54.31, z0: -9.76, z1: -9.16 },
+    { x0: 51.49, x1: 53.31, z0: 18.04, z1: 18.64 },
+    // 植物（clubdesk 的 SLOTS：绿带上的蒲葵、龙舌兰、灌木，草坪上的假紫荆……）
+    ...DESK_SLOTS.filter((s) => PLANT_R[s.asset] && (s.y ?? 0) < 0.5).map((s) => ({
+      x: s.x,
+      z: s.z,
+      r: PLANT_R[s.asset] * (s.s ?? 1),
+    })),
+    // 台阶两侧的挡路条（同 clubplaza 的 PLAZA-7）：台阶两侧的地面 = 台阶低的那头（广场两段是地面 0，下草坪那段是草坪 −0.5）
+    ...RAMPS.flatMap((r) => stairCheeks(r, Math.min(r.from, r.to))),
   ],
+  /** 广场两段台阶、下草坪一段（同 clubdesk：按坡道插高度） */
+  ramps: RAMPS,
 };
 
 /**

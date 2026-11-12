@@ -17,6 +17,7 @@
 // 场地在比赛中关着（state.courtClosed：play.ts 照它挡导航）；只在总监不在 MATCH_RECT 里的时候才关（在里面 → 裁判冒"请离场"，等他出去）。
 // 截图 / 调试钩子：window.__stadium.life = { state, ball(), debug(), skip(phase) }
 import * as THREE from 'three';
+import { setStride } from '../clubsite/people';
 import { seatList } from './assets/stands/seats';
 import type { AssetCtx } from './ctx';
 import { DIM, MATCH_RECT, northTread, S, SPOTS, STANDS, standY, type V2 } from './layout';
@@ -718,7 +719,8 @@ export function createLife(o: LifeOpts): StadiumLife {
     while (!cond() && t < max) t += yield;
   }
   /** 走一串点（高度：看台上的走道 / 端梯 / 横走道按 standY，别处 0） */
-  function* walk(a: Actor, pts: (V3 | V2)[], speed = 1.5, stride = 1.25): Co {
+  function* walk(a: Actor, pts: (V3 | V2)[], speed = 1.5, stride?: number): Co {
+    const len = setStride(a.obj, stride);
     a.busy = true;
     for (const q of pts) {
       const p = Array.isArray(q) ? v(q[0], 0, q[1]) : (q as V3);
@@ -738,7 +740,7 @@ export function createLife(o: LifeOpts): StadiumLife {
         a.pos.z += (dz / L) * step;
         a.pos.y = standY(a.pos.x, a.pos.z) ?? 0;
         a.yaw = turnTo(a.yaw, Math.atan2(dx, dz), dt * 10);
-        a.walkPh = (a.walkPh + step / stride) % 1;
+        a.walkPh = (a.walkPh + step / len) % 1;
         a.pose('walk', a.walkPh);
       }
     }
@@ -806,7 +808,7 @@ export function createLife(o: LifeOpts): StadiumLife {
       k.pose('pickup', Math.min(1, t / 0.5));
       if (t > 0.25) ball.on = false;
     }
-    yield* walk(k, [home], 3.0, 1.05);
+    yield* walk(k, [home], 3.0, 1.55);
     fetching = null;
     settle(k, k.rest, kidYaw(k));
   }
