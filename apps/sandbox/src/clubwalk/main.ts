@@ -10,6 +10,8 @@ import * as THREE from 'three';
 import { CLOUDS as CLAY_CLOUDS } from '../clubclay/layout';
 import { CLOUDS as DESK_CLOUDS } from '../clubdesk/layout';
 import { GOLF_GATE } from '../clubgolf/layout';
+import { floorFor } from '../clubhouse/nav';
+import type { HouseRegion } from '../clubhouse/scene';
 import { buildMap } from '../clubmap2/build';
 import { PAL as MAP_PAL, type Pal as MapPal } from '../clubmap2/palette';
 import { placements } from '../clubmap2/scatter';
@@ -344,21 +346,19 @@ function buildRegion(L: Live) {
     }
   }
   // 导航
-  const nav = r.nav();
-  L.navBounds = nav.bounds;
-  // 坡道在区域自己的导航 bounds 里才算（同独立页面：NavMap.height 先查 bounds）
-  L.ramps = (nav.ramps ?? []).filter((q) => overlaps(q, nav.bounds, 0));
-  L.oracle = new NavMap({
-    groundAt: r.groundAt,
-    bounds: nav.bounds,
-    walkable: nav.walkable,
-    ramps: nav.ramps,
-    cell: 1000,
-  });
-  // 挡路的：和区域范围重叠的整个留（一道墙跨过邻居、中心落在邻居那儿的也留，例如高尔夫的南墙）
-  L.blocked = (nav.blocked ?? []).filter((s) => keepOwn(s, rects));
+  takeNav(L);
   // 会所：开局是外观（走进门里切成剖面，见 step 里的 houseInside）
-  (r as { setInside?(on: boolean): void }).setInside?.(false);
+  const house = asHouse(r);
+  house?.setInside(false);
+  // 会所三层、每层一张导航：换层（楼梯上过了 floorFor 的阈值、坐电梯）→ 重取这一层的导航，重建会所那块的世界网格
+  house?.onFloor(() => {
+    takeNav(L);
+    if (!play) return;
+    const next = allBlocked();
+    play.nav.setBlocked(next, grow(L.def.rects, 1));
+    navBlocked = next;
+    navPrep = true;
+  });
   L.buildMs = performance.now() - t0;
   // 着色器先编（颜色 / 法线 / 投影三套）：离进画面还有 WANT_MARGIN 那么远，异步编完再画就不卡
   const t1 = performance.now();
@@ -373,6 +373,30 @@ function buildRegion(L: Live) {
   );
 }
 
+/**
+ * 区域的导航 → 高度判断（oracle）+ 挡路的（只取中心在区域范围里的）。区域给了 surface（会所：按层的地面 + 这一层的楼梯）就用它，
+ * 代替 walkable + groundAt（RegionNav 的类型里没有 surface，按需读）。
+ */
+function takeNav(L: Live) {
+  const r = L.region as Region;
+  const nav = r.nav() as ReturnType<Region['nav']> & { surface?(x: number, z: number): number | null };
+  L.navBounds = nav.bounds;
+  // 坡道在区域自己的导航 bounds 里才算（同独立页面：NavMap.height 先查 bounds）
+  L.ramps = (nav.ramps ?? []).filter((q) => overlaps(q, nav.bounds, 0));
+  L.oracle = new NavMap({
+    groundAt: r.groundAt,
+    bounds: nav.bounds,
+    walkable: nav.walkable,
+    ramps: nav.ramps,
+    surface: nav.surface,
+    cell: 1000,
+  });
+  // 挡路的：和区域范围重叠的整个留（一道墙跨过邻居、中心落在邻居那儿的也留，例如高尔夫的南墙）
+  L.blocked = (nav.blocked ?? []).filter((s) => keepOwn(s, L.def.rects));
+}
+/** 会所的区域（有 setInside / setFloor / onFloor 的）；别的区域 = null */
+const asHouse = (r: Region | null | undefined): HouseRegion | null =>
+  r && 'onFloor' in r && 'setFloor' in r ? (r as HouseRegion) : null;
 // ── 世界导航：每个点归哪个区域（建好的用区域自己的，没建的、区域外的用底图的粗规则） ──
 const NAV_BOUNDS: Rect = { x0: -66, x1: 120, z0: -45, z1: 78 };
 /** 底图能走的：围墙里 + 门外的车道、停车场 */
@@ -851,13 +875,19 @@ function step(seconds: number) {
     placeSun(director.position.x, director.position.z);
     // 会所：总监进了门（会所的体块里）→ 剖面（娃娃屋），出门 → 外观
     {
-      const hr = lives.find((l) => l.def.id === 'clubhouse')?.region as { setInside?(on: boolean): void } | null;
+      const hr = asHouse(lives.find((l) => l.def.id === 'clubhouse')?.region);
       const p = director.position;
       const inHouse =
         p.x > CLUBHOUSE.x0 + 0.2 && p.x < CLUBHOUSE.x1 - 0.2 && p.z > CLUBHOUSE.z0 + 0.2 && p.z < CLUBHOUSE.z1 - 0.2;
-      if (hr?.setInside && inHouse !== houseInside) {
+      if (hr && inHouse !== houseInside) {
         houseInside = inHouse;
         hr.setInside(inHouse);
+      }
+      // 楼梯上换层：脚下高度过了阈值（floorFor 带滞回）→ 剖面和导航换成那一层（onFloor 的回调重建网格，见 buildRegion）。
+      // 两个平台、半跑在相邻两层的导航里都有，换过去的那一刻脚下站得住
+      if (hr && inHouse) {
+        const next = floorFor(hr.floor(), p.y);
+        if (next !== hr.floor()) hr.setFloor(next);
       }
     }
     unhideT -= DT;
