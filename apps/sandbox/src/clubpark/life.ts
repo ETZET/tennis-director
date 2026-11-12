@@ -273,7 +273,7 @@ export function createParkLife(o: ParkLifeOpts): ParkLife {
   const POD_STAND = w2(podium, podium?.userData.anchors?.stand, [SPOTS.podium[0], SPOTS.podium[1] - 0.8]);
   /** 取车的会员在代客台前（南边）等 */
   const POD_FRONT: V2 = [SPOTS.podium[0] + 0.3, SPOTS.podium[1] + 1.3];
-  const TROLLEY_HOME: V2 = trolley ? [trolley.position.x, trolley.position.z] : [61.4, -6.4];
+  const TROLLEY_HOME: V2 = trolley ? [trolley.position.x, trolley.position.z] : [61.5, -5.0];
   const trolleyHandle = (trolley?.userData.anchors?.handle as THREE.Vector3 | undefined)?.z ?? -1.1;
   let bags = 1;
   trolley?.userData.setBags?.(bags);

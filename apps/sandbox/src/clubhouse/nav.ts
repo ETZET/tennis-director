@@ -1,10 +1,13 @@
 // 白模的调试层：站位（洋红小圆盘）、路线（每 0.9 米一个小点）、门（门洞里一排小方点）。只在标签开着时画（?labels=0 的截图里没有）。
-// 另外给 clubwalk / 玩法用的导航数据：houseBlocked() = 墙（门洞是通的）+ 家具的脚印（按 SLOTS 和占位的规格；人、地毯、挂墙的板不算）。
+// 另外给 clubwalk / 玩法用的导航数据：houseBlocked() = 墙（门洞是通的）+ 家具的脚印（按 SLOTS 和占位的规格；人、地毯、挂墙的板不算；树只挡树干；壁泉加上伸出来的半圆小池）。
 import * as THREE from 'three';
-import type { Rect as NavRect } from '../clubsite/play/nav';
+import { DECK_RAMPS } from '../clubpool/layout';
+import type { Shape } from '../clubsite/play/nav';
+import type { RegionNav } from '../clubsite/region';
 import { smoothLine } from '../clubsite/render/geo';
+import { CLUBHOUSE, GROUNDS } from '../clubsite/world';
 import type { AssetCtx } from './ctx';
-import { alongX, DOORS, ROUTES, SLOTS, SPOTS, type V2, WALLS, wallBlocked } from './layout';
+import { alongX, DOORS, ROUTES, SLOTS, SPOTS, type V2, WALKABLE, WALLS, wallBlocked } from './layout';
 import { SPECS } from './placeholders';
 
 /** 给标签用的站位中文名（没列的不贴字） */
@@ -35,11 +38,19 @@ const NO_BLOCK = new Set([
   'agave',
 ]);
 
-/** 家具的脚印（矩形，转 90° 的换宽深；斜放的按包围盒）+ 墙 */
-export function houseBlocked(): NavRect[] {
-  const out: NavRect[] = [...wallBlocked()];
+/** 树：只挡树干（圆，半径 = 树干底的半径 × 缩放；树冠在头顶上，底下能走） */
+const TRUNK: Record<string, number> = { 'fan-palm': 0.36 };
+
+/** 家具的脚印（矩形，转 90° 的换宽深；斜放的按包围盒）+ 墙 + 树干 */
+export function houseBlocked(): Shape[] {
+  const out: Shape[] = [...wallBlocked()];
   for (const s of SLOTS) {
     if (NO_BLOCK.has(s.asset) || s.mode === 'out') continue;
+    const trunk = TRUNK[s.asset];
+    if (trunk) {
+      out.push({ x: s.x, z: s.z, r: trunk * (s.s ?? 1) });
+      continue;
+    }
     const sp = SPECS[s.asset];
     if (!sp) continue;
     const r = s.rotY ?? 0;
@@ -49,8 +60,41 @@ export function houseBlocked(): NavRect[] {
     const hw = ((sp.w * c + sp.d * sn) / 2) * sc;
     const hd = ((sp.w * sn + sp.d * c) / 2) * sc;
     out.push({ x0: s.x - hw, x1: s.x + hw, z0: s.z - hd, z1: s.z + hd });
+    if (sp.shape === 'wallfountain') out.push(fountainBasin(s.x, s.z, r, sp.w * sc, sp.d * sc));
   }
   return out;
+}
+
+/**
+ * 壁泉的半圆小池（placeholders.ts 的 wallfountain：半径 w/2、圆心在本地 z −d/2 + 0.15，朝本地 +z 伸出去）：
+ * 比 w × d 的脚印往外多伸 0.35 米，按半圆挡（多边形；整圆会把墙外的西巷也挡窄）。
+ */
+function fountainBasin(x: number, z: number, rotY: number, w: number, d: number): Shape {
+  const R = w / 2;
+  const c = Math.cos(rotY);
+  const s = Math.sin(rotY);
+  const poly: V2[] = [];
+  for (let i = 0; i <= 12; i++) {
+    const a = -Math.PI / 2 + (i / 12) * Math.PI;
+    const lx = R * Math.sin(a);
+    const lz = -d / 2 + 0.15 + R * Math.cos(a);
+    poly.push([x + lx * c + lz * s, z - lx * s + lz * c]);
+  }
+  return { poly };
+}
+
+/**
+ * 导航（clubwalk 的区域 nav()）：能走的 WALKABLE − houseBlocked()。
+ * 泳池北门的台阶（clubpool 的 DECK_RAMPS.north，x −48.7…−46.5、z −1.9…−1）在 clubwalk 里落在会所的范围（z < −1）：
+ * 大世界按"点归哪个区域就问哪个区域"取高度，所以会所这边也要带上这段坡道，不然台阶那一段是平地、平台边是 0.45 的坎。
+ */
+export function houseNav(): RegionNav {
+  return {
+    bounds: { x0: GROUNDS.x0, x1: CLUBHOUSE.x1 + 0.5, z0: GROUNDS.z0, z1: -1 },
+    walkable: WALKABLE,
+    blocked: houseBlocked(),
+    ramps: [DECK_RAMPS.north],
+  };
 }
 
 export function buildNav(ctx: AssetCtx, groundAt: (x: number, z: number) => number): THREE.Group {

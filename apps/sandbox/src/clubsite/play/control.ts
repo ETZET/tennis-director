@@ -220,6 +220,8 @@ export interface Play {
   tapScreen(cssX: number, cssY: number, cssW: number, cssH: number): void;
   tapWorld(x: number, z: number): void;
   pathLeft(): number;
+  /** 导航变了（大世界建好了新区域）：正在走的路按原来的目标、从现在的位置重新规划；走不到就停。没在走 = false */
+  replan(): boolean;
 
   /** hud 用：当前的按钮文字、标记、气泡、顶栏、提示 */
   ui(): PlayUi;
@@ -560,6 +562,10 @@ export function createPlay(opts: PlayOpts): Play {
   // ── 移动 ──
   /** 迈一步：推出挡路的，查能站；不行就只走 x / 只走 z。返回走了多远 */
   const tryStep = (dx: number, dz: number, circ: readonly Circle[]): number => {
+    // 现在已经压着挡路的多少（关场把总监关在里面、人走到总监身上）：推出这一段不算"被挤着走"，不然哪个方向都动不了
+    const cur = { x: pos.x, z: pos.z };
+    nav.pushOut(cur, circ);
+    const pre = Math.hypot(cur.x - pos.x, cur.z - pos.z);
     const cands: [number, number][] = [
       [dx, dz],
       [dx, 0],
@@ -573,8 +579,8 @@ export function createPlay(opts: PlayOpts): Play {
       if (h === null || Math.abs(h - pos.y) > nav.stepUp) continue;
       if (nav.hitsBlocked(np.x, np.z, nav.body - 0.03)) continue;
       const moved = Math.hypot(np.x - pos.x, np.z - pos.z);
-      // 推出去的比想走的还远（被挤着走）：只接受不往回走的
-      if (moved > Math.hypot(ax, az) * 1.5 + 0.02) continue;
+      // 推出去的比想走的还远（被挤着走）：只接受不往回走的（已经压进去的那段除外）
+      if (moved > Math.hypot(ax, az) * 1.5 + 0.02 + pre) continue;
       pos.set(np.x, h, np.z);
       return moved;
     }
@@ -702,7 +708,9 @@ export function createPlay(opts: PlayOpts): Play {
         const dz = pz - pos.z;
         const d = Math.hypot(dx, dz);
         const last = path.length === 1;
-        if (d < (last ? 0.08 : 0.3)) {
+        // 中间的拐点 0.3 米内就算到了；可是从这里直着去下一个点不通（拐角、贴着不能走的边）就得走到拐点上（0.08）
+        const near = last || (d < 0.3 && !nav.lineClear(pos.x, pos.z, path[1][0], path[1][1])) ? 0.08 : 0.3;
+        if (d < near) {
           path.shift();
           if (!path.length) arrive();
         } else want.set(dx / d, dz / d).multiplyScalar(last ? Math.min(1, d / 0.5 + 0.3) : 1);
@@ -914,6 +922,11 @@ export function createPlay(opts: PlayOpts): Play {
       plan(x, z, null, null);
     },
     pathLeft: () => path.length,
+    replan() {
+      const t = pathTarget;
+      if (!t || !path.length) return false;
+      return plan(t.x, t.z, t.inter, t.item);
+    },
 
     ui() {
       let mark: THREE.Vector3 | null = null;

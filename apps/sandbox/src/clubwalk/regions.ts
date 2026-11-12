@@ -8,6 +8,7 @@ import { createDeskRegion } from '../clubdesk/scene';
 import { createFoodRegion } from '../clubfood/scene';
 import { createGolfRegion } from '../clubgolf/scene';
 import { createHouseRegion } from '../clubhouse/scene';
+import { WALL_OUT } from '../clubpark/layout';
 import { createParkRegion } from '../clubpark/scene';
 import { createPickleRegion } from '../clubpickle/scene';
 import { createPlazaRegion } from '../clubplaza/scene';
@@ -22,6 +23,11 @@ export interface RegionDef {
   name: string;
   /** 这个区域管的范围（世界米，互不重叠） */
   rects: Rect[];
+  /**
+   * 范围里的这几块，导航问别的区域（画面、地形、摆件还归这个区域）：这个区域的场景不管那块地的导航，
+   * 邻居的场景管（例如匹克球范围里的草坪西半，草坪和下去的台阶在前台的导航里）。邻居没建好就还问自己。
+   */
+  navFrom?: { r: Rect; from: string }[];
   create(host: RegionHost): Region;
 }
 
@@ -38,6 +44,8 @@ export const REGIONS: RegionDef[] = [
     name: '露天前台',
     // 到达小院、凉棚、东墙和大门（墙里那面）、往南到草坪东半
     rects: [{ x0: 52, x1: 61, z0: -8.6, z1: 34 }],
+    // 东墙外皮（x 60.35）到 61：墙外落客区的连锁砖，前台的导航在墙外只开了门洞那段，停车场的导航管这条
+    navFrom: [{ r: { x0: WALL_OUT, x1: 61, z0: -8.6, z1: 34 }, from: 'clubpark' }],
     create: createDeskRegion,
   },
   {
@@ -48,6 +56,8 @@ export const REGIONS: RegionDef[] = [
       { x0: 33.6, x1: 52, z0: -8.6, z1: 16.6 },
       { x0: 36, x1: 52, z0: 16.6, z1: 34 },
     ],
+    // 草坪西半：匹克球的导航只到长廊南沿（z 16.6），草坪（−0.5）和长廊下去的台阶（x 47.4…49.6）在前台的导航里
+    navFrom: [{ r: { x0: 36, x1: 52, z0: 16.6, z1: 34 }, from: 'clubdesk' }],
     create: createPickleRegion,
   },
   {

@@ -8,6 +8,7 @@ import '../clubsite/render/colors';
 import * as THREE from 'three';
 import { CLOUDS as CLAY_CLOUDS } from '../clubclay/layout';
 import { CLOUDS as DESK_CLOUDS } from '../clubdesk/layout';
+import { GOLF_GATE } from '../clubgolf/layout';
 import { buildMap } from '../clubmap2/build';
 import { PAL as MAP_PAL, type Pal as MapPal } from '../clubmap2/palette';
 import { placements } from '../clubmap2/scatter';
@@ -15,7 +16,16 @@ import { CLOUDS as PARK_CLOUDS, SPOTS as PARK_SPOTS } from '../clubpark/layout';
 import { createParkKit } from '../clubpark/scene';
 import { CLOUDS as PLAZA_CLOUDS } from '../clubplaza/layout';
 import { director as clubDirector } from '../clubsite/people';
-import { type Circle, type Hud, type Item, mountPlay, NavMap, type Play, type Shape } from '../clubsite/play';
+import {
+  type Circle,
+  type Hud,
+  type Item,
+  mountPlay,
+  NavMap,
+  type Play,
+  type Ramp,
+  type Shape,
+} from '../clubsite/play';
 import type { Region, RegionJobs } from '../clubsite/region';
 import type { AssetCtx, BaseCtx, SharedUniforms } from '../clubsite/render/ctx';
 import { rngFactory } from '../clubsite/render/noise';
@@ -27,8 +37,10 @@ import {
   CLUBHOUSE,
   COURT_FENCES,
   COURTS,
+  DRIVE,
   fencePieces,
   GATE,
+  GOLF,
   GROUNDS,
   LAWN,
   PATHS,
@@ -36,6 +48,7 @@ import {
   type Rect,
 } from '../clubsite/world';
 import { clipMesh } from './clip';
+import { grow, keepOwn, outside, overlaps, shapeBox } from './navclip';
 import { inRects, REGIONS, type RegionDef, rectDist } from './regions';
 
 const params = new URLSearchParams(location.search);
@@ -233,6 +246,8 @@ interface Live {
   region: Region | null;
   /** 导航的高度判断（区域自己的 walkable + ramps + groundAt），建好以后才有 */
   oracle: NavMap | null;
+  /** 区域 nav() 的坡道（台阶）：surface 先查它们 */
+  ramps: Ramp[];
   navBounds: Rect | null;
   blocked: Shape[];
   jobs: RegionJobs | null;
@@ -255,6 +270,7 @@ const lives: Live[] = REGIONS.map((def) => {
     root,
     region: null,
     oracle: null,
+    ramps: [],
     navBounds: null,
     blocked: [],
     jobs: null,
@@ -313,6 +329,8 @@ function buildRegion(L: Live) {
   // 导航
   const nav = r.nav();
   L.navBounds = nav.bounds;
+  // 坡道在区域自己的导航 bounds 里才算（同独立页面：NavMap.height 先查 bounds）
+  L.ramps = (nav.ramps ?? []).filter((q) => overlaps(q, nav.bounds, 0));
   L.oracle = new NavMap({
     groundAt: r.groundAt,
     bounds: nav.bounds,
@@ -320,31 +338,12 @@ function buildRegion(L: Live) {
     ramps: nav.ramps,
     cell: 1000,
   });
-  L.blocked = (nav.blocked ?? []).filter((s) => {
-    const b = shapeBox(s);
-    return inRects(rects, (b.x0 + b.x1) / 2, (b.z0 + b.z1) / 2);
-  });
+  // 挡路的：和区域范围重叠的整个留（一道墙跨过邻居、中心落在邻居那儿的也留，例如高尔夫的南墙）
+  L.blocked = (nav.blocked ?? []).filter((s) => keepOwn(s, rects));
   // 会所：开局是外观（走进门里切成剖面，见 step 里的 houseInside）
   (r as { setInside?(on: boolean): void }).setInside?.(false);
   L.buildMs = performance.now() - t0;
   console.info(`clubwalk: 建 ${L.def.id} ${L.buildMs.toFixed(0)} ms`);
-}
-
-function shapeBox(s: Shape): Rect {
-  if ('x0' in s) return s;
-  if ('poly' in s) {
-    const xs = s.poly.map((p) => p[0]);
-    const zs = s.poly.map((p) => p[1]);
-    return { x0: Math.min(...xs), x1: Math.max(...xs), z0: Math.min(...zs), z1: Math.max(...zs) };
-  }
-  if ('a' in s)
-    return {
-      x0: Math.min(s.a[0], s.b[0]) - s.r,
-      x1: Math.max(s.a[0], s.b[0]) + s.r,
-      z0: Math.min(s.a[1], s.b[1]) - s.r,
-      z1: Math.max(s.a[1], s.b[1]) + s.r,
-    };
-  return { x0: s.x - s.r, x1: s.x + s.r, z0: s.z - s.r, z1: s.z + s.r };
 }
 
 // ── 世界导航：每个点归哪个区域（建好的用区域自己的，没建的、区域外的用底图的粗规则） ──
@@ -370,33 +369,57 @@ const BASE_BLOCKED: Shape[] = (() => {
   // 东墙（门洞留着）
   out.push({ a: [GATE.x, GROUNDS.z0], b: [GATE.x, GATE.z0 - 0.8], r: 0.4 });
   out.push({ a: [GATE.x, GATE.z1 + 0.8], b: [GATE.x, GROUNDS.z1], r: 0.4 });
+  // 南墙（西步道南头的高尔夫门洞留着；同 clubgolf 的 nav）
+  out.push({ a: [GOLF.x0, GOLF_GATE.z], b: [GOLF_GATE.x0, GOLF_GATE.z], r: 0.4 });
+  out.push({ a: [GOLF_GATE.x1, GOLF_GATE.z], b: [GOLF.x1, GOLF_GATE.z], r: 0.4 });
   return out;
 })();
+/**
+ * 建好的区域里、哪个区域的导航都不管的地方，哪些能走：门外的车道（DRIVE，同停车场的车道宽 ±0.4）一直到导航网格东边
+ * （x 118 起是山口那段，到 120 还是平的，passY = 0）
+ */
+const OUTER_WALK: Rect[] = [{ x0: DRIVE.x0, x1: NAV_BOUNDS.x1, z0: DRIVE.z0 - 0.4, z1: DRIVE.z1 + 0.4 }];
 const baseSurface = (x: number, z: number) => (inRects(BASE_WALK, x, z) ? 0 : null);
+/** 这一点的导航问哪个区域：区域的 navFrom 里写了、那个区域也建好了就问它，否则问自己 */
+function navOwner(own: Live, x: number, z: number): Live {
+  const f = own.def.navFrom?.find((n) => inRects([n.r], x, z));
+  const L = f ? lives.find((l) => l.def.id === f.from) : null;
+  return L?.oracle ? L : own;
+}
 function surface(x: number, z: number): number | null {
-  const own = lives.find((L) => inRects(L.def.rects, x, z));
+  // 坡道（台阶）先问：台阶是区域明确给的能走的面，伸过区域边的那一截也按它（泳池东门台阶的脚伸进会员场的西步道、
+  // 广场西沿的台阶落在中心球场的范围里）。坡道的高度和独立页面一样（区域自己的 NavMap 先查坡道）
+  for (const L of lives) {
+    if (!L.oracle) continue;
+    for (const r of L.ramps) {
+      if (x < r.x0 || x > r.x1 || z < r.z0 || z > r.z1) continue;
+      const h = L.oracle.height(x, z);
+      if (h !== null) return h;
+    }
+  }
+  const rect = lives.find((L) => inRects(L.def.rects, x, z));
+  const own = rect && navOwner(rect, x, z);
   if (own?.oracle) {
     const h = own.oracle.height(x, z);
     if (h !== null) return h;
     const nb = own.navBounds;
     if (nb && x >= nb.x0 && x <= nb.x1 && z >= nb.z0 && z <= nb.z1) return null;
-    // 区域自己的导航不管这里（例如匹克球区域里的草坪西半）：问别的建好的区域
+    // 区域自己的导航不管这里（区域的范围比它的导航大）：问别的建好的区域
     for (const L of lives) {
       if (L === own || !L.oracle) continue;
       const g = L.oracle.height(x, z);
       if (g !== null) return g;
     }
-    return null;
+    // 建好的区域的导航都不管这里（例如停车场的导航到 x 92，范围到 140）：画出来的车道接着走
+    if (lives.some((L) => L.navBounds && inRects([L.navBounds], x, z))) return null;
+    return inRects(OUTER_WALK, x, z) ? 0 : null;
   }
   return baseSurface(x, z);
 }
 function allBlocked(): Shape[] {
-  const out: Shape[] = [];
-  for (const s of BASE_BLOCKED) {
-    const b = shapeBox(s);
-    const own = lives.find((L) => inRects(L.def.rects, (b.x0 + b.x1) / 2, (b.z0 + b.z1) / 2));
-    if (!own?.oracle) out.push(s);
-  }
+  // 底图的：建好的区域范围里那段裁掉（区域自己的导航管），范围外那段留着（底图照样画着，例如青训场 x 27 以东的围网）
+  const built = lives.filter((L) => L.oracle).flatMap((L) => L.def.rects);
+  const out: Shape[] = BASE_BLOCKED.flatMap((s) => outside(s, built));
   for (const L of lives) if (L.oracle) out.push(...L.blocked);
   return out;
 }
@@ -530,27 +553,14 @@ function setVisible(L: Live, on: boolean) {
 function stream(dt: number, force = false) {
   const v = viewRect(WANT_MARGIN);
   let built = false;
-  let navDirty: Rect | null = null;
+  const fresh: Live[] = [];
   for (const L of lives) {
     const want = wanted(L, v);
     if (want && !L.region) {
       if (built && !force) continue;
       buildRegion(L);
       built = true;
-      const u = L.def.rects.reduce((a, r) => ({
-        x0: Math.min(a.x0, r.x0),
-        x1: Math.max(a.x1, r.x1),
-        z0: Math.min(a.z0, r.z0),
-        z1: Math.max(a.z1, r.z1),
-      }));
-      navDirty = navDirty
-        ? {
-            x0: Math.min(navDirty.x0, u.x0),
-            x1: Math.max(navDirty.x1, u.x1),
-            z0: Math.min(navDirty.z0, u.z0),
-            z1: Math.max(navDirty.z1, u.z1),
-          }
-        : u;
+      fresh.push(L);
     }
     if (!L.region) continue;
     const held = play?.held();
@@ -573,15 +583,43 @@ function stream(dt: number, force = false) {
       if (b) b.visible = !show;
     }
   }
-  if (navDirty && play) {
-    const m = 1;
-    play.nav.setBlocked(allBlocked(), {
-      x0: navDirty.x0 - m,
-      x1: navDirty.x1 + m,
-      z0: navDirty.z0 - m,
-      z1: navDirty.z1 + m,
-    });
+  if (fresh.length && play) {
+    const t0 = performance.now();
+    const next = allBlocked();
+    play.nav.setBlocked(next, navDirty(fresh, next));
+    navBlocked = next;
+    navPrep = true;
+    // 正在点地面走：路是按建区域之前的（底图的粗平地）规划的，按新的网格从现在的位置重新规划（走不到就停）
+    if (play.pathLeft()) play.replan();
+    console.info(`clubwalk: 导航重建 ${(performance.now() - t0).toFixed(0)} ms ${fresh.map((L) => L.def.id)}`);
+  } else if (navPrep && play) {
+    // 连通分量、粗网格（~0.1 秒）挪到下一帧算，不和建区域挤在同一帧
+    navPrep = false;
+    play.nav.prepare();
   }
+}
+let navPrep = false;
+
+/** 上一次给世界导航的挡路表（算新建区域以后哪些形状变了） */
+let navBlocked: Shape[] = [];
+/**
+ * 建了新区域以后要重建的格子（外扩 1 米：身体半径 + 四周探点）：新区域的范围（地归它了）、它的导航 bounds
+ * （它的导航也替别的区域、范围外的地回答）、挡路表里变了的形状（底图形状裁掉的、新区域带来的，都可能伸出范围）。
+ * 只重建新区域的范围的话，结果会和建区域的先后有关（WALK-3）。
+ */
+function navDirty(fresh: readonly Live[], next: readonly Shape[]): Rect[] {
+  const out: Rect[] = [];
+  for (const L of fresh) {
+    out.push(...L.def.rects);
+    // bounds 只要范围外那几条（范围里面上一行已经有了；整块 bounds 重算一遍高尔夫要 3 秒）
+    if (L.navBounds) out.push(...outside(L.navBounds, L.def.rects).map((s) => shapeBox(s)));
+  }
+  const key = (s: Shape) => JSON.stringify(s);
+  const was = new Set(navBlocked.map(key));
+  const now = new Set(next.map(key));
+  for (const s of navBlocked) if (!now.has(key(s))) out.push(shapeBox(s));
+  for (const s of next) if (!was.has(key(s))) out.push(shapeBox(s));
+  return grow(out, 1);
 }
 
 // 开局：画面里的区域先建好（eager=1 全建），再建 play
@@ -597,11 +635,13 @@ play = mountPlay({
   start: START,
   yaw: 0,
   // 看台的端梯要 0.36（clubstadium），其余的高差（草坪 0.5、广场 1.2）照样挡住
-  nav: { groundAt: () => 0, bounds: NAV_BOUNDS, surface, blocked: allBlocked(), stepUp: 0.36 },
+  nav: { groundAt: () => 0, bounds: NAV_BOUNDS, surface, blocked: (navBlocked = allBlocked()), stepUp: 0.36 },
   camera: { lead: { portrait: 1.4, landscape: 0.5 }, zoom: [0.5, 1.8] },
   hint: '拖动走路 · 点地面走过去 · 走到哪建到哪',
 });
 for (const L of lives) if (L.region) setVisible(L, true);
+// 规划要用的连通分量、粗网格先算好（不然第一次点地面要等 ~0.1 秒）
+play.nav.prepare();
 
 // ── 地点名（进入区域时淡出）+ 小地图 ──
 const ZONES: { name: string; r: Rect }[] = [

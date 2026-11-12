@@ -13,10 +13,12 @@ import * as THREE from 'three';
 import type { Play, Shape } from '../clubsite/play';
 import type { RegionJobs, RegionNav, RegionStart } from '../clubsite/region';
 import { GATE } from '../clubsite/world';
+import { PIER, POST_X, POST_Z } from './assets/carport';
 import { makeKeys } from './assets/staff/uniform';
 import type { AssetCtx } from './ctx';
 import { BLOCKED, GATE_POSTS, SLOTS, SPOTS, WALKABLE, WALL_OUT } from './layout';
 import type { ParkLife } from './life';
+import { BERM_PTS, STRIP_PTS } from './terrain';
 
 export interface ParkPlayEnv {
   /** 区域的根（独立页面 = scene） */
@@ -40,6 +42,9 @@ export const PARK_START: RegionStart = {
 export function parkNav(): RegionNav {
   const blocked: Shape[] = [
     ...BLOCKED,
+    // 花坛、种植带：画出来的圆角轮廓（直角矩形会把岗亭东南角和北花坛西北角之间卡成一个单格孤岛）
+    ...BERM_PTS.map((b) => ({ poly: b.pts })),
+    ...STRIP_PTS.map((s) => ({ poly: s.pts })),
     // 代客台、立牌、长椅
     { x: SPOTS.podium[0], z: SPOTS.podium[1], r: 0.45 },
     { x: 64.3, z: -3.75, r: 0.32 },
@@ -48,6 +53,16 @@ export function parkNav(): RegionNav {
     ...GATE_POSTS.map((z) => ({ x0: GATE.x - 0.85, x1: GATE.x + 0.85, z0: z - 0.85, z1: z + 0.85 })),
   ];
   for (const s of SLOTS) {
+    // 遮阳棚的 6 根柱子（柱脚墩见方）：停车场整片能走以后要挡住
+    if (s.asset === 'carport')
+      for (const px of POST_X)
+        for (const pz of [-POST_Z, POST_Z])
+          blocked.push({
+            x0: s.x + px - PIER / 2,
+            x1: s.x + px + PIER / 2,
+            z0: s.z + pz - PIER / 2,
+            z1: s.z + pz + PIER / 2,
+          });
     const r = PLANT_R[s.asset];
     if (r && Math.abs((s.y ?? 0) - 0.15) < 0.1) blocked.push({ x: s.x, z: s.z, r: r * (s.s ?? 1) });
   }

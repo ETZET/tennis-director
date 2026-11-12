@@ -231,7 +231,7 @@ export const ROUTES: { id: string; pts: V2[] }[] = [
   { id: 'director-towel', pts: [SPOTS.deskStand, SPOTS.towels] },
   {
     id: 'director-out',
-    pts: [SPOTS.deskStand, [55.0, 8.9], SPOTS.staffGap, SPOTS.water, [56.4, 12.0], SPOTS.toolRack],
+    pts: [SPOTS.deskStand, [54.9, 8.8], SPOTS.staffGap, SPOTS.water, [56.4, 12.0], SPOTS.toolRack],
   },
 ];
 

@@ -446,14 +446,14 @@ export const SPOTS = {
   till: [-48.9, -28.6] as V2,
   /** 理疗床边 */
   physio: [-51.4, -17.4] as V2,
-  /** 更衣室长凳 */
-  lockerM: [-60.0, -15.0] as V2,
-  lockerW: [-56.0, -15.0] as V2,
+  /** 更衣室长凳边（柜子和长凳之间的过道上，正对更衣室的门；长凳本身挡路） */
+  lockerM: [-60.5, -15.0] as V2,
+  lockerW: [-56.9, -15.0] as V2,
   /** 壁炉前（会员休息室的焦点） */
   fireplace: [-57.5, -37.4] as V2,
-  /** 南拱廊（看泳池）、壁泉 */
+  /** 南拱廊（看泳池）、壁泉前（半圆小池伸到 x −60.55，站在池边外 0.35 米） */
   loggia: [-54.0, -11.4] as V2,
-  fountain: [-60.6, -11.5] as V2,
+  fountain: [-60.1, -11.5] as V2,
 } satisfies Record<string, V2>;
 
 /** 路线 */
@@ -654,6 +654,7 @@ export const SLOTS: Slot[] = [
   { id: 'notice-board', asset: 'notice-board', x: M.x0 + 0.54, z: -21.0, y: 0.8, rotY: EA, mode: 'in' },
   { id: 'hall-bench', asset: 'bench', x: -54.4, z: -20.3, mode: 'in', noLabel: true },
   // 男更衣 / 女更衣：一排柜子（西墙）、中间长凳、淋浴间（东墙）
+  // 男更衣的西墙是 0.5 米的外墙（柜子只能往里 0.78），长凳放在房间正中，两边的过道才都有 0.75 米（人能走进去）
   ...(
     [
       ['M', -62, -58],
@@ -672,14 +673,14 @@ export const SLOTS: Slot[] = [
     {
       id: `locker-bench-${k}`,
       asset: 'locker-bench',
-      x: (x0 + x1) / 2 - 0.2,
+      x: (x0 + x1) / 2 - (i === 0 ? 0 : 0.2),
       z: -16.3,
       mode: 'in' as const,
       noLabel: i > 0,
     },
     { id: `showers-${k}`, asset: 'showers', x: x1 - 0.55, z: -16.3, rotY: W, mode: 'in' as const, noLabel: i > 0 },
   ]),
-  person('locker-1', -60.1, -15.6, 0, 3, 'sit', 0.6, { mode: 'in', seat: [0.45] }),
+  person('locker-1', -59.9, -15.6, 0, 3, 'sit', 0.6, { mode: 'in', seat: [0.45] }),
   person('locker-2', -56.9, -17.8, W, 1, 'idle', 0.3, { mode: 'in' }),
   // 理疗室：两张理疗床、冰浴桶
   { id: 'physio-table-1', asset: 'physio-table', x: -52.6, z: -17.6, mode: 'in' },
@@ -691,10 +692,11 @@ export const SLOTS: Slot[] = [
   { id: 'stairs', asset: 'stairs', x: -49.05, z: -17.6, mode: 'in' },
 
   // ═════ 四周（两种模式都在）═════
-  // 北墙外一排蒲葵（叶冠从屋脊后面露出来）、西边小巷一丛灌木、拱廊前两棵蒲葵（拱廊两头，不挡拱）
+  // 北墙外一排蒲葵（叶冠从屋脊后面露出来）、西边小巷北头（拐进北巷的角上）一丛灌木、拱廊前两棵蒲葵（拱廊两头，不挡拱）
+  // 灌木 2 米宽，西巷只有 1.5 米：放在巷子中段会把北巷和西巷北段堵成孤岛，所以放在西北角（北巷 2.5 米宽，旁边还能过）
   { id: 'palm-n-1', asset: 'fan-palm', x: -59.0, z: -46.6, variant: 1, s: 1.15, noLabel: true },
   { id: 'palm-n-2', asset: 'fan-palm', x: -47.5, z: -46.2, variant: 0, s: 1.05, noLabel: true },
-  { id: 'creosote-w', asset: 'creosote', x: -63.0, z: -33.0, variant: 1, noLabel: true },
+  { id: 'creosote-w', asset: 'creosote', x: -63.0, z: -42.0, variant: 1, noLabel: true },
   // 会所和泳池之间的两棵蒲葵：照 clubpool 的位置（clubpool.md「共享坐标」7，两个场景统一）
   { id: 'palm-s-1', asset: 'fan-palm', x: -60.2, z: -4.8, variant: 2, s: 1.0, noLabel: true },
   { id: 'palm-s-2', asset: 'fan-palm', x: -41.4, z: -3.6, variant: 1, s: 0.95, noLabel: true },

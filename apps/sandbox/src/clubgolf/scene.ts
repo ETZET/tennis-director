@@ -6,9 +6,9 @@ import type { Region, RegionHost } from '../clubsite/region';
 import { rngFactory } from '../clubsite/render/noise';
 import { schemeById, schemeMats, schemeOpts } from '../clubsite/render/palettes';
 import { createMats, type ToonOpts } from '../clubsite/render/toon';
-import { GOLF, GOLF_POND } from '../clubsite/world';
 import type { AssetBuild, AssetCtx } from './ctx';
-import { GOLF_GATE, SLOTS, type Slot } from './layout';
+import { SLOTS, type Slot } from './layout';
+import { golfNav } from './nav';
 import { PAL, type Pal, PROXY } from './palette';
 import { GRIPS, placeholder, SPECS } from './placeholders';
 import { REUSED } from './reuse';
@@ -187,17 +187,7 @@ export function createGolfRegion(host: RegionHost): GolfRegion {
     id: 'clubgolf',
     root: parent,
     groundAt: (x, z) => terrain.groundAt(x, z),
-    nav: () => ({
-      bounds: { x0: GOLF.x0, x1: GOLF.x1, z0: GOLF_GATE.z - 0.7, z1: GOLF.z1 + 2 },
-      blocked: [
-        // 南墙（门洞 x −38.65…−34.35 留着）、水塘
-        { a: [GOLF.x0, GOLF_GATE.z], b: [GOLF_GATE.x0, GOLF_GATE.z], r: 0.4 },
-        { a: [GOLF_GATE.x1, GOLF_GATE.z], b: [GOLF.x1, GOLF_GATE.z], r: 0.4 },
-        { x: GOLF_POND.x, z: GOLF_POND.z, r: GOLF_POND.rz + 0.4 },
-        { x: GOLF_POND.x - GOLF_POND.rx * 0.5, z: GOLF_POND.z, r: GOLF_POND.rz },
-        { x: GOLF_POND.x + GOLF_POND.rx * 0.5, z: GOLF_POND.z, r: GOLF_POND.rz },
-      ],
-    }),
+    nav: golfNav,
     director: () => null,
     start: { start: [0, 0] },
     update(dt, t) {

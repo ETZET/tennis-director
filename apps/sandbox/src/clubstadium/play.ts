@@ -16,16 +16,19 @@
 //   · 比赛中场地关着（MATCH_RECT 进不去，网两边过不去）；只有换边那十几秒能进场。场边那一条（南看台脚下、底线后）能走。
 // 顶栏：比赛（倒计时 / 比分）、沙、底线、杯子、观众。
 import * as THREE from 'three';
-import { footprint, type Item, type Play, type Shape } from '../clubsite/play';
+import { footprint, type Item, type Play, type Rect, type Shape } from '../clubsite/play';
 import type { AssetCtx } from './ctx';
-import { MATCH_RECT, NET_POST_Z, PLAYERS_GATE, S, STANDS } from './layout';
+import { MATCH_RECT, NET_POST_Z, northTread, PLAYERS_GATE, S, STANDS, TERRACE } from './layout';
 import { SAND_BLOCK, type StadiumLife } from './life';
 
 /** 静态挡路的：网、广告板、裁判椅、球员席、伞杆、工具架、拱门两根柱子、饮水点、几簇植物 */
 export function staticBlocked(objs: Map<string, THREE.Object3D>): Shape[] {
   const out: Shape[] = [
     { a: [S.x, NET_POST_Z[0] - 0.05], b: [S.x, NET_POST_Z[1] + 0.05], r: 0.18 },
-    { x0: -17.9, x1: 17.9, z0: STANDS.north.front - 0.3, z1: STANDS.north.front + STANDS.board.t + 0.05 },
+    // 网南头的绞盘和摇把（clubsite/assets/court-net：绞盘 x −0.18…0.23，摇把朝东、握把到 x 0.29、z −14.14；这里不转）
+    { x0: S.x - 0.18, x1: S.x + 0.29, z0: NET_POST_Z[1], z1: NET_POST_Z[1] + 0.46 },
+    // 广告板：只挡板子本身（往北不伸进看台：走道最低半级要站得上；看台和场地之间 0.9 的高差本来就过不去）
+    { x0: -17.9, x1: 17.9, z0: STANDS.north.front, z1: STANDS.north.front + STANDS.board.t + 0.05 },
     // 拱门的两根柱子（1.0 见方，在门洞中心南北 2.6 米）
     ...[-1, 1].map((s) => ({
       x0: PLAYERS_GATE.x - 0.55,
@@ -36,10 +39,29 @@ export function staticBlocked(objs: Map<string, THREE.Object3D>): Shape[] {
     { x: -24.4, z: -24.6, r: 0.5 },
     { x: -24.2, z: -17.2, r: 0.45 },
   ];
+  // 北看台走道之间的座位块（第 0～4 级的实心台阶，北沿 = 最高一级踏面前沿往南 0.1）：横走道的南沿、走道两边由它挡。
+  // 挡路形状的角是圆的（推出 = 沿法线滑），摇杆往东 / 往西带一点南偏走过走道口时会被圆角托回横走道，不会卡进走道口的死角
+  {
+    const N = STANDS.north;
+    const half = STANDS.aisleW / 2;
+    const xs = [N.x0, ...STANDS.aisles.flatMap((c) => [c - half, c + half]), N.x1];
+    for (let i = 0; i < xs.length; i += 2)
+      out.push({ x0: xs[i], x1: xs[i + 1], z0: northTread(N.n - 1).za + 0.1, z1: N.front });
+  }
   for (const id of ['umpire-chair', 'bench-w', 'bench-e', 'tool-rack', 'drink-fountain']) {
     const o = objs.get(id);
     const r = o ? footprint(o, 0.05) : null;
     if (r) out.push(r);
+  }
+  // 会所露台（邻居）东沿凉棚的柱子（terrain.ts：x = TERRACE.x1 − 0.6，z0 + 1 起每 4.8 米一根，0.35 见方）：西头能走的到 x −27.4，压着这一排
+  for (let z = TERRACE.z0 + 1; z <= TERRACE.z1 - 0.5; z += 4.8) out.push({ x: TERRACE.x1 - 0.6, z, r: 0.25 });
+  // 端梯西边沙地上的两簇（半径同 clubplaza 的 PLANT_R）
+  for (const [id, r] of [
+    ['brittle-w', 0.45],
+    ['creosote-w', 0.6],
+  ] as const) {
+    const o = objs.get(id);
+    if (o) out.push({ x: o.position.x, z: o.position.z, r });
   }
   for (const id of ['umbrella-w', 'umbrella-e']) {
     const o = objs.get(id);
@@ -68,14 +90,42 @@ export function setupStadiumPlay(o: {
   play.addBlocker(() => life.people());
 
   // ── 比赛中场地关上（导航挡住 MATCH_RECT）──
-  const statics = staticBlocked(objs);
+  // 导航上单独的一层（setLayer）：大世界（clubwalk）里 play.nav 是整个世界的导航，不能拿这个场景的挡路整张换掉；
+  // 层不会被 clubwalk 流入区域时的 setBlocked（换 base）冲掉，只重建场地附近 0.6 米的格子。
+  const M = MATCH_RECT;
+  const around: Rect = { x0: M.x0 - 0.6, x1: M.x1 + 0.6, z0: M.z0 - 0.6, z1: M.z1 + 0.6 };
+  let gate: Rect | null = null;
+  const setGate = (r: Rect | null) => {
+    gate = r;
+    play.nav.setLayer('clubstadium:match', r ? [r] : [], around);
+  };
+  /**
+   * 关场那一刻总监的身体还压着 MATCH_RECT（life 只等他的中心出去）：挡路推出的距离比一步大，control 不接受 → 原地卡死。
+   * 先挡一个收进来一条边的（离他 body + 0.02，收得最少的那条），等他走开再挡满；不瞬移、也不让他往场里走。
+   */
+  const clearance = play.nav.body + 0.02;
+  const gateFor = (x: number, z: number): Rect => {
+    const dx = Math.max(M.x0 - x, 0, x - M.x1);
+    const dz = Math.max(M.z0 - z, 0, z - M.z1);
+    if (Math.hypot(dx, dz) >= clearance) return M;
+    const cut = [x + clearance - M.x0, M.x1 - x + clearance, z + clearance - M.z0, M.z1 - z + clearance];
+    const k = cut.indexOf(Math.min(...cut));
+    if (k === 0) return { ...M, x0: x + clearance };
+    if (k === 1) return { ...M, x1: x - clearance };
+    if (k === 2) return { ...M, z0: z + clearance };
+    return { ...M, z1: z - clearance };
+  };
   let closed = false;
   const syncCourt = () => {
     const want = life.state.courtClosed;
-    if (want === closed) return;
-    closed = want;
-    play.nav.setBlocked(closed ? [...statics, MATCH_RECT] : statics);
-    if (closed) play.toast('比赛进行中 · 场地不能进', 2.0);
+    if (want !== closed) {
+      closed = want;
+      setGate(closed ? gateFor(D.position.x, D.position.z) : null);
+      if (closed) play.toast('比赛进行中 · 场地不能进', 2.0);
+    } else if (gate && gate !== M && gateFor(D.position.x, D.position.z) === M) {
+      // 收进来的那条边：总监走开了 → 挡满
+      setGate(M);
+    }
   };
 
   // ── 吹叶机：工具架上那把（拿着时用人物的内置道具 blower）──
@@ -83,6 +133,8 @@ export function setupStadiumPlay(o: {
   const slot = (rack.userData.slots as Record<string, { pos: THREE.Vector3; top: THREE.Vector3 }>)?.blower;
   rack.updateMatrixWorld(true);
   const rackStand = slot ? rack.localToWorld(slot.pos.clone()) : rack.position.clone().add(new THREE.Vector3(0, 0, 1));
+  // 槽位前那一点离架子的挡路脚印只有 0.23 米（< 身体半径 0.28，站不上，靠寻路的 nearestFree 兜底）：顺着架子正面往外挪 0.2 米
+  if (slot) rackStand.addScaledVector(rack.getWorldDirection(new THREE.Vector3()).setY(0).normalize(), 0.2);
   const rackTop = slot
     ? rack.localToWorld(slot.top.clone()).add(new THREE.Vector3(0, 0.4, 0))
     : rack.position.clone().setY(2.2);

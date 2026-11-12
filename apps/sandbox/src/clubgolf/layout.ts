@@ -19,6 +19,7 @@
 // 沙漠高尔夫的对比：修剪整齐的绿草是"岛"，岛与岛之间是沙漠砂石地（碎花岗岩）+ 石头 + 仙人球（"过沙漠、过水"的目标式打法）。
 // 太阳在北偏东 8°（仰角 44°）：南墙朝镜头的南面是一条暗带（框）；墙边的棕榈影子往南落 ~8 米 —— 不落在果岭、发球台、推杆的人身上（见 SLOTS 的棕榈）。
 // 安静的地方：果岭四周的草、水面、球车道、墙里的沙地、南边的砂石地。
+import type { Ramp } from '../clubsite/play/nav';
 import { GOLF, GOLF_POND, GROUNDS, LOT_S, PATHS, type Rect, type V2 } from '../clubsite/world';
 
 export type { Rect, V2 };
@@ -91,6 +92,30 @@ export const CART_PATH: Rect = { x0: GOLF.x0 - 2, x1: GOLF.x1 + 2, z0: 55.0, z1:
 // ── 第 7 洞（三杆洞，过水）：发球台在东、果岭在西，中间是水塘 ───────────────
 /** 发球台（垫高 0.35，四周一圈矮石墙；w 沿 x、d 沿 z） */
 export const TEE = { x: -10, z: 64, w: 5.2, d: 3.6 } as const;
+/**
+ * 上发球台的两段坡（导航用，画面不变）：台顶 0.35 比能迈的 0.3 高，规划每格只许爬 0.15，不给坡就上不去。
+ * 照「能走的地方」的说法从岛上西边、东边坡上去：台边内外各 0.6 米、宽 2 米（z 63…65），高度 0 → 0.35 线性。
+ */
+export const TEE_RAMPS: Ramp[] = [
+  {
+    x0: TEE.x - TEE.w / 2 - 0.6,
+    x1: TEE.x - TEE.w / 2 + 0.6,
+    z0: TEE.z - 1,
+    z1: TEE.z + 1,
+    from: H.ground,
+    to: H.tee,
+    axis: 'x',
+  },
+  {
+    x0: TEE.x + TEE.w / 2 - 0.6,
+    x1: TEE.x + TEE.w / 2 + 0.6,
+    z0: TEE.z - 1,
+    z1: TEE.z + 1,
+    from: H.tee,
+    to: H.ground,
+    axis: 'x',
+  },
+];
 /** 果岭（椭圆）+ 一圈 0.6 米的果岭边（collar） */
 export const GREEN = { x: -42.8, z: 63.0, rx: 3.6, rz: 2.8, collar: 0.6 } as const;
 /** 旗杆（洞杯）的位置：果岭偏西北 */
@@ -100,6 +125,20 @@ export const BUNKERS = [
   { id: 'bunker-w', x: -48.6, z: 62.8, rx: 1.0, rz: 1.9 },
   { id: 'bunker-s', x: -40.4, z: 67.6, rx: 1.7, rz: 0.95 },
 ] as const;
+/**
+ * 进沙坑的坡（导航用，画面不变）：沙坑底比地面低 0.22，迈得下去，但规划每格只许爬 stepUp/2（0.15），沙坑成了规划的孤岛。
+ * 每个沙坑在短轴两头（边最平的地方）各一段：跨着坑边内外各 0.5 米、宽 1 米，高度地面 ↔ 坑底线性。
+ */
+export const BUNKER_RAMPS: Ramp[] = BUNKERS.flatMap((b) => {
+  const axis = b.rx <= b.rz ? ('x' as const) : ('z' as const);
+  const [c, r, o] = axis === 'x' ? [b.x, b.rx, b.z] : [b.z, b.rz, b.x];
+  const box = (a0: number, a1: number) =>
+    axis === 'x' ? { x0: a0, x1: a1, z0: o - 0.5, z1: o + 0.5 } : { x0: o - 0.5, x1: o + 0.5, z0: a0, z1: a1 };
+  return [
+    { ...box(c - r - 0.5, c - r + 0.5), from: H.ground, to: H.bunker, axis },
+    { ...box(c + r - 0.5, c + r + 0.5), from: H.bunker, to: H.ground, axis },
+  ];
+});
 /** 水塘塘沿（一圈石头，宽 0.35） */
 export const POND_RIM = 0.35;
 

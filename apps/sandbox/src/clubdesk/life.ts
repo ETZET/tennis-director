@@ -540,12 +540,12 @@ export function createDeskLife(o: DeskLifeOpts): DeskLife {
       }
       // 水桶空了、签到位上没人：出去换桶
       if (water() < 0.01 && !m) {
-        yield* walk(director, [[55.0, 8.9], SPOTS.staffGap, [54.6, 10.9]], 1.7);
+        yield* walk(director, [[54.9, 8.8], SPOTS.staffGap, [54.6, 10.9]], 1.7);
         yield* face(director, -P / 2);
         yield* act(director, 'pickup', 1.8, 0.6, () => {
           setWater(1);
         });
-        yield* walk(director, [SPOTS.staffGap, [55.0, 8.9], home], 1.7);
+        yield* walk(director, [SPOTS.staffGap, [54.9, 8.8], home], 1.7);
         yield* face(director, 1.25);
         continue;
       }
@@ -722,7 +722,8 @@ export function createDeskLife(o: DeskLifeOpts): DeskLife {
     p.add({
       id: 'water-swap',
       at: () => JUG,
-      radius: 1.3,
+      // 站位离水桶 1.25 米；有会员站在接水位（SPOTS.water）时总监被推开到 ≈ 1.37 米，半径留出余量
+      radius: 1.5,
       stand: () => [54.6, 10.9],
       label: () => (water() < 0.5 ? '换水桶' : ''),
       canUse: (s) => !s.held,

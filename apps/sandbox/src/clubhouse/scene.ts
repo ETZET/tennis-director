@@ -6,10 +6,9 @@ import type { Region, RegionHost } from '../clubsite/region';
 import { rngFactory } from '../clubsite/render/noise';
 import { schemeById, schemeMats, schemeOpts } from '../clubsite/render/palettes';
 import { createMats, type ToonOpts } from '../clubsite/render/toon';
-import { CLUBHOUSE, GROUNDS } from '../clubsite/world';
 import type { AssetBuild, AssetCtx } from './ctx';
-import { SLOTS, type Slot, WALKABLE } from './layout';
-import { houseBlocked } from './nav';
+import { SLOTS, type Slot } from './layout';
+import { houseNav } from './nav';
 import { PAL, type Pal, PROXY } from './palette';
 import { placeholder, SPECS } from './placeholders';
 import { REUSED } from './reuse';
@@ -142,11 +141,7 @@ export function createHouseRegion(host: RegionHost): HouseRegion {
     id: 'clubhouse',
     root: parent,
     groundAt: (x, z) => terrain.groundAt(x, z),
-    nav: () => ({
-      bounds: { x0: GROUNDS.x0, x1: CLUBHOUSE.x1 + 0.5, z0: GROUNDS.z0, z1: -1 },
-      walkable: WALKABLE,
-      blocked: houseBlocked(),
-    }),
+    nav: houseNav,
     director: () => null,
     start: { start: [0, 0] },
     update(dt, t) {

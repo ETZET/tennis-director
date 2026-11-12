@@ -139,11 +139,14 @@ export const SPOTS = {
   birdPerch: [50.14, -26.6] as V2,
 } satisfies Record<string, V2>;
 
-/** 路线：会员 = 西台阶 → 长椅 / 饮料车；孩子在池边来回；总监 = 保洁车 ↔ 池边四个捞点、蒲葵下、花盆 */
+/**
+ * 路线：会员 = 西台阶 → 长椅 / 饮料车；孩子在池边来回；总监 = 保洁车 ↔ 池边四个捞点、蒲葵下、花盆。
+ * 绕池子的中间点放在离池心 ≈5.4 米：挡路圆是池壁外沿 4.65 + 身体 0.28，弦（smoothLine）往里凹，点放在 5.0 附近线就切进去
+ */
 export const ROUTES: { id: string; pts: V2[] }[] = [
   { id: 'member', pts: [SPOTS.stairW, [36.0, -16.0], [37.4, -19.2], SPOTS.benchW] },
   { id: 'member-drinks', pts: [SPOTS.stairE, [50.8, -16.2], [53.0, -20.5], [53.6, -27.5], SPOTS.drinks] },
-  { id: 'kid', pts: [[40.2, -18.0], SPOTS.kid, [43.2, -18.9], [45.6, -19.2]] },
+  { id: 'kid', pts: [[40.2, -18.0], SPOTS.kid, [43.2, -18.6], [45.6, -18.85]] },
   {
     id: 'director-skim',
     pts: [
@@ -151,7 +154,7 @@ export const ROUTES: { id: string; pts: V2[] }[] = [
       SPOTS.skimE,
       [49.6, -27.4],
       SPOTS.skimN,
-      [41.2, -28.6],
+      [40.4, -28.6],
       SPOTS.skimW,
       [39.6, -20.6],
       SPOTS.skimS,
