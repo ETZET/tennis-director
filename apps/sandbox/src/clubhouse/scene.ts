@@ -1,4 +1,5 @@
-// clubhouse 的场景模块（clubsite/region.ts 的 Region）—— 白模（stage 1/2，没有演出和总监的活）。给大世界（src/clubwalk）用。
+// clubhouse 的场景模块（clubsite/region.ts 的 Region）。给大世界（src/clubwalk）用。
+// stage 3：演出 + 总监的活在 stage3.ts 的 createHouseLife（三层各一个模块），这里和 main.ts 接法一样（update / attach / setView）；host.life = false 或 ?life=0 关。
 // 建场景的代码从 main.ts 的 buildScene 照搬（标签、导航调试层不要）；独立页面 main.ts 暂时没改成用这里（第二阶段的白模，先接进大世界），
 // 两边改一处要同步另一处，等它们做到 stage 3 再把 main.ts 收成薄壳（照 clubpickle/scene.ts）。
 import * as THREE from 'three';
@@ -15,6 +16,7 @@ import { gymPerson } from './people';
 import { placeholder, SPECS } from './placeholders';
 import { REUSED } from './reuse';
 import { SLOTS, type Slot } from './slots';
+import { createHouseLife } from './stage3';
 import { buildTerrain, setView as setHouseView } from './terrain';
 import { viewOf, viewsFor } from './view';
 
@@ -153,11 +155,26 @@ export function createHouseRegion(host: RegionHost): HouseRegion {
     if (s.look) ud.lookAt?.(new THREE.Vector3(...s.look));
   }
 
+  /** 演出 + 总监的活（stage 3） */
+  const life =
+    host.life && params.get('life') !== '0'
+      ? createHouseLife({
+          parent,
+          ctxFor,
+          rng,
+          texel: designTexel,
+          make: (asset, variant) => makeAsset(asset, variant).obj,
+          playing: host.play,
+          director: () => (host.play ? (host.director ?? null) : null),
+        })
+      : null;
+
   const floorFns = new Set<(f: Floor) => void>();
   const setFloor = (f: Floor) => {
     if (f === floor) return;
     floor = f;
     setHouseView(parent, viewOf(inside, floor));
+    life?.setView(inside, floor);
     for (const fn of floorFns) fn(floor);
   };
 
@@ -173,6 +190,7 @@ export function createHouseRegion(host: RegionHost): HouseRegion {
     start: { start: [0, 0] },
     update(dt, t) {
       for (const u of updaters) u(dt, t);
+      life?.update(dt, t);
     },
     /**
      * 总监的活：只有电梯（钟楼里，三层同一个门口 LIFT.door，门朝东）和货梯（东翼后门边上，GOODS_LIFT.door，门朝南）——
@@ -206,11 +224,12 @@ export function createHouseRegion(host: RegionHost): HouseRegion {
           p.teleport(GOODS_LIFT.door[0], GOODS_LIFT.door[1]);
         },
       });
-      return null;
+      return life ? life.attach(play) : null;
     },
     setInside: (on: boolean) => {
       inside = on;
       setHouseView(parent, viewOf(inside, floor));
+      life?.setView(inside, floor);
     },
     setFloor,
     floor: () => floor,
@@ -219,6 +238,6 @@ export function createHouseRegion(host: RegionHost): HouseRegion {
       return () => floorFns.delete(fn);
     },
     counts,
-    debug: { own: Object.keys(OWN), reused: Object.keys(REUSED) },
+    debug: { own: Object.keys(OWN), reused: Object.keys(REUSED), life },
   };
 }

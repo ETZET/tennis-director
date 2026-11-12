@@ -6,6 +6,7 @@
 // URL：inside=1、px（每纹素 CSS 像素，默认 1；画廊 2）、zoom（米/纹素）、tx/tz、yaw/pitch（度）、sunel/sunaz、seed、warm、
 //      pause=1（时间停在 0：截图稳定）、labels=0（不显示标签和站位）、ph=0（不放占位）、nav=0、clouds=0、
 //      edges=1（只看描边）、pal=<id>（配色，不带 = 6 午后金光；右上角切换）；画廊：v（变体）、ref=0、ground=tile|sand、cy。
+//      life=0（不要演出和总监的活：stage 3，stage3.ts 的 createHouseLife —— 三层各一个模块 life-1f / 2f / b1.ts）。
 //
 // 给 clubwalk 的接口：terrain.ts 的 buildHouse(ctx)（会所的壳，世界坐标）+ setInside(组, on)（按 userData.houseMode 切换）；
 // 摆好的资产照 SLOTS 的 mode 打上同一个 userData.houseMode（这里的 buildScene 就是这么做的），同一个 setInside 一起切。
@@ -44,6 +45,7 @@ import { NEW_SPECS, placeholder, SPECS } from './placeholders';
 import { REUSED } from './reuse';
 import { SPOTS } from './routes';
 import { SLOTS, type Slot } from './slots';
+import { createHouseLife, type HouseLife } from './stage3';
 import { buildTerrain, setView as setHouseView } from './terrain';
 import { type HouseMode, type HouseView, viewOf, viewsFor } from './view';
 
@@ -222,6 +224,10 @@ const phText = (asset: string, id: string) => {
   return sp?.n ? `#${sp.n} ${sp.name ?? asset}` : id;
 };
 
+/** 演出 + 总监的活（stage 3）：建场景之后建；?life=0 = 没有 */
+let life: HouseLife | null = null;
+let lifeJobs: { step(dt: number): void } | null = null;
+
 const counts: Record<HouseView, Record<string, number>> = {
   out: { own: 0, reused: 0, placeholder: 0 },
   b1: { own: 0, reused: 0, placeholder: 0 },
@@ -313,6 +319,7 @@ function setInside(on: boolean, frame = true) {
   inside = on;
   const view = viewOf(on, floor);
   setHouseView(scene, view);
+  life?.setView(on, floor);
   for (const l of labels) l.el.style.display = !l.views || l.views.includes(view) ? '' : 'none';
   if (frame) {
     const t = targetFor(on);
@@ -636,6 +643,19 @@ function housePost() {
   if (inHouse !== inside) setInside(inHouse, false);
 }
 
+if (!galleryId && params.get('life') !== '0') {
+  life = createHouseLife({
+    parent: scene,
+    ctxFor,
+    rng,
+    texel: designTexel,
+    make: (asset, variant) => makeAsset(asset, variant).obj,
+    playing: !!play,
+    director: () => (play && director) || null,
+  });
+  if (play) lifeJobs = life.attach(play);
+}
+
 if (!galleryId) {
   setInside(PLAY && director ? inFoot(director.position.x, director.position.z) || navFloor !== 1 : inside, false);
   if (inside && !play) pipe.rig.target.y = FLOOR_Y[floor];
@@ -650,7 +670,9 @@ function step(seconds: number) {
     uniforms.uTime.value = simT;
     uniforms.uGust.value = 0.5 + 0.35 * Math.sin(simT * 0.7) * Math.sin(simT * 0.23);
     for (const u of updaters) u(DT, simT);
+    life?.update(DT, simT);
     play?.update(DT, simT);
+    lifeJobs?.step(DT);
     housePost();
   }
 }
@@ -785,6 +807,8 @@ Object.assign(window, {
       else setFloor(f, frame);
     },
     play,
+    /** 演出 + 总监的活（?life=0 = null）：life.debug['1f' | '2f' | 'b1']、life.walkers() */
+    life,
     navFloor: () => navFloor,
     isInside: () => inside,
     floor: () => floor,

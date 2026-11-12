@@ -808,3 +808,43 @@ clubplaza 的整张表 + 会所的：`wallCut`、`floorCool`、`plaster`、`floo
 8. **B1 的"地下感"**：现在是坑 + 切开的土 + 北墙高窗对着采光井。要更醒目就在拱廊前做下沉庭院（健身房朝南开玻璃墙），代价是 clubpool 的小路和两棵蒲葵要动。
 9. **奖杯柜没地方了**（原来在前厅；楼梯芯里不放东西）：要的话放二楼过厅或酒吧北墙（比赛赢了柜里多一只 = 准则 3 的痕迹）。
 10. 11-09 版没定的照旧：拱廊放南面（1）、正门朝东（3）、进出会所的切换（6，现在 = 走进脚印就切）、后厨归会所还是 clubfood（9）、会所里要不要会员接待台（10）、两棵蒲葵和 clubfood 统一（11）、拱廊前要不要陶砖前院（12）。
+
+## stage 3 的框架
+
+stage 3 = 演出（NPC 的生活）+ 总监的活（每间房"先出画面信号 → 再动手"那一列）。三层各一个模块、各由一个 agent 填；框架（共用的部分）先做好，楼层模块不用改共用文件。
+
+### 文件
+
+| 文件 | 管什么 |
+|---|---|
+| `stage3.ts` | 框架：`createHouseLife(host)` 把三层的模块拼起来；`FloorEnv`（给楼层模块的东西）、`FloorModule`（楼层模块交回来的）；每层一份的 play（`floorPlay`）；手里的东西按高度归层；每层一张无画面的导航 `houseNavMap(层)` |
+| `walker.ts` | 三层共用的 NPC 走路：`Walker`（沿 P3 折线走、加减速、限角速度转身、楼梯换层、坐电梯、让路）、脚本协程（`go` / `goTo` / `wait` / `act` / `face`）、`routeBetween(nav, a, b)`（同一层两个站位之间按导航找路） |
+| `life-1f.ts`、`life-2f.ts`、`life-b1.ts` | 三层的模块，各 `export function createFloorLife(env: FloorEnv): FloorModule`。现在是桩：1F 一个逛街的人走 `shopper` 路线，2F 钟绳"拉钟"（按住 2 秒），B1 空的 |
+| `life-testkit.ts` | 无画面测试工具：`testHouse({ play })`（摆好全部 SLOTS + life + 无画面的 clubsite/play，`run(秒)`、`ride(层)`、`goTo(x, z)`）、`watchWalkers(h)`（量 Walker 在不在导航上、卡没卡、脚溜不溜）、`stubCtx`、`loadAssets([...])`（要真的资产时） |
+| `life.test.ts` | 框架的测试：5 分钟不出错、Walker 一直在导航上；每条 `ROUTES` 走得完；加减速 / 角速度；让路不死锁；钟绳只在 2F 按得到；地上的东西按层显示 |
+
+两个入口接法一样（`main.ts` 独立页面、`scene.ts` 大世界的区域）：建场景之后 `createHouseLife(host)`；每个模拟步 `life.update(dt, t)` 在 `play.update` 之前，`jobs.step(dt)`（`life.attach(play)` 的返回）在之后；进出会所、换层时 `life.setView(inside, floor)`。`?life=0` 关掉。调试：`window.__house.life`（`walkers()`、`debug['1f' | '2f' | 'b1']`）；大世界里是 `__walk.lives` 里会所那个区域的 `region.debug.life`。
+
+### 约定（FloorEnv / FloorModule）
+
+- **一层一个模块**：`createFloorLife(env)` 在建场景时调一次，返回 `{ update(dt, t), attach?(play), debug? }`。`update` 每个模拟步都调（不管总监在不在这一层：别的层的 NPC 照样过日子）；`attach(play)` 只在玩法模式调一次，返回的 `step(dt)` 每步在总监动完以后调。
+- **`env` 给的**：`floor`、`parent`、`ctxFor(variant)`、`rng(流的名字)`（只决定画面）、`texel`、`slot(id)`（摆好的 `slot:<id>`）、`make(资产, 变体)`（自己画的 → 复用的 → 占位；人自动带健身姿势）、`add(obj, { level, mode, views })`（加进场景 + 打 houseViews + 按当前看法切 visible + `userData.update` 每步会调）、`drop(obj)`、`setLevel(obj, 层, mode)`（换层的 NPC / 东西重新打 houseViews，马上生效）、`untag(obj)`、`view()`、`onFloor()`（总监在会所里而且在这一层）、`directorFloor()`、`nav`（这一层的导航：`standAt`、`findPath`、`route(a, b)`、`nearestFree`、`map`）、`navOf(层)`、`playing`、`director()`（玩家的总监；演出不摆他的姿势）、`walker(obj, opts)`、`dropWalker(w)`、`shared`（三层共用的小黑板，键带自己层的前缀）。
+- **每层一份 play**：`attach(play)` 拿到的 `play` 是这一层的 —— `play.add` 的互动点、`play.bubble` 的常驻气泡、`play.stat` 的顶栏、`play.addBlocker / blockPerson` 的挡路圆，只在**总监在会所里、而且在这一层**时挂上去（换层时框架自己加减）；id / key 自动加 `1f:` / `2f:` / `b1:` 前缀；不在这一层时 `play.say / toast` 丢掉。三层的 x、z 是叠着的，互动按平面距离算，所以不要绕过它用别的 play。
+- **手里的东西是全局的**：`play.addItem` 不分层（木柴从 B1 扛到 2F 的壁炉）。框架每步看着经楼层 play 加的东西：拿在手里 = 哪一层都显示；放在地上 = 按高度归到那一层（别的层看不见；会所里别的层地上的东西 `where` 暂时是 `'away'`，总监回到那一层再变回 `'ground'`）。收东西的互动点用 `accepts(item)` 按 `item.id` 认，别的层的模块加的东西也认得到（`play.item(id)` 是全局的）。
+- **Walker**：`const w = env.walker(env.add(env.make('player', 2)))`，然后 `w.place(点)`、`w.run(function* (w) { … })`。框架每步推它（脚本 → 走路），楼层模块不用调 `update`；总监走不穿同一层的 Walker（框架登记的挡路圆）。位置一直在折线上（转身只是身子转，不会被转弯带进墙里），所以折线本身要走得通：用 `routes.ts` 的 `ROUTES`（`nav.test.ts` 守着）或 `env.nav.route('站位', '站位')`（导航找出来的）。上下楼 = 折线沿梯段走（y 两头写梯段的高度），坐电梯 = 同一个 x、z 换 y 的一段（等 1 秒，出现在那一层）；换了层 Walker 自己 `setLevel`。到了别的层以后要找路：`routeBetween(env.navOf(w.floor).map, …)` 或脚本里 `w.goTo('站位')`。
+- **摆好的人**（`slots-*.ts` 里的）照旧由 `gymPerson(..., { loop: true })` 循环着；要让其中一个走起来：`env.slot(id)` 拿到它，`env.walker(它)` 接管（接管以后它的姿势归 Walker / 脚本管）。
+- **信号**：设计表里"先出画面信号"的东西（脏杯子、空钩子、跑步机的红灯……）大多已经是摆好的资产（`slot:<id>`）。开关用 `obj.visible`，或者在**自己这一层的资产文件**里加 `userData.setSignal(on)` 这类开关。
+- **随机**只用 `env.rng('名字')`（种子随机流，只决定画面）；文字照别的场景的写法（中文短标签写在互动点 / 气泡里）；按住的活 1.5～4 秒。
+
+### 楼层 agent 能改的、不能改的
+
+能改：
+
+- 自己的 `life-<层>.ts`；可以另加 `play-<层>.ts`（总监的活多了就拆出去）和自己的测试 `life-<层>.test.ts`（工具从 `life-testkit.ts` 拿）；
+- 自己这一层的资产文件（`assets/shop-*`、`assets/up-*`、`assets/gym-*` 里自己层的）：只加 `userData` 上的开关（`setSignal(on)`、`setFill(k)`……），不改默认的样子；
+- 自己的 `slots-<层>.ts`：只为演出加 / 挪小东西（挪了家具要保证 `nav.test.ts` 还绿）；
+- `routes.ts`：只加 `SPOTS` / `ROUTES` 的条目（`nav.test.ts` 还绿）；不改已有的。
+
+不能改（要改在报告里提）：`stage3.ts`、`walker.ts`、`life-testkit.ts`、`main.ts`、`scene.ts`、`layout.ts`、`nav.ts`、`view.ts`、别的层的文件、`clubsite/`。
+
+验收：`pnpm typecheck`、`pnpm exec biome check apps/sandbox/src/clubhouse`、`pnpm check:deps`、`pnpm vitest run apps/sandbox/src/clubhouse`；独立页面 `clubhouse.html?inside=1&floor=<层>`（玩法开 / `play=0`）没有报错；大世界 `clubwalk.html?at=-45,-21&eager=1` 没有报错。
