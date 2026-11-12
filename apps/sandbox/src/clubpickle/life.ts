@@ -21,7 +21,7 @@
 //   · 水站空了 → 从员工小门出去拿备用水桶 → 换上。
 import * as THREE from 'three';
 import { buildPicker } from '../clubsite/assets/ball-picker';
-import { DINK_HIT, NEW_PERIOD, RIG_PERIOD } from '../clubsite/people';
+import { DINK_HIT, NEW_PERIOD, RIG_PERIOD, strideOf } from '../clubsite/people';
 import { buildStandIn, PADDLE_FACE_Y } from '../clubsite/people/props';
 import type { AssetCtx } from './ctx';
 import {
@@ -71,8 +71,6 @@ const SWING: Record<string, { dur: number; hit: number }> = {
   forehand: { dur: 0.72, hit: 0.485 },
   backhand: { dur: 0.72, hit: 0.485 },
 };
-/** 走一步的长度：walk 一遍 = 两步 ≈ 1.25 米（1.4 米/秒 → 0.9 秒一遍，和 rig 的 walk 周期一样） */
-const STRIDE = 1.25;
 /** 站位：厨房线后 0.35（脚尖不进厨房）、底线后 0.25；双打两条线 ±1.45，单打 ±0.85 */
 const KITCHEN_STAND = PK.NVZ + 0.35;
 const BASE_STAND = PK.L / 2 + 0.25;
@@ -317,7 +315,7 @@ export function createLife(env: LifeEnv): Life {
       const ph = lerp(clip.a, clip.b, clamp((now - clip.t0) / clip.dur, 0, 1));
       a.ud.pose?.(clip.name, ph >= 1 && clip.b <= 1 ? 0.999 : ph % 1);
     } else if (walking) {
-      a.walkPh = (a.walkPh + d / STRIDE) % 1;
+      a.walkPh = (a.walkPh + d / strideOf(a.obj)) % 1;
       a.ud.pose?.('walk', a.walkPh);
     } else {
       a.ud.pose?.(a.rest, (now / (PERIOD[a.rest] ?? 2) + a.restPh) % 1);

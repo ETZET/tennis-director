@@ -10,7 +10,7 @@
 // 总监闯进近场双打线以内（比赛中）→ 这一分作废（let），四个人冒"！"等他出去再重发。
 // 截图 / 调试钩子：window.__clay.life = { state, ball(), racket(i), debug() }
 import * as THREE from 'three';
-import { CLAP_HIT } from '../clubsite/people';
+import { CLAP_HIT, setStride } from '../clubsite/people';
 import type { AssetCtx } from './ctx';
 import { DIM, NEAR, SPOTS } from './layout';
 
@@ -544,7 +544,8 @@ export function createLife({ ctx, scene, objs, near }: LifeOpts): ClayLife {
     let t = 0;
     while (!cond() && t < max) t += yield;
   }
-  function* walk(a: Actor, pts: V3[], speed = 1.5, stride = 1.25): Co {
+  function* walk(a: Actor, pts: V3[], speed = 1.5, stride?: number): Co {
+    const len = setStride(a.obj, stride);
     for (const p of pts) {
       while (true) {
         const dt = yield;
@@ -560,7 +561,7 @@ export function createLife({ ctx, scene, objs, near }: LifeOpts): ClayLife {
         a.pos.x += (dx / L) * step;
         a.pos.z += (dz / L) * step;
         a.yaw = turnTo(a.yaw, Math.atan2(dx, dz), dt * 10);
-        a.walkPh = (a.walkPh + step / stride) % 1;
+        a.walkPh = (a.walkPh + step / len) % 1;
         a.pose('walk', a.walkPh);
       }
     }

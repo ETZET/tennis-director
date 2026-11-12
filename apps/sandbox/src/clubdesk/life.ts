@@ -18,7 +18,7 @@
 // 随机只用种子随机流（ctx.rng('desk:life')）。
 import * as THREE from 'three';
 import { GATE_TIMING, LOOP } from '../clubpark/layout';
-import { director as clubDirector } from '../clubsite/people';
+import { director as clubDirector, setStride, strideOf } from '../clubsite/people';
 import type { Play } from '../clubsite/play';
 import type { BaseCtx as D3Ctx } from '../clubsite/render/ctx';
 import type { AssetCtx } from './ctx';
@@ -285,7 +285,8 @@ export function createDeskLife(o: DeskLifeOpts): DeskLife {
     while (t < s) t += yield;
   }
   /** 沿折线走；碰到总监挡路就停一下（1.2 秒以后侧身挤过去） */
-  function* walk(p: Person, pts: V2[], speed = WALK, poseName = 'walk', stride = 1.25): Co {
+  function* walk(p: Person, pts: V2[], speed = WALK, poseName = 'walk', stride?: number): Co {
+    const len = setStride(p.obj, stride);
     let held = 0;
     for (const t of pts) {
       while (true) {
@@ -305,7 +306,7 @@ export function createDeskLife(o: DeskLifeOpts): DeskLife {
         p.x += (dx / L) * step;
         p.z += (dz / L) * step;
         p.yaw = turnTo(p.yaw, yawOf(dx, dz), dt * 10);
-        p.ph = (p.ph + step / stride) % 1;
+        p.ph = (p.ph + step / len) % 1;
         pose(p, poseName, p.ph);
         place(p);
       }
@@ -369,7 +370,7 @@ export function createDeskLife(o: DeskLifeOpts): DeskLife {
         if (Math.hypot(dx, dz) > 1e-4) m.yaw = turnTo(m.yaw, yawOf(dx, dz), dt * 10);
         m.x = x;
         m.z = z;
-        m.ph = (m.ph + step / 1.25) % 1;
+        m.ph = (m.ph + step / strideOf(m.obj)) % 1;
         pose(m, 'walk', m.ph);
         place(m);
       } else {

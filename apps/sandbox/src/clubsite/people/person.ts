@@ -100,6 +100,8 @@ export function wrapPerson(ctx: PeopleCtx, root: THREE.Group, opts: PersonOpts):
     b.head.scale.setScalar(sc.head);
     b.legR.scale.y = b.legL.scale.y = sc.leg;
     hipK = sc.body * sc.leg;
+    // 腿短：walk 一个周期走得也短（strideOf 读它）
+    root.userData.strideK = hipK;
     // body 空间：成人坐标 → 孩子身上（上身缩 body，臀的高度缩 body × leg）
     body = new THREE.Group();
     body.name = 'kid-body';

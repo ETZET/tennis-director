@@ -10,7 +10,7 @@
 // 总监的活（捞叶子、扫地、浇花、倒桶、推车）是"原地的小任务"（job）：玩法模式里 play.ts 按住动作键时一帧帧推；
 // ?play=0&life=1 的看戏模式由这里的 directorDemo 自己走过去做（截图、连拍用）。
 import * as THREE from 'three';
-import { POUR_FLOW, SKIM_WET } from '../clubsite/people';
+import { POUR_FLOW, SKIM_WET, setStride } from '../clubsite/people';
 import type { AssetCtx } from './ctx';
 import { FOUNTAIN, FOUNTAIN_SPEC, H, PALMS, SPOTS, type V2 } from './layout';
 
@@ -671,7 +671,8 @@ export function createLife(env: LifeEnv): PlazaLife {
     while (!cond() && t < max) t += yield;
   }
   /** 沿折线走（米/秒），y 跟着地面（台阶）；走路相位按步子 */
-  function* walk(a: Actor, pts: V3[], speed = 1.25, stride = 1.25, poseName = 'walk'): Co {
+  function* walk(a: Actor, pts: V3[], speed = 1.25, stride?: number, poseName = 'walk'): Co {
+    const len = setStride(a.obj, stride);
     for (const p of pts) {
       while (true) {
         const dt = yield;
@@ -689,7 +690,7 @@ export function createLife(env: LifeEnv): PlazaLife {
         a.pos.z += (dz / L) * step;
         a.pos.y = a.fixY ?? floorY(a.pos.x, a.pos.z);
         a.yaw = turnTo(a.yaw, Math.atan2(dx, dz), dt * 9);
-        a.walkPh = (a.walkPh + step / stride) % 1;
+        a.walkPh = (a.walkPh + step / len) % 1;
         pose(a, poseName, a.walkPh);
       }
     }
@@ -1090,7 +1091,7 @@ export function createLife(env: LifeEnv): PlazaLife {
         kid.pos.set(KID_PTS[1][0], Y_RIM, KID_PTS[1][1]);
         while (true) {
           const target = KID_PTS[Math.floor(rKid() * KID_PTS.length)];
-          yield* walk(kid, [v(target[0], Y_RIM, target[1])], 0.8, 0.7);
+          yield* walk(kid, [v(target[0], Y_RIM, target[1])], 0.8);
           yield* face(kid, yawTo(kid.pos, C) + rnd(rKid, -0.3, 0.3), 0.3);
           const n = 1 + Math.floor(rKid() * 3);
           for (let i = 0; i < n; i++) {

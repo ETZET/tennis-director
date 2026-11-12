@@ -2,6 +2,7 @@
 // 互动点（用 / 拿 / 放）、手里的东西、一次性动作（busy）、按住干活（hold）、气泡/顶栏/提示的数据。
 // 接口说明见 index.ts 顶上。
 import * as THREE from 'three';
+import { setStride } from '../people/rig/rig';
 import { type Circle, NavMap, type NavSpec, type Rect } from './nav';
 
 /** 各场景自己那份 PixelPipeline 的结构（只用到这些） */
@@ -777,7 +778,8 @@ export function createPlay(opts: PlayOpts): Play {
             stopHold();
           }
         } else if (speed > 0.2) {
-          walkPh = (walkPh + (speed * dt) / 1.25) % 1;
+          // 小跑（3 米/秒）：步幅 1.3，腿按它摆（rig 的 walkLegs），脚不溜
+          walkPh = (walkPh + (speed * dt) / setStride(D, 1.3)) % 1;
           setPose(held?.spec.carryPose ?? 'walk', walkPh);
         } else {
           idlePh = (idlePh + dt / periodOf('idle')) % 1;

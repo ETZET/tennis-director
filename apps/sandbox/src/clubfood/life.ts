@@ -12,6 +12,7 @@
 // 总监的活（倒垃圾、收托盘、补货、上塔可车帮忙）由 play.ts 登记成互动点，活本身在这里（jobs）；
 // ?play=0&life=1 的看戏模式由这里的 directorDemo 自己走过去做（截图、连拍用）。
 import * as THREE from 'three';
+import { strideOf } from '../clubsite/people';
 import { type Circle, NavMap } from '../clubsite/play';
 import type { AssetCtx } from './ctx';
 import {
@@ -289,7 +290,7 @@ export function createLife(env: LifeEnv): FoodLife {
   }
   /** 沿折线走（米/秒）；走路姿势按步子；端着托盘 = push */
   function* walkPts(a: Actor, pts: V3[], speed = 1.25): Co {
-    const stride = a.kid ? 0.9 : 1.25;
+    const stride = strideOf(a.obj);
     for (const p of pts) {
       while (true) {
         const dt = yield;
@@ -1617,7 +1618,7 @@ export function createLife(env: LifeEnv): FoodLife {
         D.pos.z += (dz / L) * step;
         D.pos.y = dnav.height(D.pos.x, D.pos.z) ?? h;
         D.yaw = turnTo(D.yaw, Math.atan2(dx, dz), dt * 10);
-        D.walkPh = (D.walkPh + step / 1.25) % 1;
+        D.walkPh = (D.walkPh + step / strideOf(D.obj)) % 1;
         pose(D, carry || stack ? 'push' : 'walk', D.walkPh);
       }
     }
