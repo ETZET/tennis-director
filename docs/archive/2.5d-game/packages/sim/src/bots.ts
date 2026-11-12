@@ -1,0 +1,568 @@
+import {
+  type Card,
+  type ContentBundle,
+  type Effect,
+  MESS_KINDS,
+  minutes,
+  type OptionKey,
+  type SkillKind,
+  type Tournament,
+} from '@td/content';
+import { type OptionStatus, optionStatus } from './cards';
+import { canCare } from './care';
+import { advance, type Command, type LoggedCommand, newGame } from './game';
+import { careCourts } from './mess';
+import {
+  canAssign,
+  eligible,
+  meetsWorker,
+  occupant,
+  orderCost,
+  orderFacility,
+  orderStatus,
+  orderVariant,
+  orderVariants,
+  postDemand,
+  postExists,
+  skillOf,
+  staffIds,
+  working,
+} from './staff';
+import { type CareLevel, DIRECTOR, type GameState, minuteOfDay, weekdayOf } from './state';
+import { careLevelOf, test as testCond, usabilityOf } from './vars';
+import { walkEta } from './walk';
+import { type World, worldFor } from './world';
+
+/**
+ * 机器人：无头跑局用。每个机器人看当前状态，决定这一刻发什么命令。
+ * 机器人自己的随机数和游戏的种子随机流分开，不影响模拟结果的确定性。
+ */
+
+export interface Bot {
+  readonly name: string;
+  decide(s: GameState, content: ContentBundle): Command[];
+}
+
+/** 机器人自己的小随机数（xorshift），不碰游戏状态 */
+function botRand(seed: number) {
+  let x = seed | 0 || 1;
+  return () => {
+    x ^= x << 13;
+    x ^= x >>> 17;
+    x ^= x << 5;
+    return (x >>> 0) / 4294967296;
+  };
+}
+
+/**
+ * 随机型：每张卡随机挑一个选项，过一会儿才处理（有时干脆放着让它过期）；
+ * 偶尔随手把一个人拖到随便一个岗位或工单上。
+ */
+export function randomBot(seed: number): Bot {
+  const r = botRand(seed);
+  const plan = new Map<number, { option: OptionKey | null; at: number }>();
+  return {
+    name: 'random',
+    decide(s, content) {
+      const w = worldFor(content, s.act, s.directorConfig);
+      const cmds: Command[] = [];
+      if (r() < 0.06) {
+        const people = staffIds(s, w);
+        const targets = [...w.posts.keys(), ...w.orders.keys()];
+        const person = people[Math.floor(r() * people.length)];
+        const target = targets[Math.floor(r() * targets.length)];
+        if (person && target && canAssign(s, w, person, target) === null) cmds.push({ type: 'assign', person, target });
+      }
+      for (const o of s.cards.open) {
+        let p = plan.get(o.uid);
+        if (!p) {
+          const keys = optionStatus(s, w, o.uid).map((x) => x.key);
+          const ignore = r() < 0.15;
+          p = { option: ignore ? null : (keys[Math.floor(r() * keys.length)] ?? null), at: s.t + Math.floor(r() * 90) };
+          plan.set(o.uid, p);
+        }
+        if (!p.option || s.t < p.at) continue;
+        const st = optionStatus(s, w, o.uid).find((x) => x.key === p.option);
+        if (!st) continue;
+        if (st.available) cmds.push({ type: 'chooseOption', uid: o.uid, option: p.option });
+        else p.option = null;
+      }
+      return cmds;
+    },
+  };
+}
+
+/** 放置型（对照组）：什么都不做，卡全部过期走默认。检验准则 6：放着不管会慢慢变差，但不会一下崩掉。 */
+export function idleBot(): Bot {
+  return { name: 'idle', decide: () => [] };
+}
+
+/** "立刻能看到的好处"的权重 */
+const WEIGHT: Record<string, number> = {
+  quality: 3,
+  members: 4,
+  reputation: 2,
+  cash: 0.01,
+};
+
+/** 给一个选项按看得见的效果打分（成功率按期望算）；总监被叫走的时间按每小时 2 分扣 */
+/** 带 if 的效果只算此刻会生效的（贷款卡 B 是按现金分档的定数，全加起来会被当成一大笔） */
+function live(s: GameState, w: World, effs: readonly Effect[]): Effect[] {
+  return effs.filter((e) => !e.if || testCond(s, w, e.if));
+}
+
+function scoreOption(s: GameState, w: World, c: Card, st: OptionStatus, expected: boolean): number {
+  const opt = c.options[st.key];
+  if (!opt) return Number.NEGATIVE_INFINITY;
+  let score = -st.cost * (WEIGHT.cash ?? 0) - (st.errand ? (st.errand.minutes / 60) * 2 : 0);
+  const p = st.chance ?? 1;
+  const add = (effs: readonly Effect[], k: number) => {
+    for (const e of live(s, w, effs)) {
+      const m = expected ? k * (typeof e.chance === 'number' ? e.chance : 1) : 1;
+      if ('stat' in e && 'add' in e && typeof e.add === 'number') score += m * e.add * (WEIGHT[e.stat] ?? 0);
+      if ('facility' in e) score += m * 12;
+      if ('hire' in e) {
+        const d = w.people.get(e.hire);
+        // 多一个人手的价值，减去工资（球员的球技打个折：要练、要出去比赛才换成名气）
+        const best = Math.max(d?.skill ?? 0, d?.upkeep ?? 0, d?.service ?? 0, (d?.play ?? 0) * 0.8);
+        score += m * (8 + best / 8 - (d?.wage_week ?? 0) / 100);
+      }
+      if ('activity' in e) score += m * 6;
+      if ('endAct' in e) score += m * (e.endAct === 'won' ? 100 : -100);
+      // 结局卡（W4）："马上结算"拿提前的天数分、不再担风险；机器人见好就收
+      if ('settle' in e) score += m * 10;
+      if ('fire' in e) score -= m * 4;
+    }
+  };
+  add(opt.effects, 1);
+  if (st.chance !== null) {
+    if (expected) {
+      add(opt.onSuccess, p);
+      add(opt.onFail, 1 - p);
+    } else add(p >= 0.5 ? opt.onSuccess : opt.onFail, 1);
+  }
+  return score;
+}
+
+/** 最坏情况有多糟：谨慎型用（只看坏的一面，判定按失败算） */
+function worstCase(s: GameState, w: World, c: Card, st: OptionStatus): number {
+  const opt = c.options[st.key];
+  if (!opt) return Number.NEGATIVE_INFINITY;
+  let worst = -st.cost * (WEIGHT.cash ?? 0) - (st.errand ? 1 : 0);
+  const effs = live(s, w, [...opt.effects, ...(st.chance === null ? [] : opt.onFail)]);
+  for (const e of effs) {
+    if ('stat' in e && 'add' in e && typeof e.add === 'number') worst += Math.min(0, e.add * (WEIGHT[e.stat] ?? 0));
+    if ('endAct' in e && e.endAct === 'lost') worst -= 100;
+    // 结局卡（W4）：马上结算没有以后的风险
+    if ('settle' in e) worst += 1;
+    if ('hire' in e) worst -= 1;
+  }
+  if (st.chance !== null) worst -= (1 - st.chance) * 4;
+  return worst;
+}
+
+/** 一串效果"立刻能看到的好处"的期望分 */
+function effectScore(effs: readonly Effect[], k = 1): number {
+  let score = 0;
+  for (const e of effs) {
+    const m = k * (typeof e.chance === 'number' ? e.chance : 1);
+    if ('stat' in e && 'add' in e && typeof e.add === 'number') score += m * e.add * (WEIGHT[e.stat] ?? 0);
+    else if ('stat' in e && 'add' in e) score += m * 6 * (WEIGHT[e.stat] ?? 0);
+    // 修好一处设施会开出新的岗位（ADR 0015）：比眼前的数字值钱
+    if ('facility' in e) score += m * 100;
+    if ('activity' in e) score += m * 20;
+    if ('flag' in e) score += m * 2;
+    if ('endAct' in e) score += m * (e.endAct === 'won' ? 1000 : -1000);
+    if ('person' in e) score += m * 2;
+  }
+  return score;
+}
+
+interface StaffStyle {
+  /** 工单：留多少现金不动 */
+  reserve: number;
+  /** 不碰成功率低于这个的工单 */
+  minChance: number;
+  /** 有需求的岗位值多少分（每小时） */
+  demandValue: number;
+  /** 看走眼：给每个岗位或工单的价值乘一个系数（普通玩家用；不给就是看得准） */
+  misjudge?: (target: string) => number;
+  /** 变体工单还没开工时选哪个变体（LG-14）；不给就是第一个 */
+  pickVariant?: (order: string, variants: string[]) => string;
+}
+
+/** 升级（LG-14）的价值：比不上修好一处（开新岗位），但值得做 */
+const UPGRADE_VALUE = 40;
+/** 赛事（LG-11）：一座奖杯值多少（星级要奖杯）；附加目标按六成把握估；临时岗位比普通岗位多值五成 */
+const TROPHY_VALUE = 25;
+const GOAL_ODDS = 0.6;
+const EVENT_POST_BONUS = 1.5;
+/** 地块（W5）：开地会开出新的岗位，这块地的清理工单一共值这么多（按张数分摊），比修好一处设施略高 */
+const PLOT_VALUE = 240;
+/** 打扫工单：可用度低于它才派人；亲手扫：不能打，或者勉强而且低于 HAND_AT */
+const CARE_ORDER_AT = 70;
+const HAND_AT = 55;
+
+/** 一项赛事这一期值多少：奖励 + 附加目标（按六成把握），第二次起打折 */
+function tournamentValue(s: GameState, t: Tournament): number {
+  const trophies = (effs: readonly Effect[]) =>
+    effs.reduce((a, e) => a + ('trophy' in e ? e.trophy * TROPHY_VALUE : 0), 0);
+  const repeat = (s.tournaments?.[t.id]?.entries ?? 0) > 0;
+  const goals = repeat && t.repeat.goals ? t.repeat.goals : t.goals;
+  let v = effectScore(t.reward) + trophies(t.reward);
+  for (const g of goals) v += GOAL_ODDS * (effectScore(g.reward) + trophies(g.reward));
+  return v * (repeat ? t.repeat.scale : 1);
+}
+
+/** 选路卡（W2）：有一个选项写了 { route } */
+const isRouteCard = (c: Card): boolean => Object.values(c.options).some((o) => o?.effects.some((e) => 'route' in e));
+
+/**
+ * 机器人怎么排人：每个人挑一个"值得去"的地方——
+ * 有客人的岗位（马上开始的也算）、划算的工单、状况掉下来的维护岗位；总监爱站在上课的主教练旁边。
+ * 正在转圈的岗位和开了工的工单不轻易拉走（拉走要丢一圈）。
+ */
+function staffCommands(s: GameState, w: World, st: StaffStyle): Command[] {
+  const people = staffIds(s, w).filter((id) => !s.people[id]?.errand);
+  const coach = s.headCoach ? s.people[s.headCoach] : undefined;
+  const coachTeaching =
+    !!coach && !!s.headCoach && working(s, w, s.headCoach) && !!coach.job && !!w.posts.get(coach.job)?.hours;
+  const h = minuteOfDay(s.t) / 60;
+  type Option = { target: string; at: string; skill: SkillKind; value: number; crew: number };
+  const options: Option[] = [];
+  for (const p of w.posts.values()) {
+    if (!postExists(s, w, p)) continue;
+    let value = 0;
+    if (p.hours) {
+      // 今天有客人、而且现在是它的时段，或者 45 分钟内开始（先走过去）
+      const today = !p.days || p.days.includes(weekdayOf(s.t));
+      const soon = h >= p.hours[0] - 0.75 && h < p.hours[1] - 0.25;
+      if (!today || !soon) continue;
+      value = st.demandValue * (p.skill === 'teach' ? 1.4 : 1) * (w.eventPosts.has(p.id) ? EVENT_POST_BONUS : 1);
+    } else if (p.restore) {
+      const f = w.facilityAt.get(p.at);
+      const c = f ? (s.condition[f] ?? 100) : 100;
+      if (c > 85) continue;
+      value = (100 - c) / 6;
+    } else value = 2; // 随时能干、不修东西的岗位（球员自己练球）：闲着不如去
+    options.push({ target: p.id, at: p.at, skill: p.skill, value: value * (st.misjudge?.(p.id) ?? 1), crew: 1 });
+  }
+  const variantOf = new Map<string, string>();
+  for (const o of w.orders.values()) {
+    const os = orderStatus(s, w, o);
+    if (!os.visible || os.blocked === 'cost' || os.blocked === 'early' || os.paused) continue;
+    // 人不够（双打要两名球员）就不去
+    if (os.minCrew > 1 && staffIds(s, w).filter((id) => eligible(w, id, o)).length < os.minCrew) continue;
+    // 变体工单还没锁定：机器人自己挑一个（按它的那个变体算钱和效果）
+    let variant = orderVariant(s, o, w);
+    if (o.variants && !os.locked && st.pickVariant) variant = st.pickVariant(o.id, os.openVariants ?? orderVariants(o));
+    if (variant && !os.locked) variantOf.set(o.id, variant);
+    const cost = orderCost(s, o, variant, w);
+    if (!os.started && cost > 0 && (s.stats.cash ?? 0) - cost < st.reserve) continue;
+    if (os.chance !== null && os.chance < st.minChance) continue;
+    const p = os.chance ?? 1;
+    let value = effectScore(o.effects) + effectScore(o.onSuccess, p) + effectScore(o.onFail, 1 - p) + o.restore / 4;
+    if (variant) value += effectScore(o.variants?.[variant]?.effects ?? []);
+    if (o.upgrade) value += UPGRADE_VALUE;
+    // 打扫工单：越脏越值得去，不能打的场（挡着收入、门口有人等）加倍
+    // 刚冒出来、还能打的不急（等它再脏一点、或者让守着的维护工顺手清）
+    if (o.care) {
+      const f = orderFacility(w, o);
+      const u = f ? usabilityOf(s, w, f) : 100;
+      const lvl = f ? careLevelOf(s, w, f) : 'ok';
+      value += ((100 - u) / 4) * (lvl === 'no' ? 2 : lvl === 'ok' && u >= CARE_ORDER_AT ? 0.5 : 1);
+    }
+    const tour = w.tournamentOf.get(o.id);
+    if (tour) value += tournamentValue(s, tour);
+    const plot = w.plotOrders.get(o.id);
+    if (plot) value += PLOT_VALUE / Math.max(1, w.plots.get(plot.plot)?.variants[plot.variant]?.orders.length ?? 1);
+    value -= cost * (WEIGHT.cash ?? 0);
+    // 按工时折算（开平方）：大工程也值得一点一点干
+    value = value / Math.max(1, Math.sqrt(minutes(o.work) / 60)) + (os.started ? 4 : 0);
+    value *= st.misjudge?.(o.id) ?? 1;
+    if (value < 1.5) continue;
+    options.push({ target: o.id, at: o.at, skill: o.skill, value, crew: o.crew });
+  }
+  // 每个人对每个选项的分：价值 × 能力合适度 − 走路
+  const pairs: { person: string; o: Option; score: number }[] = [];
+  for (const id of people) {
+    const pp = s.people[id];
+    if (!pp) continue;
+    const cur = pp.job;
+    // 正在转圈的有需求岗位、开了工的工单：先别动
+    if (cur && working(s, w, id)) {
+      const post = w.posts.get(cur);
+      if ((post && postDemand(s, w, post)) || s.orders[cur]) continue;
+    }
+    for (const o of options) {
+      const def = w.posts.get(o.target) ?? w.orders.get(o.target);
+      if (def && !eligible(w, id, def)) continue;
+      if (def && !meetsWorker(s, id, def)) continue;
+      const fit = 0.4 + skillOf(pp, o.skill) / 80;
+      const walk = walkEta(s, w, id, o.at) ?? 60;
+      let score = o.value * fit - walk / 30;
+      if (id === DIRECTOR && coachTeaching && coach && o.at === coach.at) score += 6;
+      if (o.target === cur) score += 2;
+      pairs.push({ person: id, o, score });
+    }
+  }
+  pairs.sort((a, b) => b.score - a.score || a.person.localeCompare(b.person) || a.o.target.localeCompare(b.o.target));
+  const used = new Map<string, number>();
+  const busy = new Set<string>();
+  // 已经在干、不打算动的人占着自己的位子
+  for (const id of staffIds(s, w)) {
+    const job = s.people[id]?.job;
+    if (job && !pairs.some((x) => x.person === id)) used.set(job, (used.get(job) ?? 0) + 1);
+  }
+  const cmds: Command[] = [];
+  for (const x of pairs) {
+    if (busy.has(x.person) || x.score <= 0) continue;
+    const n = used.get(x.o.target) ?? 0;
+    const taken = w.posts.has(x.o.target) ? occupant(s, x.o.target) : null;
+    if (n >= x.o.crew) continue;
+    if (taken && taken !== x.person && !pairs.some((p) => p.person === taken)) continue;
+    busy.add(x.person);
+    used.set(x.o.target, n + 1);
+    const variant = variantOf.get(x.o.target);
+    if (s.people[x.person]?.job !== x.o.target && canAssign(s, w, x.person, x.o.target, variant) === null)
+      cmds.push({ type: 'assign', person: x.person, target: x.o.target, ...(variant ? { variant } : {}) });
+  }
+  return cmds;
+}
+
+/**
+ * 亲手扫：总监闲着（没在办事、手上不是正在营业的有需求岗位）、某块场勉强或不能打时，
+ * 挑最差的那块扫，每项清掉 hand 成（小游戏扫得多干净）。
+ */
+function handCare(s: GameState, w: World, hand: number | undefined): Command[] {
+  if (!hand) return [];
+  const d = s.people[DIRECTOR];
+  if (!d?.hired || d.errand) return [];
+  const job = d.job ? w.posts.get(d.job) : undefined;
+  if (job && postDemand(s, w, job)) return [];
+  if (d.job && s.orders[d.job]?.started) return [];
+  const rank: Record<CareLevel, number> = { no: 0, meh: 1, ok: 2 };
+  let best: { f: string; lvl: CareLevel; u: number } | null = null;
+  for (const f of careCourts(w)) {
+    const lvl = careLevelOf(s, w, f);
+    if (lvl === 'ok' || canCare(s, w, f) !== null) continue;
+    const u = usabilityOf(s, w, f);
+    if (lvl === 'meh' && u >= HAND_AT) continue;
+    if (!best || rank[lvl] < rank[best.lvl] || (lvl === best.lvl && u < best.u)) best = { f, lvl, u };
+  }
+  if (!best) return [];
+  const cleared = Object.fromEntries(MESS_KINDS.map((k) => [k, hand]));
+  return [{ type: 'careFinish', court: best.f, result: { cleared } }];
+}
+
+function pickerBot(
+  name: string,
+  score: (s: GameState, w: World, c: Card, st: OptionStatus) => number,
+  style: StaffStyle,
+  hand?: number,
+): Bot {
+  return {
+    name,
+    decide(s, content) {
+      const w = worldFor(content, s.act, s.directorConfig);
+      const cmds: Command[] = [];
+      for (const o of s.cards.open) {
+        const c = w.cards.get(o.card);
+        if (!c) continue;
+        let best: { key: OptionKey; score: number } | null = null;
+        for (const st of optionStatus(s, w, o.uid)) {
+          if (!st.available) continue;
+          const sc = score(s, w, c, st);
+          if (!best || sc > best.score) best = { key: st.key, score: sc };
+        }
+        if (best) cmds.push({ type: 'chooseOption', uid: o.uid, option: best.key });
+      }
+      // 先处理卡（可能把总监叫走），下一眼再排人；排人每 15 分钟想一次
+      if (cmds.length || minuteOfDay(s.t) % 15 !== 0) return cmds;
+      const care = handCare(s, w, hand);
+      return care.length ? care : staffCommands(s, w, style);
+    },
+  };
+}
+
+/** 贪心型：卡按"立刻能看到的好处"选；排人时什么都愿意干，钱留得少。 */
+export function greedyBot(): Bot {
+  return pickerBot(
+    'greedy',
+    (s, w, c, st) => scoreOption(s, w, c, st, false),
+    { reserve: 300, minChance: 0.3, demandValue: 6 },
+    0.6,
+  );
+}
+
+/** 谨慎型：卡选最坏情况最不坏的；不赌判定，钱留得多，不爱招人。 */
+export function cautiousBot(): Bot {
+  return pickerBot('cautious', (s, w, c, st) => worstCase(s, w, c, st), {
+    reserve: 1200,
+    minChance: 0.7,
+    demandValue: 6,
+  });
+}
+
+/**
+ * 普通玩家（LG-9 原型）。和贪心型用同一套"看得见的好处"打分，但像真人一样受限：
+ *
+ * - **看一眼才动手。** 每个游戏日只有 checks 次"看场景"的时刻（营业时间里随机分布），每次最多拖 drags 个人；
+ *   中间全靠习惯（ADR 0014）换班。设计文档："人手比岗位少，玩家一天重派两三次人。"
+ * - **卡要过一会儿才答。** 暂停的卡（招聘日、投资方、期限）时间停着，立刻答；不暂停的卡（起风了、记者、
+ *   第一批客人、横幅）要过一段时间才注意到（指数分布，平均 cardDelay 分钟），倒计时短的会错过、走默认。
+ *   答卡时顺便看一眼场景（算一次 check）。
+ * - **有时选次优。** 每张卡有 slip 的概率随手选一个能选的项（可能是不招人）。
+ * - **不会完美规划。** 每天对每个岗位和工单的价值有一个看走眼的系数 exp(N(0, noise))：
+ *   有时先做不急的、大工程只派一两个人、维护拖着不做。
+ *
+ * 两个旋钮：skill（0..1）一起调 checks、drags、cardDelay、slip、noise；三档预设见 HUMAN_TIERS。
+ * 自己的随机数和游戏的种子随机流分开（确定性不受影响）。
+ */
+export interface HumanProfile {
+  /** 每个游戏日看几次场景 */
+  checks: number;
+  /** 每次最多拖几个人 */
+  drags: number;
+  /** 不暂停的卡平均多久才答（游戏分钟） */
+  cardDelay: number;
+  /** 随手选项的概率 */
+  slip: number;
+  /** 看走眼的程度（对数正态的 σ） */
+  noise: number;
+  /** 工单留多少现金不动 */
+  reserve: number;
+  /** 亲手扫：小游戏每项清掉几成；不写 = 不亲手扫（新手） */
+  hand?: number;
+}
+
+/** skill 0 = 刚上手，1 = 很会玩（但仍然只是一天看几次的人） */
+export function humanProfile(skill: number): HumanProfile {
+  const k = Math.min(1, Math.max(0, skill));
+  const lerp = (a: number, b: number) => a + (b - a) * k;
+  return {
+    checks: Math.round(lerp(2, 6)),
+    drags: Math.round(lerp(2, 5)),
+    cardDelay: lerp(240, 30),
+    slip: lerp(0.35, 0.05),
+    noise: lerp(0.9, 0.2),
+    reserve: Math.round(lerp(800, 300)),
+    ...(k >= 0.7 ? { hand: 0.9 } : k >= 0.4 ? { hand: 0.75 } : {}),
+  };
+}
+
+export const HUMAN_TIERS = { novice: 0.15, average: 0.5, good: 0.85 } as const;
+
+export function humanBot(seed: number, profile: HumanProfile, name = 'human'): Bot {
+  const r = botRand(seed * 2654435761 + 17);
+  const gauss = () => Math.sqrt(-2 * Math.log(1 - r())) * Math.cos(2 * Math.PI * r());
+  const cardAt = new Map<number, number>();
+  const judged = new Map<string, number>();
+  /** 变体工单：这个人一旦想好修成哪个就不改（LG-14） */
+  const picks = new Map<string, string>();
+  let day = -1;
+  let checks: number[] = [];
+  let pending = false;
+  return {
+    name,
+    decide(s, content) {
+      const w = worldFor(content, s.act, s.directorConfig);
+      const today = Math.floor(s.t / 1440);
+      if (today !== day) {
+        day = today;
+        judged.clear();
+        const { open, close } = w.act.hours;
+        checks = Array.from(
+          { length: profile.checks },
+          () => today * 1440 + open * 60 + Math.floor(r() * (close - open) * 60),
+        ).sort((a, b) => a - b);
+      }
+      const cmds: Command[] = [];
+      for (const o of s.cards.open) {
+        const c = w.cards.get(o.card);
+        if (!c) continue;
+        let when = cardAt.get(o.uid);
+        if (when === undefined) {
+          when = c.pause ? s.t : s.t + Math.floor(-Math.log(1 - r()) * profile.cardDelay);
+          cardAt.set(o.uid, when);
+        }
+        if (s.t < when) continue;
+        const avail = optionStatus(s, w, o.uid).filter((x) => x.available);
+        if (!avail.length) continue;
+        let pick = avail[0] as OptionStatus;
+        // 选路卡（W2）：按自己的种子随便挑一条路（三档玩家各有偏好，不是看分数）
+        if (isRouteCard(c)) pick = avail[Math.floor(r() * avail.length)] as OptionStatus;
+        else if (r() < profile.slip) pick = avail[Math.floor(r() * avail.length)] as OptionStatus;
+        else for (const st of avail) if (scoreOption(s, w, c, st, false) > scoreOption(s, w, c, pick, false)) pick = st;
+        cmds.push({ type: 'chooseOption', uid: o.uid, option: pick.key });
+        pending = true;
+      }
+      if (cmds.length) return cmds; // 先答卡，下一眼再排人（答卡时的那一眼记下来）
+      if (checks.length && (checks[0] as number) <= s.t) {
+        checks.shift();
+        pending = true;
+      }
+      if (!pending) return [];
+      pending = false;
+      const care = handCare(s, w, profile.hand);
+      if (care.length) return care;
+      const misjudge = (target: string) => {
+        let m = judged.get(target);
+        if (m === undefined) judged.set(target, (m = Math.exp(gauss() * profile.noise)));
+        return m;
+      };
+      const pickVariant = (order: string, variants: string[]) => {
+        let v = picks.get(order);
+        if (v === undefined || !variants.includes(v))
+          picks.set(order, (v = variants[Math.floor(r() * variants.length)] ?? ''));
+        return v;
+      };
+      return staffCommands(s, w, {
+        reserve: profile.reserve,
+        minChance: 0.3,
+        demandValue: 6,
+        misjudge,
+        pickVariant,
+      }).slice(0, profile.drags);
+    },
+  };
+}
+
+export interface RunResult {
+  bot: string;
+  seed: number;
+  outcome: GameState['outcome'];
+  days: number;
+  state: GameState;
+  commands: LoggedCommand[];
+}
+
+/** 跑完一局（或跑到 maxDays）。机器人每 step 分钟看一眼。 */
+export function runGame(
+  content: ContentBundle,
+  bot: Bot,
+  seed: number,
+  o: {
+    act?: string;
+    director?: string;
+    maxDays?: number;
+    step?: number;
+    /** 每走一步看一眼状态（报告统计用，只读） */
+    observe?: (s: GameState) => void;
+  } = {},
+): RunResult {
+  const s = newGame(content, {
+    seed,
+    ...(o.act ? { act: o.act } : {}),
+    ...(o.director ? { director: o.director } : {}),
+  });
+  const limit = (o.maxDays ?? 120) * 1440;
+  const stepMin = o.step ?? 5;
+  const commands: LoggedCommand[] = [];
+  while (!s.outcome && s.t < limit) {
+    const r = advance(s, content, bot.decide(s, content), stepMin);
+    commands.push(...r.accepted);
+    o.observe?.(s);
+  }
+  return { bot: bot.name, seed, outcome: s.outcome, days: Math.floor(s.t / 1440) + 1, state: s, commands };
+}

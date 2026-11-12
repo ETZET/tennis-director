@@ -1,0 +1,10 @@
+# 打扫工单（ADR 0022）：可用度低于 rules.care.order_below 时冒出来，开了工做完为止；
+# 不扣材料费、不加状况、没有冷却。做满 work 时把开工那一刻的每种脏乱清掉七成，慢、不占总监。
+id: care_stadium_3
+act: indian_wells
+at: stadium_3
+skill: upkeep
+work: 2h
+crew: 2
+care: { clean: 0.7 }
+performance: sweep

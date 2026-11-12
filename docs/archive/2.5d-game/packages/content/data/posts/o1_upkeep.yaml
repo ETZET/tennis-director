@@ -1,0 +1,10 @@
+# 会员场 · 维护：扫沙、补线、收球。随时可以干，不算需求；没人干，场地按天变旧。
+id: o1_upkeep
+act: indian_wells
+at: outer_1
+skill: upkeep
+cycle: 1h
+when: { any: [{ facility: outer_1, is: playable }, { facility: outer_1, is: resurfaced }] }
+restore: 4
+# 场地可用度：每圈每项脏乱清掉 care × (0.5 + 维护 / 100)；场地不能打时照样转
+care: 0.06

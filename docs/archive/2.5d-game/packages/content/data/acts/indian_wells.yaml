@@ -1,0 +1,587 @@
+# Palm Oasis Racquet Club（Indian Wells, CA）：整局唯一的地图（2026-11-02 照参考图重排，ADR 0018）。开局是废弃的，总监和 Dale 是这里仅有的两个人。
+# 修好一处设施就开出新的岗位（ADR 0015）；修好中心球场、办成一场表演赛就通关。
+# 设施 id 沿用原来的：stadium_1 中心球场、practice 青训、outer_1 会员双打、outer_23 红土、
+# clubhouse 会所、plaza 棕榈喷泉、stadium_3 匹克球、stadium_2 泳池。
+id: indian_wells
+start: { day: 1, hour: 8 }
+hours: { open: 8, close: 20 }
+stats:
+  cash: 3000
+  reputation: 5
+  quality: 10
+  members: 0
+  service: 50
+# 设施开局的状态（facilities.yaml 里每个设施的第一个状态都是废弃的样子）
+facilities:
+  outer_1: sanded
+  outer_23: ruined
+  practice: ruined
+  clubhouse: ruined
+  plaza: dry
+  stadium_3: buried
+  stadium_2: ruined
+  stadium_1: ruined
+people:
+  # 总监从大门进来；Dale 在会所后面那间办公室里住了十年
+  - { id: director, at: entrance }
+  - { id: dale, at: clubhouse, head_coach: true }
+# 开局的状况（0..100）：废了十年，到处都很差
+condition: { outer_1: 10, outer_23: 10, practice: 10, clubhouse: 20, plaza: 15, stadium_3: 5, stadium_2: 10, stadium_1: 5 }
+anchors: [entrance, parking, plaza, clubhouse, stadium_1, stadium_2, stadium_3, practice, outer_1, outer_23, south_courts, oasis_lawn, event_plaza, academy_isle]
+# 步行分钟数：两两之间都有一条边，分钟数按画面里步道的长度换算
+# （1.6 米 / 游戏分钟，见 render 的 indianWells.WALK_METERS_PER_MINUTE；game.test 检查两边一致）。
+nav:
+  - [entrance, parking, 12]
+  - [entrance, plaza, 25]
+  - [entrance, clubhouse, 66]
+  - [entrance, stadium_1, 45]
+  - [entrance, stadium_2, 74]
+  - [entrance, stadium_3, 26]
+  - [entrance, practice, 56]
+  - [entrance, outer_1, 56]
+  - [entrance, outer_23, 56]
+  - [parking, plaza, 37]
+  - [parking, clubhouse, 78]
+  - [parking, stadium_1, 57]
+  - [parking, stadium_2, 86]
+  - [parking, stadium_3, 38]
+  - [parking, practice, 68]
+  - [parking, outer_1, 68]
+  - [parking, outer_23, 68]
+  - [plaza, clubhouse, 57]
+  - [plaza, stadium_1, 36]
+  - [plaza, stadium_2, 65]
+  - [plaza, stadium_3, 17]
+  - [plaza, practice, 47]
+  - [plaza, outer_1, 47]
+  - [plaza, outer_23, 47]
+  - [clubhouse, stadium_1, 32]
+  - [clubhouse, stadium_2, 16]
+  - [clubhouse, stadium_3, 58]
+  - [clubhouse, practice, 43]
+  - [clubhouse, outer_1, 43]
+  - [clubhouse, outer_23, 43]
+  - [stadium_1, stadium_2, 40]
+  - [stadium_1, stadium_3, 36]
+  - [stadium_1, practice, 22]
+  - [stadium_1, outer_1, 22]
+  - [stadium_1, outer_23, 22]
+  - [stadium_2, stadium_3, 59]
+  - [stadium_2, practice, 33]
+  - [stadium_2, outer_1, 33]
+  - [stadium_2, outer_23, 33]
+  - [stadium_3, practice, 32]
+  - [stadium_3, outer_1, 32]
+  - [stadium_3, outer_23, 32]
+  - [practice, outer_1, 5]
+  - [practice, outer_23, 5]
+  - [outer_1, outer_23, 5]
+  # 地块（W5，ADR 0021）的新锚点：只加不挪。分钟数照 iso 的步行表（art17，步道长度 ÷ 1.6），新地只当终点、不当中转站
+  - [entrance, south_courts, 105]
+  - [parking, south_courts, 117]
+  - [plaza, south_courts, 96]
+  - [clubhouse, south_courts, 47]
+  - [stadium_1, south_courts, 71]
+  - [stadium_2, south_courts, 36]
+  - [stadium_3, south_courts, 81]
+  - [practice, south_courts, 54]
+  - [outer_1, south_courts, 54]
+  - [outer_23, south_courts, 54]
+  - [south_courts, oasis_lawn, 6]
+  - [south_courts, event_plaza, 116]
+  - [south_courts, academy_isle, 196]
+  - [entrance, oasis_lawn, 104]
+  - [parking, oasis_lawn, 116]
+  - [plaza, oasis_lawn, 95]
+  - [clubhouse, oasis_lawn, 46]
+  - [stadium_1, oasis_lawn, 70]
+  - [stadium_2, oasis_lawn, 35]
+  - [stadium_3, oasis_lawn, 80]
+  - [practice, oasis_lawn, 54]
+  - [outer_1, oasis_lawn, 54]
+  - [outer_23, oasis_lawn, 54]
+  - [oasis_lawn, event_plaza, 116]
+  - [oasis_lawn, academy_isle, 196]
+  - [entrance, event_plaza, 12]
+  - [parking, event_plaza, 12]
+  - [plaza, event_plaza, 37]
+  - [clubhouse, event_plaza, 78]
+  - [stadium_1, event_plaza, 56]
+  - [stadium_2, event_plaza, 85]
+  - [stadium_3, event_plaza, 38]
+  - [practice, event_plaza, 67]
+  - [outer_1, event_plaza, 67]
+  - [outer_23, event_plaza, 67]
+  - [event_plaza, academy_isle, 92]
+  - [entrance, academy_isle, 91]
+  - [parking, academy_isle, 92]
+  - [plaza, academy_isle, 117]
+  - [clubhouse, academy_isle, 158]
+  - [stadium_1, academy_isle, 136]
+  - [stadium_2, academy_isle, 165]
+  - [stadium_3, academy_isle, 118]
+  - [practice, academy_isle, 147]
+  - [outer_1, academy_isle, 147]
+  - [outer_23, academy_isle, 147]
+seasons:
+  - { id: autumn, from_day: 1, decay: 1 }
+  # 冬天游客最多，风小，设施掉得慢一点
+  - { id: winter, from_day: 36, decay: 0.8 }
+  # 春天是风季：大风扬沙，没人管的场地坏得更快
+  - { id: spring, from_day: 71, decay: 1.3 }
+# 酷热 heat：只影响场地可用度（线褪、开裂，红土开裂快得多）和画面；初秋和春天的沙漠才有
+weather:
+  autumn: { sun: 6, cloud: 2, rain: 0.3, wind: 1.5, heat: 2 }
+  winter: { sun: 5, cloud: 3, rain: 1, wind: 1, heat: 0 }
+  spring: { sun: 5, cloud: 1, rain: 0.2, wind: 3, heat: 1 }
+start_cards: [iw_arrival]
+# 星级（ADR 0020，LG-10，GM-9）：第 i 项是升到 ★(i+1) 的清单，全部满足才升，只往上不往回掉。
+# 条 id 的文案在 stars.items.<id>，opens 的文案在 stars.opens.<键>。
+# 橡皮筋：第 12 周（第 78 天）起 ★3、★4 的会员和声望门槛 ×0.8；★4 的"办成过邀请赛"也可以用"奖杯 ≥ 4"代替。
+# 校准目标（设计文档"怎么算做成了"）：good / average / novice 到 ★3 的中位约第 50 / 58 / 66 天。
+# GM-9 校准：设计表的初值（★3 修好 5 处、声望 30；★4 声望 50）让三档机器人都在第 40–52 天到 ★3（会员、声望、修好 5 处
+# 第 30–45 天就齐了，只剩奖杯卡着）；改成 ★3 修好 6 处、声望 45，★4 声望 60。
+# 校准用 sim-cli 的普通玩家机器人 good / average / novice（humanBot，HUMAN_TIERS 0.85 / 0.5 / 0.15）；greedy、cautious 每个 tick 都排人，
+# 不像真人，只看平衡闸口。200 局：★3 中位第 49 / 54 / 58 天，★4 第 60 / 65 / 68 天。
+stars:
+  # ★1 能打球了
+  - requires:
+      court: { any: [{ facility: outer_1, is: playable }, { facility: outer_1, is: resurfaced }] }
+      members_5: { stat: members, gte: 5 }
+    opens: [internal_cup]
+  # ★2 会所开张
+  - requires:
+      clubhouse: { facility: clubhouse, is: open }
+      restored_3: { expr: "restored >= 3" }
+      members_20: { stat: members, gte: 20 }
+      cup_once: { flag: hosted_cup }
+    opens: [regional]
+    # 选路（GM-14）：升上这一星时来选路卡，一天倒计时，不选由 Dale 定（路 A）
+    card: iw_route_s2
+  # ★3 社区俱乐部
+  - requires:
+      restored_6: { expr: "restored >= 6" }
+      members_45: { expr: "stat.members >= (day >= 78 ? 36 : 45)" }
+      rep_45: { expr: "stat.reputation >= (day >= 78 ? 36 : 45)" }
+      trophies_2: { expr: "trophies >= 2" }
+    # 表演赛四期筹备（W2）从 ★3 起挂在中心球场的地点牌上（orders/prep_*.yaml）
+    opens: [invitational, sponsor, exhibition_prep]
+    card: iw_route_s3
+  # ★4 度假名园
+  - requires:
+      restored_7: { expr: "restored >= 7" }
+      members_70: { expr: "stat.members >= (day >= 78 ? 56 : 70)" }
+      rep_60: { expr: "stat.reputation >= (day >= 78 ? 48 : 60)" }
+      invitational: { any: [{ flag: hosted_invitational }, { expr: "day >= 78 && trophies >= 4" }] }
+    opens: [exhibition]
+    card: iw_route_s4
+  # ★5 沙漠名园
+  - requires:
+      exhibition: { flag: exhibition_done }
+    opens: [finale]
+# 三次选路（GM-14）：处 → 路，第一条是路 A（默认、Dale 替你定的那条）。文案 routes.<处>.<路>。
+# ★2 的路在 W2 就生效（变体先开、招聘日、周末客人）；★3、★4 的路决定开哪块地（W5，下面的 plots：选了就开工）。
+routes:
+  s2: [youth, resort]
+  s3: [south_courts, oasis_lawn]
+  s4: [event_plaza, academy_isle]
+# 地块（W5，GM-15，ADR 0021）：地图跟着 ★3、★4 的选路长出去。
+# 选路卡定了路，同名的变体就开工：清理工单一起挂在新地的地点牌上（有先后：拆了门才能清沙坑……），都做完就开地。
+# 接下的主办赛事的比赛日工地停工（pause_on_events 默认）。施工的副作用写在别处：
+# - golf_west 施工时泳池那边吵（posts/st2_*.yaml 每圈少 $3）；
+# - se_corner 按赛事广场施工、车挪走以后少一个停车场（rules.week.members 每周少来 2 人）。
+# 开了以后：南场多两片场（会员上限 +24、质量 +6、看场岗位离得远，要有人守）；绿洲草坪是周末度假客（小屋管家，水费按圈扣，
+# 会员上限不涨，质量 +5）；赛事广场让表演赛把握 +4%、门票 +$2000、邀请赛 +$500、赞助商的横幅卡不用等匹克球场、
+# 周末赞助展台；学院岛是驻岛教练和宿舍（会员 +6，学院课每圈 +$2），起风天关桥，表演赛不会更快。
+# 数字由机器人校准（人-17）。
+plots:
+  - id: golf_west
+    route: s3
+    variants:
+      south_courts:
+        anchor: south_courts
+        orders: [sc_gate, sc_bunkers, sc_fill, sc_pave, sc_nets]
+        start: [{ log: log.golf_west_building }]
+        opens:
+          posts: [sc_league, sc_rental]
+          effects:
+            - { stat: reputation, add: 2 }
+            - { log: log.south_courts_open }
+      oasis_lawn:
+        anchor: oasis_lawn
+        orders: [ol_paths, ol_cabins, ol_pool]
+        start: [{ log: log.golf_west_building }]
+        opens:
+          posts: [ol_host]
+          effects:
+            - { stat: reputation, add: 3 }
+            - { flag: golf_developer, set: true }
+            - { log: log.oasis_lawn_open }
+  - id: se_corner
+    route: s4
+    variants:
+      event_plaza:
+        anchor: event_plaza
+        orders: [ep_cars, ep_fill, ep_slope, ep_lot]
+        start: [{ log: log.se_corner_building }]
+        opens:
+          posts: [ep_booth]
+          effects:
+            - { stat: reputation, add: 3 }
+            - { log: log.event_plaza_open }
+      academy_isle:
+        anchor: academy_isle
+        orders: [ai_dock, ai_bridge, ai_dorm, ai_court]
+        start: [{ log: log.se_corner_building }]
+        opens:
+          posts: [ai_resident, ai_dorm_host]
+          effects:
+            # 第一批寄宿学员预交一学期学费（校准 GM-15：岛上的两个岗位都不算需求、机器人很少常驻，
+            # 没有这笔学员押金时学院岛比赛事广场少约 $2000、分数也低一截）
+            - { stat: cash, add: 1200 }
+            - { stat: members, add: 6 }
+            - { stat: reputation, add: 3 }
+            - { log: log.academy_isle_open }
+# 赛事阶梯（GM-10，设计文档"赛事阶梯"）：赛事不是卡，报名工单提前一周出现在地点牌上。
+# 周从第 1 天（周一）算起：第 n 周的周六是第 7n − 1 天。第 52–84 天的节拍：
+# 青少年赛第 54–55 天（第 8 周周五、周六）、地区赛第 59–60 天（第 9 周周三、周四）、邀请赛第 69–70 天、内赛第 76 天、青少年赛第 82–83 天、投资方第 85 天。
+# 不参加没有惩罚。第二次起奖励减半（奖杯和标记不打折），附加目标换一个。
+tournaments:
+  # 月度内赛：第 3、7、11、15 周的周六。占会员场和红土场的一块一整天：不租场、不上课。开签到、裁判两个临时岗位。
+  - id: cup_monthly
+    kind: host
+    at: outer_1
+    weeks: [3, 7, 11, 15]
+    days: [5]
+    hours: [9, 17]
+    when: { all: [{ expr: "stars >= 1" }, { expr: "courts_built >= 2" }] }
+    fee: 60
+    order: cup_monthly
+    posts: [t_checkin, t_umpire]
+    closes: [o1_rental, o1_lesson, o23_rental]
+    reward:
+      - { trophy: 1 }
+      - { flag: hosted_cup, set: true }
+      - { stat: reputation, add: 2 }
+      - { stat: members, add: 2 }
+    goals:
+      - { id: service, if: "event.service_rate >= 0.8", reward: [{ stat: reputation, add: 1 }] }
+      - { id: members, if: "stat.members >= 10", reward: [{ stat: members, add: 2 }] }
+    repeat:
+      scale: 0.5
+      goals:
+        - { id: staffed, if: "event.staffed >= 0.95", reward: [{ stat: cash, add: 150 }] }
+        - { id: full_house, if: "stat.members >= 40", reward: [{ stat: reputation, add: 2 }] }
+  # 地区业余赛：第 5、9、13 周的周三、周四（两天里挑一天去），球员从大门出发打一天。★3 起是双打，要两名球员（工单的 min_crew）。
+  # 每 6 天一次的"出去打一站比赛"（pl_tournament）保留，当作小比赛，不算奖杯。
+  - id: regional_open
+    kind: away
+    at: entrance
+    weeks: [5, 9, 13]
+    days: [2, 3]
+    hours: [8, 18]
+    when: { expr: "stars >= 2 && hired.player >= 1" }
+    fee: 200
+    order: regional_open
+    reward:
+      - { stat: reputation, add: 1 }
+    goals:
+      - id: win
+        chance: "clamp(0.1 + (event.skill - 50) / 45 + (event.crew >= 2 ? 0.1 : 0) + (variant.stadium_2 == \"recovery\" ? 0.1 : 0), 0.05, 0.9)"
+        # 高一级组别（W3 成长解锁 open_division：球员球技 ≥ 70）：奖金 ×2；报名费 ×2 在报名工单的效果里补扣
+        reward: [{ stat: cash, add: 800 }, { stat: cash, add: 800, if: { unlocked: open_division } }, { stat: reputation, add: 5 }, { trophy: 1 }]
+    repeat:
+      scale: 0.5
+      goals:
+        # 卫冕：大家都认得你的球员了，难一点
+        - id: defend
+          chance: "clamp(0.05 + (event.skill - 55) / 45 + (event.crew >= 2 ? 0.1 : 0) + (variant.stadium_2 == \"recovery\" ? 0.1 : 0), 0.05, 0.85)"
+          reward: [{ stat: cash, add: 1000 }, { stat: cash, add: 1000, if: { unlocked: open_division } }, { stat: reputation, add: 6 }, { trophy: 1 }]
+  # 地区青少年赛：第 8、12 周的周五、周六（两天里挑一天去），一名教练带学员去半天。
+  # 这一周青训场的课要上够 10 圈（学院或训练营）。
+  - id: junior_regional
+    kind: away
+    at: entrance
+    weeks: [8, 12]
+    days: [4, 5]
+    hours: [8, 18]
+    when:
+      all:
+        - { expr: "stars >= 2" }
+        - { facility: practice, is: open }
+        - { expr: "cycles.pr_academy + cycles.pr_bootcamp >= 10" }
+    fee: 80
+    order: junior_regional
+    reward:
+      - { stat: reputation, add: 1 }
+    goals:
+      # 有学员进四强：看带队教练的教学
+      - id: semis
+        chance: "clamp(0.2 + (event.skill - 45) / 50 + (route.s4 == \"academy_isle\" ? 0.1 : 0) + unlocked.junior_coach * 0.2, 0.15, 0.9)"
+        reward: [{ stat: reputation, add: 3 }, { stat: members, add: 4 }, { trophy: 1 }]
+    repeat:
+      scale: 0.5
+      goals:
+        # 第二次：要进决赛才算
+        - id: final
+          chance: "clamp(0.1 + (event.skill - 45) / 50 + (route.s4 == \"academy_isle\" ? 0.1 : 0) + unlocked.junior_coach * 0.2, 0.05, 0.85)"
+          reward: [{ stat: reputation, add: 5 }, { stat: members, add: 6 }, { trophy: 1 }]
+  # 邀请赛：第 10、13 周的周末，在红土场办两天，会所和棕榈喷泉都要开着。四个临时岗位两天都要有人。
+  # 认场地：保留红土是红土邀请赛（老牌，声望多），修成硬地是硬地邀请赛（报名的人多，钱多）。下雨就白花报名费。
+  - id: invitational
+    kind: host
+    at: outer_23
+    weeks: [10, 13]
+    days: [5, 6]
+    hours: [9, 17]
+    variant_of: outer_23
+    when:
+      all:
+        - { expr: "stars >= 3" }
+        - { facility: outer_23, is: playable }
+        - { facility: clubhouse, is: open }
+        - { facility: plaza, is: open }
+    fee: 800
+    order: invitational
+    posts: [t_checkin, t_courtside, t_catering, t_umpire]
+    closes: [o23_rental, o23_clinic]
+    reward:
+      - { stat: cash, add: 2000 }
+      - { stat: reputation, add: 6 }
+      - { trophy: 1 }
+      - { flag: hosted_invitational, set: true }
+      - { stat: reputation, add: 3, if: { variant: outer_23, is: clay } }
+      - { stat: cash, add: 600, if: { variant: outer_23, is: hard } }
+      # 赛事广场开了（W5）：观赛坡坐得下更多人
+      - { stat: cash, add: 500, if: { all: [{ plot: se_corner, is: open }, { plot: se_corner, is: event_plaza }] } }
+    goals:
+      - { id: staffed, if: "event.staffed >= 0.95", reward: [{ stat: members, add: 4 }] }
+      - { id: service, if: "event.service_rate >= 0.8", reward: [{ stat: reputation, add: 2 }] }
+    repeat:
+      scale: 0.5
+      goals:
+        - { id: staffed, if: "event.staffed >= 0.95", reward: [{ stat: members, add: 4 }] }
+        # 第二届：看台坐满才算
+        - { id: full_house, if: "stat.members >= 70", reward: [{ stat: cash, add: 1000 }] }
+# 投资方给了 16 周：第 13 周来看一次进度，第 112 天收盘前还没办成表演赛就停工
+  # 第二季的目标（W4 门试玩 P2）：正式巡回赛。只在第二季开（ending.season），报名费贵、奖金也大；
+  # 四个临时岗位两天都有人才算办得体面（附加目标），第二次起奖励减半。签表、转播是后续的新机制。
+  - id: official_tournament
+    kind: host
+    at: outer_23
+    weeks: [6, 12]
+    days: [5, 6]
+    hours: [9, 17]
+    when:
+      all:
+        - { expr: "ending.season >= 2 && stars >= 5" }
+        - { facility: outer_23, is: playable }
+        - { facility: clubhouse, is: open }
+        - { facility: plaza, is: open }
+    fee: 2500
+    order: official_tournament
+    posts: [t_checkin, t_courtside, t_catering, t_umpire]
+    closes: [o23_rental, o23_clinic]
+    reward:
+      - { stat: cash, add: 5000 }
+      - { stat: reputation, add: 8 }
+      - { trophy: 1 }
+      - { flag: official_tournament_done, set: true }
+    goals:
+      - { id: staffed, if: "event.staffed >= 0.95", reward: [{ stat: members, add: 6 }] }
+      - { id: service, if: "event.service_rate >= 0.85", reward: [{ stat: reputation, add: 3 }] }
+    repeat:
+      scale: 0.5
+      goals:
+        - { id: staffed, if: "event.staffed >= 0.95", reward: [{ stat: members, add: 6 }] }
+        - { id: service, if: "event.service_rate >= 0.85", reward: [{ stat: cash, add: 1500 }] }
+calendar:
+  - { day: 85, hour: 10, card: iw_investor_check }
+  - { day: 112, hour: 18, card: iw_deadline }
+# 结局方案 A（W4，LG-13，设计文档"结局"）：第 112 天 18 点结算打分，不判输（破产照旧结束、不结算）。
+# 表演赛提前办成时来结局卡 iw_ending：马上结算（每提前一天 +30）还是接着经营到第 112 天（风季三周外场衰减 ×1.5）。
+# 期限卡 iw_deadline 留在日历上，打分模式下它打不开（那一分钟先结算了），关掉 ending 时照旧判输。
+# 分项：分 = floor(of × per)，文案 ending.items.<项>。
+# 档的门槛由机器人校准（200 局）：good 多半 S/A、average 多半 A/B、
+# novice 多半 B/C，cautious（到 ★4 没办表演赛）C/D，random、idle 是 D。
+ending:
+  mode: score
+  day: 112
+  hour: 18
+  exhibition: { flag: exhibition_done }
+  card: iw_ending
+  # 分数要讲"这一季经营得好不好"，不只是"顶没顶到上限"（W4 门评审）：good / average / novice 机器人到第 92–100 天
+  # 会员、声望都顶满，旧分项（会员 ×10、声望 ×10、星级 ×1000）中位只差约 300 分。现在：
+  # - 星级 ×800、表演赛 2000 → 1500：办成没办成还是最大的一笔，但不再是全部。
+  # - pace 表演赛提前几天（ending.exhibition_early，按办成那天算，和什么时候结算无关）×120：越早办成越会经营。
+  # - service 整季服务率（service_season：所有周加上这一周，有人在岗的分钟 / 有需求的分钟）高于 50% 的每一点 ×150：
+  #   排人排得勤不勤，整季都算，不是最后一周。
+  # - early 马上结算的奖励 ×50 → ×30：结局卡上"交账 / 接着经营"的筹码（接着经营还有第 15 周内赛的奖杯、
+  #   解锁、现金和整季服务率在涨，掉档的风险也在）。
+  # - 会员只算到 100 人、声望 ×5、现金只算 $3000–8000 那一段：顶到上限不再白拿分，攒钱不经营也拿不多。
+  score:
+    stars: { of: stars, per: 800 }
+    trophies: { of: trophies, per: 300 }
+    members: { of: "min(stat.members, 100)", per: 5 }
+    reputation: { of: stat.reputation, per: 5 }
+    unlocks:
+      of: "unlocked.junior_coach + unlocked.night_clay_care + unlocked.member_referrals + unlocked.open_division + unlocked.weekend_camp"
+      per: 200
+    exhibition: { of: ending.exhibition, per: 1500 }
+    pace: { of: ending.exhibition_early, per: 120 }
+    service: { of: "max(0, round(service_season * 100) - 50)", per: 150 }
+    early: { of: "ending.exhibition * ending.days_early", per: 30 }
+    cash: { of: "min(5000, max(0, stat.cash - 3000))", per: 0.1 }
+  # W5 门评审：开地（每局都开，选路卡逼着选一块）让 good / average / novice 中位约 −500 / −800 / −900，
+  # S 15500 / A 13800 / B 11800 下 good 只剩 15.5% S、average 中位掉进 B。整体下调约 500，回到 W4 定档的份额
+  # （good S/A 约 88%，average A/B 约 78%，novice B/C 约 78%）。
+  grades:
+    - { grade: S, gte: 15000 }
+    - { grade: A, gte: 13300 }
+    - { grade: B, gte: 11400 }
+    - { grade: C, gte: 6000 }
+    - { grade: D, gte: 0 }
+  season2:
+    goal: official_tournament
+    start_cards: []
+director_config: steady
+rules:
+  # 质量每 10 分钟向目标靠近。目标拆成几项（文案在 ui.terms.*），周结算讲得出质量为什么涨、为什么掉（GM-1）：
+  # 修好的设施（废墟是负的）、开着的场地、本周服务率（还没有客人时是 0）、主教练（总监在同一个地点时他才专心）、器材
+  quality_target:
+    base: "10"
+    facilities: facility_quality
+    courts: courts_open * 2
+    service: stat.service * 0.2
+    coach: coach.skill * 0.15 * coach.attention
+    gear: "flag.ball_machine ? 4 : 0"
+    # 新地（W5）：南场两片新场 +6，绿洲草坪 +5，赛事广场 +4，学院岛 +4（开了才算）
+    land: >-
+      (plot.golf_west == "open" ? (route.s3 == "south_courts" ? 6 : 5) : 0) + (plot.se_corner == "open" ? 4 : 0)
+  quality_rate: 0.15
+  # 每日结算（ADR 0024）：钱、声望、会员每天收盘按今天结算，写一条 daily 因果日志。
+  # 初值 = 原来周结算的各项 ÷ 7（按周的量：服务、质量、修复、会员增长；按次数的量不除：走掉的会员本来就是今天的个数；
+  # 存量的上限不除）。service_rate 是今天的服务率，care.walkouts 是今天走掉的会员。会员按小数算、零头留到明天。
+  # 今天没有需求（没有一个开着的有需求岗位：雨天、开局）时声望、会员都不动（没人就是零、不倒扣），所以这里不乘 service_demand。
+  day:
+    service_pass: 0.5
+    reputation:
+      service: (service_rate - service_pass) * 2 / 7
+      quality: (stat.quality - 50) / 25 / 7
+      restored: restored * 0.15 / 7
+      walkouts: "-0.5 * care.walkouts"
+    members:
+      # 赛事广场施工、车挪走以后（W5）：南停车场停不了车，每周少来 2 人（每天 2/7）
+      growth: >-
+        max(0, (courts_built * service_rate + (stat.quality - 30) / 12 + stat.reputation / 30) / 7
+        - (plot.se_corner == "building" && route.s4 == "event_plaza" && flag.ep_cleared ? 2 : 0) / 7)
+      # 场地可用度：今天在门口等不及走掉的会员，每个 −0.5 声望、−1/3 会员（零头留到明天）
+      walkouts: "-care.walkouts / 3"
+    # 会员有上限：每块修好的场地撑得起 12 个会员（下雨天场地关门，但会员不会因此退会），会所开了再多 15 个；超出的人就不续了
+    # 会所修成咖啡吧（GM-13）多撑 10 个：有地方坐、有东西吃，会员才愿意续；理疗室（和没选过变体的旧存档）还是 15
+    # 会员推荐（W3 成长解锁 member_referrals：前台服务 ≥ 70）再多撑 10 个
+    # 南场开了（W5）两片新场再撑 24 个；绿洲草坪不涨（度假客不是会员）
+    member_cap: >-
+      courts_built * 12 + (facility.clubhouse == "open" ? (variant.clubhouse == "cafe" ? 25 : 15) : 0) + unlocked.member_referrals * 10
+      + (plot.golf_west == "open" && route.s3 == "south_courts" ? 24 : 0)
+    # 一天最多走掉多少会员（不一次崩掉，明天接着走）：一周的 max(8, 会员 × 25%) ÷ 7
+    member_loss_max: max(8, stat.members * 0.25) / 7
+  dues_week: 12
+  derived:
+    service: round(service_rate * 100)
+    # 复原进度：八处设施修好了几处（HUD 上的"复原"）
+    restoration: restored
+  lose_if:
+    when: { stat: cash, lt: -2000 }
+    ending: bankrupt
+  # 掉档（准则 6）：周日收盘时状况低于 15 的设施掉一档（facilities.yaml 的 drops_to）。
+  # 先有画面信号（状况低于 60 起积沙、杂草），低于 30 质量减半、快讯提醒，周六收盘再提醒一次，周日才掉。
+  grade_drop_below: 15
+  # 有人守的设施（今天有人在它的任何岗位上干完过一圈）收盘衰减只算一成（W2 复验 P1，默认 0.5 太快：
+  # 看场 + 上课的会员场九天就掉到 0）。现在有人在岗、没人维护的球场每天约掉 1，掉档要好几周；
+  # 没人管的照 decay_day 掉；维护岗位每圈 +4，顶得住、补得回，赛事日的磨损也要它来补
+  staffed_decay: 0.1
+  director_growth: 0.3
+  director_skill_cap: 80
+  # 场地可用度（ADR 0022）：五处球场的短期脏乱，和状况 condition 分开。
+  # 可用度 = 100 − 100 × Σ weights[面][k] × mess[k]；≥ ok_at 能打、< no_below 不能打、中间勉强（玩家只看到三档）。
+  care:
+    courts:
+      outer_1: { surface: hard }
+      outer_23: { surface: clay, variants: { hard: hard } }
+      practice: { surface: hard }
+      stadium_1: { surface: hard }
+      stadium_3: { surface: pickleball, variants: { tennis2: hard } }
+    ok_at: 70
+    no_below: 40
+    # 每一单位脏乱扣多少可用度（× 100）
+    weights:
+      hard: { sand: 0.6, water: 0.8, litter: 0.3, lines: 0.35, cracks: 0.5 }
+      clay: { sand: 0.45, water: 0.7, litter: 0.3, lines: 0.4, cracks: 0.6 }
+      pickleball: { sand: 0.6, water: 0.8, litter: 0.35, lines: 0.3, cracks: 0.5 }
+    # 营业时间里每小时的增减（负数 = 自己变干净）；乘 surface[面][k]（不写是 1），结果截在 0..1
+    weather:
+      sun: { sand: 0.002, water: -0.10 }
+      cloud: { sand: 0.002, water: -0.05 }
+      wind: { sand: 0.04, litter: 0.01, water: -0.12 }
+      rain: { water: 0.05 }
+      heat: { lines: 0.02, cracks: 0.012, water: -0.20 }
+    surface:
+      clay: { cracks: 2.5, lines: 1.5, water: 0.8 }
+    # 每有一个"在用这块场"的岗位在干活，每小时加多少
+    use: { litter: 0.01, lines: 0.002, cracks: 0.001 }
+    order_below: 80
+    meh_service: 0.7
+    patience: 90m
+    walkout_max_day: 3
+    waiting_per_post: 2
+    waiting_max: 6
+    grumble_every: 2h
+    # 亲手扫：总监离岗 (base + Σ per[k] × mess[k] × 清掉的比例) ÷ (0.5 + 维护 / 100) × (1 + 0.5 × (场地数 − 1))，截在 [min, max]，再加走路
+    hand:
+      base: 15
+      per: { sand: 90, water: 60, litter: 45, lines: 120, cracks: 90 }
+      min: 10
+      max: 240
+daily: []
+# 员工成长（W3，GM-11；设计文档"五种钥匙 · 人是钥匙"）。
+# 每干完一圈岗位或一张工单，那项能力 +rate，不超过潜力（people/indian_wells.yaml 的 potential；不写 = 起始值 + 15，
+# 大器晚成再 +10）。总监不走 rate（照旧 director_growth 0.3 / 上限 80）；need 写了 who 的总监开不了，
+# 只有 weekend_camp 的第二条没写 who（总监一直上课也算一个能带营的人）。
+# 校准（GM-11）：设计表的初值 +0.2 一周就把坐前台的人涨满；改成 +0.1。教学岗位每个工作日只有 4–6 小时，稳定上课的教练
+# 一周约 20–25 圈：55 → 65 约 4–5 周，Dale 45 → 65 约 9–10 周（第 3 周开课，第 12 周前后过门槛）；前台一天约 10 圈服务，
+# Ben 55 → 70 约 2–3 周。
+growth:
+  enabled: true
+  rate: 0.1
+  # W3 门评审：分项涨幅（growth.rates）。0.1 一样快时维护工 3–11 天、前台 4–15 天就涨满，教练 45 → 65 要 9–10 周。
+  # 目标：每种钥匙大约第 6–12 周开出来。维护工一天约 12 圈、前台约 10 圈、教练每个工作日 3–5 圈（课时短）：
+  # Rosa 62 → 75 约 5 周、Ben 55 → 70 约 5 周、Lily 66 → 70 约 1–2 周；稳定上课的 Dale 45 → 65 约 5–6 周（第 8–9 周），
+  # 课排得少的约第 12 周；Jess 56 → 65 来了约 2–3 周。球技不按 rate 涨（训练岗位的效果，见 posts/pr_training.yaml）
+  rates: { teach: 0.12, upkeep: 0.05, service: 0.06 }
+  headroom: 15
+  traits: { late_bloomer: 10 }
+  skills: [teach, upkeep, service]
+  step: 5
+  unlocks:
+    # 教练教学 ≥ 65：带青少年赛时学员进四强 +20 个百分点（tournaments.junior_regional 的 chance 读 unlocked.junior_coach）；
+    # 学院课每节 +$3、多招一点会员（posts/pr_academy.yaml）。W3 门评审：中位第 82–87 天才开（多半是 Dale），
+    # 青少年赛只有第 8、12 周，开了以后还赶得上一场的局不到四分之一——只读赛事的话这把钥匙大多什么都没开
+    - key: junior_coach
+      need: [{ skill: teach, gte: 65, who: coach }]
+    # 维护工维护 ≥ 75：红土场"夜间养护"工单（orders/o23_night_care.yaml）
+    # W3 门评审：只在保留红土的局开（硬地的局夜间养护工单永远不出现，以前照样上快讯"开出了"）；硬地的 75 维护工照旧开得了职业硬地升级
+    - key: night_clay_care
+      need: [{ skill: upkeep, gte: 75, who: crew }]
+      when: { variant: outer_23, is: clay }
+    # 前台服务 ≥ 70：会员推荐，会员上限 +10（rules.member_cap 读 unlocked.member_referrals）
+    - key: member_referrals
+      need: [{ skill: service, gte: 70, who: special }]
+    # 球员球技 ≥ 70：地区业余赛升到高一级组别，报名费 ×2、奖金 ×2（orders/regional_open.yaml、tournaments.regional_open）
+    - key: open_division
+      need: [{ skill: play, gte: 70, who: player }]
+    # 组合：一名教练 + 另一个能带课的人（第二名教练、体能师 Kofi，或者一直在上课的总监）教学都 ≥ 60
+    # → 青训场"周末训练营"岗位（posts/pr_camp.yaml）。以前第二条只认体能师，只有招到 Kofi（招聘日 2b）的局才开，
+    # 机器人跑局 0–3%；放宽后约两三成的局能开，要的是两个人都花时间上课（总监上课就少干别的）
+    - key: weekend_camp
+      need: [{ skill: teach, gte: 60, who: coach }, { skill: teach, gte: 60 }]

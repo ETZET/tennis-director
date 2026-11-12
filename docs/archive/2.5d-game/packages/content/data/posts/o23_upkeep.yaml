@@ -1,0 +1,10 @@
+# 红土场 · 维护
+id: o23_upkeep
+act: indian_wells
+at: outer_23
+skill: upkeep
+cycle: 1h
+when: { facility: outer_23, is: playable }
+restore: 4
+# 场地可用度：每圈每项脏乱清掉 care × (0.5 + 维护 / 100)；场地不能打时照样转
+care: 0.06

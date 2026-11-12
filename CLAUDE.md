@@ -1,10 +1,12 @@
 # CLAUDE.md · 给 AI 协作者的架构规则
 
-《网球总监》是一款浏览器上的网球中心经营模拟，画面是 three.js 3D 像素（低分辨率正交渲染，ADR 0027）。完整设计见项目里的技术架构文档、玩法设计文档、测试文档。
+《网球总监》是一款浏览器上的网球中心经营模拟，画面是 three.js 3D 像素（低分辨率正交渲染，ADR 0027）。完整设计见 `docs/design/` 的技术架构、玩法设计、测试文档。
+
+**现在只有 3D 场景（`apps/sandbox`），没有模拟、没有游戏 app。** 2.5D 时期的模拟、内容、界面、游戏 app、sim-cli 2026-11-12 整套归档在 `docs/archive/2.5d-game/`；游戏流程重新设计（M-0）定了以后重写模拟，再把场景接上（M-B）。
 
 ## 玩法准则（设计文档「玩法准则」，冲突时前面的优先）
 
-2026-11-09 删掉原准则 5（"日常经营靠招人和排人"，派工；归档在 `docs/archive/pre-3d/tenet-5-staffing.md`），原准则 6 改号成 5。之前的 ADR、契约、代码注释里的"准则 6"就是现在的准则 5。2.5D 时期的主线和派工整个归档，游戏流程重新设计中（设计文档「游戏流程：重新设计中」）。
+2026-11-09 删掉原准则 5（"日常经营靠招人和排人"，派工），原准则 6 改号成 5。之前的 ADR 里的"准则 6"就是现在的准则 5。2.5D 时期的主线（16 周修复、星级、赛事、结局）和派工（拖人上岗）整个作废，2026-11-12 设计文档和 ADR 0011–0017、0020、0021、0028 删除、代码归档；游戏流程重新设计中（设计文档「游戏流程：重新设计中」）。不要照着旧玩法补功能。
 
 1. **不做菜单式操作。** 玩家的动作要么回应事件（卡、来找你的人），要么直接点场景或 HUD 里的东西。不加"面板 → 子菜单 → 按钮"式的管理操作。
 2. **选择要有取舍。** 每个选项都换来一些、付出一些（钱、时间、总监位置、好感、以后的风险）；不能有各方面都更好的选项。
@@ -19,27 +21,23 @@
 ## 分层（由 `pnpm check:deps` 强制）
 
 ```
-apps/sandbox (three.js 3D 像素场景)      apps/game, apps/sim-cli
-                                                ↓
-                                     packages/ui (Preact)
-                                                ↓
-                                     packages/sim            ← 不碰画面、three、Preact、DOM
-                                                ↓
-                                     packages/shared
-packages/content 只由 sim 读取
-three 暂时只在 apps/sandbox；游戏暂时没有画面（接回时另写 ADR）
+apps/sandbox (three.js 3D 像素场景)
+packages/shared                       ← 最底层（种子随机数、表达式、数学）
+three 暂时只在 apps/sandbox
 docs/archive/** 不参与构建，谁也不能引用
 ```
 
-- `sim` 是纯函数式状态机：输入状态和命令，输出新状态和领域事件。可序列化，不放类实例、函数、场景图节点。
+以后重写模拟时守这几条（2.5D 那套就是这么做的，`sim-is-pure` 规则留着等它）：
+
+- 分层 `apps → packages/ui → packages/sim → packages/shared`；`sim` 是纯函数式状态机：输入状态和命令，输出新状态和领域事件。可序列化，不放类实例、函数、场景图节点；不碰画面、three、Preact、DOM。
 - 动画永远不决定数值。结果先由模拟算出，演出只负责演。
-- 模拟只按名字引用位置（锚点，例如 `court_1`、`deck`），坐标由场景模块决定。
-- 新增依赖前先确认它进了正确的包；`sim` 的 package.json 里不能出现 preact、three 或画面包；three 只进 `apps/sandbox`（ADR 0027）。
+- 模拟只按名字引用位置（锚点），坐标由场景决定。
+- 新增依赖前先确认它进了正确的包；three 只进 `apps/sandbox`（ADR 0027），直到另写 ADR 把场景接回游戏。
 
 ## 目录约定
 
 - `apps/sandbox`：three.js 3D 像素场景（ADR 0027，t3ssel8r 风格：低分辨率正交渲染、纹素对齐相机、深度/法线描边、三档 toon 光）。一个场景一个页面 `<name>.html` + `src/<name>/`，在 `vite.config.ts` 的 input 里登记；`index.html` 是页面目录。
-  - `src/club*/`：俱乐部的各个场景（`clubmap2` 整座俱乐部的微缩地图；`clubpark`、`clubdesk`、`clubpickle`、`clubclay`、`clubplaza`、`clubstadium`、`clubcourts`、`clubfood` 是各处小景；`clubfront`、`clubmap` 是早期的前台和地图）。每个场景自己有 `layout.ts`（构图、站位、路线）、`nav.ts`（能走的范围）、`terrain.ts`、`assets/`、`ctx.ts`（`AssetCtx<本场景的 Pal>`）、`palette.ts`（核心调色板的超集）、`placeholders.ts`（白模）、`reuse.ts`（只读引用别处的素材）；做到演出的有 `life.ts`，能操控总监的有 `play.ts`。
+  - `src/club*/`：俱乐部的各个场景（`clubmap2` 整座俱乐部的微缩地图；`clubpark`、`clubdesk`、`clubpickle`、`clubclay`、`clubplaza`、`clubstadium`、`clubcourts`、`clubfood`、`clubhouse`、`clubpool`、`clubgolf` 是各处小景；`clubwalk` 把它们连成能走遍的一整座俱乐部，场景通过 `clubsite/region.ts` 挂进去；`clubfront`、`clubmap` 是早期的前台和地图）。每个场景自己有 `layout.ts`（构图、站位、路线）、`nav.ts`（能走的范围）、`terrain.ts`、`assets/`、`ctx.ts`（`AssetCtx<本场景的 Pal>`）、`palette.ts`（核心调色板的超集）、`placeholders.ts`（白模）、`reuse.ts`（只读引用别处的素材）；做到演出的有 `life.ts`，能操控总监的有 `play.ts`。
   - `src/clubsite/`：各场景共用，不引用任何场景（`pnpm check:deps` 的 `clubsite-not-from-scenes`）：
     - `render/`：渲染核心，只有一份，场景 import 它、不复制：`pipeline.ts`（低分辨率渲染、描边、纹素对齐；`dist`/`far` 给地图拉远）、`toon.ts`（色阶材质）、`colors.ts`（关掉颜色管理，main 第一个 import）、`noise.ts`、`ctx.ts`（`AssetCtx`、`SharedUniforms`）、`palette-base.ts`（底表，原 desert3d-v2 的）+ `palette.ts`（俱乐部的表）、`palettes/`（配色方案覆盖层，`?pal=<id>`，默认 `golden` 6 午后金光）、`geo.ts`（`topGeo`、`wallGeo`、`smoothLoop`、`box`、`quad`……）。
     - `world.ts`：整座俱乐部的世界坐标（米，y 朝上，北 = −z，东 = +x；`SITE`、`COURTS`、`GATE`、`DESK`、`PATHS`、围网……），所有场景从这里 import。
@@ -48,22 +46,14 @@ docs/archive/** 不参与构建，谁也不能引用
   - 新场景按 `.claude/skills/pixel-scene` 的流程做（白模 → 素材 → 组装演出 → 数字验收）；经验、材质规范、地图边界、截图和量图工具在 `docs/lab/2026-11-07-3d-pixel/`（`lessons.md`、`material-spec.md`、`boundary.md`、`tools/`）。
 - `docs/archive/iso-2.5d/`：归档的 2.5D 等距像素画面（原 `packages/iso`、sandbox 的查看器/活动库/demo/人物页、游戏的画面层，ADR 0019 → 0027）。只作参考，不能构建，不要引用。
 - `docs/adr/`：重要决策一个文件。违反架构原则的改动先写 ADR。
-- `packages/content/data/`：所有游戏内容（YAML）。卡在 `events/<幕>/<id>.yaml`，文件名就是 id；文案在 `i18n/en.yaml`、`i18n/zh.yaml`。改完运行 `pnpm content`，生成的 `src/generated/content.json` 一起提交。
-- `apps/game/src/`：`session.ts`（实时 → 游戏分钟、命令队列、手上拿着的人）、`project.ts`（状态 → HUD 快照、员工条、岗位说明）、`settle.ts`（每日结算卡）、`main.ts`（画面迁移中：没有场景，舞台上是一行说明和一排地点按钮；HUD、拖放落点、自动存档、试玩桥 `window.__td`）、`debug.ts`（调试面板）、`text.ts`（i18n 拼句）。
-- 内容热重载插件在 `@td/content/vite`，Node 专用代码在 `@td/content/node`；两者都不要从 `@td/content` 入口导出。
-- `packages/sim/src/`：`effects.ts`（白名单效果）、`vars.ts`（条件和表达式变量）、`cards.ts`（事件引擎和导演）、`staff.ts`（指派、岗位、工单、设施衰减；派工模型已归档，代码照旧在跑）、`walk.ts`（导航图最短路、走路、办事）、`systems.ts`（每个 tick 的系统顺序）、`game.ts`（命令、推进、重放）、`save.ts`（存档和迁移）。
-- 岗位在 `packages/content/data/posts/`，工单在 `data/orders/`，一个文件一个，id 两边共用一个空间；文案在 `posts.<id>`、`orders.<id>`。主线（星级、选路、赛事、地块、结局）的实现在 `stars.ts`、`tournaments.ts`、`growth.ts`、`potential.ts`、`plots.ts`、`ending.ts` 和 `acts/indian_wells.yaml` 的对应几节，设计已归档（`docs/archive/pre-3d/main-line-2.5d.md`），代码照旧在跑，重新设计定了再删改。
+- `docs/archive/2.5d-game/`：归档的 2.5D 时期整套游戏（原 `packages/sim`、`packages/content`、`packages/ui`、`apps/game`、`apps/sim-cli`、`tools/playtest`，以及内容指南、人物设计、人物模拟、主线研究）。只作参考，不能构建，不要引用；重写模拟时好的做法照着重写。
+- `packages/shared`：种子随机数、表达式语言、数学工具，留给以后的模拟。
 
 ## 不要做的事
 
-- 不要在 `sim` 里用 `Math.random`；用状态里的种子随机数。
+- 模拟（以后重写的）里不要用 `Math.random`，用状态里的种子随机数；场景的演出也只用种子随机流（`ctx.rng(...)`）。
 - 不要在演出代码里改模拟状态；演出只读状态、只订阅领域事件。演出里的随机只决定画面，不决定数值。
-- 不要把文案写死在代码里（M1 起走 i18n 键值表）。
-- 不要在 sim 里新增效果或条件而不更新 `@td/content` 的 schema 和编译器校验；两边的变量表（`COMPUTED_VARS`）必须一致。
-- 不要手改 `src/generated/content.json`；改 YAML 再运行 `pnpm content`。
-- 改了平衡相关的数值，重跑 `pnpm sim bots --games 200 > docs/balance/indian-wells.md` 一起提交；`balance.test.ts` 守着区间。
-- 场景接回游戏前（另写 ADR 定新的场景接口），`apps/game` 不引用 sandbox 的代码，也不引用 three。内容里的 `nav` 分钟数暂时没有地图检查（原来的检查归档在 `docs/archive/iso-2.5d/apps/game/src/map-nav.test.ts`），接回时要重建。
-- 新的界面文字放进 i18n 的 `ui.*`，两种语言都要有。
+- 不要把文案写死在游戏代码里，走 i18n 键值表，两种语言都要有（sandbox 场景的调试文字不算）。
 - three 只在 `apps/sandbox` 里用，直到游戏把场景接回来（`pnpm check:deps` 的 `three-only-in-sandbox`）。
 - 不要改别的场景的文件来给新场景用：复制到自己的场景目录再改（`reuse.ts` 只读引用）；几个场景都要的东西收进 `clubsite/`。渲染核心不复制，改 `clubsite/render/` 就是改所有场景，改完每个页面截图对比。
 - 参考图（别人作品的截图、裁剪、含参考图的对比图）永远不进仓库，只放本地 `~/workspace/tennis-director-refs/`。提交 PNG 前跑 `node docs/lab/2026-11-07-3d-pixel/tools/refcheck.mjs <图或目录>`，标 `REF?` 的不要提交。
@@ -72,16 +62,13 @@ docs/archive/** 不参与构建，谁也不能引用
 ## 常用命令
 
 ```
-pnpm game           # 游戏开发服务器（暂时没有画面；` 调试面板；改 YAML 热重载）
-pnpm dev            # sandbox 开发服务器（3D 像素场景：/clubmap2.html、/clubdesk.html……）
+pnpm dev            # sandbox 开发服务器（3D 像素场景：/clubwalk.html、/clubmap2.html、/clubdesk.html……）
 pnpm typecheck      # 全部包类型检查（TypeScript 7）
 pnpm lint           # Biome
 pnpm check:deps     # 分层规则
 pnpm test           # Vitest
-pnpm build          # 构建 apps
-pnpm content        # 编译内容 YAML → JSON（check:content 只校验）
-pnpm sim determinism --games 1000   # 确定性闸口（暂停中，见测试文档，玩法定型前不跑）
-pnpm sim bots --games 1000          # 机器人跑局报告（平衡）
+pnpm build          # 构建 apps（现在只有 sandbox）
+pnpm check          # 上面五个一起
 ```
 
 提交信息用 Conventional Commits（`feat(render): …`、`fix(sim): …`、`chore: …`）。

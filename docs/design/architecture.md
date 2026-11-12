@@ -1,15 +1,18 @@
 # 网球总监 · 技术架构文档 v1.0（3D 像素）
 
-2026-11-08 · 按 three.js 3D 像素画面重写（ADR 0027、0029）。上一版 v0.2（2.5D 等距画面 `packages/iso`、Site 接口）归档在
-[`docs/archive/pre-3d/architecture-v0.2.md`](../archive/pre-3d/architecture-v0.2.md)；旧画面的接口契约在 [`docs/archive/iso-2.5d/`](../archive/iso-2.5d/README.md)。
+2026-11-08 · 按 three.js 3D 像素画面重写（ADR 0027、0029）。旧的 2.5D 画面代码和接口契约归档在 [`docs/archive/iso-2.5d/`](../archive/iso-2.5d/README.md)；
+2026-11-12 起 2.5D 时期的整套游戏（模拟、内容、界面、游戏 app、sim-cli、试玩桥）归档在 [`docs/archive/2.5d-game/`](../archive/2.5d-game/README.md)。
 
 ## 现状
 
-- **模拟和界面能玩一整局，但没有画面。** `apps/game` = `@td/sim` + `@td/ui`：拿人、派活、选卡、每日结算、自动存档、调试面板、试玩桥；舞台上是一行说明和一排地点按钮。
-- **画面在 `apps/sandbox` 里做。** 一个场景一个页面，俱乐部的各处小景用同一套世界坐标、同一个渲染核心、同一套人物和总监操控；五个场景能操控总监玩。
-- **两边还没接上。** 场景里的演出和数字不进模拟；接回游戏是下一个大里程碑（见文末"接回游戏"和 [backlog.md](backlog.md) 的 M-B）。
+- **现在只有 3D 场景。** `apps/sandbox` 里一个场景一个页面，俱乐部的各处小景用同一套世界坐标、同一个渲染核心、同一套人物和总监操控；`clubwalk` 把它们连成能走遍的一整座俱乐部。
+- **没有模拟、没有游戏 app。** 2.5D 时期的模拟（16 周主线 + 派工）和围着它搭的界面、游戏、内容 2026-11-12 整套归档（`docs/archive/2.5d-game/`）。
+  游戏流程重新设计（[backlog.md](backlog.md) 的 M-0）定了以后，按新流程重写模拟，再把场景接上（M-B）；归档里好的做法（种子随机、事件引擎、存档迁移、内容编译校验）照着重写，不引用。
+- **留下的共用代码：** `packages/shared`（种子随机数、表达式语言、数学工具），给以后的模拟用。
 
 ## 原则
+
+1–4 条是给以后重写的模拟定的（2.5D 那套就是这么做的），现在只有场景守 2、5、6。
 
 1. **模拟是纯函数式状态机。** 输入状态和命令，输出新状态和领域事件；可序列化，不放类实例、函数、场景图节点；不用 `Math.random`，只用状态里的种子随机数。
 2. **动画永远不决定数值。** 结果先由模拟算出，演出只负责演；演出里的随机只决定画面。
@@ -21,73 +24,30 @@
 ## 分层和目录（`pnpm check:deps` 强制）
 
 ```
-apps/sandbox (three.js 3D 像素场景)      apps/game, apps/sim-cli
-                                                ↓
-                                     packages/ui (Preact)
-                                                ↓
-                                     packages/sim            ← 不碰画面、three、Preact、DOM
-                                                ↓
-                                     packages/shared
-packages/content 只由 sim 读取
-three 暂时只在 apps/sandbox；游戏暂时没有画面（接回时另写 ADR）
+apps/sandbox (three.js 3D 像素场景)
+packages/shared                     ← 最底层，不依赖别的包
+three 暂时只在 apps/sandbox
 docs/archive/** 不参与构建，谁也不能引用
 ```
 
+以后重写模拟时照原来的方向分层：`apps → ui → sim → shared`，sim 不碰画面、three、Preact、DOM（`sim-is-pure` 规则留着等它）。
+
 | 目录 | 是什么 |
 | --- | --- |
-| `packages/shared` | 类型、常量、种子随机数、表达式语言、数学工具 |
-| `packages/sim` | 模拟核心：时钟、状态、命令、系统、事件引擎和导演、存档、机器人 |
-| `packages/content` | YAML 内容、Zod schema、编译器、热重载插件（`@td/content/vite`）、Node 专用代码（`@td/content/node`） |
-| `packages/ui` | Preact 界面：HUD（状态条、事件卡、快讯、结算卡）、员工条和说明面板、调试面板 |
-| `apps/game` | 正式游戏：模拟 + 界面，暂时没有画面 |
-| `apps/sim-cli` | 命令行无头跑局：机器人平衡报告、可玩性报告、确定性闸口 |
-| `apps/sandbox` | three.js 3D 像素场景（club* 页面）和早期实验 |
-| `tools/playtest` | 试玩桥（无头 Chromium 里玩构建好的游戏） |
-| `docs/archive` | 归档：2.5D 画面代码（`iso-2.5d/`）、3D 之前的设计文档（`pre-3d/`） |
+| `packages/shared` | 种子随机数、表达式语言、数学工具、哈希 |
+| `apps/sandbox` | three.js 3D 像素场景（club* 页面、clubwalk）和早期实验 |
+| `docs/archive` | 归档：2.5D 画面代码（`iso-2.5d/`）、2.5D 时期的整套游戏（`2.5d-game/`） |
 
-`check:deps` 的规则（`.dependency-cruiser.cjs`）：`sim-is-pure`、`shared-is-leaf`、`three-only-in-sandbox`、`content-only-via-sim`、`no-archive`、`packages-not-apps`、`no-unresolvable`、`no-circular`（只算运行时引用，类型引用的环不算）。
+`check:deps` 的规则（`.dependency-cruiser.cjs`）：`sim-is-pure`（等新模拟）、`shared-is-leaf`、`three-only-in-sandbox`、`club-not-from-experiments`、`clubsite-not-from-scenes`、`clubwalk-is-top`、`no-archive`、`packages-not-apps`、`no-unresolvable`、`no-circular`（只算运行时引用，类型引用的环不算）。
 
-## 模拟核心（`packages/sim`）
+## 归档的 2.5D 游戏（`docs/archive/2.5d-game/`）
 
-不变，2.5D 归档没有动它。存档版本 15。
+只作参考，不参与构建，不能引用；要用里面的想法就在新代码里重写。里面有：
 
-2026-11-09 起 2.5D 时期的主线和派工的**设计**归档（[main-line-2.5d.md](../archive/pre-3d/main-line-2.5d.md)，游戏流程重新设计中）：下表里的 `staff.ts`（派工）和
-`stars.ts`、`tournaments.ts`、`growth.ts`、`potential.ts`、`plots.ts`、`ending.ts`（主线）是它的实现，代码照旧在、照旧跑，重新设计定了再删改。
-
-| 文件 | 管什么 |
-| --- | --- |
-| `state.ts` | `GameState`（可序列化）、存档版本 |
-| `game.ts` | 命令（指派、选卡、调试命令……）、`step` / `advance`、重放 |
-| `systems.ts` | 每分钟的系统顺序：结局 → 日历 → 赛事 → 岗位和工单 → 场地可用度 → 活动 → 质量 → 派生量 → 卡过期 → 导演 → 走路；收盘时衰减、记账、每日结算、星级、解锁、天气预报 |
-| `staff.ts`、`walk.ts` | 指派、岗位转圈、工单推进、办事、习惯（ADR 0012、0014）；导航图最短路、走路 |
-| `cards.ts`、`effects.ts`、`vars.ts` | 事件引擎和导演；白名单效果；条件和表达式变量（`COMPUTED_VARS` 和内容编译器一致） |
-| `care.ts`、`mess.ts` | 场地可用度（ADR 0022，[court-care-contract.md](court-care-contract.md)） |
-| `day.ts`、`week.ts` | 每日结算（ADR 0024，[daily-settlement-contract.md](daily-settlement-contract.md)）、钱的日账和周日回顾 |
-| `stars.ts`、`tournaments.ts`、`growth.ts`、`potential.ts`、`plots.ts`、`ending.ts` | 星级、赛事日历和选路、员工成长和潜力、地块（地图长大）、结局方案 A 和第二季（[wave1-contract.md](wave1-contract.md)、[wave2-5-contract.md](wave2-5-contract.md)） |
-| `events.ts` | 领域事件：画面和界面订阅它们来演出、提示 |
-| `save.ts` | 存档和逐级迁移 |
-| `bots.ts` | 机器人（贪心、谨慎、随机、放置和几种普通玩家） |
-
-## 内容（`packages/content`）
-
-`data/` 下：`acts/indian_wells.yaml`（地图配置：开局、营业时间、设施、锚点、导航分钟数、季节天气、星级、选路、地块、赛事、日历、结局、规则）、
-`facilities.yaml`、`posts/`、`orders/`（一个文件一个，id 共用一个空间）、`events/indian_wells/<id>.yaml`（文件名就是 id）、`people/`、`traits.yaml`、`directors/`、`stats.yaml`、`i18n/en.yaml`、`i18n/zh.yaml`。
-改完运行 `pnpm content`，生成的 `src/generated/content.json` 一起提交；`pnpm check:content` 只校验。写法见 `docs/content-guide.md`。
-
-注意：锚点（`entrance`、`parking`、`plaza`、`clubhouse`、`stadium_1/2/3`、`practice`、`outer_1`、`outer_23` 和四块地块）和 `nav` 分钟数来自 2.5D 的 Palm Oasis 地图，
-3D 场景的命名不一样（`outer_2`、`outer_3`、`practice_w/e`、`pickle_1/2`……），接回时要对一遍（见"接回游戏"）。
-
-## 游戏 app 和界面（`apps/game`、`packages/ui`）
-
-| 文件 | 管什么 |
-| --- | --- |
-| `session.ts` | 实时 → 游戏分钟、倍速、命令队列、手上拿着的人 |
-| `project.ts` | 状态 → HUD 快照、员工条、岗位说明、快讯 |
-| `settle.ts` | 每日结算卡 |
-| `main.ts` | 没有画面的入口：HUD + 模拟 + 一排地点按钮；拖放落点、自动存档、试玩桥 `window.__td` |
-| `persist.ts`、`debug.ts`、`text.ts`、`chips.ts` | 存档到本地、调试面板（` 键）、i18n 拼句、代价小标签 |
-
-界面文字都在 i18n 的 `ui.*`，两种语言都要有。
+- `packages/sim`：纯函数式模拟（时钟、命令、系统顺序、事件引擎和导演、白名单效果、场地可用度、每日结算、存档迁移、机器人）；派工（`staff.ts`）是它的中心，16 周主线（星级、赛事、选路、地块、结局）建在上面。
+- `packages/content`：YAML 内容、Zod schema、编译器和热重载；`packages/ui`：Preact HUD、事件卡、结算卡、员工条、调试面板。
+- `apps/game`（没有画面的游戏）、`apps/sim-cli`（机器人跑局、平衡区间）、`tools/playtest`（试玩桥）。
+- `docs/`：内容指南、人物设计、人物模拟（17 个人的故事和行为词典）、经营游戏主线研究。
 
 ## 画面：`apps/sandbox` 的 3D 像素场景
 
@@ -174,27 +134,26 @@ docs/archive/** 不参与构建，谁也不能引用
 
 ## 接回游戏（还没做，开放设计）
 
-ADR 0027 定了"接回时另写 ADR 定新的场景接口"。下面是要回答的问题和现在的倾向，都没定：
+ADR 0027 定了"接回时另写 ADR 定新的场景接口"。模拟要先按 M-0 的新流程重写；下面是到时候要回答的问题和现在的倾向，都没定（说的"模拟""锚点""内容"是新模拟的，不是归档那套）：
 
 | 问题 | 倾向 |
 | --- | --- |
-| 场景接口长什么样 | 类似归档的 `Site` 接口（ADR 0016）：游戏只认一个接口，不直接 import 某个场景；接口给出锚点 → 场景、站位、区域，相机预设，演出入口 |
+| 场景接口长什么样 | 类似归档的 2.5D `Site` 接口：游戏只认一个接口，不直接 import 某个场景；接口给出锚点 → 场景、站位、区域，相机预设，演出入口 |
 | 锚点 ↔ 场景里的站位 | 模拟的锚点保留名字，场景的 `SPOTS` 挂到锚点下；一个锚点可以对多片场（`outer_23` → `outer_2`、`outer_3`）；露天前台、餐车院子这种模拟里没有的地方要新锚点或并进现有锚点 |
-| 导航分钟数 | 从 `clubsite/world.ts` 的步道量出来，和内容的 `nav` 对上；重建归档的 `map-nav.test.ts` 那种检查 |
-| 总监的活 → 模拟命令 | 互动点做完一件活 = 一条命令（派到岗位、一次打扫、一次办事）；按住的活按游戏分钟累计；总监走路的实时秒怎么换成游戏分钟要定 |
+| 导航分钟数 | 从 `clubsite/world.ts` 的步道直接量出来，不再手写一份 |
+| 总监的活 → 模拟命令 | 互动点做完一件活 = 一条命令；按住的活按游戏分钟累计；总监走路的实时秒怎么换成游戏分钟要定 |
 | NPC 日常 ↔ 模拟 | 演出订阅领域事件、只读状态（不改模拟）；场景里的排队人数、场面状态由模拟的量驱动（服务率、可用度、状况），而不是自己的种子流 |
 | 每日结算由场景里的活动驱动 | 收盘那张卡上的"今天"要能在场景里看到原因（谁在前台、哪块场没拖） |
 | 卡怎么来 | 卡以人的形式来找你：有人走到总监跟前冒气泡，点他开卡 |
 | 一个页面还是很多页面 | 游戏里是一整座俱乐部：要么一个大场景按区域加载 / 卸载，要么按场景切页面（过大门换场景）；先量性能再定。**试验中（U-12 的初步答案）：** `clubwalk` 把所有场景拼成一个大世界按区域加载，场景拆成可挂载的模块（`clubsite/region.ts`），做法和量到的数字见 [clubwalk.md](../lab/2026-11-07-3d-pixel/clubwalk.md)，真机性能还没量，不是定论 |
-| three 进 `apps/game` | 改 `three-only-in-sandbox` 规则；场景代码从 sandbox 挪进一个包（例如 `packages/club3d`），sandbox 和游戏都从包里拿 |
+| three 进游戏 app | 改 `three-only-in-sandbox` 规则；场景代码从 sandbox 挪进一个包（例如 `packages/club3d`），sandbox 和游戏都从包里拿 |
 
 ## 存档
 
-模拟的存档版本 15，逐级迁移（`save.ts`）；`apps/game` 自动存到本地。场景里的状态（场面、叶子、队伍）现在不存档。
+现在没有存档：场景里的状态（场面、叶子、队伍）不存。新模拟照归档那套的做法：可序列化状态 + 版本号 + 逐级迁移。
 
 ## 风险
 
 - **性能**：小景每帧上千次绘制，整张图近 2700 次；手机上还没量过。整座俱乐部一起加载可能撑不住。
-- **两套坐标和命名**：模拟的锚点、`nav` 分钟数来自 2.5D 地图，3D 场景改过布局（青训东西对调、红土两片分开、露天前台、餐车院子），接回时要对齐。
 - **演出和模拟两套节奏**：场景按实时秒和种子流演，模拟按游戏分钟算；接回时最容易出现"画面说一回事、数字说另一回事"。
 - **素材复制**：场景之间靠复制素材改，同一件东西可能有几份；共享的东西要及时挪进 `clubsite/`。

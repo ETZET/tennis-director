@@ -1,0 +1,33 @@
+# 起风了：沙子正往外场里灌。现在带人去把场地盖上，还是等风停了再扫？
+# GM-14 卡预算（GM-1：一局来 4–5 次太重复）：一局最多两次，隔三周。
+# W2 门评审：降到一局一次，名额让给 Dale 的"我去收拾一下？"（iw_dale_sweep）。
+id: iw_sandstorm
+act: indian_wells
+source: random
+tone: crisis
+cooldown: 21d
+max_shown: 1
+countdown: 2h
+when:
+  all:
+    - { weather: wind }
+    - { any: [{ facility: outer_1, is: playable }, { facility: outer_1, is: resurfaced }] }
+location: outer_1
+who: dale
+options:
+  A:
+    # 总监亲自去盖：一个小时，场地保住了
+    errand: { at: outer_1, for: 1h }
+    effects:
+      - { log: log.sand_covered }
+  B:
+    # 不管：外场全进沙
+    effects:
+      - { condition: outer_1, add: -25 }
+      - { condition: outer_23, add: -20, if: { facility: outer_23, is: playable } }
+      - { condition: practice, add: -15, if: { facility: practice, is: open } }
+      # 场地可用度：沙子直接灌进场里，要人去扫
+      - { mess: outer_1, add: { sand: 0.7 } }
+      - { mess: outer_23, add: { sand: 0.6 }, if: { facility: outer_23, is: playable } }
+      - { mess: practice, add: { sand: 0.5 }, if: { facility: practice, is: open } }
+default: { then: B }

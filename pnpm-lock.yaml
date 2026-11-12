@@ -39,25 +39,6 @@ importers:
         specifier: 5.0.5
         version: 5.0.5(@types/node@22.20.5)(vite@8.3.5(@types/node@22.20.5)(esbuild@0.28.2)(tsx@4.23.15)(yaml@2.9.1))
 
-  apps/game:
-    dependencies:
-      '@td/shared':
-        specifier: workspace:*
-        version: link:../../packages/shared
-      '@td/sim':
-        specifier: workspace:*
-        version: link:../../packages/sim
-      '@td/ui':
-        specifier: workspace:*
-        version: link:../../packages/ui
-      preact:
-        specifier: 10.29.8
-        version: 10.29.8
-    devDependencies:
-      '@td/content':
-        specifier: workspace:*
-        version: link:../../packages/content
-
   apps/sandbox:
     dependencies:
       three:
@@ -68,60 +49,7 @@ importers:
         specifier: 0.180.0
         version: 0.180.0
 
-  apps/sim-cli:
-    dependencies:
-      '@td/shared':
-        specifier: workspace:*
-        version: link:../../packages/shared
-      '@td/sim':
-        specifier: workspace:*
-        version: link:../../packages/sim
-    devDependencies:
-      '@types/node':
-        specifier: 22.20.5
-        version: 22.20.5
-
-  packages/content:
-    dependencies:
-      '@td/shared':
-        specifier: workspace:*
-        version: link:../shared
-      yaml:
-        specifier: 2.9.1
-        version: 2.9.1
-      zod:
-        specifier: 4.6.7
-        version: 4.6.7
-    devDependencies:
-      '@types/node':
-        specifier: 22.20.5
-        version: 22.20.5
-      vite:
-        specifier: 8.3.5
-        version: 8.3.5(@types/node@22.20.5)(esbuild@0.28.2)(tsx@4.23.15)(yaml@2.9.1)
-
   packages/shared: {}
-
-  packages/sim:
-    dependencies:
-      '@td/content':
-        specifier: workspace:*
-        version: link:../content
-      '@td/shared':
-        specifier: workspace:*
-        version: link:../shared
-
-  packages/ui:
-    dependencies:
-      '@td/shared':
-        specifier: workspace:*
-        version: link:../shared
-      '@td/sim':
-        specifier: workspace:*
-        version: link:../sim
-      preact:
-        specifier: 10.29.8
-        version: 10.29.8
 
 packages:
 
@@ -966,14 +894,6 @@ packages:
     resolution: {integrity: sha512-LJlKCCAUFKOuZxipUdYw1NzIITEsPcgyOG9LkvRJvuKj/bRzbuRY0ARXvL0pWGpsZvn8jku+LMep2eU0seHp8g==}
     engines: {node: ^10 || ^12 || >=14}
 
-  preact@10.29.8:
-    resolution: {integrity: sha512-ej2aVZ+vZ8WO7tvlQWRM9N63A0KzF9q4mWJfDUHgYaIofWY9hu74QdnQrjoPMmZi2/nZ5gN0bJCQF49xQqx09Q==}
-    peerDependencies:
-      preact-render-to-string: '>=5'
-    peerDependenciesMeta:
-      preact-render-to-string:
-        optional: true
-
   prompts@2.4.2:
     resolution: {integrity: sha512-NxNv/kLguCA7p3jE8oL2aEBsrJWgAakBpgmgK6lpPWV+WuOmY6r2/zbAVnP+T8bQlA0nzHXSJSJW0Hq7ylaD2Q==}
     engines: {node: '>= 6'}
@@ -1164,9 +1084,6 @@ packages:
     resolution: {integrity: sha512-3NxN8+78OdzbT7C/WjGsyfPAtJaN3FNDsWxv7Y7mcDsT/oOmgW8BpyQQFFBnvZE3j9Y2Sdz1ULFLezL7Eb2yFw==}
     engines: {node: '>= 14.6'}
     hasBin: true
-
-  zod@4.6.7:
-    resolution: {integrity: sha512-g8W2D2kU6a8untc053fX1uVBKzM7yqAxW/3zwk83+6RyF2+SKOuV+c0wBDhUwzV1PaGapmZH+rmcUzPf+3CGwg==}
 
 snapshots:
 
@@ -1425,6 +1342,7 @@ snapshots:
   '@types/node@22.20.5':
     dependencies:
       undici-types: 6.21.0
+    optional: true
 
   '@types/stats.js@0.17.4': {}
 
@@ -1742,8 +1660,6 @@ snapshots:
       picocolors: 1.1.1
       source-map-js: 1.2.2
 
-  preact@10.29.8: {}
-
   prompts@2.4.2:
     dependencies:
       kleur: 3.0.3
@@ -1858,7 +1774,8 @@ snapshots:
       '@typescript/typescript-win32-arm64': 7.0.2
       '@typescript/typescript-win32-x64': 7.0.2
 
-  undici-types@6.21.0: {}
+  undici-types@6.21.0:
+    optional: true
 
   vite@8.3.5(@types/node@22.20.5)(esbuild@0.28.2)(tsx@4.23.15)(yaml@2.9.1):
     dependencies:
@@ -1899,6 +1816,5 @@ snapshots:
 
   why-is-node-running@3.2.1: {}
 
-  yaml@2.9.1: {}
-
-  zod@4.6.7: {}
+  yaml@2.9.1:
+    optional: true
