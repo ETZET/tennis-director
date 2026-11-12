@@ -1,4 +1,4 @@
-# 特质（docs/design/people.md「特质」）。每个人 1–2 个，名字和一句说明在 i18n 的 traits.<id>。
+# 特质。每个人 1–2 个，名字和一句说明在 i18n 的 traits.<id>。
 # attention：教练在总监不在场时的专注度（1 = 正常）；morale_drift / reputation_drift：每天的士气、声望漂移；
 # bonus：干活时某项能力加减几点（影响速度和每圈收入），when 写了就只在那时生效。
 # 好的特质大多带着代价（准则 2）：要么另一项减，要么只在某些时候灵。

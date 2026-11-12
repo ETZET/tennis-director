@@ -24,9 +24,9 @@ import {
  * - 拖人：先点（或长按拖起）一个人，再点岗位或工单；拿起来的人记在 picked 上，时间不停。
  * - 变体工单（LG-14）：拖到哪一行就带上那一行的 variant。
  * - 模拟发出 requestPause（例如要紧的卡打开）就自动暂停。
- * - 亲手扫的小游戏开着（care，court-care-contract.md）：游戏时间不走（和暂停一样，但不改 paused），
+ * - 亲手扫的小游戏开着（care）：游戏时间不走（和暂停一样，但不改 paused），
  *   收工发一条 careFinish，放弃什么都不发。
- * - 每日结算（daily-settlement-contract.md，ADR 0024）：模拟收盘发 daySettled，这里记下报告、停自己的钟（不管几倍速）；
+ * - 每日结算（ADR 0024）：模拟收盘发 daySettled，这里记下报告、停自己的钟（不管几倍速）；
  *   结算卡点完调 ackSettlement() 才接着走。模拟从不等它：不是命令、不进命令日志，重放和它无关。
  */
 

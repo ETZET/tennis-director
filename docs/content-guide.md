@@ -1,6 +1,6 @@
 # 内容指南：不写代码加一张卡
 
-所有游戏内容都是 `packages/content/data/` 下的 YAML。加卡、改数值、改文案都不用碰代码。整局只有一张地图 `acts/indian_wells.yaml`（ADR 0016），卡放在 `events/indian_wells/` 下，例如 `iw_sandstorm.yaml`（起风了，要不要去盖场地）。
+所有游戏内容都是 `packages/content/data/` 下的 YAML。加卡、改数值、改文案都不用碰代码。整局只有一张地图 `acts/indian_wells.yaml`，卡放在 `events/indian_wells/` 下，例如 `iw_sandstorm.yaml`（起风了，要不要去盖场地）。
 
 ## 工作流程
 
@@ -58,7 +58,9 @@ default: { then: B }    # 倒计时到了按哪个选项处理；extra 里可以
 
 数值可以写成表达式，例如 `round(2 + stat.reputation / 15 + rand() * 3)`。能用的变量：`stat.<id>`、`flag.<id>`、`facility.<id>`、`person.<id>.skill|upkeep|service|morale|fatigue`、`coach.skill|attention|morale|present|hired`、`director.at`、`condition.<设施>`、`service_rate`、`staff`、`restored`（修好了几处设施：换到给园区加分的状态才算，扫完沙这种中间状态不算）、`idle_days`（在职的人里闲得最久的那个连续闲了几个营业日）、`quiet_days`（离上一张卡打开过了几天）、`courts_open`、`facility_quality`、`wages_week`、`open_cards`、`day`、`hour`、`pressure`；岗位效果里还有 `worker.skill`（在岗这个人对应那项能力）。函数：`min max clamp round floor ceil abs rand`。拼错的变量名在编译时就报错。
 
-## 岗位和工单（ADR 0012）
+## 岗位和工单
+
+派工的设计 2026-11-09 作废（游戏流程重新设计中），下面是代码现在怎么读这些文件。
 
 岗位放在 `data/posts/<id>.yaml`，是地点上的一个"位子"：`at`（锚点）、`skill`（teach / upkeep / service）、`cycle`（一圈多久）、`hours: [15, 18]` 和 `days: [0, 1, 2, 3, 4]`（有客人的时段；有时段的岗位算需求，计入服务率）、`when`（岗位什么时候存在）、`effects`（每圈结算，可以用 `worker.skill`）、`wear`（每圈磨损）、`restore`（维护岗位每圈修复多少，乘能力）、`performance`。
 
@@ -72,7 +74,7 @@ default: { then: B }    # 倒计时到了按哪个选项处理；extra 里可以
 
 ## 人物和特质
 
-人物在 `data/people/<地图>.yaml`（设计见 `docs/design/people.md`）。招聘日的候选人 `role: candidate`，必须写 `kind`
+人物在 `data/people/<地图>.yaml`。招聘日的候选人 `role: candidate`，必须写 `kind`
 （coach / crew / special / player），并在 `i18n` 的 `bios.<id>` 写一句话背景（两种语言）；作用的名字在 `kinds.<作用>`。
 特质在 `data/traits.yaml`：`attention`、`morale_drift`、`reputation_drift`，以及干活时的能力加减 `bonus: { upkeep: 12, service: -10 }`
 和只在某些时候生效的 `when`（条件，和卡的 `when` 一样）。每个特质在 `traits.<id>` 下要有 `name` 和 `note`。
@@ -88,4 +90,4 @@ default: { then: B }    # 倒计时到了按哪个选项处理；extra 里可以
 
 ## 平衡
 
-`docs/balance/indian-wells.md` 是当前内容的机器人跑局报告。目标：会招人、排得满的贪心型大多能在 16 周里办成表演赛（≥ 60%，平均 70 天以上），从不招人的谨慎型办不成，随机型很少赢，放置不管的对照组输，每张卡都要出现过（ADR 0016）。改完数值重跑一次，把报告一起提交。
+`apps/sim-cli/src/balance.test.ts` 守着机器人跑局的区间（按作废的 16 周主线定的，重新设计以后跟着改）；改完数值跑 `pnpm sim bots --games 200` 看一眼，报告不提交。

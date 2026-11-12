@@ -9,7 +9,7 @@ import { at, type CausalEntry, type DayReport, dayOf, type GameState, minuteOfDa
 import { settleWeek } from './week';
 import { worldFor } from './world';
 
-/** 每日结算（daily-settlement-contract.md，ADR 0024） */
+/** 每日结算（ADR 0024） */
 const W = () => worldFor(CONTENT, 'indian_wells');
 function quiet(s: GameState): GameState {
   s.cards.scheduled = [];

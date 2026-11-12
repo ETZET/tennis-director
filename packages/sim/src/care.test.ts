@@ -12,7 +12,7 @@ import { type CausalEntry, type CourtMess, dayOf, type GameState, minuteOfDay, t
 import { careBlocksPost, careLevelOf, makeEnv, usabilityOf } from './vars';
 import { worldFor } from './world';
 
-/** 场地可用度（court-care-contract.md，ADR 0022） */
+/** 场地可用度（ADR 0022） */
 const W = () => worldFor(CONTENT, 'indian_wells');
 const quiet = (s: GameState): GameState => {
   s.cards.scheduled = [];

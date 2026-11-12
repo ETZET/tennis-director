@@ -106,7 +106,7 @@ function closeDay(ctx: Ctx): void {
   const day = dayOf(s.t);
   // 赛事收赛在关门那一刻的（时段写到关门）：今天就结算，不等明早
   tournamentSystem(ctx);
-  // 场地可用度：门口等的人回家、今天走掉的计数清零（court-care-contract.md）
+  // 场地可用度：门口等的人回家、今天走掉的计数清零
   careCloseDay(ctx);
   // 衰减先看今天的岗位账（有人守着的设施掉得慢），再把账写成日志清掉
   decayDay(ctx, w.act.seasons.find((x) => x.id === s.season)?.decay ?? 1);
@@ -218,7 +218,7 @@ export function tick(ctx: Ctx): void {
   openScheduled(ctx); // 日历和后续事件
   tournamentSystem(ctx); // 赛事：开赛、收赛结算（LG-11）
   staffSystem(ctx); // 岗位转圈、工单推进、办事
-  careSystem(ctx); // 场地可用度：天气和使用加脏乱、换档、门口等人（court-care-contract.md）
+  careSystem(ctx); // 场地可用度：天气和使用加脏乱、换档、门口等人
   activitySystem(ctx); // 活动开始、结算
   qualitySystem(ctx); // 项目质量
   liveDerived(ctx); // 复原这类只读此刻状态的派生量

@@ -199,7 +199,7 @@ const GOAL_ODDS = 0.6;
 const EVENT_POST_BONUS = 1.5;
 /** 地块（W5）：开地会开出新的岗位，这块地的清理工单一共值这么多（按张数分摊），比修好一处设施略高 */
 const PLOT_VALUE = 240;
-/** 打扫工单（court-care-contract.md）：可用度低于它才派人；亲手扫：不能打，或者勉强而且低于 HAND_AT */
+/** 打扫工单：可用度低于它才派人；亲手扫：不能打，或者勉强而且低于 HAND_AT */
 const CARE_ORDER_AT = 70;
 const HAND_AT = 55;
 
@@ -264,7 +264,7 @@ function staffCommands(s: GameState, w: World, st: StaffStyle): Command[] {
     let value = effectScore(o.effects) + effectScore(o.onSuccess, p) + effectScore(o.onFail, 1 - p) + o.restore / 4;
     if (variant) value += effectScore(o.variants?.[variant]?.effects ?? []);
     if (o.upgrade) value += UPGRADE_VALUE;
-    // 打扫工单（court-care-contract.md）：越脏越值得去，不能打的场（挡着收入、门口有人等）加倍
+    // 打扫工单：越脏越值得去，不能打的场（挡着收入、门口有人等）加倍
     // 刚冒出来、还能打的不急（等它再脏一点、或者让守着的维护工顺手清）
     if (o.care) {
       const f = orderFacility(w, o);
@@ -331,7 +331,7 @@ function staffCommands(s: GameState, w: World, st: StaffStyle): Command[] {
 }
 
 /**
- * 亲手扫（court-care-contract.md）：总监闲着（没在办事、手上不是正在营业的有需求岗位）、某块场勉强或不能打时，
+ * 亲手扫：总监闲着（没在办事、手上不是正在营业的有需求岗位）、某块场勉强或不能打时，
  * 挑最差的那块扫，每项清掉 hand 成（小游戏扫得多干净）。
  */
 function handCare(s: GameState, w: World, hand: number | undefined): Command[] {
@@ -432,7 +432,7 @@ export interface HumanProfile {
   noise: number;
   /** 工单留多少现金不动 */
   reserve: number;
-  /** 亲手扫（court-care-contract.md）：小游戏每项清掉几成；不写 = 不亲手扫（新手） */
+  /** 亲手扫：小游戏每项清掉几成；不写 = 不亲手扫（新手） */
   hand?: number;
 }
 

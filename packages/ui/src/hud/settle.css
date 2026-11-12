@@ -1,4 +1,4 @@
-/* 每日结算卡（daily-settlement-contract.md，ADR 0024）：夜色遮罩 + 海军蓝方块卡，香槟色顶边，像素字和像素数字。
+/* 每日结算卡（ADR 0024）：夜色遮罩 + 海军蓝方块卡，香槟色顶边，像素字和像素数字。
    手机 390×844 竖屏优先：卡在下半屏，底部提示条和主按钮在拇指区（离底 ≥ 24 px、高 ≥ 44 px）。 */
 .td-st-veil{position:absolute;inset:0;z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;
   padding:max(12px,env(safe-area-inset-top,0px)) 8px calc(max(24px,env(safe-area-inset-bottom,0px)) + 4px);box-sizing:border-box;

@@ -21,7 +21,7 @@ export interface PersonState {
   upkeep: number;
   /** 服务能力 */
   service: number;
-  /** 球技（球员训练和比赛用；docs/design/people.md） */
+  /** 球技（球员训练和比赛用） */
   play: number;
   morale: number;
   fatigue: number;
@@ -66,7 +66,7 @@ export interface Walk {
 export interface PostState {
   progress: number;
   /**
-   * 场地可用度（court-care-contract.md）：这一圈已经计入"服务到"的分钟（勉强能打时一分钟只算 meh_service）。
+   * 场地可用度：这一圈已经计入"服务到"的分钟（勉强能打时一分钟只算 meh_service）。
    * 被拉走时退回的是它（没有就按 progress 退，和以前一样）
    */
   credit?: number;
@@ -82,7 +82,7 @@ export interface OrderState {
   by?: Record<string, number>;
   /** 有人在干的分钟数（快讯讲"几个小时修完"） */
   mins?: number;
-  /** 打扫工单（court-care-contract.md）：开工那一刻这块场的脏乱（按进度清掉它的 clean 成） */
+  /** 打扫工单：开工那一刻这块场的脏乱（按进度清掉它的 clean 成） */
   care0?: CourtMess;
   /** 打扫工单：到现在一共清掉了多少（负数，按项；做完时合成一条 mess 记录写进 order 日志） */
   careCleared?: Partial<CourtMess>;
@@ -128,10 +128,10 @@ export type Cause =
   | { kind: 'day'; day: number }
   /**
    * 周日收盘的周结算：服务率、缺人最多的岗位、这一周的钱，以及声望、会员、质量为什么这样变。
-   * 每日结算（daily-settlement-contract.md，ADR 0024）以后它只是"本周回顾"：各项是这一周七条 daily 的合计，不再改数
+   * 每日结算（ADR 0024）以后它只是"本周回顾"：各项是这一周七条 daily 的合计，不再改数
    */
   | ({ kind: 'week' } & WeekSettlement)
-  /** 每天收盘的每日结算（daily-settlement-contract.md，ADR 0024）：今天的服务率、钱，以及声望、会员为什么这样变 */
+  /** 每天收盘的每日结算（ADR 0024）：今天的服务率、钱，以及声望、会员为什么这样变 */
   | ({ kind: 'daily' } & DaySettlement)
   | { kind: 'post'; post: string; person: string; cycles: number }
   | { kind: 'order'; order: string; people: string[]; success?: boolean }
@@ -162,7 +162,7 @@ export type Cause =
   /** 地块（W5，LG-15）：开工（选路、效果或者第二季带出来的），或者清理工单都做完、开地 */
   | { kind: 'plot'; plot: string; variant: string; state: 'building' | 'open' }
   /**
-   * 场地可用度（court-care-contract.md）：总监亲手扫了一块场（离岗 minutes 分钟，含走过去；可用度 before → after，取整；
+   * 场地可用度：总监亲手扫了一块场（离岗 minutes 分钟，含走过去；可用度 before → after，取整；
    * cleared 每项清掉了开始时的几成，只写 > 0 的项）；等不及的会员走了一个（在门口等了 waited 分钟）
    */
   | {
@@ -200,12 +200,12 @@ export interface WeekState {
   q0: number;
   /** 每个岗位这一周转了几圈（变量 cycles.<岗位>；W2，旧存档没有） */
   cycles?: Record<string, number>;
-  /** 场地可用度（court-care-contract.md）：这一周等不及走掉的会员（变量 care.walkouts）；旧存档迁移补 0 */
+  /** 场地可用度：这一周等不及走掉的会员（变量 care.walkouts）；旧存档迁移补 0 */
   walkouts?: number;
   /** 每个有需求的岗位这一周因为场地不能打而没服务到的分钟（有人在岗也算没服务到；不记进 missed） */
   unplayable?: Record<string, number>;
   /**
-   * 每日结算（daily-settlement-contract.md）以后：上面的 demand、served、missed、money、traitRep、walkouts、unplayable
+   * 每日结算以后：上面的 demand、served、missed、money、traitRep、walkouts、unplayable
    * 不再每分钟记，而是每天收盘把今天（DayState）卷进来；rep 是这一周每天声望各项之和，members 是这一周会员一共变了几个
    */
   rep?: Record<string, number>;
@@ -231,14 +231,14 @@ export interface WeekSettlement {
   };
   /** 质量这周在向哪个目标靠近，目标的各项 */
   quality: { target: number; terms: Record<string, number> };
-  /** 场地可用度（court-care-contract.md）：这一周走掉的会员；不能打挡掉分钟最多的那块场（没有是 null）。没有这个机制时不写 */
+  /** 场地可用度：这一周走掉的会员；不能打挡掉分钟最多的那块场（没有是 null）。没有这个机制时不写 */
   walkouts?: number;
   unplayable?: { court: string; minutes: number } | null;
   /** 每日结算以后的周结算只是回顾（各项是七天之和，没改数）；没有这一项的是旧的周结算（整季服务率要算它） */
   review?: boolean;
 }
 
-/* ---------------- 每日结算（daily-settlement-contract.md，ADR 0024） ---------------- */
+/* ---------------- 每日结算（ADR 0024） ---------------- */
 
 /** 每日结算的因果日志（cause.kind === 'daily'）：和 WeekSettlement 同一套讲法，只算今天 */
 export interface DaySettlement {
@@ -475,7 +475,7 @@ export type EffectRecord =
   | { kind: 'route'; slot: string; route: string }
   /** 地块开工、开地（W5） */
   | { kind: 'plot'; plot: string; variant: string; state: 'building' | 'open' }
-  /** 场地可用度（court-care-contract.md）：这块场各项脏乱变了多少（效果 mess、亲手扫；打扫工单和岗位记在它们自己的账上） */
+  /** 场地可用度：这块场各项脏乱变了多少（效果 mess、亲手扫；打扫工单和岗位记在它们自己的账上） */
   | { kind: 'mess'; facility: string; delta: Partial<Record<MessKind, number>> }
   | { kind: 'end'; result: OutcomeResult; ending: string };
 
@@ -572,7 +572,7 @@ export interface PlotState {
   cause: number | null;
 }
 
-/* ---------------- 场地可用度（court-care-contract.md，ADR 0022） ---------------- */
+/* ---------------- 场地可用度（ADR 0022） ---------------- */
 
 /** 一块场上五种脏乱各 0..1 */
 export type CourtMess = Record<MessKind, number>;
@@ -664,13 +664,13 @@ export interface GameState {
   /** 一段时间内衰减打折（W3，效果 decay_mult）：设施 id → 收盘衰减倍数、到期（绝对分钟，到了就不再打折） */
   decayMult: Record<string, { factor: number; until: number }>;
   /**
-   * 场地可用度（court-care-contract.md）：rules.care.courts 里的设施 → 短期状况。地图没写 rules.care 时是空的；
+   * 场地可用度：rules.care.courts 里的设施 → 短期状况。地图没写 rules.care 时是空的；
    * 旧存档迁移成空表，模拟用到时按内容补上（全干净）
    */
   care: Record<string, CourtCare>;
   /** 本周的账（每天收盘把今天卷进来，周日收盘写成一条本周回顾日志，然后清零） */
   week: WeekState;
-  /** 今天的账（每日结算，daily-settlement-contract.md）：开门清零，收盘结算 */
+  /** 今天的账（每日结算）：开门清零，收盘结算 */
   today: DayState;
   /** 会员的零头 (-1, 1)：每日结算按小数算会员，取整以后剩下的留到明天（不丢） */
   memberCarry: number;

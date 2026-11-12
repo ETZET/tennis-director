@@ -29,13 +29,13 @@ export type Command =
   /** 结局（W4）：第一季结算以后开第二季（会所照旧，时钟回到第二季开局，目标占位） */
   | { type: 'startSeason2' }
   /**
-   * 亲手扫做完（court-care-contract.md）：court 是 rules.care.courts 里的设施 id。小游戏期间游戏时间停着，
+   * 亲手扫做完：court 是 rules.care.courts 里的设施 id。小游戏期间游戏时间停着，
    * 回来时只发这一条（开始不发命令）；模拟按 result 清掉脏乱、把总监派去这块场离岗若干分钟（canCare 不通过就拒绝）
    */
   | { type: 'careFinish'; court: string; result: CareResult }
-  /** 调试（court-care-contract.md）：把这块场的几项脏乱直接设成给的值（0..1）；不是球场什么都不做 */
+  /** 调试：把这块场的几项脏乱直接设成给的值（0..1）；不是球场什么都不做 */
   | { type: 'debugMess'; court: string; mess: Partial<Record<MessKind, number>> }
-  /** 调试（court-care-contract.md）：把今天的天气换成 weather（酷热开关等；发 weather 事件，能重放） */
+  /** 调试：把今天的天气换成 weather（酷热开关等；发 weather 事件，能重放） */
   | { type: 'debugWeather'; weather: Weather }
   | { type: 'debugSetStat'; stat: string; value: number }
   | { type: 'debugSetFlag'; flag: string; value: boolean | number | string }
@@ -102,7 +102,7 @@ export function newGame(content: ContentBundle, o: NewGameOptions): GameState {
       walkouts: 0,
       unplayable: {},
     },
-    // 每日结算（daily-settlement-contract.md）：下面建好人以后按开局的状态重建今天的账
+    // 每日结算：下面建好人以后按开局的状态重建今天的账
     today: {
       day: a.start.day,
       log0: 0,

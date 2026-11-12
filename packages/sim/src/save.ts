@@ -108,7 +108,7 @@ export const MIGRATIONS: Record<number, Migration> = {
     state.version = 5;
     return { ...save, version: 5, state };
   },
-  // 5 → 6（人物的作用和球员，docs/design/people.md）：每个人加上球技；新加的候选人不在旧档里，招的时候按内容补上
+  // 5 → 6（人物的作用和球员）：每个人加上球技；新加的候选人不在旧档里，招的时候按内容补上
   5: (save) => {
     const state = { ...(save.state as Record<string, unknown>) };
     const people: Record<string, Record<string, unknown>> = {};
@@ -196,7 +196,7 @@ export const MIGRATIONS: Record<number, Migration> = {
     state.version = 13;
     return { ...save, version: 13, state };
   },
-  // 13 → 14（场地可用度，court-care-contract.md，ADR 0022）：迁移时读不到内容，care 先是空表，
+  // 13 → 14（场地可用度，ADR 0022）：迁移时读不到内容，care 先是空表，
   // 模拟用到时按 rules.care.courts 补上（全干净、能打）；本周没有走掉的会员、没有不能打挡掉的分钟
   13: (save) => {
     const state = { ...(save.state as Record<string, unknown>) };
@@ -208,7 +208,7 @@ export const MIGRATIONS: Record<number, Migration> = {
     state.version = 14;
     return { ...save, version: 14, state };
   },
-  // 14 → 15（每日结算，daily-settlement-contract.md，ADR 0024）：今天的账从读档这一刻记起（之前几天的口碑、会员不补算），
+  // 14 → 15（每日结算，ADR 0024）：今天的账从读档这一刻记起（之前几天的口碑、会员不补算），
   // 昨天的服务率先借上周的；没有会员零头、没有抽好的明天天气（明早照旧抽）、没有结算报告
   14: (save) => {
     const state = { ...(save.state as Record<string, unknown>) };

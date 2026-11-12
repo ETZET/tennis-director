@@ -63,7 +63,7 @@ describe('Indian Wells balance band', () => {
 
   it('no game gets stuck and every card shows up', () => {
     for (const b of r.bots) expect(b.stuck, b.bot).toBe(0);
-    // 结局方案 A 下，只会判输的期限卡（每个选项都 endAct: lost）打不开：那一分钟先结算了（wave2-5-contract.md W4）
+    // 结局方案 A 下，只会判输的期限卡（每个选项都 endAct: lost）打不开：那一分钟先结算了
     const superseded = new Set(
       scored
         ? CONTENT.cards

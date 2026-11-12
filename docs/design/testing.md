@@ -1,7 +1,6 @@
 # 网球总监 · 测试文档 v1.0（3D 像素）
 
-2026-11-08 · 按 3D 像素画面重写。上一版 v0.2（含 2.5D 画面的单元测试、截图基准、演出测试、Indian Wells 和 v0.5 的验收用例）归档在
-[`docs/archive/pre-3d/testing-v0.2.md`](../archive/pre-3d/testing-v0.2.md)。
+2026-11-08 · 按 3D 像素画面重写。2.5D 时期的旧版 2026-11-12 删除。
 
 ## 测试分层
 
@@ -70,11 +69,11 @@ Vitest 收 `packages/*/src/**/*.test.ts` 和 `apps/*/src/**/*.test.ts`（`apps/s
 表演赛来得晚（不是第 6 周）；没有卡死的局，每张卡都出现过。
 
 ```bash
-pnpm sim bots --games 200 > docs/balance/indian-wells.md            # 结局分布、平均状态、每张卡出现的比例
-pnpm sim playability --games 60 --out docs/balance/playability.md   # 节奏、取舍、后果分叉
+pnpm sim bots --games 200          # 结局分布、平均状态、每张卡出现的比例
+pnpm sim playability --games 60    # 节奏、取舍、后果分叉
 ```
 
-改了平衡相关的数值，重跑这两份报告一起提交（CLAUDE.md）。真人的区间等真人试玩以后再定。
+这些区间守的是作废的 2.5D 主线（16 周、表演赛），报告不再提交；游戏流程重新设计以后跟着改。真人的区间等真人试玩以后再定。
 
 ## 场景验收（`apps/sandbox` 的 3D 场景）
 
@@ -115,8 +114,8 @@ pnpm sim playability --games 60 --out docs/balance/playability.md   # 节奏、�
 
 ## 玩法评审
 
-- **评审代理（试玩桥）：** `tools/playtest/server.mjs` 在无头 Chromium 里玩构建好的游戏，HTTP 一步一步地玩；说明见 [`tools/playtest/brief.md`](../../tools/playtest/brief.md)。
-  现在游戏没有画面，评审的是模拟、卡和 HUD（地点是一排按钮）；场景接回以后要重写说明，评审改成在 3D 场景里操控总监。
+- **评审代理（试玩桥）：** `tools/playtest/server.mjs` 在无头 Chromium 里玩构建好的游戏，HTTP 一步一步地玩（旧的评审说明 `brief.md` 讲的是 2.5D 主线，2026-11-12 删了）。
+  现在游戏没有画面，评审的是模拟、卡和 HUD（地点是一排按钮）；场景接回以后要重写评审说明，评审改成在 3D 场景里操控总监。
 - **场景的试玩：** 现在只能在 sandbox 的页面里玩单个场景（`pnpm dev`，或单文件页面）。看的是：总监的活有没有取舍、NPC 的反应读不读得懂、竖屏横屏拇指够不够得着。
 - **真人试玩：** 以手机画面为准。
 

@@ -15,12 +15,12 @@ const amount = z.union([z.number(), z.string()]);
 export const SKILLS = ['teach', 'upkeep', 'service', 'play'] as const;
 export type SkillKind = (typeof SKILLS)[number];
 
-/** 天气（court-care-contract.md：加了酷热 heat） */
+/** 天气（加了酷热 heat） */
 export const WEATHERS = ['sun', 'cloud', 'rain', 'wind', 'heat'] as const;
 export type Weather = (typeof WEATHERS)[number];
 
 /**
- * 场地可用度（court-care-contract.md，ADR 0022）：场面上的五种脏乱，各 0..1。
+ * 场地可用度（ADR 0022）：场面上的五种脏乱，各 0..1。
  * sand 积沙、water 积水（红土是泥）、litter 球和垃圾、lines 线褪色、cracks 裂缝（红土是干裂）。
  */
 export const MESS_KINDS = ['sand', 'water', 'litter', 'lines', 'cracks'] as const;
@@ -179,7 +179,7 @@ export const effect = z.union([
    */
   z.strictObject({ ...gate, plot: id, build: id }),
   /**
-   * 场地可用度（court-care-contract.md）：给这块场的脏乱各项加多少（0..1，可以是负数 = 清掉），结果截在 0..1。
+   * 场地可用度：给这块场的脏乱各项加多少（0..1，可以是负数 = 清掉），结果截在 0..1。
    * 例如沙尘暴不管：{ mess: outer_1, add: { sand: 0.6 } }。不是 rules.care.courts 里的设施什么都不做
    */
   z.strictObject({ ...gate, mess: id, add: messAmounts }),
@@ -320,7 +320,7 @@ export const facility = z.strictObject({
 export type Facility = z.infer<typeof facility>;
 
 /**
- * 人物的作用（docs/design/people.md）：coach 教练（上课、学院，招来接任主教练）、crew 维护工（修和维护设施）、
+ * 人物的作用：coach 教练（上课、学院，招来接任主教练）、crew 维护工（修和维护设施）、
  * special 特殊作用人物（穿线师、体能师、球童、前台……靠特质解锁自己的岗位）、
  * player 球员（训练、出去打比赛、赢了带来名气）。
  */
@@ -373,7 +373,7 @@ export const trait = z.strictObject({
   morale_drift: z.number().default(0),
   /** 对声望的每日影响 */
   reputation_drift: z.number().default(0),
-  /** 干活时某项能力加（减）多少点：影响速度和每圈收入（docs/design/people.md「特质」） */
+  /** 干活时某项能力加（减）多少点：影响速度和每圈收入 */
   bonus: z
     .strictObject({
       teach: z.number().optional(),
@@ -429,7 +429,7 @@ export const post = z.strictObject({
   /** 维护岗位修复多少要乘能力：restore × (0.5 + worker.skill / 100) */
   restore: z.number().min(0).default(0),
   /**
-   * 场地可用度（court-care-contract.md）：每圈把这块场每种脏乱清掉 care × (0.5 + worker.skill / 100)（绝对量，0..1）。
+   * 场地可用度：每圈把这块场每种脏乱清掉 care × (0.5 + worker.skill / 100)（绝对量，0..1）。
    * 写了 care 的岗位在"不能打"的场上照样转圈；没写的（看场、上课）停转
    */
   care: z.number().min(0).max(1).optional(),
@@ -516,7 +516,7 @@ export const order = z.strictObject({
    */
   prep: id.optional(),
   /**
-   * 打扫工单（court-care-contract.md）：这个地点的场地（rules.care.courts 里的设施）可用度低于 rules.care.order_below
+   * 打扫工单：这个地点的场地（rules.care.courts 里的设施）可用度低于 rules.care.order_below
    * 时冒出来（开了工就一直在，做完为止；不用写 when）。按进度一点点清：做满 work 时每种脏乱清掉开工那一刻的 clean 成
    */
   care: z.strictObject({ clean: z.number().min(0).max(1) }).optional(),
@@ -630,7 +630,7 @@ export type Growth = z.infer<typeof growth>;
 export const GRADES = ['S', 'A', 'B', 'C', 'D'] as const;
 export type Grade = (typeof GRADES)[number];
 
-/** 分项的初值（wave2-5-contract.md W4）：分 = floor(of × per)；文案 ending.items.<项> */
+/** 分项的初值：分 = floor(of × per)；文案 ending.items.<项> */
 export const DEFAULT_SCORE: Record<string, { of: string; per: number }> = {
   stars: { of: 'stars', per: 1000 },
   trophies: { of: 'trophies', per: 300 },
@@ -641,7 +641,7 @@ export const DEFAULT_SCORE: Record<string, { of: string; per: number }> = {
   cash: { of: 'stat.cash', per: 0.1 },
 };
 
-/** 评语档的初值（机器人校准，见 docs/balance）：从上往下第一个 total ≥ gte 的档；都不够是最后一档 */
+/** 评语档的初值（机器人校准）：从上往下第一个 total ≥ gte 的档；都不够是最后一档 */
 export const DEFAULT_GRADES: { grade: Grade; gte: number }[] = [
   { grade: 'S', gte: 12500 },
   { grade: 'A', gte: 10000 },
@@ -723,10 +723,10 @@ export const plot = z.strictObject({
 });
 export type Plot = z.infer<typeof plot>;
 
-/* ---------------- 场地可用度（court-care-contract.md，ADR 0022） ---------------- */
+/* ---------------- 场地可用度（ADR 0022） ---------------- */
 
 /**
- * 场地可用度的规则（act.rules.care）：不写 = 没有这个机制（和以前一样）。数值的初值和意义见 court-care-contract.md。
+ * 场地可用度的规则（act.rules.care）：不写 = 没有这个机制（和以前一样）。
  * - courts：哪些设施是球场、什么面（variants：修成某个变体以后换成什么面）。
  * - 可用度 = clamp(100 − 100 × Σ weights[面][k] × mess[k], 0, 100)；≥ ok_at 能打，< no_below 不能打，中间勉强。
  * - weather：营业时间里每小时各项的增减（负数 = 自己变干净，例如晒干积水），再乘 surface[面][k]（不写是 1）。
@@ -802,7 +802,7 @@ export const act = z.strictObject({
     member_drift: z.string().default('0'),
     reputation_drift: z.string().default('0'),
     /**
-     * 每天收盘的每日结算（daily-settlement-contract.md，ADR 0024；代替原来的周结算 week）。表达式里 service_rate 是今天的服务率，
+     * 每天收盘的每日结算（ADR 0024；代替原来的周结算 week）。表达式里 service_rate 是今天的服务率，
      * care.walkouts 是今天走掉的会员。今天没有需求（没有一个开着的有需求岗位）时声望、会员都不动（准则 6：没人就是零、不倒扣）。
      * reputation：拆成几项（文案 ui.terms.<名字>）；members：今天该来多少人（小数，零头留到明天），一个表达式或拆成几项；
      * member_cap：场地撑得起多少人（超出的不续）；member_loss_max：今天最多走掉多少（不影响涨）；service_pass：声望服务项的及格线。
@@ -842,7 +842,7 @@ export const act = z.strictObject({
      * 1 = 有人没人一样掉；0 = 有人守就不掉。岗位每圈的 wear 是使用磨损，照算不打折（在岗位 YAML 里调）。
      */
     staffed_decay: z.number().min(0).max(1).default(0.5),
-    /** 场地可用度（court-care-contract.md）：不写 = 没有这个机制 */
+    /** 场地可用度：不写 = 没有这个机制 */
     care: careRules.optional(),
   }),
   /**

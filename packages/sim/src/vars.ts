@@ -43,7 +43,7 @@ export function conditionFactor(c: number): number {
 }
 
 /**
- * 今天到现在的服务率（每日结算，daily-settlement-contract.md）；今天还没有需求时用昨天的。
+ * 今天到现在的服务率（每日结算）；今天还没有需求时用昨天的。
  * 昨天也没有需求（开局、或者还没有一个开放的岗位）时是 0，不是凭空的 50%（GM-1）：
  * 这时 hasDemand 为假，界面显示"还没有客人"。今天没有需求的一天，每日结算不动声望、会员。
  */
@@ -166,7 +166,7 @@ export function stateDef(s: GameState, w: World, id: string): FacilityState | un
   return d;
 }
 
-/* ---------------- 场地可用度（court-care-contract.md）：读"场地开没开"的查询 ---------------- */
+/* ---------------- 场地可用度：读"场地开没开"的查询 ---------------- */
 
 /** 这块场此刻开着、算可用度：是 rules.care.courts 里的设施，这一档有场地（courts > 0），没在改造 */
 export function careActive(s: GameState, w: World, f: string): boolean {
@@ -333,7 +333,7 @@ export function makeEnv(s: GameState, w: World, extra: Record<string, Value> = {
         case 'usability':
           return usabilityOf(s, w, rest);
         case 'care':
-          // 场地可用度（court-care-contract.md）
+          // 场地可用度
           if (rest === 'waiting') return careWaiting(s);
           if (rest === 'walkouts') return walkoutsToday(s);
           if (rest === 'worst') return careWorst(s, w);

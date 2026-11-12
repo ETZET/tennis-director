@@ -182,7 +182,7 @@ export function orderVisible(s: GameState, w: World, o: Order): boolean {
   // 地块（W5）：清理工单只在施工时有、只做一次；地块上的工单要开了才有
   if (!plotAllows(s, w, o.id, o.at)) return false;
   if (w.plotOrders.has(o.id) && (s.orderLog.done[o.id] ?? 0) > 0) return false;
-  // 打扫工单（court-care-contract.md）：场开着，并且已经开工、或者可用度低于 order_below；没有冷却、不作废
+  // 打扫工单：场开着，并且已经开工、或者可用度低于 order_below；没有冷却、不作废
   if (o.care) {
     const f = orderFacility(w, o);
     if (!f || !careActive(s, w, f)) return false;
@@ -641,7 +641,7 @@ function finishCycle(ctx: Ctx, post: Post, person: string): void {
   noteRecords(ctx, out);
   if (post.wear) condAdd(ctx, post.at, -post.wear);
   if (post.restore) condAdd(ctx, post.at, post.restore * speedOf(skill), out);
-  // 打扫岗位（court-care-contract.md）：每圈每项清掉 care × 速度
+  // 打扫岗位：每圈每项清掉 care × 速度
   if (post.care) {
     const f = w.facilityAt.get(post.at);
     if (f && careActive(s, w, f)) {
@@ -695,13 +695,13 @@ function postSystem(ctx: Ctx, jobs: Map<string, string[]>): void {
     }
     const exists = postExists(s, w, post);
     const demand = exists && !!post.hours;
-    // 场地可用度（court-care-contract.md）：球场不能打，岗位停转（打扫岗位除外）；勉强能打，一分钟只算 meh_service 个服务到
+    // 场地可用度：球场不能打，岗位停转（打扫岗位除外）；勉强能打，一分钟只算 meh_service 个服务到
     const level = exists && careOn ? careLevelAtPost(s, w, post.id) : 'ok';
     const blocked = level === 'no';
     const busy = !!person && exists && working(s, w, person);
     const serve = level === 'meh' ? (w.act.rules.care?.meh_service ?? 1) : 1;
     if (demand) {
-      // 今天的账（每日结算，daily-settlement-contract.md）：收盘时结算，再卷进本周的账
+      // 今天的账（每日结算）：收盘时结算，再卷进本周的账
       const d = s.today;
       d.demand += 1;
       if (blocked) {
@@ -743,7 +743,7 @@ function sumMess(
 const roundMess = (a: Partial<Record<MessKind, number>>) => sumMess({}, a);
 
 /**
- * 打扫工单这一分钟的进度 dw（能力 50 的人·分钟）：每项清掉开工那一刻的 care0[k] × clean × dw / work（court-care-contract.md）。
+ * 打扫工单这一分钟的进度 dw（能力 50 的人·分钟）：每项清掉开工那一刻的 care0[k] × clean × dw / work。
  * 做满 work 时正好清掉 clean 成（中途又脏了的不管：那是下一张工单的事）
  */
 function careProgress(ctx: Ctx, o: Order, f: string, st: OrderState, dw: number, work: number): void {

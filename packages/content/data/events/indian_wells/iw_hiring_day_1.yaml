@@ -14,14 +14,14 @@ options:
   A:
     effects:
       - { hire: rosa_ortiz }
-      # 下一个招聘日来哪一拨人，按这一局的种子抽（docs/design/people.md「招聘日怎么出人」）
+      # 下一个招聘日来哪一拨人，按这一局的种子抽
       - { flag: iw_hiring_day_2_b, set: true, chance: "route.s2 == \"youth\" ? 0.2 : (route.s2 == \"resort\" ? 0.8 : 0.5)" }
       - { schedule: iw_hiring_day_2, in: 14d, if: { not: { flag: iw_hiring_day_2_b } } }
       - { schedule: iw_hiring_day_2b, in: 14d, if: { flag: iw_hiring_day_2_b } }
   B:
     effects:
       - { hire: ben_kim }
-      # 下一个招聘日来哪一拨人，按这一局的种子抽（docs/design/people.md「招聘日怎么出人」）
+      # 下一个招聘日来哪一拨人，按这一局的种子抽
       - { flag: iw_hiring_day_2_b, set: true, chance: "route.s2 == \"youth\" ? 0.2 : (route.s2 == \"resort\" ? 0.8 : 0.5)" }
       - { schedule: iw_hiring_day_2, in: 14d, if: { not: { flag: iw_hiring_day_2_b } } }
       - { schedule: iw_hiring_day_2b, in: 14d, if: { flag: iw_hiring_day_2_b } }
@@ -29,7 +29,7 @@ options:
     effects:
       # 不招：省下工资，活还是那几个人干
       - { log: log.no_hire }
-      # 下一个招聘日来哪一拨人，按这一局的种子抽（docs/design/people.md「招聘日怎么出人」）
+      # 下一个招聘日来哪一拨人，按这一局的种子抽
       - { flag: iw_hiring_day_2_b, set: true, chance: "route.s2 == \"youth\" ? 0.2 : (route.s2 == \"resort\" ? 0.8 : 0.5)" }
       - { schedule: iw_hiring_day_2, in: 14d, if: { not: { flag: iw_hiring_day_2_b } } }
       - { schedule: iw_hiring_day_2b, in: 14d, if: { flag: iw_hiring_day_2_b } }

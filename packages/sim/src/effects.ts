@@ -202,7 +202,7 @@ export function applyEffects(ctx: Ctx, effects: readonly Effect[], entryId: numb
       // 结局卡的"马上结算"（W4）：结局没打开、或者已经结算过时什么都不做
       settle(ctx, 'early', entryId);
     } else if ('mess' in e) {
-      // 场地可用度（court-care-contract.md）：加到这块场的脏乱上、截在 0..1；不是球场什么都不做
+      // 场地可用度：加到这块场的脏乱上、截在 0..1；不是球场什么都不做
       const d = addMess(s, w, e.mess, e.add);
       if (Object.keys(d).length) out.push({ kind: 'mess', facility: e.mess, delta: d });
     } else if ('task' in e) {

@@ -35,7 +35,7 @@ export interface Text {
   duration(min: number): string;
 }
 
-/** 两位小数的带号数（每日结算的声望一天只动零点几，daily-settlement-contract.md） */
+/** 两位小数的带号数（每日结算的声望一天只动零点几） */
 export const signed2 = (n: number): string => {
   const r = Math.round(n * 100) / 100 || 0;
   return r > 0 ? `+${r.toFixed(2)}` : r < 0 ? `−${(-r).toFixed(2)}` : '0';
@@ -174,7 +174,7 @@ export function createText(content: ContentBundle, lang: Lang): Text {
       case 'route':
         return fmt('ui.log.route', { route: tr(`routes.${e.slot}.${e.route}`, e.route).split(' · ')[0] ?? e.route });
       case 'mess': {
-        // 场地可用度（court-care-contract.md）：扫掉了哪几种脏乱（ui.care.log_mess），落上了的写 +名字；不写数
+        // 场地可用度：扫掉了哪几种脏乱（ui.care.log_mess），落上了的写 +名字；不写数
         const sep = zh ? '、' : ', ';
         const ks = Object.entries(e.delta).filter(([, v]) => Math.abs(v ?? 0) >= 0.01);
         const cleared = ks.filter(([, v]) => (v ?? 0) < 0).map(([k]) => messName(e.facility, k));
@@ -233,7 +233,7 @@ export function createText(content: ContentBundle, lang: Lang): Text {
         );
       }
       case 'daily': {
-        // 每日结算（daily-settlement-contract.md）：今天的服务率、及格线、缺人最多的岗位
+        // 每日结算：今天的服务率、及格线、缺人最多的岗位
         if (!c.demand) return fmt('ui.daily.because_none', { n: c.day });
         const base = fmt('ui.daily.because', {
           n: c.day,
@@ -296,7 +296,7 @@ export function createText(content: ContentBundle, lang: Lang): Text {
       case 'season':
         return tr('ui.ending.because_season');
       case 'care':
-        // 总监亲手扫了场（court-care-contract.md）
+        // 总监亲手扫了场
         return fmt('ui.care.because_care', { place: anchor(c.court), time: duration(c.minutes) });
       case 'walkout':
         return fmt('ui.care.because_walkout', { place: anchor(c.court) });
@@ -362,7 +362,7 @@ export function createText(content: ContentBundle, lang: Lang): Text {
         part(q, [fmt('ui.settle.target', { n: Math.round(c.quality.target * 10) / 10, parts: terms.join(sep) })]),
       );
     }
-    // 场地可用度（court-care-contract.md）：这周走掉的会员、挡掉分钟最多的那块场（有才写）
+    // 场地可用度：这周走掉的会员、挡掉分钟最多的那块场（有才写）
     if (c.walkouts) out.push(fmt('ui.care.week_walkouts', { n: c.walkouts }));
     if (c.unplayable)
       out.push(

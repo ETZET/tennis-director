@@ -324,7 +324,7 @@ posts:
   t_catering: { title: 棕榈喷泉 · 赛事餐饮, note: 只在邀请赛那两天 10–16 点；人越多卖得越多 }
   st1_night: { title: 中心球场 · 夜场, note: 周四到周六 18–20 点，新灯杆下 }
 orders:
-  # 打扫工单（court-care-contract.md）：场地可用度掉下来就冒出来
+  # 打扫工单：场地可用度掉下来就冒出来
   care_outer_1: { title: "会员场 · 打扫", note: "沙、水、球和垃圾：两个人慢慢扫" }
   care_outer_23: { title: "红土场 · 打扫", note: "耙平、拖网、捡球：两个人慢慢扫" }
   care_practice: { title: "青训场 · 打扫", note: "沙、水、球和垃圾：两个人慢慢扫" }
@@ -977,7 +977,7 @@ ui:
     wire_season_two: "第二季开始 · 目标：{goal}"
     because_settled: "第一季打了分（{total}，{grade} 档）"
     because_season: "第二季开始了"
-  # 场地可用度（docs/design/court-care-contract.md，ADR 0022）：不给玩家看数，只给三档、画面和抱怨
+  # 场地可用度（ADR 0022）：不给玩家看数，只给三档、画面和抱怨
   care:
     level: { ok: 能打, meh: 勉强, no: 不能打 }
     # 地点牌上的小记号旁边的无障碍名字
@@ -1045,7 +1045,7 @@ ui:
         net_loose: 网太松
         net_tight: 太紧了
         net_snap: 绳断了！
-  # 每日结算卡（daily-settlement-contract.md，ADR 0024）：每天收盘停下来讲今天；周日多一页"本周回顾"
+  # 每日结算卡（ADR 0024）：每天收盘停下来讲今天；周日多一页"本周回顾"
   daily:
     title: "第 {n} 天 · 周{d}收盘"
     title_week: "第 {n} 周回顾"

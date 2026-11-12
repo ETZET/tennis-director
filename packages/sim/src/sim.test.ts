@@ -773,7 +773,7 @@ describe('事件卡', () => {
   });
 });
 
-describe('人物的作用（docs/design/people.md）', () => {
+describe('人物的作用', () => {
   const hire = (s: GameState, ...ids: string[]) =>
     run(
       { s, w: W(), events: [] },

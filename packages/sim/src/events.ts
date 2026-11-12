@@ -96,7 +96,7 @@ export type SimEvent =
   | { type: 'log'; entry: CausalEntry }
   | { type: 'dayEnded'; day: number }
   /**
-   * 每日结算（daily-settlement-contract.md，ADR 0024）：收盘结算完、明天的天气抽好以后发（closeDay 的最后一件事）。
+   * 每日结算（ADR 0024）：收盘结算完、明天的天气抽好以后发（closeDay 的最后一件事）。
    * 模拟从不等它：游戏收到就停自己的钟、弹结算卡，玩家点完再走（不是命令，不进命令日志，重放与它无关）
    */
   | { type: 'daySettled'; report: DayReport }
@@ -108,7 +108,7 @@ export type SimEvent =
   | { type: 'seasonStarted'; season: string }
   | { type: 'weather'; weather: Weather }
   /**
-   * 场地可用度（court-care-contract.md）。careLevel：一块场换了档（能打 / 勉强 / 不能打；usability 取整，只给测试和调试面板，
+   * 场地可用度。careLevel：一块场换了档（能打 / 勉强 / 不能打；usability 取整，只给测试和调试面板，
    * 界面不显示数）。careDone：亲手扫做完（总监离岗 minutes 分钟，含走过去）。
    */
   | { type: 'careLevel'; court: string; from: CareLevel; to: CareLevel; usability: number }

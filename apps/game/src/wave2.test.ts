@@ -206,7 +206,7 @@ describe('tournaments in the place list', () => {
     expect(before?.goals.map((g) => g.id)).toEqual(['service', 'staffed']);
     until((x) => dayOf(x.t) === 6 && x.t >= at(6, 9) + 5, 8 * 1440);
     s.weather = 'sun';
-    // 一周没人扫，会员场早就不能打了（court-care-contract.md）：比赛日前先扫干净，这里只看赛事的说法
+    // 一周没人扫，会员场早就不能打了：比赛日前先扫干净，这里只看赛事的说法
     const clean = { sand: 0, water: 0, litter: 0, lines: 0, cracks: 0 };
     step(0, [
       { type: 'debugMess', court: 'outer_1', mess: clean },

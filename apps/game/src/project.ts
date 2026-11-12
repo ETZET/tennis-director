@@ -115,7 +115,7 @@ export class Projector {
   private readonly lastJob = new Map<string, string | null>();
   /** 员工成长（W3）：最近几天每天开工时每个人的能力（员工条上"这几天长进了"的小 ▲） */
   private readonly dayStarts = new Map<string, { day: number; v: Record<SkillKind, number> }[]>();
-  /** 场地可用度（court-care-contract.md）：今天已经说过"只能勉强打"的球场（别刷屏）；掉到过"不能打"、还没回到"能打"的球场 */
+  /** 场地可用度：今天已经说过"只能勉强打"的球场（别刷屏）；掉到过"不能打"、还没回到"能打"的球场 */
   private readonly mehToday = new Set<string>();
   private readonly wasNo = new Set<string>();
 
@@ -189,7 +189,7 @@ export class Projector {
         }
       } else if (e.type === 'cardOpened') this.push(s.t, T.cardTitle(e.card), false);
       else if (e.type === 'log' && e.entry.cause.kind === 'daily') {
-        // 每日结算一天一条（daily-settlement-contract.md）：服务率 + 现金 · 声望 · 会员的变化；
+        // 每日结算一天一条：服务率 + 现金 · 声望 · 会员的变化；
         // 细节在结算卡和"我们怎么走到这一步"里。周结算只是回顾，不再发快讯（回顾在卡上）
         const c = e.entry.cause;
         const stat = (k: string) =>
@@ -410,7 +410,7 @@ export class Projector {
 
   /** 主教练换人（W3 门评审）：谁接任、为什么（新招来的 / 原来的走了） */
   /**
-   * 场地可用度的快讯（court-care-contract.md）：掉到"不能打"（说主要是哪种脏乱）、从"不能打"回到"能打"、
+   * 场地可用度的快讯：掉到"不能打"（说主要是哪种脏乱）、从"不能打"回到"能打"、
    * 会员等不及走了、亲手扫完了。"勉强"一块场一天只说一次，别刷屏。
    */
   private careWire(
@@ -908,7 +908,7 @@ export class Projector {
    */
   private capRow(s: GameState, w: World): StatRow[] {
     const T = this.text;
-    // 会员上限挪到了每日结算（daily-settlement-contract.md）
+    // 会员上限挪到了每日结算
     const src = w.act.rules.day?.member_cap;
     if (src === undefined) return [];
     const extra = { service_rate: serviceRate(s), service_demand: hasDemand(s) ? 1 : 0 };
@@ -1748,7 +1748,7 @@ export class Projector {
     worn: number | null;
     /** 有人闲着、"下一步"的活就在这儿：工单格亮起来（e7 的轻提示） */
     ready: boolean;
-    /** 场地可用度的三档（court-care-contract.md）：开着的球场才有 */
+    /** 场地可用度的三档：开着的球场才有 */
     care: CareLevel | null;
     /** 门口在等的会员（不能打时） */
     waiting: number;
@@ -2512,7 +2512,7 @@ export class Projector {
       if (st.blocked === 'busy') hints.push(T.tr('ui.hint.busy'));
       if (st.blocked === 'requires') hints.push(T.tr('ui.hint.requires'));
       if (st.blocked === 'cost') hints.push(T.tr('ui.hint.cash'));
-      // 招聘选项：这个人的一句话背景（docs/design/people.md）
+      // 招聘选项：这个人的一句话背景
       const bios = (opt?.effects ?? []).map((e) => ('hire' in e ? T.tr(`bios.${e.hire}`, '') : ''));
       hints.push(...bios.filter(Boolean));
       // 代价和收益由标签讲，选项文字只留"做什么"（去掉文案里 " · " 后面手写的代价）

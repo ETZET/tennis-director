@@ -76,7 +76,7 @@ export const build: Build = (w: World) => { /* 建网格加到 w.scene */ return
 ## 自检
 - 类型检查：`cd apps/sandbox && npx tsc -p tsconfig.json --noEmit 2>&1 | grep desert3d`
 - 截图（390×844，dpr 2）：
-  `SHOT_OUT=<你的 scratch 路径>.png node docs/lab/2026-11-04-playability/tools/shot.mjs "http://localhost:5190/desert3d.html?warm=3&zoom=0.1&tx=..&tz=.." 3000`
+  `SHOT_OUT=<你的 scratch 路径>.png node docs/lab/2026-11-07-3d-pixel/tools/shot.mjs "http://localhost:5190/desert3d.html?warm=3&zoom=0.1&tx=..&tz=.." 3000 390 844`
   然后用 Read 工具看图。全景看一张，自己负责的部分近看几张（`zoom=0.08`～`0.12`）。会输出页面报错。
 - 其他代理在同时改别的部件，你的截图里可能出现他们半成品的东西，正常。
 - 截图存到 `/private/tmp/claude-501/desert3d/<你的名字>-*.png`。

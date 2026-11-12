@@ -4,7 +4,7 @@
 
 ## 玩法准则（设计文档「玩法准则」，冲突时前面的优先）
 
-2026-11-09 删掉原准则 5（"日常经营靠招人和排人"，派工；归档在 `docs/archive/pre-3d/tenet-5-staffing.md`），原准则 6 改号成 5。之前的 ADR、契约、代码注释里的"准则 6"就是现在的准则 5。2.5D 时期的主线和派工整个归档，游戏流程重新设计中（设计文档「游戏流程：重新设计中」）。
+2026-11-09 删掉原准则 5（"日常经营靠招人和排人"，派工），原准则 6 改号成 5。之前的 ADR、代码注释里的"准则 6"就是现在的准则 5。2.5D 时期的主线（16 周修复、星级、赛事、结局）和派工（拖人上岗）整个作废，2026-11-12 设计文档和 ADR 0011–0017、0020、0021、0028 删除；游戏流程重新设计中（设计文档「游戏流程：重新设计中」）。代码注释里还会提到这些 ADR 和旧玩法，那是代码的来历，不是现在的设计，不要照着补功能。
 
 1. **不做菜单式操作。** 玩家的动作要么回应事件（卡、来找你的人），要么直接点场景或 HUD 里的东西。不加"面板 → 子菜单 → 按钮"式的管理操作。
 2. **选择要有取舍。** 每个选项都换来一些、付出一些（钱、时间、总监位置、好感、以后的风险）；不能有各方面都更好的选项。
@@ -52,7 +52,7 @@ docs/archive/** 不参与构建，谁也不能引用
 - `apps/game/src/`：`session.ts`（实时 → 游戏分钟、命令队列、手上拿着的人）、`project.ts`（状态 → HUD 快照、员工条、岗位说明）、`settle.ts`（每日结算卡）、`main.ts`（画面迁移中：没有场景，舞台上是一行说明和一排地点按钮；HUD、拖放落点、自动存档、试玩桥 `window.__td`）、`debug.ts`（调试面板）、`text.ts`（i18n 拼句）。
 - 内容热重载插件在 `@td/content/vite`，Node 专用代码在 `@td/content/node`；两者都不要从 `@td/content` 入口导出。
 - `packages/sim/src/`：`effects.ts`（白名单效果）、`vars.ts`（条件和表达式变量）、`cards.ts`（事件引擎和导演）、`staff.ts`（指派、岗位、工单、设施衰减；派工模型已归档，代码照旧在跑）、`walk.ts`（导航图最短路、走路、办事）、`systems.ts`（每个 tick 的系统顺序）、`game.ts`（命令、推进、重放）、`save.ts`（存档和迁移）。
-- 岗位在 `packages/content/data/posts/`，工单在 `data/orders/`，一个文件一个，id 两边共用一个空间；文案在 `posts.<id>`、`orders.<id>`。主线（星级、选路、赛事、地块、结局）的实现在 `stars.ts`、`tournaments.ts`、`growth.ts`、`potential.ts`、`plots.ts`、`ending.ts` 和 `acts/indian_wells.yaml` 的对应几节，设计已归档（`docs/archive/pre-3d/main-line-2.5d.md`），代码照旧在跑，重新设计定了再删改。
+- 岗位在 `packages/content/data/posts/`，工单在 `data/orders/`，一个文件一个，id 两边共用一个空间；文案在 `posts.<id>`、`orders.<id>`。主线（星级、选路、赛事、地块、结局）的实现在 `stars.ts`、`tournaments.ts`、`growth.ts`、`potential.ts`、`plots.ts`、`ending.ts` 和 `acts/indian_wells.yaml` 的对应几节，设计已作废、文档已删除，代码照旧在跑，重新设计定了再删改。
 
 ## 不要做的事
 
@@ -61,7 +61,7 @@ docs/archive/** 不参与构建，谁也不能引用
 - 不要把文案写死在代码里（M1 起走 i18n 键值表）。
 - 不要在 sim 里新增效果或条件而不更新 `@td/content` 的 schema 和编译器校验；两边的变量表（`COMPUTED_VARS`）必须一致。
 - 不要手改 `src/generated/content.json`；改 YAML 再运行 `pnpm content`。
-- 改了平衡相关的数值，重跑 `pnpm sim bots --games 200 > docs/balance/indian-wells.md` 一起提交；`balance.test.ts` 守着区间。
+- 改了平衡相关的数值，跑 `pnpm sim bots --games 200` 看一眼（报告不提交）；`balance.test.ts` 守着区间。
 - 场景接回游戏前（另写 ADR 定新的场景接口），`apps/game` 不引用 sandbox 的代码，也不引用 three。内容里的 `nav` 分钟数暂时没有地图检查（原来的检查归档在 `docs/archive/iso-2.5d/apps/game/src/map-nav.test.ts`），接回时要重建。
 - 新的界面文字放进 i18n 的 `ui.*`，两种语言都要有。
 - three 只在 `apps/sandbox` 里用，直到游戏把场景接回来（`pnpm check:deps` 的 `three-only-in-sandbox`）。

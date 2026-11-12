@@ -1,4 +1,4 @@
-# Indian Wells 的人物（docs/design/people.md）。director 是总监本人；candidate 是招聘日能招来的人。
+# Indian Wells 的人物。director 是总监本人；candidate 是招聘日能招来的人。
 # kind：coach 教练 / crew 维护工 / special 特殊作用人物 / player 球员。
 # skill = 教学，upkeep = 维护，service = 服务，play = 球技（ADR 0012；球技只有球员用）。总监没有士气，能力随干活慢慢涨。
 # 一句话背景在 i18n 的 bios.<id>，特质在 traits.yaml。名字和经历都是虚构的。

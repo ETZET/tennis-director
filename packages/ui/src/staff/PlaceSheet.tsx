@@ -145,7 +145,7 @@ export function PlaceSheet({ p, actions }: { p: PlaceSheetData; actions: HudActi
 export const CARE_GLYPH = { ok: '✓', meh: '~', no: '✕' } as const;
 
 /**
- * 球场这一节（court-care-contract.md）：三档记号 + 场上有的脏乱的名字（不写数），下面一个"亲手扫"按钮。
+ * 球场这一节：三档记号 + 场上有的脏乱的名字（不写数），下面一个"亲手扫"按钮。
  * 按钮写着代价（总监离岗多久）和取舍；不能扫时置灰、写原因。不另开面板：点它直接进扫场小游戏。
  */
 function CareRow({ p, actions }: { p: PlaceSheetData; actions: HudActions }) {

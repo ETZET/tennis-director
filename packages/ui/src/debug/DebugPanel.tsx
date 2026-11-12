@@ -218,7 +218,7 @@ export function DebugPanel({ s, actions }: { s: DebugSnapshot; actions: DebugAct
 
 const KINDS = ['sand', 'water', 'litter', 'lines', 'cracks'] as const;
 
-/** 场地可用度（court-care-contract.md）：一块场一行，五项各一键设到 0.8、一键清空、一键"不能打"（门口会来人等）；酷热开关 */
+/** 场地可用度：一块场一行，五项各一键设到 0.8、一键清空、一键"不能打"（门口会来人等）；酷热开关 */
 function CareSection({ care, actions }: { care: NonNullable<DebugSnapshot['care']>; actions: DebugActions }) {
   return (
     <Section title={`Court care · ${care.weather}`}>

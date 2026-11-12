@@ -25,7 +25,7 @@ import { careActive, hasDemand, isStaff, num, qualityTarget, servicePass, servic
 import type { World } from './world';
 
 /**
- * 每日结算（daily-settlement-contract.md，ADR 0024）：钱、声望、会员每天收盘按今天结算，写一条 daily 因果日志，
+ * 每日结算（ADR 0024）：钱、声望、会员每天收盘按今天结算，写一条 daily 因果日志，
  * 出一份 DayReport（领域事件 daySettled），周日再把这一周的报告加起来讲（本周回顾，不改数）。
  * systems.ts 的 closeDay 依次调 settleDay、（周日）settleWeek、forecastWeather、buildDayReport；openDay 开头 freshDay。
  */

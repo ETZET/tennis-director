@@ -3,7 +3,7 @@ import type { CareLevel, CourtCare, CourtMess, GameState } from './state';
 import type { World } from './world';
 
 /**
- * 场地可用度的叶子模块（docs/design/court-care-contract.md，ADR 0022）：只读内容和状态、不依赖别的模拟模块，
+ * 场地可用度的叶子模块（ADR 0022）：只读内容和状态、不依赖别的模拟模块，
  * vars.ts、effects.ts、staff.ts、care.ts 都从这里取（depcruise 不许循环引用）。
  * 读"场地开没开"（stateDef）的查询在 vars.ts（careActive、usabilityOf、careLevelOf……），系统和命令在 care.ts。
  */

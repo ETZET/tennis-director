@@ -20,4 +20,4 @@
 ## 后果
 
 - 加卡、改数值、改文案都不用改代码；新增"一类"效果或条件仍然要改 `@td/sim` 和 schema（ADR 0007）。
-- 平衡改动要附上新的 `docs/balance/hollow-creek.md`。
+- 平衡改动要附上新的 `docs/balance/hollow-creek.md`。（2026-11-12 起平衡报告不再提交，`balance.test.ts` 守区间。）

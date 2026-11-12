@@ -14,7 +14,7 @@ import type { SettlementCardData, SettlementPage, SettlementPerson, SettlementRo
 import { signed2, type Text } from './text';
 
 /**
- * 每日结算卡（daily-settlement-contract.md，ADR 0024）：DayReport → SettlementCardData。
+ * 每日结算卡（ADR 0024）：DayReport → SettlementCardData。
  * 全部文字在这里拼好（界面不读 i18n 键）；数怎么滚由界面按 format 写，滚完显示这里给的 text。
  */
 

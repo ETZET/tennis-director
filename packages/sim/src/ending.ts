@@ -5,7 +5,7 @@ import { openDay, recomputeDerived } from './systems';
 import type { World } from './world';
 
 /**
- * 结局方案 A（W4，LG-13；wave2-5-contract.md "结局"）。地图写了 ending（mode: score）才打开：
+ * 结局方案 A（W4，LG-13）。地图写了 ending（mode: score）才打开：
  * - 第 ending.day 天 ending.hour 点结算打分，不判输；破产（rules.lose_if）照旧结束。
  * - 表演赛办成（ending.exhibition 第一次满足）而且还没到期限：记下时刻、打开结局卡（ending.card）——
  *   "马上结算"（效果 { settle: true }，拿提前的天数分）或"接着经营到期限"。两条路都以结算收尾。

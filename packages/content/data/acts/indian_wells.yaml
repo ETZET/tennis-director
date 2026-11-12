@@ -129,7 +129,7 @@ seasons:
   - { id: winter, from_day: 36, decay: 0.8 }
   # 春天是风季：大风扬沙，没人管的场地坏得更快
   - { id: spring, from_day: 71, decay: 1.3 }
-# 酷热 heat（court-care-contract.md）：只影响场地可用度（线褪、开裂，红土开裂快得多）和画面；初秋和春天的沙漠才有
+# 酷热 heat：只影响场地可用度（线褪、开裂，红土开裂快得多）和画面；初秋和春天的沙漠才有
 weather:
   autumn: { sun: 6, cloud: 2, rain: 0.3, wind: 1.5, heat: 2 }
   winter: { sun: 5, cloud: 3, rain: 1, wind: 1, heat: 0 }
@@ -138,7 +138,7 @@ start_cards: [iw_arrival]
 # 星级（ADR 0020，LG-10，GM-9）：第 i 项是升到 ★(i+1) 的清单，全部满足才升，只往上不往回掉。
 # 条 id 的文案在 stars.items.<id>，opens 的文案在 stars.opens.<键>。
 # 橡皮筋：第 12 周（第 78 天）起 ★3、★4 的会员和声望门槛 ×0.8；★4 的"办成过邀请赛"也可以用"奖杯 ≥ 4"代替。
-# 校准目标（设计文档"怎么算做成了"）：good / average / novice 到 ★3 的中位约第 50 / 58 / 66 天；结果见 docs/balance/indian-wells.md。
+# 校准目标（设计文档"怎么算做成了"）：good / average / novice 到 ★3 的中位约第 50 / 58 / 66 天。
 # GM-9 校准：设计表的初值（★3 修好 5 处、声望 30；★4 声望 50）让三档机器人都在第 40–52 天到 ★3（会员、声望、修好 5 处
 # 第 30–45 天就齐了，只剩奖杯卡着）；改成 ★3 修好 6 处、声望 45，★4 声望 60。
 # 校准用 sim-cli 的普通玩家机器人 good / average / novice（humanBot，HUMAN_TIERS 0.85 / 0.5 / 0.15）；greedy、cautious 每个 tick 都排人，
@@ -179,13 +179,13 @@ stars:
   - requires:
       exhibition: { flag: exhibition_done }
     opens: [finale]
-# 三次选路（GM-14，wave2-5-contract.md）：处 → 路，第一条是路 A（默认、Dale 替你定的那条）。文案 routes.<处>.<路>。
+# 三次选路（GM-14）：处 → 路，第一条是路 A（默认、Dale 替你定的那条）。文案 routes.<处>.<路>。
 # ★2 的路在 W2 就生效（变体先开、招聘日、周末客人）；★3、★4 的路决定开哪块地（W5，下面的 plots：选了就开工）。
 routes:
   s2: [youth, resort]
   s3: [south_courts, oasis_lawn]
   s4: [event_plaza, academy_isle]
-# 地块（W5，GM-15，ADR 0021，schema 见 wave2-5-contract.md"W5 最终 schema"）：地图跟着 ★3、★4 的选路长出去。
+# 地块（W5，GM-15，ADR 0021）：地图跟着 ★3、★4 的选路长出去。
 # 选路卡定了路，同名的变体就开工：清理工单一起挂在新地的地点牌上（有先后：拆了门才能清沙坑……），都做完就开地。
 # 接下的主办赛事的比赛日工地停工（pause_on_events 默认）。施工的副作用写在别处：
 # - golf_west 施工时泳池那边吵（posts/st2_*.yaml 每圈少 $3）；
@@ -193,7 +193,7 @@ routes:
 # 开了以后：南场多两片场（会员上限 +24、质量 +6、看场岗位离得远，要有人守）；绿洲草坪是周末度假客（小屋管家，水费按圈扣，
 # 会员上限不涨，质量 +5）；赛事广场让表演赛把握 +4%、门票 +$2000、邀请赛 +$500、赞助商的横幅卡不用等匹克球场、
 # 周末赞助展台；学院岛是驻岛教练和宿舍（会员 +6，学院课每圈 +$2），起风天关桥，表演赛不会更快。
-# 数字由机器人校准（人-17），见 docs/balance/indian-wells.md"地块"和设计文档"地图怎么长大 · W5 定稿"。
+# 数字由机器人校准（人-17）。
 plots:
   - id: golf_west
     route: s3
@@ -401,8 +401,8 @@ calendar:
 # 结局方案 A（W4，LG-13，设计文档"结局"）：第 112 天 18 点结算打分，不判输（破产照旧结束、不结算）。
 # 表演赛提前办成时来结局卡 iw_ending：马上结算（每提前一天 +30）还是接着经营到第 112 天（风季三周外场衰减 ×1.5）。
 # 期限卡 iw_deadline 留在日历上，打分模式下它打不开（那一分钟先结算了），关掉 ending 时照旧判输。
-# 分项（schema 见 wave2-5-contract.md"W4 最终 schema"）：分 = floor(of × per)，文案 ending.items.<项>。
-# 档的门槛由机器人校准（200 局，docs/balance/indian-wells.md"结局打分"）：good 多半 S/A、average 多半 A/B、
+# 分项：分 = floor(of × per)，文案 ending.items.<项>。
+# 档的门槛由机器人校准（200 局）：good 多半 S/A、average 多半 A/B、
 # novice 多半 B/C，cautious（到 ★4 没办表演赛）C/D，random、idle 是 D。
 ending:
   mode: score
@@ -419,7 +419,6 @@ ending:
   # - early 马上结算的奖励 ×50 → ×30：结局卡上"交账 / 接着经营"的筹码（接着经营还有第 15 周内赛的奖杯、
   #   解锁、现金和整季服务率在涨，掉档的风险也在）。
   # - 会员只算到 100 人、声望 ×5、现金只算 $3000–8000 那一段：顶到上限不再白拿分，攒钱不经营也拿不多。
-  # 档和各档机器人的分布见 docs/balance/indian-wells.md"结局打分"。
   score:
     stars: { of: stars, per: 800 }
     trophies: { of: trophies, per: 300 }
@@ -460,7 +459,7 @@ rules:
     land: >-
       (plot.golf_west == "open" ? (route.s3 == "south_courts" ? 6 : 5) : 0) + (plot.se_corner == "open" ? 4 : 0)
   quality_rate: 0.15
-  # 每日结算（daily-settlement-contract.md，ADR 0024）：钱、声望、会员每天收盘按今天结算，写一条 daily 因果日志。
+  # 每日结算（ADR 0024）：钱、声望、会员每天收盘按今天结算，写一条 daily 因果日志。
   # 初值 = 原来周结算的各项 ÷ 7（按周的量：服务、质量、修复、会员增长；按次数的量不除：走掉的会员本来就是今天的个数；
   # 存量的上限不除）。service_rate 是今天的服务率，care.walkouts 是今天走掉的会员。会员按小数算、零头留到明天。
   # 今天没有需求（没有一个开着的有需求岗位：雨天、开局）时声望、会员都不动（没人就是零、不倒扣），所以这里不乘 service_demand。
@@ -476,7 +475,7 @@ rules:
       growth: >-
         max(0, (courts_built * service_rate + (stat.quality - 30) / 12 + stat.reputation / 30) / 7
         - (plot.se_corner == "building" && route.s4 == "event_plaza" && flag.ep_cleared ? 2 : 0) / 7)
-      # 场地可用度（court-care-contract.md）：今天在门口等不及走掉的会员，每个 −0.5 声望、−1/3 会员（零头留到明天）
+      # 场地可用度：今天在门口等不及走掉的会员，每个 −0.5 声望、−1/3 会员（零头留到明天）
       walkouts: "-care.walkouts / 3"
     # 会员有上限：每块修好的场地撑得起 12 个会员（下雨天场地关门，但会员不会因此退会），会所开了再多 15 个；超出的人就不续了
     # 会所修成咖啡吧（GM-13）多撑 10 个：有地方坐、有东西吃，会员才愿意续；理疗室（和没选过变体的旧存档）还是 15
@@ -504,7 +503,7 @@ rules:
   staffed_decay: 0.1
   director_growth: 0.3
   director_skill_cap: 80
-  # 场地可用度（court-care-contract.md，ADR 0022）：五处球场的短期脏乱，和状况 condition 分开。
+  # 场地可用度（ADR 0022）：五处球场的短期脏乱，和状况 condition 分开。
   # 可用度 = 100 − 100 × Σ weights[面][k] × mess[k]；≥ ok_at 能打、< no_below 不能打、中间勉强（玩家只看到三档）。
   care:
     courts:
@@ -545,13 +544,13 @@ rules:
       min: 10
       max: 240
 daily: []
-# 员工成长（W3，GM-11；设计文档"五种钥匙 · 人是钥匙"，schema 见 wave2-5-contract.md"W3 最终 schema"）。
+# 员工成长（W3，GM-11；设计文档"五种钥匙 · 人是钥匙"）。
 # 每干完一圈岗位或一张工单，那项能力 +rate，不超过潜力（people/indian_wells.yaml 的 potential；不写 = 起始值 + 15，
 # 大器晚成再 +10）。总监不走 rate（照旧 director_growth 0.3 / 上限 80）；need 写了 who 的总监开不了，
 # 只有 weekend_camp 的第二条没写 who（总监一直上课也算一个能带营的人）。
 # 校准（GM-11）：设计表的初值 +0.2 一周就把坐前台的人涨满；改成 +0.1。教学岗位每个工作日只有 4–6 小时，稳定上课的教练
 # 一周约 20–25 圈：55 → 65 约 4–5 周，Dale 45 → 65 约 9–10 周（第 3 周开课，第 12 周前后过门槛）；前台一天约 10 圈服务，
-# Ben 55 → 70 约 2–3 周（见 docs/balance/indian-wells.md"员工成长"）。
+# Ben 55 → 70 约 2–3 周。
 growth:
   enabled: true
   rate: 0.1

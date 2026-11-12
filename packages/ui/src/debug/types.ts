@@ -29,7 +29,7 @@ export interface DebugSnapshot {
   /** 内容热重载的警告和错误 */
   notes: readonly string[];
   commands: number;
-  /** 场地可用度（court-care-contract.md）：每块球场的档、可用度、五项脏乱、门口等的人；今天的天气 */
+  /** 场地可用度：每块球场的档、可用度、五项脏乱、门口等的人；今天的天气 */
   care?: {
     weather: string;
     courts: readonly {
@@ -56,6 +56,6 @@ export interface DebugActions {
   mess?(court: string, mess: Readonly<Record<string, number>>): void;
   /** 今天的天气换成 weather（测酷热、下雨） */
   weather?(weather: string): void;
-  /** 跳到今天收盘（每日结算，daily-settlement-contract.md）：测结算卡 */
+  /** 跳到今天收盘（每日结算）：测结算卡 */
   closeDay?(): void;
 }

@@ -61,7 +61,7 @@ export function createDebug(el: HTMLElement, host: DebugHost, startOpen: boolean
     close: () => ui.toggle(),
     mess: (court, mess) => send({ type: 'debugMess', court, mess }),
     weather: (weather) => send({ type: 'debugWeather', weather: weather as Weather }),
-    // 每日结算（daily-settlement-contract.md）：一下跳到今天收盘，结算卡随即打开
+    // 每日结算：一下跳到今天收盘，结算卡随即打开
     closeDay: () => {
       const session = host.session();
       session.ackSettlement();

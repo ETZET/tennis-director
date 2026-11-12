@@ -8,7 +8,7 @@ import { sendErrand, walkEta } from './walk';
 import type { World } from './world';
 
 /**
- * 场地可用度（docs/design/court-care-contract.md，ADR 0022）：球场上的短期脏乱（积沙、积水、球和垃圾、线褪色、裂缝），
+ * 场地可用度（ADR 0022）：球场上的短期脏乱（积沙、积水、球和垃圾、线褪色、裂缝），
  * 和设施状况 condition（长期磨损、衰减、周日掉档）分开。天气和使用让它变脏，打扫岗位、打扫工单、总监亲手扫让它变干净。
  * 可用度不给玩家看数，只给三档（能打 / 勉强 / 不能打）。
  *

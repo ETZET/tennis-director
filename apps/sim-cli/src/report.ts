@@ -50,7 +50,7 @@ export interface BotSummary {
    * 提前结算（表演赛以后马上结算）的局数比例、结算的局里每一项的平均分
    */
   /**
-   * 场地可用度（court-care-contract.md）：开着的球场在营业时间里各档的时间占比（每 5 分钟看一眼），
+   * 场地可用度：开着的球场在营业时间里各档的时间占比（每 5 分钟看一眼），
    * 每局平均走掉的会员、亲手扫几次、打扫工单做完几张。地图没写 rules.care 时没有
    */
   care?: { ok: number; meh: number; no: number; walkouts: number; hand: number; orders: number };

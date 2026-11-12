@@ -6,5 +6,5 @@ skill: upkeep
 cycle: 1h
 when: { facility: practice, is: open }
 restore: 4
-# 场地可用度（court-care-contract.md）：每圈每项脏乱清掉 care × (0.5 + 维护 / 100)；场地不能打时照样转
+# 场地可用度：每圈每项脏乱清掉 care × (0.5 + 维护 / 100)；场地不能打时照样转
 care: 0.06

@@ -1,7 +1,6 @@
 # 网球总监 · 技术架构文档 v1.0（3D 像素）
 
-2026-11-08 · 按 three.js 3D 像素画面重写（ADR 0027、0029）。上一版 v0.2（2.5D 等距画面 `packages/iso`、Site 接口）归档在
-[`docs/archive/pre-3d/architecture-v0.2.md`](../archive/pre-3d/architecture-v0.2.md)；旧画面的接口契约在 [`docs/archive/iso-2.5d/`](../archive/iso-2.5d/README.md)。
+2026-11-08 · 按 three.js 3D 像素画面重写（ADR 0027、0029）。旧的 2.5D 画面代码和接口契约归档在 [`docs/archive/iso-2.5d/`](../archive/iso-2.5d/README.md)。
 
 ## 现状
 
@@ -43,7 +42,7 @@ docs/archive/** 不参与构建，谁也不能引用
 | `apps/sim-cli` | 命令行无头跑局：机器人平衡报告、可玩性报告、确定性闸口 |
 | `apps/sandbox` | three.js 3D 像素场景（club* 页面）和早期实验 |
 | `tools/playtest` | 试玩桥（无头 Chromium 里玩构建好的游戏） |
-| `docs/archive` | 归档：2.5D 画面代码（`iso-2.5d/`）、3D 之前的设计文档（`pre-3d/`） |
+| `docs/archive` | 归档：2.5D 画面代码（`iso-2.5d/`） |
 
 `check:deps` 的规则（`.dependency-cruiser.cjs`）：`sim-is-pure`、`shared-is-leaf`、`three-only-in-sandbox`、`content-only-via-sim`、`no-archive`、`packages-not-apps`、`no-unresolvable`、`no-circular`（只算运行时引用，类型引用的环不算）。
 
@@ -51,7 +50,7 @@ docs/archive/** 不参与构建，谁也不能引用
 
 不变，2.5D 归档没有动它。存档版本 15。
 
-2026-11-09 起 2.5D 时期的主线和派工的**设计**归档（[main-line-2.5d.md](../archive/pre-3d/main-line-2.5d.md)，游戏流程重新设计中）：下表里的 `staff.ts`（派工）和
+2026-11-09 起 2.5D 时期的主线和派工的**设计**作废（2026-11-12 文档删除，游戏流程重新设计中）：下表里的 `staff.ts`（派工）和
 `stars.ts`、`tournaments.ts`、`growth.ts`、`potential.ts`、`plots.ts`、`ending.ts`（主线）是它的实现，代码照旧在、照旧跑，重新设计定了再删改。
 
 | 文件 | 管什么 |
@@ -59,11 +58,11 @@ docs/archive/** 不参与构建，谁也不能引用
 | `state.ts` | `GameState`（可序列化）、存档版本 |
 | `game.ts` | 命令（指派、选卡、调试命令……）、`step` / `advance`、重放 |
 | `systems.ts` | 每分钟的系统顺序：结局 → 日历 → 赛事 → 岗位和工单 → 场地可用度 → 活动 → 质量 → 派生量 → 卡过期 → 导演 → 走路；收盘时衰减、记账、每日结算、星级、解锁、天气预报 |
-| `staff.ts`、`walk.ts` | 指派、岗位转圈、工单推进、办事、习惯（ADR 0012、0014）；导航图最短路、走路 |
+| `staff.ts`、`walk.ts` | 指派、岗位转圈、工单推进、办事、习惯；导航图最短路、走路 |
 | `cards.ts`、`effects.ts`、`vars.ts` | 事件引擎和导演；白名单效果；条件和表达式变量（`COMPUTED_VARS` 和内容编译器一致） |
-| `care.ts`、`mess.ts` | 场地可用度（ADR 0022，[court-care-contract.md](court-care-contract.md)） |
-| `day.ts`、`week.ts` | 每日结算（ADR 0024，[daily-settlement-contract.md](daily-settlement-contract.md)）、钱的日账和周日回顾 |
-| `stars.ts`、`tournaments.ts`、`growth.ts`、`potential.ts`、`plots.ts`、`ending.ts` | 星级、赛事日历和选路、员工成长和潜力、地块（地图长大）、结局方案 A 和第二季（[wave1-contract.md](wave1-contract.md)、[wave2-5-contract.md](wave2-5-contract.md)） |
+| `care.ts`、`mess.ts` | 场地可用度（ADR 0022） |
+| `day.ts`、`week.ts` | 每日结算（ADR 0024）、钱的日账和周日回顾 |
+| `stars.ts`、`tournaments.ts`、`growth.ts`、`potential.ts`、`plots.ts`、`ending.ts` | 星级、赛事日历和选路、员工成长和潜力、地块（地图长大）、结局方案 A 和第二季 |
 | `events.ts` | 领域事件：画面和界面订阅它们来演出、提示 |
 | `save.ts` | 存档和逐级迁移 |
 | `bots.ts` | 机器人（贪心、谨慎、随机、放置和几种普通玩家） |
@@ -178,7 +177,7 @@ ADR 0027 定了"接回时另写 ADR 定新的场景接口"。下面是要回答�
 
 | 问题 | 倾向 |
 | --- | --- |
-| 场景接口长什么样 | 类似归档的 `Site` 接口（ADR 0016）：游戏只认一个接口，不直接 import 某个场景；接口给出锚点 → 场景、站位、区域，相机预设，演出入口 |
+| 场景接口长什么样 | 类似归档的 2.5D `Site` 接口：游戏只认一个接口，不直接 import 某个场景；接口给出锚点 → 场景、站位、区域，相机预设，演出入口 |
 | 锚点 ↔ 场景里的站位 | 模拟的锚点保留名字，场景的 `SPOTS` 挂到锚点下；一个锚点可以对多片场（`outer_23` → `outer_2`、`outer_3`）；露天前台、餐车院子这种模拟里没有的地方要新锚点或并进现有锚点 |
 | 导航分钟数 | 从 `clubsite/world.ts` 的步道量出来，和内容的 `nav` 对上；重建归档的 `map-nav.test.ts` 那种检查 |
 | 总监的活 → 模拟命令 | 互动点做完一件活 = 一条命令（派到岗位、一次打扫、一次办事）；按住的活按游戏分钟累计；总监走路的实时秒怎么换成游戏分钟要定 |

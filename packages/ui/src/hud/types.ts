@@ -218,7 +218,7 @@ export interface PlaceSheetData {
   /** 分期筹备（W2，表演赛四期）：每一期的名字、花费、做完没有；foot 是还差多少 */
   prep?: { title: string; foot: string; phases: { id: string; name: string; cost: string; done: boolean }[] };
   /**
-   * 球场的场地可用度（court-care-contract.md，ADR 0022）：三档（不写数）、场上有的脏乱的名字、"亲手扫"按钮。
+   * 球场的场地可用度（ADR 0022）：三档（不写数）、场上有的脏乱的名字、"亲手扫"按钮。
    * 不是开着的球场时没有。
    */
   care?: PlaceCare | null;
@@ -303,7 +303,7 @@ export interface StarInfo {
   tone?: Tone;
 }
 
-/* ---------------- 每日结算卡（daily-settlement-contract.md，ADR 0024） ---------------- */
+/* ---------------- 每日结算卡（ADR 0024） ---------------- */
 
 /** 结算卡上的一行：value 是要滚动的数（动画从 from 滚到 value，from 不写是 0）；text 是已经格式化好的最终文字 */
 export interface SettlementRow {
@@ -397,7 +397,7 @@ export interface HudSnapshot {
   hint?: string | null;
   sheet?: TargetSheetData | null;
   place?: PlaceSheetData | null;
-  /** 每日结算卡（daily-settlement-contract.md）：开着时盖住地图，别的卡、底部说明都让开 */
+  /** 每日结算卡：开着时盖住地图，别的卡、底部说明都让开 */
   settlement?: SettlementCardData | null;
   controls: { paused: boolean; speed: string };
 }
@@ -426,9 +426,9 @@ export interface HudActions {
   variant?(order: string, variant: string): void;
   /** 点了季节栏上的一个节拍：镜头转到那一处的地点牌、亮一下（UI-9，只读） */
   beat?(place: string): void;
-  /** 地点清单里点了"亲手扫"（court-care-contract.md）：打开扫场小游戏 */
+  /** 地点清单里点了"亲手扫"：打开扫场小游戏 */
   onCare?(place: string): void;
-  /** 每日结算卡最后一页点完（daily-settlement-contract.md）：关卡、时间接着走（= session.ackSettlement()） */
+  /** 每日结算卡最后一页点完：关卡、时间接着走（= session.ackSettlement()） */
   settlementDone?(): void;
   /** 结算卡上点了一个人：在地图上亮一下他（可以什么都不做） */
   settlementPerson?(person: string): void;

@@ -54,7 +54,7 @@ export function settleWeek(ctx: Ctx, day: number): void {
   for (const [post, minutes] of Object.entries(wk.missed))
     if (minutes > 0 && (!top || minutes > top.minutes || (minutes === top.minutes && post < top.post)))
       top = { post, minutes };
-  // 场地可用度（court-care-contract.md）：走掉的会员、不能打挡掉分钟最多的那块场（按岗位所在的设施合计；同分取 id 小的）
+  // 场地可用度：走掉的会员、不能打挡掉分钟最多的那块场（按岗位所在的设施合计；同分取 id 小的）
   const careOn = !!w.act.rules.care;
   let unplayable: WeekSettlement['unplayable'] = null;
   if (careOn) {

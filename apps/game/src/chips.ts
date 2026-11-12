@@ -12,7 +12,7 @@ const fmtNum = (n: number) => `${n > 0 ? '+' : '−'}${Math.abs(Math.round(n * 1
 
 /**
  * 招聘：这个人的作用、最强的两项能力、特质和周薪（第二轮试玩 S1：招人不能是盲选；
- * docs/design/people.md：作用和特质让人记得住）
+ * 作用和特质让人记得住）
  */
 function hireChips(T: Text, id: string, people: ContentBundle['people'] | undefined): Chip[] {
   const p = people?.find((x) => x.id === id);

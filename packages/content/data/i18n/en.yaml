@@ -324,7 +324,7 @@ posts:
   t_catering: { title: "Circle of Palms · Event catering", note: "Invitational days 10–16 only; more guests, more sales" }
   st1_night: { title: "Stadium · Night session", note: "Thu–Sat 18–20 under the new lights" }
 orders:
-  # Cleaning orders (court-care-contract.md): show up when a court's usability drops
+  # Cleaning orders: show up when a court's usability drops
   care_outer_1: { title: "Members' court · Clean up", note: "Sand, water, balls and litter: two people, slowly" }
   care_outer_23: { title: "Clay courts · Clean up", note: "Rake, drag, pick up balls: two people, slowly" }
   care_practice: { title: "Practice courts · Clean up", note: "Sand, water, balls and litter: two people, slowly" }
@@ -987,7 +987,7 @@ ui:
     wire_season_two: "Season two begins · goal: {goal}"
     because_settled: "season one was scored ({total}, grade {grade})"
     because_season: "season two began"
-  # Court usability (docs/design/court-care-contract.md, ADR 0022): no number for the player, just three levels, pictures and grumbles
+  # Court usability (ADR 0022): no number for the player, just three levels, pictures and grumbles
   care:
     level: { ok: Playable, meh: Barely, no: Unplayable }
     sign: "{place} · {level}"
@@ -1052,7 +1052,7 @@ ui:
         net_loose: Too slack
         net_tight: Too tight
         net_snap: Snapped!
-  # Daily settlement card (daily-settlement-contract.md, ADR 0024): every close pauses to report the day; Sundays add a week review page
+  # Daily settlement card (ADR 0024): every close pauses to report the day; Sundays add a week review page
   daily:
     title: "Day {n} · {d} close"
     title_week: "Week {n} review"

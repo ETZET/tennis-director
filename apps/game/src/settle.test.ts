@@ -6,7 +6,7 @@ import { Session } from './session';
 import { createText } from './text';
 
 /**
- * 每日结算卡（daily-settlement-contract.md，ADR 0024）：游戏收到 daySettled 就停自己的钟（不管几倍速），
+ * 每日结算卡（ADR 0024）：游戏收到 daySettled 就停自己的钟（不管几倍速），
  * 点完才走；投影把 DayReport 翻成结算卡（全部文字拼好，没有漏出来的 i18n 键）。
  */
 

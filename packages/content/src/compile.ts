@@ -117,14 +117,14 @@ export const COMPUTED_VARS = [
   'ending.season',
   'ending.settled',
   /**
-   * 场地可用度（court-care-contract.md）：waiting 此刻在门口等的会员一共几个；walkouts 今天等不及走掉的会员数
+   * 场地可用度：waiting 此刻在门口等的会员一共几个；walkouts 今天等不及走掉的会员数
    * （每天开门清零）；worst 开着的球场里可用度最低的那块（0..100，没有开着的球场是 100）。地图没写 rules.care 时是 0 / 0 / 100
    */
   'care.waiting',
   'care.walkouts',
   'care.worst',
 ] as const;
-/** 场地可用度变量（court-care-contract.md）：usability.<设施 id> = 0..100（不是 rules.care.courts 里的设施、或者场地没开时是 100） */
+/** 场地可用度变量：usability.<设施 id> = 0..100（不是 rules.care.courts 里的设施、或者场地没开时是 100） */
 export const USABILITY_VAR = /^usability\.([a-z][a-z0-9_]*)$/;
 /** 设施状况变量：condition.<设施 id> = 0..100 */
 export const CONDITION_VAR = /^condition\.([a-z][a-z0-9_]*)$/;
@@ -570,7 +570,7 @@ export function compileContent(files: Record<string, string>): CompileResult {
       warn(file, `only: nobody in people/ can take this ${dir === 'posts' ? 'post' : 'order'}`);
     needText(file, `${dir}.${a.id}.title`);
     needText(file, `${dir}.${a.id}.note`);
-    // 场地可用度（court-care-contract.md）：写了 care 的岗位和工单要落在这一幕 rules.care.courts 里的球场上
+    // 场地可用度：写了 care 的岗位和工单要落在这一幕 rules.care.courts 里的球场上
     if (a.care !== undefined) {
       const f = b.facilities.find((x) => x.anchor === a.at)?.id;
       if (!f || !ac?.rules.care?.courts[f]) err(file, `care: '${a.at}' is not a court in rules.care.courts`);
@@ -640,7 +640,7 @@ export function compileContent(files: Record<string, string>): CompileResult {
   for (const p of b.people) {
     for (const t of p.traits) if (!traits.has(t)) err('people/', `${p.id}: unknown trait '${t}'`);
     if (p.id === WORKER) err('people/', `'${WORKER}' is reserved for "the person on this post"`);
-    // 招聘日的人要有作用和一句话背景（docs/design/people.md：让玩家记住一个人）
+    // 招聘日的人要有作用和一句话背景（让玩家记住一个人）
     if (p.role === 'candidate') {
       if (!p.kind) err('people/', `${p.id}: candidates need a kind (${PERSON_KINDS.join(', ')})`);
       needText('people/', `bios.${p.id}`);
@@ -884,7 +884,7 @@ export function compileContent(files: Record<string, string>): CompileResult {
     for (const k of Object.keys(a.weather))
       if (!a.seasons.some((s) => s.id === k)) err(file, `weather: unknown season '${k}'`);
     if (!directors.has(a.director_config)) err(file, `director_config: unknown director '${a.director_config}'`);
-    // 场地可用度（court-care-contract.md）：球场都是设施，变体是这个设施的变体
+    // 场地可用度：球场都是设施，变体是这个设施的变体
     for (const [f, c] of Object.entries(a.rules.care?.courts ?? {})) {
       const def = facilities.get(f);
       if (!def) err(file, `rules.care.courts: unknown facility '${f}'`);
@@ -899,7 +899,7 @@ export function compileContent(files: Record<string, string>): CompileResult {
         checkExpr(file, v, `rules.quality_target.${t}`);
         needText(file, `ui.terms.${t}`);
       }
-    // 每日结算（daily-settlement-contract.md）
+    // 每日结算
     if (a.rules.day) {
       for (const [t, v] of Object.entries(a.rules.day.reputation)) {
         checkExpr(file, v, `rules.day.reputation.${t}`);
