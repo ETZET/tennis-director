@@ -1,7 +1,8 @@
 /**
  * 分层规则（技术文档「协作规范：分层由工具强制」）。
  *
- * 依赖方向只能往下：apps → ui → sim → shared。content 只由 sim 读取。
+ * 依赖方向只能往下：apps → ui → sim → shared。2026-11-12 起 2.5D 时期的 sim、content、ui、game、sim-cli 归档在
+ * docs/archive/2.5d-game，现在只有 apps/sandbox 和 packages/shared；sim-is-pure 留着等重写的模拟。
  * 画面换成 three.js 3D 像素（ADR 0027）：three 暂时只在 apps/sandbox 里，接回游戏时另写 ADR 再放开。
  * 旧的 2.5D 等距画面（@td/iso）归档在 docs/archive/iso-2.5d，不参与构建，谁也不能引用。
  */
@@ -53,13 +54,6 @@ module.exports = {
       severity: 'error',
       from: { pathNot: '^apps/sandbox/src/clubwalk/' },
       to: { path: '^apps/sandbox/src/clubwalk/' },
-    },
-    {
-      name: 'content-only-via-sim',
-      comment: '内容数据只由模拟核心读取。',
-      severity: 'error',
-      from: { path: '^packages/(ui|shared)/' },
-      to: { path: '^packages/content/' },
     },
     {
       name: 'no-archive',

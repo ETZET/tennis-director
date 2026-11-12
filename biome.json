@@ -6,16 +6,7 @@
     "useIgnoreFile": true
   },
   "files": {
-    "includes": [
-      "**",
-      "!**/dist",
-      "!**/*.snap",
-      "!**/*.md",
-      "!**/generated",
-      "!packages/content/data",
-      "!docs/lab",
-      "!docs/archive"
-    ]
+    "includes": ["**", "!**/dist", "!**/*.snap", "!**/*.md", "!**/generated", "!docs/lab", "!docs/archive"]
   },
   "formatter": {
     "enabled": true,

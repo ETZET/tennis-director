@@ -9,17 +9,13 @@
   },
   "scripts": {
     "dev": "pnpm --filter @td/sandbox dev",
-    "game": "pnpm --filter @td/game dev",
     "build": "pnpm -r --filter \"./apps/**\" build",
     "typecheck": "pnpm -r typecheck",
     "test": "vitest run",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "check:deps": "depcruise packages apps --config .dependency-cruiser.cjs",
-    "check": "pnpm typecheck && pnpm lint && pnpm check:deps && pnpm check:content && pnpm test && pnpm build",
-    "content": "tsx packages/content/scripts/build.ts",
-    "check:content": "tsx packages/content/scripts/build.ts --check",
-    "sim": "tsx apps/sim-cli/src/main.ts"
+    "check": "pnpm typecheck && pnpm lint && pnpm check:deps && pnpm test && pnpm build"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.4",
