@@ -30,7 +30,6 @@ export function build(ctx: AssetCtx): THREE.Object3D {
 
   const W = 21 * T;
   const ZB = -3.5 * T; // 背面
-  const ZF = 3.5 * T; // 台面前沿
   const YTop = 11 * T; // 台面顶
 
   // 柜身：竖板（3 纹素一块），正面朝镜头
