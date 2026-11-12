@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="icon" href="data:,">
+<title>Clubhouse Plan · Tennis Director</title>
+<style>
+  html, body { margin: 0; background: #e9e4da; }
+  body { position: relative; width: max-content; }
+  canvas { display: block; }
+  nav { position: absolute; top: 2px; right: 12px; display: flex; gap: 6px; font: 700 14px/1 "PingFang SC", "Noto Sans SC", system-ui, sans-serif; }
+  nav a { display: flex; align-items: center; min-width: 44px; min-height: 44px; justify-content: center; padding: 0 8px; box-sizing: border-box; color: #fff3d6; text-decoration: none; border-radius: 4px; }
+  nav a[aria-current="true"] { background: #fff3d6; color: #2b2530; }
+</style>
+</head>
+<body>
+<canvas id="plan"></canvas>
+<nav>
+  <a href="?floor=-1" data-floor="-1">B1</a>
+  <a href="?floor=1" data-floor="1">1F</a>
+  <a href="?floor=2" data-floor="2">2F</a>
+  <a href="./clubhouse.html?inside=1">3D</a>
+</nav>
+<script type="module" src="./src/clubhouse/plan.ts"></script>
+</body>
+</html>

@@ -40,6 +40,14 @@
   .palsel .px-list button { min-width: 132px; }
   .modesel { left: auto; top: auto; right: max(12px, calc(env(safe-area-inset-right) + 4px)); bottom: max(28px, calc(env(safe-area-inset-bottom) + 20px)); align-items: flex-end; }
   body.gallery .modesel { display: none; }
+  /* 换层：一列粗像素按钮（2F / 1F / B1 / 外观），每个 ≥ 52×48；当前的反色。玩法模式下挪到动作键（右下角两颗，约 200 px 高）上面 */
+  .modesel { gap: 8px; }
+  .modesel .floor-btn { min-width: 56px; min-height: 48px; padding: 0 10px; font-size: 15px; touch-action: manipulation; }
+  .modesel .floor-btn.out { font-size: 13px; }
+  .modesel .floor-btn[aria-pressed="true"] { background: #fff3d6; color: #2c2450; }
+  body.play .modesel { bottom: calc(max(22px, calc(env(safe-area-inset-bottom) + 10px)) + 210px); }
+  /* 玩法模式：左下角是操作提示，白模的读数挪到顶上（像素、配色两个按钮中间下面一行） */
+  body.play #info { bottom: auto; top: max(70px, calc(env(safe-area-inset-top) + 62px)); left: 50%; transform: translateX(-50%); white-space: nowrap; }
   .lab.spot.in, .lab.door { background: rgba(200, 90, 20, 0.88); }
 </style>
 </head>

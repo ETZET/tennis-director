@@ -8,6 +8,8 @@ import '../clubsite/render/colors';
 import * as THREE from 'three';
 import { CLOUDS as CLAY_CLOUDS } from '../clubclay/layout';
 import { CLOUDS as DESK_CLOUDS } from '../clubdesk/layout';
+import { floorFor } from '../clubhouse/nav';
+import type { HouseRegion } from '../clubhouse/scene';
 import { buildMap } from '../clubmap2/build';
 import { PAL as MAP_PAL, type Pal as MapPal } from '../clubmap2/palette';
 import { placements } from '../clubmap2/scatter';
@@ -311,24 +313,51 @@ function buildRegion(L: Live) {
     }
   }
   // 导航
-  const nav = r.nav();
+  takeNav(L);
+  // 会所：开局是外观（走进门里切成剖面，见 step 里的 houseInside）
+  const house = asHouse(r);
+  house?.setInside(false);
+  // 会所三层、每层一张导航：换层（楼梯上过了 floorFor 的阈值、坐电梯）→ 重取这一层的导航，重建会所那块的世界网格
+  house?.onFloor(() => {
+    takeNav(L);
+    play?.nav.setBlocked(allBlocked(), grow(unionRect(L.def.rects), 1));
+  });
+  L.buildMs = performance.now() - t0;
+  console.info(`clubwalk: 建 ${L.def.id} ${L.buildMs.toFixed(0)} ms`);
+}
+
+/**
+ * 区域的导航 → 高度判断（oracle）+ 挡路的（只取中心在区域范围里的）。区域给了 surface（会所：按层的地面 + 这一层的楼梯）就用它，
+ * 代替 walkable + groundAt（RegionNav 的类型里没有 surface，按需读）。
+ */
+function takeNav(L: Live) {
+  const r = L.region as Region;
+  const nav = r.nav() as ReturnType<Region['nav']> & { surface?(x: number, z: number): number | null };
   L.navBounds = nav.bounds;
   L.oracle = new NavMap({
     groundAt: r.groundAt,
     bounds: nav.bounds,
     walkable: nav.walkable,
     ramps: nav.ramps,
+    surface: nav.surface,
     cell: 1000,
   });
   L.blocked = (nav.blocked ?? []).filter((s) => {
     const b = shapeBox(s);
-    return inRects(rects, (b.x0 + b.x1) / 2, (b.z0 + b.z1) / 2);
+    return inRects(L.def.rects, (b.x0 + b.x1) / 2, (b.z0 + b.z1) / 2);
   });
-  // 会所：开局是外观（走进门里切成剖面，见 step 里的 houseInside）
-  (r as { setInside?(on: boolean): void }).setInside?.(false);
-  L.buildMs = performance.now() - t0;
-  console.info(`clubwalk: 建 ${L.def.id} ${L.buildMs.toFixed(0)} ms`);
 }
+/** 会所的区域（有 setInside / setFloor / onFloor 的）；别的区域 = null */
+const asHouse = (r: Region | null | undefined): HouseRegion | null =>
+  r && 'onFloor' in r && 'setFloor' in r ? (r as HouseRegion) : null;
+const unionRect = (rs: readonly Rect[]): Rect =>
+  rs.reduce((a, r) => ({
+    x0: Math.min(a.x0, r.x0),
+    x1: Math.max(a.x1, r.x1),
+    z0: Math.min(a.z0, r.z0),
+    z1: Math.max(a.z1, r.z1),
+  }));
+const grow = (r: Rect, m: number): Rect => ({ x0: r.x0 - m, x1: r.x1 + m, z0: r.z0 - m, z1: r.z1 + m });
 
 function shapeBox(s: Shape): Rect {
   if ('x0' in s) return s;
@@ -737,13 +766,19 @@ function step(seconds: number) {
     placeSun(director.position.x, director.position.z);
     // 会所：总监进了门（会所的体块里）→ 剖面（娃娃屋），出门 → 外观
     {
-      const hr = lives.find((l) => l.def.id === 'clubhouse')?.region as { setInside?(on: boolean): void } | null;
+      const hr = asHouse(lives.find((l) => l.def.id === 'clubhouse')?.region);
       const p = director.position;
       const inHouse =
         p.x > CLUBHOUSE.x0 + 0.2 && p.x < CLUBHOUSE.x1 - 0.2 && p.z > CLUBHOUSE.z0 + 0.2 && p.z < CLUBHOUSE.z1 - 0.2;
-      if (hr?.setInside && inHouse !== houseInside) {
+      if (hr && inHouse !== houseInside) {
         houseInside = inHouse;
         hr.setInside(inHouse);
+      }
+      // 楼梯上换层：脚下高度过了阈值（floorFor 带滞回）→ 剖面和导航换成那一层（onFloor 的回调重建网格，见 buildRegion）。
+      // 两个平台、半跑在相邻两层的导航里都有，换过去的那一刻脚下站得住
+      if (hr && inHouse) {
+        const next = floorFor(hr.floor(), p.y);
+        if (next !== hr.floor()) hr.setFloor(next);
       }
     }
     unhideT -= DT;
