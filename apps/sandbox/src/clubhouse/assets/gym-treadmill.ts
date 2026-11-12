@@ -2,7 +2,8 @@
 // −z 是跑带的尾巴。0.81 × 1.32 × 1.8 米（9 × 15 × 20 纹素；规格 0.85 × 1.8，高按控制台）。跑带顶 y 0.28（人站在上面）。
 // 元素：跑带 = 深色橡胶，planks 每 4 纹素一道横棱（local，跟着物件）；两边的边条各 1 纹素亮边；
 // 控制台 = 俱乐部蓝的壳 + 一块亮青的小屏（俯视 45° 下看到的是台面，所以屏铺在台面上）；电机罩（前头的低盒子）也是俱乐部蓝。
-// 三角形 180（故障版：屏挪一格、红灯 + 4 段警示条 = 240）。userData：beltY = 0.28（跑的人脚下的高度）。
+// 三角形 180（故障版：屏挪一格、红灯 + 4 段警示条 = 240）。userData：beltY = 0.28（跑的人脚下的高度）；
+// setFault(on) 换成 / 换回故障版的样子（两种的网格都建了，只切 visible）、setPower(on) 屏和红灯亮不亮、fault()。
 // gym-treadmill-fault 用这里的 treadmill(ctx, true)：控制台上多一块发光的红灯 + 一条黄黑的警示条。
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
@@ -156,30 +157,61 @@ export function treadmill(ctx: AssetCtx, fault: boolean): THREE.Object3D {
   P.add('shellFace', slab(-HW, HW, CY0, CY1, Z1 - 0.02, Z1));
   const SZ0 = KZ0 + 0.02;
   const SZ1 = SZ0 + 2 * T;
-  if (!fault) P.add('screen', slab(-2.5 * T, 2.5 * T, CY1, CY1 + 0.02, SZ0, SZ1));
-  else {
-    // 屏往左挪一格；右边一块发光的红灯：3 × 2 纹素、立高 1.5 纹素（顶面和正面都红）
-    P.add('screen', slab(-4 * T, 0, CY1, CY1 + 0.02, SZ0, SZ1));
-    P.def('lamp', 'carRed', {
-      ramp: [0xff2a3a, 0xe82234, 0xa81a44],
-      emissive: 0x801410,
-      noShadowReceive: true,
-      edge: 0.3,
-      convex: 0.6,
-    });
-    P.add('lamp', slab(T, 4 * T, CY1, CY1 + 0.14, SZ0, SZ1));
-    // 警示条：台面前沿 + 朝镜头的正面一条黄黑相间（每段 2 纹素），一个盒子同时盖住台面和正面
-    P.def('hazY', 'straw', { ramp: [0xffd040, 0xf0a830, 0x9a6448], ...FACE, lightUp: 0.7 });
-    P.def('hazK', 'ironwork', { ramp: [0x40406a, 0x323258, 0x22223e], ...FACE, lightUp: 0.7 });
-    for (let i = 0; i < 4; i++) {
-      const x0 = -4 * T + i * 2 * T;
-      P.add(i % 2 ? 'hazK' : 'hazY', slab(x0, x0 + 2 * T, CY0 + 0.02, CY1 + 0.01, SZ1 + 0.02, Z1 + 0.01));
-    }
+  // 正常的屏和故障版的屏 / 红灯 / 警示条都建出来，setFault 切换（默认 = fault 参数；两种各自的样子和原来一样）
+  P.add('screen', slab(-2.5 * T, 2.5 * T, CY1, CY1 + 0.02, SZ0, SZ1));
+  // 屏往左挪一格；右边一块发光的红灯：3 × 2 纹素、立高 1.5 纹素（顶面和正面都红）
+  P.def('screenF', 'jug', {
+    ramp: [0x40d8f4, 0x20b4e4, 0x1a70c0],
+    emissive: 0x061418,
+    noShadowReceive: true,
+    edge: 0.3,
+    convex: 0.2,
+  });
+  P.add('screenF', slab(-4 * T, 0, CY1, CY1 + 0.02, SZ0, SZ1));
+  P.def('lamp', 'carRed', {
+    ramp: [0xff2a3a, 0xe82234, 0xa81a44],
+    emissive: 0x801410,
+    noShadowReceive: true,
+    edge: 0.3,
+    convex: 0.6,
+  });
+  P.add('lamp', slab(T, 4 * T, CY1, CY1 + 0.14, SZ0, SZ1));
+  // 警示条：台面前沿 + 朝镜头的正面一条黄黑相间（每段 2 纹素），一个盒子同时盖住台面和正面
+  P.def('hazY', 'straw', { ramp: [0xffd040, 0xf0a830, 0x9a6448], ...FACE, lightUp: 0.7 });
+  P.def('hazK', 'ironwork', { ramp: [0x40406a, 0x323258, 0x22223e], ...FACE, lightUp: 0.7 });
+  for (let i = 0; i < 4; i++) {
+    const x0 = -4 * T + i * 2 * T;
+    P.add(i % 2 ? 'hazK' : 'hazY', slab(x0, x0 + 2 * T, CY0 + 0.02, CY1 + 0.01, SZ1 + 0.02, Z1 + 0.01));
   }
 
   P.build(root);
   root.userData.beltY = BELT_Y;
   ctx.mats.prepare(root);
+  // 开关（stage 3）：setFault(on) 红灯 + 警示条；setPower(on) 屏亮不亮（跳闸时全灭，红灯也灭）
+  const part = (n: string) => root.getObjectByName(n);
+  let faulty = fault;
+  let power = true;
+  const sync = () => {
+    const show = (n: string, on: boolean) => {
+      const o = part(n);
+      if (o) o.visible = on;
+    };
+    show('screen', power && !faulty);
+    show('screenF', power && faulty);
+    show('lamp', power && faulty);
+    show('hazY', faulty);
+    show('hazK', faulty);
+  };
+  root.userData.setFault = (on: boolean) => {
+    faulty = on;
+    sync();
+  };
+  root.userData.setPower = (on: boolean) => {
+    power = on;
+    sync();
+  };
+  root.userData.fault = () => faulty;
+  sync();
   return root;
 }
 

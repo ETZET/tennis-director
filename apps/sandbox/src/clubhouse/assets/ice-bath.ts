@@ -4,6 +4,7 @@
 // v1 = 冰化了（信号 → 去制冰机再扛一桶来）：没有冰块，水深一截、偏蓝（L ≈ 133，和口沿差 < 60）。
 // 元素：水面 paint（大块的轻微深浅，冰水偏亮）；桶身 planks 竖着每 0.45 米一道焊缝。
 // 三角形 v0 194（底座 12 + 桶身 12 + 口沿 4 × 12 + 毛巾 12 + 水 2 + 冰块 9 × 12），v1 86。
+// userData：setMelted(on)（v0 ↔ v1 的样子互换，两种的网格都建了，只切 visible）、melted()。
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { AssetCtx } from '../ctx';
@@ -14,7 +15,11 @@ const box = (w: number, h: number, d: number, x: number, y: number, z: number) =
 
 export function build(ctx: AssetCtx): THREE.Object3D {
   const g = new THREE.Group();
-  const add = (gs: THREE.BufferGeometry[], m: THREE.Material) => g.add(new THREE.Mesh(mergeGeometries(gs), m));
+  const add = (gs: THREE.BufferGeometry[], m: THREE.Material) => {
+    const mesh = new THREE.Mesh(mergeGeometries(gs), m);
+    g.add(mesh);
+    return mesh;
+  };
   const melted = ctx.variant % 2 === 1;
   const W = 10 * T;
   const D = 17 * T;
@@ -74,19 +79,25 @@ export function build(ctx: AssetCtx): THREE.Object3D {
   );
   // 水面
   const water = new THREE.PlaneGeometry(W - 2 * T, D - 2 * T).rotateX(-Math.PI / 2).translate(0, WATER, 0);
-  add(
-    [water],
-    ctx.mat('jug', {
-      ramp: melted ? [0x2a8ec0, 0x22689e, 0x1e3678] : [0x38b4d4, 0x2a90c4, 0x2a5aa0],
-      tones: undefined,
-      edge: 0.05,
-      convex: 0,
-      noShadowReceive: true,
-      elem: { kind: 'paint', size: [6, 4], density: [0, 0], patch: 1.5, seed: 4 },
-      toneW: [0.3, 0.3],
-    }),
-  );
-  if (!melted) {
+  // 两种水面（冰水 / 化了）+ 冰块都建出来，setMelted 切换（默认 = 变体；两种各自的样子和原来一样）
+  const waterMesh = (m: boolean) =>
+    new THREE.Mesh(
+      water,
+      ctx.mat('jug', {
+        ramp: m ? [0x2a8ec0, 0x22689e, 0x1e3678] : [0x38b4d4, 0x2a90c4, 0x2a5aa0],
+        tones: undefined,
+        edge: 0.05,
+        convex: 0,
+        noShadowReceive: true,
+        elem: { kind: 'paint', size: [6, 4], density: [0, 0], patch: 1.5, seed: 4 },
+        toneW: [0.3, 0.3],
+      }),
+    );
+  const icedWater = waterMesh(false);
+  const meltedWater = waterMesh(true);
+  g.add(icedWater, meltedWater);
+  let cubesMesh: THREE.Object3D | null = null;
+  {
     const rnd = ctx.rng('ice-bath:cubes');
     const cubes: THREE.BufferGeometry[] = [];
     // 冰块：两列错开，2 纹素见方（1.5 纹素高，一半在水下）
@@ -107,7 +118,7 @@ export function build(ctx: AssetCtx): THREE.Object3D {
         new THREE.BoxGeometry(s, 1.5 * T, s).rotateY((rnd() - 0.5) * 1.2).translate(x * T, WATER + 0.3 * T, z * T),
       );
     }
-    add(
+    cubesMesh = add(
       cubes,
       ctx.mat('jug', {
         // 冰：浅青白（亮档 L ≈ 223，和水面差 < 60；凸边高光会被午后的描边染成奶油色 → 不要）
@@ -122,5 +133,15 @@ export function build(ctx: AssetCtx): THREE.Object3D {
     );
   }
   ctx.mats.prepare(g);
+  // 开关（stage 3）：setMelted(on) 冰化没化（默认 = 变体：v0 有冰、v1 化了）
+  let isMelted = melted;
+  g.userData.setMelted = (on: boolean) => {
+    isMelted = on;
+    icedWater.visible = !on;
+    meltedWater.visible = on;
+    if (cubesMesh) cubesMesh.visible = !on;
+  };
+  g.userData.melted = () => isMelted;
+  g.userData.setMelted(melted);
   return g;
 }

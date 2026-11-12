@@ -5,6 +5,7 @@
 //   东南角地上平躺两片（绿在下、黄在上，错开一点）。
 // 挂着的片正面：lightUp + 低 bands（中档的饱和色），不接投影；地上的片朝上 = 亮档。
 // 三角形：底座 + 立柱 + 两根桩 4 × 12 + 片 6 × 24（八角，只做看得见的那一面盖）= 192（预算 220）。
+// userData：setLoose(on)（默认 true = 上面说的样子；false = 地上两片挂回桩上）、loose()。
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { AssetCtx } from '../ctx';
@@ -20,7 +21,12 @@ export function build(ctx: AssetCtx): THREE.Object3D {
     green: ctx.mat('cactus', { ...face, ramp: [0x7cc450, 0x3ea058, 0x2e7a72], edge: 0.12, convex: 0.3 }),
   };
 
-  const parts = new Map<THREE.Material, THREE.BufferGeometry[]>();
+  // 三组：片树和挂着的（一直在）、地上丢着的（信号）、挂回去以后多出来的两片（setLoose(false) 才显示）
+  type Bucket = Map<THREE.Material, THREE.BufferGeometry[]>;
+  const base: Bucket = new Map();
+  const looseParts: Bucket = new Map();
+  const hungParts: Bucket = new Map();
+  let parts = base;
   const add = (m: THREE.Material, g: THREE.BufferGeometry) => {
     const list = parts.get(m) ?? [];
     list.push(g);
@@ -78,11 +84,35 @@ export function build(ctx: AssetCtx): THREE.Object3D {
     });
   }
   // 地上丢着的两片：绿在下、黄在上（错开）
+  parts = looseParts;
   lie(plates.green, 0.21, 0.07, 0.19, 0, 0.19);
   lie(plates.yellow, 0.17, 0.07, 0.15, 0.07, 0.23);
+  // 挂回去：绿的挂到下桩最外面、黄的挂到上桩最外面（桩各接长一片的厚度）
+  parts = hungParts;
+  pegs.forEach(([y, list], k) => {
+    const z0 = zf + list.length * t;
+    box(steel, 1.5 * T, 1.5 * T, t + T, CX, y - 0.75 * T, z0 + (t + T) / 2);
+    if (k === 0) hang(plates.green, 0.21, t - 0.005, CX, y, z0);
+    else hang(plates.yellow, 0.17, t - 0.005, CX, y, z0);
+  });
+  parts = base;
 
   const root = new THREE.Group();
-  for (const [m, gs] of parts) root.add(new THREE.Mesh(mergeGeometries(gs), m));
+  const fill = (to: THREE.Object3D, b: Bucket) => {
+    for (const [m, gs] of b) to.add(new THREE.Mesh(mergeGeometries(gs), m));
+    return to;
+  };
+  fill(root, base);
+  const looseG = fill(new THREE.Group(), looseParts);
+  const hungG = fill(new THREE.Group(), hungParts);
+  root.add(looseG, hungG);
   ctx.mats.prepare(root);
+  // 开关（stage 3）：setLoose(true) = 两片丢在地上（默认，原来的样子）；false = 挂回桩上
+  root.userData.setLoose = (on: boolean) => {
+    looseG.visible = on;
+    hungG.visible = !on;
+  };
+  root.userData.loose = () => looseG.visible;
+  root.userData.setLoose(true);
   return root;
 }

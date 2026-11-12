@@ -1,7 +1,8 @@
 // B1 前台大厅的饮水机（#136）：0.45 × 1.27 × 0.54 米 = 5 × 14 × 6 纹素（接水盘凸出 1 纹素）。
 // 元素：白色机身（踢脚 1 行深靛）+ 正面会所蓝的柜门 + 出水面板（暗的出水凹槽、红 / 蓝两个龙头、接水盘）；
 // 顶上倒扣的大水桶：几乎空了（信号 → 去储藏扛一桶）—— 桶身是很浅的淡蓝，只有底下一条细细的水线（隔着桶壁看见的一行深一点的蓝），
-// 桶颈、桶口压在机身顶上。竖直方向按屏幕行排（1 行 = 1.414 纹素）。三角形 118（预算 150）。没有 userData。
+// 桶颈、桶口压在机身顶上。竖直方向按屏幕行排（1 行 = 1.414 纹素）。三角形 118（预算 150）。
+// userData：setLevel(k)（桶里的水：0 = 快空了，默认 / 1 = 半桶 / 2 = 满）、level()。
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { AssetCtx } from '../ctx';
@@ -74,10 +75,36 @@ export function build(ctx: AssetCtx): THREE.Object3D {
 
   const root = new THREE.Group();
   root.name = 'gym-water';
-  for (const [m, gs] of bins) {
-    const list = gs.some((g) => !g.index) ? gs.map((g) => (g.index ? g.toNonIndexed() : g)) : gs;
-    root.add(new THREE.Mesh(list.length > 1 ? mergeGeometries(list) : list[0], m));
-  }
+  const fill = (to: THREE.Object3D) => {
+    for (const [m, gs] of bins) {
+      const list = gs.some((g) => !g.index) ? gs.map((g) => (g.index ? g.toNonIndexed() : g)) : gs;
+      to.add(new THREE.Mesh(list.length > 1 ? mergeGeometries(list) : list[0], m));
+    }
+    bins.clear();
+    return to;
+  };
+  // 机身 + 桶颈 + 桶底那一行水（一直在）+ 空桶身（水位 0，默认）
+  fill(root);
+  const emptyG = root.children.find((c) => (c as THREE.Mesh).material === jug) ?? null;
+  // 水位 1（半桶）：下面两行水 + 上面一行空；水位 2（满）：三行都是水，桶顶一块水色的盖
+  const waterTop = ctx.mat('water', { ramp: [0x7adcec, 0x4ab4d8, 0x2e5c92], noShadowReceive: true, convex: 0.2 });
+  cyl(water, 2.4, R, 8, Y0 + 2 * R, true);
+  cyl(jug, 2.4, R, 8, Y0 + 3 * R);
+  const halfG = fill(new THREE.Group());
+  cyl(water, 2.4, 2 * R, 8, Y0 + 2 * R, true);
+  put(waterTop, new THREE.CircleGeometry(2.4 * T, 8).rotateX(-Math.PI / 2).translate(0, (Y0 + 4 * R) * T, 0));
+  const fullG = fill(new THREE.Group());
+  root.add(halfG, fullG);
   ctx.mats.prepare(root);
+  // 开关（stage 3）：setLevel(k) 桶里的水 0 = 快空了（默认，原来的样子）/ 1 = 半桶 / 2 = 满
+  let level = 0;
+  root.userData.setLevel = (k: number) => {
+    level = Math.max(0, Math.min(2, Math.round(k)));
+    if (emptyG) emptyG.visible = level === 0;
+    halfG.visible = level === 1;
+    fullG.visible = level === 2;
+  };
+  root.userData.level = () => level;
+  root.userData.setLevel(0);
   return root;
 }

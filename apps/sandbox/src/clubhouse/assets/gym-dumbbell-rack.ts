@@ -6,6 +6,7 @@
 //   架上空着 3 个槽（上层一只黄，下层一只红、一只蓝），那 3 只躺在架前地上（柄沿 x，哑铃的样子一眼认出）。
 // 铃头朝镜头的面：lightUp + 低 bands（中档的饱和色），不接投影；托盘、侧板接投影。
 // 三角形：架子 5 + 柄条 2 + 架上哑铃 9 + 地上 3 × 3 = 25 个方块 × 12 = 300（预算 350）。
+// userData：setLoose(on)（默认 true = 上面说的样子；false = 地上的 3 只回到空槽里）、loose()。
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { AssetCtx } from '../ctx';
@@ -23,7 +24,12 @@ export function build(ctx: AssetCtx): THREE.Object3D {
   };
   type Col = keyof typeof heads;
 
-  const parts = new Map<THREE.Material, THREE.BufferGeometry[]>();
+  // 三组：架子和架上的（一直在）、地上散着的（信号）、拣回架子以后补在空槽里的（setLoose(false) 才显示）
+  type Bucket = Map<THREE.Material, THREE.BufferGeometry[]>;
+  const base: Bucket = new Map();
+  const looseParts: Bucket = new Map();
+  const rackedParts: Bucket = new Map();
+  let parts = base;
   const add = (m: THREE.Material, g: THREE.BufferGeometry) => {
     const list = parts.get(m) ?? [];
     list.push(g);
@@ -63,8 +69,9 @@ export function build(ctx: AssetCtx): THREE.Object3D {
     t.cols.forEach((c, pair) => {
       for (const k of [0, 1]) {
         const slot = pair * 2 + k;
-        if (t.gaps.includes(slot)) continue;
+        parts = t.gaps.includes(slot) ? rackedParts : base;
         box(heads[c], HW, HW, DL, slotX(slot), t.y + TT, zc);
+        parts = base;
       }
     });
   }
@@ -74,6 +81,7 @@ export function build(ctx: AssetCtx): THREE.Object3D {
     ['yellow', 0.05, 0.26, 0],
     ['blue', 0.85, 0.19, -0.06],
   ];
+  parts = looseParts;
   for (const [c, x, z, rot] of loose) {
     const hl = 1.6 * T;
     const off = (HW + hl) / 2;
@@ -85,7 +93,21 @@ export function build(ctx: AssetCtx): THREE.Object3D {
   }
 
   const root = new THREE.Group();
-  for (const [m, gs] of parts) root.add(new THREE.Mesh(mergeGeometries(gs), m));
+  const fill = (to: THREE.Object3D, b: Bucket) => {
+    for (const [m, gs] of b) to.add(new THREE.Mesh(mergeGeometries(gs), m));
+    return to;
+  };
+  fill(root, base);
+  const looseG = fill(new THREE.Group(), looseParts);
+  const rackedG = fill(new THREE.Group(), rackedParts);
+  root.add(looseG, rackedG);
   ctx.mats.prepare(root);
+  // 开关（stage 3）：setLoose(true) = 3 只散在地上、架上空 3 个槽（默认，原来的样子）；false = 拣回去了
+  root.userData.setLoose = (on: boolean) => {
+    looseG.visible = on;
+    rackedG.visible = !on;
+  };
+  root.userData.loose = () => looseG.visible;
+  root.userData.setLoose(true);
   return root;
 }

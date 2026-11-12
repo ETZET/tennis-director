@@ -2,7 +2,8 @@
 // 元素：会所青绿的台身（竖向面板，planks 每 6 纹素一道缝）+ 1 行深靛的踢脚 + 柠檬黄的人造石台面（前沿出 1 纹素）；
 // 台身正面一块亮着的灯箱（不写字：青色球拍 + 荧光球的像素图标）；台面西头一摞叠好的毛巾（青、白、青）；
 // 东头地上一只蓝色脏毛巾筐，冒尖 + 一条挂出筐沿的毛巾 = 信号（→ 去洗衣房推干净的来）。
-// 竖直方向按屏幕行排（1 行 = 1.414 纹素）。三角形 208（预算 350）。没有 userData。
+// 竖直方向按屏幕行排（1 行 = 1.414 纹素）。三角形 208（预算 350）。
+// userData：setStack(n)（台面上的干净毛巾 0…3，默认 3）、setBin(full)（脏毛巾筐冒尖，默认 true）、stack()、binFull()。
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { blobNormals, type Tones } from '../../clubsite/render/toon';
@@ -17,7 +18,12 @@ export function build(ctx: AssetCtx): THREE.Object3D {
   const T = ctx.texel;
   /** 竖面上的 1 屏幕行（纹素）：俯角 45° 时竖直 1 纹素 = 0.707 行 */
   const R = Math.SQRT2;
-  const bins = new Map<THREE.Material, THREE.BufferGeometry[]>();
+  // 分组：台子（一直在）、台面上的三条干净毛巾（各一组）、冒尖的脏毛巾（一组）—— stage 3 的开关切 visible
+  type Bucket = Map<THREE.Material, THREE.BufferGeometry[]>;
+  const baseBin: Bucket = new Map();
+  const towelBins: Bucket[] = [new Map(), new Map(), new Map()];
+  const dirtyBin: Bucket = new Map();
+  let bins = baseBin;
   const put = (m: THREE.Material, g: THREE.BufferGeometry) => {
     const a = bins.get(m);
     if (a) a.push(g);
@@ -96,13 +102,18 @@ export function build(ctx: AssetCtx): THREE.Object3D {
   px(ball, 8, 1, 2);
 
   // ── 台面西头：一摞叠好的毛巾（3 条，每条 6 纹素宽 × 1 行 × 4 纹素深：会所青、白、会所青）──
-  for (let i = 0; i < 3; i++) box(i === 1 ? towel : stripe, 6, R, 4, -15 + (i === 1 ? 1 : 0), (9 + i) * R, -0.5);
+  for (let i = 0; i < 3; i++) {
+    bins = towelBins[i];
+    box(i === 1 ? towel : stripe, 6, R, 4, -15 + (i === 1 ? 1 : 0), (9 + i) * R, -0.5);
+  }
+  bins = baseBin;
 
   // ── 东头地上：脏毛巾筐（6 × 7 × 6，沿 7 × 1 × 7）+ 冒尖的一堆 + 挂出前沿的一条 ──
   const KX = 15.5;
   box(bin, 6, 5 * R, 6, KX, 0, 0);
   box(bin, 7, R, 7, KX, 5 * R, 0);
   box(binIn, 5, 1, 5, KX, 6 * R - 0.8, 0);
+  bins = dirtyBin;
   lump(dirty, 2.8, 1.2, 0.85, 1.1, KX - 1, 6 * R + 0.6, 0.4);
   lump(grey, 2.4, 1.2, 0.9, 1.1, KX + 1.5, 6 * R + 1, -0.8);
   lump(dirty, 2.0, 1.1, 1.0, 1.0, KX + 0.2, 6 * R + 2.8, -0.6);
@@ -110,10 +121,28 @@ export function build(ctx: AssetCtx): THREE.Object3D {
 
   const root = new THREE.Group();
   root.name = 'gym-desk';
-  for (const [m, gs] of bins) {
-    const list = gs.some((g) => !g.index) ? gs.map((g) => (g.index ? g.toNonIndexed() : g)) : gs;
-    root.add(new THREE.Mesh(list.length > 1 ? mergeGeometries(list) : list[0], m));
-  }
+  const fill = (to: THREE.Object3D, b: Bucket) => {
+    for (const [m, gs] of b) {
+      const list = gs.some((g) => !g.index) ? gs.map((g) => (g.index ? g.toNonIndexed() : g)) : gs;
+      to.add(new THREE.Mesh(list.length > 1 ? mergeGeometries(list) : list[0], m));
+    }
+    return to;
+  };
+  fill(root, baseBin);
+  const stack = towelBins.map((b) => fill(new THREE.Group(), b));
+  const dirtyG = fill(new THREE.Group(), dirtyBin);
+  root.add(...stack, dirtyG);
   ctx.mats.prepare(root);
+  // 开关（stage 3）：setStack(n) 台面上还剩几条干净毛巾（0…3，默认 3）；setBin(full) 脏毛巾筐冒不冒尖（默认 true）
+  root.userData.setStack = (n: number) => {
+    stack.forEach((g, i) => {
+      g.visible = i < n;
+    });
+  };
+  root.userData.setBin = (full: boolean) => {
+    dirtyG.visible = full;
+  };
+  root.userData.stack = () => stack.filter((g) => g.visible).length;
+  root.userData.binFull = () => dirtyG.visible;
   return root;
 }

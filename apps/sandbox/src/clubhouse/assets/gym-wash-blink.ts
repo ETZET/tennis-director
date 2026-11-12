@@ -1,7 +1,7 @@
 // B1 洗衣房：烘干机上挂的闪灯小面板（#151，"洗完了"的信号）：0.54 × 0.38 × 0.09 米 = 6 × 3 行 × 1 纹素。
 // 场景里挂在东头那台烘干机的正面上半截（y 0.75…1.13）。元素：深靛的小外壳（顶上露 1 行）+ 正面下两行黄色面板（亮档）+ 面板上面那行一盏 4 纹素 × 1 行的灯：
 // 灭的时候是暗琥珀色，亮的时候换成近白的亮黄，面板整块提亮一档（光晕，6 × 2 行）。
-// userData.update(dt, t)：每秒闪一次（亮 0.5 秒、灭 0.5 秒），只切换"亮"那一组网格的 visible。
+// userData.update(dt, t)：每秒闪一次（亮 0.5 秒、灭 0.5 秒），只切换"亮"那一组网格的 visible。setActive(on)：false = 不闪（灭着），默认 true。
 // 三角形 16（亮的时候 20；预算 40）。
 import * as THREE from 'three';
 import type { AssetCtx } from '../ctx';
@@ -41,8 +41,15 @@ export function build(ctx: AssetCtx): THREE.Object3D {
   root.traverse((o) => {
     o.castShadow = false;
   });
+  // 开关（stage 3）：setActive(false) = 没有洗完的衣服，灯灭着不闪（默认 true = 一直闪）
+  let active = true;
   root.userData.update = (_dt: number, t: number) => {
-    on.visible = Math.floor(t * 2) % 2 === 0;
+    on.visible = active && Math.floor(t * 2) % 2 === 0;
   };
+  root.userData.setActive = (a: boolean) => {
+    active = a;
+    if (!a) on.visible = false;
+  };
+  root.userData.active = () => active;
   return root;
 }

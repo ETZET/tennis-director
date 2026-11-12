@@ -1,7 +1,8 @@
 // B1 机房的配电柜（#155）：1.17 × 2.42 × 0.41 米 = 13 × 27 × 4.5 纹素（柜体 2.04 米 + 柜顶进线管），朝南（+z 对镜头），背贴墙。
 // 元素：冷灰的柜体（踢脚 1 行深靛）+ 正面一块深靛的开关面板（3 排断路器，每排 4 个 1 纹素的浅灰拨杆）——
 // 中间那排第 3 个是跳闸的：红色、拨在下半行（信号 → 按住合闸）；面板上面一块黄色的警示牌（闪电三角，不写字）、
-// 右沿一个门把手；柜顶两根进线管往上走。竖直方向按屏幕行排（1 行 = 1.414 纹素）。三角形 92（预算 150）。没有 userData。
+// 右沿一个门把手；柜顶两根进线管往上走。竖直方向按屏幕行排（1 行 = 1.414 纹素）。三角形 92（预算 150）。
+// userData：setTripped(on)（默认 true = 上面说的样子；false = 那根拨杆合回去）、tripped()。
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { AssetCtx } from '../ctx';
@@ -30,6 +31,8 @@ export function build(ctx: AssetCtx): THREE.Object3D {
   // 开关面板：深靛（L ≈ 90）；拨杆浅灰（L ≈ 145，和面板只差 ≈ 55）
   const board = ctx.mat('ironwork', { ...FACE, ramp: [0x6a78c0, 0x5462b4, 0x2a2e66], edge: 0.1 });
   const lever = ctx.mat('ironwork', { ...FACE, ramp: [0xb0c0ec, 0x8a9ad4, 0x5a6490], edge: 0.1 });
+  // 合上闸以后那根拨杆（和别的拨杆一个颜色，单独一种材质 = 单独一个网格）
+  const reset = ctx.mat('ironwork', { ...FACE, ramp: [0xb0c0ec, 0x8a9ad4, 0x5a6490], edge: 0.1 });
   const trip = ctx.mat('clothRed', { ...BRIGHT, ramp: [0xff5a3c, 0xe8402e, 0x7a2a4a], edge: 0.1 });
   const warn = ctx.mat('flowerYellow', { ...BRIGHT, edge: 0.1 });
   const bolt = ctx.mat('ironwork', { ...BRIGHT, ramp: [0x4a4a7a, 0x3a3a66, 0x262448], edge: 0.1 });
@@ -47,8 +50,9 @@ export function build(ctx: AssetCtx): THREE.Object3D {
     const y = (4 + row * 2) * R;
     for (let k = 0; k < 4; k++) {
       const tripped = row === 1 && k === 2;
-      // 拨杆 1 纹素 × 1 行；跳闸的那个拨到下面一行
+      // 拨杆 1 纹素 × 1 行；跳闸的那个拨到下面一行（合上闸的样子另建一片，setTripped 切换）
       decal(tripped ? trip : lever, 1, R, X0 + 1 + k * 2, tripped ? y - R : y, zf, 0.001);
+      if (tripped) decal(reset, 1, R, X0 + 1 + k * 2, y, zf, 0.001);
     }
   }
   // 警示牌：黄色 5 × 2 行（行 11…13），中间一道斜的闪电（两段错开的暗块）
@@ -60,7 +64,23 @@ export function build(ctx: AssetCtx): THREE.Object3D {
 
   const root = new THREE.Group();
   root.name = 'gym-panel';
-  for (const [m, gs] of bins) root.add(new THREE.Mesh(gs.length > 1 ? mergeGeometries(gs) : gs[0], m));
+  let tripMesh: THREE.Object3D | null = null;
+  let resetMesh: THREE.Object3D | null = null;
+  for (const [m, gs] of bins) {
+    const mesh = new THREE.Mesh(gs.length > 1 ? mergeGeometries(gs) : gs[0], m);
+    if (m === trip) tripMesh = mesh;
+    if (m === reset) resetMesh = mesh;
+    root.add(mesh);
+  }
   ctx.mats.prepare(root);
+  // 开关（stage 3）：setTripped(on) 中间那排第 3 个拨杆跳没跳闸（默认 true = 原来的样子）
+  let tripped = true;
+  root.userData.setTripped = (on: boolean) => {
+    tripped = on;
+    if (tripMesh) tripMesh.visible = on;
+    if (resetMesh) resetMesh.visible = !on;
+  };
+  root.userData.tripped = () => tripped;
+  root.userData.setTripped(true);
   return root;
 }

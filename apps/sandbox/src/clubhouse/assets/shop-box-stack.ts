@@ -2,7 +2,9 @@
 // 元素：一块木托盘（1 行，正面是暗的叉孔带 + 两块亮的垫木），上面两层半的瓦楞纸箱（5 只，大小不一、往后错开，
 // 三种牛皮纸色），每只箱子顶面一条封箱带（1 纹素，顺着 z，翻过前沿往下 1 行），正面贴一张彩色的面单（红 / 蓝 / 绿 / 黄，3 纹素 × 1 行）。
 // 箱子只画看得见的两片（正面 + 顶面），都不接投影；下面那只大箱是旧的深牛皮纸（暗的那一份）。
-// 三角形 ≈ 80（预算 200）。没有 userData。
+// 三角形 ≈ 80（预算 200）。
+// userData.setLevel(n)：垛上留几只箱子（0…5，默认 5 = 原样；stage 3：总监搬走一只少一只、送货的送来一只多一只）。
+//   先拿最上面的：E → C → D → B → A。userData.level() = 现在几只。每只箱子自己一组网格（托盘一组）。
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { AssetCtx } from '../ctx';
@@ -13,7 +15,17 @@ type C3 = [number, number, number];
 export function build(ctx: AssetCtx): THREE.Object3D {
   const T = ctx.texel;
   const R = Math.SQRT2;
-  const bins = new Map<THREE.Material, THREE.BufferGeometry[]>();
+  let bins = new Map<THREE.Material, THREE.BufferGeometry[]>();
+  const root = new THREE.Group();
+  root.name = 'shop-box-stack';
+  /** 把攒下的几何体按材质合并成一组（托盘、每只箱子各一组） */
+  const flush = () => {
+    const g = new THREE.Group();
+    for (const [m, gs] of bins) g.add(new THREE.Mesh(gs.length > 1 ? mergeGeometries(gs) : gs[0], m));
+    bins = new Map();
+    root.add(g);
+    return g;
+  };
   const put = (m: THREE.Material, g: THREE.BufferGeometry) => {
     const a = bins.get(m);
     if (a) a.push(g);
@@ -47,6 +59,7 @@ export function build(ctx: AssetCtx): THREE.Object3D {
   // ── 托盘：15 × 1 行 × 11；正面暗的叉孔带，两头和中间三块亮的垫木（3 纹素宽）──
   box(pallet, 15, R, 11, 0, 0, 0);
   for (const x of [-6, 0, 6]) front(block, 3, R, x, 0, 5.52);
+  flush();
 
   // ── 箱子：[材质, 宽, 高（行）, 深, x, 底（行）, z, 面单] ──
   const boxes: [THREE.Material, number, number, number, number, number, number, number][] = [
@@ -56,6 +69,7 @@ export function build(ctx: AssetCtx): THREE.Object3D {
     [kraft, 5, 2, 5, 4.5, 4, 0.5, 1], // D：压在 B 上
     [kraft, 5, 2, 5, -3, 8, -1.5, 2], // E：最上面
   ];
+  const groups: THREE.Group[] = [];
   for (const [m, w, h, d, x, r0, z, li] of boxes) {
     const y = r0 * R;
     const H = h * R;
@@ -67,11 +81,19 @@ export function build(ctx: AssetCtx): THREE.Object3D {
     front(tape, 1, R, x, y + H - R, zf + 0.02);
     // 面单：正面最下面一行、靠左（3 × 1 行）
     front(label[li], 3, R, x - w / 2 + 2.5, y, zf + 0.02);
+    groups.push(flush());
   }
 
-  const root = new THREE.Group();
-  root.name = 'shop-box-stack';
-  for (const [m, gs] of bins) root.add(new THREE.Mesh(gs.length > 1 ? mergeGeometries(gs) : gs[0], m));
+  // 留几只：按 A、B、D、C、E 的顺序留（上面的先拿走）
+  const order = [0, 1, 3, 2, 4].map((i) => groups[i]);
+  let level = order.length;
+  root.userData.setLevel = (n: number) => {
+    level = Math.max(0, Math.min(order.length, Math.round(n)));
+    order.forEach((g, i) => {
+      g.visible = i < level;
+    });
+  };
+  root.userData.level = () => level;
   ctx.mats.prepare(root);
   return root;
 }

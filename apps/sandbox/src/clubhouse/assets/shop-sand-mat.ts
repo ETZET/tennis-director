@@ -2,7 +2,8 @@
 // 南门（钟楼南墙，门口 x −47.6）在垫子的南边（+z）、偏西 0.35 米。
 // 元素：蓝的垫子（一圈 1 行 / 1 纹素的深靛边）+ 里面横着的三条浅蓝条纹（每条 1 屏幕行 = √2 纹素深；横纹在屏幕上是水平的，不出强边缘）；
 // 南半边靠门那头一堆沙（低的六棱锥，高 0.16 米：背坡亮、朝镜头的坡中档）+ 两小团踢散的沙。平铺在地上，接投影，几乎不描边。
-// 三角形 36（预算 40）。没有 userData。
+// 三角形 36（预算 40）。
+// userData.setSignal(on)：垫子上有没有沙（默认 true = 原样；stage 3：总监抖过垫子 = false，只剩干净的垫子）。
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { AssetCtx } from '../ctx';
@@ -45,7 +46,15 @@ export function build(ctx: AssetCtx): THREE.Object3D {
 
   const root = new THREE.Group();
   root.name = 'shop-sand-mat';
-  for (const [m, gs] of bins) root.add(new THREE.Mesh(gs.length > 1 ? mergeGeometries(gs) : gs[0], m));
+  const sandy: THREE.Mesh[] = [];
+  for (const [m, gs] of bins) {
+    const mesh = new THREE.Mesh(gs.length > 1 ? mergeGeometries(gs) : gs[0], m);
+    if (m === sand || m === heap) sandy.push(mesh);
+    root.add(mesh);
+  }
+  root.userData.setSignal = (on: boolean) => {
+    for (const mesh of sandy) mesh.visible = on;
+  };
   ctx.mats.prepare(root, { cast: false, receive: true });
   return root;
 }
