@@ -3,7 +3,8 @@
 // 底图 = clubmap2 的整张低细节地图（地面、山、天、步道、建筑、植物），一直在；细节场景按区域（regions.ts）走近了才建，
 // 建好的区域把底图上自己那块藏掉；离开画面的区域藏起来、停演出、撤掉互动点（建过的留着）。
 // URL：px（默认 1）、zoom、pause=1、warm=秒、at=x,z（开局站哪）、walk=x,z（开局点地面走过去）、
-//      route=x,z;x,z;…（依次走过去，截图用）、pal、seed、life=0、clouds=0、eager=1（开局就把所有区域建好）、perf=1（左下角性能）。
+//      route=x,z;x,z;…（依次走过去，截图用）、pal、seed、life=0、clouds=0、eager=1（开局就把所有区域建好）、perf=1（左下角性能）、
+//      smooth=0（关掉渲染插值和帧间隔贴齐）、prebuild=0（关掉站着时的预建），对照用。
 import '../clubsite/render/colors';
 import * as THREE from 'three';
 import { CLOUDS as CLAY_CLOUDS } from '../clubclay/layout';
@@ -26,6 +27,7 @@ import {
   type Ramp,
   type Shape,
 } from '../clubsite/play';
+import { snapDelta, ViewLerp } from '../clubsite/play/smooth';
 import type { Region, RegionJobs } from '../clubsite/region';
 import type { AssetCtx, BaseCtx, SharedUniforms } from '../clubsite/render/ctx';
 import { rngFactory } from '../clubsite/render/noise';
@@ -227,7 +229,15 @@ const ownerOf = (x: number, z: number): RegionDef | null => REGIONS.find((d) => 
     const d = ownerOf(p.x, p.z);
     (d ? base.by.get(d.id) : base.rest)?.add(o);
   }
+  // 底图是静的（没有演出、风摆在着色器里）：世界矩阵算一次就冻住，每帧的 updateMatrixWorld 跳过这整片（≈ 1500 个物体）
+  for (const g of [base.rest, ...base.by.values()]) freezeMatrices(g);
   console.info(`clubwalk: 底图 ${(performance.now() - t0).toFixed(0)} ms`);
+}
+
+/** 静的一整片：世界矩阵算好，以后 scene.updateMatrixWorld 整片跳过（要再动它得先把 matrixWorldAutoUpdate 设回 true） */
+function freezeMatrices(g: THREE.Object3D) {
+  g.updateMatrixWorld(true);
+  g.matrixWorldAutoUpdate = false;
 }
 
 // ── 总监：唯一的一个（clubsite/people 的 director，用停车场的调色建） ──
@@ -258,12 +268,17 @@ interface Live {
   /** 一开始在范围外藏起来的摆件（演出把它们挪进来以后再显示） */
   hidden: { obj: THREE.Object3D; p: THREE.Vector3 }[];
   buildMs: number;
+  /** 着色器预编完了（pipe.prewarm） */
+  warm: boolean;
+  /** 画过了（调试日志用） */
+  drawn: boolean;
   scoped: Scoped | null;
 }
 const lives: Live[] = REGIONS.map((def) => {
   const root = new THREE.Group();
   root.name = `region:${def.id}`;
   root.visible = false;
+  root.matrixWorldAutoUpdate = false;
   scene.add(root);
   return {
     def,
@@ -279,6 +294,8 @@ const lives: Live[] = REGIONS.map((def) => {
     idle: 0,
     hidden: [],
     buildMs: 0,
+    warm: false,
+    drawn: false,
     scoped: null,
   };
 });
@@ -343,7 +360,17 @@ function buildRegion(L: Live) {
   // 会所：开局是外观（走进门里切成剖面，见 step 里的 houseInside）
   (r as { setInside?(on: boolean): void }).setInside?.(false);
   L.buildMs = performance.now() - t0;
-  console.info(`clubwalk: 建 ${L.def.id} ${L.buildMs.toFixed(0)} ms`);
+  // 着色器先编（颜色 / 法线 / 投影三套）：离进画面还有 WANT_MARGIN 那么远，异步编完再画就不卡
+  const t1 = performance.now();
+  const p0 = pipe.renderer.info.programs?.length ?? 0;
+  void pipe.prewarm(L.root, scene).then(() => {
+    L.warm = true;
+    console.info(`clubwalk: 预编完 ${L.def.id} ${(performance.now() - t1).toFixed(0)} ms`);
+  });
+  const p1 = pipe.renderer.info.programs?.length ?? 0;
+  console.info(
+    `clubwalk: 建 ${L.def.id} ${L.buildMs.toFixed(0)} ms（预编 ${p1 - p0} 个程序，提交 ${(performance.now() - t1).toFixed(0)} ms）`,
+  );
 }
 
 // ── 世界导航：每个点归哪个区域（建好的用区域自己的，没建的、区域外的用底图的粗规则） ──
@@ -527,6 +554,8 @@ const wanted = (L: Live, v: Rect) => L.def.rects.some((r) => rectDist(r, v) === 
 function setVisible(L: Live, on: boolean) {
   L.visible = on;
   L.root.visible = on;
+  // 藏起来的区域不演、不画：每帧的世界矩阵也不用算（显示回来那一帧照常算）
+  L.root.matrixWorldAutoUpdate = on;
   const b = base.by.get(L.def.id);
   if (b) b.visible = !on;
   if (play && L.region) {
@@ -535,7 +564,9 @@ function setVisible(L: Live, on: boolean) {
       L.scoped = scopePlay(play, L.def.id);
       // 有的场景开局把工具塞到总监手里（会员场的吹叶机、中心球场的…）：大世界里放回它该在的地方，手里原来的还给他
       const before = play.held();
+      const ta = performance.now();
       L.jobs = L.region.attach(L.scoped.play);
+      console.info(`clubwalk: 接入 ${L.def.id} ${(performance.now() - ta).toFixed(0)} ms`);
       const now = play.held();
       if (now && now !== before) {
         const it = play.take();
@@ -549,11 +580,25 @@ function setVisible(L: Live, on: boolean) {
   }
 }
 
-/** 一帧最多建一个（建一个 0.1～0.5 秒） */
+/** 总监站着不动多久（秒）以后开始预建：建一个区域主线程要卡 0.1～0.5 秒，站着的时候卡，比走着的时候卡看不出来 */
+const PREBUILD_IDLE = 0.4;
+/** prebuild=0 关掉预建（对照用） */
+const PREBUILD = params.get('prebuild') !== '0';
+/** 预建两个区域之间至少隔多久（秒）：让中间的帧把画面、编着色器跟上 */
+const PREBUILD_GAP = 0.3;
+let stillT = 0;
+let sinceBuild = 0;
+/** 这一帧建过区域（主线程卡了一下）：下一帧不追时间，免得卡完总监和镜头一下跳一大截 */
+let hitched = false;
+
+/** 一帧最多建一个（建一个 0.1～0.5 秒）。要用的（画面 + WANT_MARGIN 碰到的）马上建；站着不动时按远近预建别的 */
 function stream(dt: number, force = false) {
   const v = viewRect(WANT_MARGIN);
   let built = false;
   const fresh: Live[] = [];
+  const moving = !!play && (play.state().speed > 0.05 || play.pathLeft() > 0);
+  stillT = moving ? 0 : stillT + dt;
+  sinceBuild += dt;
   for (const L of lives) {
     const want = wanted(L, v);
     if (want && !L.region) {
@@ -573,11 +618,40 @@ function stream(dt: number, force = false) {
       if (L.idle > HIDE_AFTER) setVisible(L, false);
     }
   }
+  // 预建：这一帧没建、总监站定了一会儿、离上次建隔够了 → 建离画面最近的一个没建的（建好先藏着，走近了直接显示）
+  if (!built && !force && PREBUILD && stillT > PREBUILD_IDLE && sinceBuild > PREBUILD_GAP) {
+    let best: Live | null = null;
+    let bestD = Number.POSITIVE_INFINITY;
+    const vNow = viewRect(0);
+    for (const L of lives) {
+      if (L.region) continue;
+      const d = Math.min(...L.def.rects.map((r) => rectDist(r, vNow)));
+      if (d < bestD) {
+        bestD = d;
+        best = L;
+      }
+    }
+    if (best) {
+      buildRegion(best);
+      built = true;
+      fresh.push(best);
+    }
+  }
+  if (built) {
+    sinceBuild = 0;
+    hitched = true;
+  }
   // 画（显示）只画画面附近的（+ RENDER_MARGIN，北边的影子落进画面）；演出、互动点在更大的 WANT_MARGIN 里照跑
   const vr = viewRect(RENDER_MARGIN);
+  const v0 = viewRect(0);
   for (const L of lives) {
-    const show = L.visible && wanted(L, vr);
+    // 着色器还没编完（pipe.prewarm）：画面外那圈余量里先不画（底图那块顶着），等编完；真进了画面就不等了（照旧当场等编译）
+    const show = L.visible && wanted(L, vr) && (L.warm || wanted(L, v0));
     if (L.root.visible !== show) {
+      if (show && !L.drawn) {
+        L.drawn = true;
+        if (!L.warm) console.info(`clubwalk: ${L.def.id} 进画面时着色器还没编完（会当场等）`);
+      }
       L.root.visible = show;
       const b = base.by.get(L.def.id);
       if (b) b.visible = !show;
@@ -816,12 +890,20 @@ let fps = 0;
 let mapT = 0;
 const showPerf = params.get('perf') === '1';
 if (showPerf) perfEl.hidden = false;
+// 走路平顺（clubsite/play/smooth.ts）：帧间隔贴 1/60 的整数倍；渲染时总监和镜头插值到两步之间；smooth=0 关掉（对照用）
+const SMOOTH = params.get('smooth') !== '0';
+const lerp = new ViewLerp(director, pipe.rig, scene);
 function frame(now: number) {
-  const real = Math.min(0.1, (now - last) / 1000);
+  let real = Math.min(0.1, (now - last) / 1000);
+  // 上一帧建了区域（主线程卡了一下）：不追那段时间，不然卡完总监一下跳出去好几步
+  if (hitched && SMOOTH) real = DT;
+  hitched = false;
+  if (SMOOTH) real = snapDelta(real);
   acc += real;
   last = now;
   if (!paused) {
     while (acc >= DT) {
+      if (SMOOTH) lerp.mark();
       step(DT);
       acc -= DT;
     }
@@ -829,8 +911,10 @@ function frame(now: number) {
   stream(real);
   updatePlace();
   pipe.renderer.info.reset();
+  if (SMOOTH && !paused) lerp.begin(acc / DT);
   pipe.render(scene);
   play?.hud.frame();
+  lerp.end();
   mapT -= real;
   if (mapT <= 0) {
     mapT = 0.2;

@@ -35,6 +35,13 @@ export interface EdgeParams {
   tint?: [number, number, number];
 }
 
+/** three 阴影 pass 的翻面规则（WebGLShadowMap 的 shadowSide） */
+const SHADOW_SIDE: Record<THREE.Side, THREE.Side> = {
+  [THREE.FrontSide]: THREE.BackSide,
+  [THREE.BackSide]: THREE.FrontSide,
+  [THREE.DoubleSide]: THREE.DoubleSide,
+};
+
 /** 轮廓压暗的默认颜色（偏靛） */
 const EDGE_TINT: [number, number, number] = [0.5, 0.55, 0.78];
 
@@ -136,6 +143,8 @@ export class PixelPipeline {
   private fxLayer: number;
   private swapped: [THREE.Mesh, THREE.Material | THREE.Material[]][] = [];
   private fallbackNormal = new THREE.MeshNormalMaterial();
+  /** 预编用：和 three 阴影 pass 内部那份一样的深度材质 */
+  private plainDepth = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking });
   /** 相机离看向点的距离、远裁剪面（米） */
   private dist: number;
   private far: number;
@@ -292,8 +301,12 @@ export class PixelPipeline {
     });
     const shadow = r.shadowMap.autoUpdate;
     r.shadowMap.autoUpdate = false;
+    // 颜色 pass 刚把整棵树的世界矩阵算过、中间没人动：法线 pass 不再算一遍（几千个物体，每帧省一次 compose + 乘法）
+    const autoWorld = scene.matrixWorldAutoUpdate;
+    scene.matrixWorldAutoUpdate = false;
     r.setRenderTarget(this.normal);
     r.render(scene, cam);
+    scene.matrixWorldAutoUpdate = autoWorld;
     r.shadowMap.autoUpdate = shadow;
     for (const [m, mat] of this.swapped) m.material = mat;
     scene.background = bg;
@@ -315,6 +328,66 @@ export class PixelPipeline {
     u.uEdgeTint.value.set(...(this.edges.tint ?? EDGE_TINT));
     r.setRenderTarget(null);
     r.render(this.quadScene, this.quadCam);
+  }
+
+  /**
+   * 预编着色器：root（可以是还藏着的一块）里所有网格的颜色材质、法线 pass 材质、投影材质（customDepthMaterial）
+   * 先按 scene 的灯光编好。不预编的话第一次画到它们时 three 同步等链接（WebGLProgram.getUniforms），
+   * 走进新区域那一帧卡几十到几百毫秒。浏览器有 KHR_parallel_shader_compile 时整个过程不占主线程；没有时编译照样提前在这一帧做掉。
+   */
+  prewarm(root: THREE.Object3D, scene: THREE.Scene): Promise<unknown> {
+    const r = this.renderer;
+    this.placeCamera();
+    const cam = this.camera;
+    const meshes: THREE.Mesh[] = [];
+    root.traverse((o) => {
+      if ((o as THREE.Mesh).isMesh) meshes.push(o as THREE.Mesh);
+    });
+    const jobs: Promise<unknown>[] = [r.compileAsync(root, cam, scene)];
+    // compileAsync 的编译部分是同步的：换上别的材质、调用、马上换回来就行
+    const orig = meshes.map((m) => m.material);
+    const swapTo = (pick: (m: THREE.Mesh, src: THREE.Material) => THREE.Material | undefined) => {
+      let any = false;
+      for (const m of meshes) {
+        const src = Array.isArray(m.material) ? m.material[0] : m.material;
+        const to = pick(m, src);
+        if (to) {
+          m.material = to;
+          any = true;
+        }
+      }
+      if (any) jobs.push(r.compileAsync(root, cam, scene));
+      meshes.forEach((m, i) => {
+        m.material = orig[i];
+      });
+    };
+    swapTo((_m, src) => normalMatOf(src) ?? this.fallbackNormal);
+    // 投影：three 的阴影 pass 每个网格把深度材质的 side（翻面）、map、alphaMap、alphaTest 改成颜色材质的（WebGLShadowMap.getDepthMaterial），
+    // 这些进程序的 key：按同样的规则做一份变体再编，编的才是阴影 pass 真要用的那个程序
+    if (r.shadowMap.enabled) {
+      const variants = new Map<string, THREE.Material>();
+      swapTo((m, src) => {
+        if (!m.castShadow) return undefined;
+        const base = m.customDepthMaterial ?? this.plainDepth;
+        const side = src.shadowSide ?? SHADOW_SIDE[src.side];
+        const alphaTest = src.alphaToCoverage ? 0.5 : src.alphaTest;
+        const map = (src as THREE.MeshToonMaterial).map ?? null;
+        const alphaMap = (src as THREE.MeshToonMaterial).alphaMap ?? null;
+        const key = `${base.uuid}|${side}|${alphaTest > 0}|${!!map}|${!!alphaMap}`;
+        let v = variants.get(key);
+        if (!v) {
+          const d = base.clone() as THREE.MeshDepthMaterial;
+          d.onBeforeCompile = base.onBeforeCompile;
+          d.customProgramCacheKey = base.customProgramCacheKey;
+          Object.assign(d, { side, alphaTest, map, alphaMap });
+          variants.set(key, d);
+          v = d;
+        }
+        return v;
+      });
+      // 变体材质不 dispose：three 的程序按引用计数，释放了没人用的程序会被删掉，等于白编
+    }
+    return Promise.all(jobs);
   }
 
   set showEdges(v: boolean) {

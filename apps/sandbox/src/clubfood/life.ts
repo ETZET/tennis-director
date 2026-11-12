@@ -1495,6 +1495,8 @@ export function createLife(env: LifeEnv): FoodLife {
     stackTrays.push(o);
   }
   stackObj.visible = false;
+  // 每步按总监的手摆：渲染插值时跟着总监一起挪（clubsite/play/smooth.ts）
+  stackObj.userData.followsDirector = true;
   scene.add(stackObj);
   let stack = 0;
   const setStack = (n: number) => {
