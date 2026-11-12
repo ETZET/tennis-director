@@ -254,7 +254,7 @@ export function createPlay(opts: PlayOpts): Play {
   const { scene, pipe, director: D } = opts;
   const ud = D.userData;
   const nav = new NavMap(opts.nav);
-  const SPEED = opts.speed ?? 3;
+  const SPEED = opts.speed ?? 3.4;
   const camOpts = opts.camera ?? {};
   const poses = new Set<string>((ud.poses as readonly string[] | undefined) ?? []);
   const periodOf = (p: string) => (ud.period?.(p) as number | undefined) ?? 1;
@@ -778,8 +778,8 @@ export function createPlay(opts: PlayOpts): Play {
             stopHold();
           }
         } else if (speed > 0.2) {
-          // 小跑（3 米/秒）：步幅 1.3，腿按它摆（rig 的 walkLegs），脚不溜
-          walkPh = (walkPh + (speed * dt) / setStride(D, 1.3)) % 1;
+          // 小跑（3.4 米/秒）：步幅 1.45，腿按它摆（rig 的 walkLegs），脚不溜
+          walkPh = (walkPh + (speed * dt) / setStride(D, 1.45)) % 1;
           setPose(held?.spec.carryPose ?? 'walk', walkPh);
         } else {
           idlePh = (idlePh + dt / periodOf('idle')) % 1;
