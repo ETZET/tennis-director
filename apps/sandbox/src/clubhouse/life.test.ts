@@ -11,6 +11,9 @@ import { ROUTES, SPOTS } from './routes';
 import { houseNavMap } from './stage3';
 import { createWalker, routeBetween, type Walker, type WalkerWorld } from './walker';
 
+/** 模拟 5 分钟的测试：本机 ≈ 1.3 秒，CI 的机器慢好几倍，默认 5 秒的上限会超时 */
+const SIM_TIMEOUT = 30_000;
+
 const route = (id: string) => ROUTES.find((r) => r.id === id)!.pts;
 
 /** 只有 Walker 的小世界（不建会所） */
@@ -40,7 +43,7 @@ function world(director: () => { x: number; z: number; floor: Floor } | null = (
 }
 
 describe('会所 stage 3：框架', () => {
-  it('看图模式：5 分钟不出错，Walker 一直在导航上、不卡住、脚不溜', () => {
+  it('看图模式：5 分钟不出错，Walker 一直在导航上、不卡住、脚不溜', { timeout: SIM_TIMEOUT }, () => {
     const h = testHouse();
     const probe = watchWalkers(h);
     h.setView(true, 1);
@@ -56,7 +59,7 @@ describe('会所 stage 3：框架', () => {
     }
   });
 
-  it('玩法模式：5 分钟不出错（总监站在逛街路线上挡着也不死锁）', () => {
+  it('玩法模式：5 分钟不出错（总监站在逛街路线上挡着也不死锁）', { timeout: SIM_TIMEOUT }, () => {
     const h = testHouse({ play: true });
     const probe = watchWalkers(h);
     // 站在商店街中间（shopper 路线上）

@@ -21,7 +21,7 @@ import { buildPerson } from './rig';
 
 export function build(ctx: AssetCtx): THREE.Object3D {
   const m = (k: Parameters<AssetCtx['mat']>[0]) => ctx.mat(k, PERSON);
-  return buildPerson(
+  const root = buildPerson(
     ctx,
     {
       skin: m('skinTan'),
@@ -47,4 +47,8 @@ export function build(ctx: AssetCtx): THREE.Object3D {
     },
     'director',
   );
+  // 哪一种人（clubwalk 的演员表按它挑人；clubsite/people 包一层时同样写）
+  root.userData.personKind = 'director';
+  root.userData.personVariant = ctx.variant;
+  return root;
 }

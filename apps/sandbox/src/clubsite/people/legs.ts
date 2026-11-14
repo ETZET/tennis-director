@@ -5,6 +5,7 @@
 import * as THREE from 'three';
 import { blobNormals } from '../render/toon';
 import type { Bones } from './bones';
+import { tagPart } from './rig/rig';
 
 type Mat = THREE.Material;
 
@@ -66,12 +67,12 @@ export function addKneeLegs(b: Bones): KneeLegs {
     alt.visible = false;
     leg.add(alt);
     // 大腿：髋 → 膝（胶囊两头圆，膝那头多出一点，弯的时候膝盖是圆的）
-    alt.add(limb(new THREE.CapsuleGeometry(r, 0.05, 2, 8), legMat, -0.11));
+    alt.add(tagPart(limb(new THREE.CapsuleGeometry(r, 0.05, 2, 8), legMat, -0.11), 'thigh'));
     // 短裤盖住大腿上半、裙子盖住大腿上 2/3（坐下时大腿平伸，原来的裤腰盖不到）
     if (kind !== 'pants') {
       const len = kind === 'skirt' ? 0.1 : 0.06;
       const g = new THREE.CapsuleGeometry(r + (kind === 'skirt' ? 0.035 : 0.02), len, 2, 8);
-      alt.add(limb(g, botMat, -0.02 - len / 2));
+      alt.add(tagPart(limb(g, botMat, -0.02 - len / 2), 'thigh-cover'));
     }
     const knee = new THREE.Group();
     knee.position.y = -THIGH;
@@ -79,17 +80,20 @@ export function addKneeLegs(b: Bones): KneeLegs {
     // 小腿：只有它跟着 shin 拉长（鞋不拉）
     const shin = new THREE.Group();
     knee.add(shin);
-    shin.add(limb(new THREE.CapsuleGeometry(r * 0.95, 0.02, 2, 8), legMat, -0.085));
+    shin.add(tagPart(limb(new THREE.CapsuleGeometry(r * 0.95, 0.02, 2, 8), legMat, -0.085), 'shin'));
     const ankle = new THREE.Group();
     ankle.position.y = -SHIN_ANKLE;
     knee.add(ankle);
     // 鞋：同 rig 的鞋（0.22 × 0.12 × 0.32，鞋尖往前 0.04）
     ankle.add(
-      part(
-        new THREE.BoxGeometry(0.22, 0.12, 0.32),
-        shoeMat,
-        new THREE.Vector3(0, 0, 0.04),
-        new THREE.Vector3(0, 0.14, 0.02),
+      tagPart(
+        part(
+          new THREE.BoxGeometry(0.22, 0.12, 0.32),
+          shoeMat,
+          new THREE.Vector3(0, 0, 0.04),
+          new THREE.Vector3(0, 0.14, 0.02),
+        ),
+        'shoe',
       ),
     );
     return { leg, alt, knee, shin, ankle };

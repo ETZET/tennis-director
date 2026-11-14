@@ -102,6 +102,42 @@ function limb(geo: THREE.BufferGeometry, mat: Mat, at: THREE.Vector3): THREE.Mes
   geo.translate(at.x, at.y, at.z);
   return new THREE.Mesh(geo, mat);
 }
+/**
+ * 身体部件的标记（userData.part）：换装（people/dress.ts）按它认网格 —— 只是标记，不影响画面。
+ * skin-head · hair-shell · fringe · eye · shades · mustache · pony · cap · bill · straw-brim/-band/-crown/-top ·
+ * shirt · whistle · trim · sleeve · forearm · hand · bottom · leg · shoe；头的后仰组 = tilt
+ */
+export type PartTag =
+  | 'skin-head'
+  | 'hair-shell'
+  | 'fringe'
+  | 'eye'
+  | 'shades'
+  | 'mustache'
+  | 'pony'
+  | 'cap'
+  | 'bill'
+  | 'straw-brim'
+  | 'straw-band'
+  | 'straw-crown'
+  | 'straw-top'
+  | 'shirt'
+  | 'whistle'
+  | 'trim'
+  | 'sleeve'
+  | 'forearm'
+  | 'hand'
+  | 'bottom'
+  | 'leg'
+  | 'shoe'
+  | 'thigh'
+  | 'thigh-cover'
+  | 'shin'
+  | 'tilt';
+export function tagPart<T extends THREE.Object3D>(o: T, part: PartTag): T {
+  o.userData.part = part;
+  return o;
+}
 
 const HIP_Y = 0.5;
 /** 髋到踝的长度（腿是一根直胶囊，鞋中心在腿本地 y −0.44；鞋底在踝下 0.06 = 站直时正好在地面） */
@@ -244,22 +280,22 @@ export function buildPerson(ctx: AssetCtx, look: Look, name: string): THREE.Grou
     const g = new THREE.CylinderGeometry(0.25, 0.22, 0.46, 8, 1);
     g.rotateY(Math.PI / 8);
     g.scale(look.stout ?? 1, 1, 0.74 * (look.stout ?? 1));
-    torso.add(part(g, look.shirt, V(0, 0.25, 0), V(0, 0.18, 0)));
+    torso.add(tagPart(part(g, look.shirt, V(0, 0.25, 0), V(0, 0.18, 0)), 'shirt'));
     if (look.whistle) {
       // 哨子：胸口偏右一个小亮块（3 × 2 纹素），挂绳太细不画
       const w = new THREE.BoxGeometry(0.2, 0.14, 0.12);
-      torso.add(part(w, look.whistle, V(-0.06, 0.3, 0.2 * (look.stout ?? 1)), V(-0.06, 0.4, 0.1)));
+      torso.add(tagPart(part(w, look.whistle, V(-0.06, 0.3, 0.2 * (look.stout ?? 1)), V(-0.06, 0.4, 0.1)), 'whistle'));
     }
     if (look.trim) {
       // 领口一圈（2 纹素高）+ 下摆一圈
       const c = new THREE.CylinderGeometry(0.17, 0.24, 0.1, 8, 1);
       c.rotateY(Math.PI / 8);
       c.scale(1, 1, 0.78);
-      torso.add(part(c, look.trim, V(0, 0.47, 0), V(0, 0.3, 0)));
+      torso.add(tagPart(part(c, look.trim, V(0, 0.47, 0), V(0, 0.3, 0)), 'trim'));
       const h = new THREE.CylinderGeometry(0.225, 0.225, 0.08, 8, 1);
       h.rotateY(Math.PI / 8);
       h.scale(1, 1, 0.78);
-      torso.add(part(h, look.trim, V(0, 0.02, 0), V(0, 0.15, 0)));
+      torso.add(tagPart(part(h, look.trim, V(0, 0.02, 0), V(0, 0.15, 0)), 'trim'));
     }
   }
   // 臀：短裤 / 裙子 / 长裤的裤腰
@@ -271,96 +307,96 @@ export function buildPerson(ctx: AssetCtx, look: Look, name: string): THREE.Grou
         : new THREE.CylinderGeometry(0.235, 0.25, k === 'pants' ? 0.2 : 0.26, 8, 1);
     g.rotateY(Math.PI / 8);
     g.scale(1, 1, 0.8);
-    hips.add(part(g, look.bottom, V(0, k === 'skirt' ? -0.04 : 0.02, 0), V(0, 0.15, 0)));
+    hips.add(tagPart(part(g, look.bottom, V(0, k === 'skirt' ? -0.04 : 0.02, 0), V(0, 0.15, 0)), 'bottom'));
   }
   // 腿：一根胶囊 + 鞋（长裤时腿就是裤子）
   for (const leg of [legL, legR]) {
     const legMat = look.bottomKind === 'pants' ? look.bottom : look.skin;
     const r = look.bottomKind === 'pants' ? 0.135 : 0.115;
     const g = new THREE.CapsuleGeometry(r, 0.26, 2, 8);
-    leg.add(limb(g, legMat, V(0, -0.24, 0)));
+    leg.add(tagPart(limb(g, legMat, V(0, -0.24, 0)), 'leg'));
     const s = new THREE.BoxGeometry(0.22, 0.12, 0.32);
-    leg.add(part(s, look.shoes, V(0, -0.44, 0.04), V(0, -0.3, 0.02)));
+    leg.add(tagPart(part(s, look.shoes, V(0, -0.44, 0.04), V(0, -0.3, 0.02)), 'shoe'));
   }
   // 手臂：短袖（衣服色）+ 前臂（皮肤）+ 拳头
   for (const a of [armL, armR]) {
     const sl = new THREE.CapsuleGeometry(0.14, 0.06, 2, 8);
-    a.sh.add(part(sl, look.shirt, V(0, -0.08, 0)));
+    a.sh.add(tagPart(part(sl, look.shirt, V(0, -0.08, 0)), 'sleeve'));
     if (look.trim) {
       const cuff = new THREE.CylinderGeometry(0.15, 0.15, 0.07, 8, 1);
-      a.sh.add(part(cuff, look.trim, V(0, -0.2, 0)));
+      a.sh.add(tagPart(part(cuff, look.trim, V(0, -0.2, 0)), 'trim'));
     }
     const fa = new THREE.CapsuleGeometry(0.115, 0.16, 2, 8);
-    a.sh.add(limb(fa, look.skin, V(0, -0.3, 0)));
+    a.sh.add(tagPart(limb(fa, look.skin, V(0, -0.3, 0)), 'forearm'));
     const h = new THREE.SphereGeometry(0.12, 8, 6);
-    a.hand.add(part(h, look.skin, V(0, 0, 0)));
+    a.hand.add(tagPart(part(h, look.skin, V(0, 0, 0)), 'hand'));
   }
   // 头：大圆头（略压扁）
   {
     const g = new THREE.SphereGeometry(0.36, 12, 9);
     g.scale(1, 0.93, 0.95);
-    head.add(part(g, look.skin, V(0, 0.33, 0)));
+    head.add(tagPart(part(g, look.skin, V(0, 0.33, 0)), 'skin-head'));
     // 耳朵露一点（侧面，2 纹素）
     // 头发：一顶往后倾的帽壳（前额露脸，后脑盖到脖子）
     // 头发：一顶往后倾 0.9 弧度的半球壳 —— 45° 俯视下头顶、后脑是头发，前面露出一张大脸
     const cap = new THREE.SphereGeometry(0.385, 12, 7, 0, Math.PI * 2, 0, Math.PI * 0.5);
     cap.rotateX(-0.9);
-    head.add(part(cap, look.hair, V(0, 0.35, -0.01), V(0, 0.35, 0)));
+    head.add(tagPart(part(cap, look.hair, V(0, 0.35, -0.01), V(0, 0.35, 0)), 'hair-shell'));
     // 刘海：额头上一片（不然发际线是一条直线）
     const fringe = new THREE.SphereGeometry(0.39, 10, 3, Math.PI * 0.2, Math.PI * 0.6, Math.PI * 0.18, Math.PI * 0.14);
-    head.add(part(fringe, look.hair, V(0, 0.34, 0), V(0, 0.34, 0)));
+    head.add(tagPart(part(fringe, look.hair, V(0, 0.34, 0), V(0, 0.34, 0)), 'fringe'));
     // 眼睛：两个深色小块（1 纹素，脸上唯一的细节）
     if (look.shades) {
       // 太阳镜：一条横贯两眼的深色条（4 × 1.5 纹素），两端包到侧面
       const sg = new THREE.BoxGeometry(0.44, 0.14, 0.1);
-      head.add(part(sg, look.shades, V(0, 0.3, 0.33), V(0, 0.5, 0.2)));
+      head.add(tagPart(part(sg, look.shades, V(0, 0.3, 0.33), V(0, 0.5, 0.2)), 'shades'));
     } else {
       for (const ex of [-0.13, 0.13]) {
         const e = new THREE.BoxGeometry(0.1, 0.13, 0.08);
-        head.add(part(e, look.hair, V(ex, 0.3, 0.34)));
+        head.add(tagPart(part(e, look.hair, V(ex, 0.3, 0.34)), 'eye'));
       }
     }
     if (look.mustache) {
       // 胡子：鼻子下面一块（3 × 1 纹素），和太阳镜之间露一纹素的脸
       const mg = new THREE.BoxGeometry(0.3, 0.09, 0.1);
-      head.add(part(mg, look.mustache, V(0, 0.13, 0.31), V(0, 0.3, 0.2)));
+      head.add(tagPart(part(mg, look.mustache, V(0, 0.13, 0.31), V(0, 0.3, 0.2)), 'mustache'));
     }
     if (look.hairStyle === 'ponytail') {
       // 马尾：后脑一个发髻 + 往下垂的一团（侧面、背面都看得出来）
       const p = new THREE.SphereGeometry(0.17, 8, 6);
       p.scale(1, 1.2, 1);
-      head.add(part(p, look.hair, V(0, 0.46, -0.4)));
+      head.add(tagPart(part(p, look.hair, V(0, 0.46, -0.4)), 'pony'));
       const p2 = new THREE.SphereGeometry(0.14, 8, 6);
       p2.scale(1, 1.5, 1);
-      head.add(part(p2, look.hair, V(0, 0.2, -0.47)));
+      head.add(tagPart(part(p2, look.hair, V(0, 0.2, -0.47)), 'pony'));
     }
     if (look.hairStyle === 'cap' && look.cap) {
       // 棒球帽：帽壳盖住头发上半 + 一块朝前的帽舌（3 纹素深）
       const c = new THREE.SphereGeometry(0.4, 12, 6, 0, Math.PI * 2, 0, Math.PI * 0.42);
       c.rotateX(-0.12);
-      head.add(part(c, look.cap, V(0, 0.38, 0), V(0, 0.34, 0)));
+      head.add(tagPart(part(c, look.cap, V(0, 0.38, 0), V(0, 0.34, 0)), 'cap'));
       const bill = new THREE.CylinderGeometry(0.24, 0.26, 0.05, 10, 1, false, -Math.PI / 2, Math.PI);
       bill.scale(1.15, 1, 1.3);
-      head.add(part(bill, look.cap, V(0, 0.5, 0.28), V(0, 0.9, 0.28)));
+      head.add(tagPart(part(bill, look.cap, V(0, 0.5, 0.28), V(0, 0.9, 0.28)), 'bill'));
     }
     if (look.straw) {
       // 宽檐草帽（照参考图的钓鱼人）：帽檐是一个很浅的锥（往下垂），直径 ≈ 1.1 米，顶面亮、下沿一圈暗；
       // 帽冠：底下一圈帽带（和帽冠一样粗，只在正面露一条）+ 上面的草编冠 + 圆顶
       const brim = new THREE.CylinderGeometry(0.36, 0.58, 0.1, 18, 1);
-      head.add(part(brim, look.straw.hat, V(0, 0.5, 0), V(0, 0.2, 0)));
+      head.add(tagPart(part(brim, look.straw.hat, V(0, 0.5, 0), V(0, 0.2, 0)), 'straw-brim'));
       const band = new THREE.CylinderGeometry(0.31, 0.315, 0.11, 12, 1);
-      head.add(part(band, look.straw.band, V(0, 0.59, 0), V(0, 0.59, 0)));
+      head.add(tagPart(part(band, look.straw.band, V(0, 0.59, 0), V(0, 0.59, 0)), 'straw-band'));
       const crown = new THREE.CylinderGeometry(0.26, 0.3, 0.17, 12, 1);
-      head.add(part(crown, look.straw.hat, V(0, 0.715, 0), V(0, 0.55, 0)));
+      head.add(tagPart(part(crown, look.straw.hat, V(0, 0.715, 0), V(0, 0.55, 0)), 'straw-crown'));
       const top = new THREE.SphereGeometry(0.26, 12, 4, 0, Math.PI * 2, 0, Math.PI * 0.5);
       top.scale(1, 0.35, 1);
-      head.add(part(top, look.straw.hat, V(0, 0.8, 0), V(0, 0.6, 0)));
+      head.add(tagPart(part(top, look.straw.hat, V(0, 0.8, 0), V(0, 0.6, 0)), 'straw-top'));
     }
   }
 
   // 没戴草帽的人：整颗头往后仰一点（脸朝镜头），45° 俯视下脸才露得出来
   if (!look.straw) {
-    const tilt = new THREE.Group();
+    const tilt = tagPart(new THREE.Group(), 'tilt');
     tilt.rotation.x = -0.32;
     tilt.position.z = 0.04;
     for (const c of [...head.children]) tilt.add(c);

@@ -82,23 +82,43 @@ export interface SceneOpts {
 const vi = (ctx: { variant: number }, n: number) => ((ctx.variant % n) + n) % n;
 
 export function player(ctx: D3Ctx, o: SceneOpts = {}): THREE.Object3D {
-  return wrapPerson(ctx, playerBuild(ctx) as THREE.Group, {
-    hasRacket: true,
-    paddleKey: PADDLE_KEYS[vi(ctx, PADDLE_KEYS.length)],
-    racketIsPaddle: o.racketIsPaddle,
-  });
+  return kindOf(
+    'player',
+    ctx,
+    wrapPerson(ctx, playerBuild(ctx) as THREE.Group, {
+      hasRacket: true,
+      paddleKey: PADDLE_KEYS[vi(ctx, PADDLE_KEYS.length)],
+      racketIsPaddle: o.racketIsPaddle,
+    }),
+  );
 }
 
 export function coach(ctx: D3Ctx, o: SceneOpts = {}): THREE.Object3D {
-  return wrapPerson(ctx, coachBuild(ctx) as THREE.Group, {
-    hasRacket: true,
-    paddleKey: 'counter',
-    racketIsPaddle: o.racketIsPaddle,
-  });
+  return kindOf(
+    'coach',
+    ctx,
+    wrapPerson(ctx, coachBuild(ctx) as THREE.Group, {
+      hasRacket: true,
+      paddleKey: 'counter',
+      racketIsPaddle: o.racketIsPaddle,
+    }),
+  );
 }
 
 export function director(ctx: D3Ctx): THREE.Object3D {
-  return wrapPerson(ctx, directorBuild(ctx) as THREE.Group, { hasRacket: false, paddleKey: 'counter' });
+  return kindOf(
+    'director',
+    ctx,
+    wrapPerson(ctx, directorBuild(ctx) as THREE.Group, { hasRacket: false, paddleKey: 'counter' }),
+  );
+}
+
+/** 哪一种人、哪个变体（clubwalk 的演员表按它挑人：userData.personKind / personVariant） */
+export type PersonKind = 'player' | 'coach' | 'director' | 'kid' | 'ball-kid' | 'umpire';
+function kindOf<T extends THREE.Object3D>(kind: PersonKind, ctx: { variant: number }, o: T): T {
+  o.userData.personKind = kind;
+  o.userData.personVariant = ctx.variant;
+  return o;
 }
 
 type Key = Parameters<D3Ctx['mat']>[0];
@@ -162,7 +182,11 @@ export function kid(ctx: D3Ctx): THREE.Object3D {
     },
     `kid-v${ctx.variant}`,
   );
-  return wrapPerson(ctx, root, { hasRacket: true, scale: KID, paddleKey: 'flowerYellow', defaultProp: null });
+  return kindOf(
+    'kid',
+    ctx,
+    wrapPerson(ctx, root, { hasRacket: true, scale: KID, paddleKey: 'flowerYellow', defaultProp: null }),
+  );
 }
 
 const P = PERSON as Parameters<D3Ctx['mat']>[1];
@@ -194,7 +218,7 @@ export function ballKid(ctx: D3Ctx): THREE.Object3D {
     },
     `ball-kid-v${ctx.variant}`,
   );
-  return wrapPerson(ctx, root, { hasRacket: true, scale: TEEN, defaultProp: null });
+  return kindOf('ball-kid', ctx, wrapPerson(ctx, root, { hasRacket: true, scale: TEEN, defaultProp: null }));
 }
 
 /**
@@ -221,7 +245,7 @@ export function umpire(ctx: D3Ctx): THREE.Object3D {
     },
     `umpire-v${ctx.variant}`,
   );
-  const o = wrapPerson(ctx, root, { hasRacket: true, defaultProp: null });
+  const o = kindOf('umpire', ctx, wrapPerson(ctx, root, { hasRacket: true, defaultProp: null }));
   if (!ctx.params.has('pose')) o.userData.pose('sit');
   return o;
 }

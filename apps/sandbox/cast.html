@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<link rel="icon" href="data:,">
+<title>Cast · Tennis Director</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #5fb0e8; overflow: hidden; font: 11px/1.3 system-ui, sans-serif; }
+  canvas { display: block; touch-action: none; image-rendering: pixelated; }
+  #c { position: fixed; inset: 0; width: 100vw; height: 100vh; height: 100dvh; }
+  #labels { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
+  .tag { position: absolute; left: 0; top: 0; max-width: 56px; overflow: hidden; text-overflow: ellipsis; padding: 1px 3px; background: rgba(27, 20, 16, 0.72); color: #fff3d6; white-space: nowrap; font: 700 10px/1.2 "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", system-ui, sans-serif; border-left: 3px solid var(--accent, #fff3d6); }
+  .tag small { display: block; overflow: hidden; text-overflow: ellipsis; font-weight: 400; font-size: 8px; opacity: 0.8; }
+  .row { position: absolute; left: 0; top: 0; padding: 2px 8px; background: #2c2450; color: #fff3d6; white-space: nowrap; font: 700 12px/1.2 "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", system-ui, sans-serif; letter-spacing: 1px; box-shadow: 2px 0 0 0 #fff3d6, -2px 0 0 0 #fff3d6, 0 2px 0 0 #fff3d6, 0 -2px 0 0 #fff3d6; }
+  #info { position: fixed; left: 6px; bottom: max(6px, env(safe-area-inset-bottom)); padding: 2px 6px; background: rgba(27, 20, 16, 0.6); color: #f4ead8; pointer-events: none; }
+  .pager { position: fixed; right: max(10px, env(safe-area-inset-right)); bottom: max(10px, env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 10px; z-index: 5; }
+  .pager button { width: 52px; height: 52px; border: 0; margin: 3px; color: #fff3d6; background: #2c2450; font: 700 20px/1 system-ui, sans-serif; cursor: pointer; -webkit-tap-highlight-color: transparent; box-shadow: 3px 0 0 0 #fff3d6, -3px 0 0 0 #fff3d6, 0 3px 0 0 #fff3d6, 0 -3px 0 0 #fff3d6, 0 6px 0 0 #171230; }
+  .pager button:focus-visible { outline: 3px solid #ffd23c; outline-offset: 4px; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="labels"></div>
+<div id="info"></div>
+<div class="pager"><button id="up" aria-label="上一页">▲</button><button id="turn" aria-label="转身">⟳</button><button id="down" aria-label="下一页">▼</button></div>
+<script type="module" src="./src/cast/main.ts"></script>
+</body>
+</html>

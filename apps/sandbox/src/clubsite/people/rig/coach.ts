@@ -57,5 +57,8 @@ export function build(ctx: AssetCtx): THREE.Object3D {
     },
     'coach',
   );
+  // 哪一种人（clubwalk 的演员表按它挑人；clubsite/people 包一层时同样写）
+  coach.userData.personKind = 'coach';
+  coach.userData.personVariant = ctx.variant;
   return coach;
 }

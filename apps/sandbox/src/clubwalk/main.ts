@@ -52,6 +52,7 @@ import {
   POOL,
   type Rect,
 } from '../clubsite/world';
+import { mountCast } from './cast';
 import { clipMesh } from './clip';
 import { grow, keepOwn, outside, overlaps, shapeBox } from './navclip';
 import { inRects, REGIONS, type RegionDef, rectDist } from './regions';
@@ -751,6 +752,11 @@ play = mountPlay({
 for (const L of lives) if (L.region) setVisible(L, true);
 // 规划要用的连通分量、粗网格先算好（不然第一次点地面要等 ~0.1 秒）
 play.nav.prepare();
+// 调试钩子（测试、截图脚本用）
+(window as unknown as Record<string, unknown>).__clubwalk = { scene, lives, play, director, step };
+// 人物：场景里的人对上演员表、名册、互动（clubwalk/cast；?cast=0 关）
+const cast =
+  params.get('cast') === '0' ? null : mountCast({ scene, lives, play, director, params, mats: dirKit.mats, scheme });
 
 // ── 地点名（进入区域时淡出）+ 小地图 ──
 const ZONES: { name: string; r: Rect }[] = [
@@ -882,6 +888,7 @@ function step(seconds: number) {
       L.jobs?.step(DT);
       L.region?.post?.(DT, simT);
     }
+    cast?.step(DT);
     // 走路线（截图用）：到了一个点就走下一个
     if (play && route.length && !play.pathLeft()) {
       const [x, z] = route.shift() as [number, number];
@@ -960,6 +967,7 @@ function frame(now: number) {
   day.frame();
   pipe.render(scene);
   play?.hud.frame();
+  cast?.frame();
   lerp.end();
   mapT -= real;
   if (mapT <= 0) {
