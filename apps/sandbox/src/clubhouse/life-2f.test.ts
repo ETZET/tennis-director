@@ -8,6 +8,9 @@ import { type TestHouse, testHouse, watchWalkers } from './life-testkit';
 import { houseNavMap } from './stage3';
 import type { Walker } from './walker';
 
+/** 模拟 5 分钟的测试：本机 ≈ 1.3 秒，CI 的机器慢好几倍，默认 5 秒的上限会超时 */
+const SIM_TIMEOUT = 30_000;
+
 interface Dbg {
   state: { rings: number };
   jobs(): { id: JobId; state: JobState; wait: number }[];
@@ -55,7 +58,9 @@ describe('会所 2F：演出', () => {
     for (const [k, [x, z]] of Object.entries(STANDS_2F)) expect(nav.clearAt(x, z), k).not.toBeNull();
   });
 
-  it('看图模式 5 分钟：酒保、厨师、服务员、来访的会员一直在导航上、都在走；信号照摆好的样子不动', () => {
+  it('看图模式 5 分钟：酒保、厨师、服务员、来访的会员一直在导航上、都在走；信号照摆好的样子不动', {
+    timeout: SIM_TIMEOUT,
+  }, () => {
     const h = testHouse();
     const probe = watchWalkers(h);
     h.setView(true, 2);
@@ -77,7 +82,7 @@ describe('会所 2F：演出', () => {
     expect(slot(h, '2f-cups').visible).toBe(true);
   });
 
-  it('来访的会员上到二层又下去；玩法模式 5 分钟（总监站在休息室）不出错', () => {
+  it('来访的会员上到二层又下去；玩法模式 5 分钟（总监站在休息室）不出错', { timeout: SIM_TIMEOUT }, () => {
     const h = on2F();
     at(h, 'cups');
     const probe = watchWalkers(h);

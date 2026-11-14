@@ -5,6 +5,9 @@ import type { Play } from '../clubsite/play';
 import { loadAssets, type TestHouse, testHouse, watchWalkers } from './life-testkit';
 import { type JobState, MOP_HOLD, RESTOCKS, SHAKE_HOLD, type Shop1F, TILL_HOLD } from './play-1f';
 
+/** 模拟 5 分钟的测试：本机 ≈ 1.3 秒，CI 的机器慢好几倍，默认 5 秒的上限会超时 */
+const SIM_TIMEOUT = 30_000;
+
 interface Debug1F {
   jobs(): { id: string; state: JobState }[];
   force(id: string): void;
@@ -54,7 +57,9 @@ beforeAll(async () => {
 });
 
 describe('会所 1F：演出', () => {
-  it('看图模式：5 分钟不出错，Walker 在导航上、不卡、脚不溜；信号都亮着（摆好的样子）、货箱垛满', () => {
+  it('看图模式：5 分钟不出错，Walker 在导航上、不卡、脚不溜；信号都亮着（摆好的样子）、货箱垛满', {
+    timeout: SIM_TIMEOUT,
+  }, () => {
     const h = testHouse();
     const probe = watchWalkers(h);
     h.setView(true, 1);
