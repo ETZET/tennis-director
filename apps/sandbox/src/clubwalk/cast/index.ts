@@ -14,6 +14,7 @@ import { createDresser } from '../../clubsite/people/dress';
 import type { Play } from '../../clubsite/play';
 import { Binder, type Bound, headHeight, type LiveLike } from './bind';
 import { createCard } from './card';
+import { Commute } from './commute';
 import type { CastCtx, NowInfo } from './ctx';
 import { accentMid } from './portrait';
 import { createRoster } from './roster';
@@ -35,6 +36,8 @@ export interface MountCastOpts {
   mats: DresserOpts['mats'];
   /** 配色方案（dress.ts 按它调色） */
   scheme: DresserOpts['scheme'] | undefined;
+  /** 建一个通勤的替身（commute.ts）：不给 = 不管人从哪儿出现 */
+  makePerson?: (kind: 'adult' | 'kid') => THREE.Object3D;
 }
 
 export interface CastMount {
@@ -65,7 +68,25 @@ export function mountCast(o: MountCastOpts): CastMount {
       return null;
     }
   })();
-  const binder = new Binder(o.lives, director, (scene, slot, kind, day) => CAST.who(scene, slot, kind, day), dresser);
+  // 通勤（commute.ts）：人从停车场的车边、会所的门进出，不在路中间凭空出现 / 消失（?commute=0 关掉，对照用）
+  const commute =
+    o.makePerson && params.get('commute') !== '0'
+      ? new Commute({
+          scene: o.scene,
+          director,
+          nav: () => play.nav,
+          dresser,
+          make: o.makePerson,
+          person: (obj) => CAST.get(obj.userData.castId as string) ?? null,
+        })
+      : null;
+  const binder = new Binder(
+    o.lives,
+    director,
+    (scene, slot, kind, day) => CAST.who(scene, slot, kind, day),
+    dresser,
+    commute ? (obj, scene) => commute.hook(obj, scene) : undefined,
+  );
 
   // ── 界面 ──
   const ui = document.createElement('div');
@@ -484,6 +505,7 @@ export function mountCast(o: MountCastOpts): CastMount {
   const mount: CastMount = {
     step(dt) {
       binder.step(dt, state.day);
+      commute?.step(dt);
       // 时钟：1 秒 = speed 游戏分钟
       minAcc += dt * speed;
       if (minAcc >= 1) {
@@ -536,6 +558,7 @@ export function mountCast(o: MountCastOpts): CastMount {
       binder.bound.map((b) => ({ id: b.id, scene: b.scene, slot: b.slot, kind: b.kind, d: Math.sqrt(b.d2) })),
     walkTo,
     pending: () => binder.pending(),
+    commute: () => commute?.debug(),
   };
   return mount;
 }

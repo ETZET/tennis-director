@@ -208,8 +208,8 @@ export const SPOTS: Record<string, V2> = {
   edgeOut: [CAR_EDGE_X, 2.0],
 };
 
-/** 停着的车：[行, 车位, 车款, 车漆 variant] */
-const PARKED: [number, number, 'car' | 'suv', number][] = [
+/** 停着的车：[行, 车位, 车款, 车漆 variant]（clubwalk 的通勤：人从这些车边上下车） */
+export const PARKED: [number, number, 'car' | 'suv', number][] = [
   [0, 0, 'car', 0],
   [0, 1, 'suv', 1],
   [0, 3, 'car', 3],
