@@ -1,5 +1,14 @@
+import { readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { defineConfig } from 'vite';
+
+/** 小游戏页面（src/minigames，每个一页 mg-<id>.html）：目录里有就自动进构建，加小游戏不用改这个文件 */
+const MINIGAMES = Object.fromEntries(
+  readdirSync(import.meta.dirname)
+    .filter((f) => /^mg-[a-z0-9-]+\.html$/.test(f))
+    .sort()
+    .map((f) => [f.replace(/\.html$/, ''), resolve(import.meta.dirname, f)]),
+);
 
 export default defineConfig({
   // 相对路径，方便部署到任意静态托管的子目录
@@ -38,6 +47,9 @@ export default defineConfig({
         clubgolf: resolve(import.meta.dirname, 'clubgolf.html'),
         // 人物一览：clubsite/people 的 Q 版人按 CastLook 换装（src/cast）
         cast: resolve(import.meta.dirname, 'cast.html'),
+        // 小游戏：列表页 + 每个小游戏一页（mg-*.html 自动收，src/minigames/README.md）
+        minigames: resolve(import.meta.dirname, 'minigames.html'),
+        ...MINIGAMES,
       },
     },
   },

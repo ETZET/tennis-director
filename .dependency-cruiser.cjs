@@ -71,6 +71,24 @@ module.exports = {
       to: { path: '^apps/sandbox/src/clubwalk/' },
     },
     {
+      name: 'minigames-isolated',
+      comment:
+        '小游戏（src/minigames/<id>/）各自独立：只能用自己目录和共用的壳 src/minigames/shell/，不引用别的小游戏（十个小游戏并行开发，互不牵连）。',
+      severity: 'error',
+      from: { path: '^apps/sandbox/src/minigames/([^/]+)/' },
+      to: {
+        path: '^apps/sandbox/src/minigames/',
+        pathNot: ['^apps/sandbox/src/minigames/$1/', '^apps/sandbox/src/minigames/shell/'],
+      },
+    },
+    {
+      name: 'minigames-are-top',
+      comment: '场景、clubsite、clubwalk 不引用小游戏（src/minigames）：小游戏在场景上面一层，只往下用。',
+      severity: 'error',
+      from: { path: '^apps/sandbox/src/', pathNot: '^apps/sandbox/src/minigames/' },
+      to: { path: '^apps/sandbox/src/minigames/' },
+    },
+    {
       name: 'no-archive',
       comment: '归档的代码（docs/archive，例如 2.5D 等距画面）不参与构建，不能引用。',
       severity: 'error',
