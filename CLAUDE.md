@@ -41,6 +41,7 @@ docs/archive/** 不参与构建，谁也不能引用
   - `src/clubsite/`：各场景共用，不引用任何场景（`pnpm check:deps` 的 `clubsite-not-from-scenes`）：
     - `render/`：渲染核心，只有一份，场景 import 它、不复制：`pipeline.ts`（低分辨率渲染、描边、纹素对齐；`dist`/`far` 给地图拉远）、`toon.ts`（色阶材质）、`colors.ts`（关掉颜色管理，main 第一个 import）、`noise.ts`、`ctx.ts`（`AssetCtx`、`SharedUniforms`）、`palette-base.ts`（底表，原 desert3d-v2 的）+ `palette.ts`（俱乐部的表）、`palettes/`（配色方案覆盖层，`?pal=<id>`，默认 `golden` 6 午后金光）、`geo.ts`（`topGeo`、`wallGeo`、`smoothLoop`、`box`、`quad`……）。
     - `world.ts`：整座俱乐部的世界坐标（米，y 朝上，北 = −z，东 = +x；`SITE`、`COURTS`、`GATE`、`DESK`、`PATHS`、围网……），所有场景从这里 import。
+    - `daylight/`：时间和天气（时钟、太阳/月亮绕着走、三档颜色乘子、阴雨风沙、夜里开灯；`mountDaylight` 接进场景 main，说明在 `docs/lab/2026-11-07-3d-pixel/daylight.md`）。
     - `ground.ts`（铺出画面的地面，不再是浮空岛）、`mountains.ts`（地图边低成本的山和只写深度的天幕）、`framing.ts`（取景）、`people/`（骨骼 Q 版人，`rig/` 是骨骼和球员/教练/总监）、`play/`（总监操控）、`nature/`（沙漠植物、石头）、`assets/`（长椅、遮阳帆、工具、工具架、裁判椅、球车、球网、球场灯、记分牌、匹克球……）、`tools/`（总监工具的合并几何、握点、水管）、`reuse.ts`（共用的现成资产表）。
   - `src/desert3d-v2/`、`src/pond3d/`、`src/desert3d/`：早期实验，素材接口和"材质规范 v2"的 API 在 `desert3d-v2/ASSETS.md`。desert3d-v2 用 `clubsite/render` 和搬走的素材（`assets/` 里留一行 re-export）；反过来 club* 和 clubsite 不能引用实验（`club-not-from-experiments`）。
   - 新场景按 `.claude/skills/pixel-scene` 的流程做（白模 → 素材 → 组装演出 → 数字验收）；经验、材质规范、地图边界、截图和量图工具在 `docs/lab/2026-11-07-3d-pixel/`（`lessons.md`、`material-spec.md`、`boundary.md`、`tools/`）。

@@ -13,6 +13,7 @@
 // 门的世界坐标：layout.ts 的 DOORS（clubsite/world.ts 的 CLUBHOUSE_DOORS 同一份数）；导航：layout.ts 的 WALKABLE + nav.ts 的 houseBlocked()。
 import '../clubsite/render/colors';
 import * as THREE from 'three';
+import { mountDaylight } from '../clubsite/daylight';
 import { type Hud, mountPlay, type Play, playEnabled } from '../clubsite/play';
 import { topGeo, wallGeo } from '../clubsite/render/geo';
 import { rngFactory } from '../clubsite/render/noise';
@@ -483,6 +484,8 @@ if (pxEl && !galleryId) {
 // 配色切换（右上角）
 const palEl = document.getElementById('palsel');
 if (palEl && !galleryId) mountPaletteSwitcher(palEl, SCHEMES, scheme?.id ?? 'current');
+// 时间和天气（clubsite/daylight：太阳绕着走、影子跟着转，夜里月亮 + 灯；左上角的时间面板）。画廊不接
+const day = galleryId ? null : mountDaylight({ scene, pipe, sun, uniforms, params, scheme, sky: SKY, hud: pxEl });
 
 // 换层（右下角一列，拇指够得着；玩法模式下挪到动作键上面）：2F / 1F / B1 / 外观，当前的那个 aria-pressed。
 // 看图模式：点一层 = setFloor（剖面看那一层，相机挪过去），外观 = setInside(false)。
@@ -668,6 +671,7 @@ function step(seconds: number) {
   for (let i = 0; i < n; i++) {
     simT += DT;
     uniforms.uTime.value = simT;
+    day?.step(DT);
     uniforms.uGust.value = 0.5 + 0.35 * Math.sin(simT * 0.7) * Math.sin(simT * 0.23);
     for (const u of updaters) u(DT, simT);
     life?.update(DT, simT);
@@ -708,6 +712,7 @@ function frame(now: number) {
       acc -= DT;
     }
   }
+  day?.frame();
   pipe.render(scene);
   pipe2?.render(scene);
   placeLabels();

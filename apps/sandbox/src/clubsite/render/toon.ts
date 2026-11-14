@@ -13,7 +13,7 @@
 //   里挑一个，外加缝色和亮边色（Tones）；进投影 = 整套换暗档那套，进云影 = 亮档整套换中档那套，纹理都还在。
 //   元素坐标是屏幕纹素（跟世界锚定），噪声一律按纹素中心取。不给 elem 的材质和以前完全一样。
 import * as THREE from 'three';
-import type { SharedUniforms } from './ctx';
+import type { DayUniforms, SharedUniforms } from './ctx';
 
 type Hex = THREE.ColorRepresentation;
 type C3 = [Hex, Hex, Hex];
@@ -200,6 +200,24 @@ export function packEdge(edge: number, convex: number): number {
 /** 云影最多几团椭圆（SharedUniforms.uClouds 的长度）；飘到 x ±CLOUD_W/2 绕回来（米） */
 export const CLOUD_N = 8;
 export const CLOUD_W = 96;
+/** 灯光圈最多几个（DayUniforms.uLamps 的长度）：clubsite/daylight 每帧挑离镜头最近的这么多盏 */
+export const LAMP_N = 12;
+
+/** 中性的时间天气 uniform（正午、晴、关灯）：乘子全是 1，画面和没有时间系统时一样 */
+export function createDayUniforms(): DayUniforms {
+  return {
+    uDayLit: { value: new THREE.Vector3(1, 1, 1) },
+    uDayMid: { value: new THREE.Vector3(1, 1, 1) },
+    uDayDark: { value: new THREE.Vector3(1, 1, 1) },
+    uSunK: { value: 1 },
+    uDayLift: { value: 0 },
+    uCloudCut: { value: 1 },
+    uLamps: { value: Array.from({ length: LAMP_N }, () => new THREE.Vector4(0, 0, 0, 0)) },
+    uLampK: { value: 0 },
+    uLampCol: { value: new THREE.Vector3(0.76, 0.72, 0.56) },
+    uDaySat: { value: 1 },
+  };
+}
 
 const SWAY_VERT_DECL = /* glsl */ `
 uniform float uTime;
@@ -278,6 +296,17 @@ uniform float uShadowHard;
 uniform float uNoiseK;
 uniform float uLightModel;
 uniform float uNoRecv;
+// 时间和天气（clubsite/daylight）
+uniform vec3 uDayLit;
+uniform vec3 uDayMid;
+uniform vec3 uDayDark;
+uniform float uSunK;
+uniform float uDayLift;
+uniform float uCloudCut;
+uniform vec4 uLamps[LAMP_N];
+uniform float uLampK;
+uniform vec3 uLampCol;
+uniform float uDaySat;
 varying vec2 vCloudXZ;
 varying vec3 vWorldP;
 float rhash12(vec2 p) { vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
@@ -297,6 +326,23 @@ float cloudR(vec2 xz) {
     r = min(r, length((q - c.xy) / c.zw));
   }
   return r + (cvn(q * 0.32 + 3.7) - 0.5) * 0.8 + (cvn(q * 0.85 + 11.1) - 0.5) * 0.25;
+}
+// 4×4 有序抖动（Bayer）0..1：投影淡出淡入、灯光圈边上用（像素画的过渡，不是随机噪点）
+float bayer4(vec2 p) {
+  vec2 q = mod(p, 4.0);
+  int i = int(q.x) + int(q.y) * 4;
+  float m[16] = float[16](0.0, 8.0, 2.0, 10.0, 12.0, 4.0, 14.0, 6.0, 3.0, 11.0, 1.0, 9.0, 15.0, 7.0, 13.0, 5.0);
+  return (m[i] + 0.5) / 16.0;
+}
+// 灯光圈：离最近一盏灯的"归一化距离"（< 1 = 圈里）；高过灯的东西不算
+float lampR(vec3 p) {
+  float r = 9.0;
+  for (int i = 0; i < LAMP_N; i++) {
+    vec4 L = uLamps[i];
+    if (L.z <= 0.0 || p.y > L.w) continue;
+    r = min(r, length(p.xz - L.xy) / L.z);
+  }
+  return r;
 }
 float rhash13(vec3 p3) { p3 = fract(p3 * 0.1031); p3 += dot(p3, p3.zyx + 31.32); return fract((p3.x + p3.y) * p3.z); }
 vec3 rgb2hsv(vec3 c) {
@@ -643,6 +689,8 @@ const RAMP_OUT = /* glsl */ `
   #endif
   vec3 upV = normalize((viewMatrix * vec4(0.0, 1.0, 0.35, 0.0)).xyz);
   vec3 Ld = normalize(mix(Ls, upV, uLightUp));
+  // 太阳低的时候着色的光往上抬（顶面还是亮档）；投影照真太阳
+  if (uDayLift > 0.0) Ld = normalize(Ld + normalize((viewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz) * uDayLift);
   vec3 Nn = normalize(normal);
   float l = dot(Nn, Ld);
   // 档位交界噪声：竖向笔触（x、z 每纹素，y 每三纹素）
@@ -667,15 +715,18 @@ const RAMP_OUT = /* glsl */ `
       sh = uShadowHard > 0.5 ? step(0.5 + fur * uFur, v) : v;
     }
   #endif
-  if (sh < 0.5) band = 0.0;
+  // 投影：直射光弱的时候（太阳换月亮、阴雨天）按有序抖动稀掉，uSunK = 1 和以前一样
+  vec2 scrT = floor((mat3(viewMatrix) * vWorldP).xy / uTexel + 0.25);
+  if (sh < 0.5 && (uSunK >= 1.0 || bayer4(scrT) < uSunK)) band = 0.0;
   // 云影（池塘的教训：手摆、硬边、纹理在里面接着走）：亮档整档换成中档那套颜色（元素、缝、亮边照画），
   // 边上最多一纹素的棋盘抖动；只压亮档（侧面、投影本来就不吃直射光）。亮 → 中只差 35～40 个亮度，不出强边缘。
+  // uCloudCut：1 = 手摆的云；> 1 云团更胖（多云）；≥ 50 = 满天（阴天：亮档全压到中档，连没开云影的地图也压）
+  if (band > 1.5 && uCloudCut >= 50.0) band = 1.0;
   if (uCloudStrength > 0.0 && band > 1.5) {
     float cr = cloudR(vCloudXZ);
-    if (cr < 1.0) band = 1.0;
-    else if (cr - fwidth(cr) < 1.0) {
-      vec2 ck = floor((mat3(viewMatrix) * vWorldP).xy / uTexel + 0.25);
-      if (mod(ck.x + ck.y, 2.0) < 0.5) band = 1.0;
+    if (cr < uCloudCut) band = 1.0;
+    else if (cr - fwidth(cr) < uCloudCut) {
+      if (mod(scrT.x + scrT.y, 2.0) < 0.5) band = 1.0;
     }
   }
 
@@ -694,6 +745,15 @@ const RAMP_OUT = /* glsl */ `
     mid = base * 0.78;
     dark = base * 0.55;
   }
+  // 灯光圈（夜里、阴雨天）：圈心 55% 升到亮档，外圈至少中档；边上一纹素棋盘抖动；颜色换灯光的暖色
+  float lampIn = 0.0;
+  if (uLampK > 0.0) {
+    float lr = lampR(vWorldP);
+    float lw = fwidth(lr);
+    bool chk = mod(scrT.x + scrT.y, 2.0) < 0.5;
+    if (lr < 0.55 || (lr - lw < 0.55 && chk)) { band = 2.0; lampIn = 1.0; }
+    else if (lr < 1.0 || (lr - lw < 1.0 && chk)) { band = max(band, 1.0); lampIn = 1.0; }
+  }
   vec3 col = band > 1.5 ? lit : (band > 0.5 ? mid : dark);
   #ifdef ELEM
     // 元素：本档三色 + 缝 + 亮边（投影已经把 band 压到 0、云影压到 1：整套换那一档的颜色，纹理照样在）
@@ -701,7 +761,14 @@ const RAMP_OUT = /* glsl */ `
   #endif
   // 太阳色（日出日落偏暖、夜里偏暗）：只影响亮档，按最大分量归一
   float sm = max(max(sunCol.r, sunCol.g), max(sunCol.b, 1e-3));
-  if (band > 1.5) col *= mix(vec3(1.0), sunCol / sm, 0.35);
+  if (band > 1.5 && lampIn < 0.5) col *= mix(vec3(1.0), sunCol / sm, 0.35);
+  // 时间：三档各乘各的（自发光的东西 —— 开着的灯面、机器的指示灯 —— 不跟着变暗）；灯光圈里换灯光色
+  vec3 dayM = band > 1.5 ? uDayLit : (band > 0.5 ? uDayMid : uDayDark);
+  if (lampIn > 0.5) dayM = mix(dayM, uLampCol * (band > 1.5 ? 1.0 : 0.62), uLampK);
+  float glow = step(1e-3, dot(totalEmissiveRadiance, vec3(1.0)));
+  col *= mix(dayM, vec3(1.0), glow);
+  float sat = mix(uDaySat, 1.0, max(glow, lampIn * uLampK * 0.5));
+  if (sat != 1.0) col = mix(vec3(dot(col, vec3(0.2126, 0.7152, 0.0722))), col, sat);
   col += totalEmissiveRadiance;
   gl_FragColor = vec4(col, diffuseColor.a);
 }
@@ -796,6 +863,9 @@ function makeGradient(): THREE.DataTexture {
 
 export function createMats(u: SharedUniforms, texelMeters: () => number): Mats {
   const gradient = makeGradient();
+  // 时间天气：场景没给就补一份中性的（挂回 u 上，同一份 uniforms 建的几套材质、clubsite/daylight 都拿到同一份）
+  u.day ??= createDayUniforms();
+  const day = u.day;
   const cache = new Map<string, THREE.MeshToonMaterial>();
   const globals: Mats['globals'] = {
     uFur: { value: 0.8 },
@@ -862,6 +932,7 @@ export function createMats(u: SharedUniforms, texelMeters: () => number): Mats {
         uClouds: u.uClouds,
         uCloudVel: u.uCloudVel,
         uCloudStrength: u.uCloudStrength,
+        ...day,
         uRampLit: { value: ramp?.[0] ?? new THREE.Color(1, 1, 1) },
         uRampMid: { value: ramp?.[1] ?? new THREE.Color(1, 1, 1) },
         uRampDark: { value: ramp?.[2] ?? new THREE.Color(1, 1, 1) },
@@ -875,7 +946,7 @@ export function createMats(u: SharedUniforms, texelMeters: () => number): Mats {
       });
       if (el) Object.assign(shader.uniforms, el.uniforms);
       shader.fragmentShader =
-        `#define CLOUD_N ${CLOUD_N}\n#define CLOUD_W ${CLOUD_W.toFixed(1)}\n` +
+        `#define CLOUD_N ${CLOUD_N}\n#define CLOUD_W ${CLOUD_W.toFixed(1)}\n#define LAMP_N ${LAMP_N}\n` +
         RAMP_FRAG_DECL +
         shader.fragmentShader
           .replace('void main() {', `${ELEM_FRAG_DECL}\nvoid main() {`)

@@ -21,6 +21,29 @@ export interface SharedUniforms {
   uCloudVel: { value: THREE.Vector2 };
   /** 0 = 关云影（画廊），> 0 = 开 */
   uCloudStrength: { value: number };
+  /** 时间和天气（clubsite/daylight）：不填 = createMats 补一份中性的（正午、晴，和以前一个字节不差） */
+  day?: DayUniforms;
+}
+
+/** 时间和天气写进材质的 uniform（clubsite/daylight 每帧改；toon.ts createDayUniforms 建中性的一份） */
+export interface DayUniforms {
+  /** 三档颜色乘子（亮 / 中 / 暗）：清晨偏粉、傍晚偏橙、夜里压暗偏靛 */
+  uDayLit: { value: THREE.Vector3 };
+  uDayMid: { value: THREE.Vector3 };
+  uDayDark: { value: THREE.Vector3 };
+  /** 直射光 0..1：投影按有序抖动稀掉（阴天、雨天 0 = 没投影；太阳换月亮那一下淡出淡入） */
+  uSunK: { value: number };
+  /** 着色的光往正上方抬多少（太阳低时顶面仍是亮档；投影照真太阳拉长） */
+  uDayLift: { value: number };
+  /** 云影判定半径：1 = 手摆的云，> 1 云更胖（多云），≥ 50 满天（阴） */
+  uCloudCut: { value: number };
+  /** 灯光圈：每个 (x, z, 半径, 最高照到的 y)；半径 0 = 空位。长度 toon.ts 的 LAMP_N */
+  uLamps: { value: THREE.Vector4[] };
+  /** 灯开多少 0..1、灯光颜色（乘子） */
+  uLampK: { value: number };
+  uLampCol: { value: THREE.Vector3 };
+  /** 饱和度（1 = 原样） */
+  uDaySat: { value: number };
 }
 
 /**

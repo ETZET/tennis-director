@@ -7,6 +7,7 @@
 //   setCastShadow(on)  打开 / 关掉投影（默认关）
 //   setOn(on)          开灯：灯面换成自发光的暖白（夜景用；默认关）
 //   aim(rad)           灯头绕竖轴转（相对杆身）
+//   night              给 clubsite/daylight 的：{ setOn, pool() }，天黑自动开灯，pool() = 灯光圈 [x, z, 半径, 照到的最高 y]（世界坐标，跟着灯头朝向）
 import * as THREE from 'three';
 import { Bucket, box, DU, FACING, type NetCtx } from './nets/kit';
 
@@ -81,6 +82,16 @@ export function build(ctx: NetCtx): THREE.Object3D {
   };
   g.userData.aim = (rad: number) => {
     head.rotation.y = rad;
+  };
+  // 灯光圈：灯头朝向前方 6.5 米为圆心、半径 6.5 米（一盏灯照亮场地的一角和杆子本身；一片场四盏拼起来差不多盖住场地，往场外漏得少），照到灯头那么高
+  const poolC = new THREE.Vector3();
+  g.userData.night = {
+    setOn: g.userData.setOn,
+    pool: (): [number, number, number, number] => {
+      head.updateWorldMatrix(true, false);
+      poolC.set(0, 0, 6.5).applyMatrix4(head.matrixWorld);
+      return [poolC.x, poolC.z, 6.5, H + 0.6];
+    },
   };
   return g;
 }

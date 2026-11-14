@@ -35,6 +35,21 @@ export interface EdgeParams {
   tint?: [number, number, number];
 }
 
+/** 天气和夜空（clubsite/daylight 每帧写；全 0 = 没有，和以前一样）。都画在最后合成这一步，按纹素画、跟世界锚定 */
+export interface Atmo {
+  /** 雨 0..1：1 纹素宽的斜雨丝 + 地上溅起的亮点 */
+  rain: number;
+  /** 风沙 0..1：整体蒙一层沙色（按低频斑块分 3 档，不是柔边）+ 横飘的沙线 */
+  dust: number;
+  dustColor: [number, number, number];
+  /** 星星 0..1（只画在天空上） */
+  stars: number;
+  /** 秒（雨落、沙飘、星星闪） */
+  time: number;
+  /** 风往屏幕右多少（-1..1）：雨丝斜的方向、沙飘的方向 */
+  wind: number;
+}
+
 /** three 阴影 pass 的翻面规则（WebGLShadowMap 的 shadowSide） */
 const SHADOW_SIDE: Record<THREE.Side, THREE.Side> = {
   [THREE.FrontSide]: THREE.BackSide,
@@ -67,7 +82,20 @@ uniform float uTopStrength;
 uniform float uUniformDark;
 uniform vec3 uEdgeTint;
 uniform float uShowEdges; // 调试：1 只显示边缘
+uniform vec2 uCamT;       // 相机对齐后的位置（纹素，整数）：雨、沙、星星跟世界锚定
+uniform float uRain;
+uniform float uDust;
+uniform vec3 uDustCol;
+uniform float uStars;
+uniform float uFxTime;
+uniform float uWindX;
 varying vec2 vUv;
+
+float fh(vec2 p) { vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
+float fvn(vec2 p) {
+  vec2 i = floor(p); vec2 f = fract(p); f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(fh(i), fh(i + vec2(1.0, 0.0)), f.x), mix(fh(i + vec2(0.0, 1.0)), fh(i + vec2(1.0, 1.0)), f.x), f.y);
+}
 
 vec2 T;
 float depthAt(vec2 o) { return texture2D(tDepth, (T + o) / uLow).r * uDepthRange; }
@@ -121,6 +149,43 @@ void main() {
   } else if (ne > 0.0) {
     col = mix(c.rgb, vec3(1.0), clamp(uNormalStrength * ne * 0.6, 0.0, 0.9));
   }
+  // ── 天气（纹素对齐、世界锚定） ──
+  vec2 g = T - 0.5 - floor(uLow * 0.5) + uCamT;
+  if (uStars > 0.0 && fg < 0.5) {
+    // 星星：天上稀稀的单纹素亮点，少数两档闪
+    float sh = fh(g * 0.731 + 17.0);
+    if (sh < 0.006 * uStars) {
+      float tw = step(0.3, fract(fh(g + 3.0) + uFxTime * (0.2 + fh(g + 5.0) * 0.5)));
+      col = mix(col, vec3(1.0, 0.97, 0.88), (0.55 + 0.45 * tw) * min(1.0, uStars * 1.5));
+    }
+  }
+  if (uDust > 0.0) {
+    // 风沙：低频斑块按 3 档蒙沙色（硬边，跟着风飘）；远处（深度大）更浓；横飘的 2～5 纹素沙线
+    float n = fvn(vec2(g.x * 0.018 - uFxTime * uWindX * 0.6, g.y * 0.03)) * 0.7 + fvn(g * 0.05 + vec2(-uFxTime * uWindX * 1.4, 7.0)) * 0.3;
+    float far = fg > 0.5 ? clamp(d / uDepthRange * 2.2, 0.0, 1.0) : 1.0;
+    float lv = floor((n * 0.7 + far * 0.5) * 3.0) / 3.0;
+    col = mix(col, uDustCol, uDust * (0.22 + 0.28 * lv));
+    float row = g.y;
+    float sx = g.x - uFxTime * 60.0 * sign(uWindX + 1e-3) * (0.6 + fh(vec2(row, 1.0)) * 0.8);
+    float seg = floor(sx / 23.0);
+    float gx = sx - seg * 23.0;
+    if (fh(vec2(seg, row)) < 0.05 * uDust && gx < 2.0 + floor(fh(vec2(seg, row + 9.0)) * 4.0)) col = mix(col, uDustCol * 1.15, 0.6);
+  }
+  if (uRain > 0.0) {
+    // 雨：1 纹素宽的雨丝（3～5 纹素长），按风斜（每 3～4 行挪一列），往屏幕下落；每列一串、各自的间隔和相位
+    float y = g.y + uFxTime * 110.0;
+    float slant = uWindX * 0.3;
+    float x = g.x + floor(y * slant);
+    float h = fh(vec2(x, 3.0));
+    float seg = 18.0 + floor(h * 22.0);
+    float yy = y + h * 97.0;
+    float si = floor(yy / seg);
+    float ph = yy - si * seg;
+    float len = 3.0 + floor(fh(vec2(x, si)) * 3.0);
+    if (ph < len && fh(vec2(x, si) + 4.0) < 0.3 * uRain) col = mix(col, vec3(0.8, 0.86, 0.98), ph < 1.0 ? 0.3 : 0.45);
+    // 地上溅起的亮点：一纹素，每 0.12 秒换一批
+    if (fg > 0.5 && fh(g + floor(uFxTime * 8.0) * 13.1) < 0.0015 * uRain) col = mix(col, vec3(0.86, 0.9, 1.0), 0.7);
+  }
   if (uShowEdges > 0.5) col = vec3(isTop ? 0.0 : de, ne, isTop ? 1.0 : 0.0);
   gl_FragColor = vec4(clamp(col, 0.0, 1.0), 1.0);
   #include <colorspace_fragment>
@@ -134,6 +199,10 @@ export class PixelPipeline {
   readonly edges: EdgeParams;
   /** 一个纹素占多少 CSS 像素 */
   px: number;
+  /** 天气和夜空（clubsite/daylight 写；默认全关） */
+  readonly atmo: Atmo = { rain: 0, dust: 0, dustColor: [0.86, 0.68, 0.46], stars: 0, time: 0, wind: 0 };
+  /** 相机对齐后的位置（纹素） */
+  private camT = new THREE.Vector2();
   private color: THREE.WebGLRenderTarget;
   private normal: THREE.WebGLRenderTarget;
   private final: THREE.ShaderMaterial;
@@ -214,6 +283,13 @@ export class PixelPipeline {
         uUniformDark: { value: 0 },
         uEdgeTint: { value: new THREE.Vector3(0.5, 0.55, 0.78) },
         uShowEdges: { value: 0 },
+        uCamT: { value: new THREE.Vector2() },
+        uRain: { value: 0 },
+        uDust: { value: 0 },
+        uDustCol: { value: new THREE.Vector3() },
+        uStars: { value: 0 },
+        uFxTime: { value: 0 },
+        uWindX: { value: 0 },
       },
       depthTest: false,
       depthWrite: false,
@@ -262,6 +338,7 @@ export class PixelPipeline {
     const sr = Math.round(pr / s) * s;
     const su = Math.round(pu / s) * s;
     cam.position.set(0, 0, 0).addScaledVector(R, sr).addScaledVector(U, su).addScaledVector(F, pf);
+    this.camT.set(Math.round(pr / s), Math.round(pu / s));
     cam.updateMatrixWorld();
     const halfW = (this.low.x * s) / 2;
     const halfH = (this.low.y * s) / 2;
@@ -326,6 +403,14 @@ export class PixelPipeline {
     u.uTopStrength.value = this.edges.topStrength;
     u.uUniformDark.value = this.edges.uniformDark ?? 0;
     u.uEdgeTint.value.set(...(this.edges.tint ?? EDGE_TINT));
+    const a = this.atmo;
+    u.uCamT.value.copy(this.camT);
+    u.uRain.value = a.rain;
+    u.uDust.value = a.dust;
+    u.uDustCol.value.set(...a.dustColor);
+    u.uStars.value = a.stars;
+    u.uFxTime.value = a.time;
+    u.uWindX.value = a.wind;
     r.setRenderTarget(null);
     r.render(this.quadScene, this.quadCam);
   }
