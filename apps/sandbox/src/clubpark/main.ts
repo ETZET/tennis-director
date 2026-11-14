@@ -9,6 +9,7 @@
 // 停着的车 park-*）交给它建；?life=0 = 原来的白模定格（截图对比用）。默认玩法模式（总监由玩家操控，play.ts）；?play=0 = 只看。
 import '../clubsite/render/colors';
 import * as THREE from 'three';
+import { mountDaylight } from '../clubsite/daylight';
 import { type Hud, mountPlay, type Play } from '../clubsite/play';
 import { snapDelta, ViewLerp } from '../clubsite/play/smooth';
 import type { RegionJobs } from '../clubsite/region';
@@ -299,6 +300,8 @@ if (pxEl && !galleryId) {
 // 配色切换（右上角）
 const palEl = document.getElementById('palsel');
 if (palEl && !galleryId) mountPaletteSwitcher(palEl, SCHEMES, scheme?.id ?? 'current');
+// 时间和天气（clubsite/daylight：太阳绕着走、影子跟着转，夜里月亮 + 灯；左上角的时间面板）。画廊不接
+const day = galleryId ? null : mountDaylight({ scene, pipe, sun, uniforms, params, scheme, sky: SKY, hud: pxEl });
 
 const DT = 1 / 60;
 let simT = 0;
@@ -307,6 +310,7 @@ function step(seconds: number) {
   for (let i = 0; i < n; i++) {
     simT += DT;
     uniforms.uTime.value = simT;
+    day?.step(DT);
     uniforms.uGust.value = 0.5 + 0.35 * Math.sin(simT * 0.7) * Math.sin(simT * 0.23);
     region?.update(DT, simT);
     for (const u of updaters) u(DT, simT);
@@ -350,6 +354,7 @@ function frame(now: number) {
     }
     lerp?.begin(acc / DT);
   }
+  day?.frame();
   pipe.render(scene);
   pipe2?.render(scene);
   placeLabels();

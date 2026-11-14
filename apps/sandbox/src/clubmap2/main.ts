@@ -3,6 +3,7 @@
 // URL：px（每纹素 CSS 像素，默认 1）、yaw（度）、zoom（米/纹素，不给 = 自动取景）、labels=0、pal=<配色>、sunel/sunaz、pause=1。
 import '../clubsite/render/colors';
 import * as THREE from 'three';
+import { mountDaylight } from '../clubsite/daylight';
 import { axes, FIT_TIGHT, fitRange, HEADROOM, PITCH, SKY_STRIP, screenOf } from '../clubsite/framing';
 import type { AssetCtx, SharedUniforms } from '../clubsite/render/ctx';
 import { rngFactory } from '../clubsite/render/noise';
@@ -262,6 +263,25 @@ if (pxEl) {
 }
 const palEl = document.getElementById('palsel');
 if (palEl) mountPaletteSwitcher(palEl, SCHEMES, scheme?.id ?? 'current');
+// 时间和天气（clubsite/daylight）：太阳方向跟着镜头转（同 setSun），影子随时刻变
+const day = mountDaylight({
+  scene,
+  pipe,
+  sun,
+  uniforms,
+  params,
+  scheme,
+  sky: SKY,
+  hud: pxEl,
+  placeSun: (d) => {
+    const c = Math.cos(pipe.rig.yaw);
+    const s = Math.sin(pipe.rig.yaw);
+    sun.position
+      .set(d.x * c - d.z * s, d.y, d.z * c + d.x * s)
+      .multiplyScalar(300)
+      .add(sun.target.position);
+  },
+});
 
 const rotateBy = (d: number) => {
   pipe.rig.yaw += d * 90 * deg;
@@ -323,9 +343,14 @@ const paused = params.get('pause') === '1';
 let t = 0;
 let last = performance.now();
 function frame(now: number) {
-  if (!paused) t += Math.min(0.1, (now - last) / 1000);
+  const dt = Math.min(0.1, (now - last) / 1000);
+  if (!paused) {
+    t += dt;
+    day.step(dt);
+  }
   last = now;
   uniforms.uTime.value = t;
+  day.frame();
   pipe.render(scene);
   placeLabels();
   requestAnimationFrame(frame);

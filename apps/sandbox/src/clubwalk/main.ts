@@ -18,6 +18,7 @@ import { placements } from '../clubmap2/scatter';
 import { CLOUDS as PARK_CLOUDS, SPOTS as PARK_SPOTS } from '../clubpark/layout';
 import { createParkKit } from '../clubpark/scene';
 import { CLOUDS as PLAZA_CLOUDS } from '../clubplaza/layout';
+import { mountDaylight } from '../clubsite/daylight';
 import { director as clubDirector } from '../clubsite/people';
 import {
   type Circle,
@@ -139,7 +140,17 @@ const sunDir = new THREE.Vector3(
 );
 const sunRight = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), sunDir).normalize();
 const sunUp = new THREE.Vector3().crossVectors(sunDir, sunRight).normalize();
+/** 太阳方向换了（时间系统 clubsite/daylight 每帧给）：重算阴影相机的纹素网格，再按上次的位置摆 */
+const sunAt = new THREE.Vector2(START[0], START[1]);
+function aimSun(dir: THREE.Vector3) {
+  if (dir.equals(sunDir)) return;
+  sunDir.copy(dir);
+  sunRight.crossVectors(new THREE.Vector3(0, 1, 0), sunDir).normalize();
+  sunUp.crossVectors(sunDir, sunRight).normalize();
+  placeSun(sunAt.x, sunAt.y);
+}
 function placeSun(x: number, z: number) {
+  sunAt.set(x, z);
   const p = new THREE.Vector3(x, 0, z);
   const texel = (SH * 2) / SH_MAP;
   const a = Math.round(p.dot(sunRight) / texel) * texel;
@@ -845,6 +856,9 @@ if (pxEl) {
   sync();
 }
 
+// ── 时间和天气（clubsite/daylight）：太阳绕着走、影子跟着转，夜里月亮 + 球场灯；面板在像素级别下面 ──
+const day = mountDaylight({ scene, pipe, sun, uniforms, params, scheme, placeSun: aimSun, hud: pxEl });
+
 // ── 固定步长循环 ──
 const DT = 1 / 60;
 let simT = 0;
@@ -860,6 +874,7 @@ function step(seconds: number) {
     simT += DT;
     uniforms.uTime.value = simT;
     uniforms.uGust.value = 0.5 + 0.35 * Math.sin(simT * 0.7) * Math.sin(simT * 0.23);
+    day.step(DT);
     for (const L of lives) if (L.visible) L.region?.update(DT, simT);
     play?.update(DT, simT);
     for (const L of lives) {
@@ -942,6 +957,7 @@ function frame(now: number) {
   updatePlace();
   pipe.renderer.info.reset();
   if (SMOOTH && !paused) lerp.begin(acc / DT);
+  day.frame();
   pipe.render(scene);
   play?.hud.frame();
   lerp.end();
@@ -1022,6 +1038,7 @@ Object.assign(window, {
     stream,
     perf,
     place: () => placeName,
+    day,
     state: () => play?.state(),
   },
 });
