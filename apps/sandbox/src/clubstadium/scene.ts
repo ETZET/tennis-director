@@ -7,7 +7,7 @@ import { rngFactory } from '../clubsite/render/noise';
 import { schemeById, schemeMats, schemeOpts } from '../clubsite/render/palettes';
 import { createMats, type ToonOpts } from '../clubsite/render/toon';
 import type { AssetBuild, AssetCtx } from './ctx';
-import { AREA_LABELS, NAV_BOUNDS, PLAY_VIEW, PLAY_WALK, SLOTS, SPOTS, STAND_RAMPS } from './layout';
+import { AREA_LABELS, EAST_RAMPS, NAV_BOUNDS, PLAY_VIEW, PLAY_WALK, SLOTS, SPOTS, STAND_RAMPS } from './layout';
 import { createLife, type StadiumLife } from './life';
 import { buildNav, SPOT_NAMES } from './nav';
 import { PAL, type Pal, PROXY } from './palette';
@@ -209,7 +209,7 @@ export function createStadiumRegion(host: RegionHost, kit = createStadiumKit(hos
       bounds: NAV_BOUNDS,
       walkable: PLAY_WALK,
       blocked: staticBlocked(objs),
-      ramps: STAND_RAMPS,
+      ramps: [...STAND_RAMPS, ...EAST_RAMPS],
       // 端梯（0.85 米/米）和走道（0.76）比一般的台阶陡：寻路每格 0.2 米最多升 stepUp / 2，默认 0.3 上不去
       stepUp: 0.36,
     }),

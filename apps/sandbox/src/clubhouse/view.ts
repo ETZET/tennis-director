@@ -30,17 +30,26 @@ export function tagViews(o: { userData: Record<string, unknown> }, views: HouseV
 }
 
 /** 按看法切 visible：有 houseViews 的按它；只有旧的 houseMode 的按一层的规则 */
+/**
+ * 在这种看法里显示吗。进楼是沉浸式的：userData.houseOutside = true 的东西（会所外面：地面、围墙、邻居、四周的植物、
+ * 外面走的人）只在外观里显示，看任何一层的剖面都藏起来（楼里看不到外面）。
+ */
+export function visibleIn(ud: Record<string, unknown>, view: HouseView): boolean | null {
+  const outside = ud.houseOutside === true;
+  const vs = ud.houseViews as HouseView[] | undefined;
+  if (vs) return vs.includes(view) && (!outside || view === 'out');
+  const m = ud.houseMode as HouseMode | undefined;
+  if (m) return viewsFor(1, m).includes(view) && (!outside || view === 'out');
+  return outside ? view === 'out' : null;
+}
+
+/** 按看法切 visible：有 houseViews 的按它；只有旧的 houseMode 的按一层的规则；houseOutside 的只在外观 */
 export function applyView(
   root: { traverse(cb: (o: { userData: Record<string, unknown>; visible: boolean }) => void): void },
   view: HouseView,
 ) {
   root.traverse((o) => {
-    const vs = o.userData.houseViews as HouseView[] | undefined;
-    if (vs) {
-      o.visible = vs.includes(view);
-      return;
-    }
-    const m = o.userData.houseMode as HouseMode | undefined;
-    if (m) o.visible = viewsFor(1, m).includes(view);
+    const v = visibleIn(o.userData, view);
+    if (v !== null) o.visible = v;
   });
 }

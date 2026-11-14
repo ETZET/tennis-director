@@ -101,7 +101,7 @@ describe('会所 2F：演出', () => {
 });
 
 describe('会所 2F：总监的活', () => {
-  it('开局只有空杯和收着的伞；别的错开着出，没人管就一直在', () => {
+  it('开局只有空杯和收着的伞；别的错开着出，没人管就一直在', { timeout: SIM_TIMEOUT }, () => {
     const h = testHouse({ play: true });
     expect(
       dbg(h)

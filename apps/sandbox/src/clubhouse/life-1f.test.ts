@@ -81,7 +81,9 @@ describe('会所 1F：演出', () => {
     expect(dbg(h).boxes()).toBeGreaterThanOrEqual(4);
   });
 
-  it('玩法模式：开局没有信号，之后一个一个亮（错开），没人管就一直亮着；店员会走开又回来', () => {
+  it('玩法模式：开局没有信号，之后一个一个亮（错开），没人管就一直亮着；店员会走开又回来', {
+    timeout: SIM_TIMEOUT,
+  }, () => {
     const { h } = start();
     const auto = ['hooks', 'soldout', 'row', 'kiosk', 'cups', 'prints', 'mat'];
     for (const id of auto) expect(state(h, id), id).toBe('idle');

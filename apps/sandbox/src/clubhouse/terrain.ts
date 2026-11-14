@@ -393,7 +393,8 @@ export function buildHouse(ctx: AssetCtx): THREE.Group {
 
   // ── 地上的地（北巷、西巷、拱廊前的沙地：下面是 B1）：外观、一层、二层画，看负一层时藏起来（地面在 PIT_LOOP 挖了洞）──
   {
-    const g = B(['out', '1f', '2f'], false);
+    // 会所外面的地：进楼是沉浸式的，只在外观里
+    const g = B(['out'], false);
     for (const r of GRADE)
       g.add('sandHigh', quad(r, H.ground + 0.004), { ...FLAT, extra: { elem: { ...EL.sand, seed: 7 } } });
   }
@@ -554,6 +555,8 @@ export function buildTerrain(ctx: AssetCtx): Terrain {
   for (const m of root.children as THREE.Mesh[]) if (m.name.startsWith('top:')) m.castShadow = false;
   root.add(buildMountains((c, o) => ctx.mats.toon(c, o)));
 
+  // 会所外面的一切（地面、围墙、邻居、山）：进楼是沉浸式的，看剖面时藏起来（view.ts 的 visibleIn）
+  for (const c of root.children) c.userData.houseOutside = true;
   const house = buildHouse(ctx);
   root.add(house);
   return { root, house, groundAt };

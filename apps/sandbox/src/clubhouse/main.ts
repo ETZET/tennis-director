@@ -34,8 +34,10 @@ import {
   FOOT,
   GOODS_LIFT,
   GROUNDS,
+  INTERIOR_BG,
   LIFT,
   MPT,
+  outsideHouse,
   SUN,
   TARGET,
 } from './layout';
@@ -86,7 +88,11 @@ const uniforms: SharedUniforms = {
 };
 
 const scene = new THREE.Scene();
-scene.background = skyTexture();
+const SKY_TEX = skyTexture();
+const SKY_BODY = document.body.style.background;
+/** 进楼（沉浸式）：外面的东西都藏起来，背景换成楼里的暗色（楼外的天、山、邻居一样都看不到） */
+const INTERIOR = new THREE.Color(INTERIOR_BG);
+scene.background = SKY_TEX;
 
 // 默认每纹素 1 个 CSS 像素（画廊 2）。zoom = 实际的米/纹素，按 2× 时的 MPT 等比换算，取景不变。
 const PX0 = num('px', galleryId ? 2 : 1);
@@ -261,6 +267,8 @@ function buildScene() {
     obj.scale.setScalar(s.s ?? 1);
     obj.name = `slot:${s.id}`;
     obj.userData.houseViews = vs;
+    // 会所外面的摆件（四周的植物、邻居、地上的天窗）：进楼是沉浸式的，看剖面时藏起来
+    obj.userData.houseOutside = outsideHouse(s.x, s.z, s.level ?? 1);
     if (s.prop !== undefined) obj.userData.setProp?.(s.prop);
     if (s.pose) obj.userData.pose?.(s.pose[0], s.pose[1]);
     scene.add(obj);
@@ -321,6 +329,10 @@ function setInside(on: boolean, frame = true) {
   const view = viewOf(on, floor);
   setHouseView(scene, view);
   life?.setView(on, floor);
+  if (!galleryId) {
+    scene.background = on ? INTERIOR : SKY_TEX;
+    document.body.style.background = on ? `#${INTERIOR.getHexString()}` : SKY_BODY;
+  }
   for (const l of labels) l.el.style.display = !l.views || l.views.includes(view) ? '' : 'none';
   if (frame) {
     const t = targetFor(on);
