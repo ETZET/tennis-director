@@ -48,6 +48,21 @@ module.exports = {
       to: { path: '^apps/sandbox/src/club(?!site/)[^/]*/' },
     },
     {
+      name: 'cast-is-pure',
+      comment:
+        '人物（clubsite/cast）是纯数据 + 纯函数（以后整个搬进 packages/sim）：不依赖 three，也不依赖画面那几层' +
+        '（clubsite 的 render、people、play、assets、tools、nature 和场景）。换装在 people/dress.ts，界面在 clubwalk/cast。',
+      severity: 'error',
+      from: { path: '^apps/sandbox/src/clubsite/cast/' },
+      to: {
+        path: [
+          'node_modules/(three|@types/three)/',
+          '^apps/sandbox/src/clubsite/(render|people|play|assets|tools|nature)/',
+          '^apps/sandbox/src/clubsite/[^/]+\\.ts$',
+        ],
+      },
+    },
+    {
       name: 'clubwalk-is-top',
       comment:
         'src/clubwalk（所有场景连成的大世界）是唯一 import 各场景模块（scene.ts）拼在一起的地方；反过来谁也不 import clubwalk。',
@@ -88,7 +103,8 @@ module.exports = {
     // typescript@7 还没有公开的编译器 API，dependency-cruiser 改用 SWC 解析 TS
     parser: 'swc',
     doNotFollow: { path: 'node_modules' },
-    exclude: { path: '(^|/)(dist|node_modules)/' },
+    // 只排除 dist：node_modules 不跟进（doNotFollow），但对它的依赖要留着，three 的几条规则（three-only-in-sandbox、cast-is-pure）才判得到
+    exclude: { path: '(^|/)dist/' },
     tsPreCompilationDeps: true,
     combinedDependencies: true,
     enhancedResolveOptions: {

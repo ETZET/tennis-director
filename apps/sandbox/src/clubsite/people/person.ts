@@ -286,6 +286,9 @@ export function wrapPerson(ctx: PeopleCtx, root: THREE.Group, opts: PersonOpts):
   const ud = root.userData;
   ud.pose = pose;
   ud.poses = ALL_POSES;
+  /** 是一个人（clubwalk 的演员表按它在场景里找人）；poseName() 现在的姿势（点人时"在干什么"用） */
+  ud.isPerson = true;
+  ud.poseName = () => current;
   ud.period = (n?: string) => (n && isNewPose(n) ? NEW_PERIOD[n] : n && isRigPose(n) ? RIG_PERIOD[n] : period());
   ud.update = (dt: number) => {
     if (fixed) return;

@@ -54,7 +54,7 @@ const OUTFITS: Outfit[] = [
 export function build(ctx: AssetCtx): THREE.Object3D {
   const o = OUTFITS[((ctx.variant % OUTFITS.length) + OUTFITS.length) % OUTFITS.length];
   const m = (k: keyof Pal) => ctx.mat(k, PERSON);
-  return buildPerson(
+  const root = buildPerson(
     ctx,
     {
       skin: m(o.skin),
@@ -69,6 +69,10 @@ export function build(ctx: AssetCtx): THREE.Object3D {
     },
     `player-v${ctx.variant}`,
   );
+  // 哪一种人（clubwalk 的演员表按它挑人；clubsite/people 包一层时同样写）
+  root.userData.personKind = 'player';
+  root.userData.personVariant = ctx.variant;
+  return root;
 }
 
 /** 人物的明暗：太阳在画面后方，光往上偏多一点 → 头顶、肩亮，朝镜头的脸和胸落中档而不是全黑 */

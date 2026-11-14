@@ -36,6 +36,8 @@ export default defineConfig({
         // 所有做好的场景连成一个大世界（按区域加载，src/clubwalk）
         clubwalk: resolve(import.meta.dirname, 'clubwalk.html'),
         clubgolf: resolve(import.meta.dirname, 'clubgolf.html'),
+        // 人物一览：clubsite/people 的 Q 版人按 CastLook 换装（src/cast）
+        cast: resolve(import.meta.dirname, 'cast.html'),
       },
     },
   },
