@@ -10,6 +10,7 @@ import * as THREE from 'three';
 import { CLOUDS as CLAY_CLOUDS } from '../clubclay/layout';
 import { CLOUDS as DESK_CLOUDS } from '../clubdesk/layout';
 import { GOLF_GATE } from '../clubgolf/layout';
+import { INTERIOR_BG, outsideHouse } from '../clubhouse/layout';
 import { floorFor } from '../clubhouse/nav';
 import type { HouseRegion } from '../clubhouse/scene';
 import { buildMap } from '../clubmap2/build';
@@ -94,7 +95,17 @@ const uniforms: SharedUniforms = {
 };
 
 const scene = new THREE.Scene();
-scene.background = skyTexture();
+const SKY_TEX = skyTexture();
+const SKY_BODY = document.body.style.background;
+const INTERIOR = new THREE.Color(INTERIOR_BG);
+scene.background = SKY_TEX;
+/** 进会所（沉浸式）：只画会所（stream 里别的区域、底图都藏），背景换成楼里的暗色 */
+let immersive = false;
+function setImmersive(on: boolean) {
+  immersive = on;
+  scene.background = on ? INTERIOR : SKY_TEX;
+  document.body.style.background = on ? `#${INTERIOR.getHexString()}` : SKY_BODY;
+}
 
 // 默认每纹素 1 个 CSS 像素；米/纹素 = 0.09 × px / 2（同各场景）
 const MPT = 0.09;
@@ -682,17 +693,19 @@ function stream(dt: number, force = false) {
   const v0 = viewRect(0);
   for (const L of lives) {
     // 着色器还没编完（pipe.prewarm）：画面外那圈余量里先不画（底图那块顶着），等编完；真进了画面就不等了（照旧当场等编译）
-    const show = L.visible && wanted(L, vr) && (L.warm || wanted(L, v0));
+    // 总监在会所里（沉浸式）：只画会所，别的区域、底图都不画（楼里看不到外面）
+    const show = L.visible && wanted(L, vr) && (L.warm || wanted(L, v0)) && (!immersive || L.def.id === 'clubhouse');
+    const b0 = base.by.get(L.def.id);
+    if (b0) b0.visible = !show && !immersive;
     if (L.root.visible !== show) {
       if (show && !L.drawn) {
         L.drawn = true;
         if (!L.warm) console.info(`clubwalk: ${L.def.id} 进画面时着色器还没编完（会当场等）`);
       }
       L.root.visible = show;
-      const b = base.by.get(L.def.id);
-      if (b) b.visible = !show;
     }
   }
+  base.rest.visible = !immersive;
   if (fresh.length && play) {
     const t0 = performance.now();
     const next = allBlocked();
@@ -899,11 +912,13 @@ function step(seconds: number) {
     {
       const hr = asHouse(lives.find((l) => l.def.id === 'clubhouse')?.region);
       const p = director.position;
-      const inHouse =
-        p.x > CLUBHOUSE.x0 + 0.2 && p.x < CLUBHOUSE.x1 - 0.2 && p.z > CLUBHOUSE.z0 + 0.2 && p.z < CLUBHOUSE.z1 - 0.2;
+      // 会所的脚印（L 形，不含东边 clubfood 的拱廊前小院）；楼上、地下（脚下离地 > 1 米）在会所那一片里都算里面
+      const nearHouse = p.x > -64.5 && p.x < -39.5 && p.z > -43 && p.z < -1;
+      const inHouse = nearHouse && (Math.abs(p.y) > 1 || !outsideHouse(p.x, p.z, 1, -0.2));
       if (hr && inHouse !== houseInside) {
         houseInside = inHouse;
         hr.setInside(inHouse);
+        setImmersive(inHouse);
       }
       // 楼梯上换层：脚下高度过了阈值（floorFor 带滞回）→ 剖面和导航换成那一层（onFloor 的回调重建网格，见 buildRegion）。
       // 两个平台、半跑在相邻两层的导航里都有，换过去的那一刻脚下站得住

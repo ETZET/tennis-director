@@ -183,6 +183,16 @@ export const FOOT: Record<Floor, Rect[]> = {
     ...TERRACE,
   ],
 };
+/** 进楼以后的背景（楼外什么都不画）：切墙顶 wallCut 暗档那一家的深靛 */
+export const INTERIOR_BG = 0x231c2e;
+/**
+ * 在会所外面吗（进楼是沉浸式的：外面的东西看剖面时藏起来）。地上的东西按一层、二层的脚印（含拱廊、露台），负一层的按 B1；
+ * 往外放宽 margin（贴着外墙的门、招牌、攀柱的花算里面）。
+ */
+export function outsideHouse(x: number, z: number, level: Floor = 1, margin = 0.25): boolean {
+  const rs = level === -1 ? FOOT[-1] : [...FOOT[1], ...FOOT[2]];
+  return !rs.some((r) => x > r.x0 - margin && x < r.x1 + margin && z > r.z0 - margin && z < r.z1 + margin);
+}
 /** 一层的脚印（L 形，从西北角顺时针） */
 export const FOOT_LOOP: V2[] = [
   [-62, -40],

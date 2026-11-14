@@ -122,8 +122,11 @@ export const PLAYERS_GATE = { x: -22.2, z: -21, span: 4.2, h: 3.8 } as const;
 export const WALKOUT: Rect = { x0: TERRACE.x1, x1: CELL.x0, z0: -22.4, z1: -19.6 };
 /** 西南角：总监的工具角（工具架 + 划线车），从长廊进来 */
 export const TOOL_CORNER: Rect = { x0: -24.5, x1: -18.4, z0: -15.4, z1: -10.2 };
-/** 东看台背后上看台的台阶（接 clubplaza 的 STADIUM_LINK 小路）：6 级 × 0.4，从 x 24.0 往西上到 21.6（东看台顶 y 2.4） */
-export const EAST_STAIRS = { x0: 21.6, x1: 24.0, z0: -25.0, z1: -23.0, steps: 6 } as const;
+/**
+ * 东看台背后上看台的台阶（接 clubplaza 的 STADIUM_LINK 小路）：6 级 × 0.4 高 × 0.5 深，从 x 24.6 往西上到 21.6（东看台顶 y 2.4）。
+ * 每级 0.5 深 = 坡度 0.8：寻路每格 0.2 米最多升 stepUp / 2 = 0.18（0.4 深的 1:1 上不去）
+ */
+export const EAST_STAIRS = { x0: 21.6, x1: 24.6, z0: -25.0, z1: -23.0, steps: 6 } as const;
 
 /** 各层高度（米）：场地、长廊、西头都是 0（这个场景没有台地，暗带全靠看台的立面） */
 export const H = { ground: 0 } as const;
@@ -530,7 +533,7 @@ export const CLOUD_VEL = 0.12;
  * 总监的导航范围（点地面寻路的网格）：西到球员通道外的小路，东到东看台，北到看台最高一级，南到长廊。
  * 西边的会所露台、东边去喷泉广场的小路 = 别的场景（clubwalk 接起来以后再连）。
  */
-export const NAV_BOUNDS: Rect = { x0: -27.6, x1: 24, z0: -37.4, z1: -4.4 };
+export const NAV_BOUNDS: Rect = { x0: -27.6, x1: 31, z0: -42.6, z1: -4.4 };
 /**
  * 地面上能走的（并集）：场地、西头（球员通道 + 工具角）、端梯西边的沙地（北到导航北沿）、长廊、南看台和东看台之间的东南角。
  * 看台的走道、端梯、最高一级的横走道在 STAND_RAMPS 里（坡道本身算能走）。
@@ -541,6 +544,9 @@ export const PLAY_WALK: Rect[] = [
   { x0: -27.4, x1: STANDS.north.x0 - 1.2, z0: NAV_BOUNDS.z0, z1: CELL.z0 + 0.4 },
   { x0: -27.4, x1: 24, z0: -9.7, z1: -4.4 },
   { x0: CELL.x1, x1: 21.6, z0: CELL.z1, z1: -9.7 },
+  // 东看台背后的沙地（东到广场西沿的挡土墙前 x 31，clubwalk 里接 clubplaza）+ 东北角（北看台东头以东，北到北围墙脚）
+  { x0: 21.6, x1: 31, z0: CELL.z0, z1: -9.7 },
+  { x0: STANDS.north.x1, x1: 31, z0: -42.5, z1: CELL.z0 },
 ];
 /**
  * 看台上走的路（坡道：高度按 z 线性插值，覆盖地面高度）。北看台的广告板（0.9 高）挡住走道的下口，
@@ -583,6 +589,20 @@ export const STAND_RAMPS = [
     to: 0.9,
     axis: 'z' as const,
   })),
+];
+/** 东看台背后的台阶（坡道：x0 那头高、x1 那头地面）+ 台阶顶上东看台最高一级踏面的一小块平台 */
+const EAST_TOP = tier(STANDS.east.n - 1, STANDS.east.rise, STANDS.east.deep).top;
+export const EAST_RAMPS = [
+  {
+    x0: 21.0,
+    x1: EAST_STAIRS.x0,
+    z0: EAST_STAIRS.z0,
+    z1: EAST_STAIRS.z1,
+    from: EAST_TOP,
+    to: EAST_TOP,
+    axis: 'x' as const,
+  },
+  { ...EAST_STAIRS, from: EAST_TOP, to: 0, axis: 'x' as const },
 ];
 /** 看台上某点的高度（走道、端梯、横走道；不在上面 = null）：给 NPC 走路用（总监走路由 play 的导航算） */
 export function standY(x: number, z: number): number | null {

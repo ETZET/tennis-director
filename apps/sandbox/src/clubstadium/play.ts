@@ -59,6 +59,11 @@ export function staticBlocked(objs: Map<string, THREE.Object3D>): Shape[] {
   for (const [id, r] of [
     ['brittle-w', 0.45],
     ['creosote-w', 0.6],
+    // 东看台背后的沙地（去广场的小路两边）
+    ['brittle-e', 0.45],
+    ['creosote-e', 0.6],
+    ['smoke-e', 0.35],
+    ['palm-se', 0.36],
   ] as const) {
     const o = objs.get(id);
     if (o) out.push({ x: o.position.x, z: o.position.z, r });

@@ -9,7 +9,7 @@ import { schemeById, schemeMats, schemeOpts } from '../clubsite/render/palettes'
 import { createMats, type ToonOpts } from '../clubsite/render/toon';
 import { CLUBHOUSE, GROUNDS } from '../clubsite/world';
 import type { AssetBuild, AssetCtx } from './ctx';
-import { FLOOR_NAME, FLOOR_Y, type Floor, GOODS_LIFT, LIFT } from './layout';
+import { FLOOR_NAME, FLOOR_Y, type Floor, GOODS_LIFT, LIFT, outsideHouse } from './layout';
 import { houseNav, liftNext } from './nav';
 import { PAL, type Pal, PROXY } from './palette';
 import { gymPerson } from './people';
@@ -122,6 +122,8 @@ export function createHouseRegion(host: RegionHost): HouseRegion {
       obj.scale.setScalar(s.s ?? 1);
       obj.name = `slot:${s.id}`;
       obj.userData.houseViews = s.views ?? viewsFor(s.level ?? 1, s.mode);
+      // 会所外面的摆件（四周的植物、邻居、地上的天窗）：进楼是沉浸式的，看剖面时藏起来
+      obj.userData.houseOutside = outsideHouse(s.x, s.z, s.level ?? 1);
       if (s.prop !== undefined) obj.userData.setProp?.(s.prop);
       if (s.pose) obj.userData.pose?.(s.pose[0], s.pose[1]);
       parent.add(obj);

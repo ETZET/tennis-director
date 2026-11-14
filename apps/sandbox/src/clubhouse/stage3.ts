@@ -22,7 +22,7 @@ import { createFloorLife as createLifeB1 } from './life-b1';
 import { houseNav } from './nav';
 import { gymPerson } from './people';
 import type { P3 } from './routes';
-import { type Floor, type HouseMode, type HouseView, tagViews, viewOf, viewsFor } from './view';
+import { type Floor, type HouseMode, type HouseView, tagViews, viewOf, viewsFor, visibleIn } from './view';
 import { createWalker, floorAt, routeBetween, type Walker, type WalkerOpts, type WalkerWorld } from './walker';
 
 /** 入口（main.ts / scene.ts）给框架的东西 */
@@ -245,15 +245,17 @@ export function createHouseLife(host: HouseHost): HouseLife {
   // ── 加进场景的东西：houseViews、userData.update ──
   const updaters = new Map<THREE.Object3D, ((dt: number, t: number) => void)[]>();
   const applyVis = (obj: THREE.Object3D) => {
-    const vs = obj.userData.houseViews as HouseView[] | undefined;
-    obj.visible = !vs || vs.includes(view());
+    obj.visible = visibleIn(obj.userData, view()) ?? true;
   };
   const setLevel = (obj: THREE.Object3D, f: Floor, mode: HouseMode | null = 'in') => {
     tagViews(obj, viewsFor(f, mode ?? undefined));
+    // mode null = 会所外面（外观里也在）：进楼是沉浸式的，看剖面时藏起来
+    obj.userData.houseOutside = mode === null;
     applyVis(obj);
   };
   const untag = (obj: THREE.Object3D) => {
     delete obj.userData.houseViews;
+    delete obj.userData.houseOutside;
     obj.visible = true;
   };
   const make = (asset: string, variant = 0) =>
@@ -357,6 +359,7 @@ export function createHouseLife(host: HouseHost): HouseLife {
       if (it.where === 'held' || it.where === 'loose') {
         // 只去掉标记，不碰 visible（用人物内置道具的东西拿着时 play 把它藏着）
         delete o.userData.houseViews;
+        delete o.userData.houseOutside;
       } else if (it.where === 'ground') {
         const f = floorAt(houseNavMap, o.position.x, o.position.z, o.position.y - (it.spec.groundY ?? 0));
         const out = f === 1 && !inFoot1(o.position.x, o.position.z);
