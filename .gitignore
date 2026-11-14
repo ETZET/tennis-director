@@ -7,3 +7,4 @@ coverage/
 tools/screenshot/out/
 tools/playtest/out/
 .claude/worktrees/
+docs/lab/2026-11-07-3d-pixel/tools/pops.json

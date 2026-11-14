@@ -19,7 +19,7 @@ import { CLOUDS as PARK_CLOUDS, SPOTS as PARK_SPOTS } from '../clubpark/layout';
 import { createParkKit } from '../clubpark/scene';
 import { CLOUDS as PLAZA_CLOUDS } from '../clubplaza/layout';
 import { mountDaylight } from '../clubsite/daylight';
-import { director as clubDirector } from '../clubsite/people';
+import { director as clubDirector, kid as clubKid, player as clubPlayer } from '../clubsite/people';
 import {
   type Circle,
   type Hud,
@@ -756,7 +756,19 @@ play.nav.prepare();
 (window as unknown as Record<string, unknown>).__clubwalk = { scene, lives, play, director, step };
 // 人物：场景里的人对上演员表、名册、互动（clubwalk/cast；?cast=0 关）
 const cast =
-  params.get('cast') === '0' ? null : mountCast({ scene, lives, play, director, params, mats: dirKit.mats, scheme });
+  params.get('cast') === '0'
+    ? null
+    : mountCast({
+        scene,
+        lives,
+        play,
+        director,
+        params,
+        mats: dirKit.mats,
+        scheme,
+        // 通勤的替身：同一套 Q 版人（材质用总监那套），换装成要替的那个人
+        makePerson: (k) => (k === 'kid' ? clubKid : clubPlayer)(dirKit.ctxFor(0) as unknown as BaseCtx),
+      });
 
 // ── 地点名（进入区域时淡出）+ 小地图 ──
 const ZONES: { name: string; r: Rect }[] = [

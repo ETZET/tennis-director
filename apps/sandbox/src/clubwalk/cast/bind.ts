@@ -48,6 +48,8 @@ export class Binder {
     private director: THREE.Object3D,
     private who: (scene: SceneId, slot: string, kind: PersonKind, day: number) => CastPerson,
     private dresser: Dresser | null,
+    /** 每个人每次扫描都调（看不见的也调）：通勤给他装 visible 的访问器 */
+    private onPerson?: (obj: THREE.Object3D, scene: SceneId) => void,
   ) {}
 
   /** 这个人现在在场景里的对象（看得见的） */
@@ -85,7 +87,8 @@ export class Binder {
           const slot = raw.startsWith('slot:') ? raw.slice(5) : `#${n++}`;
           const kind = (ud.personKind as PersonKind | undefined) ?? 'player';
           if (o === this.director || kind === 'director') return;
-          if (!(vis && o.visible)) return;
+          this.onPerson?.(o, scene);
+          // 看不见的也先对上身份、排队换装：他出现（或者通勤的替身替他走过来）那一刻已经是对的样子
           let id = ud.castId as string | undefined;
           if (!id) {
             const p = this.who(scene, slot, kind, this.day);
@@ -93,6 +96,7 @@ export class Binder {
             ud.castId = id;
             if (ud.castDressed !== id) this.queue.push({ obj: o, p });
           }
+          if (!(vis && o.visible)) return;
           const d2 = o.getWorldPosition(wp).distanceToSquared(dPos);
           const b: Bound = { obj: o, id, scene, slot, kind, d2 };
           bound.push(b);
