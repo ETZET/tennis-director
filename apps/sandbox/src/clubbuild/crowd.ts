@@ -3,16 +3,47 @@
 // 每帧读模拟状态（只读）：客人在哪一段（walk / stay / out）、这一段还剩几秒 → 沿模拟同一条路线（sim.route）走，
 // 速度 = 剩下的路 / 剩下的秒，所以到门口正好赶上花钱。在球场上挥拍、在餐车前端杯子、进房子（会所、球具店、泳池、看台）就看不见。
 // 同时最多 CAP 个人（手机性能）；超出的客人照样在模拟里花钱，只是不画。动画永远不决定数值。
+// 美术 r1：开罗式 Q 版放大（人整体 ×1.35，设施不动）；按客群定"一眼认出的两块色"（帽子 + 身子）：
+// 会员 = 白帽 + 俱乐部蓝、青少年 = 黄帽 + 绿、家庭 = 草帽 + 橙（孩子草帽 + 黄）、球迷 = 红帽 + 红。
+// 人不投太阳影（毛边影子在 0.149 米/纹素下是一团比人大一倍的紫色污渍），脚下一块固定的暗色椭圆（FX 图层，半透明压暗脚下的地）。
 import * as THREE from 'three';
-import { kid, player, strideOf } from '../clubsite/people';
+import { KID, strideOf } from '../clubsite/people';
+import { wrapPerson } from '../clubsite/people/person';
+import { PADDLE_KEYS, PERSON } from '../clubsite/people/props';
+import { buildPerson, type Look as RigLook } from '../clubsite/people/rig/rig';
 import type { BaseCtx } from '../clubsite/render/ctx';
 import { BY_ID, type Guest, TILE } from './catalog';
 import type { AssetCtx } from './ctx';
 import { DROP, GATE_X, GATE_Z, RAMP, RAMP_Z0, ROAD_FAR } from './lot';
+import type { Pal } from './palette';
 import { footprint, type Placed, placedCenter, rotXZ, route, type State, tileCenter, type Visitor } from './sim';
 
 /** 同时最多画几个人 */
 export const CAP = 24;
+/** 小人整体放大（开罗式 Q 版） */
+const SCALE = 1.35;
+
+type MatKey = keyof Pal;
+/** 每种客人的两块色：帽子（cap 发型的帽子 / 草帽）+ 上衣；下装、发型跟着 */
+interface Outfit {
+  shirt: MatKey;
+  bottom: MatKey;
+  bottomKind: RigLook['bottomKind'];
+  cap?: MatKey;
+  straw?: boolean;
+}
+const OUTFIT: Record<string, Outfit> = {
+  member: { shirt: 'counter', bottom: 'clothWhite', bottomKind: 'shorts', cap: 'clothWhite' },
+  junior: { shirt: 'surround', bottom: 'clothWhite', bottomKind: 'shorts', cap: 'flowerYellow' },
+  adult: { shirt: 'toolOrange', bottom: 'clothBlue', bottomKind: 'shorts', straw: true },
+  kid: { shirt: 'flowerYellow', bottom: 'clothBlue', bottomKind: 'shorts', straw: true },
+  fan: { shirt: 'clothRed', bottom: 'clothWhite', bottomKind: 'shorts', cap: 'clothRed' },
+};
+const SKINS: MatKey[] = ['skinLight', 'skinTan', 'skinDark'];
+
+/** 脚下的团影：一块半透明的深紫椭圆（FX 图层：不描边、不投影），所有人共用一个几何体和材质 */
+const blobGeo = new THREE.CircleGeometry(1, 12).rotateX(-Math.PI / 2).scale(0.36, 1, 0.24);
+const blobMat = new THREE.MeshBasicMaterial({ color: 0x2a1838, transparent: true, opacity: 0.32, depthWrite: false });
 const V = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
 
 /** 地面高：地块 0，路上低一级，坡道线性 */
@@ -76,11 +107,52 @@ export class Crowd {
       return o0;
     }
     const v = vid % 4;
-    const ctx = { ...this.ctxFor(v), params: new URLSearchParams() } as unknown as BaseCtx;
-    const o = look === 'junior' || look === 'kid' ? kid(ctx) : player(ctx);
+    const cctx = { ...this.ctxFor(v), params: new URLSearchParams() };
+    const ctx = cctx as unknown as BaseCtx;
+    const small = look === 'junior' || look === 'kid';
+    const f = OUTFIT[look];
+    const m = (k: MatKey) => cctx.mat(k, PERSON);
+    const body = buildPerson(
+      ctx as Parameters<typeof buildPerson>[0],
+      {
+        skin: m(SKINS[vid % SKINS.length]),
+        hair: cctx.mat('hair', { ...PERSON, edge: 0.25, convex: 0 }),
+        shirt: m(f.shirt),
+        bottom: m(f.bottom),
+        bottomKind: f.bottomKind,
+        shoes: m('clothWhite'),
+        hairStyle: f.cap ? 'cap' : 'short',
+        cap: f.cap ? m(f.cap) : undefined,
+        straw: f.straw ? { hat: m('straw'), band: m('clothRed') } : undefined,
+        hold: {
+          kind: 'racket',
+          frame: m('clothRed'),
+          strings: m('clothWhite'),
+          grip: m('hair'),
+          ball: cctx.mat('ball'),
+        },
+      },
+      `guest-${look}`,
+    );
+    const o = wrapPerson(ctx, body, {
+      hasRacket: true,
+      paddleKey: PADDLE_KEYS[vid % PADDLE_KEYS.length],
+      scale: small ? KID : undefined,
+      defaultProp: null,
+    });
     o.userData.lookKind = look;
     // 开罗式的小人走得快：步子迈大一点，腿不至于抡成一团
     o.userData.stride = 1.5;
+    o.scale.setScalar(SCALE);
+    o.traverse((c) => {
+      c.castShadow = false;
+    });
+    const blob = new THREE.Mesh(blobGeo, blobMat);
+    blob.name = 'guest-blob';
+    blob.position.y = 0.03 / SCALE;
+    blob.layers.set(1);
+    blob.renderOrder = 1;
+    o.add(blob);
     return o;
   }
 
@@ -305,7 +377,7 @@ export class Crowd {
     }
     pos.y = groundAt(pos.x, pos.z);
     if (moved && a.k <= a.pts.length) {
-      a.walkPh = (a.walkPh + (speed * dt) / strideOf(a.obj)) % 1;
+      a.walkPh = (a.walkPh + (speed * dt) / (strideOf(a.obj) * SCALE)) % 1;
       pose?.('walk', a.walkPh);
     }
     if (a.k >= a.pts.length && !moved) {
@@ -333,7 +405,7 @@ export class Crowd {
   headOf(vid: number): THREE.Vector3 | null {
     const a = this.actors.get(vid);
     if (!a?.obj.visible) return null;
-    return a.obj.position.clone().add(V(0, 2.2, 0));
+    return a.obj.position.clone().add(V(0, 2.2 * SCALE, 0));
   }
 }
 

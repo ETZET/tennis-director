@@ -1,5 +1,6 @@
 // pro-shop（球具店）：2 × 2 格 = 6 × 6 米，门格 (1, 1) = 前排东边那格。
-// 一间白灰泥的小铺子（5.5 × 3.3 米，檐高 3.3）+ 红瓦四坡顶；正面一道传教士式的弧形山花（白灰泥，陶砖压顶）高出屋檐，山花上挂会所招牌；
+// 一间白灰泥的小铺子（5.5 × 3.3 米，檐高 3.3）+ 俱乐部蓝四坡顶（美术 r1：独占的屋顶色）；正面一道传教士式的弧形山花（白灰泥，陶砖压顶）高出屋檐，
+// 山花上一块图标招牌（bld-kit 的 iconSign：网球拍 + 球）；
 // 门脸：西半边一个敞开的橱窗（陶砖窗套，窗洞里是暖赭色的店里）、东半边一扇拱形玻璃门（正对门格）；
 // 门脸前一整条俱乐部蓝 / 奶油的条纹雨篷（斜面 + 一圈垂边）；墙脚一圈陶砖踢脚；门前一小块陶砖地。
 // 复用：clubhouse 的 window-display（橱窗里的展台：穿会所球衣的模特 + 两支彩色球拍）、arch-window v1（拱形落地门）、
@@ -11,7 +12,6 @@
 import * as THREE from 'three';
 import { build as pot } from '../../clubdesk/assets/pot';
 import { build as archWindow } from '../../clubhouse/assets/arch-window';
-import { build as clubSign } from '../../clubhouse/assets/club-sign';
 import { build as shopSign } from '../../clubhouse/assets/shop-sign';
 import { build as windowDisplay } from '../../clubhouse/assets/window-display';
 import { EL } from '../../clubhouse/palette';
@@ -19,7 +19,7 @@ import { build as hopper } from '../../clubsite/assets/ball-hopper';
 import { build as agave } from '../../clubsite/nature/agave';
 import type { ToonOpts } from '../../clubsite/render/toon';
 import type { AssetCtx } from '../ctx';
-import { addRoof, Bins, bx, FACE, faceZ, flat, put } from './bld-kit';
+import { addRoof, Bins, bx, FACE, faceZ, flat, iconSign, put } from './bld-kit';
 
 /** 墙：往上偏光，正面（l ≈ −0.35）落中档、侧面（l ≈ 0）落亮档 */
 const WALL_O: ToonOpts = { elem: EL.stucco, lightUp: 0.55, bands: [-0.5, -0.12], noShadowReceive: true };
@@ -96,8 +96,8 @@ export function build(ctx: AssetCtx): THREE.Object3D {
   B.add('cap', bx(0.06, 0.32, ZF - ZB, X0 - 0.03, 0, (ZB + ZF) / 2), base, 'base');
   B.add('cap', bx(0.06, 0.32, ZF - ZB, X1 + 0.03, 0, (ZB + ZF) / 2), base, 'base');
 
-  // ── 红瓦四坡顶 + 檐下一道陶砖檐口 ──
-  addRoof(B, [X0, X1, ZB, ZF], EAVE, 1.1, 0.18, { lightUp: 0.2 });
+  // ── 俱乐部蓝的四坡顶（美术 r1：每种小店一个独占的屋顶色；会所是红瓦）+ 檐下一道陶砖檐口 ──
+  addRoof(B, [X0, X1, ZB, ZF], EAVE, 1.1, 0.18, { lightUp: 0.2 }, 'counter');
   B.add(
     'cap',
     bx(X1 - X0 + 0.16, 0.12, ZF - ZB + 0.16, 0, EAVE - 0.12, (ZB + ZF) / 2),
@@ -162,7 +162,10 @@ export function build(ctx: AssetCtx): THREE.Object3D {
   // ── 复用的件 ──
   put(ctx, root, windowDisplay, (W0 + W1) / 2, WY0 + 0.04, ZR + 0.42, 0, 1, 0);
   put(ctx, root, archWindow, 1.45, 0, ZF + 0.15, 0, 0.92, 1);
-  put(ctx, root, clubSign, 0, EAVE + 0.02, ZF + 0.01, 0, 0.9, 0);
+  // 山花上的图标招牌（网球拍 + 球，俱乐部蓝底）
+  const sign = iconSign(ctx, 'racket', 0.12);
+  sign.position.set(0, EAVE - 0.05, ZF + 0.14);
+  root.add(sign);
   put(ctx, root, shopSign, -0.05, 0.012, 2.3, 0.2, 1, 0);
   put(ctx, root, hopper, -2.35, 0.012, 2.25, 0.4, 1, 1);
   put(ctx, root, pot, 2.5, 0.012, 1.05, 0, 0.85, 0);

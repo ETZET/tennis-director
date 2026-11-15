@@ -1,6 +1,6 @@
 // 球场这组（court-hard、court-clay、pickle、practice-wall、bleachers）共用的小工具：
 // 场面（借 clubcourts 的硬地 shader、clubclay 的红土 shader：线宽按屏幕纹素取整，远看也是一纹素的白线）、
-// 铁丝网围栏（屏幕纹素的斜格子镂空，开罗式"一眼看出是围网"）、复用的现成资产（只读 import，按别的场景的 ctx 建，所以要 cast）。
+// 围网（clubdesk 的挡风布围网，美术 r1 换掉了斜格子网面）、复用的现成资产（只读 import，按别的场景的 ctx 建，所以要 cast）。
 // 注意：assets/index.ts 会把导出 build 的文件都当成设施模型 —— 这个文件不导出叫 build 的函数。
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
@@ -22,6 +22,8 @@ import {
   dataTex as hardTex,
 } from '../../clubcourts/assets/hard/shader';
 import { HardState, type LineDef } from '../../clubcourts/assets/hard/state';
+import { buildFences } from '../../clubdesk/assets/fence-screen';
+import type { AssetCtx as DeskCtx } from '../../clubdesk/ctx';
 import { build as ballHopper } from '../../clubsite/assets/ball-hopper';
 import { build as bench } from '../../clubsite/assets/bench';
 import { build as courtLight } from '../../clubsite/assets/court-light';
@@ -241,106 +243,16 @@ export function rectRuns(hw: number, hd: number, h: number, doorX: number, gap: 
   ];
 }
 
-/** 把门切出来：每段 [起, 止]（沿段的米） */
-function pieces(r: Run, L: number): [number, number][] {
-  if (!r.door) return [[0, L]];
-  return [
-    [0, r.door.at - r.door.gap / 2],
-    [r.door.at + r.door.gap / 2, L],
-  ];
-}
-
 /**
- * 铁丝网的网面材质：toon 的 ironwork（三档照旧）+ 按**屏幕纹素**的斜格子镂空（每 period 纹素一条 ↗ 一条 ↘），
- * 远近都是一纹素的细线，开罗式的围网读法。镂空的东西不进法线 pass（放 FX 图层），也不投影（整片实心的影子是错的）。
+ * 围网（美术 r1：斜格子网面在 0.149 米/纹素下是一条橙色棋盘带 → 换成实心的深绿挡风布）。
+ * 直接用 clubdesk 的 fence-screen（buildFences：柱 + 顶杆 + 一窄条暗网 + 一兜一兜的挡风布 + 底杆，所有段合并成每种材质一个网格），
+ * 和红土场同一套，开罗距离下是一圈干净的深绿暗带。o 保留旧参数（不用了）。
  */
-function latticeMat(ctx: AssetCtx, period: number): THREE.MeshToonMaterial {
-  const base = ctx.mat('ironwork', {
-    side: THREE.DoubleSide,
-    lightUp: 0.7,
-    bands: [-0.6, 0.2],
-    noShadowReceive: true,
-    edge: 0,
-    convex: 0,
-  });
-  const m = new THREE.MeshToonMaterial({ color: 0xffffff, gradientMap: base.gradientMap, side: THREE.DoubleSide });
-  const md = m as THREE.MeshToonMaterial & { defines?: Record<string, string> };
-  md.defines = { ...(base as typeof md).defines };
-  const P = period.toFixed(1);
-  m.onBeforeCompile = (sh, r) => {
-    base.onBeforeCompile(sh, r);
-    sh.fragmentShader = sh.fragmentShader.replace(
-      'void main() {',
-      `void main() {
-  {
-    vec2 fc = floor(gl_FragCoord.xy);
-    if (mod(fc.x + fc.y, ${P}) > 0.5 && mod(fc.x - fc.y + 1000.0, ${P}) > 0.5) discard;
-  }`,
-    );
-  };
-  m.customProgramCacheKey = () => `courts-lattice-${P}`;
-  return m;
-}
-
-/**
- * 铁丝网围栏：柱（2 纹素，metal 绿漆）+ 顶杆 + 底杆 + 网面（latticeMat 的斜格子）。
- * 所有段合并：钢构一个网格、网面一个网格（FX 图层）。南北走向的段侧对镜头，只露柱顶和顶杆。
- */
-export function chainFence(ctx: AssetCtx, runs: Run[], o: { postGap?: number; period?: number } = {}): THREE.Group {
-  const g = new THREE.Group();
-  g.name = 'chain-fence';
-  const POST = 0.18;
-  const RAIL = 0.12;
-  const gap = o.postGap ?? 3;
-  const steel: THREE.BufferGeometry[] = [];
-  const net: THREE.BufferGeometry[] = [];
-  for (const r of runs) {
-    const dx = r.x1 - r.x0;
-    const dz = r.z1 - r.z0;
-    const L = Math.hypot(dx, dz);
-    const ux = dx / L;
-    const uz = dz / L;
-    const ang = -Math.atan2(uz, ux);
-    const at = (u: number) => [r.x0 + ux * u, r.z0 + uz * u] as const;
-    const bx = (u: number, y: number, w: number, h: number, d: number) => {
-      const [x, z] = at(u);
-      return new THREE.BoxGeometry(w, h, d)
-        .translate(0, h / 2, 0)
-        .rotateY(ang)
-        .translate(x, y, z);
-    };
-    for (const [a, b] of pieces(r, L)) {
-      const pl = b - a;
-      if (pl < 0.3) continue;
-      const np = Math.max(1, Math.round(pl / gap));
-      for (let i = 0; i <= np; i++) steel.push(bx(a + (pl * i) / np, 0, POST, r.h, POST));
-      steel.push(bx((a + b) / 2, r.h - RAIL, pl + POST, RAIL, RAIL));
-      steel.push(bx((a + b) / 2, 0, pl, 0.09, 0.1));
-      // 网面：一张竖直的面（离地 0.09 到顶杆下沿）
-      const [cx, cz] = at((a + b) / 2);
-      net.push(
-        new THREE.PlaneGeometry(pl, r.h - RAIL - 0.09)
-          .translate(0, (r.h - RAIL + 0.09) / 2, 0)
-          .rotateY(ang)
-          .translate(cx, 0, cz),
-      );
-    }
-  }
-  const steelMesh = new THREE.Mesh(
-    mergeGeometries(steel.map((s) => s.toNonIndexed())),
-    ctx.mat('metal', { lightUp: 0.5, bands: [-0.3, 0.45], noShadowReceive: true }),
+export function chainFence(ctx: AssetCtx, runs: Run[], _o: { postGap?: number; period?: number } = {}): THREE.Object3D {
+  const g = buildFences(
+    ctx as unknown as DeskCtx,
+    runs.map((r) => ({ ...r })),
   );
-  steelMesh.name = 'fence-steel';
-  g.add(steelMesh);
-  // 柱子、顶杆不投影：一排细柱的影子在外场上是一排斜道道（噪点）
-  ctx.mats.prepare(g, { cast: false });
-  if (net.length) {
-    const netMesh = new THREE.Mesh(mergeGeometries(net), latticeMat(ctx, o.period ?? 4));
-    netMesh.name = 'fence-net';
-    netMesh.layers.set(ctx.layers.FX);
-    netMesh.castShadow = false;
-    netMesh.receiveShadow = false;
-    g.add(netMesh);
-  }
+  g.name = 'chain-fence';
   return g;
 }

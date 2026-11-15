@@ -3,7 +3,7 @@
 //   场面 = clubcourts 的 hard-court（buildHardCourt：干净的新漆、线宽按屏幕纹素取整），35.6 × 17.6 米，转 90° 让长边沿 z；
 //   网 = clubsite 的 court-net（本来沿 z，转 90° 横过场地）；灯杆 = clubsite 的 court-light ×2（对角，灯头对着场心）；
 //   裁判椅（东边网旁，朝西）、长椅 ×2（西边网旁，朝东）= clubsite 的。
-// 新画的：铁丝网围栏（courts-common 的 chainFence：柱 + 顶杆 + 屏幕纹素斜格子网面），前边（+z）门格 col 3 留 2 米的门。
+// 新画的：围网（courts-common 的 chainFence = clubdesk 的挡风布围网），前边（+z）门格 col 3 留 2 米的门。
 // 本地原点 = 占地中心，+z 朝镜头（门在前边）。
 import * as THREE from 'three';
 import { buildHardCourt, type HardCtx } from '../../clubcourts/assets/hard-court';
@@ -27,7 +27,7 @@ export function build(ctx: AssetCtx): THREE.Object3D {
   root.add(surf);
 
   // 围网：3 米高；门在前边 col 3（x 0..3 的中间）
-  root.add(chainFence(ctx, rectRuns(FW, FD, 3.0, 1.5, 2.0)));
+  root.add(chainFence(ctx, rectRuns(FW, FD, 2.6, 1.5, 2.0)));
 
   // 网：横过场地（court-net 沿本地 z）
   put(ctx, root, REUSE.courtNet, 0, 0, Math.PI / 2);

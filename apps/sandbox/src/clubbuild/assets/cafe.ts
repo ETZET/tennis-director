@@ -1,5 +1,5 @@
 // cafe（咖啡车）：2 × 2 格 = 6 × 6 米，门格 (1, 1) = 前排东边那格。
-// 复用：clubfood 的 truck-coffee（薄荷色圆头面包车，4.4 × 2.2，原样，靠后停、服务窗朝镜头）、clubhouse 的 cafe-table（钴蓝釉砖小圆桌 + 两把铁椅）、
+// 复用：clubfood 的 truck-coffee（薄荷色圆头面包车，4.4 × 2.2，原样，靠后停、服务窗朝镜头；车顶自带一只大咖啡杯 = 开罗式的图标，美术 r1 不再加牌子）、clubhouse 的 cafe-table（钴蓝釉砖小圆桌 + 两把铁椅）、
 // clubfood 的 patio-umbrella（撑开的薄荷伞 v2，伞杆穿桌心）、clubhouse 的 shop-sign v2（焦糖色的咖啡立牌）、clubdesk 的 pot + clubsite 的 agave（陶罐龙舌兰）。
 // 新画：车前一块陶砖小露台（tile + 会所露台砖的元素，前沿一条陶砖压边）—— 车停在沙地上，客人站在砖上点单。
 // 门格那一块（东前）空着走人；桌子在西前。

@@ -10,6 +10,7 @@ import { MODELS } from './assets';
 import { BY_ID, TILE } from './catalog';
 import type { AssetBuild, AssetCtx } from './ctx';
 import { PAL, type Pal } from './palette';
+import { PROXY } from './palette-grounds';
 
 export type Kind = 'own' | 'reused' | 'placeholder';
 
@@ -30,6 +31,8 @@ export function createKit(opts: {
   const rng = rngFactory(num('seed', 23));
   const scheme = schemeById(params.get('pal'));
   const mats = createMats(opts.uniforms, opts.texelMeters);
+  // 影子毛边：0.8 是按 0.045～0.09 米/纹素调的；这里 0.149 米/纹素，一纹素一个锯齿 → 影子边碎成麻点（美术 r1 第 5 条）
+  mats.globals.uFur.value = num('fur', 0.3);
   function palOpts(key: keyof Pal, extra?: ToonOpts): ToonOpts {
     const sw = PAL[key] as (typeof PAL)[keyof Pal] & { opts?: ToonOpts };
     const o: ToonOpts = {
@@ -40,8 +43,10 @@ export function createKit(opts: {
       ...('opts' in sw ? sw.opts : {}),
       ...extra,
     };
-    // biome-ignore lint/suspicious/noExplicitAny: 新材质名不在配色方案的 GROUP 表里，按全局调色走
-    return scheme ? (schemeOpts(scheme, key as any, o as any) as ToonOpts) : o;
+    // 新材质名不在配色方案的 GROUP 表里：PROXY 里的借同组的名字过调色（颜色还是自己的），别的按全局调色走
+    const via = (PROXY[key as string] ?? key) as keyof Pal;
+    // biome-ignore lint/suspicious/noExplicitAny: clubbuild 的表是渲染核心表的超集
+    return scheme ? (schemeOpts(scheme, via as any, o as any) as ToonOpts) : o;
   }
   const ctxBase = {
     mats: scheme ? schemeMats(scheme, mats) : mats,

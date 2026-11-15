@@ -1,6 +1,8 @@
 // clubbuild 的设施（演出）：模拟里每个摆下的设施一个模型（kit.makeAsset：有画好的用画好的，没有用灰盒）。
 // 建造中：脚手架 + 模型从地块里慢慢升上来（按模拟的 build 进度，演出不决定什么时候建好）；建好那一下弹一下、冒一圈尘土。
 // 步道不是一个个模型：所有步道格合成一个网格（lot.ts buildPaths），步道变了就重建。
+// 美术 r1：脚手架杆 0.32 米（2 纹素，0.16 在 0.149 米/纹素下断断续续）、球场类只搭 1.4 米高、四面一圈蓝白相间的工地围挡，整件不投影（一圈虚线影子）。
+// GhostFx（pieces.ghost）：摆放中的占地框 —— 半透明色块 + 一圈 0.3 米宽的不透明边框（模型盖不住），放不下时变红 0xff6a5a。
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { box } from '../clubsite/render/geo';
@@ -22,6 +24,9 @@ interface Piece {
   /** 建好后弹一下（秒） */
   pop: number;
   updaters: ((dt: number, t: number) => void)[];
+  /** 现在挂着的等级装饰是几级（1 = 没有） */
+  lv: number;
+  deco: THREE.Object3D | null;
 }
 
 interface Dust {
@@ -30,8 +35,76 @@ interface Dust {
   life: number;
 }
 
+/**
+ * 摆放中的占地框（FX 图层：不描边、不投影）：半透明色块（y 0.06、透明度 0.55）+ 一圈 0.3 米宽的不透明边框（y 0.08），
+ * 鬼影模型浮在上面也盖不住边框。能放 = 绿 0x5fd068，放不下 = 红 0xff6a5a（setGhostValid）。
+ * 用法（game.ts）：pieces.ghost.show(中心 x, z, 宽米, 深米)；pieces.setGhostValid(ok)；不摆了 pieces.ghost.hide()。
+ */
+export class GhostFx {
+  readonly root = new THREE.Group();
+  private fill: THREE.Mesh;
+  private frame: THREE.Mesh[] = [];
+  private fillMat = new THREE.MeshBasicMaterial({
+    color: 0x5fd068,
+    transparent: true,
+    opacity: 0.55,
+    depthWrite: false,
+  });
+  private frameMat = new THREE.MeshBasicMaterial({ color: 0x5fd068, depthWrite: false });
+  static readonly OK = 0x5fd068;
+  static readonly BAD = 0xff6a5a;
+  /** 边框宽（米） */
+  static readonly BORDER = 0.3;
+
+  constructor() {
+    this.root.name = 'ghost-fx';
+    const plane = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
+    this.fill = new THREE.Mesh(plane, this.fillMat);
+    this.fill.renderOrder = 3;
+    this.fill.layers.set(1);
+    this.root.add(this.fill);
+    for (let i = 0; i < 4; i++) {
+      const m = new THREE.Mesh(plane, this.frameMat);
+      m.renderOrder = 4;
+      m.layers.set(1);
+      this.frame.push(m);
+      this.root.add(m);
+    }
+    this.root.visible = false;
+  }
+
+  /** 摆在占地中心 (x, z)，w × d 米（边框画在占地里面那一圈） */
+  show(x: number, z: number, w: number, d: number) {
+    const b = GhostFx.BORDER;
+    this.root.visible = true;
+    this.fill.position.set(x, 0.06, z);
+    this.fill.scale.set(w, 1, d);
+    const [n, s, wv, e] = this.frame;
+    n.position.set(x, 0.08, z - d / 2 + b / 2);
+    n.scale.set(w, 1, b);
+    s.position.set(x, 0.08, z + d / 2 - b / 2);
+    s.scale.set(w, 1, b);
+    wv.position.set(x - w / 2 + b / 2, 0.08, z);
+    wv.scale.set(b, 1, d - 2 * b);
+    e.position.set(x + w / 2 - b / 2, 0.08, z);
+    e.scale.set(b, 1, d - 2 * b);
+  }
+
+  setValid(ok: boolean) {
+    const c = ok ? GhostFx.OK : GhostFx.BAD;
+    this.fillMat.color.setHex(c);
+    this.frameMat.color.setHex(c);
+  }
+
+  hide() {
+    this.root.visible = false;
+  }
+}
+
 export class Pieces {
   readonly root = new THREE.Group();
+  /** 摆放中的占地框（见 GhostFx） */
+  readonly ghost = new GhostFx();
   private map = new Map<number, Piece>();
   private paths: THREE.Object3D | null = null;
   private pathKey = '';
@@ -47,6 +120,12 @@ export class Pieces {
   ) {
     this.root.name = 'pieces';
     this.ctx = kit.ctxFor(0);
+    this.root.add(this.ghost.root);
+  }
+
+  /** 占地框能不能放（绿 / 红 0xff6a5a） */
+  setGhostValid(ok: boolean) {
+    this.ghost.setValid(ok);
   }
 
   get(uid: number): Piece | undefined {
@@ -98,6 +177,9 @@ export class Pieces {
         pc.model.scale.set(1 / Math.sqrt(s), s, 1 / Math.sqrt(s));
       }
       for (const u of pc.updaters) u(dt, t);
+      // 等级：Lv2 / Lv3 的装饰（建好以后才挂；升级那一下弹一下、冒尘土）
+      const lv = p.build >= 1 ? (p.lv ?? 1) : 1;
+      if (lv !== pc.lv) this.setLevel(pc, p, lv);
     }
     this.instant = false;
     for (const [uid, pc] of this.map) {
@@ -138,31 +220,196 @@ export class Pieces {
       const u = c.userData.update as ((dt: number, t: number) => void) | undefined;
       if (u) updaters.push(u);
     });
-    const scaffold = this.scaffold(def.w * TILE, def.d * TILE, Math.min(6, Math.max(1.4, h)));
+    const scaffold = this.scaffold(
+      def.w * TILE,
+      def.d * TILE,
+      def.cat === 'court' ? 1.4 : Math.min(6, Math.max(1.4, h)),
+    );
     wrap.add(scaffold);
     this.root.add(wrap);
-    const pc: Piece = { uid: p.uid, id: p.id, wrap, model, h, scaffold, built: false, pop: 0, updaters };
+    const pc: Piece = {
+      uid: p.uid,
+      id: p.id,
+      wrap,
+      model,
+      h,
+      scaffold,
+      built: false,
+      pop: 0,
+      updaters,
+      lv: 1,
+      deco: null,
+    };
     this.map.set(p.uid, pc);
     return pc;
   }
 
-  /** 脚手架：四角立杆 + 两圈横杆（木头），合并成一个网格 */
+  /**
+   * 脚手架：四角立杆 + 一圈顶上的横杆（木头，0.32 米 = 2 纹素）+ 四面 1.1 米高的工地围挡（每 1.5 米一幅，俱乐部蓝 / 白轮着）。
+   * 整件不投影、不接投影（细杆的毛边影子是一圈虚线；围挡是朝镜头的薄片）。
+   */
   private scaffold(w: number, d: number, h: number): THREE.Object3D {
-    const parts: THREE.BufferGeometry[] = [];
-    const t = 0.16;
+    const g = new THREE.Group();
+    g.name = 'scaffold';
+    const poles: THREE.BufferGeometry[] = [];
+    const t = 0.32;
     const x0 = -w / 2 + 0.3;
     const x1 = w / 2 - 0.3;
     const z0 = -d / 2 + 0.3;
     const z1 = d / 2 - 0.3;
-    for (const x of [x0, x1]) for (const z of [z0, z1]) parts.push(box(t, h, t, x, 0, z));
-    for (const y of [h * 0.5, h - t]) {
-      parts.push(box(x1 - x0, t, t, 0, y, z0), box(x1 - x0, t, t, 0, y, z1));
-      parts.push(box(t, t, z1 - z0, x0, y, 0), box(t, t, z1 - z0, x1, y, 0));
+    for (const x of [x0, x1]) for (const z of [z0, z1]) poles.push(box(t, h, t, x, 0, z));
+    if (h > 1.6) {
+      const y = h - t;
+      poles.push(box(x1 - x0, t, t, 0, y, z0), box(x1 - x0, t, t, 0, y, z1));
+      poles.push(box(t, t, z1 - z0, x0, y, 0), box(t, t, z1 - z0, x1, y, 0));
     }
-    const mesh = new THREE.Mesh(mergeGeometries(parts), this.ctx.mat('timber'));
-    this.ctx.mats.prepare(mesh);
-    mesh.name = 'scaffold';
-    return mesh;
+    const pm = new THREE.Mesh(mergeGeometries(poles), this.ctx.mat('timber', { lightUp: 0.45, noShadowReceive: true }));
+    pm.name = 'scaffold:poles';
+    g.add(pm);
+    // 围挡：沿四边一幅幅（0.08 厚），蓝白轮着
+    const blue: THREE.BufferGeometry[] = [];
+    const white: THREE.BufferGeometry[] = [];
+    const HH = 1.1;
+    const P = 1.5;
+    const side = (ax: number, az: number, bx: number, bz: number) => {
+      const L = Math.hypot(bx - ax, bz - az);
+      const n = Math.max(1, Math.round(L / P));
+      for (let i = 0; i < n; i++) {
+        const u0 = i / n;
+        const u1 = (i + 1) / n;
+        const cx = ax + (bx - ax) * ((u0 + u1) / 2);
+        const cz = az + (bz - az) * ((u0 + u1) / 2);
+        const len = L / n;
+        const gg = az === bz ? box(len, HH, 0.08, cx, 0.05, cz) : box(0.08, HH, len, cx, 0.05, cz);
+        (i % 2 ? white : blue).push(gg);
+      }
+    };
+    side(x0, z0, x1, z0);
+    side(x0, z1, x1, z1);
+    side(x0, z0, x0, z1);
+    side(x1, z0, x1, z1);
+    const cloth = {
+      lightUp: 0.55,
+      bands: [-0.45, 0.35] as [number, number],
+      noShadowReceive: true,
+      edge: 0.4,
+      convex: 0.1,
+    };
+    const bm = new THREE.Mesh(mergeGeometries(blue), this.ctx.mat('canvasStripe', cloth));
+    bm.name = 'scaffold:hoard-b';
+    const wm = new THREE.Mesh(mergeGeometries(white), this.ctx.mat('clothWhite', cloth));
+    wm.name = 'scaffold:hoard-w';
+    g.add(bm, wm);
+    this.ctx.mats.prepare(g, { cast: false, receive: false });
+    return g;
+  }
+
+  /**
+   * 等级装饰（开罗式"升级看得见"）：挂在 wrap 上（不跟着建造升降），占地的本地坐标（rot 0 的 w × d，wrap 负责转）。
+   * - Lv2：东北角一根 3.6 米的旗杆 + 俱乐部蓝 / 黄的燕尾旗；正面西角一块朝镜头的金星牌（0.9 米，立在矮柱上）。
+   * - Lv3：再加西北角一面红旗、星牌换成两颗星；占地一圈 0.25 米宽的金色压边（地上一圈亮金线 = "最高级"）。
+   * 杆 0.3 米（2 纹素），旗、星不接投影；旗杆投影（太阳影子里一根旗杆读得出来）。
+   */
+  private setLevel(pc: Piece, p: Placed, lv: number) {
+    if (pc.deco) {
+      pc.deco.removeFromParent();
+      pc.deco.traverse((o) => (o as THREE.Mesh).geometry?.dispose());
+      pc.deco = null;
+    }
+    const was = pc.lv;
+    pc.lv = lv;
+    const def = BY_ID[p.id];
+    // 只给接客的设施（球场、店、会所……）；步道、装饰、地形不挂
+    if (lv < 2 || !def || def.cap <= 0 || def.cat === 'road' || def.cat === 'deco' || (def.cat as string) === 'terrain')
+      return;
+    const ctx = this.ctx;
+    const w = def.w * TILE;
+    const d = def.d * TILE;
+    const g = new THREE.Group();
+    g.name = `level:${lv}`;
+    const poles: THREE.BufferGeometry[] = [];
+    const flagG: Record<string, THREE.BufferGeometry[]> = {};
+    const addFlag = (key: string, gg: THREE.BufferGeometry) => {
+      const n = gg.index ? gg.toNonIndexed() : gg;
+      for (const a of Object.keys(n.attributes)) if (a !== 'position' && a !== 'normal') n.deleteAttribute(a);
+      flagG[key] ??= [];
+      flagG[key].push(n);
+    };
+    const flag = (x: number, z: number, a: string, b: string) => {
+      const H = 3.6;
+      poles.push(box(0.3, H, 0.3, x, 0, z));
+      // 燕尾旗：两块三角（朝镜头，往西飘），上下两色
+      const tri = (pts: number[]) => {
+        const gg = new THREE.BufferGeometry();
+        gg.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+        gg.computeVertexNormals();
+        return gg;
+      };
+      addFlag(a, tri([x, H, z + 0.05, x - 1.5, H - 0.1, z + 0.05, x, H - 0.45, z + 0.05]));
+      addFlag(b, tri([x, H - 0.45, z + 0.05, x - 1.5, H - 0.9, z + 0.05, x, H - 0.9, z + 0.05]));
+    };
+    flag(w / 2 - 0.35, -d / 2 + 0.35, 'counter', 'flowerYellow');
+    if (lv >= 3) flag(-w / 2 + 0.35 + 1.5, -d / 2 + 0.35, 'clothRed', 'clothWhite');
+    // 金星牌：前沿西角，矮柱 + 往后仰的星（五角星，0.9 米）
+    const star = (cx: number, cy: number, r: number) => {
+      const sh = new THREE.Shape();
+      for (let i = 0; i < 10; i++) {
+        const a = Math.PI / 2 + (i * Math.PI) / 5;
+        const rr = i % 2 ? r * 0.45 : r;
+        if (i === 0) sh.moveTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr);
+        else sh.lineTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr);
+      }
+      return new THREE.ShapeGeometry(sh);
+    };
+    const sx = -w / 2 + 0.5;
+    const sz = d / 2 - 0.4;
+    poles.push(box(0.3, 1.0, 0.3, sx, 0, sz));
+    const stars = lv >= 3 ? [star(-0.45, 0, 0.5), star(0.45, 0, 0.5)] : [star(0, 0, 0.55)];
+    const starG = mergeGeometries(stars);
+    starG.rotateX(-0.45).translate(sx + (lv >= 3 ? 0.45 : 0), 1.35, sz + 0.05);
+    addFlag('flowerYellow', starG);
+    const FACE = {
+      lightUp: 0.7,
+      bands: [-0.7, -0.2] as [number, number],
+      noShadowReceive: true,
+      edge: 0.45,
+      convex: 0,
+      side: THREE.DoubleSide,
+    };
+    const pm = new THREE.Mesh(
+      mergeGeometries(poles),
+      ctx.mat('metal', { lightUp: 0.5, convex: 0.3, noShadowReceive: true }),
+    );
+    pm.name = 'level:poles';
+    g.add(pm);
+    for (const [key, list] of Object.entries(flagG)) {
+      const m = new THREE.Mesh(mergeGeometries(list), ctx.mat(key as 'counter', FACE));
+      m.name = `level:${key}`;
+      m.castShadow = false;
+      g.add(m);
+    }
+    // Lv3：占地一圈金色压边
+    if (lv >= 3) {
+      const K = 0.25;
+      const trim = [
+        box(w, 0.1, K, 0, 0.02, -d / 2 + K / 2),
+        box(w, 0.1, K, 0, 0.02, d / 2 - K / 2),
+        box(K, 0.1, d - 2 * K, -w / 2 + K / 2, 0.02, 0),
+        box(K, 0.1, d - 2 * K, w / 2 - K / 2, 0.02, 0),
+      ];
+      const tm = new THREE.Mesh(mergeGeometries(trim), ctx.mat('brass', { edge: 0.3, convex: 0.5 }));
+      tm.name = 'level:trim';
+      g.add(tm);
+    }
+    ctx.mats.prepare(g);
+    pm.castShadow = true;
+    for (const c of g.children) if (c !== pm) c.castShadow = false;
+    pc.wrap.add(g);
+    pc.deco = g;
+    if (lv > was && !this.instant) {
+      pc.pop = 0.35;
+      this.puff(p);
+    }
   }
 
   /** 建好时一圈尘土（FX 图层：不描边） */

@@ -1,14 +1,15 @@
-// 棕榈树（1×1 格，3 × 3 米）：复用 clubsite/nature 的加州蒲葵（fan-palm），种在一个圆的白灰泥花坛里。
-// - 蒲葵原样 8.5 米高、冠宽 4.7 米：按包围盒缩到冠不出占地（离树干 ≤ 1.65 米，≈ 0.6 倍 → 5 米上下），变体 = 蒲葵的三种（高矮、歪向）。
+// 棕榈树（1×1 格，3 × 3 米）：开罗式椰子树（flora-kit 的 palmTree：7 片放射的羽叶 + 椰子），种在一个圆的白灰泥花坛里。
+// - 美术 r1：原来复用的加州蒲葵缩到 0.6 倍，俯视是一团圆冠、像阔叶树；换成叶片放射的棕榈（冠宽 ≈ 3.2 米），一眼是棕榈。
+//   变体 = 高矮、往哪边弯、叶片多少。
 // - 花坛（画的）：⌀ 1.7、高 0.42 的圆白灰泥矮墙（朝镜头的半圈落暗档，是一条干净的暗带）+ 陶砖压顶的亮唇 +
 //   碎花岗岩的土面（granite，和步道一家）+ 一两块小红石（复用 rocks，缩小）。
 // 本地原点 = 占地中心（= 树干落地点），+z 朝镜头。
 import * as THREE from 'three';
-import { build as fanPalm } from '../../clubsite/nature/fan-palm';
 import { build as rocks } from '../../clubsite/nature/rocks';
 import { topGeo, wallGeo } from '../../clubsite/render/geo';
 import type { AssetCtx } from '../ctx';
 import { EL } from '../palette';
+import { palmTree } from './flora-kit';
 import { Bucket, circle, finish, place, reuse } from './gnd-kit';
 
 /** 花坛半径、墙高、压顶 */
@@ -46,12 +47,15 @@ export function build(ctx: AssetCtx): THREE.Object3D {
   B.build(ctx, own, 'palm:');
   finish(ctx, own);
 
-  // 蒲葵：缩到冠不出占地
-  const palm = reuse(fanPalm, ctx);
-  const bb = new THREE.Box3().setFromObject(palm);
-  const reach = Math.max(-bb.min.x, bb.max.x, -bb.min.z, bb.max.z);
-  const s = Math.min(1, 1.65 / reach);
-  place(root, palm, 0, 0, 0, s, H - 0.05);
+  // 椰子树：冠伸出去 ≤ 1.6 米（不出占地），变体换高矮和弯向
+  const v = ((ctx.variant % 3) + 3) % 3;
+  const lean: [number, number][] = [
+    [0.35, 0.15],
+    [-0.4, 0.1],
+    [0.1, -0.35],
+  ];
+  const palm = palmTree(ctx, { h: [4.6, 5.2, 4.2][v], reach: 1.5, n: [7, 8, 7][v], lean: lean[v], seed: 'palm' });
+  place(root, palm, 0, 0, 0, 1, H - 0.05);
   // 土面上一两块小红石（偏到镜头那边，挡一点树干脚）
   const rk = reuse(rocks, ctx, 2 + (ctx.variant % 2));
   const rnd = ctx.rng(`palm:rocks:${ctx.variant}`);

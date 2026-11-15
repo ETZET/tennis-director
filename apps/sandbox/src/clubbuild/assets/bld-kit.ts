@@ -2,7 +2,8 @@
 // - Bins：按材质收几何体，最后每种材质合并成一个网格（手机上少几次 draw call）；
 // - put：把复用的现成资产（别的场景的 build，按它自己的 Pal 写的）建出来、摆到本地坐标；
 // - hipRoof / roofPlanks：四坡红瓦顶（照 clubmap2/build.ts 的 hipRoof，坡面一列列筒瓦用 planks 元素）；
-// - 几个朝镜头的竖直面常用的材质参数（FACE：落中档、不接投影）。
+// - 几个朝镜头的竖直面常用的材质参数（FACE：落中档、不接投影）；
+// - iconSign：开罗式的图标招牌（咖啡杯 / 塔可 / 网球拍），每家小店一个，px 1 下认得出是哪家（美术 r1 C 条）。
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { Elem, ToonOpts } from '../../clubsite/render/toon';
@@ -180,14 +181,69 @@ export function addRoof(
   h: number,
   over: number,
   opts: ToonOpts = {},
+  key: Key = 'roofTile',
 ) {
   const [gz, gx] = hipRoof(r[0], r[1], r[2], r[3], y, h, over);
-  B.add('roofTile', gz, { ...opts, elem: roofPlanks('x') }, 'roofZ');
-  B.add('roofTile', gx, { ...opts, elem: roofPlanks('z') }, 'roofX');
+  B.add(key, gz, { ...opts, elem: roofPlanks('x') }, 'roofZ');
+  B.add(key, gx, { ...opts, elem: roofPlanks('z') }, 'roofX');
 }
 
 /** 包围盒（调试 / 摆放用） */
 export function bboxOf(o: THREE.Object3D): THREE.Box3 {
   o.updateMatrixWorld(true);
   return new THREE.Box3().setFromObject(o);
+}
+
+/** 招牌图标的种类：咖啡杯、塔可、网球拍 */
+export type IconKind = 'cup' | 'taco' | 'racket';
+
+/**
+ * 开罗式的图标招牌（美术 r1 C 条）：一块 2.4 × 1.6 米的彩色底板 + 一个粗体图标（最小特征 ≥ 0.3 米 = 2 纹素），
+ * 往后仰 tilt（默认 0.45 弧度，朝镜头多一点），0.149 米/纹素下 ≈ 16 × 9 纹素，眯眼认得出是哪家店。
+ * 本地原点 = 底板下沿中点（y 往上），底板朝 +z。底板 / 图标都不接投影，落中/亮档（lightUp + 低阈值）。
+ */
+export function iconSign(ctx: AssetCtx, kind: IconKind, tilt = 0.45): THREE.Group {
+  const g = new THREE.Group();
+  g.name = `icon-sign:${kind}`;
+  const B = new Bins(ctx);
+  const W = 2.4;
+  const H = 1.6;
+  const LIT: ToonOpts = { lightUp: 0.8, bands: [-0.8, -0.35], noShadowReceive: true, edge: 0.5, convex: 0.2 };
+  const board: Key = kind === 'cup' ? 'carMint' : kind === 'taco' ? 'clothRed' : 'counter';
+  B.add(board, bx(W, H, 0.16, 0, 0, 0), LIT, 'board');
+  // 白边框（0.16 米 ≈ 1 纹素的亮边，底板的轮廓）
+  B.add('clothWhite', bx(W + 0.2, 0.16, 0.12, 0, H, 0), LIT, 'rim');
+  const z = 0.1;
+  const cy = H / 2;
+  if (kind === 'cup') {
+    // 白杯子（0.9 × 0.85）+ 右边把手 + 杯口一条咖啡色 + 下面的碟
+    B.add('clothWhite', bx(0.9, 0.85, 0.08, -0.15, cy - 0.5, z), LIT, 'icon');
+    B.add('clothWhite', bx(0.3, 0.45, 0.08, 0.45, cy - 0.3, z), LIT, 'icon');
+    B.add('timber', bx(0.9, 0.18, 0.1, -0.15, cy + 0.17, z), LIT, 'icon2');
+    B.add('clothWhite', bx(1.5, 0.16, 0.08, -0.05, cy - 0.66, z), LIT, 'icon');
+  } else if (kind === 'taco') {
+    // 黄色半圆的饼（朝上的圆弧）+ 弧顶一圈绿生菜、两点红番茄
+    const s = new THREE.Shape();
+    s.absarc(0, 0, 0.85, 0, Math.PI, false);
+    s.lineTo(0.85, 0);
+    const half = new THREE.ShapeGeometry(s, 8).translate(0, cy - 0.45, z);
+    const lettuce = new THREE.ShapeGeometry(
+      new THREE.Shape().absarc(0, 0, 0.62, 0.15, Math.PI - 0.15, false).lineTo(0, 0),
+      8,
+    ).translate(0, cy - 0.25, z - 0.02);
+    B.add('lawnStripe', lettuce, LIT, 'icon2');
+    B.add('flowerYellow', half, LIT, 'icon');
+    B.add('clothRed', bx(0.26, 0.22, 0.08, -0.3, cy + 0.12, z - 0.01), LIT, 'icon3');
+    B.add('clothRed', bx(0.26, 0.22, 0.08, 0.25, cy + 0.18, z - 0.01), LIT, 'icon3');
+  } else {
+    // 网球拍：黄色椭圆拍框（粗 0.2）+ 拍柄 + 一个网球
+    const ring = new THREE.TorusGeometry(0.4, 0.11, 4, 12).scale(0.9, 1.15, 0.5).translate(-0.3, cy + 0.15, z);
+    B.add('flowerYellow', ring, LIT, 'icon');
+    B.add('flowerYellow', bx(0.2, 0.5, 0.08, -0.3, cy - 0.85, z).rotateZ(0), LIT, 'icon');
+    B.add('clothWhite', bx(0.2, 0.18, 0.08, -0.3, cy - 0.85, z + 0.02), LIT, 'icon2');
+    B.add('ball', new THREE.IcosahedronGeometry(0.24, 1).translate(0.65, cy - 0.3, z + 0.05), LIT, 'ball');
+  }
+  B.build(g, `icon-sign:${kind}`);
+  g.rotation.x = -tilt;
+  return g;
 }
