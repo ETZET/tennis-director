@@ -358,4 +358,4 @@ export const STAR_GOALS: StarGoal[] = [
 
 export const START_MONEY = 10000;
 /** 一天多少秒（演出时间，1× 速度） */
-export const DAY_SECONDS = 40;
+export const DAY_SECONDS = 60;
