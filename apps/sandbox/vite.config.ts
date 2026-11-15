@@ -38,6 +38,8 @@ export default defineConfig({
         clubgolf: resolve(import.meta.dirname, 'clubgolf.html'),
         // 人物一览：clubsite/people 的 Q 版人按 CastLook 换装（src/cast）
         cast: resolve(import.meta.dirname, 'cast.html'),
+        // 思想实验：开罗式建造经营版（网格摆设施、组合加成、每天收盘、星级解锁；src/clubbuild，不合进游戏）
+        clubbuild: resolve(import.meta.dirname, 'clubbuild.html'),
       },
     },
   },
