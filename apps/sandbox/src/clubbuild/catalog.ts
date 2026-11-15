@@ -14,12 +14,13 @@
 //   人从"门格" door 进出：占地里相对左上角的格子 (dc, dr)，rot 0 时；main 负责转。
 //
 // 地块按星级一片一片开放（LOT_ROWS_BY_STAR）：开放的是南边的 lotRows 行（大门在南边），北边先锁着。
+// 东西两边各 LAND_COLS 列先锁着，★4 以后花钱买（LAND_PRICES，第一块便宜、第二块贵）。
 // 地形（TERRAIN：绿洲水塘、大石头、老棕榈）是开局就在地上的特殊设施（state.placed 里，cat 'terrain'，不在托盘里），
 // 带标签，现成的组合系统直接用；大石头花钱能清掉，别的拆不掉。
 
 export const TILE = 3; // 米
-export const LOT_W = 18; // 格（东西）
-export const LOT_D = 26; // 格（南北）
+export const LOT_W = 26; // 格（东西）：中间 18 列开局就是你的，东西两边各 LAND_COLS 列是"邻居空地"，★4 以后花钱买
+export const LOT_D = 31; // 格（南北）：南边 16 行开局开放，往北按星级一片片开（LOT_ROWS_BY_STAR）
 
 /** 托盘的分类（地形不在托盘里，见 DefCategory） */
 export type Category = 'court' | 'facility' | 'deco' | 'road';
@@ -459,23 +460,135 @@ export interface StarGoal {
   net: number;
   /** 会员 */
   members: number;
+  /** 要建过（现在场上有、建好了）的设施 id：开罗清单里的"建一座 X" */
+  has?: string[];
 }
 
 export const STAR_GOALS: StarGoal[] = [
   { star: 1, visitors: 30, buildings: 3, combos: 1, net: 0, members: 0 },
-  { star: 2, visitors: 100, buildings: 6, combos: 3, net: 800, members: 6 },
-  { star: 3, visitors: 250, buildings: 8, combos: 5, net: 1700, members: 16 },
-  { star: 4, visitors: 500, buildings: 11, combos: 7, net: 2800, members: 30 },
-  { star: 5, visitors: 1000, buildings: 14, combos: 9, net: 4200, members: 60 },
+  { star: 2, visitors: 100, buildings: 6, combos: 3, net: 800, members: 3 },
+  { star: 3, visitors: 260, buildings: 8, combos: 5, net: 1700, members: 12 },
+  { star: 4, visitors: 600, buildings: 10, combos: 7, net: 3500, members: 30, has: ['court-clay'] },
+  { star: 5, visitors: 1600, buildings: 14, combos: 10, net: 8000, members: 70, has: ['pool'] },
 ];
 
-/** 地块开放几行（南边起），下标 = 当前星级（超出用最后一项）。★2 开 4 行（刚好放会所、横放的匹克），★3 开 6 行（刚好横放一片红土） */
-export const LOT_ROWS_BY_STAR = [16, 16, 20, 26, 26, 26];
+/**
+ * 地块开放几行（南边起），下标 = 当前星级（超出用最后一项）。
+ * ★2 开 4 行（刚好放会所、横放的匹克），★3 开 6 行（刚好横放一片红土），★4 开 5 行（刚好放转过来的泳池）
+ */
+export const LOT_ROWS_BY_STAR = [16, 16, 20, 26, 31, 31];
+
+/** 东西两边的邻居空地：各几列；几星以后能买；第 1、2 块的价钱 */
+export const LAND_COLS = 4;
+export const LAND_STAR = 4;
+export const LAND_PRICES = [15000, 30000];
+
+/** 夜场灯光（球场的附加件）：几星以后能装、价钱（按设施 id）、每天多的维护费。有灯的球场营业到 NIGHT_END_HOUR */
+export const LIGHTS = {
+  star: 3,
+  cost: { 'court-hard': 2500, pickle: 1200, 'court-clay': 3500 } as Record<string, number>,
+  upkeep: 60,
+};
+
+/** 教练（会所升到 Lv3 以后，一片正式球场一位）：一次性的签约费、每天的薪水、收费倍数、青少年客群倍数 */
+export const COACH = { cost: 4000, upkeep: 60, spend: 1.25, junior: 1.5, houseLv: 3 };
+
+/**
+ * 比赛阶梯（每周日一场，周四主办方来邀请；名气够了开放下一档）。
+ * need：正式球场几片（不算练习墙）、红土几片、泳池、会所等级、看台几座 / 最高等级、有灯的球场几片。
+ * 奖金 = prize + perFan × 当天的球迷；附加目标达成 × bonus.mul。fee 在承办时扣。mul = 当天客人倍数。
+ */
+export interface CupDef {
+  id: string;
+  name: string;
+  /** 名气门槛 */
+  fame: number;
+  star: number;
+  fee: number;
+  prize: number;
+  perFan: number;
+  fameGain: number;
+  mul: number;
+  need: {
+    courts?: number;
+    clay?: number;
+    pool?: number;
+    houseLv?: number;
+    stands?: number;
+    standLv?: number;
+    lights?: number;
+  };
+  /** 附加目标：noAway = 当天没人客满走掉；fans = 球迷至少 n 位；combo = 场上组合至少 n 种 */
+  bonus: { kind: 'noAway' | 'fans' | 'combo'; n: number; mul: number; text: string };
+}
+
+export const CUPS: CupDef[] = [
+  {
+    id: 'club',
+    name: '俱乐部赛',
+    fame: 0,
+    star: 2,
+    fee: 0,
+    prize: 400,
+    perFan: 20,
+    fameGain: 1,
+    mul: 1.3,
+    need: { courts: 2, stands: 1 },
+    bonus: { kind: 'noAway', n: 0, mul: 1.5, text: '比赛日没有客人走掉' },
+  },
+  {
+    id: 'region',
+    name: '地区公开赛',
+    fame: 3,
+    star: 3,
+    fee: 2500,
+    prize: 2000,
+    perFan: 35,
+    fameGain: 2,
+    mul: 1.6,
+    need: { courts: 3, clay: 1, stands: 1 },
+    bonus: { kind: 'fans', n: 30, mul: 1.5, text: '来 30 位以上球迷' },
+  },
+  {
+    id: 'desert',
+    name: '沙漠杯',
+    fame: 6,
+    star: 4,
+    fee: 8000,
+    prize: 9000,
+    perFan: 80,
+    fameGain: 3,
+    mul: 1.8,
+    need: { courts: 4, clay: 1, pool: 1, houseLv: 3, stands: 2 },
+    bonus: { kind: 'noAway', n: 0, mul: 1.5, text: '比赛日没有客人走掉' },
+  },
+  {
+    id: 'winter',
+    name: '冬季巡回赛',
+    fame: 12,
+    star: 5,
+    fee: 15000,
+    prize: 16000,
+    perFan: 120,
+    fameGain: 4,
+    mul: 2,
+    need: { courts: 5, clay: 2, pool: 1, houseLv: 3, stands: 2, lights: 2 },
+    bonus: { kind: 'combo', n: 12, mul: 1.5, text: '场上有 12 种以上组合' },
+  },
+];
+/** 升星时名气 +1（★2 起）：名气是比赛阶梯的门槛 */
+export const STAR_FAME = 1;
+/** 邀请在比赛前几天来（周日 − 3 = 周四） */
+export const CUP_OFFER_DAYS = 3;
+/** 开业一个月：这一天收盘出评分卡（PLS 式），之后照样经营 */
+export const SCORE_DAY = 30;
 
 /** 设施等级（下标 = 等级 − 1）：接够 LV_AT 位客人才能升到这一级；升级花 建造价 × LV_COST；收费 × LV_MUL */
 export const LV_AT = [0, 60, 150];
 export const LV_COST = [0, 0.6, 1.2];
-export const LV_MUL = [1, 1.2, 1.45];
+export const LV_MUL = [1, 1.15, 1.3];
+/** 等级越高维护费越贵（开罗式：升级不是白给的） */
+export const LV_UPKEEP = [1, 1.6, 2.4];
 export const MAX_LV = 3;
 /** 每升一级：容量 +LV_CAP、吸引力 +LV_APPEAL */
 export const LV_CAP = 1;

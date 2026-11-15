@@ -93,7 +93,10 @@ export function build(ctx: AssetCtx): THREE.Object3D {
   ];
   const pool = roundRect(POOL.x0, POOL.z0, POOL.x1, POOL.z1, POOL.r, 5);
   const copeOut = roundRect(POOL.x0 - COPING, POOL.z0 - COPING, POOL.x1 + COPING, POOL.z1 + COPING, POOL.r + COPING, 5);
-  B.add('flagstone', topGeo(deck, DECK, [copeOut]), { cast: false, extra: { elem: { ...EL.flagstone, seed: 19 } } });
+  B.add('flagstone', topGeo(deck, DECK, [copeOut]), {
+    cast: false,
+    extra: { elem: { ...EL.flagstone, seed: 19, size: [8.4, 4.8] } },
+  }); // 美术 r2：石板 × 0.6
   B.add('stucco', wallGeo(deck, DECK, 0, true), { recv: false, tag: 'plinth' });
   // 台阶（两级，平台 0.36 → 0.24 → 0.12 → 地面）
   B.add('concrete', box(GATE * 2, 0.24, STEP_D, 0, 0, zG + STEP_D / 2));

@@ -31,7 +31,7 @@ export function build(ctx: AssetCtx): THREE.Object3D {
   const B = new Bucket();
   B.add('tile', quad({ x0: -HS + RIM, x1: HS - RIM, z0: -HS + RIM, z1: HS - RIM }, PAD), {
     cast: false,
-    extra: { elem: { ...EL.tile, seed: 29 } },
+    extra: { elem: { ...EL.tile, seed: 29, size: [5.4, 3.6] } }, // 美术 r2：陶砖 × 0.6
   });
   const r = (w: number, d: number, x: number, z: number) => B.add('cap', box(w, PAD + 0.05, d, x, 0, z));
   r(HS * 2, RIM, 0, -HS + RIM / 2);

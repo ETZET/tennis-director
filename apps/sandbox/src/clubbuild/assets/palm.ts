@@ -43,7 +43,7 @@ export function build(ctx: AssetCtx): THREE.Object3D {
   );
   B.add('cap', wallGeo(inn, H + LIP, H - 0.04, false), { recv: false });
   // 土面：碎花岗岩，比压顶低一点
-  B.add('granite', topGeo(inn, H - 0.04), { cast: false, extra: { elem: { ...EL.granite, seed: 7 } } });
+  B.add('granite', topGeo(inn, H - 0.04), { cast: false, extra: { elem: { ...EL.granite, seed: 7, size: [4.5, 3] } } }); // 美术 r2：碎石 × 0.6
   B.build(ctx, own, 'palm:');
   finish(ctx, own);
 

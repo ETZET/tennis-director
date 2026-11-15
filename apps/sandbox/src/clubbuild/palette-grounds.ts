@@ -75,6 +75,51 @@ export const EXTRA = {
       [0xf4cc92, 0xd8a27c, 0xaa80a2],
     ),
   ),
+  // ── 美术 r2：地块外的布景单独一套"低彩度、自然"的颜色（地块里鲜艳、规整；地块外安静） ──
+  /**
+   * 地块外的沙漠低地：比 sandDrift（S 0.57）灰一截的暖沙（S ≈ 0.35），影子冷梅紫；和地块里的草、石板、陶砖一眼分开，不抢戏。
+   */
+  desertLow: s(
+    [0xd4b494, 0xb48a78, 0x7a5c7c],
+    0.1,
+    0,
+    tn(
+      [0xd4b494, 0xdcbea0, 0xcaa888], // L 184 / 194 / 174（S 0.30：午后暖光一乘到画面约 0.36）
+      [0xb48a78, 0xbc9482, 0xa88070], // L 145 / 155 / 136
+      [0x7a5c7c, 0x846686, 0x70527a], // L 99 / 109 / 91
+      [0xc09a7c, 0x9a7470, 0x5e4470],
+      [0xe6c4a0, 0xc8a08c, 0x98789a],
+    ),
+  ),
+  /** 台地顶（两级都用）：比低地亮一点、更灰（S ≈ 0.32），层次靠崖壁的暗带分 */
+  mesaTop: s(
+    [0xe0c2a2, 0xbc947e, 0x806488],
+    0.1,
+    0,
+    tn(
+      [0xe0c2a2, 0xe8cbae, 0xd6b896], // L 198 / 207 / 188
+      [0xbc947e, 0xc49e88, 0xb08a76], // L 154 / 163 / 144
+      [0x806488, 0x8a6e92, 0x765a80], // L 108 / 118 / 99
+      [0xccaa88, 0xa07e78, 0x624a7a],
+      [0xf0d0ae, 0xd0aa94, 0x9e82a8],
+    ),
+  ),
+  /**
+   * 台地崖壁：冷的天然岩（暗档靛紫 L ~84，色相 ~250°），和地块暖梅紫的土坯墙（adobe，色相 ~283°、L 87）分开 ——
+   * 崖是"天然的"，墙是"人造的"。借 club 组过调色（暗档往 285° 蓝紫走，不往玫瑰褐拉）。
+   */
+  mesaCliff: s(
+    [0xb8a0b4, 0x7c6a9a, 0x56507e],
+    0.3,
+    0.2,
+    tn(
+      [0xb8a0b4, 0xc2aabe, 0xae96aa],
+      [0x7c6a9a, 0x86749f, 0x70608e],
+      [0x56507e, 0x625a8a, 0x4a4572], // L 84 / 94 / 73（第一版 L 70 在画面里是三条深海军蓝的墙，太重）
+      [0xa08ca0, 0x5e5280, 0x3e3a66],
+      [0xccb4c6, 0x9888b0, 0x7a72a6],
+    ),
+  ),
 } as const satisfies Record<string, Swatch>;
 
 /** 不在配色方案 GROUP 表里的新名字借哪个名字过调色（kit.ts 的 palOpts 用） */
@@ -82,4 +127,7 @@ export const PROXY: Record<string, string> = {
   lotLawn: 'lawn',
   lotLawnStripe: 'lawn',
   lotWild: 'sandHigh',
+  desertLow: 'sand',
+  mesaTop: 'sand',
+  mesaCliff: 'jug',
 };

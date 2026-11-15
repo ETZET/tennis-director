@@ -1,11 +1,21 @@
 // clubbuild 的自动演示（?demo=1）：照玩家的操作一步步来，大约 30 秒把开罗式的循环演一遍：
 // 抽屉滑出 → 选卡（镜头推近、影子生成在空地）→ 影子一格一格挪过去 → ✓（连放：影子跳到旁边）→ 完成（镜头拉回）
-// → 凑出组合（大横幅）→ 步道：拖出一段（"N 格 $X"）→ ✓ 铺 → 拆一棵树 → ↶ 撤销 → 收起，2× 速度。
+// → 凑出组合（大横幅）→ 步道：拖出一段（"N 格 $X"）→ ✓ 铺 → 点球场看检视条 → 把咖啡车搬个地方 → 拆一棵树 → ↶ 撤销 → 2× 速度。
 // 走的是和手点一样的控制器接口（game.ts 的 Game）。位置在运行时按现在的布局找（开局布局、地形会变）：
 // 找"放得下、而且能凑成指定组合"的格子。
 import { BY_ID, LOT_D, LOT_W } from './catalog';
 import type { Game } from './game';
-import { comboPreview, doorTile, inLot, occupancy, openRowStart, placeErrorCode, type Rot, route } from './sim';
+import {
+  comboPreview,
+  doorTile,
+  inLot,
+  moveError,
+  occupancy,
+  openRowStart,
+  placeErrorCode,
+  type Rot,
+  route,
+} from './sim';
 
 type T2 = [number, number];
 /** 脚本：yield 等几秒（按游戏的帧走） */
@@ -193,7 +203,37 @@ function* script(g: Game): Script {
   g.closeTray();
   yield 2.2;
 
-  // ⑤ 拆掉一棵棕榈，再撤销
+  // ⑤ 点球场：底栏换成检视条（不挡游戏）；再把开局那辆咖啡车搬到旁边（免费，等级和客人都跟着走）
+  const court2 = g.state.placed.find((p) => p.id === 'court-hard');
+  if (court2) {
+    g.inspect(court2.uid);
+    yield 2.0;
+  }
+  const cafe = g.state.placed.find((p) => p.id === 'cafe');
+  if (cafe) {
+    g.inspect(cafe.uid);
+    yield 1.0;
+    g.inspectAct('move');
+    yield 0.9;
+    let to: T2 | null = null;
+    for (let rad = 2; rad <= 6 && !to; rad++)
+      for (const [dc, dr] of [
+        [-rad, 0],
+        [0, -rad],
+        [rad, 0],
+        [0, rad],
+      ])
+        if (!to && moveError(g.state, cafe.uid, cafe.col + dc, cafe.row + dr, cafe.rot) === null)
+          to = [cafe.col + dc, cafe.row + dr];
+    if (to) yield* glide(g, to);
+    yield 0.6;
+    g.confirm(); // 搬好了，回到检视条
+    yield 1.4;
+    g.mode = 'idle';
+    yield 0.8;
+  }
+
+  // ⑥ 拆掉一棵棕榈，再撤销
   const palm = g.state.placed.find((p) => p.id === 'palm');
   if (palm) {
     g.removeMode();

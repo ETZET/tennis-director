@@ -42,7 +42,10 @@ export function build(ctx: AssetCtx): THREE.Object3D {
   );
   B.add('cap', topGeo(lipOut, H + LIP, [inn]));
   B.add('cap', wallGeo(lipOut, H + LIP, H, true), { recv: false });
-  B.add('granite', topGeo(inn, H + 0.04), { cast: false, extra: { elem: { ...EL.granite, seed: 13 } } });
+  B.add('granite', topGeo(inn, H + 0.04), {
+    cast: false,
+    extra: { elem: { ...EL.granite, seed: 13, size: [4.5, 3] } },
+  });
   B.build(ctx, own, 'cactus-bed:');
   finish(ctx, own);
 

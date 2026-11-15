@@ -5,6 +5,8 @@
 // GhostFx（pieces.ghost）：摆放中的占地框 —— 半透明色块 + 一圈 0.3 米宽的不透明边框（模型盖不住），放不下时变红 0xff6a5a。
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { coach } from '../clubsite/people';
+import type { BaseCtx } from '../clubsite/render/ctx';
 import { box } from '../clubsite/render/geo';
 import { BY_ID, TILE } from './catalog';
 import type { AssetCtx } from './ctx';
@@ -27,7 +29,24 @@ interface Piece {
   /** 现在挂着的等级装饰是几级（1 = 没有） */
   lv: number;
   deco: THREE.Object3D | null;
+  /** 球场灯（模型里 userData.night 的物件，原来的 night 接口存在这里）；lit = 现在是不是开着夜间照明 */
+  lamps: { obj: THREE.Object3D; night: NightLight }[];
+  lit: boolean | null;
+  /** 场边的教练（Placed.coach） */
+  coach: THREE.Object3D | null;
+  /** 模型里有没有夜里亮的东西（userData.night） */
+  hasNight: boolean;
+  /** 模型的 userData.setOccupancy（看台）和上次给的值 */
+  setOcc: ((k: number) => void) | null;
+  occ: number;
 }
+
+interface NightLight {
+  setOn?: (on: boolean) => void;
+  pool?: () => [number, number, number, number];
+}
+/** 模拟以后会有的字段（sim 还没加时按 undefined 处理） */
+type PlacedExtra = Placed & { lights?: boolean; coach?: unknown };
 
 interface Dust {
   mesh: THREE.Mesh;
@@ -105,6 +124,11 @@ export class Pieces {
   readonly root = new THREE.Group();
   /** 摆放中的占地框（见 GhostFx） */
   readonly ghost = new GhostFx();
+  /**
+   * 场景里带 userData.night 的东西（球场灯、塔可车的光圈）加了 / 拆了 / 开关了就 +1：
+   * clubsite/daylight 只在 rescanLamps() 时找灯（tspeed 0 时 step 不跑），game.ts 看到它变了调一次 daylight.rescanLamps()
+   */
+  lampsVersion = 0;
   private map = new Map<number, Piece>();
   private paths: THREE.Object3D | null = null;
   private pathKey = '';
@@ -146,6 +170,13 @@ export class Pieces {
       this.paths = buildPaths(this.ctx, tiles);
       this.root.add(this.paths);
     }
+    // 每个设施这会儿有几位客人在里面（看台的观众头用）
+    const occ = new Map<number, number>();
+    for (const v of state.visitors) {
+      if (v.stage !== 'stay') continue;
+      const u = v.stops[v.i];
+      occ.set(u, (occ.get(u) ?? 0) + 1);
+    }
     // 设施
     const live = new Set<number>();
     for (const p of state.placed) {
@@ -177,13 +208,30 @@ export class Pieces {
         pc.model.scale.set(1 / Math.sqrt(s), s, 1 / Math.sqrt(s));
       }
       for (const u of pc.updaters) u(dt, t);
+      // 看台这类有 setOccupancy 的：坐满多少
+      const setOcc = pc.setOcc;
+      if (setOcc) {
+        const k = p.build >= 1 ? (occ.get(p.uid) ?? 0) / Math.max(1, BY_ID[p.id].cap) : 0;
+        if (k !== pc.occ) {
+          pc.occ = k;
+          setOcc(k);
+        }
+      }
       // 等级：Lv2 / Lv3 的装饰（建好以后才挂；升级那一下弹一下、冒尘土）
       const lv = p.build >= 1 ? (p.lv ?? 1) : 1;
       if (lv !== pc.lv) this.setLevel(pc, p, lv);
+      // 夜间照明：只有装了灯的球场天黑开灯
+      const px = p as PlacedExtra;
+      const lit = !!px.lights && p.build >= 1;
+      if (lit !== pc.lit) this.setLit(pc, lit);
+      // 教练：站在场边
+      const hasCoach = !!px.coach && p.build >= 1;
+      if (hasCoach !== !!pc.coach) this.setCoach(pc, p, hasCoach);
     }
     this.instant = false;
     for (const [uid, pc] of this.map) {
       if (live.has(uid)) continue;
+      if (pc.hasNight) this.lampsVersion++;
       pc.wrap.removeFromParent();
       this.map.delete(uid);
     }
@@ -227,6 +275,18 @@ export class Pieces {
     );
     wrap.add(scaffold);
     this.root.add(wrap);
+    let hasNight = false;
+    obj.traverse((c) => {
+      if (c.userData.night) hasNight = true;
+    });
+    if (hasNight) this.lampsVersion++;
+    // 球场灯：night 接口换成看 Placed.lights 的那一层（setLit）
+    const lamps: Piece['lamps'] = [];
+    if (def.cat === 'court')
+      obj.traverse((c) => {
+        const n = c.userData.night as NightLight | undefined;
+        if (n) lamps.push({ obj: c, night: n });
+      });
     const pc: Piece = {
       uid: p.uid,
       id: p.id,
@@ -239,6 +299,12 @@ export class Pieces {
       updaters,
       lv: 1,
       deco: null,
+      lamps,
+      lit: null,
+      coach: null,
+      hasNight,
+      setOcc: (obj.userData.setOccupancy as ((k: number) => void) | undefined) ?? null,
+      occ: -1,
     };
     this.map.set(p.uid, pc);
     return pc;
@@ -303,6 +369,75 @@ export class Pieces {
     this.ctx.mats.prepare(g, { cast: false, receive: false });
     return g;
   }
+
+  /**
+   * 球场灯开不开。night 接口一直挂着（daylight 只在 rescanLamps 时找 userData.night），里面看 pc.lit：
+   * 没装灯 = setOn 永远关、pool 是一个半径 0、放在很远处的圈（排序排在最后，不占离镜头最近的 LAMP_N 个位置）。
+   */
+  private setLit(pc: Piece, lit: boolean) {
+    pc.lit = lit;
+    for (const l of pc.lamps) {
+      if (!l.obj.userData.nightWrapped) {
+        const orig = l.night;
+        let want = false;
+        l.obj.userData.night = {
+          setOn: (on: boolean) => {
+            want = on;
+            orig.setOn?.(on && !!pc.lit);
+          },
+          pool: (): [number, number, number, number] => (pc.lit && orig.pool ? orig.pool() : [1e5, 1e5, 0, 0]),
+        } satisfies NightLight;
+        l.obj.userData.nightWrapped = true;
+        l.obj.userData.nightWant = () => want;
+      }
+      const want = (l.obj.userData.nightWant as () => boolean)();
+      l.night.setOn?.(want && lit);
+    }
+    this.lampsVersion++;
+  }
+
+  /**
+   * 场边的教练（clubsite/people 的 coach：红帽 + 深紫 Polo，一眼和客人分开）：站在占地西边线外、网前一点，面朝场内，播喂球（feed）。
+   * 挂在 wrap 上（跟着设施转），和客人一样 ×1.35、不投太阳影、脚下一块团影。
+   */
+  private setCoach(pc: Piece, p: Placed, on: boolean) {
+    if (pc.coach) {
+      pc.coach.removeFromParent();
+      pc.updaters = pc.updaters.filter((u) => u !== pc.coach?.userData.tick);
+      pc.coach = null;
+    }
+    if (!on) return;
+    const def = BY_ID[p.id];
+    const W = def.w * TILE;
+    const D = def.d * TILE;
+    const ctx = { ...this.ctx, variant: p.uid % 2, params: new URLSearchParams() } as unknown as BaseCtx;
+    const o = coach(ctx);
+    o.scale.setScalar(1.35);
+    o.position.set(-W / 2 + Math.min(1.7, W * 0.12), 0, Math.min(4, D * 0.12));
+    o.rotation.y = Math.PI / 2;
+    o.traverse((c) => {
+      c.castShadow = false;
+    });
+    const blob = new THREE.Mesh(
+      new THREE.CircleGeometry(1, 12).rotateX(-Math.PI / 2).scale(0.36, 1, 0.24),
+      this.blobMat,
+    );
+    blob.position.y = 0.03 / 1.35;
+    blob.layers.set(1);
+    o.add(blob);
+    (o.userData.pose as ((n: string) => void) | undefined)?.('feed');
+    const tick = (dt: number) => (o.userData.update as ((dt: number) => void) | undefined)?.(dt);
+    o.userData.tick = tick;
+    pc.updaters.push(tick);
+    pc.wrap.add(o);
+    pc.coach = o;
+  }
+  private blobMat = new THREE.MeshBasicMaterial({
+    color: 0x2a1838,
+    transparent: true,
+    opacity: 0.32,
+    depthWrite: false,
+  });
 
   /**
    * 等级装饰（开罗式"升级看得见"）：挂在 wrap 上（不跟着建造升降），占地的本地坐标（rot 0 的 w × d，wrap 负责转）。

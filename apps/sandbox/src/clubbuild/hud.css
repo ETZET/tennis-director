@@ -151,48 +151,29 @@
   background: var(--gold);
 }
 
-/* 一周小条：7 格（今天那格按时刻填），青训日 / 家庭日 / 俱乐部赛有颜色，后面写今天的名目 */
-.cb-week {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 3px;
-  min-width: 0;
-}
-.cb-week .cells {
-  flex: 1 1 auto;
-  display: flex;
-  gap: 2px;
-  min-width: 42px;
-}
-.cb-week .cells i {
-  flex: 1 1 0;
-  height: 7px;
-  background: var(--ink2);
-  border-top: 2px solid transparent;
-}
-.cb-week .cells i.jr {
-  border-top-color: var(--green);
-}
-.cb-week .cells i.fam {
-  border-top-color: #e88a4a;
-}
-.cb-week .cells i.cup {
-  border-top-color: #e070b0;
-}
-.cb-week .cells i.now {
-  outline: 1px solid var(--cream);
-}
-.cb-week .cells b {
+/* 时钟片第二行：今天的名目 / 离俱乐部赛还有几天（7 格周条只在日志卡里） */
+.cb-day {
   display: block;
-  height: 100%;
-  background: var(--gold);
-}
-.cb-week em {
-  flex: 0 0 auto;
-  font-style: normal;
+  margin-top: 2px;
   font-size: 12px;
+  font-weight: 600;
   color: var(--gold);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cb-star b {
+  font-size: 16px;
+}
+#hud button.cb-star small {
+  display: block;
+  font-size: 12px;
+  color: var(--cream);
+  font-weight: 600;
+}
+#hud button.cb-star .cb-bar {
+  margin-top: 2px;
+  height: 4px;
 }
 
 /* 上面一条不挡游戏的通知（日报、俱乐部赛没办成） */
@@ -306,6 +287,88 @@
 #hud .cb-dock button.undo {
   flex: 0 0 56px;
   font-size: 22px;
+}
+/* 撤销键写代价（"↶ 退$900"）时变宽 */
+#hud .cb-dock button.undo.wide {
+  flex: 0 0 auto;
+  min-width: 56px;
+  font-size: 14px;
+}
+
+/* 检视条（132 px）：名字 + 状态 + ✕ / 动作键 */
+.cb-side[data-mode="inspect"] .cb-dock {
+  height: 138px;
+  flex-direction: column;
+  gap: 6px;
+}
+.cb-ins-head {
+  display: flex;
+  gap: 6px;
+  align-items: stretch;
+  height: 56px;
+}
+.cb-ins-info {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 3px;
+  padding: 2px 10px;
+  line-height: 1.15;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  background: var(--ink);
+  pointer-events: auto;
+  box-shadow: 3px 0 0 0 var(--gold), -3px 0 0 0 var(--gold), 0 3px 0 0 var(--gold), 0 -3px 0 0 var(--gold),
+    0 6px 0 0 var(--ink2);
+}
+.cb-ins-info b {
+  font-size: 15px;
+  color: var(--gold);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cb-ins-info small {
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* 进度：一行里 [条][还差 60 位] */
+.cb-ins-info .mrow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.cb-ins-info .meter {
+  flex: 0 0 48px;
+  height: 6px;
+  background: var(--ink2);
+}
+.cb-ins-info .meter i {
+  display: block;
+  height: 100%;
+  background: var(--green);
+}
+#hud .cb-ins-head button.x {
+  flex: 0 0 52px;
+  min-height: 50px;
+}
+.cb-ins-acts {
+  display: flex;
+  gap: 6px;
+  height: 56px;
+}
+#hud .cb-ins-acts button {
+  flex: 0 0 auto;
+  min-width: 72px;
+  min-height: 50px;
+  font-size: 15px;
+}
+#hud .cb-ins-acts button.grow {
+  flex: 1 1 auto;
 }
 #hud .cb-dock button.speed {
   flex: 0 0 64px;
@@ -467,6 +530,32 @@
   color: var(--cream);
   white-space: normal;
 }
+.cb-card .lock em {
+  font-style: normal;
+  font-size: 12px;
+  color: var(--cream);
+}
+/* 锁着的卡：下面的字不透出来（遮罩只写 ★N + 一行目标 + 价钱） */
+.cb-card.locked .ln,
+.cb-card.locked .gs,
+.cb-card.locked .shape,
+.cb-card.locked .cost {
+  visibility: hidden;
+}
+#hud .cb-card.locked .lock {
+  background: rgba(23, 18, 48, 0.92);
+}
+/* 现在没地方放 */
+.cb-card .nofit {
+  position: absolute;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 1px 4px;
+  font-size: 12px;
+  background: #8a2a3a;
+  color: #fff;
+}
 
 /* 影子头顶的小工具条 [⟳][✓][✕] */
 .cb-gbar {
@@ -474,6 +563,7 @@
   left: 0;
   top: 0;
   display: flex;
+  flex-direction: column;
   gap: 2px;
   padding: 2px;
   will-change: transform;
@@ -536,6 +626,20 @@
 .cb-f.tag.rm {
   background: var(--red);
   color: #fff;
+}
+.cb-f.tag.edge {
+  padding: 4px 8px;
+  font-size: 13px;
+  background: var(--green);
+  color: var(--ink2);
+}
+.cb-f.tag.edge[hidden] {
+  display: none;
+}
+.cb-f.tag.parcel {
+  background: rgba(23, 18, 48, 0.8);
+  color: var(--cream);
+  font-size: 13px;
 }
 .cb-f.tag.up {
   padding: 0 4px;
@@ -796,6 +900,9 @@
 #hud.land .cb-money {
   flex-basis: 150px;
 }
+#hud.land button.cb-clock {
+  flex: 0 1 360px;
+}
 #hud.land .cb-side {
   left: auto;
   top: 0;
@@ -893,4 +1000,39 @@
   .cb-top {
     gap: 2px;
   }
+}
+
+/* 时钟片：有比赛邀请没答复 / 承办了还缺东西 → 金边提醒 */
+#hud button.cb-clock.alert {
+  box-shadow: 3px 0 0 0 var(--gold), -3px 0 0 0 var(--gold), 0 3px 0 0 var(--gold), 0 -3px 0 0 var(--gold),
+    0 6px 0 0 var(--ink2);
+}
+.cb-next.bad {
+  color: #fff;
+  background: #8a2a3a;
+}
+/* 检视条键多：等宽、字小一号、可以两行 */
+#hud .cb-ins-acts.many button {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 0 4px;
+  font-size: 13px;
+  line-height: 1.15;
+  white-space: pre-line;
+}
+/* 地块两边没买的地上"出售"牌子（能点） */
+#hud button.cb-sign {
+  position: absolute;
+  left: 0;
+  top: 0;
+  margin: 0;
+  min-height: 44px;
+  padding: 0 10px;
+  font-size: 13px;
+  background: #8a6a1a;
+  white-space: pre-line;
+  line-height: 1.15;
+}
+#hud button.cb-sign[hidden] {
+  display: none;
 }

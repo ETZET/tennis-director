@@ -25,7 +25,7 @@ export function build(ctx: AssetCtx): THREE.Object3D {
   // 石板场面 + 四边路缘
   B.add('flagstone', quad({ x0: -HS + KERB, x1: HS - KERB, z0: -HS + KERB, z1: HS - KERB }, PAD), {
     cast: false,
-    extra: { elem: { ...EL.flagstone, seed: 17 } },
+    extra: { elem: { ...EL.flagstone, seed: 17, size: [8.4, 4.8] } }, // 美术 r2：石板 × 0.6（0.149 米/纹素下原尺寸一块比半辆车大）
   });
   const k = (w: number, d: number, x: number, z: number) => B.add('concrete', box(w, PAD + 0.04, d, x, 0, z));
   k(HS * 2, KERB, 0, -HS + KERB / 2);
