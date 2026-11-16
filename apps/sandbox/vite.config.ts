@@ -38,6 +38,10 @@ export default defineConfig({
         clubgolf: resolve(import.meta.dirname, 'clubgolf.html'),
         // 人物一览：clubsite/people 的 Q 版人按 CastLook 换装（src/cast）
         cast: resolve(import.meta.dirname, 'cast.html'),
+        // 俱乐部所在的小镇和山谷：平面图（Canvas 2D，src/valley/layout.ts 现读）
+        valleyplan: resolve(import.meta.dirname, 'valleyplan.html'),
+        // 小镇和山谷：clubwalk 的大世界 + 整座山谷的白模（走路、球车、汽车、分区解锁）
+        valley: resolve(import.meta.dirname, 'valley.html'),
       },
     },
   },

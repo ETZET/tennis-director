@@ -95,6 +95,13 @@ export interface NavSpec {
    * 大世界（clubwalk）按区域拼导航用。不给 = 原来的行为。
    */
   surface?(x: number, z: number): number | null;
+  /**
+   * 寻路网格只铺这一块（不给 = 整个 bounds）。bounds 照旧管能不能站（连续移动按形状实时判断），网格只给点地面寻路用：
+   * 山谷（src/valley）几平方公里，0.2 米的网格铺不下，只铺俱乐部那块。
+   */
+  grid?: Rect;
+  /** 起点或终点在网格外时怎么走（不给 = 终点能站就直着走过去） */
+  farPath?(nav: NavMap, ax: number, az: number, bx: number, bz: number): [number, number][] | null;
 }
 
 const isRect = (s: Shape): s is Rect => 'x0' in s;
@@ -345,6 +352,8 @@ export class NavMap {
   readonly body: number;
   readonly cell: number;
   readonly bounds: Rect;
+  /** 寻路网格的范围（spec.grid ?? bounds） */
+  readonly gridBounds: Rect;
   private walk: Shape[] | null;
   /** 静态挡路 = base（setBlocked 整张换的）+ 各层（setLayer 按 key 加 / 减的） */
   private blocked: Blocker[];
@@ -371,13 +380,14 @@ export class NavMap {
     this.body = spec.body ?? 0.28;
     this.cell = spec.cell ?? 0.2;
     this.bounds = spec.bounds;
+    this.gridBounds = spec.grid ?? spec.bounds;
     this.walk = spec.walkable?.length ? spec.walkable : null;
     this.base = (spec.blocked ?? []).map((s) => ({ s, b: bbox(s) }));
     this.blocked = this.base;
     this.tiles = tileIndex(this.blocked);
     this.ramps = spec.ramps ?? [];
-    this.nx = Math.max(1, Math.ceil((this.bounds.x1 - this.bounds.x0) / this.cell));
-    this.nz = Math.max(1, Math.ceil((this.bounds.z1 - this.bounds.z0) / this.cell));
+    this.nx = Math.max(1, Math.ceil((this.gridBounds.x1 - this.gridBounds.x0) / this.cell));
+    this.nz = Math.max(1, Math.ceil((this.gridBounds.z1 - this.gridBounds.z0) / this.cell));
     this.grid = new Float32Array(this.nx * this.nz);
     this.rebuild();
   }
@@ -501,7 +511,7 @@ export class NavMap {
   // ── 网格 ──
   /** 重建网格；给 rect = 只重建这个范围（世界米）里的格子（别处的能走/挡路没变时用） */
   private rebuild(rect?: Rect) {
-    const { nx, nz, cell, bounds: B } = this;
+    const { nx, nz, cell, gridBounds: B } = this;
     const i0 = rect ? Math.max(0, Math.floor((rect.x0 - B.x0) / cell)) : 0;
     const i1 = rect ? Math.min(nx, Math.ceil((rect.x1 - B.x0) / cell)) : nx;
     const j0 = rect ? Math.max(0, Math.floor((rect.z0 - B.z0) / cell)) : 0;
@@ -556,7 +566,7 @@ export class NavMap {
   }
   /** 重建几个范围（可以重叠）里的格子，每格只算一次 */
   private rebuildMany(rects: readonly Rect[]) {
-    const { nx, nz, cell, bounds: B } = this;
+    const { nx, nz, cell, gridBounds: B } = this;
     const mark = new Uint8Array(nx * nz);
     let j0 = nz;
     let j1 = 0;
@@ -580,16 +590,16 @@ export class NavMap {
     this.hier = null;
   }
   private ci(x: number) {
-    return Math.floor((x - this.bounds.x0) / this.cell);
+    return Math.floor((x - this.gridBounds.x0) / this.cell);
   }
   private cj(z: number) {
-    return Math.floor((z - this.bounds.z0) / this.cell);
+    return Math.floor((z - this.gridBounds.z0) / this.cell);
   }
   private cx(i: number) {
-    return this.bounds.x0 + (i + 0.5) * this.cell;
+    return this.gridBounds.x0 + (i + 0.5) * this.cell;
   }
   private cz(j: number) {
-    return this.bounds.z0 + (j + 0.5) * this.cell;
+    return this.gridBounds.z0 + (j + 0.5) * this.cell;
   }
   private gh(i: number, j: number, dyn: Set<number> | null): number {
     if (i < 0 || j < 0 || i >= this.nx || j >= this.nz) return Number.NaN;
@@ -885,6 +895,10 @@ export class NavMap {
    * circles：会动的圆（规划这一刻的位置）；离起点 0.5 米、离终点 0.2 米以内的圆不算（自己脚下的、要走过去找的那个人）。
    */
   findPath(ax: number, az: number, bx: number, bz: number, circles: readonly Circle[] = []): [number, number][] | null {
+    if (!this.inGrid(ax, az) || !this.inGrid(bx, bz)) {
+      if (this.spec.farPath) return this.spec.farPath(this, ax, az, bx, bz);
+      return this.standAt(bx, bz) === null ? null : [[bx, bz]];
+    }
     const dyn = this.dynCells(
       circles,
       (c) => Math.hypot(c.x - ax, c.z - az) < c.r + this.body + 0.2 || Math.hypot(c.x - bx, c.z - bz) < c.r + 0.2,
@@ -943,6 +957,12 @@ export class NavMap {
       idx = far + 1;
     }
     return out;
+  }
+
+  /** 点在寻路网格里（spec.grid 给了才可能不在） */
+  inGrid(x: number, z: number): boolean {
+    const G = this.gridBounds;
+    return x >= G.x0 && x <= G.x1 && z >= G.z0 && z <= G.z1;
   }
 
   /** 调试：网格大小、能站的格子数 */

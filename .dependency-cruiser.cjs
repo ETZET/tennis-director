@@ -65,9 +65,10 @@ module.exports = {
     {
       name: 'clubwalk-is-top',
       comment:
-        'src/clubwalk（所有场景连成的大世界）是唯一 import 各场景模块（scene.ts）拼在一起的地方；反过来谁也不 import clubwalk。',
+        'src/clubwalk（所有场景连成的大世界）是唯一 import 各场景模块（scene.ts）拼在一起的地方；反过来谁也不 import clubwalk。' +
+        '例外：src/valley（俱乐部所在的小镇和山谷）在 clubwalk 外面再包一层，只通过 valley/reuse.ts 用 mountWalk。',
       severity: 'error',
-      from: { pathNot: '^apps/sandbox/src/clubwalk/' },
+      from: { pathNot: '^apps/sandbox/src/(clubwalk|valley)/' },
       to: { path: '^apps/sandbox/src/clubwalk/' },
     },
     {

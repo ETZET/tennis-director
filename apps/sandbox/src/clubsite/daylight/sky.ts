@@ -341,7 +341,9 @@ export function dayLook(hour: number, weather: Weather, base: SkyBase): DayLook 
     az,
     moon,
     sunK: direct * w.sunK,
-    shadeEl: moon ? el : Math.max(el, 30),
+    // 下限 33° 不是 30°：平地的亮度 = sin(shadeEl)，sin 30° = 0.5 正好压在色阶材质"中|亮"的档位线上（toon 默认 bands 0.5），
+    // 太阳方向一点点浮点误差就让整片地在两档之间来回跳（傍晚整屏闪）。33° → 0.545，稳稳在亮档
+    shadeEl: moon ? el : Math.max(el, 33),
     lit,
     mid,
     dark,
