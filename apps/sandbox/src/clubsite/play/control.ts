@@ -230,6 +230,20 @@ export interface Play {
   project(p: THREE.Vector3, cssW: number, cssH: number): { x: number; y: number };
   /** 缩放（pinch / 滚轮）：乘一个系数，按 camera.zoom 夹住 */
   zoomBy(k: number): void;
+  /**
+   * 开车（球车、汽车：src/valley）：给了就按它的速度走、按 turn 转弯（弧度/秒，像车一样慢慢拐），姿势停在 pose；null = 下车走路。
+   * 拖动的手势不变。
+   */
+  drive(spec: DriveSpec | null): void;
+}
+
+export interface DriveSpec {
+  /** 最快多少米/秒 */
+  speed: number;
+  /** 转向多快（弧度/秒；走路是 12） */
+  turn: number;
+  /** 车上的姿势（默认 'idle'，停在第 0 帧） */
+  pose?: string;
 }
 
 export interface PlayUi {
@@ -277,6 +291,7 @@ export function createPlay(opts: PlayOpts): Play {
   const inters = new Map<string, Interactable>();
   const items = new Map<string, Item>();
   let held: Item | null = null;
+  let drv: DriveSpec | null = null;
 
   // ── 输入 ──
   const stick = new THREE.Vector2();
@@ -572,6 +587,14 @@ export function createPlay(opts: PlayOpts): Play {
       [dx, 0],
       [0, dz],
     ];
+    // 开车：路边是斜的（弯道），只走 x / 只走 z 两个分量都会出路面 → 车贴着路边停死。
+    // 再试往两边偏 20°、40°、65°（长度按夹角的余弦缩），能沿着路边滑过去（走路不加，行为同原来）
+    if (drv)
+      for (const a of [0.35, -0.35, 0.7, -0.7, 1.13, -1.13]) {
+        const c = Math.cos(a);
+        const s = Math.sin(a);
+        cands.push([(dx * c - dz * s) * c, (dx * s + dz * c) * c]);
+      }
     for (const [ax, az] of cands) {
       if (Math.abs(ax) + Math.abs(az) < 1e-7) continue;
       const np = { x: pos.x + ax, z: pos.z + az };
@@ -735,12 +758,12 @@ export function createPlay(opts: PlayOpts): Play {
           b.end?.(api);
         }
       } else {
-        let max = held?.spec.carrySpeed ?? SPEED;
+        let max = drv?.speed ?? held?.spec.carrySpeed ?? SPEED;
         if (hold) max = hold.spec.holdSpeed ?? 0;
         const mag = want.length();
         if (mag > 0.05 && max > 0) {
           const dir = Math.atan2(want.x, want.y);
-          yaw = turnTo(yaw, dir, dt * (hold ? 5 : 12));
+          yaw = turnTo(yaw, dir, dt * (hold ? 5 : drv ? drv.turn : 12));
           let dd = dir - yaw;
           dd -= Math.round(dd / (Math.PI * 2)) * Math.PI * 2;
           const go = Math.max(0, Math.cos(dd)) * mag * max * dt;
@@ -777,6 +800,8 @@ export function createPlay(opts: PlayOpts): Play {
           if (out || h.spec.onHold?.(dt, api) === false) {
             stopHold();
           }
+        } else if (drv) {
+          setPose(drv.pose ?? 'idle', 0);
         } else if (speed > 0.2) {
           // 小跑（3.4 米/秒）：步幅 1.45，腿按它摆（rig 的 walkLegs），脚不溜
           walkPh = (walkPh + (speed * dt) / setStride(D, 1.45)) % 1;
@@ -957,6 +982,10 @@ export function createPlay(opts: PlayOpts): Play {
       };
     },
     project,
+    drive(spec) {
+      drv = spec;
+    },
+
     zoomBy(k) {
       const [lo, hi] = camOpts.zoom ?? [0.6, 1.6];
       const r = THREE.MathUtils.clamp((pipe.rig.metersPerTexel / pipe.px) * k, ratio0 * lo, ratio0 * hi);

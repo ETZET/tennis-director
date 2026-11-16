@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="icon" href="data:,">
+<title>Valley Plan · Tennis Director</title>
+<style>
+  html, body { margin: 0; background: #b07a6a; font: 14px/1.6 "PingFang SC", "Noto Sans SC", system-ui, sans-serif; color: #2b2530; }
+  .wrap { overflow: auto; -webkit-overflow-scrolling: touch; }
+  canvas { display: block; }
+  #legend { background: #fff8e8; padding: 12px 16px 32px; max-width: 900px; }
+  #legend h1 { font-size: 18px; margin: 4px 0; }
+  #legend h2 { font-size: 15px; margin: 16px 0 6px; }
+  #legend .sub { margin: 0; color: #6a6070; }
+  #legend ul { list-style: none; padding: 0; margin: 0; }
+  #legend li { margin: 4px 0; }
+  #legend li i { display: inline-block; width: 12px; height: 12px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+  #legend li i.dot { width: 18px; height: 18px; border-radius: 50%; color: #fff; font: 700 11px/18px system-ui; text-align: center; font-style: normal; }
+  #legend table { border-collapse: collapse; font-size: 13px; }
+  #legend td, #legend th { padding: 3px 8px; border-bottom: 1px solid #eadfc8; text-align: right; }
+  #legend td:first-child, #legend th:first-child { text-align: left; }
+</style>
+</head>
+<body>
+<div class="wrap"><canvas id="plan"></canvas></div>
+<div id="legend"></div>
+<script type="module" src="./src/valley/plan.ts"></script>
+</body>
+</html>
