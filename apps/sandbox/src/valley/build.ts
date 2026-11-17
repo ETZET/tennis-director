@@ -8,6 +8,7 @@ import type { Shape } from '../clubsite/play';
 import type { SharedUniforms } from '../clubsite/render/ctx';
 import { box } from '../clubsite/render/geo';
 import type { Elem, Tones } from '../clubsite/render/toon';
+import type { AssetCtx } from './ctx';
 import {
   along,
   type Bldg,
@@ -34,6 +35,7 @@ import {
   windmills,
 } from './layout';
 import { buildMountains, MTN_RAMP } from './mountains';
+import { TOWN_EL, valleyMat } from './palette';
 import { EL, type MapCtx, PAL, type PalKey } from './reuse';
 import { CLUB_BOX, HF, inClubBox, LOOKOUT, mountainY, trailY } from './terrain';
 
@@ -67,6 +69,8 @@ const ELEM: Record<string, Elem> = {
   adobe: EL.adobe,
   flagstone: EL.flagstone,
   tile: EL.tile,
+  // 市中心三栋楼的新材质（palette.ts）：put 进区域桶的几何也有元素图案
+  ...TOWN_EL,
 };
 
 /** 合并前统一：不带索引、只留 position + normal */
@@ -452,6 +456,16 @@ export interface DetailCtx {
   mat(key: PalKey): THREE.Material;
   /** 平的大面（铺地、草坪……）：按区域的真实边界切开再归区域（锁着压暗时边是直的，不按物件中心整块归） */
   putFlat?(key: PalKey, g: THREE.BufferGeometry): void;
+  /**
+   * 资产的上下文（src/valley/assets 的 ASSETS[id](d.actx)）：ctx.mat(key, extra) 认 valley 的整张表（含市中心的新材质）。
+   * 只用 ctx.mat 拿材质 —— 锁着的区域按材质名 + extra 换压暗的一份（ctx.mats.toon 直接建的材质不会压暗）
+   */
+  actx: AssetCtx;
+  /**
+   * 放一个资产（已经摆好位置 / 转好的 Object3D，世界坐标）：加到 root、归 region（不给 = 按它的位置算），锁着时整件压暗。
+   * 投影 / 受影：mats.prepare 全开；不想投影的部件 userData.noCast = true。挡路自己 d.block。
+   */
+  asset(obj: THREE.Object3D, region?: string): void;
 }
 export type Detail = (d: DetailCtx) => void;
 
@@ -500,7 +514,7 @@ export function buildValley(
         const sw = PAL[key] as { ramp: readonly number[]; tones?: Tones };
         // 沥青用调色板原来的（和俱乐部车道一样）：r2 改成的石板蓝远看像河、像天
         const base = sw.ramp;
-        m = ctx.mat(key, {
+        m = valleyMat(ctx, key, {
           ...(elem ? { elem } : {}),
           ...(dim ? { ramp: dimRamp(base), ...(sw.tones ? { tones: dimTones(sw.tones) } : {}) } : {}),
         });
@@ -987,6 +1001,47 @@ export function buildValley(
   const inClear = (x: number, z: number, pad = 0) =>
     clears.some((r) => x > r.x0 - pad && x < r.x1 + pad && z > r.z0 - pad && z < r.z1 + pad);
   const pendingInst: { g: THREE.BufferGeometry; key: PalKey; items: InstItem[]; cast: boolean }[] = [];
+  // 资产：ctx.mat 建的每个材质记下（材质名, extra），锁着时换一份压暗的（同 mat() 的压法：ramp、tones 都压）
+  const assetDim = new Map<THREE.Material, () => THREE.Material>();
+  /** 同 clubsite/render/toon 的 mats.prepare（底图 ctx 只给了 toon） */
+  const prepare: AssetCtx['mats']['prepare'] = (o0, opts = {}) =>
+    o0.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (!m.isMesh) return;
+      m.castShadow = opts.cast ?? true;
+      m.receiveShadow = opts.receive ?? true;
+      const mm = Array.isArray(m.material) ? m.material[0] : m.material;
+      const dm = mm?.userData.depthMat as THREE.Material | undefined;
+      if (dm) m.customDepthMaterial = dm;
+    });
+  const actx: AssetCtx = {
+    ...(ctx as unknown as AssetCtx),
+    mats: { ...(ctx.mats as AssetCtx['mats']), prepare },
+    pal: PAL,
+    mat: (key, extra) => {
+      const m = valleyMat(ctx, key, extra);
+      if (!assetDim.has(m)) {
+        let dm: THREE.Material | null = null;
+        assetDim.set(m, () => {
+          if (!dm) {
+            const sw = PAL[key] as { ramp: readonly number[]; tones?: Tones };
+            const r = (extra?.ramp as readonly number[] | undefined) ?? sw.ramp;
+            const t = extra?.tones ?? sw.tones;
+            dm = valleyMat(ctx, key, { ...extra, ramp: dimRamp(r), ...(t ? { tones: dimTones(t) } : {}) });
+          }
+          return dm;
+        });
+      }
+      return m;
+    },
+    variant: 0,
+  };
+  const assetsBy = new Map<string, THREE.Mesh[]>();
+  const assetMat = (m: THREE.Mesh, dim: boolean) => {
+    const day = (m.userData.dayMat ??= m.material) as THREE.Material;
+    const f = assetDim.get(day);
+    m.material = dim && f ? f() : day;
+  };
   const dctx: DetailCtx = {
     put,
     regionOf,
@@ -997,6 +1052,24 @@ export function buildValley(
     root,
     mat: (key) => mat(key, false),
     putFlat,
+    actx,
+    asset(obj, region) {
+      obj.updateMatrixWorld(true);
+      const p = new THREE.Vector3().setFromMatrixPosition(obj.matrixWorld);
+      const reg = region ?? regionOf(p.x, p.z);
+      prepare(obj);
+      const list = assetsBy.get(reg) ?? [];
+      obj.traverse((o) => {
+        const m = o as THREE.Mesh;
+        if (!m.isMesh) return;
+        if (m.userData.noCast) m.castShadow = false;
+        list.push(m);
+        assetMat(m, locked.has(reg));
+      });
+      assetsBy.set(reg, list);
+      obj.name ||= `valley:${reg}:asset`;
+      root.add(obj);
+    },
   };
   for (const d of details) d(dctx);
   const nearBlocked = (x: number, z: number, pad: number) => blocked.some((sh) => shapeDist(sh, x, z) < pad);
@@ -1281,6 +1354,7 @@ export function buildValley(
   // ── 接口 ──
   const setLocked = (id: string, on: boolean) => {
     for (const { obj, key } of byRegion.get(id) ?? []) obj.material = mat(key as PalKey, on);
+    for (const m of assetsBy.get(id) ?? []) assetMat(m, on);
   };
   return {
     root,

@@ -23,9 +23,11 @@ import {
   type Road,
   S,
   SCALE,
+  SITES,
   type V2,
 } from '../layout';
 import type { PalKey } from '../reuse';
+import { hitsRoad, siteState, Y } from './sites/kit';
 
 interface Box2 {
   x0: number;
@@ -47,6 +49,8 @@ interface Face {
 }
 
 const STREETS = ROADS.filter((r) => r.kind !== 'trail');
+/** 三家办事的楼（layout.ts 的 SITES）：门面、招牌在 detail/sites/ 摆，通用的店面招牌不做 */
+const ERRAND_IDS = new Set(['paper', 'paper_press', 'sports', 'hardware']);
 const roadById = (id: string) => ROADS.find((r) => r.id === id) as Road;
 /** 折线左手的单位法向（同 build.ts 的 ribbon） */
 const nrm = (a: V2, b: V2): V2 => {
@@ -139,18 +143,7 @@ function runsAlong(
   }
 }
 
-/**
- * 平铺层的高度（米）。叠着的两层至少差 0.01（共面会闪）；地 0、绿地 0.015、车道 0.03（build.ts）。
- * 人行道垫在车道底下；铺面（广场、草坪、停车场……）不压车道，统一一层；铺面上的东西再往上一层一层。
- */
-const Y = {
-  walk: 0.02,
-  zebra: 0.045,
-  pave: 0.042,
-  pave2: 0.054,
-  pave3: 0.066,
-  pave4: 0.078,
-} as const;
+// 平铺层的高度（Y）、车道守卫（hitsRoad）在 sites/kit.ts（三栋办事楼也用）
 
 export function detailTown(d: DetailCtx): void {
   const rnd = d.rng('valley:town');
@@ -158,29 +151,6 @@ export function detailTown(d: DetailCtx): void {
   // ── 车道守卫：离地 0.12～4.5 米（路缘 0.1 米高不算）的东西，有一个顶点落进任何一条车道（半宽以内）就整件不放（高处的树冠、招牌可以伸过去）──
   // （铺面、人行道、斑马线、路缘这些贴地的不管。招牌、雨棚、道具跟着店面走，店面是 layout.ts 撒的，会变；
   //  这里兜底，保证 town.ts 的东西永远不进车道。）
-  const ROAD_BOX = STREETS.map((r) => {
-    const xs = r.pts.map((p) => p[0]);
-    const zs = r.pts.map((p) => p[1]);
-    const h = r.w / 2;
-    return { r, x0: Math.min(...xs) - h, x1: Math.max(...xs) + h, z0: Math.min(...zs) - h, z1: Math.max(...zs) + h };
-  });
-  const onCarriage = (x: number, z: number) =>
-    ROAD_BOX.some((b) => x > b.x0 && x < b.x1 && z > b.z0 && z < b.z1 && distToLine(b.r.pts, x, z) < b.r.w / 2);
-  const V = new THREE.Vector3();
-  const hitsRoad = (g: THREE.BufferGeometry, m?: THREE.Matrix4) => {
-    g.computeBoundingBox();
-    const bb = (g.boundingBox as THREE.Box3).clone();
-    if (m) bb.applyMatrix4(m);
-    if (bb.max.y < 0.12 || bb.min.y > 4.5) return false;
-    if (!ROAD_BOX.some((b) => bb.max.x > b.x0 && bb.min.x < b.x1 && bb.max.z > b.z0 && bb.min.z < b.z1)) return false;
-    const pos = g.attributes.position as THREE.BufferAttribute;
-    for (let i = 0; i < pos.count; i++) {
-      V.fromBufferAttribute(pos, i);
-      if (m) V.applyMatrix4(m);
-      if (V.y >= 0.12 && V.y <= 4.5 && onCarriage(V.x, V.z)) return true;
-    }
-    return false;
-  };
   let skipped = 0;
   /** 调试：主角块放下了没有、放在哪（lights.userData.placed） */
   const dbgPlaced: Record<string, Box2 | null> = {};
@@ -586,6 +556,13 @@ export function detailTown(d: DetailCtx): void {
   }
   const nearCrossing = (x: number, z: number, r: number) => crossings.some((p) => Math.hypot(p[0] - x, p[1] - z) < r);
 
+  // ══ 1b. 三家办事的楼：报社、体育用品店、五金大超市 —— 搬到 detail/sites/（paper.ts、sports.ts、hardware.ts，2026-11-16 美术关卡 2）══
+  // 它们在 town 之前跑；这里只把院子（layout.ts 的 SITES）和它们占的地（报箱那一条……）记进 taken，街边家具躲开。
+  // 原来第 1b 节在这里取了 153 个随机数（停车场的车、绿岛的棕榈）：跳过同样多，town 后面的东西（招牌颜色、车棚……）一个数不差。
+  for (const s of SITES) claim(s);
+  for (const r of siteState(d).claims) taken.push(r);
+  for (let k = 0; k < 153; k++) rnd();
+
   // ══ 2. 主角：喷泉广场、小巷、市政厅背后、老酒店草坪和表演赛场、酒店前院、咖啡馆露天座 ═══
   const cityhall = BUILDINGS.find((o) => o.id === 'cityhall') as Bldg;
   const hotel = BUILDINGS.find((o) => o.id === 'hotel_old') as Bldg;
@@ -958,10 +935,10 @@ export function detailTown(d: DetailCtx): void {
   };
   // 位置是缩之前量的（过 S），大小按缩过的间距收：压到楼 / 路就收边，比 14 × 12 还小就不铺
   for (const [b, n] of [
-    [{ x0: 464, x1: 538, z0: -873, z1: -818 }, true], // 超市的停车场
+    // 原来"超市的停车场"（464…538, −873…−818）那块现在是五金大超市（第 1b 节）
     [{ x0: 359, x1: 390, z0: -978, z1: -952 }, false], // 咖啡馆背后
     [{ x0: 371, x1: 390, z0: -874, z1: -827 }, false], // 银行背后
-    [{ x0: 283, x1: 307, z0: -877, z1: -846 }, false], // 五金店背后
+    [{ x0: 283, x1: 307, z0: -877, z1: -846 }, false], // 超市背后（原来的五金店）
   ] as const) {
     const L = fit(SB(b), 14, 12, 0.4);
     dbgPlaced[`lot${Object.keys(dbgPlaced).length}`] = L;
@@ -1052,9 +1029,10 @@ export function detailTown(d: DetailCtx): void {
     }
   };
   for (const o of shops) {
-    if (o.id === 'cityhall' || o.id === 'museum') continue;
+    // 三家办事的楼的门面、招牌在第 10 节（白模 → 资产），这里不做
+    if (o.id === 'cityhall' || o.id === 'museum' || ERRAND_IDS.has(o.id)) continue;
     const f = frontOf(o);
-    const key = o.id === 'sports' ? 'ball' : o.id === 'bank' ? 'signBoard' : pick(SIGN);
+    const key = o.id === 'bank' ? 'signBoard' : pick(SIGN);
     const named = !!o.name;
     if (!named && rnd() < 0.25) continue;
     if (f.out[1] > 0.7) {
@@ -1120,17 +1098,6 @@ export function detailTown(d: DetailCtx): void {
       block({ x, z, r: 0.5 });
     }
     fbox(bf, 'stucco', 11.5, 0.6, 2.2, 0, bk.h - 0.6, 1.1);
-    // 报社：门口三个报箱
-    const pp = get('paper');
-    const pf = frontOf(pp);
-    for (const [k, key] of (['signBoard', 'carRed', 'flowerYellow'] as PalKey[]).entries()) {
-      const t = -2 + k * 0.9;
-      fbox(pf, key, 0.7, 1.1, 0.6, t, 0, 1.4);
-    }
-    {
-      const [x, z] = fp(pf, -1.1, 1.4);
-      blockRect(x, z, 3, 1, fRot(pf));
-    }
     // 餐馆：一根高杆上斜着的"太空时代"招牌
     const dn = get('diner');
     const df = frontOf(dn);
@@ -1142,20 +1109,7 @@ export function detailTown(d: DetailCtx): void {
       put('flowerYellow', new THREE.OctahedronGeometry(0.8, 0).translate(x + 1.9, 8.2, z), x, z);
       block({ x, z, r: 0.3 });
     }
-    // 五金店：门口一摞货板 + 几个陶盆
-    const hw = get('hardware');
-    const hf = frontOf(hw);
-    fbox(hf, 'wood', 1.2, 0.5, 1.0, -3, 0, 1.3);
-    fbox(hf, 'wood', 1.2, 0.5, 1.0, -3, 0.5, 1.3);
-    for (let k = 0; k < 3; k++) {
-      const [x, z] = fp(hf, 2 + k * 1.1, 1.2);
-      put('pot', new THREE.CylinderGeometry(0.4, 0.28, 0.6, 7).translate(x, 0.3, z), x, z);
-    }
-    {
-      const [x, z] = fp(hf, 0, 1.3);
-      blockRect(x, z, 7, 1.2, fRot(hf));
-    }
-    // 超市：门口的购物车棚
+    // 超市（2026-11-16 和五金店对调，在原来五金店那块）：门口的购物车棚
     const mk = get('market');
     const mf = frontOf(mk);
     fbox(mf, 'metal', 4, 1.0, 1.4, mk.w * 0.3, 0, 2);
@@ -1590,6 +1544,8 @@ export function detailTown(d: DetailCtx): void {
       m.emissive = new THREE.Color(emissive);
       return m;
     };
+    // 灯光圈：town 自己的 + 三栋办事楼的（sites/，停车场高杆灯、路灯）
+    const pools = [...lampPools, ...siteState(d).pools];
     // 灯头、招牌的字：暖白；窗：暖橙（同一个白色太刺眼，像一块白板）
     const glow = glowOf('signPaint', 0x6a5a30);
     const glowWin = glowOf('straw', 0x5a4424);
@@ -1613,7 +1569,7 @@ export function detailTown(d: DetailCtx): void {
       setOn(v: boolean) {
         on = v;
         lit.clear();
-        for (const reg of new Set(lampPools.map((p) => p.reg))) if (regionLit(reg)) lit.add(reg);
+        for (const reg of new Set(pools.map((p) => p.reg))) if (regionLit(reg)) lit.add(reg);
         d.root.traverse((o) => {
           const m = o as THREE.Mesh;
           const hit = /^valley:([^:]+):(signPaint|jug)(:inst)?$/.exec(o.name);
@@ -1624,7 +1580,7 @@ export function detailTown(d: DetailCtx): void {
         });
       },
     };
-    for (const p of lampPools) {
+    for (const p of pools) {
       const o = new THREE.Object3D();
       const pool: [number, number, number, number] = [p.x, p.z, p.r ?? 4.8, p.h ?? 4.6];
       const none: [number, number, number, number] = [p.x, p.z, 0, 0];

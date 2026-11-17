@@ -105,6 +105,8 @@ export interface WalkApi {
   viewRect(margin: number): Rect;
   /** 导航的挡路表重算（外面的挡路形状变了） */
   refreshBlocked(): void;
+  /** 时间和天气（clubsite/daylight）：山谷的店里用 override 定住光照 */
+  day: ReturnType<typeof mountDaylight>;
 }
 
 export function mountWalk(hooks: WalkHooks = {}) {
@@ -864,6 +866,10 @@ export function mountWalk(hooks: WalkHooks = {}) {
       const next = allBlocked();
       play.nav.setBlocked(next, navDirty([], next));
       navBlocked = next;
+    },
+    // 时间系统在后面才建：用的时候（进店）早就建好了
+    get day() {
+      return day;
     },
   });
 

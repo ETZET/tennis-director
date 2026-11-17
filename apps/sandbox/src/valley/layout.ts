@@ -34,6 +34,17 @@ export function S(x: number, z: number): [number, number] {
   if (x >= CLUB_BOX_L.x0 && x <= CLUB_BOX_L.x1 && z >= CLUB_BOX_L.z0 && z <= CLUB_BOX_L.z1) return [x, z];
   return [ANCHOR[0] + (x - ANCHOR[0]) * SCALE, ANCHOR[1] + (z - ANCHOR[1]) * SCALE];
 }
+/**
+ * S 的逆：缩完的世界坐标 → 原尺寸。2026-11-16 起按缩完的画面重新摆的东西（市中心三家办事的楼）直接写最终坐标，
+ * 过一次 SI，文件末尾统一过 S 以后正好回到写的数（俱乐部那块以外才用）。
+ */
+export function SI(x: number, z: number): [number, number] {
+  return [ANCHOR[0] + (x - ANCHOR[0]) / SCALE, ANCHOR[1] + (z - ANCHOR[1]) / SCALE];
+}
+const SIxz = (x: number, z: number) => {
+  const [a, c] = SI(x, z);
+  return { x: a, z: c };
+};
 
 /** 平面图 / 3D 白模画的整个范围（含四周的山） */
 export const VIEW: Rect = { x0: -200, x1: 1600, z0: -1480, z1: 360 };
@@ -398,6 +409,8 @@ export const ROADS: Road[] = [
     [1060, -486],
     [1120, -520],
   ]),
+  // 五金大超市的停车场：从印第安峡谷路往东进来，走停车场北边那条通道，到东头拐北去卸货台（缩完的世界坐标，见 SITES）
+  road('hardware_lot', '五金大超市停车场', 'lane', [SI(330.5, -557.25), SI(428, -557.25), SI(428, -590)]),
   // 加油站：从公路拐进去，停在店西墙外的前场（原来 [470, −1300] 正好是店的西墙，路头的圆伸进墙里 2.5 米）
   road('gas_spur', '加油站', 'lane', [
     [430, -1320],
@@ -554,15 +567,24 @@ const b = (id: string, kind: BldgKind, x: number, z: number, w: number, d: numbe
 /** 有名字的楼（办事、找人的地方）；小区的房子在 houses() 里按路撒 */
 export const BUILDINGS: Bldg[] = [
   // 市中心：棕榈谷大道两边（x 332），塔奎兹路口北
-  b('hardware', 'shop', 306, -830, 22, 18, 5, '五金店'),
+  // 超市：2026-11-16 和五金店对调（五金店长成市中心东南边上的大超市，见下），占原来五金店那块
+  b('market', 'shop', 306, -830, 22, 18, 5, '超市'),
   b('bank', 'civic', 358, -860, 20, 24, 8, '沙漠银行'),
-  b('paper', 'office', 306, -960, 20, 22, 7, '沙漠太阳报'),
+  // ── 三家办事的楼（2026-11-16 美术关卡 1，docs/lab/2026-11-07-3d-pixel/valley-town.md）：按缩完的画面摆，写最终坐标（SI）──
+  // 入口一律朝南（朝镜头：yaw 0、俯 45° 下只有朝南的立面看得见），门前留一块院子（SITES），旗子立在门口。
+  // kind 只管白模的墙和屋顶材质（office = 灰泥墙 + 平顶、没有自动的遮阳篷），门面、招牌都在 detail/town.ts 按资产清单摆。
+  // 报社：棕榈谷大道 × 塔奎兹路西北角（市中心最显眼的路口），门脸（两层办公 + 拱廊 + 角塔）朝塔奎兹路，后面是锯齿顶的印刷车间
+  b('paper', 'office', ...SI(249, -659), 24, 16, 8, '沙漠太阳报'),
+  b('paper_press', 'office', ...SI(249, -676), 22, 20, 6),
   b('cafe', 'shop', 358, -940, 14, 14, 4, '咖啡馆'),
-  b('sports', 'shop', 306, -1030, 22, 20, 5, '体育用品店'),
+  // 体育用品店：棕榈谷大道西边、报社北面；门前院子里一块试拍的小场 + 对墙
+  b('sports', 'office', ...SI(252, -724), 22, 18, 5.5, '体育用品店'),
   // 南墙离阿莱霍路边原来只有 1.5 米（人行道铺到楼底下）：浅 4 米、往北挪 2 米 → 留 5.5 米
   b('theater', 'civic', 360, -1022, 22, 26, 10, '广场剧院'),
   b('diner', 'shop', 386, -800, 16, 12, 4, '餐馆'),
-  b('market', 'shop', 440, -840, 30, 26, 6, '超市'),
+  // 五金大超市：印第安峡谷路东边、塔奎兹路的铺面背后（原来超市和它的停车场那块，往南长到市中心的南沿）；
+  // 东头一个园艺棚院子、再往东是卸货台，南边一大片停车场（SITES 的 hardware_*）
+  b('hardware', 'office', ...SI(376, -586), 48, 28, 8, '五金大超市'),
   b('cityhall', 'civic', 560, -940, 40, 28, 9, '市政厅（钟楼）'),
   b('museum', 'museum', 244, -900, 40, 34, 9, '美术馆'),
   b('hotel_old', 'hotel', 440, -960, 34, 30, 12, '老酒店'),
@@ -582,6 +604,42 @@ export const BUILDINGS: Bldg[] = [
   b('terminal', 'civic', 1370, -800, 60, 24, 8, '机场航站楼'),
   b('racquet_club', 'misc', 610, -1214, 30, 20, 5, '老球拍俱乐部（废弃）'),
 ];
+
+/**
+ * 三家办事的楼的院子（门前、停车场、货场、园艺棚……；缩完的世界坐标，文件末尾不再缩）：
+ * houses() 撒的铺面不压进来；detail/town.ts 在里面摆这家的东西（占地 claim：街边家具、build.ts 的灌木和棕榈不进来）。
+ */
+export interface Site extends Rect {
+  id: string;
+  /** 归哪栋楼（BUILDINGS 的 id） */
+  of: string;
+}
+export const SITES: Site[] = [
+  // 报社门前：拱廊 + 门前一条铺地，接塔奎兹路北边的人行道（人行道 z −644.6 起归 town.ts 的街）
+  { id: 'paper_front', of: 'paper', x0: 233.5, x1: 263.4, z0: -651, z1: -644.6 },
+  // 报社西边的货场：印刷车间的卸货门、送报车、新闻纸卷
+  { id: 'paper_yard', of: 'paper', x0: 222, x1: 236.5, z0: -688, z1: -662 },
+  // 体育用品店门前的院子：门廊 + 试拍小场 + 对墙
+  { id: 'sports_yard', of: 'sports', x0: 240, x1: 263.4, z0: -714.8, z1: -687 },
+  // 五金大超市：门前的人行台 + 停车场（印第安峡谷路人行道以东到东头卸货道）
+  { id: 'hardware_lot', of: 'hardware', x0: 339, x1: 436, z0: -572, z1: -524 },
+  // 西边朝印第安峡谷路的一条：丙烷笼、购物车回收、货板（不撒铺面，楼的西墙露出来）
+  { id: 'hardware_side', of: 'hardware', x0: 339, x1: 352, z0: -602, z1: -572 },
+  // 园艺棚院子（东头，矮花砖墙围着，南边开门对停车场）
+  { id: 'hardware_garden', of: 'hardware', x0: 400, x1: 420, z0: -600, z1: -572 },
+  // 卸货台（园艺棚再往东，停车场东头的车道拐上来）
+  { id: 'hardware_dock', of: 'hardware', x0: 420, x1: 436, z0: -602, z1: -572 },
+];
+const siteBox = (s: Site): Bldg => ({
+  id: s.id,
+  kind: 'misc',
+  x: (s.x0 + s.x1) / 2,
+  z: (s.z0 + s.z1) / 2,
+  w: s.x1 - s.x0,
+  d: s.z1 - s.z0,
+  h: 0,
+  rot: 0,
+});
 
 /** 俱乐部的扩张地：将来的酒店（用户 2026-11-15：酒店是俱乐部长大的方向）。调试开关能切成酒店白模 */
 // 整体缩小以后南边的山脚往北收到 z ≈ 80～100（FLOOR 的 [150,112] → (147,78)）：地块南沿 104 → 84，客房翼往北挪
@@ -604,10 +662,11 @@ export interface Poi {
 }
 export const POIS: Poi[] = [
   // 办事
-  { id: 'p_hardware', kind: 'errand', name: '五金店', x: 306, z: -830, note: '买喷头、网柱零件、场地线漆' },
+  // 三家办事的楼：x z 是正门的门槛（朝南的立面上，缩完的坐标过 SI）；build.ts 把旗子立在它南边 3 米 = 总监办事站的地方
+  { id: 'p_hardware', kind: 'errand', name: '五金大超市', ...SIxz(365, -569.5), note: '买喷头、网柱零件、场地线漆' },
   { id: 'p_bank', kind: 'errand', name: '银行', x: 358, z: -860, note: '贷款扩场、存当天的营业款' },
-  { id: 'p_paper', kind: 'errand', name: '报社', x: 306, z: -960, note: '登广告、接受采访' },
-  { id: 'p_sports', kind: 'errand', name: '体育用品店', x: 306, z: -1030, note: '订球、穿线、谈寄卖' },
+  { id: 'p_paper', kind: 'errand', name: '报社', ...SIxz(249, -649), note: '登广告、接受采访' },
+  { id: 'p_sports', kind: 'errand', name: '体育用品店', ...SIxz(258, -714.5), note: '订球、穿线、谈寄卖' },
   { id: 'p_cityhall', kind: 'errand', name: '市政厅', x: 560, z: -940, note: '申请办赛许可、扩建审批' },
   { id: 'p_gas', kind: 'errand', name: '加油站', x: 480, z: -1300, note: '给车加油（以后）' },
   // 找人
@@ -870,8 +929,11 @@ export function houses(): Bldg[] {
     }
   }
   // 互相压着的去掉：按转过的矩形（连屋檐 + 1.5 米）真算，先来的留下（原来按中心距估，弯路上有 7 处叠在一起）
+  // 三家办事的楼的院子（SITES）里不撒（连屋檐 + 1 米）
+  const sites = SITES.map(siteBox);
   const kept: Bldg[] = [];
-  for (const h of out) if (!kept.some((o) => rectsOverlap(o, h, 1.5))) kept.push(h);
+  for (const h of out)
+    if (!kept.some((o) => rectsOverlap(o, h, 1.5)) && !sites.some((s) => rectsOverlap(s, h, 2))) kept.push(h);
   return kept;
 }
 /** 两个转过的矩形（楼的脚印，各往外扩 pad/2）有没有压着：分离轴 */
