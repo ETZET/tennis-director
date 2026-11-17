@@ -1,8 +1,9 @@
-// 总监操控的核心（不碰 DOM；界面在 hud.ts）：走路（摇杆 / 键盘 / 点地面寻路）、碰撞、台阶、相机跟随、
+// 总监操控的核心（不碰 DOM；界面在 hud.ts）：走路（手指按住 / 键盘 / 点地面寻路）、碰撞、台阶、相机跟随、
 // 互动点（用 / 拿 / 放）、手里的东西、一次性动作（busy）、按住干活（hold）、气泡/顶栏/提示的数据。
 // 接口说明见 index.ts 顶上。
 import * as THREE from 'three';
 import { setStride } from '../people/rig/rig';
+import { type DriveSpec, type DriveState, driveHit, driveStep, newDriveState } from './drive';
 import { type Circle, NavMap, type NavSpec, type Rect } from './nav';
 
 /** 各场景自己那份 PixelPipeline 的结构（只用到这些） */
@@ -29,6 +30,8 @@ export interface PlayState {
   holding: string;
   /** 模拟时间（秒） */
   t: number;
+  /** 开着车：车的速度、侧滑、转向（drive.ts）；走路 = null */
+  drive: DriveState | null;
 }
 
 type Label = string | ((s: PlayState) => string);
@@ -215,6 +218,11 @@ export interface Play {
 
   // 输入（hud 和测试用）
   setStick(x: number, y: number): void;
+  /**
+   * 手指按在画面上（CSS 像素，同 tapScreen）：总监往手指下面那块地走、车往那儿开；null = 抬手。
+   * 走路：走到手指下面就停。开车：手指离车（画面上）越远油门越大，按在车尾后面 = 倒车（drive.ts）。
+   */
+  setPointer(p: { x: number; y: number; w: number; h: number } | null): void;
   setKey(code: string, down: boolean): void;
   setUse(down: boolean): void;
   pick(): void;
@@ -231,20 +239,13 @@ export interface Play {
   /** 缩放（pinch / 滚轮）：乘一个系数，按 camera.zoom 夹住 */
   zoomBy(k: number): void;
   /**
-   * 开车（球车、汽车：src/valley）：给了就按它的速度走、按 turn 转弯（弧度/秒，像车一样慢慢拐），姿势停在 pose；null = 下车走路。
-   * 拖动的手势不变。
+   * 开车（球车、汽车：src/valley）：给了就换成 drive.ts 的车（往手指 / 键盘的方向开、惯性、转弯半径、倒车、侧滑；不寻路），
+   * 姿势停在 pose；null = 下车走路。拖动的手势不变。
    */
   drive(spec: DriveSpec | null): void;
 }
 
-export interface DriveSpec {
-  /** 最快多少米/秒 */
-  speed: number;
-  /** 转向多快（弧度/秒；走路是 12） */
-  turn: number;
-  /** 车上的姿势（默认 'idle'，停在第 0 帧） */
-  pose?: string;
-}
+export type { DriveSpec, DriveState } from './drive';
 
 export interface PlayUi {
   use: string;
@@ -292,9 +293,14 @@ export function createPlay(opts: PlayOpts): Play {
   const items = new Map<string, Item>();
   let held: Item | null = null;
   let drv: DriveSpec | null = null;
+  const dst = newDriveState();
+  /** 镜头往车开的方向多看出去的（米，平滑过的） */
+  const camLead = { x: 0, z: 0 };
 
   // ── 输入 ──
   const stick = new THREE.Vector2();
+  let finger: { x: number; y: number; w: number; h: number } | null = null;
+  const fingerAt = new THREE.Vector3();
   const keys = new Set<string>();
   let path: [number, number][] = [];
   let pathTarget: { x: number; z: number; inter: Interactable | null; item: Item | null } | null = null;
@@ -340,6 +346,7 @@ export function createPlay(opts: PlayOpts): Play {
     busy: busy ? (busy.name ?? 'busy') : '',
     holding: hold?.id ?? '',
     t: simT,
+    drive: drv ? dst : null,
   });
 
   const flat = (p: THREE.Vector3) => Math.hypot(p.x - pos.x, p.z - pos.z);
@@ -577,7 +584,8 @@ export function createPlay(opts: PlayOpts): Play {
 
   // ── 移动 ──
   /** 迈一步：推出挡路的，查能站；不行就只走 x / 只走 z。返回走了多远 */
-  const tryStep = (dx: number, dz: number, circ: readonly Circle[]): number => {
+  /** yaw0：开车时这一步转弯以前的朝向（车头扎没扎进去按它算） */
+  const tryStep = (dx: number, dz: number, circ: readonly Circle[], yaw0 = yaw): number => {
     // 现在已经压着挡路的多少（关场把总监关在里面、人走到总监身上）：推出这一段不算"被挤着走"，不然哪个方向都动不了
     const cur = { x: pos.x, z: pos.z };
     nav.pushOut(cur, circ);
@@ -595,6 +603,12 @@ export function createPlay(opts: PlayOpts): Play {
         const s = Math.sin(a);
         cands.push([(dx * c - dz * s) * c, (dx * s + dz * c) * c]);
       }
+    // 开车：车头（往前开）/ 车尾（倒车）那一头也得站得住。现在那头已经扎在里面（停车停歪了）就不管，免得卡死
+    const reach = drv?.reach ?? 0;
+    const endClear = (x: number, z: number, s: number, a = yaw) =>
+      nav.standAt(x + Math.sin(a) * reach * s, z + Math.cos(a) * reach * s) !== null;
+    const fwd = dx * Math.sin(yaw) + dz * Math.cos(yaw) >= 0 ? 1 : -1;
+    const probe = reach > 0 && endClear(pos.x, pos.z, fwd, yaw0);
     for (const [ax, az] of cands) {
       if (Math.abs(ax) + Math.abs(az) < 1e-7) continue;
       const np = { x: pos.x + ax, z: pos.z + az };
@@ -602,6 +616,7 @@ export function createPlay(opts: PlayOpts): Play {
       const h = nav.clearAt(np.x, np.z);
       if (h === null || Math.abs(h - pos.y) > nav.stepUp) continue;
       if (nav.hitsBlocked(np.x, np.z, nav.body - 0.03)) continue;
+      if (probe && !endClear(np.x, np.z, fwd)) continue;
       const moved = Math.hypot(np.x - pos.x, np.z - pos.z);
       // 推出去的比想走的还远（被挤着走）：只接受不往回走的（已经压进去的那段除外）
       if (moved > Math.hypot(ax, az) * 1.5 + 0.02 + pre) continue;
@@ -611,6 +626,8 @@ export function createPlay(opts: PlayOpts): Play {
     return 0;
   };
   const plan = (x: number, z: number, inter: Interactable | null, item: Item | null): boolean => {
+    // 开车不寻路（车有转弯半径，按走路的折线开会打转）：只用手指按住 / 键盘
+    if (drv) return false;
     const p = nav.findPath(pos.x, pos.z, x, z, circles());
     if (!p) {
       path = [];
@@ -672,15 +689,25 @@ export function createPlay(opts: PlayOpts): Play {
     cam.z = halfD * 2 >= V.z1 - V.z0 ? (V.z0 + V.z1) / 2 : THREE.MathUtils.clamp(cam.z, V.z0 + halfD, V.z1 - halfD);
   };
   const follow = (dt: number, snap = false) => {
-    const wx = pos.x;
-    const wz = pos.z + leadZ();
-    const [DX, DZ] = camOpts.dead ?? [0.8, 0.6];
+    // 开车：往车速的方向多看出去（0.6 秒的路，最多 11 米），平滑地挪过去；没有死区（车一动镜头就跟）
+    const lk = drv ? 0.6 : 0;
+    const lx = THREE.MathUtils.clamp(dst.vx * lk, -11, 11);
+    const lz = THREE.MathUtils.clamp(dst.vz * lk, -11, 11);
+    if (snap) camLead.x = camLead.z = 0;
+    else {
+      const a = 1 - Math.exp(-dt * 1.8);
+      camLead.x += (lx - camLead.x) * a;
+      camLead.z += (lz - camLead.z) * a;
+    }
+    const wx = pos.x + camLead.x;
+    const wz = pos.z + leadZ() + camLead.z;
+    const [DX, DZ] = drv ? [0, 0] : (camOpts.dead ?? [0.8, 0.6]);
     const gx = wx - cam.x > DX ? wx - DX : wx - cam.x < -DX ? wx + DX : cam.x;
     const gz = wz - cam.z > DZ ? wz - DZ : wz - cam.z < -DZ ? wz + DZ : cam.z;
     if (snap) {
       cam.set(wx, pos.y, wz);
     } else {
-      const k = 1 - Math.exp(-dt * 4);
+      const k = 1 - Math.exp(-dt * (drv ? 6 : 4));
       cam.x += (gx - cam.x) * k;
       cam.z += (gz - cam.z) * k;
       cam.y += (pos.y - cam.y) * (1 - Math.exp(-dt * 3));
@@ -721,6 +748,27 @@ export function createPlay(opts: PlayOpts): Play {
       const sy = stick.y + ky;
       want.set(sx * R.x + sy * Dn.x, sx * R.z + sy * Dn.z);
       if (want.lengthSq() > 1) want.normalize();
+      if (finger) {
+        // 手指按着：往手指下面那块地（相机在动，每步重新算）
+        const g = pipe.pickGround(finger.x, finger.y, finger.w, finger.h, pos.y);
+        if (g) {
+          // 开车：从"镜头不往前看时车在画面上的位置"量（车 + camLead）。不然手指按着不动，镜头往前看把车往后推，
+          // 手指离车越来越远 → 越开越快 → 镜头看得更远（自己加速停不下来）
+          const ax = pos.x + (drv ? camLead.x : 0);
+          const az = pos.z + (drv ? camLead.z : 0);
+          const dx = g.x - ax;
+          const dz = g.z - az;
+          const wd = Math.hypot(dx, dz);
+          let m: number;
+          if (drv) {
+            // 油门按画面上手指离车多远：贴着车（≈ 20 像素内）= 松油门，离开屏幕短边的 30% ≈ 满油门
+            const me = project(fingerAt.set(ax, pos.y, az), finger.w, finger.h);
+            const sd = Math.hypot(finger.x - me.x, finger.y - me.y);
+            m = Math.min(1, sd / (Math.min(finger.w, finger.h) * 0.4));
+          } else m = wd < 0.08 ? 0 : Math.min(1, wd / 0.5); // 走到手指下面慢下来、停住
+          if (wd > 1e-4) want.set((dx / wd) * m, (dz / wd) * m);
+        }
+      }
       const manual = want.lengthSq() > 0.0025;
       if (manual && path.length) {
         path = [];
@@ -758,12 +806,26 @@ export function createPlay(opts: PlayOpts): Play {
           b.end?.(api);
         }
       } else {
-        let max = drv?.speed ?? held?.spec.carrySpeed ?? SPEED;
+        let max = held?.spec.carrySpeed ?? SPEED;
         if (hold) max = hold.spec.holdSpeed ?? 0;
         const mag = want.length();
-        if (mag > 0.05 && max > 0) {
+        if (drv && !hold) {
+          // ── 开车：drive.ts 的车（惯性、转弯半径、倒车、侧滑），再试碰撞 ──
+          const yaw0 = yaw;
+          const r = driveStep(dst, drv, pos.x, pos.z, yaw, want.x, want.y, dt);
+          yaw = r.yaw;
+          const go = Math.hypot(r.dx, r.dz);
+          const moved = go > 1e-6 ? tryStep(r.dx, r.dz, circ, yaw0) : 0;
+          // 哪儿都去不了：车头别甩进去（这一步的转弯也不算）
+          if (moved === 0 && go > 1e-6) {
+            yaw = yaw0;
+            dst.yawRate = 0;
+          }
+          driveHit(dst, go, moved);
+          speed = moved / Math.max(dt, 1e-4);
+        } else if (mag > 0.05 && max > 0) {
           const dir = Math.atan2(want.x, want.y);
-          yaw = turnTo(yaw, dir, dt * (hold ? 5 : drv ? drv.turn : 12));
+          yaw = turnTo(yaw, dir, dt * (hold ? 5 : 12));
           let dd = dir - yaw;
           dd -= Math.round(dd / (Math.PI * 2)) * Math.PI * 2;
           const go = Math.max(0, Math.cos(dd)) * mag * max * dt;
@@ -886,6 +948,7 @@ export function createPlay(opts: PlayOpts): Play {
       if (ry !== undefined) yaw = ry;
       path = [];
       pathTarget = null;
+      Object.assign(dst, newDriveState());
       D.position.copy(pos);
       D.rotation.y = yaw;
       follow(0, true);
@@ -894,6 +957,9 @@ export function createPlay(opts: PlayOpts): Play {
 
     setStick(x, y) {
       stick.set(x, y);
+    },
+    setPointer(p) {
+      finger = p ? { ...p } : null;
     },
     setKey(code, down) {
       if (down) keys.add(code);
@@ -984,6 +1050,9 @@ export function createPlay(opts: PlayOpts): Play {
     project,
     drive(spec) {
       drv = spec;
+      Object.assign(dst, newDriveState());
+      path = [];
+      pathTarget = null;
     },
 
     zoomBy(k) {

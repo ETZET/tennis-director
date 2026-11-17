@@ -1,5 +1,5 @@
 // valley：俱乐部所在的小镇和山谷（地图扩张 demo，2026-11-15）。clubwalk 的大世界（俱乐部的场景按区域建）+ 外面整座山谷的白模。
-// 走路、球车、汽车（走到车旁边上车，拖动开）；锁着的区域压暗、路口有路障，右上"调试"里开关；山谷里的事（旗子）走近了能点。
+// 走路、球车、汽车（走到车旁边上车，按住画面往手指那边开）；锁着的区域压暗、路口有路障，右上"调试"里开关；山谷里的事（旗子）走近了能点。
 // 布局和平面图：layout.ts / valleyplan.html；设计记录：docs/lab/2026-11-07-3d-pixel/valley.md。
 // URL：clubwalk 的那些（at=x,z、px、pal、perf=1……）+ unlock=all（全部解锁；不用 open：clubfood 的遮阳伞读 ?open= 当数字）、hotel=1（酒店盖好）。
 import '../clubsite/render/colors';
@@ -59,7 +59,7 @@ function start() {
     farPath: (nav, ax, az, bx, bz) => vnav.farPath(nav, ax, az, bx, bz),
     zoom: [0.5, 2.6],
     camera: { dist: 120, far: 240 },
-    hint: '拖动走路 · 点地面走过去 · 门外有球车和汽车',
+    hint: '按住画面往手指走 · 点地面走过去 · 门外有球车和汽车',
     build({ scene, ctx, uniforms }) {
       mapCtx = ctx;
       world = buildValley(ctx, uniforms, locked, DETAILS);

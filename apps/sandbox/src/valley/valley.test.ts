@@ -153,7 +153,7 @@ describe('valley 导航（createValleyNav）', () => {
     expect(v.surface(...S(332, -900))).toBe(0);
   });
 
-  it('汽车只能在路上；球车不在路上也行；走路都行', () => {
+  it('平地上走路、球车、汽车都能去（汽车下路是慢，不是撞墙：vehicles.ts 的 DRIVE.offroad）', () => {
     const v = createValleyNav(new Set());
     const off = S(400, -60); // 南棕榈谷的空地
     expect(onRoad(...off)).toBe(false);
@@ -163,7 +163,7 @@ describe('valley 导航（createValleyNav）', () => {
     v.mode = 'cart';
     expect(v.surface(...off)).toBe(0);
     v.mode = 'car';
-    expect(v.surface(...off)).toBeNull();
+    expect(v.surface(...off)).toBe(0);
     expect(v.surface(...S(300, -100))).toBe(0);
   });
 

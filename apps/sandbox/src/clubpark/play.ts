@@ -35,7 +35,7 @@ export const PARK_START: RegionStart = {
   start: SPOTS.director,
   yaw: 0,
   camera: { lead: { portrait: 1.6, landscape: 0.6 }, view: { x0: 52, x1: 108, z0: -32, z1: 32 } },
-  hint: '拖动走路 · 点地面走过去',
+  hint: '按住画面往手指走 · 点地面走过去',
 };
 
 /** 导航：落客区、两片停车场、门洞 */

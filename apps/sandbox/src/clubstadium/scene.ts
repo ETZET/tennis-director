@@ -94,7 +94,7 @@ export const STADIUM_START: RegionStart = {
   start: [SPOTS.blowSW[0] - 0.6, SPOTS.blowSW[1] + 0.3],
   yaw: -Math.PI / 2,
   camera: { lead: { portrait: -8.6, landscape: -12 }, view: PLAY_VIEW },
-  hint: '拖动走路 · 点地面走过去 · 工具在西南角',
+  hint: '按住画面往手指走 · 点地面走过去 · 工具在西南角',
 };
 
 export interface StadiumRegion extends Region {

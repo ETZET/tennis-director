@@ -8,7 +8,7 @@
 //   const PLAY = playEnabled(params);          // 默认开；?play=0 = 原来的看图模式（截图、画廊不变）
 //   // 1) buildScene() 之后建：
 //   const play = mountPlay({
-//     scene, pipe, canvas,                     // canvas = #c（摇杆、点地面、缩放都挂在它上面）
+//     scene, pipe, canvas,                     // canvas = #c（按住走、点地面、缩放都挂在它上面）
 //     director: scene.getObjectByName('slot:director')!,   // clubsite/people 的 director（场景里已经摆好的那个）
 //     start: [x, z], yaw: 1.25,                // 开局站哪、朝哪（0 = 朝镜头 +z，π/2 = 朝东 +x）
 //     nav: {                                   // 导航（见下面"二"）
@@ -16,11 +16,11 @@
 //       walkable: [...WALKABLE 的矩形/多边形], blocked: [...家具脚印、树圆、围场], ramps: STAIRS.map(rampFromStairs),
 //     },
 //     camera: { lead: { portrait: 1.4, landscape: 0.5 }, view?: 世界范围（画面不出界，只对 yaw 0） },
-//     hint: '拖动走路 · 点地面走过去',
+//     hint: '按住画面往手指走 · 点地面走过去',
 //   });
 //   // 2) 固定步长循环（step 里，每 1/60 秒）：play.update(DT, simT)      —— 走路、动作、相机都在模拟时间里，?pause=1 时不动
 //   // 3) 每帧 render 之后：play.hud.frame()                            —— 按钮字、气泡、顶栏、箭头
-//   // 4) 原来白模的拖动平移 / 缩放监听只在 !PLAY 时挂（不然和摇杆抢指针）；标签默认关（?labels=1 再开）。
+//   // 4) 原来白模的拖动平移 / 缩放监听只在 !PLAY 时挂（不然和按住走抢指针）；标签默认关（?labels=1 再开）。
 //   window 上挂 play（测试用：play.state()、play.setStick、play.tapWorld …）。
 //   样式自动注入（style.ts），场景 html 不用加东西；左上像素选择器、右上配色切换照旧（z-index 5，在玩法层上面）。
 //
@@ -95,7 +95,7 @@
 //   play.busy({ name, dur, pose, loop, face, tick(k), mid, end })   一次性动作（不能走；姿势 phase 0→1 或循环）
 //   play.walkTo(x, z) / play.teleport(x, z, yaw)
 //   play.director                     总监（Object3D，clubsite/people：pose / hold / lookAt…；姿势由 play 每步设，别的代码别 pose 它）
-//   测试：play.setStick(x, y)（屏幕方向 −1..1）、play.setKey('KeyW', true)、play.setUse(true/false)、play.pick()、
+//   测试：play.setStick(x, y)（屏幕方向 −1..1，同键盘）、play.setPointer({ x, y, w, h } | null)（手指按住）、play.setKey('KeyW', true)、play.setUse(true/false)、play.pick()、
 //         play.tapWorld(x, z)、play.tapScreen(cssX, cssY, w, h)、play.pathLeft()、play.ui()
 //   不用 Math.random；所有动作都在 update(dt) 的模拟时间里（确定性，?pause=1 下不动）。
 import * as THREE from 'three';
@@ -107,6 +107,8 @@ export type {
   Anchor,
   BusySpec,
   CameraOpts,
+  DriveSpec,
+  DriveState,
   Interactable,
   Item,
   ItemSpec,

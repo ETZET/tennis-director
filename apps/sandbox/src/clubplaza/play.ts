@@ -118,7 +118,7 @@ export const PLAZA_START: RegionStart = {
   yaw: -Math.PI / 2,
   // 横屏的取景范围就是白模的横屏（左边看台、右边东墙和大门）：横屏下相机不左右跑，竖屏跟着总监
   camera: { lead: { portrait: 1.4, landscape: 0.5 }, view: { x0: 15.2, x1: 72.8, z0: -58, z1: 12 } },
-  hint: '拖动走路 · 点地面走过去',
+  hint: '按住画面往手指走 · 点地面走过去',
 };
 
 /** 第一步：导航（life 建好之前；独立页面先 mountPlay，life 的气泡要用 play.say）。scene = 区域的根 */

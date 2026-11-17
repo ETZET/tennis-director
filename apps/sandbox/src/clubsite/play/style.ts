@@ -13,10 +13,6 @@ export const PLAY_CSS = `
 @media (orientation: portrait) { .play-bar { top: max(76px, calc(env(safe-area-inset-top) + 68px)); } }
 .play-hint { position: absolute; left: max(16px, env(safe-area-inset-left)); bottom: calc(max(20px, env(safe-area-inset-bottom)) + 4px); padding: 7px 10px; font-size: 12px; opacity: 0.92; transition: opacity 0.8s; }
 .play-hint.gone { opacity: 0; }
-.play-joy { position: absolute; left: 0; top: 0; width: 0; height: 0; }
-.play-joy::before, .play-knob { content: ""; position: absolute; border-radius: 50%; }
-.play-joy::before { left: -56px; top: -56px; width: 112px; height: 112px; background: rgba(44, 36, 80, 0.45); box-shadow: inset 0 0 0 3px rgba(255, 243, 214, 0.8); }
-.play-knob { left: -24px; top: -24px; width: 48px; height: 48px; background: #fff3d6; box-shadow: inset 0 -5px 0 0 #d8b088, 0 4px 0 0 #171230; }
 .play-buttons { position: absolute; right: max(18px, calc(env(safe-area-inset-right) + 8px)); bottom: max(22px, calc(env(safe-area-inset-bottom) + 10px)); display: flex; flex-direction: column; align-items: flex-end; gap: 18px; pointer-events: none; }
 .play-btn { pointer-events: auto; border: 0; margin: 3px; color: #fff3d6; font: inherit; cursor: pointer; touch-action: none; -webkit-tap-highlight-color: transparent; }
 .play-btn.down { transform: translateY(3px); box-shadow: 3px 0 0 0 #fff3d6, -3px 0 0 0 #fff3d6, 0 3px 0 0 #fff3d6, 0 -3px 0 0 #fff3d6, 0 3px 0 0 #171230; }

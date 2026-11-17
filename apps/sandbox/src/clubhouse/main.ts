@@ -579,7 +579,7 @@ if (PLAY && director) {
       surface: (x, z) => curSurface(x, z),
     },
     camera: { lead: { portrait: 1.4, landscape: 0.5 } },
-    hint: '拖动走路 · 点地面走过去 · 右边换层',
+    hint: '按住画面往手指走 · 点地面走过去 · 右边换层',
   });
   // 电梯：站在门口（三层同一个 x、z）按动作键 → 下一层（往上，到顶回负一层）
   const liftAt = new THREE.Vector3();
