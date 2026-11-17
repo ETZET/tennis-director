@@ -1,6 +1,6 @@
 // 玩法界面（DOM 叠层，样式 style.ts 自动塞进页面）：
-// - 画面上拖动 = 浮动摇杆（从按下的地方出来；左下拇指区一按下就出现）；轻点 = 走过去（点到互动点 / 地上的东西 = 走过去用它）；
-//   两指捏 / 滚轮 = 缩放。
+// - 画面上按住 = 往手指下面走（开车 = 往手指那边开，手指离车越远越快；没有虚拟摇杆）；
+//   轻点 = 走过去（点到互动点 / 地上的东西 = 走过去用它）；两指捏 / 滚轮 = 缩放。
 // - 右下：大的动作键（按住干活），它上面是拿/放键；都 ≥ 56 px。只在有事可做时出现，字就是要做的事。
 // - 顶栏（场景给的数：play.stat）、气泡（play.say / bubble，按相机投影摆，人在画面外就贴着画面边）、提示（play.toast）、
 //   互动点头上的小箭头。
@@ -15,11 +15,11 @@ export interface Hud {
   readonly root: HTMLElement;
 }
 
-/** 摇杆最大半径（CSS 像素） */
-const JOY_R = 52;
 /** 轻点：多短、挪多少以内 */
 const TAP_MS = 300;
 const TAP_PX = 12;
+/** 按着不动多久算"按住"（开始往手指走） */
+const HOLD_MS = 140;
 
 export function createHud(
   play: Play,
@@ -36,8 +36,7 @@ export function createHud(
   root.classList.add('play-root');
   root.innerHTML = `
     <div class="play-bar"></div>
-    <div class="play-hint">${opts.hint ?? '拖动走路 · 点地面走过去'}</div>
-    <div class="play-joy" hidden><div class="play-knob"></div></div>
+    <div class="play-hint">${opts.hint ?? '按住画面往手指走 · 点地面走过去'}</div>
     <div class="play-mark" hidden></div>
     <div class="play-bubbles"></div>
     <div class="play-toast gone"></div>
@@ -49,8 +48,6 @@ export function createHud(
   const el = {
     bar: q('.play-bar'),
     hint: q('.play-hint'),
-    joy: q('.play-joy'),
-    knob: q('.play-knob'),
     mark: q('.play-mark'),
     bubbles: q('.play-bubbles'),
     toast: q('.play-toast'),
@@ -60,48 +57,35 @@ export function createHud(
   const W = () => canvas.clientWidth;
   const Hh = () => canvas.clientHeight;
 
-  // ── 画面上的指针：摇杆 / 轻点 / 两指缩放 ──
+  // ── 画面上的指针：按住走 / 轻点 / 两指缩放 ──
+  // 没有虚拟摇杆（同《Sneaky Sasquatch》）：手指按住画面，总监往手指下面走、车往手指那边开（play.setPointer）。
+  // 按下以后挪过 TAP_PX 或按满 HOLD_MS 才算"按住"（不然轻点也会先蹭一步）；第二根手指落下 = 缩放，不走了。
   type P = { x0: number; y0: number; x: number; y: number; t0: number };
   const ptrs = new Map<number, P>();
-  let joyId: number | null = null;
+  /** 正在按住走的那根手指；steering = 已经过了轻点的门槛、在走了 */
+  let steerId: number | null = null;
+  let steering = false;
   let pinch0 = 0;
   let hintGone = false;
-  const landscape = () => W() > Hh();
-  /** 拇指区：一按下摇杆就出来 */
-  const inThumbZone = (x: number, y: number) =>
-    landscape() ? x < W() * 0.45 && y > Hh() * 0.3 : x < W() * 0.55 && y > Hh() * 0.5;
-  const showJoy = (p: P) => {
-    el.joy.hidden = false;
-    el.joy.style.transform = `translate(${p.x0}px, ${p.y0}px)`;
-    updateJoy(p);
-  };
-  const updateJoy = (p: P) => {
-    let dx = p.x - p.x0;
-    let dy = p.y - p.y0;
-    const d = Math.hypot(dx, dy);
-    if (d > JOY_R) {
-      dx = (dx / d) * JOY_R;
-      dy = (dy / d) * JOY_R;
-    }
-    el.knob.style.transform = `translate(${dx}px, ${dy}px)`;
-    const m = Math.min(1, d / JOY_R);
-    const k = m < 0.12 ? 0 : m;
-    const dd = Math.max(Math.min(d, JOY_R), 1e-6);
-    play.setStick((dx / dd) * k, (dy / dd) * k);
-  };
-  const endJoy = () => {
-    joyId = null;
-    el.joy.hidden = true;
-    play.setStick(0, 0);
-  };
   const hideHint = () => {
     if (hintGone) return;
     hintGone = true;
     el.hint.classList.add('gone');
   };
+  const steerTo = (p: P) => play.setPointer({ x: p.x, y: p.y, w: W(), h: Hh() });
+  const startSteer = (p: P) => {
+    steering = true;
+    steerTo(p);
+    hideHint();
+  };
+  const endSteer = () => {
+    steerId = null;
+    steering = false;
+    play.setPointer(null);
+  };
   const pinchDist = () => {
-    const others = [...ptrs.entries()].filter(([id]) => id !== joyId).map(([, p]) => p);
-    return others.length >= 2 ? Math.hypot(others[0].x - others[1].x, others[0].y - others[1].y) : 0;
+    const pts = [...ptrs.values()];
+    return pts.length >= 2 ? Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y) : 0;
   };
 
   canvas.addEventListener('pointerdown', (e) => {
@@ -110,36 +94,29 @@ export function createHud(
     } catch {}
     const p: P = { x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, t0: performance.now() };
     ptrs.set(e.pointerId, p);
-    if (pinchDist() > 0) {
+    if (ptrs.size >= 2) {
+      // 第二根手指：缩放
+      endSteer();
       pinch0 = pinchDist();
       return;
     }
-    if (joyId === null && ptrs.size === 1 && inThumbZone(p.x0, p.y0)) {
-      joyId = e.pointerId;
-      showJoy(p);
-    }
+    steerId = e.pointerId;
+    steering = false;
   });
   canvas.addEventListener('pointermove', (e) => {
     const p = ptrs.get(e.pointerId);
     if (!p) return;
     p.x = e.clientX;
     p.y = e.clientY;
-    if (e.pointerId === joyId) {
-      updateJoy(p);
-      if (Math.hypot(p.x - p.x0, p.y - p.y0) > TAP_PX) hideHint();
+    if (e.pointerId === steerId) {
+      if (steering) steerTo(p);
+      else if (Math.hypot(p.x - p.x0, p.y - p.y0) > TAP_PX) startSteer(p);
       return;
     }
     const d = pinchDist();
     if (d > 0) {
       if (pinch0 > 0) play.zoomBy(pinch0 / Math.max(d, 1));
       pinch0 = d;
-      return;
-    }
-    // 单指拖动（不在拇指区按下的）：也当摇杆
-    if (joyId === null && ptrs.size === 1 && Math.hypot(p.x - p.x0, p.y - p.y0) > TAP_PX) {
-      joyId = e.pointerId;
-      showJoy(p);
-      hideHint();
     }
   });
   const up = (e: PointerEvent) => {
@@ -147,9 +124,9 @@ export function createHud(
     ptrs.delete(e.pointerId);
     if (!p) return;
     const tap = performance.now() - p.t0 < TAP_MS && Math.hypot(p.x - p.x0, p.y - p.y0) < TAP_PX;
-    if (e.pointerId === joyId) endJoy();
-    if (pinchDist() === 0) pinch0 = 0;
-    if (tap && e.type === 'pointerup' && ptrs.size === 0) {
+    if (e.pointerId === steerId) endSteer();
+    if (ptrs.size < 2) pinch0 = 0;
+    if (tap && e.type === 'pointerup' && ptrs.size === 0 && pinchDist() === 0) {
       play.tapScreen(p.x, p.y, W(), Hh());
       hideHint();
     }
@@ -220,7 +197,7 @@ export function createHud(
   addEventListener('blur', () => {
     for (const k of MOVE) play.setKey(k, false);
     play.setUse(false);
-    endJoy();
+    endSteer();
   });
 
   // ── 每帧 ──
@@ -232,6 +209,11 @@ export function createHud(
   return {
     root,
     frame() {
+      // 按着不动满 HOLD_MS：开始往手指走
+      if (steerId !== null && !steering) {
+        const p = ptrs.get(steerId);
+        if (p && performance.now() - p.t0 >= HOLD_MS) startSteer(p);
+      }
       const ui = play.ui();
       const w = W();
       const h = Hh();

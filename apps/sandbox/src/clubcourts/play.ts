@@ -57,7 +57,7 @@ export const COURTS_START: RegionStart = {
   yaw: 0,
   // 竖屏：开局就是白模的构图（两张网在上面），总监在下面 —— 死区放大，人走出画面中段相机才跟
   camera: { lead: { portrait: 0, landscape: 0 }, dead: [2.5, 14], view: PLAY_VIEW },
-  hint: '拖动走路 · 按住"吹沙"转身瞄准',
+  hint: '按住画面往手指走 · 按住"吹沙"转身瞄准',
 };
 export { TARGET as COURTS_TARGET };
 

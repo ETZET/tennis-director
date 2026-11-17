@@ -36,7 +36,7 @@ export function mountFoodPlay(env: FoodPlayEnv): Play & { hud: Hud } {
     nav: foodNavSpec(scene, env.groundAt, true),
     // 横屏的取景就是白模的横屏（左边会所、右边中心球场西头）：横屏相机基本不动，竖屏跟着总监
     camera: { lead: { portrait: 1.4, landscape: 0.5 }, view: { x0: -64, x1: -2, z0: -62, z1: 18 } },
-    hint: '拖动走路 · 点地面走过去',
+    hint: '按住画面往手指走 · 点地面走过去',
   });
 }
 

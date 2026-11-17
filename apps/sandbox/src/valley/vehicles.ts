@@ -1,18 +1,50 @@
-// valley 的车：一辆球车、一辆汽车（白模）。走到车旁边"上车"，拖动开车（同走路的手势，play.drive：更快、拐弯慢），
-// 停下来"下车"。开车时镜头拉远（看得到前面的路），总监藏起来（坐在车里）。
+// valley 的车：一辆球车、一辆汽车（白模）。走到车旁边"上车"，按住画面开车（同走路的手势：车往手指那边开，手指离车越远越快；
+// 车的手感在 clubsite/play/drive.ts：惯性、转弯半径、倒车、侧滑），慢下来"下车"。开车时镜头拉远、往前看（看得到前面的路），总监藏起来（坐在车里）。
+// 演出（只读 play.state().drive）：车身拐弯往外侧倾、刹车点头、加速抬头、沙地上颠、后轮扬沙、撞上东西震手机。
+// 汽车开下路不是撞墙：沙地上极速和抓地打折（DRIVE.car.offroad），路是快的。
 // 路障（锁着的区域的路口）也在这里：按锁的状态重摆。
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import type { Play } from '../clubsite/play';
+import type { DriveSpec, Play } from '../clubsite/play';
 import { box } from '../clubsite/render/geo';
 import { along, ROADS, regionAt } from './layout';
 import type { Mode, ValleyNav } from './nav';
 import type { MapCtx, PalKey } from './reuse';
-import { inClubBox, inFloor } from './terrain';
+import { inClubBox, inFloor, onRoad } from './terrain';
 
+/**
+ * 两辆车的手感（drive.ts 的参数）。offroad：路以外（沙地、草）极速 / 抓地乘多少；rear：后轮（扬沙的地方，车身坐标）。
+ * 球车：慢、拐得急（半径 2.4 米）、抓地好、哪儿都能开；汽车：快、起步要 3 秒多、拐弯半径 4.5 米、急弯会甩一点尾，沙地上慢一半多。
+ */
 export const DRIVE = {
-  cart: { speed: 7, turn: 3.2, zoom: 1.45, name: '球车' },
-  car: { speed: 16, turn: 2.2, zoom: 2.1, name: '汽车' },
+  cart: {
+    speed: 7.5,
+    turn: 2.6,
+    radius: 2.4,
+    accel: 4.5,
+    grip: 13,
+    reverse: 3,
+    reach: 0.9,
+    offroad: 0.8,
+    zoom: 1.45,
+    rear: [0.58, -0.75] as const,
+    name: '球车',
+  },
+  car: {
+    speed: 17,
+    turn: 2.0,
+    radius: 4.5,
+    accel: 7.5,
+    brake: 20,
+    coast: 5,
+    grip: 9,
+    reverse: 5,
+    reach: 2.1,
+    offroad: 0.4,
+    zoom: 2.1,
+    rear: [0.92, -1.55] as const,
+    name: '汽车',
+  },
 } as const;
 
 const geo = (parts: [THREE.BufferGeometry, PalKey][], mat: (k: PalKey) => THREE.Material) => {
@@ -130,9 +162,15 @@ export function mountVehicles(o: {
     }
     return m;
   };
+  // obj：位置和朝向（跟着总监）；body：车身（侧倾、点头、颠，绕车底中心）
+  const rigged = (model: THREE.Group) => {
+    const obj = new THREE.Group();
+    obj.add(model);
+    return { obj, body: model };
+  };
   const cars = {
-    cart: { obj: cartModel(mat), kind: 'cart' as const },
-    car: { obj: carModel(mat), kind: 'car' as const },
+    cart: { ...rigged(cartModel(mat)), kind: 'cart' as const },
+    car: { ...rigged(carModel(mat)), kind: 'car' as const },
   };
   // 停在大门外车道北边（clubpark 的停车场东头外面）
   cars.cart.obj.position.set(100, 0, -7.5);
@@ -174,14 +212,15 @@ export function mountVehicles(o: {
       onUse: () => {
         mode = c.kind;
         vnav.mode = c.kind;
-        play.drive({ speed: DRIVE[c.kind].speed, turn: DRIVE[c.kind].turn });
+        play.drive(driveSpec(c.kind));
+        c.obj.userData.followsDirector = true;
         o.refreshBlocked();
         // 上车：总监挪到车的位置、朝车头，藏起来。车停的地方开车站不住（汽车停在路边、路外）就挪到最近的能开的地方
         const at = nearestStand(c.obj.position.x, c.obj.position.z);
         c.obj.position.set(at[0], 0, at[1]);
         play.teleport(at[0], at[1], c.obj.rotation.y);
         D.visible = false;
-        play.toast(`开${DRIVE[c.kind].name} · 拖动开车，停下来点"下车"`, 3);
+        play.toast('按住画面往手指那边开 · 按在车后面倒车', 3);
       },
     });
   }
@@ -192,10 +231,12 @@ export function mountVehicles(o: {
     priority: 50,
     noMark: true,
     label: () => (mode === 'walk' ? '' : '下车'),
-    canUse: (s) => mode !== 'walk' && s.speed < 0.5,
+    // 慢下来（< 2 米/秒）就能下：不用等车完全停死
+    canUse: (s) => mode !== 'walk' && s.speed < 2,
     autoUse: false,
     onUse: () => {
       const c = cars[mode as 'cart' | 'car'];
+      c.obj.userData.followsDirector = false;
       // 下车：站到车左边（能站就站，不能站就车后面）
       const yaw = c.obj.rotation.y;
       const side: [number, number] = [c.obj.position.x + Math.cos(yaw) * 1.8, c.obj.position.z - Math.sin(yaw) * 1.8];
@@ -210,6 +251,117 @@ export function mountVehicles(o: {
       D.visible = true;
     },
   });
+
+  const driveSpec = (kind: 'cart' | 'car'): DriveSpec => {
+    const d = DRIVE[kind];
+    return {
+      ...d,
+      // 路（含俱乐部里的停车场、车道）= 1，别的地方打折
+      ground: (x, z) => (inClubBox(x, z) || onRoad(x, z, 0.2) ? 1 : d.offroad),
+    };
+  };
+
+  // ── 扬沙：后轮后面冒的小土块（池子轮着用）──
+  const DUST_N = 28;
+  const DUST_LIFE = 0.9;
+  const dustGeo = new THREE.BoxGeometry(0.7, 0.55, 0.7);
+  const dust = Array.from({ length: DUST_N }, () => {
+    const m = new THREE.Mesh(dustGeo, mat('sand'));
+    m.visible = false;
+    m.userData.age = DUST_LIFE;
+    scene.add(m);
+    return m;
+  });
+  let dustNext = 0;
+  let dustT = 0;
+  let puffs = 0;
+  const puff = (x: number, z: number, vx: number, vz: number) => {
+    const m = dust[dustNext];
+    dustNext = (dustNext + 1) % DUST_N;
+    // 不用 Math.random：按序号的确定性抖动（只管画面）
+    const j = Math.sin(++puffs * 12.9898) * 43758.5453;
+    const r = j - Math.floor(j);
+    m.position.set(x + (r - 0.5) * 0.5, 0.15, z + (r - 0.5) * 0.4);
+    m.rotation.y = r * Math.PI;
+    m.userData.age = 0;
+    m.userData.vx = vx;
+    m.userData.vz = vz;
+    m.visible = true;
+  };
+  const stepDust = (dt: number) => {
+    for (const m of dust) {
+      if (!m.visible) continue;
+      const a = (m.userData.age += dt);
+      if (a >= DUST_LIFE) {
+        m.visible = false;
+        continue;
+      }
+      const k = a / DUST_LIFE;
+      m.position.x += m.userData.vx * dt;
+      m.position.z += m.userData.vz * dt;
+      m.position.y += dt * 0.9;
+      // 先鼓起来再缩没
+      const sc = k < 0.3 ? 0.6 + (k / 0.3) * 0.8 : 1.4 * (1 - (k - 0.3) / 0.7);
+      m.scale.setScalar(Math.max(0.01, sc));
+    }
+  };
+
+  // ── 车身的演出 ──
+  let simT = 0;
+  let buzzT = 0;
+  let jolt = 0;
+  const ease = (cur: number, to: number, k: number) => cur + (to - cur) * k;
+  const stepBody = (dt: number) => {
+    simT += dt;
+    const ds = play.state().drive;
+    for (const c of Object.values(cars)) {
+      const b = c.body;
+      const k = 1 - Math.exp(-dt * 9);
+      if (mode !== c.kind || !ds) {
+        b.rotation.x = ease(b.rotation.x, 0, k);
+        b.rotation.z = ease(b.rotation.z, 0, k);
+        b.position.y = ease(b.position.y, 0, k);
+        continue;
+      }
+      // 撞上：震一下手机（Android；iOS Safari 没有 vibrate），车身往前一磕
+      if (ds.hit > 2.5) {
+        jolt = Math.min(0.14, ds.hit * 0.012);
+        if (simT - buzzT > 0.35) {
+          buzzT = simT;
+          navigator.vibrate?.(Math.min(60, Math.round(ds.hit * 5)));
+        }
+      }
+      jolt *= Math.exp(-dt * 7);
+      // 拐弯往外侧倾（往左拐 yawRate > 0：车身往右手倒 = 绕 z 正转）；刹车点头、加速抬头（绕 x 正转 = 车头往下）
+      const roll = THREE.MathUtils.clamp(ds.v * ds.yawRate * 0.005, -0.09, 0.09);
+      const pitch = THREE.MathUtils.clamp(-ds.accel * 0.005, -0.05, 0.08) + jolt;
+      b.rotation.z = ease(b.rotation.z, roll, k);
+      b.rotation.x = ease(b.rotation.x, pitch, k);
+      // 沙地上颠（越快颠得越密）
+      const sp = Math.hypot(ds.vx, ds.vz);
+      const rough = (1 - ds.ground) * Math.min(1, sp / 4);
+      b.position.y = rough * 0.07 * Math.abs(Math.sin(simT * (9 + sp * 0.8)));
+      // 扬沙：沙地上开得快，或者侧滑得厉害
+      const slip = Math.abs(ds.side);
+      if ((ds.ground < 0.99 && sp > 2.5) || slip > 2.2) {
+        dustT -= dt;
+        if (dustT <= 0) {
+          dustT = sp > 9 || slip > 3.5 ? 0.04 : 0.08;
+          const [wx, wz] = DRIVE[c.kind].rear;
+          const yaw = c.obj.rotation.y;
+          const cs = Math.cos(yaw);
+          const sn = Math.sin(yaw);
+          for (const sx of [-wx, wx]) {
+            // 车身坐标 (sx, wz) → 世界（three 绕 y 转：x' = x cos + z sin，z' = −x sin + z cos）
+            const x = c.obj.position.x + sx * cs + wz * sn;
+            const z = c.obj.position.z - sx * sn + wz * cs;
+            puff(x, z, -ds.vx * 0.15, -ds.vz * 0.15);
+          }
+        }
+      }
+    }
+    stepDust(dt);
+  };
 
   // ── 路障 ──
   const barrierRoot = new THREE.Group();
@@ -261,6 +413,7 @@ export function mountVehicles(o: {
         c.obj.position.set(D.position.x, D.position.y, D.position.z);
         c.obj.rotation.y = D.rotation.y;
       }
+      stepBody(dt);
       // 镜头：开车拉远，走路拉回来（按每秒 1.5 倍的速度靠过去）
       const want = mode === 'walk' ? 1 : DRIVE[mode].zoom;
       if (Math.abs(want - zoomK) > 1e-3) {

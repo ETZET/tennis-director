@@ -830,7 +830,7 @@ export function mountWalk(hooks: WalkHooks = {}) {
       stepUp: 0.36,
     },
     camera: { lead: { portrait: 1.4, landscape: 0.5 }, zoom: hooks.zoom ?? [0.5, 1.8] },
-    hint: hooks.hint ?? '拖动走路 · 点地面走过去 · 走到哪建到哪',
+    hint: hooks.hint ?? '按住画面往手指走 · 点地面走过去 · 走到哪建到哪',
   });
   for (const L of lives) if (L.region) setVisible(L, true);
   // 规划要用的连通分量、粗网格先算好（不然第一次点地面要等 ~0.1 秒）

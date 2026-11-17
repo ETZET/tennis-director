@@ -121,7 +121,7 @@ export const DESK_START: RegionStart = {
   start: SPOTS.deskStand,
   yaw: 1.25,
   camera: { lead: { portrait: 1.6, landscape: 0.6 } },
-  hint: '拖动走路 · 点地面走过去',
+  hint: '按住画面往手指走 · 点地面走过去',
 };
 
 /** 导航：能走 / 挡路（按摆好的家具量）/ 台阶；场景建好以后调 */

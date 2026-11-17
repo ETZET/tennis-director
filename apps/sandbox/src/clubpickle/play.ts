@@ -22,7 +22,7 @@ export const PICKLE_START: RegionStart = {
   start: [44.9, 5.75],
   yaw: 0,
   camera: { lead: { portrait: 1.4, landscape: 0.5 } },
-  hint: '拖动走路 · 点地面走过去',
+  hint: '按住画面往手指走 · 点地面走过去',
 };
 
 /** 总监的活登记到 play（互动点、手里的东西、挡路的人、顶栏）；返回每步要调的 step */
