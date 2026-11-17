@@ -4,8 +4,12 @@
 // URL：clubwalk 的那些（at=x,z、px、pal、perf=1……）+ unlock=all（全部解锁；不用 open：clubfood 的遮阳伞读 ?open= 当数字）、hotel=1（酒店盖好）。
 import '../clubsite/render/colors';
 import * as THREE from 'three';
+import type { DayLook } from '../clubsite/daylight/sky';
+import type { SharedUniforms } from '../clubsite/render/ctx';
 import { ALL_REGION_IDS, buildValley, type ValleyWorld } from './build';
 import { DETAILS } from './detail';
+import { INTERIORS } from './interiors/all';
+import { entryAt, exitAt, type InteriorDef, ORIGIN } from './interiors/index';
 import {
   distToLine,
   FLOOR,
@@ -55,13 +59,15 @@ function start() {
     },
     outerSurface: (x, z) => vnav.surface(x, z),
     outerBlocked: () => vnav.blocked(),
-    navBounds: { x0: VIEW.x0, x1: VIEW.x1, z0: VIEW.z0, z1: VIEW.z1 },
+    // 店内摆在地图外面很远的地方（interiors/，x ≥ 3000）：导航范围包进去
+    navBounds: { x0: VIEW.x0, x1: 3700, z0: VIEW.z0, z1: VIEW.z1 },
     farPath: (nav, ax, az, bx, bz) => vnav.farPath(nav, ax, az, bx, bz),
-    zoom: [0.5, 2.6],
+    zoom: [0.4, 2.6],
     camera: { dist: 120, far: 240 },
     hint: '按住画面往手指走 · 点地面走过去 · 门外有球车和汽车',
     build({ scene, ctx, uniforms }) {
       mapCtx = ctx;
+      sharedUniforms = uniforms;
       world = buildValley(ctx, uniforms, locked, DETAILS);
       vnav.extra = world.blocked;
       scene.add(world.root);
@@ -95,10 +101,13 @@ function start() {
           },
         });
       }
+      mountInteriors(a);
       mountDebug();
       if (vnav.hotel) a.refreshBlocked();
     },
     placeName(x, z) {
+      const inside = interiorAt(x, z);
+      if (inside) return inside.name;
       let best: { name: string; d: number } | null = null;
       for (const p of POIS) {
         const d = Math.hypot(p.x - x, p.z - z);
@@ -113,6 +122,7 @@ function start() {
     },
     drawMap: (g, W, H, view) => drawMap(g, W, H, view),
     step(dt, t) {
+      interiorSync?.();
       world?.update(dt, t);
       cars?.step(dt);
     },
@@ -144,6 +154,137 @@ function flattenPass(m: THREE.Mesh) {
     p.needsUpdate = true;
     m.geometry.computeVertexNormals();
     m.geometry.computeBoundingSphere();
+  }
+}
+
+// ── 店内：门口"进去"、店里"出去"（画面暗一下再传送）；店里背景换成暗色（四周是空的） ──
+const interiorAt = (x: number, z: number): InteriorDef | null =>
+  INTERIORS.find((d) => {
+    const [ox, oz] = ORIGIN[d.id];
+    return x >= ox - 2 && x <= ox + d.w + 2 && z >= oz - 2 && z <= oz + d.d + 4;
+  }) ?? null;
+const INSIDE_BG = new THREE.Color(0x231c2e);
+let sharedUniforms: SharedUniforms | null = null;
+/** 按总监在哪切室内状态（mountInteriors 装上） */
+let interiorSync: (() => void) | null = null;
+/** 店里的光：顶上的灯（仰角 65°、略偏东，只决定明暗分档），不投影，不随时刻、天气变；没有雨、沙、星星、风、云 */
+const INDOOR_LOOK: DayLook = {
+  el: 65,
+  az: 15,
+  moon: false,
+  // 投影强度 0 = 没有投影（店里不该有太阳的影子；明暗只靠朝向分档）
+  sunK: 0,
+  shadeEl: 65,
+  lit: [1, 1, 1],
+  mid: [1, 1, 1],
+  dark: [1, 1, 1],
+  skyTop: 0x231c2e,
+  skyHorizon: 0x231c2e,
+  edgeMul: [1, 1, 1],
+  cloudCut: 1,
+  cloudVel: 0,
+  rain: 0,
+  dust: 0,
+  stars: 0,
+  wind: 0,
+  lamps: 0,
+  dustColor: [0.86, 0.68, 0.46],
+  sat: 1,
+};
+let cloudWas = 1;
+/** 店里镜头拉近多少（米/纹素 = 默认 × 这个；各店 def.zoom 可以改） */
+const INSIDE_ZOOM = 0.8;
+function mountInteriors(a: WalkApi) {
+  // 默认远近（进山谷时）：店里按它的倍数定远近；出门还原成进门前的
+  const mptDefault = a.pipe.rig.metersPerTexel;
+  let mptOutside = mptDefault;
+  const fade = document.createElement('div');
+  fade.style.cssText =
+    'position:fixed;inset:0;background:#120e1a;opacity:0;pointer-events:none;transition:opacity .22s;z-index:8';
+  document.body.appendChild(fade);
+  let outsideBg: THREE.Scene['background'] = null;
+  let busy = false;
+  /** 现在套着哪家店的室内状态（null = 在外面） */
+  let insideOf: InteriorDef | null = null;
+  /**
+   * 室内状态按总监**实际在哪**切（不只挂在"进去"上）：走门、直接传送、at= 出生、验收脚本都一样。
+   * 店里：背景暗色、镜头关在房间里并拉近一点、光照定住（没有日夜天气、不投影）、没有云影
+   */
+  const sync = () => {
+    const p = a.director.position;
+    const def = interiorAt(p.x, p.z);
+    if (def === insideOf) return;
+    if (insideOf && !def) {
+      if (outsideBg) a.scene.background = outsideBg;
+      a.play.setView(null);
+      a.pipe.rig.metersPerTexel = mptOutside;
+      a.play.zoomBy(1);
+      if (sharedUniforms) sharedUniforms.uCloudStrength.value = cloudWas;
+      a.day.override = null;
+    }
+    if (def) {
+      if (!insideOf) {
+        outsideBg = a.scene.background;
+        mptOutside = a.pipe.rig.metersPerTexel;
+        if (sharedUniforms) {
+          cloudWas = sharedUniforms.uCloudStrength.value;
+          sharedUniforms.uCloudStrength.value = 0;
+        }
+      }
+      a.scene.background = INSIDE_BG;
+      a.pipe.rig.metersPerTexel = mptDefault * (def.zoom ?? INSIDE_ZOOM);
+      a.play.zoomBy(1);
+      // 镜头关在房间里（墙外 1 米，南边只到门槛外 1.5 米：门外的暗色空地少露）
+      const [ox, oz] = ORIGIN[def.id];
+      a.play.setView({ x0: ox - 1, x1: ox + def.w + 1, z0: oz - 5, z1: oz + def.d + 1.5 });
+      // 店里没有日夜和天气（用户 2026-11-16）：光照定住成室内的顶光；外面的时钟照样走
+      a.day.override = INDOOR_LOOK;
+    }
+    insideOf = def;
+    // 店里不要小地图（挡住北墙，店里也用不上）
+    const mm = document.getElementById('minimap');
+    if (mm) mm.style.visibility = def ? 'hidden' : '';
+  };
+  interiorSync = sync;
+  const go = (x: number, z: number, yaw: number) => {
+    if (busy) return;
+    busy = true;
+    fade.style.opacity = '1';
+    setTimeout(() => {
+      a.play.teleport(x, z, yaw);
+      sync();
+      fade.style.opacity = '0';
+      busy = false;
+    }, 240);
+  };
+  for (const def of INTERIORS) {
+    const top = world?.poiTops.get(def.poi);
+    if (!top) continue;
+    const door = top.clone().setY(0);
+    a.play.add({
+      id: `valley:enter:${def.id}`,
+      at: () => door,
+      radius: 3,
+      priority: 4,
+      label: () => (vnav.mode === 'walk' ? '进去' : ''),
+      canUse: () => vnav.mode === 'walk',
+      autoUse: false,
+      onUse: () => {
+        const [x, z] = entryAt(def);
+        go(x, z, Math.PI);
+      },
+    });
+    const [ex, ez] = exitAt(def);
+    const exitMark = new THREE.Vector3(ex, 0, ez - 1.6);
+    a.play.add({
+      id: `valley:exit:${def.id}`,
+      at: () => exitMark,
+      radius: 2.4,
+      priority: 4,
+      label: '出去',
+      autoUse: false,
+      onUse: () => go(door.x, door.z + 2, 0),
+    });
   }
 }
 

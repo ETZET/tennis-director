@@ -9,6 +9,7 @@ import type { DriveSpec, Play } from '../clubsite/play';
 import { box } from '../clubsite/render/geo';
 import { along, ROADS, regionAt } from './layout';
 import type { Mode, ValleyNav } from './nav';
+import { valleyMat } from './palette';
 import type { MapCtx, PalKey } from './reuse';
 import { inClubBox, inFloor, onRoad } from './terrain';
 
@@ -157,7 +158,7 @@ export function mountVehicles(o: {
   const mat = (k: PalKey) => {
     let m = mats.get(k);
     if (!m) {
-      m = ctx.mat(k);
+      m = valleyMat(ctx, k);
       mats.set(k, m);
     }
     return m;

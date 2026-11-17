@@ -243,6 +243,8 @@ export interface Play {
    * 姿势停在 pose；null = 下车走路。拖动的手势不变。
    */
   drive(spec: DriveSpec | null): void;
+  /** 画面不出这个世界范围（同 camera.view；null = 不限）：进到一个小房间（valley 的店内）时把镜头关在房间里 */
+  setView(view: Rect | null): void;
 }
 
 export type { DriveSpec, DriveState } from './drive';
@@ -1053,6 +1055,11 @@ export function createPlay(opts: PlayOpts): Play {
       Object.assign(dst, newDriveState());
       path = [];
       pathTarget = null;
+    },
+
+    setView(view) {
+      camOpts.view = view ?? undefined;
+      clampCam();
     },
 
     zoomBy(k) {

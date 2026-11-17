@@ -59,6 +59,10 @@ export interface Daylight {
   setWeather(w: Weather | 'auto'): void;
   /** 场景里加了 / 删了灯（userData.night），马上重新找（默认每 2 秒找一次） */
   rescanLamps(): void;
+  /**
+   * 固定的光照（给了就一直用它，不按时刻、天气算；null = 恢复）：室内（valley 的店里）不要日夜和天气。时钟照样走
+   */
+  override: DayLook | null;
 }
 
 interface NightLight {
@@ -159,8 +163,12 @@ export function mountDaylight(o: DaylightOpts): Daylight {
       arr[i].set(pools[i][0], pools[i][1], pools[i][2], pools[i][3]);
   }
 
+  /** 固定的光照（api.override）：室内用 */
+  let override: DayLook | null = null;
   function apply() {
-    look = enabled ? lookAt(st.total, st.weather, seed, { sky: baseSky }) : lookAt(12, 'clear', seed, { sky: baseSky });
+    look =
+      override ??
+      (enabled ? lookAt(st.total, st.weather, seed, { sky: baseSky }) : lookAt(12, 'clear', seed, { sky: baseSky }));
     const el = THREE.MathUtils.degToRad(look.el);
     const az = THREE.MathUtils.degToRad(look.az);
     sunDir.set(Math.sin(az) * Math.cos(el), Math.sin(el), -Math.cos(az) * Math.cos(el)).normalize();
@@ -217,6 +225,12 @@ export function mountDaylight(o: DaylightOpts): Daylight {
     : null;
 
   const api: Daylight = {
+    get override() {
+      return override;
+    },
+    set override(v: DayLook | null) {
+      override = v;
+    },
     get total() {
       return st.total;
     },

@@ -42,6 +42,8 @@ export default defineConfig({
         valleyplan: resolve(import.meta.dirname, 'valleyplan.html'),
         // 小镇和山谷：clubwalk 的大世界 + 整座山谷的白模（走路、球车、汽车、分区解锁）
         valley: resolve(import.meta.dirname, 'valley.html'),
+        // valley 市中心三栋办事楼的资产画廊（?asset=<id>；不带 = 列表）
+        valleyassets: resolve(import.meta.dirname, 'valleyassets.html'),
       },
     },
   },

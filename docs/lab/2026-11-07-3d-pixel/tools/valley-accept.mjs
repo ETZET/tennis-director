@@ -4,7 +4,7 @@
 // 一个页面（unlock=all、cast=0、tspeed=0）里依次传送、换时刻、截图，逐项检查：
 //   1. 控制台没有报错（pageerror / console.error / NaN 几何警告）
 //   2. 路面上没东西：__valley.onRoad() 为空（车道两边各收 0.4 米、离地 0.15～4 米的顶点）
-//   3. 不闪：每个地点在 7.0 / 17.6 / 18.3 点附近按 0.004 小时扫 12 步，相邻两步整屏平均亮度差 ≤ 3%
+//   3. 不闪：每个地点在 7.0 / 17.6 / 18.3 点附近按 0.004 小时扫 12 步，整屏平均亮度不能来回跳（相邻两步方向相反、都 > 1.5%）
 //   4. 性能：俱乐部那块以外，每帧绘制 ≤ 700、三角形 ≤ 450k
 //   5. 画面数字（pixel-scene 规范，降到纹素分辨率 = 1 CSS 像素）：强边缘 ≤ 0.05（每张）；
 //      正午饱和度 ≥ 0.35（不到 0.42 记一条提醒）
@@ -80,7 +80,9 @@ page.on('console', (m) => {
   if (m.type() === 'error' || /NaN/.test(t)) errors.push(t.slice(0, 200));
 });
 // 天气固定晴天：自动天气会在某些时刻下雨，满屏雨丝把强边缘推到 0.06～0.07，和画面本身无关（雨天另看）
-await page.goto('http://localhost:5191/valley.html?unlock=all&cast=0&tspeed=0&hour=12&weather=clear');
+// VALLEY_EXTRA：额外的页面参数（例：inv=2 = 第二版店内）
+const EXTRA = process.env.VALLEY_EXTRA ? `&${process.env.VALLEY_EXTRA}` : '';
+await page.goto(`http://localhost:5191/valley.html?unlock=all&cast=0&tspeed=0&hour=12&weather=clear${EXTRA}`);
 await page.waitForFunction(() => window.__walk && window.__valley?.world, null, { timeout: 60000 });
 await page.waitForTimeout(3000);
 
@@ -180,17 +182,22 @@ for (const [name, [x, z]] of spots) {
   for (const h0 of [7, 17.6, 18.3]) {
     await go(x, z, h0);
     let prev = await meanLum();
+    // 闪 = 来回跳（亮、暗、亮）：相邻两步方向相反、而且两步都超过 1.5%。
+    // 单方向的变化（日落前长影子一点点挪、天一点点暗）不算 —— 只看"差多少"的话，长影子盖住大半屏时正常的移动也会过 3%
     let worst = 0;
+    let dPrev = 0;
     for (let i = 1; i <= 12; i++) {
       await page.evaluate((h) => {
         window.__walk.day.total = h;
         window.__walk.step(1 / 60);
       }, h0 + i * 0.004);
       const l = await meanLum();
-      worst = Math.max(worst, Math.abs(l - prev) / Math.max(1, prev));
+      const dd = (l - prev) / Math.max(1, prev);
+      if (Math.sign(dd) !== Math.sign(dPrev) && dPrev !== 0) worst = Math.max(worst, Math.min(Math.abs(dd), Math.abs(dPrev)));
+      dPrev = dd;
       prev = l;
     }
-    if (worst > 0.03) fails.push(`${name} ${h0} 点附近闪：相邻两步亮度差 ${(worst * 100).toFixed(1)}%`);
+    if (worst > 0.015) fails.push(`${name} ${h0} 点附近闪：来回跳 ${(worst * 100).toFixed(1)}%`);
   }
 }
 // 6. 俱乐部不能被山谷盖坏：俱乐部那块里几个点，valley 和 clubwalk 同点同时刻的画面差 ≤ 2%（像素 RGB 差和 > 40 的比例）。
