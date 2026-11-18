@@ -15,15 +15,15 @@ import { bldgPoly, type DetailCtx, type InstItem, rbox, ribbon } from '../build'
 import {
   along,
   type Bldg,
-  BUILDINGS,
+  BUILDINGS_RAW as BUILDINGS,
   distToLine,
-  houses,
+  housesRaw as houses,
   inPoly,
   ROADS,
   type Road,
   S,
   SCALE,
-  SITES,
+  SITES_RAW as SITES,
   type V2,
 } from '../layout';
 import type { PalKey } from '../reuse';

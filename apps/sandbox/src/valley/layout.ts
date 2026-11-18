@@ -13,6 +13,8 @@
 // 不规整（研究结论，见 docs/lab/2026-11-07-3d-pixel/valley.md）：主路可以直，小区的路是弯的、有尽头；
 // 地形（山湾、峡谷、干河床）把平地切开；远处看得见的地标（风车、山顶观景台、市政厅钟楼）勾着人走。
 
+import { FRAMES, FRONT_PAD, fmap, fmapRect, frameAt, HOUSE_K, keepScale, TOWN_K } from './townscale';
+
 export type V2 = readonly [number, number];
 export interface Rect {
   x0: number;
@@ -860,9 +862,12 @@ const HOUSE_ROADS: Strew[] = [
   { road: 'canyon_golf', gap: 17, setback: 18 },
 ];
 const inRect = (r: Rect, x: number, z: number) => x >= r.x0 && x <= r.x1 && z >= r.z0 && z <= r.z1;
-export function houses(): Bldg[] {
+/** 小区房子朝街的方向（世界，单位向量；房子的本地 +z 轴） */
+const HOUSE_FRONT = new Map<string, [number, number]>();
+/** 按路撒房子（缩之前的尺寸；和 2026-11-18 以前撒出来的一模一样） */
+function housesPlace(): Bldg[] {
   const out: Bldg[] = [];
-  const all = [...BUILDINGS, ...HOTEL_BLDGS];
+  const all = [...BUILDINGS_RAW, ...HOTEL_BLDGS];
   for (const { road: id, gap, setback, kind = 'house', within } of HOUSE_ROADS) {
     const r = ROADS.find((q) => q.id === id);
     if (!r) continue;
@@ -913,15 +918,14 @@ export function houses(): Bldg[] {
         if (all.some((o) => Math.abs(o.x - x) < o.w / 2 + pad && Math.abs(o.z - z) < o.d / 2 + pad)) continue;
         if (GREENS.some((q) => inPoly(q.poly, x, z))) continue;
         if (washDist(x, z) < 8) continue;
-        const w = w0;
-        const d = d0;
+        HOUSE_FRONT.set(`${id}_${n}`, [t[1] * side, -t[0] * side]);
         out.push({
           id: `${id}_${n}`,
           kind: shop ? 'shop' : 'house',
           x,
           z,
-          w,
-          d,
+          w: w0,
+          d: d0,
           h: shop ? 4 + hash(id, n + 300) * 4 : 3.4 + hash(id, n + 300) * 1.2,
           rot: -Math.atan2(t[1], t[0]),
         });
@@ -930,7 +934,7 @@ export function houses(): Bldg[] {
   }
   // 互相压着的去掉：按转过的矩形（连屋檐 + 1.5 米）真算，先来的留下（原来按中心距估，弯路上有 7 处叠在一起）
   // 三家办事的楼的院子（SITES）里不撒（连屋檐 + 1 米）
-  const sites = SITES.map(siteBox);
+  const sites = SITES_RAW.map(siteBox);
   const kept: Bldg[] = [];
   for (const h of out)
     if (!kept.some((o) => rectsOverlap(o, h, 1.5)) && !sites.some((s) => rectsOverlap(s, h, 2))) kept.push(h);
@@ -1105,6 +1109,130 @@ const sp = (pts: V2[]) => pts.map(([x, z]) => S(x, z) as V2);
   VIEW.x1 = vx1;
   VIEW.z0 = vz0;
   VIEW.z1 = Math.max(CLUB_BOX_L.z1 + 40, S(0, VIEW.z1)[1]);
+}
+// ── 小镇的比例（2026-11-18，townscale.ts）：俱乐部以外的楼按 TOWN_K 缩、小区的房子按 HOUSE_K 缩，门面线不动 ─────
+// 每栋楼是一个相似变换：轴 = 朝街那一面的正中（门面线上），p' = 轴 + (p − 轴) × k（宽、深、高都乘 k）。
+// 三栋办事楼（townscale 的 FRAMES）轴 = 门口，楼身、车间、POI、贴着楼的院子（门面线以北的 SITES）一起走。
+// 细节文件（detail/*.ts、sites/*.ts）读缩之前的数据（BUILDINGS_RAW、SITES_RAW、housesRaw()）照原尺寸摆，
+// build.ts 的 townWrap 用 bldgFrames() 把贴着每栋楼的东西（招牌、屋顶的空调、门廊）按这栋楼的变换搬过去。
+/** 一栋楼的缩放：轴 (px, pz)、倍数 k；zone = 缩之前的脚印（中心 cx cz、半宽 hw、半深 hd、转角的 cos sin） */
+export interface BFrame {
+  id: string;
+  px: number;
+  pz: number;
+  k: number;
+  cx: number;
+  cz: number;
+  hw: number;
+  hd: number;
+  c: number;
+  s: number;
+}
+/** 楼朝哪条路（同 build.ts 的 faceOf）：本地的面法线 → 世界方向；depth = 朝街那根轴上的进深 */
+function frontOf(o: Bldg): { f: [number, number]; depth: number } {
+  let best = Number.POSITIVE_INFINITY;
+  let bx = o.x;
+  let bz = o.z + 1;
+  for (const q of ROADS) {
+    if (q.kind === 'trail') continue;
+    for (let i = 1; i < q.pts.length; i++) {
+      const [ax, az] = q.pts[i - 1];
+      const [cx, cz] = q.pts[i];
+      const dx = cx - ax;
+      const dz = cz - az;
+      const L = dx * dx + dz * dz;
+      const t = L > 0 ? Math.max(0, Math.min(1, ((o.x - ax) * dx + (o.z - az) * dz) / L)) : 0;
+      const d = Math.hypot(o.x - (ax + dx * t), o.z - (az + dz * t));
+      if (d < best) {
+        best = d;
+        bx = ax + dx * t;
+        bz = az + dz * t;
+      }
+    }
+  }
+  const rot = o.rot ?? 0;
+  const c = Math.cos(rot);
+  const sn = Math.sin(rot);
+  const lx0 = (bx - o.x) * c - (bz - o.z) * sn;
+  const lz0 = (bx - o.x) * sn + (bz - o.z) * c;
+  const alongX = Math.abs(lx0) / o.w > Math.abs(lz0) / o.d;
+  const [lx, lz] = alongX ? [Math.sign(lx0), 0] : [0, Math.sign(lz0) || 1];
+  // 本地 → 世界（rotateY(rot)）
+  return { f: [lx * c + lz * sn, -lx * sn + lz * c], depth: alongX ? o.w : o.d };
+}
+/** 绕轴 (px, pz) 缩 k：改 o，返回它的 BFrame（zone 是缩之前的脚印） */
+function shrinkBldg(o: Bldg, px: number, pz: number, k: number): BFrame {
+  const rot = o.rot ?? 0;
+  const fr: BFrame = {
+    id: o.id,
+    px,
+    pz,
+    k,
+    cx: o.x,
+    cz: o.z,
+    hw: o.w / 2,
+    hd: o.d / 2,
+    c: Math.cos(rot),
+    s: Math.sin(rot),
+  };
+  o.x = px + (o.x - px) * k;
+  o.z = pz + (o.z - pz) * k;
+  o.w *= k;
+  o.d *= k;
+  o.h *= k;
+  return fr;
+}
+/** 缩之前的楼（细节文件照这个摆） */
+export const BUILDINGS_RAW: readonly Bldg[] = BUILDINGS.map((o) => ({ ...o }));
+/** 缩之前的院子 */
+export const SITES_RAW: readonly Site[] = SITES.map((r) => ({ ...r }));
+const BLDG_FRAMES: BFrame[] = [];
+{
+  for (const o of BUILDINGS) {
+    if (keepScale(o.x, o.z)) continue;
+    const sf = frameAt(o.x, o.z);
+    if (sf) {
+      shrinkBldg(o, sf.px, sf.pz, TOWN_K);
+      continue;
+    }
+    const { f, depth } = frontOf(o);
+    BLDG_FRAMES.push(shrinkBldg(o, o.x + (f[0] * depth) / 2, o.z + (f[1] * depth) / 2, TOWN_K));
+  }
+  for (const p of POIS) {
+    const f = frameAt(p.x, p.z);
+    if (f) [p.x, p.z] = fmap(f, p.x, p.z);
+  }
+  for (const r of SITES) {
+    const f = FRAMES.find((q) => q.id === r.of);
+    if (f && r.z1 <= f.pz + FRONT_PAD) Object.assign(r, fmapRect(f, r));
+  }
+}
+let HOUSES_RAW: Bldg[] | null = null;
+let HOUSES: Bldg[] | null = null;
+let HOUSE_FRAMES: BFrame[] = [];
+/** 缩之前的小区房子（细节文件照这个摆）；同一份，别改它 */
+export function housesRaw(): Bldg[] {
+  HOUSES_RAW ??= housesPlace();
+  return HOUSES_RAW;
+}
+/** 小区的房子（缩完的：铺面乘 TOWN_K、住家乘 HOUSE_K，临街那一面不动）；同一份，别改它 */
+export function houses(): Bldg[] {
+  if (!HOUSES) {
+    HOUSE_FRAMES = [];
+    HOUSES = housesRaw().map((r) => {
+      const o = { ...r };
+      const k = o.kind === 'shop' ? TOWN_K : HOUSE_K;
+      const f = HOUSE_FRONT.get(o.id) ?? [0, 1];
+      HOUSE_FRAMES.push(shrinkBldg(o, o.x + (f[0] * o.d) / 2, o.z + (f[1] * o.d) / 2, k));
+      return o;
+    });
+  }
+  return HOUSES;
+}
+/** 每栋缩过的楼的变换（townWrap 用） */
+export function bldgFrames(): BFrame[] {
+  houses();
+  return [...BLDG_FRAMES, ...HOUSE_FRAMES];
 }
 /** 风车（山口外一大片，地图上的远景地标；在 FLOOR 外面，不能去） */
 export const windmills = (): V2[] => windmillsRaw().map(([x, z]) => S(x, z) as V2);

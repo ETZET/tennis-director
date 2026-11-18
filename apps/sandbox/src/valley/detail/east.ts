@@ -23,7 +23,18 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import { box } from '../../clubsite/render/geo';
 import type { DetailCtx, InstItem } from '../build';
 import { ribbon } from '../build';
-import { BUILDINGS, distToLine, GREENS, houses, inPoly, ROADS, S, type V2, WASH, washDist } from '../layout';
+import {
+  BUILDINGS_RAW as BUILDINGS,
+  distToLine,
+  GREENS,
+  housesRaw as houses,
+  inPoly,
+  ROADS,
+  S,
+  type V2,
+  WASH,
+  washDist,
+} from '../layout';
 import type { PalKey } from '../reuse';
 
 /** 局部坐标系：原点 (x, z)、绕 y 转 r（同 rbox：局部 z 轴 = 世界 (sin r, cos r)） */
@@ -159,6 +170,11 @@ export function detailEast(d: DetailCtx): void {
   const putG = (region: string, key: PalKey, g: THREE.BufferGeometry) => {
     if (!thinMode) {
       d.put(region, key, g);
+      return;
+    }
+    // 有 putThin（build.ts 给的，外面包着小镇比例的 townWrap）就交给它：跟车身、杆子的别的部件一起缩
+    if (d.putThin) {
+      d.putThin(region, key, g);
       return;
     }
     g.computeBoundingBox();

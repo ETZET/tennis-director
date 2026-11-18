@@ -26,6 +26,7 @@ import {
 import { createValleyNav } from './nav';
 import { mountWalk, type WalkApi } from './reuse';
 import { CLUB_BOX, inFloor, LOOKOUT } from './terrain';
+import { keepScale } from './townscale';
 import { mountVehicles, type Vehicles } from './vehicles';
 
 const params = new URLSearchParams(location.search);
@@ -122,7 +123,7 @@ function start() {
     },
     drawMap: (g, W, H, view) => drawMap(g, W, H, view),
     step(dt, t) {
-      interiorSync?.();
+      interiorSync?.(dt);
       world?.update(dt, t);
       cars?.step(dt);
     },
@@ -166,7 +167,7 @@ const interiorAt = (x: number, z: number): InteriorDef | null =>
 const INSIDE_BG = new THREE.Color(0x231c2e);
 let sharedUniforms: SharedUniforms | null = null;
 /** 按总监在哪切室内状态（mountInteriors 装上） */
-let interiorSync: (() => void) | null = null;
+let interiorSync: ((dt: number) => void) | null = null;
 /** 店里的光：顶上的灯（仰角 65°、略偏东，只决定明暗分档），不投影，不随时刻、天气变；没有雨、沙、星星、风、云 */
 const INDOOR_LOOK: DayLook = {
   el: 65,
@@ -194,6 +195,11 @@ const INDOOR_LOOK: DayLook = {
 let cloudWas = 1;
 /** 店里镜头拉近多少（米/纹素 = 默认 × 这个；各店 def.zoom 可以改） */
 const INSIDE_ZOOM = 0.8;
+/**
+ * 小镇里镜头拉近一档（townscale.ts：小镇的楼缩了，人在画面里也该大一点，像 Sneaky Sasquatch 那样人占屏幕高的 5%）。
+ * 俱乐部、酒店扩张地里还是原来的远近；走出去 / 走回来慢慢推拉（同上下车）
+ */
+const TOWN_ZOOM = 0.75;
 function mountInteriors(a: WalkApi) {
   // 默认远近（进山谷时）：店里按它的倍数定远近；出门还原成进门前的
   const mptDefault = a.pipe.rig.metersPerTexel;
@@ -245,7 +251,23 @@ function mountInteriors(a: WalkApi) {
     const mm = document.getElementById('minimap');
     if (mm) mm.style.visibility = def ? 'hidden' : '';
   };
-  interiorSync = sync;
+  // 小镇的远近：按总监在不在俱乐部里，相对地推拉（同 vehicles.ts 上下车的缩放，和它乘在一起）；店里不管（进出店是绝对的）
+  let townK = 1;
+  const townZoom = (dt: number) => {
+    if (insideOf) return;
+    const p = a.director.position;
+    const want = keepScale(p.x, p.z) ? 1 : TOWN_ZOOM;
+    if (Math.abs(want - townK) < 1e-3) return;
+    const step = Math.exp(Math.sign(want - townK) * Math.min(Math.abs(Math.log(want / townK)), dt * Math.log(1.25)));
+    townK *= step;
+    a.play.zoomBy(step);
+  };
+  // at= 直接出生在小镇里：一开始就是小镇的远近
+  townZoom(10);
+  interiorSync = (dt) => {
+    sync();
+    townZoom(dt);
+  };
   const go = (x: number, z: number, yaw: number) => {
     if (busy) return;
     busy = true;
