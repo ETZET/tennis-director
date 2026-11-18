@@ -35,3 +35,33 @@ jobs:
         with:
           name: sandbox-dist
           path: apps/sandbox/dist/
+
+  # 导航体检：画面上看着能走的和导航真能走的对一对（apps/sandbox/src/clubwalk/audit.ts），
+  # 跟 docs/lab/2026-11-07-3d-pixel/tools/walkaudit-baseline.json 比：新的穿模 / 空气墙 / 脚不着地、够不着的互动点都不让过。
+  # 故意的写进 clubwalk/nav-exceptions.ts；修好了以后本地跑 --update 更新基线。
+  walkaudit:
+    name: 导航体检
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: 装 Chromium
+        run: pnpm exec playwright-core install --with-deps chromium
+      - name: 构建
+        run: pnpm build
+      - name: 体检（看着能走 vs 真能走）
+        run: |
+          pnpm --filter @td/sandbox exec vite preview --port 5317 --strictPort &
+          for i in $(seq 60); do curl -sf http://localhost:5317/clubwalk.html > /dev/null && break; sleep 1; done
+          node docs/lab/2026-11-07-3d-pixel/tools/walkaudit.mjs walkaudit-out --check
+      - name: 上传对照图
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: walkaudit
+          path: walkaudit-out/

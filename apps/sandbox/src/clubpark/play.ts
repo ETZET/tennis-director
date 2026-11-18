@@ -10,6 +10,7 @@
 // 递钥匙让会员自己去取车：代客能腾出手接下一辆，可是总监离开了大门口（门童装满推车、落客的人没人接）。
 // 玩法模式比只看模式多一辆落客、一个取车（layout.ts GATE_TIMING.rush）：代客一个人忙不过来。
 import * as THREE from 'three';
+import { plantBlock } from '../clubsite/nature/block';
 import type { Play, Shape } from '../clubsite/play';
 import type { RegionJobs, RegionNav, RegionStart } from '../clubsite/region';
 import { GATE } from '../clubsite/world';
@@ -27,9 +28,6 @@ export interface ParkPlayEnv {
   life: ParkLife | undefined;
 }
 
-/** 挡路的植物（树干半径） */
-const PLANT_R: Record<string, number> = { 'fan-palm': 0.45, agave: 0.5, brittlebush: 0.4, 'barrel-cactus': 0.35 };
-
 /** 独立页面的开局（main.ts 的 mountPlay） */
 export const PARK_START: RegionStart = {
   start: SPOTS.director,
@@ -39,7 +37,7 @@ export const PARK_START: RegionStart = {
 };
 
 /** 导航：落客区、两片停车场、门洞 */
-export function parkNav(): RegionNav {
+export function parkNav(root?: THREE.Object3D): RegionNav {
   const blocked: Shape[] = [
     ...BLOCKED,
     // 花坛、种植带：画出来的圆角轮廓（直角矩形会把岗亭东南角和北花坛西北角之间卡成一个单格孤岛）
@@ -63,8 +61,9 @@ export function parkNav(): RegionNav {
             z0: s.z + pz - PIER / 2,
             z1: s.z + pz + PIER / 2,
           });
-    const r = PLANT_R[s.asset];
-    if (r && Math.abs((s.y ?? 0) - 0.15) < 0.1) blocked.push({ x: s.x, z: s.z, r: r * (s.s ?? 1) });
+    // 植物（clubsite/nature/block.ts：按摆好的网格量身体那一层的枝叶；root 不给 = 按表）
+    const r = plantBlock(s.asset, s.variant, s.s, root?.getObjectByName(`slot:${s.id}`));
+    if (r && Math.abs((s.y ?? 0) - 0.15) < 0.1) blocked.push({ x: s.x, z: s.z, r });
   }
   return {
     bounds: { x0: 57.5, x1: 92, z0: -27, z1: 27 },

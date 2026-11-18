@@ -36,6 +36,9 @@ argument-hint: <场景描述：主题、时间、主角/焦点、要发生的事
    - 全帧：`node docs/lab/2026-11-07-3d-pixel/tools/stats.mjs '[["名字","图.png",每纹素像素数]]'` → 饱和度 ≥ 0.42、强边缘 ≤ 0.05、细变化 0.17～0.21、亮度两峰。
    - 每类物件：`node docs/lab/2026-11-07-3d-pixel/tools/lum.mjs '[["名字","图.png",x,y,w,h]]'` → 暗/中/亮比例对照参考（池塘：树冠 ≈ 163 · 24/26/50，亮处灌木 ≈ 158–165 · 24/27/49，阴影灌木 ≈ 134 · 35/43/23）。
    - 裁切并排放大：`node docs/lab/2026-11-07-3d-pixel/tools/crop.mjs <out> <倍数> x y w h <参考> <修前> <修后>`。
+   - 能走的地方（接进 clubwalk 以后）：`node docs/lab/2026-11-07-3d-pixel/tools/walkaudit.mjs <out> <区域> --check`（dev server 开着）→ 没有新的穿模 / 空气墙 / 脚不着地，互动点都够得着。
+     挡路半径别手写：植物、伞按网格量（`clubsite/nature/block.ts`），台阶走 `rampFromStairs`（坡道穿过踏面中点），区域边不切过台阶（`clubwalk/regions.test.ts`）。
+     故意不让走的写进 `clubwalk/nav-exceptions.ts`（写原因）；修好了跑 `--update` 更新基线。
    - 主代理自己复查：重新渲染、重测数字、看裁切，不只看子代理报告。
 5. **交付**：手机竖屏截图 + 在线可玩页面：`bash .claude/skills/pixel-scene/scripts/single-file.sh <页面名> <输出.html> [默认查询串]`，先在浏览器里打开一次确认没报错，再用 Artifact 发布（私有）。
 

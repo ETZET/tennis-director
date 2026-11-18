@@ -197,7 +197,7 @@ export function createParkRegion(host: RegionHost, kit = createParkKit(host)): P
     life,
     terrain,
     groundAt: terrain.groundAt,
-    nav: parkNav,
+    nav: () => parkNav(parent),
     director: () => host.director ?? parent.getObjectByName('slot:director') ?? null,
     start: PARK_START,
     update(dt, t) {

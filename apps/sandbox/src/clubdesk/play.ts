@@ -6,6 +6,7 @@
 // 毛巾随手放在地上 → "拿起 毛巾"。
 import * as THREE from 'three';
 import { BERMS, WALKABLE as PARK_WALKABLE, STRIPS, WALL_OUT } from '../clubpark/layout';
+import { plantBlock } from '../clubsite/nature/block';
 import { footprint, type Play, type Rect, rampFromStairs, type Shape, stairCheeks } from '../clubsite/play';
 import type { RegionJobs, RegionNav, RegionStart } from '../clubsite/region';
 import {
@@ -38,15 +39,6 @@ const WEST_PATHS: Rect[] = PATHS.map((p) => ({
   x1: Math.min(p.x1, EAST_PATH_X0),
 })).filter((p) => p.x1 - p.x0 > 0.05);
 
-/** 挡路的植物（按资产 id 的树干/株半径，乘 slot 的缩放） */
-const PLANT_R: Record<string, number> = {
-  'fan-palm': 0.45,
-  'palo-verde': 0.45,
-  'smoke-tree': 0.5,
-  creosote: 0.6,
-  brittlebush: 0.45,
-  agave: 0.6,
-};
 /** 按包围盒挡路的家具（slot id） */
 const BOXED = ['back-cabinet', 'towel-cart', 'water-station', 'tool-rack', 'checkin-board', 'bench-prom', 'bench-lawn'];
 
@@ -85,6 +77,24 @@ const SAIL_FEET: [number, number][] = [
   [-2.05, 1.5],
 ];
 const SAIL_POST = 0.36;
+/**
+ * 帆布垂到头那么低的那一块（资产局部坐标的多边形）：断了绳的前右角在风里翻，
+ * 导航体检（?audit=1）隔 1.7 秒量 8 次、身体那一层有布的格子的并集
+ */
+const SAIL_SAG: [number, number][] = [
+  [1.5, -0.04],
+  [1.71, 0.25],
+  [1.71, 0.5],
+  [1.54, 0.92],
+  [1.29, 1.42],
+  [1.04, 1.71],
+  [0.58, 1.67],
+  [-0.17, 1.58],
+  [-0.54, 1.42],
+  [-0.25, 1.08],
+  [0.5, 0.62],
+  [1.08, 0.21],
+];
 
 /**
  * 匹克球围场：四边围网按 PICKLE_DOORS 留口（西门 z 4.5…7.5、东围网北头的员工小门 z −2.0…−0.8；同 terrain.ts 的 fenceRect），
@@ -158,8 +168,9 @@ export function deskNav(scene: THREE.Object3D): RegionNav {
     if (r) blocked.push(r);
   }
   for (const s of SLOTS) {
-    const r = PLANT_R[s.asset];
-    if (r && (s.y ?? 0) < 0.5) blocked.push({ x: s.x, z: s.z, r: r * (s.s ?? 1) });
+    // 植物（clubsite/nature/block.ts：按摆好的网格量身体那一层的枝叶）
+    const r = plantBlock(s.asset, s.variant, s.s, slot(s.id));
+    if (r && (s.y ?? 0) < 0.5) blocked.push({ x: s.x, z: s.z, r });
   }
   // 陶罐（上面种着龙舌兰）
   blocked.push({ x: 58.4, z: -7.3, r: 0.45 });
@@ -172,6 +183,13 @@ export function deskNav(scene: THREE.Object3D): RegionNav {
       const w = sail.localToWorld(new THREE.Vector3(fx, 0, fz));
       blocked.push({ x: w.x, z: w.z, r });
     }
+    // 帆布垂下来的那一块（前右角绳子断了，布角垂到离草坪 ≈ 1.1 米，头钻进布里）
+    blocked.push({
+      poly: SAIL_SAG.map(([x, z]) => {
+        const w = sail.localToWorld(new THREE.Vector3(x, 0, z));
+        return [w.x, w.z] as const;
+      }),
+    });
   }
   // 门外：clubpark 的花坛、种植带（同 clubpark/layout.ts 的 BLOCKED；岗亭不在这个场景里，不挡）
   for (const b of [...BERMS, ...STRIPS]) blocked.push(b.r);

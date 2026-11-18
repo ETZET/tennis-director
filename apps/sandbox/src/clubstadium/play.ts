@@ -16,9 +16,10 @@
 //   · 比赛中场地关着（MATCH_RECT 进不去，网两边过不去）；只有换边那十几秒能进场。场边那一条（南看台脚下、底线后）能走。
 // 顶栏：比赛（倒计时 / 比分）、沙、底线、杯子、观众。
 import * as THREE from 'three';
+import { plantBlock } from '../clubsite/nature/block';
 import { footprint, type Item, type Play, type Rect, type Shape } from '../clubsite/play';
 import type { AssetCtx } from './ctx';
-import { MATCH_RECT, NET_POST_Z, northTread, PLAYERS_GATE, S, STANDS, TERRACE } from './layout';
+import { MATCH_RECT, NET_POST_Z, northTread, PLAYERS_GATE, S, SLOTS, STANDS, TERRACE } from './layout';
 import { SAND_BLOCK, type StadiumLife } from './life';
 
 /** 静态挡路的：网、广告板、裁判椅、球员席、伞杆、工具架、拱门两根柱子、饮水点、几簇植物 */
@@ -36,8 +37,6 @@ export function staticBlocked(objs: Map<string, THREE.Object3D>): Shape[] {
       z0: PLAYERS_GATE.z + s * 2.6 - 0.55,
       z1: PLAYERS_GATE.z + s * 2.6 + 0.55,
     })),
-    { x: -24.4, z: -24.6, r: 0.5 },
-    { x: -24.2, z: -17.2, r: 0.45 },
   ];
   // 北看台走道之间的座位块（第 0～4 级的实心台阶，北沿 = 最高一级踏面前沿往南 0.1）：横走道的南沿、走道两边由它挡。
   // 挡路形状的角是圆的（推出 = 沿法线滑），摇杆往东 / 往西带一点南偏走过走道口时会被圆角托回横走道，不会卡进走道口的死角
@@ -55,18 +54,10 @@ export function staticBlocked(objs: Map<string, THREE.Object3D>): Shape[] {
   }
   // 会所露台（邻居）东沿凉棚的柱子（terrain.ts：x = TERRACE.x1 − 0.6，z0 + 1 起每 4.8 米一根，0.35 见方）：西头能走的到 x −27.4，压着这一排
   for (let z = TERRACE.z0 + 1; z <= TERRACE.z1 - 0.5; z += 4.8) out.push({ x: TERRACE.x1 - 0.6, z, r: 0.25 });
-  // 端梯西边沙地上的两簇（半径同 clubplaza 的 PLANT_R）
-  for (const [id, r] of [
-    ['brittle-w', 0.45],
-    ['creosote-w', 0.6],
-    // 东看台背后的沙地（去广场的小路两边）
-    ['brittle-e', 0.45],
-    ['creosote-e', 0.6],
-    ['smoke-e', 0.35],
-    ['palm-se', 0.36],
-  ] as const) {
-    const o = objs.get(id);
-    if (o) out.push({ x: o.position.x, z: o.position.z, r });
+  // 植物（端梯西边沙地上的两簇、东看台背后去广场的小路两边、长廊边的蒲葵……；clubsite/nature/block.ts，按摆好的网格量）
+  for (const s of SLOTS) {
+    const r = plantBlock(s.asset, s.variant, s.s, objs.get(s.id));
+    if (r && s.y === undefined) out.push({ x: s.x, z: s.z, r });
   }
   for (const id of ['umbrella-w', 'umbrella-e']) {
     const o = objs.get(id);

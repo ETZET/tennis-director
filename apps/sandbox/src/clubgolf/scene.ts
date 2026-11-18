@@ -187,7 +187,7 @@ export function createGolfRegion(host: RegionHost): GolfRegion {
     id: 'clubgolf',
     root: parent,
     groundAt: (x, z) => terrain.groundAt(x, z),
-    nav: golfNav,
+    nav: () => golfNav(parent),
     director: () => null,
     start: { start: [0, 0] },
     update(dt, t) {

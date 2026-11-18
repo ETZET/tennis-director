@@ -204,6 +204,10 @@ export interface Play {
   addBlocker(fn: () => Circle | readonly Circle[] | null | undefined): () => void;
   /** 一个人当挡路圆（半径默认 0.3） */
   blockPerson(obj: THREE.Object3D, r?: number): () => void;
+  /** 现在所有会动的挡路圆（调试 / 体检用） */
+  blockerCircles(): Circle[];
+  /** 现在登记着的互动点（调试 / 体检用） */
+  interactables(): Interactable[];
 
   // 界面数据（hud 读）
   say(anchor: Anchor, text: string, sec?: number, dy?: number): void;
@@ -918,6 +922,8 @@ export function createPlay(opts: PlayOpts): Play {
       blockers.add(fn);
       return () => blockers.delete(fn);
     },
+    blockerCircles: () => circles(),
+    interactables: () => [...inters.values()],
     blockPerson(obj, r = 0.3) {
       const c: Circle = { x: 0, z: 0, r };
       return api.addBlocker(() => {

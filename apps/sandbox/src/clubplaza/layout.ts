@@ -107,6 +107,19 @@ export const STADIUM_LINK = {
   stairs: { x0: PLAZA.x0 - 5 * 0.42, x1: PLAZA.x0, z0: -25.3, z1: -22.7, steps: 5, run: 0.42 },
   path: { x0: 21.6, x1: PLAZA.x0 - 5 * 0.42 + 0.05, z0: -25.1, z1: -22.9 } as Rect,
 };
+/**
+ * 西沿台阶的导航坡道（地面 0 在西头 → 广场 1.2 在东头）。terrain.ts 的画法：第 k 级踏面 x1 − (k + 1)·run … x1 − k·run、高 1.2 − rise·(k + 1)，
+ * 坡道穿过踏面中点 = 整条往东（高的那头）挪半级（同 clubsite/play 的 rampFromStairs）
+ */
+export const STADIUM_LINK_RAMP = {
+  x0: STADIUM_LINK.stairs.x0 + STADIUM_LINK.stairs.run / 2,
+  x1: STADIUM_LINK.stairs.x1 + STADIUM_LINK.stairs.run / 2,
+  z0: STADIUM_LINK.stairs.z0,
+  z1: STADIUM_LINK.stairs.z1,
+  from: 0,
+  to: 1.2,
+  axis: 'x' as const,
+};
 
 // ── 站位、路线、能走的地方（玩法以后用；白模里标签开着时画成洋红小圆盘 + 小点）──────
 /**

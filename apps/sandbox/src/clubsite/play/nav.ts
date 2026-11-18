@@ -30,6 +30,7 @@ export type Shape = Rect | Circle | Poly | Seg;
 /**
  * 坡道 / 台阶：矩形里高度按 axis 方向线性插值（from 在 z0 / x0 那头，to 在 z1 / x1 那头），覆盖 groundAt。
  * 台阶就当坡道走（人一级一级的起伏不做）。场景的 Stairs（x0, x1, z0, steps, run, from, to）用 rampFromStairs 换。
+ * 台阶的坡道要穿过每一级踏面的中点（脚离踏面上下不超过半级）：穿过台阶前沿的话，每级踏面的后半截脚悬空最多一整级。
  */
 export interface Ramp extends Rect {
   from: number;
@@ -45,7 +46,10 @@ export function rampFromStairs(s: {
   from: number;
   to: number;
 }): Ramp {
-  return { x0: s.x0, x1: s.x1, z0: s.z0, z1: s.z0 + s.steps * s.run, from: s.from, to: s.to, axis: 'z' };
+  // 画法（clubdesk / clubplaza 的 stairsGeo）：第 k 级踏面 z0 + k·run … z0 + (k + 1)·run、高 from − rise·(k + 1)，最后一级就是 to 那层。
+  // 踏面中点连起来 = 整条线往 from 那头挪半级
+  const h = s.run / 2;
+  return { x0: s.x0, x1: s.x1, z0: s.z0 - h, z1: s.z0 + s.steps * s.run - h, from: s.from, to: s.to, axis: 'z' };
 }
 
 /**

@@ -542,7 +542,8 @@ export const PLAY_WALK: Rect[] = [
   CELL,
   { x0: -27.4, x1: CELL.x0, z0: CELL.z0 + 0.4, z1: -9.7 },
   { x0: -27.4, x1: STANDS.north.x0 - 1.2, z0: NAV_BOUNDS.z0, z1: CELL.z0 + 0.4 },
-  { x0: -27.4, x1: 24, z0: -9.7, z1: -4.4 },
+  // 长廊（东到广场西沿的挡土墙前 x 31：clubwalk 里接 clubpickle 的长廊；原来到 x 24 为止，东南角那 7 米看着是路、走不过去）
+  { x0: -27.4, x1: 31, z0: -9.7, z1: -4.4 },
   { x0: CELL.x1, x1: 21.6, z0: CELL.z1, z1: -9.7 },
   // 东看台背后的沙地（东到广场西沿的挡土墙前 x 31，clubwalk 里接 clubplaza）+ 东北角（北看台东头以东，北到北围墙脚）
   { x0: 21.6, x1: 31, z0: CELL.z0, z1: -9.7 },
@@ -551,15 +552,44 @@ export const PLAY_WALK: Rect[] = [
 /**
  * 看台上走的路（坡道：高度按 z 线性插值，覆盖地面高度）。北看台的广告板（0.9 高）挡住走道的下口，
  * 所以上看台只有一条路：西头端梯（x −21.2…−20）→ 最高一级的横走道（y 5.4）→ 四条走道往下（到第 0 级，y ≈ 1）。
- * 横走道 = 最高一级踏面座椅前面那条（画出来 z −36.68…−36.0）：坡道放宽到 z −36.95…−35.8（身体可以挨着座椅、探出踏面前沿一点），
- * 南沿靠 play.ts 的座位块挡路（圆角，摇杆带一点南偏也能滑过走道口），不靠坡道边。
- * 走道的台阶当坡道走：第 k 级前沿 z = −30 − 1.2k、高 0.9(k + 1) → y(z) = 0.9 + 0.75 × (−30 − z)。
+ * 台阶当坡道走，坡道穿过每一级踏面的中点（脚在踏面上下差半级以内；原来穿过台阶的前沿，踏面后半截脚悬空最多一整级）：
+ * - 走道：半级 0.45 高 × 0.6 深（terrain.ts：每级看台踏面中间加一个半级），第 j 个踏面 z −30 − 0.6j … −30.6 − 0.6j、高 0.9 + 0.45j
+ *   → y(z) = 0.675 + 0.75 × (−30 − z)，到横走道的高度 5.4 在 z −36.3；
+ * - 西头端梯：12 步，从 z −29.6 到后墙脚 −37.2（每步 0.633 深、0.45 高）→ y(z) = 0.71 × (−29.3 − z)，地面那头从 z −29.3 起（台阶脚前 0.3 米），
+ *   5.4 在 z −36.9；
+ * - 横走道 = 最高一级踏面座椅前面那条（画出来 z −36.68…−36.0）：坡道 z −36.7…−35.8，南沿靠 play.ts 的座位块挡路
+ *   （圆角，摇杆带一点南偏也能滑过走道口），北沿挨着座椅（原来放宽到 −36.95，身体压进座椅 0.3 米）。
+ * 端梯、走道放在横走道前面：重叠的地方以台阶为准，接缝处高度相等（寻路每格最多升 stepUp / 2）。
  */
 export const STAND_TOP_Y = northTread(STANDS.north.n - 1).y;
-/** 横走道的 z 范围；端梯、走道从它的南沿（z1）起坡，接缝处不起台阶（寻路每格最多升 stepUp / 2） */
-const CROSS_Z = { z0: -36.95, z1: -35.8 } as const;
+/** 横走道的 z 范围 */
+const CROSS_Z = { z0: -36.7, z1: -35.8 } as const;
+/** 走道到横走道高度的地方（坡道穿过踏面中点） */
+const AISLE_TOP_Z = -30 - (STAND_TOP_Y - 0.675) / 0.75;
+/** 西头端梯：踏面中点连线到横走道高度的地方、落到地面的地方 */
+const END_STAIR = { top: -36.9, foot: -29.3 } as const;
 export const STAND_RAMPS = [
-  // 横走道（放在最前面：和端梯、走道重叠的地方以它为准）
+  // 西头端梯：从场地北沿的西头（地面）往北上到横走道
+  {
+    x0: STANDS.north.x0 - 1.2,
+    x1: STANDS.north.x0,
+    z0: END_STAIR.top,
+    z1: END_STAIR.foot,
+    from: STAND_TOP_Y,
+    to: 0,
+    axis: 'z' as const,
+  },
+  // 四条走道（下口到第 0 级前沿，被广告板挡住）
+  ...STANDS.aisles.map((c) => ({
+    x0: c - STANDS.aisleW / 2,
+    x1: c + STANDS.aisleW / 2,
+    z0: AISLE_TOP_Z,
+    z1: STANDS.north.front,
+    from: STAND_TOP_Y,
+    to: 0.675,
+    axis: 'z' as const,
+  })),
+  // 横走道
   {
     x0: STANDS.north.x0 - 1.2,
     x1: STANDS.north.x1,
@@ -569,26 +599,6 @@ export const STAND_RAMPS = [
     to: STAND_TOP_Y,
     axis: 'z' as const,
   },
-  // 西头端梯：从场地北沿的西头（z −29.6，地面）往北上到横走道
-  {
-    x0: STANDS.north.x0 - 1.2,
-    x1: STANDS.north.x0,
-    z0: CROSS_Z.z1,
-    z1: -29.6,
-    from: STAND_TOP_Y,
-    to: 0,
-    axis: 'z' as const,
-  },
-  // 四条走道（下口到第 0 级前沿，被广告板挡住）
-  ...STANDS.aisles.map((c) => ({
-    x0: c - STANDS.aisleW / 2,
-    x1: c + STANDS.aisleW / 2,
-    z0: CROSS_Z.z1,
-    z1: STANDS.north.front,
-    from: STAND_TOP_Y,
-    to: 0.9,
-    axis: 'z' as const,
-  })),
 ];
 /** 东看台背后的台阶（坡道：x0 那头高、x1 那头地面）+ 台阶顶上东看台最高一级踏面的一小块平台 */
 const EAST_TOP = tier(STANDS.east.n - 1, STANDS.east.rise, STANDS.east.deep).top;

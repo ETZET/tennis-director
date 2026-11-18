@@ -13,6 +13,7 @@
 //   走进近场双打线以内 = 打断这一分（life：重发）。场边的"换水桶"要总监自己走过去。
 // 顶栏：远场的状况（clay.stats()：拖平 / 线 / 湿 / 起尘 → 一句结论）、近场比分、水站水位。
 import * as THREE from 'three';
+import { measuredBlockR } from '../clubsite/nature/block';
 import { footprint, type Item, type Play, type Shape } from '../clubsite/play';
 import type { AssetCtx } from './ctx';
 import { BLOCK_SHAPES, DRY_SECONDS, FAR, type Rect, WALK_RECTS } from './layout';
@@ -37,6 +38,12 @@ export function navShapes(objs: Map<string, THREE.Object3D>): { walkable: Shape[
     const o = objs.get(id);
     const r = o ? footprint(o, 0.05) : null;
     if (r) blocked.push(r);
+  }
+  // 场边的三把伞：伞面边离地 1.2～1.6 米（总监的头顶 1.77），按伞面挡（clubsite/nature/block.ts 量网格；layout 里的伞杆圆是没摆好时的底）
+  for (const id of ['umbrella-w', 'umbrella-e', 'umbrella-s']) {
+    const o = objs.get(id);
+    const r = o ? measuredBlockR(o) : null;
+    if (o && r) blocked.push({ x: o.position.x, z: o.position.z, r });
   }
   // 记分牌：只挡两条腿那一条（牌子悬在上面）
   const sb = objs.get('scoreboard');

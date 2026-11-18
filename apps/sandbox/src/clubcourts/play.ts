@@ -15,6 +15,7 @@
 //           从会员场过去要走北门 → 两排场之间的步道 → 东场南门，是离会员场最远的一件活。
 // 顶栏：会员场的沙 / 水（相对开局）、球车 / 发球机里的球、抱怨。
 import * as THREE from 'three';
+import { measuredBlockR, plantBlock } from '../clubsite/nature/block';
 import { footprint, type Play, type Shape } from '../clubsite/play';
 import type { RegionNav, RegionStart } from '../clubsite/region';
 import {
@@ -31,8 +32,6 @@ import {
 } from './layout';
 import type { CourtsLife } from './life';
 
-/** 挡路的植物（树干 / 株半径，乘 slot 的缩放） */
-const PLANT_R: Record<string, number> = { 'palo-verde': 0.45, 'smoke-tree': 0.5, creosote: 0.6, brittlebush: 0.45 };
 /** 按包围盒挡路的东西（slot id） */
 const BOXED = [
   'bench-m-w',
@@ -69,23 +68,18 @@ export function courtsNav(objs: Map<string, THREE.Object3D>): RegionNav {
     const r = o && footprint(o, 0.06);
     if (r) blocked.push(r);
   }
-  // 家长的伞：只挡底座和杆（clubsite/assets/umbrella 的 CLAY：底座 0.62 见方）；伞面 2.4 米在头顶上，不挡北边长廊
+  // 家长的伞：伞面边离地只有 1.6 米（总监的头顶 1.77），按伞面挡（clubsite/nature/block.ts 量网格：身体那一层的伞面、底座）
   const um = objs.get('umbrella-parents');
-  if (um)
-    blocked.push({
-      x0: um.position.x - 0.31,
-      x1: um.position.x + 0.31,
-      z0: um.position.z - 0.31,
-      z1: um.position.z + 0.31,
-    });
+  if (um) blocked.push({ x: um.position.x, z: um.position.z, r: measuredBlockR(um) ?? 0.44 });
   // 喷雾的小水泵（mist-line 东头的小箱子 0.42 × 0.32，水泥垫 0.5 × 0.4）
   blocked.push({ x0: PUMP[0] - 0.25, x1: PUMP[0] + 0.25, z0: PUMP[1] - 0.2, z1: PUMP[1] + 0.2 });
   // 记分牌：只挡两条腿那一条
   const sb = objs.get('scoreboard');
   if (sb) blocked.push({ a: [sb.position.x - 0.8, sb.position.z], b: [sb.position.x + 0.8, sb.position.z], r: 0.16 });
   for (const s of SLOTS) {
-    const r = PLANT_R[s.asset];
-    if (r) blocked.push({ x: s.x, z: s.z, r: r * (s.s ?? 1) });
+    // 植物（clubsite/nature/block.ts：按摆好的网格量身体那一层的枝叶）
+    const r = plantBlock(s.asset, s.variant, s.s, objs.get(s.id));
+    if (r) blocked.push({ x: s.x, z: s.z, r });
   }
   return { bounds: NAV_BOUNDS, walkable: WALK_RECTS, blocked };
 }

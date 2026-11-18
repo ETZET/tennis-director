@@ -5,6 +5,7 @@
 // 调试层：站位（洋红小圆盘）、路线（每 0.9 米一个小点）、门（门洞里一排小方点）。只在标签开着时画（?labels=0 的截图里没有）。
 import * as THREE from 'three';
 import { DECK_RAMPS } from '../clubpool/layout';
+import { plantBlockR } from '../clubsite/nature/block';
 import type { Shape } from '../clubsite/play/nav';
 import { smoothLine } from '../clubsite/render/geo';
 import type { AssetCtx } from './ctx';
@@ -57,9 +58,6 @@ const inAny = (rs: readonly Rect[], x: number, z: number) => rs.some((r) => inR(
 const LIFT_SHAFT: Rect = { x0: LIFT.x0, x1: LIFT.x1, z0: LIFT.z0, z1: LIFT.z1 };
 const GOODS_SHAFT: Rect = { x0: GOODS_LIFT.x0, x1: GOODS_LIFT.x1, z0: GOODS_LIFT.z0, z1: GOODS_LIFT.z1 };
 
-/** 树：只挡树干（圆，半径 = 树干底的半径 × 缩放；树冠在头顶上，底下能走） */
-const TRUNK: Record<string, number> = { 'fan-palm': 0.36 };
-
 /** 某一层挡路的：墙 + 家具的脚印（矩形，转 90° 的换宽深；斜放的按包围盒）+ 楼梯栏板 + 电梯井。不给层 = 一层 */
 export function houseBlocked(floor: Floor = 1): Shape[] {
   const cut = viewOf(true, floor);
@@ -70,7 +68,8 @@ export function houseBlocked(floor: Floor = 1): Shape[] {
     // 这一层的剖面里看不到的不挡（views 只有 'out' 的钟楼塔身、烟囱：钟楼门厅、钟楼二层就在塔身里）。
     // 一层不给 mode 的（拱廊的长椅、花盆）viewsFor 含 '1f'，照样挡
     if (!(s.views ?? viewsFor(s.level ?? 1, s.mode)).includes(cut)) continue;
-    const trunk = TRUNK[s.asset];
+    // 树（clubsite/nature/block.ts：蒲葵 v0 / v1 只挡树干，v2 按垂下来的枯叶裙）
+    const trunk = plantBlockR(s.asset, s.variant);
     if (trunk) {
       out.push({ x: s.x, z: s.z, r: trunk * (s.s ?? 1) });
       continue;

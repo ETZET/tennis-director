@@ -38,6 +38,7 @@ import {
   STAIRS,
   WALL,
 } from '../clubdesk/layout';
+import { plantBlockR } from '../clubsite/nature/block';
 import { rampFromStairs, stairCheeks } from '../clubsite/play/nav';
 import { COURTS, type Court, FORECOURT, GATE, LAWN, PATHS, PICKLE, PLAZA, type Rect, type V2 } from '../clubsite/world';
 
@@ -198,15 +199,8 @@ const WALL_IN = GATE.x - WALL.t / 2;
  * 北到广场上（竖屏上沿 z ≈ −19，喷泉池在外），南到下草坪的台阶脚下再 0.6 米
  */
 const NAV_BOUNDS: Rect = { x0: CLIP.x0, x1: 62, z0: -19, z1: 18.6 };
-/** 挡路的植物（同 clubdesk/play.ts 的 PLANT_R：按资产 id 的树干/株半径，乘 slot 的缩放；摆在高处的不算） */
-const PLANT_R: Record<string, number> = {
-  'fan-palm': 0.45,
-  'palo-verde': 0.45,
-  'smoke-tree': 0.5,
-  creosote: 0.6,
-  brittlebush: 0.45,
-  agave: 0.6,
-};
+/** 挡路的植物（clubsite/nature/block.ts，同 clubdesk/play.ts：乘 slot 的缩放；摆在高处的不算） */
+const plantR = (s: (typeof DESK_SLOTS)[number]) => plantBlockR(s.asset, s.variant) ?? 0;
 /** 广场两段台阶、下草坪一段 */
 const RAMPS = STAIRS.map(rampFromStairs);
 export const NAV = {
@@ -239,8 +233,9 @@ export const NAV = {
     netSeg(COURT2),
     // 场边带的家具
     { x0: 36.6, x1: 38.3, z0: 5.12, z1: 5.58 }, // 拍架
-    { x: 40.3, z: 5.25, r: 0.32 }, // 伞 A 的杆和配重
-    { x: 48.2, z: 5.25, r: 0.32 }, // 伞 B
+    // 伞 A：撑开着，伞面边离地 1.47 米（总监的头顶 1.77），按伞面挡（clubsite/nature/block.ts 量的：身体那一层的伞面 90% 到 1.25）
+    { x: 40.3, z: 5.25, r: 1.2 },
+    { x: 48.2, z: 5.25, r: 0.32 }, // 伞 B（收着；撑开以后伞面在头那么高，这里没跟着变）
     { x0: 39.38, x1: 41.22, z0: 6.02, z1: 6.6 }, // 长椅 A（含坐着的人的脚）
     { x0: 47.28, x1: 49.12, z0: 6.02, z1: 6.6 }, // 长椅 B
     { x0: 45.1, x1: 46.5, z0: 6.22, z1: 6.58 }, // 记分牌
@@ -269,10 +264,10 @@ export const NAV = {
     { x0: 52.49, x1: 54.31, z0: -9.76, z1: -9.16 },
     { x0: 51.49, x1: 53.31, z0: 18.04, z1: 18.64 },
     // 植物（clubdesk 的 SLOTS：绿带上的蒲葵、龙舌兰、灌木，草坪上的假紫荆……）
-    ...DESK_SLOTS.filter((s) => PLANT_R[s.asset] && (s.y ?? 0) < 0.5).map((s) => ({
+    ...DESK_SLOTS.filter((s) => plantR(s) && (s.y ?? 0) < 0.5).map((s) => ({
       x: s.x,
       z: s.z,
-      r: PLANT_R[s.asset] * (s.s ?? 1),
+      r: plantR(s) * (s.s ?? 1),
     })),
     // 台阶两侧的挡路条（同 clubplaza 的 PLAZA-7）：台阶两侧的地面 = 台阶低的那头（广场两段是地面 0，下草坪那段是草坪 −0.5）
     ...RAMPS.flatMap((r) => stairCheeks(r, Math.min(r.from, r.to))),
