@@ -12,6 +12,7 @@ import type { Mode, ValleyNav } from './nav';
 import { valleyMat } from './palette';
 import type { MapCtx, PalKey } from './reuse';
 import { inClubBox, inFloor, onRoad } from './terrain';
+import { CAR_K } from './townscale';
 
 /**
  * 两辆车的手感（drive.ts 的参数）。offroad：路以外（沙地、草）极速 / 抓地乘多少；rear：后轮（扬沙的地方，车身坐标）。
@@ -34,16 +35,17 @@ export const DRIVE = {
   car: {
     speed: 17,
     turn: 2.0,
-    radius: 4.5,
+    // 小镇的比例（townscale.ts）：车身缩到 CAR_K（4.8 米 → 3.1 米），转弯半径、上车距离、后轮跟着缩；快慢不变
+    radius: 4.5 * CAR_K,
     accel: 7.5,
     brake: 20,
     coast: 5,
     grip: 9,
     reverse: 5,
-    reach: 2.1,
+    reach: 2.1 * CAR_K,
     offroad: 0.4,
     zoom: 2.1,
-    rear: [0.92, -1.55] as const,
+    rear: [0.92 * CAR_K, -1.55 * CAR_K] as const,
     name: '汽车',
   },
 } as const;
@@ -103,7 +105,7 @@ function cartModel(mat: (k: PalKey) => THREE.Material) {
  * 原来"腰线"是一整块盖在车顶的白板（从上往下看整辆车是白的）、轮子是锈红色。
  */
 function carModel(mat: (k: PalKey) => THREE.Material) {
-  return geo(
+  const g = geo(
     [
       [box(2.0, 0.55, 4.8, 0, 0.3, 0), 'carRed'],
       [box(1.94, 0.1, 1.5, 0, 0.85, 1.62), 'carRed'], // 引擎盖
@@ -131,6 +133,8 @@ function carModel(mat: (k: PalKey) => THREE.Material) {
     ],
     mat,
   );
+  g.scale.setScalar(CAR_K);
+  return g;
 }
 
 export interface Vehicles {

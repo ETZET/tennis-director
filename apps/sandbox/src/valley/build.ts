@@ -38,6 +38,8 @@ import { buildMountains, MTN_RAMP } from './mountains';
 import { TOWN_EL, valleyMat } from './palette';
 import { EL, type MapCtx, PAL, type PalKey } from './reuse';
 import { CLUB_BOX, HF, inClubBox, LOOKOUT, mountainY, trailY } from './terrain';
+import { TOWN_K } from './townscale';
+import { townWrap } from './townwrap';
 
 type Ramp = [number, number, number];
 /**
@@ -456,6 +458,8 @@ export interface DetailCtx {
   mat(key: PalKey): THREE.Material;
   /** 平的大面（铺地、草坪……）：按区域的真实边界切开再归区域（锁着压暗时边是直的，不按物件中心整块归） */
   putFlat?(key: PalKey, g: THREE.BufferGeometry): void;
+  /** 细的东西（围网、杆、栏杆）：同 put，但不投影 */
+  putThin?(region: string, key: PalKey, g: THREE.BufferGeometry): void;
   /**
    * 资产的上下文（src/valley/assets 的 ASSETS[id](d.actx)）：ctx.mat(key, extra) 认 valley 的整张表（含市中心的新材质）。
    * 只用 ctx.mat 拿材质 —— 锁着的区域按材质名 + extra 换压暗的一份（ctx.mats.toon 直接建的材质不会压暗）
@@ -1052,6 +1056,7 @@ export function buildValley(
     root,
     mat: (key) => mat(key, false),
     putFlat,
+    putThin,
     actx,
     asset(obj, region) {
       obj.updateMatrixWorld(true);
@@ -1071,7 +1076,10 @@ export function buildValley(
       root.add(obj);
     },
   };
-  for (const d of details) d(dctx);
+  // 小镇的比例（townscale.ts）：细节照缩之前的尺寸写，townWrap 按位置把它们缩到楼的新尺寸
+  const tctx = townWrap(dctx);
+  for (const d of details) d(tctx);
+  tctx.flush();
   const nearBlocked = (x: number, z: number, pad: number) => blocked.some((sh) => shapeDist(sh, x, z) < pad);
   const nearFlag = (x: number, z: number, pad: number) => flagAt.some(([fx, fz]) => Math.hypot(fx - x, fz - z) < pad);
 
@@ -1168,7 +1176,8 @@ export function buildValley(
           const j = (rnd() - 0.5) * 5;
           const x = p[0] + t[0] * j - t[1] * side * (r.w / 2 + 2.2);
           const z = p[1] + t[1] * j + t[0] * side * (r.w / 2 + 2.2);
-          const s = 0.9 + rnd() * 0.35;
+          // 小镇的比例：大道的棕榈跟楼一起缩（8 米 → 5 米，约 3 个人高）
+          const s = (0.9 + rnd() * 0.35) * TOWN_K;
           const rot = rnd() * 6.28;
           if (!inPoly(FLOOR, x, z) || inClubBox(x, z)) continue;
           if (roadGap(x, z, r) < 1.5 || distToLine(r.pts, x, z) < r.w / 2 + 1.2) continue;
@@ -1186,7 +1195,7 @@ export function buildValley(
       const zs = q.poly.map((v) => v[1]);
       for (let x = Math.min(...xs) + 6; x < Math.max(...xs); x += 12)
         for (let z = Math.min(...zs) + 6; z < Math.max(...zs); z += 12) {
-          const s = 0.7 + rnd() * 0.2;
+          const s = (0.7 + rnd() * 0.2) * TOWN_K;
           const rot = rnd() * 6.28;
           if (!inPoly(q.poly, x, z)) continue;
           // 路从园子里穿过（球拍俱乐部路的东头）：路上和路边 1.5 米不种

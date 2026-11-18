@@ -26,6 +26,7 @@ import {
 import { createValleyNav } from './nav';
 import { mountWalk, type WalkApi } from './reuse';
 import { CLUB_BOX, inFloor, LOOKOUT } from './terrain';
+import { keepScale, TOWN_K } from './townscale';
 import { mountVehicles, type Vehicles } from './vehicles';
 
 const params = new URLSearchParams(location.search);
@@ -122,7 +123,7 @@ function start() {
     },
     drawMap: (g, W, H, view) => drawMap(g, W, H, view),
     step(dt, t) {
-      interiorSync?.();
+      interiorSync?.(dt);
       world?.update(dt, t);
       cars?.step(dt);
     },
@@ -166,7 +167,7 @@ const interiorAt = (x: number, z: number): InteriorDef | null =>
 const INSIDE_BG = new THREE.Color(0x231c2e);
 let sharedUniforms: SharedUniforms | null = null;
 /** 按总监在哪切室内状态（mountInteriors 装上） */
-let interiorSync: (() => void) | null = null;
+let interiorSync: ((dt: number) => void) | null = null;
 /** 店里的光：顶上的灯（仰角 65°、略偏东，只决定明暗分档），不投影，不随时刻、天气变；没有雨、沙、星星、风、云 */
 const INDOOR_LOOK: DayLook = {
   el: 65,
@@ -194,6 +195,11 @@ const INDOOR_LOOK: DayLook = {
 let cloudWas = 1;
 /** 店里镜头拉近多少（米/纹素 = 默认 × 这个；各店 def.zoom 可以改） */
 const INSIDE_ZOOM = 0.8;
+/**
+ * 小镇里镜头拉近一档（townscale.ts：小镇的楼缩了，人在画面里也该大一点，像 Sneaky Sasquatch 那样人占屏幕高的 5%）。
+ * 俱乐部、酒店扩张地里还是原来的远近；走出去 / 走回来慢慢推拉（同上下车）
+ */
+const TOWN_ZOOM = 0.75;
 function mountInteriors(a: WalkApi) {
   // 默认远近（进山谷时）：店里按它的倍数定远近；出门还原成进门前的
   const mptDefault = a.pipe.rig.metersPerTexel;
@@ -245,7 +251,23 @@ function mountInteriors(a: WalkApi) {
     const mm = document.getElementById('minimap');
     if (mm) mm.style.visibility = def ? 'hidden' : '';
   };
-  interiorSync = sync;
+  // 小镇的远近：按总监在不在俱乐部里，相对地推拉（同 vehicles.ts 上下车的缩放，和它乘在一起）；店里不管（进出店是绝对的）
+  let townK = 1;
+  const townZoom = (dt: number) => {
+    if (insideOf) return;
+    const p = a.director.position;
+    const want = keepScale(p.x, p.z) ? 1 : TOWN_ZOOM;
+    if (Math.abs(want - townK) < 1e-3) return;
+    const step = Math.exp(Math.sign(want - townK) * Math.min(Math.abs(Math.log(want / townK)), dt * Math.log(1.25)));
+    townK *= step;
+    a.play.zoomBy(step);
+  };
+  // at= 直接出生在小镇里：一开始就是小镇的远近
+  townZoom(10);
+  interiorSync = (dt) => {
+    sync();
+    townZoom(dt);
+  };
   const go = (x: number, z: number, yaw: number) => {
     if (busy) return;
     busy = true;
@@ -489,6 +511,7 @@ Object.assign(window, {
     onCarriageway: (x: number, z: number) => ROADS.some((r) => r.kind !== 'trail' && distToLine(r.pts, x, z) < r.w / 2),
     /**
      * 验收：路面（车道，不含步道、人行道；两边各收 0.4 米）上离地 0.15～4 米的顶点，按网格名计数（应为 0）。
+     * 小镇里（townscale.ts）上限跟着楼缩成 4 × TOWN_K ≈ 2.5 米：伸到路上空的招牌、树冠跟着压低了，还高过球车顶（2.1 米）
      * docs/lab/2026-11-07-3d-pixel/tools/valley-accept.mjs 调它
      */
     onRoad() {
@@ -497,7 +520,7 @@ Object.assign(window, {
       const M = new THREE.Matrix4();
       const roads = ROADS.filter((r) => r.kind !== 'trail');
       const test = (name: string, x: number, y: number, z: number) => {
-        if (y < 0.15 || y > 4) return;
+        if (y < 0.15 || y > (keepScale(x, z) ? 4 : 4 * TOWN_K)) return;
         for (const r of roads)
           if (distToLine(r.pts, x, z) < r.w / 2 - 0.4) {
             hits.set(`${name} @${r.id}`, (hits.get(`${name} @${r.id}`) ?? 0) + 1);
