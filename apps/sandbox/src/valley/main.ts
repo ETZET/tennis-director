@@ -26,7 +26,7 @@ import {
 import { createValleyNav } from './nav';
 import { mountWalk, type WalkApi } from './reuse';
 import { CLUB_BOX, inFloor, LOOKOUT } from './terrain';
-import { keepScale } from './townscale';
+import { keepScale, TOWN_K } from './townscale';
 import { mountVehicles, type Vehicles } from './vehicles';
 
 const params = new URLSearchParams(location.search);
@@ -511,6 +511,7 @@ Object.assign(window, {
     onCarriageway: (x: number, z: number) => ROADS.some((r) => r.kind !== 'trail' && distToLine(r.pts, x, z) < r.w / 2),
     /**
      * 验收：路面（车道，不含步道、人行道；两边各收 0.4 米）上离地 0.15～4 米的顶点，按网格名计数（应为 0）。
+     * 小镇里（townscale.ts）上限跟着楼缩成 4 × TOWN_K ≈ 2.5 米：伸到路上空的招牌、树冠跟着压低了，还高过球车顶（2.1 米）
      * docs/lab/2026-11-07-3d-pixel/tools/valley-accept.mjs 调它
      */
     onRoad() {
@@ -519,7 +520,7 @@ Object.assign(window, {
       const M = new THREE.Matrix4();
       const roads = ROADS.filter((r) => r.kind !== 'trail');
       const test = (name: string, x: number, y: number, z: number) => {
-        if (y < 0.15 || y > 4) return;
+        if (y < 0.15 || y > (keepScale(x, z) ? 4 : 4 * TOWN_K)) return;
         for (const r of roads)
           if (distToLine(r.pts, x, z) < r.w / 2 - 0.4) {
             hits.set(`${name} @${r.id}`, (hits.get(`${name} @${r.id}`) ?? 0) + 1);
