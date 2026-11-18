@@ -1,6 +1,7 @@
 // 白模的调试层：站位（洋红小圆盘）、路线（每 0.9 米一个小点）、入口（大一号的圆盘 + 一圈小方点）。
 // 只在标签开着时画（?labels=0 的截图里没有）。玩法（stage 3）照 layout.ts 的 SPOTS / ROUTES / WALKABLE / ENTRANCES 做。
 import * as THREE from 'three';
+import { measuredBlockR, plantBlockR } from '../clubsite/nature/block';
 import type { Shape } from '../clubsite/play/nav';
 import type { RegionNav } from '../clubsite/region';
 import { smoothLine } from '../clubsite/render/geo';
@@ -27,15 +28,9 @@ const BOXED = new Set([
   'pool-ladder',
   'pump-house',
 ]);
-/** 按圆挡路的：树只挡树干、伞只挡伞杆、灌木 / 仙人掌按冠的大半（半径 × 缩放；和 clubcourts/play.ts 的 PLANT_R 一致） */
+/** 按圆挡路的：伞只挡伞杆（半径 × 缩放）；植物按 clubsite/nature/block.ts */
 const ROUND: Record<string, number> = {
-  'fan-palm': 0.36,
-  'palo-verde': 0.45,
   'court-umbrella': 0.12,
-  agave: 0.6,
-  brittlebush: 0.45,
-  'barrel-cactus': 0.35,
-  creosote: 0.6,
 };
 /** 围栏的半厚（柱子 0.34，矮墙 0.24） */
 const FENCE_T = 0.17;
@@ -45,7 +40,7 @@ const FENCE_T = 0.17;
  * 家具（帐篷、救生员椅、躺椅、边桌、毛巾车、回收筐、梯子、泵房）的脚印、淋浴只挡立柱、树干、伞杆、灌木。
  * 人、浮床、落叶、台阶（坡道）、门（门柱在围栏的段头里）不挡。
  */
-export function poolBlocked(): Shape[] {
+export function poolBlocked(root?: THREE.Object3D): Shape[] {
   const out: Shape[] = [{ ...POOL }];
   const cut = (a0: number, a1: number, door?: { at: number; gap: number }) =>
     door
@@ -62,9 +57,11 @@ export function poolBlocked(): Shape[] {
   for (const [a, b] of cut(z0, z1, GATES.service)) out.push({ x0: x0 - t, x1: x0 + t, z0: a, z1: b });
   for (const s of SLOTS) {
     const sc = s.s ?? 1;
-    const r = ROUND[s.asset];
+    // 伞、植物：摆好的就按网格量身体那一层（伞面边离地 1.2～1.6 米，头钻进去；clubsite/nature/block.ts），root 不给 = 按表
+    const r = ROUND[s.asset] ?? plantBlockR(s.asset, s.variant);
     if (r) {
-      out.push({ x: s.x, z: s.z, r: r * sc });
+      const o = root?.getObjectByName(`slot:${s.id}`);
+      out.push({ x: s.x, z: s.z, r: (o && measuredBlockR(o)) || r * sc });
       continue;
     }
     // 淋浴：立柱在本地 −z 0.2（两个都没转）
@@ -88,10 +85,11 @@ export function poolBlocked(): Shape[] {
  * 导航（clubwalk 的区域 nav()）：池畔平台的高差由 groundAt 给，三处台阶是坡道，挡路的见 poolBlocked()。
  * 东边到 x −36.5（西步道中线：东门台阶脚下的入口 fromWestPath 在 x −37.6；clubwalk 里 x −38.5 以东归 clubcourts，不受影响）。
  */
-export function poolNav(): RegionNav {
+export function poolNav(root?: THREE.Object3D): RegionNav {
   return {
-    bounds: { x0: GROUNDS.x0, x1: -36.5, z0: -10, z1: 20 },
-    blocked: poolBlocked(),
+    // 西边到围墙里面的脸（墙心 GROUNDS.x0、厚 0.7，同 clubdesk/layout 的 WALL.t）：原来到墙心，身体压进墙里 0.2 米
+    bounds: { x0: GROUNDS.x0 + 0.35, x1: -36.5, z0: -10, z1: 20 },
+    blocked: poolBlocked(root),
     ramps: Object.values(DECK_RAMPS),
   };
 }

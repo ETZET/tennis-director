@@ -20,6 +20,7 @@ import { CLOUDS as PARK_CLOUDS, SPOTS as PARK_SPOTS } from '../clubpark/layout';
 import { createParkKit } from '../clubpark/scene';
 import { CLOUDS as PLAZA_CLOUDS } from '../clubplaza/layout';
 import { mountDaylight } from '../clubsite/daylight';
+import { plantBlock } from '../clubsite/nature/block';
 import { director as clubDirector, kid as clubKid, player as clubPlayer } from '../clubsite/people';
 import {
   type Circle,
@@ -260,6 +261,8 @@ export function mountWalk(hooks: WalkHooks = {}) {
     params: new URLSearchParams(),
     variant: 0,
   };
+  /** 底图撒的植物挡路（clubsite/nature/block.ts）：建好的区域范围里的由区域自己的导航管（allBlocked 裁掉） */
+  const basePlants: Shape[] = [];
   /** 底图：rest = 不归任何区域的（一直显示）；每个区域一块（区域没显示时显示） */
   const base = { rest: new THREE.Group(), by: new Map<string, THREE.Group>() };
   base.rest.name = 'base:rest';
@@ -312,6 +315,8 @@ export function mountWalk(hooks: WalkHooks = {}) {
       const d = ownerOf(p.x, p.z);
       const rc = hooks.restClip;
       if (!d && rc && !inRects([rc], p.x, p.z)) continue;
+      const pr = (p.y ?? 0) < 0.5 ? plantBlock(p.asset, p.v ?? 0, p.s, o) : null;
+      if (pr) basePlants.push({ x: p.x, z: p.z, r: pr });
       (d ? base.by.get(d.id) : base.rest)?.add(o);
     }
     // 底图是静的（没有演出、风摆在着色器里）：世界矩阵算一次就冻住，每帧的 updateMatrixWorld 跳过这整片（≈ 1500 个物体）
@@ -477,8 +482,11 @@ export function mountWalk(hooks: WalkHooks = {}) {
       surface: nav.surface,
       cell: 1000,
     });
-    // 挡路的：和区域范围重叠的整个留（一道墙跨过邻居、中心落在邻居那儿的也留，例如高尔夫的南墙）
-    L.blocked = (nav.blocked ?? []).filter((s) => keepOwn(s, L.def.rects));
+    // 挡路的：和区域范围重叠的整个留（一道墙跨过邻居、中心落在邻居那儿的也留，例如高尔夫的南墙）；
+    // 别的区域把一块的导航交给这个区域（navFrom）的，那一块里的也留（匹克球范围里的草坪归前台的导航：遮阳帆的杆在前台的表里）
+    const lent = REGIONS.flatMap((d) => (d.navFrom ?? []).filter((n) => n.from === L.def.id).map((n) => n.r));
+    const mine = [...L.def.rects, ...lent];
+    L.blocked = (nav.blocked ?? []).filter((s) => keepOwn(s, mine));
   }
   /** 会所的区域（有 setInside / setFloor / onFloor 的）；别的区域 = null */
   const asHouse = (r: Region | null | undefined): HouseRegion | null =>
@@ -502,7 +510,7 @@ export function mountWalk(hooks: WalkHooks = {}) {
     }
     const stadium = COURTS.find((c) => c.kind === 'stadium');
     if (stadium) out.push({ x0: stadium.x - 26, x1: stadium.x + 26, z0: stadium.z - 16, z1: stadium.z - 9.6 });
-    out.push(CLUBHOUSE, POOL);
+    out.push(CLUBHOUSE, POOL, ...basePlants);
     // 东墙（门洞留着）
     out.push({ a: [GATE.x, GROUNDS.z0], b: [GATE.x, GATE.z0 - 0.8], r: 0.4 });
     out.push({ a: [GATE.x, GATE.z1 + 0.8], b: [GATE.x, GROUNDS.z1], r: 0.4 });
@@ -1158,6 +1166,27 @@ export function mountWalk(hooks: WalkHooks = {}) {
       visible: lives.filter((l) => l.visible).map((l) => l.def.id),
       built: lives.filter((l) => l.region).map((l) => [l.def.id, Math.round(l.buildMs)]),
     };
+  }
+
+  // 导航体检（?audit=1&eager=1）：window.__navAudit(rect) 对照画面和导航（clubwalk/audit.ts）
+  if (params.get('audit') === '1' && play) {
+    const p = play;
+    void import('./audit').then(({ installAudit }) =>
+      installAudit({
+        scene,
+        renderer: pipe.renderer,
+        play: p,
+        show(rect) {
+          for (const L of lives) {
+            if (!L.region) continue;
+            const on = L.def.rects.some((r) => rectDist(r, rect) < 6);
+            setVisible(L, on);
+            L.idle = 0;
+          }
+          scene.updateMatrixWorld(true);
+        },
+      }),
+    );
   }
 
   Object.assign(window, {

@@ -10,6 +10,7 @@
 // 放着不管：叶子越积越多 → 长椅上的人皱眉走掉、鸟不回来（life.ts）。总监在这里干活的时候，前台那边就没人（clubdesk 的取舍）。
 import * as THREE from 'three';
 import { GATE_SPEC, STAIRS, WALL } from '../clubdesk/layout';
+import { plantBlock } from '../clubsite/nature/block';
 import {
   footprint,
   type Item,
@@ -22,7 +23,18 @@ import {
 } from '../clubsite/play';
 import type { RegionNav, RegionStart } from '../clubsite/region';
 import { COURTS, GATE, GROUNDS, PATHS } from '../clubsite/world';
-import { CLIP, FOUNTAIN, FOUNTAIN_SPEC, H, PICKLE, PLAZA, SLOTS, SPOTS, STADIUM_LINK } from './layout';
+import {
+  CLIP,
+  FOUNTAIN,
+  FOUNTAIN_SPEC,
+  H,
+  PICKLE,
+  PLAZA,
+  SLOTS,
+  SPOTS,
+  STADIUM_LINK,
+  STADIUM_LINK_RAMP,
+} from './layout';
 import type { LeafRef, PlazaLife } from './life';
 
 /** 东墙、北墙里面的脸（墙中线 GATE.x / GROUNDS.z0、厚 WALL.t） */
@@ -61,22 +73,6 @@ function wallPiers(): Rect[] {
   return out.filter((r) => r.x1 > B.x0 && r.x0 < B.x1 && r.z1 > B.z0 && r.z0 < B.z1);
 }
 
-/** 挡路的植物（树干 / 株半径，乘 slot 的缩放；只算地面上的，花盆里的龙舌兰另算） */
-const PLANT_R: Record<string, number> = {
-  'fan-palm': 0.45,
-  'palo-verde': 0.45,
-  'smoke-tree': 0.5,
-  creosote: 0.6,
-  brittlebush: 0.45,
-  agave: 0.55,
-};
-/**
- * 蒲葵按变体（clubsite/nature/fan-palm.ts 的 VARIANTS）：v2 最矮、枯叶裙最长（skirt 0.78），裙摆垂到离地 0.2～0.9 米、
- * 离树根 ≈0.83～0.89 米（量的：palm-w / palm-ne / palm-gate）→ 按裙子挡（0.65 + 身体 0.28 ≈ 0.93）；v0 / v1 的裙子离地 1.5 米以上（身体那一段只有树干 ≈0.4），按树干
- */
-const PALM_R = [0.45, 0.45, 0.65];
-const plantR = (s: (typeof SLOTS)[number]) =>
-  s.asset === 'fan-palm' ? PALM_R[(((s.variant ?? 0) % 3) + 3) % 3] : PLANT_R[s.asset];
 /** 按包围盒挡路的东西（slot id） */
 const BOXED = ['bench-w', 'bench-n', 'bench-prom', 'bench-link', 'drinks-cart', 'drink-fountain'];
 
@@ -134,8 +130,9 @@ export function plazaNav(scene: THREE.Object3D): RegionNav {
     if (r) blocked.push(r);
   }
   for (const s of SLOTS) {
-    const r = plantR(s);
-    if (r && s.y === undefined) blocked.push({ x: s.x, z: s.z, r: r * (s.s ?? 1) });
+    // 植物（clubsite/nature/block.ts：按摆好的网格量身体那一层的枝叶；只算地面上的，花盆里的龙舌兰另算）
+    const r = plantBlock(s.asset, s.variant, s.s, slot(s.id));
+    if (r && s.y === undefined) blocked.push({ x: s.x, z: s.z, r });
   }
   // 四个花盆（陶罐 + 龙舌兰）
   for (const s of SLOTS) if (s.asset === 'pot') blocked.push({ x: s.x, z: s.z, r: 0.42 });
@@ -162,10 +159,7 @@ export function plazaNav(scene: THREE.Object3D): RegionNav {
   blocked.push(...wallPiers());
 
   const st = STADIUM_LINK.stairs;
-  const ramps: Ramp[] = [
-    ...STAIRS.slice(0, 2).map(rampFromStairs),
-    { x0: st.x0, x1: st.x1, z0: st.z0, z1: st.z1, from: 0, to: 1.2, axis: 'x' },
-  ];
+  const ramps: Ramp[] = [...STAIRS.slice(0, 2).map(rampFromStairs), STADIUM_LINK_RAMP];
   for (const r of ramps) blocked.push(...stairCheeks(r, H.ground));
   return {
     bounds: NAV_BOUNDS,

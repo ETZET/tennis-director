@@ -183,7 +183,7 @@ export function createPoolRegion(host: RegionHost): PoolRegion {
     id: 'clubpool',
     root: parent,
     groundAt: (x, z) => terrain.groundAt(x, z),
-    nav: poolNav,
+    nav: () => poolNav(parent),
     director: () => null,
     start: { start: [0, 0] },
     update(dt, t) {
