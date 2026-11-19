@@ -1,11 +1,14 @@
 // 第二版报社（?inv=2）：一个小办事处（参考 Sneaky Sasquatch 的办事处 / 银行 / 办公室：镜头近、人大、东西少而大）。
 // 局部坐标 x 0…14（西 → 东）、z 0…12（北 → 南），南墙正中是门（x 5.5…8.5）；框架（interiors/index.ts）画地板底、墙、门。
 //
-// 进门第一眼（北墙整面看得见）：正中是总编的大桌，总编坐在桌后、头顶"…"（P1 登广告、P2 接受采访），身后墙上是报头大字
-// THE DESERT SUN；北墙西段三张镶框的旧头版，上面一条 ARCHIVE（P3，中间最大的是 1960 年那期）。
-// 西边：CLASSIFIEDS 分类广告板 + 写字台，三种登法的样张各挂一个价签（ITEMS）。东边：两张记者桌（一个记者坐着，P2 叫过来的就是他）。
-// 门边：东边前台（接待员站在台后、头顶"…"，台上收银机），地上 WAIT HERE 框；西边一排等候椅 + 小茶几。
-// 一条牛血红长地毯从门口直通总编桌（过道 ≥ 3 米宽）。配色照上一轮"深沉的老编辑部"（assets/in2/paper.ts 头注）。
+// 2026-11-19 店里零字（用户："let the layout and visual do the explanation, not the subtext"）。布局讲道理：
+// 进门第一眼（北墙整面看得见）：正中是总编的大桌（屋里最大的一张，墨绿地毯上），总编坐在高背皮椅上、头顶"…"（P1 登广告、P2 接受采访），
+// 身后墙上一块深蓝报头牌，只有外观招牌上那个太阳；一条牛血红长地毯从门口直通他的桌子（过道 ≥ 3 米宽）。
+// 北墙西段三张镶框的旧头版（版面线 + 标题色块 + 照片块）+ 画灯 + 框下铜牌上的年份（P3，中间最大的是 1960 年那期）。
+// 西边：分类广告板钉满浅色小纸条 + 写字台正中一台正对客人的打字机，三种登法下面各一个价签（ITEMS，只有数字）。
+// 东边：记者桌（记者戴渔夫帽、眼镜，桌上相机 + 摊开的本子 —— 和餐馆里是同一个人）+ 一张空着的电脑桌。
+// 门边：东边前台（接待员站在台后、头顶"…"，台上收银机、大服务铃、一摞今天的报），墙角三捆扎好的报；西边一排等候椅 + 小茶几。
+// 店里的字形只剩数字（年份、价签、钟面刻度）。配色照上一轮"深沉的老编辑部"（assets/in2/paper.ts 头注），地毯边降成暗铜。
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { CastLook } from '../../../clubsite/cast/types';
@@ -13,12 +16,12 @@ import { player } from '../../../clubsite/people';
 import { createDresser } from '../../../clubsite/people/dress';
 import type { BaseCtx } from '../../../clubsite/render/ctx';
 import type { ToonOpts } from '../../../clubsite/render/toon';
-import { paperSignMats, ASSETS as V2 } from '../../assets/in2/paper';
+import { ASSETS as V2 } from '../../assets/in2/paper';
 import { ASSETS as V1 } from '../../assets/paper';
 import type { AssetCtx } from '../../ctx';
 import type { PalKey } from '../../palette';
 import type { InteriorCtx, InteriorDef } from '../index';
-import { fascia, floorLabel, priceTag, talkBubble } from './kit';
+import { priceTag, talkBubble } from './kit';
 
 const W = 14;
 const D = 12;
@@ -38,8 +41,8 @@ const PLACES: Place[] = [
   // ── 地板、北墙的皮 ──
   { id: 'in2-paper-floor', x: W / 2, z: 0 },
   { id: 'in2-paper-north-wall', x: W / 2, z: 0 },
-  // ── 北墙西段：三张旧头版（P3）──
-  { id: 'in2-paper-archive', x: 2.45, z: 0, y: 1.45 },
+  // ── 北墙西段：三张旧头版（P3；框下的年份铜牌落在护墙板压条上面）──
+  { id: 'in2-paper-archive', x: 2.45, z: 0, y: 1.65 },
   // ── 正中：总编的大桌 + 高背皮椅（总编坐着）+ 南边一把访客椅（P2 采访时坐）──
   { id: 'in2-paper-editor-desk', x: 7, z: 2.4, block: [2.8, 1.2] },
   { id: 'in-paper-chair', x: 7, z: 1.25, v: 1, block: [0.8, 0.7] },
@@ -58,6 +61,7 @@ const PLACES: Place[] = [
   { id: 'in-paper-water-cooler', x: 13.4, z: 7.4, block: [0.5, 0.5] },
   // ── 门边东：前台（接待员站在台后）──
   { id: 'in2-paper-reception', x: 10.3, z: 9.4, block: [3.3, 0.9] },
+  { id: 'in2-paper-bundles', x: 13.4, z: 9.55, block: [0.55, 0.85] },
   { id: 'in-paper-plant', x: 13.35, z: 11.3, v: 1, block: [0.7, 0.7] },
   // ── 门边西：等候椅（朝南）+ 小茶几 + 落地灯 + 盆栽 ──
   { id: 'in-paper-chair', x: 0.95, z: 9.35, v: 2, block: [0.6, 0.6] },
@@ -92,7 +96,7 @@ export const SPOTS = {
     face: Math.PI,
     card: '-',
     who: 'director',
-    note: '总监在前台前问路（WAIT HERE 框里）',
+    note: '总监在前台前问路（台上的服务铃前）',
   },
   editor: { at: [7, 1.3], face: 0, card: 'P1 P2', who: 'npc', note: '总编坐在大桌后的高背皮椅上，脸朝南，头顶"…"' },
   editorDesk: {
@@ -114,7 +118,7 @@ export const SPOTS = {
     face: Math.PI,
     card: 'P1',
     who: 'director',
-    note: '分类广告写字台前：三种登法的样张 + 价签（ITEMS）',
+    note: '分类广告写字台前（打字机正对着这儿）：钉满小纸条的板 + 三种登法的价签（ITEMS）',
   },
   interviewSeat: {
     at: [5.2, 3.75],
@@ -138,20 +142,20 @@ export const SPOTS = {
     note: '记者平时坐的桌子（总编叫他，他从这儿起身）',
   },
   oldPaper1960: {
-    at: [2.45, 2.4],
+    at: [2.45, 2.6],
     face: 0,
     card: 'P3',
     who: 'prop',
-    note: '北墙中间最大的那张（1960，俱乐部开张）；框的中心离地 2.4',
+    note: '北墙中间最大的那张（1960，俱乐部开张）；框的中心离地 2.6，框下铜牌刻着 1960',
   },
   oldPaperView: { at: [2.45, 1.3], face: Math.PI, card: 'P3', who: 'director', note: '总监站在旧报前（南边）朝北看' },
 } as const;
 
 /** 能买的（挂了价签的）：三种登法（局部坐标，y = 价签中心高）。价钱：越大、越靠前越贵（P1 的取舍） */
 export const ITEMS = [
-  { id: 'ad-classified', name: '分类广告 · 一小块', price: 40, x: 1.18, z: 5.06, y: 1.09 },
-  { id: 'ad-sports', name: '体育版 · 半版', price: 180, x: 2.22, z: 5.06, y: 1.09 },
-  { id: 'ad-front', name: '头版 · 下面一条', price: 350, x: 3.25, z: 5.06, y: 1.09 },
+  { id: 'ad-classified', name: '分类广告 · 一小块', price: 40, x: 1.18, z: 5.06, y: 0.82 },
+  { id: 'ad-sports', name: '体育版 · 半版', price: 180, x: 2.22, z: 5.06, y: 0.82 },
+  { id: 'ad-front', name: '头版 · 下面一条', price: 350, x: 3.27, z: 5.06, y: 0.82 },
 ] as const;
 
 /** 店里的人：位置（局部）、朝向、座面高（null = 站着）、头顶有没有"…"、长相（照第一版） */
@@ -197,21 +201,24 @@ const NPCS: { at: [number, number]; face: number; seat: number | null; talk: boo
     },
   },
   {
-    // 记者（P2 来采访的那个）：坐在自己桌后、脸朝镜头，天蓝衬衫、卡其裤
+    // 记者（P2 来采访的那个）：坐在自己桌后、脸朝镜头。和餐馆里的记者同一身：渔夫帽、眼镜、天蓝长袖衬衫、卡其裤；
+    // 桌上相机 + 摊开的本子（assets/in2/paper.ts 的 reporter-desk v0）
     at: [10.55, 4.5],
     face: 0,
     seat: 0.52,
     talk: false,
     look: {
       body: 'adult',
-      skin: 'brown',
-      hair: 'black',
-      hairStyle: 'curly',
+      skin: 'light',
+      hair: 'brown',
+      hairStyle: 'short',
+      hat: { kind: 'bucket', color: 'tan' },
       shirt: 'sky',
       longSleeves: true,
       bottom: 'khaki',
       bottomKind: 'pants',
       shoes: 'brown',
+      eyes: 'glasses',
     },
   },
   {
@@ -243,6 +250,36 @@ export const INTERIOR_PAPER: InteriorDef = {
   wall: 'slate',
   poi: 'p_paper',
   zoom: 0.45,
+  talk: [
+    {
+      x: 7,
+      z: 3.6,
+      r: 1.5,
+      label: '找总编',
+      line: '总编：想登广告？板子上三种，越大越靠前越贵。要不要我派记者去俱乐部写一篇？',
+    },
+    {
+      x: 2.2,
+      z: 6.65,
+      r: 1.4,
+      label: '登广告',
+      line: '一小块分类 40、体育版半版 180、头版下面一条 350。打字机就在这儿，自己敲。',
+    },
+    {
+      x: 2.45,
+      z: 1.3,
+      r: 1.4,
+      label: '看旧报',
+      line: '1960 年那期：俱乐部开张那天，一块球场、两棵棕榈。',
+    },
+    {
+      x: 10.3,
+      z: 10.55,
+      r: 1.4,
+      label: '问前台',
+      line: '接待员：登广告找总编，就在正里面那张大桌。今天的报在这儿，拿一份。',
+    },
+  ],
   build(c) {
     const actx = sharedMats(c.actx);
     const objs: THREE.Object3D[] = [];
@@ -264,23 +301,13 @@ export const INTERIOR_PAPER: InteriorDef = {
     }
     mergeRoom(c, objs);
 
-    // ── 共用件（kit）：大字条、价签、地上的字框、对话气泡 ──
-    const sm = paperSignMats(c.actx);
+    // ── 共用件（kit）：价签（只有数字）、对话气泡。店里零字 ──
     const put = (o: THREE.Object3D, x: number, y: number, z: number) => {
       o.position.set(x, y, z);
       c.asset(o);
     };
-    // 报头（太阳在它左边，北墙的皮里画了）、ARCHIVE（三张旧报上面，和报头一排）、CLASSIFIEDS（广告板顶上）
-    put(fascia(c.actx, 'THE DESERT SUN', { w: 4.9, h: 0.72, bg: sm.navy, ink: sm.brass }), 7.85, 3.38, 0.09);
-    put(fascia(c.actx, 'ARCHIVE', { w: 2.6, h: 0.5, bg: sm.walnut, ink: sm.cream }), 2.45, 3.62, 0.09);
-    put(fascia(c.actx, 'CLASSIFIEDS', { w: 3.2, h: 0.5, bg: sm.navy, ink: sm.cream }), 2.2, 2.53, 5.06);
-    // 总编桌正面的铜牌、前台正面的字
-    put(fascia(c.actx, 'EDITOR', { w: 1.0, h: 0.3, bg: sm.walnut, ink: sm.brass }), 7, 0.36, 2.88);
-    put(fascia(c.actx, 'FRONT DESK', { w: 2.0, h: 0.36, bg: sm.navy, ink: sm.brass }), 10.3, 0.52, 9.83);
-    // 地上：前台前排队的框
-    put(floorLabel(c.actx, 'WAIT HERE', { w: 1.8, d: 1.0, ink: sm.brass }), 10.3, 0.06, 10.75);
     // 三种登法的价签（样张正下方，板面前）
-    for (const it of ITEMS) put(priceTag(c.actx, it.price), it.x, it.y - 0.21, it.z);
+    for (const it of ITEMS) put(priceTag(c.actx, it.price, { size: 'sm' }), it.x, it.y - 0.155, it.z);
     // 能说话的人头顶的"…"（kit 约定站着 2.05、坐着 1.6；总编高、坐在高背椅上，1.6 会埋进头发 → 1.95）
     for (const n of NPCS) if (n.talk) put(talkBubble(c.actx), n.at[0], n.seat === null ? 2.05 : 1.95, n.at[1]);
 

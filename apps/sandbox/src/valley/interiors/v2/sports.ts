@@ -1,14 +1,21 @@
 // 体育用品店 · 第二版店内（?inv=2，参考 Sneaky Sasquatch 的店内重做；第一版 interiors/sports.ts 不动）。设计稿 S1～S5。
 // 局部坐标：x 0…18（西 → 东）、z 0…15（北 → 南），南墙正中是门（x 7.5…10.5）；框架（interiors/index.ts）画地板、墙、门。
-// 只改这个文件和 assets/in2/sports.ts（in2-sports-*）；价签、气泡、大字条、地面字从 kit.ts 调。
+// 只改这个文件和 assets/in2/sports.ts（in2-sports-*）；价签、气泡从 kit.ts 调。
+//
+// 2026-11-19 第三轮（用户："let the layout and visual do the explanation, not the subtext"）：店里零字。
+// 删掉的字 → 换成的东西：RACQUETS / SHOES / STRINGING / APPAREL 字条 → 深蓝圆牌上的像素图标（球拍、鞋、线轴、T 恤）；
+// BALLS 字条和两根杆 → 删（球罐金字塔自己就是）；BAGS → 删，球包身上印一支拍子的轮廓；USED → 架顶一块青绿的循环箭头牌 +
+// 每支旧拍子拴一张歪着的白吊牌；TRY ZONE 字框 → 一块迷你球场地垫；PAY HERE 字框 → 删（收银台 + 收银机 + 收银员 + 台前留的空地）。
+// 穿线师手里拿着一支拍子。地板：天蓝两色大格 → 一个天蓝 + 每 3 米一道浅缝（主色调不变，安静）。
+// 下面 1～7 是第二版当初的原则（3、6 两条已作废）：
 //
 // 原则（BRIEF-IN2）怎么落的：
 // 1. 镜头近（zoom 0.45：竖屏横着看得到 ≈ 7.9 米，整间店的进深一屏放下，只横着走两屏），东西少而大（真实的 1.5～2 倍）。
 // 2. 每件能买的东西正下方挂价签（货架沿 / 柜子正面 / 横梁正面），ITEMS 列出来；走过去点 = 买。
-// 3. 分区靠大字条：北墙上 SHOES / RACQUETS / STRINGING，货架顶 APPAREL / BAGS / USED，球堆后面 BALLS。
-// 4. 人在柜台后面：收银员（门东收银台北边）、穿线师（穿线台北边），头顶"…"。
-// 5. 地面一个主色（天蓝运动地胶，1.5 米两色大格），墙一个主色（浅冰蓝）+ 深海军蓝墙裙；亮的拍子衬深背板。
-// 6. 地上大字框：收银台前 PAY HERE（排队）、球拍墙前 TRY ZONE（S2 掂一掂、空挥）。
+// 3. （作废）分区靠东西本身 + 图标牌。
+// 4. 人在柜台后面：收银员（门东收银台北边）、穿线师（穿线机北边，机器在他面前），头顶"…"。
+// 5. 地面一个主色（天蓝运动地胶，3 米一道浅缝），墙一个主色（浅冰蓝）+ 深海军蓝墙裙；亮的拍子衬深背板。
+// 6. （作废）球拍墙前一块迷你球场地垫（S2 掂一掂、空挥）；收银台前留空地。
 // 7. 门口进来第一眼：正对门的北墙 = 球拍墙；收银在门东、购物车在门西；门 → 球拍墙一条 3 米宽的直过道（推车 ≥ 2 米）。
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
@@ -22,9 +29,8 @@ import {
   APPAREL,
   BAG_STAND,
   BALL_CASE,
-  FACE,
+  COURT_MAT,
   in2Mat,
-  PROD,
   PYRAMID,
   RACKET_WALL,
   SHOE_SHELF,
@@ -35,7 +41,7 @@ import {
 import type { AssetCtx } from '../../ctx';
 import type { PalKey } from '../../palette';
 import type { InteriorCtx, InteriorDef } from '../index';
-import { fascia, floorLabel, priceTag, talkBubble } from './kit';
+import { priceTag, talkBubble } from './kit';
 
 const W = 18;
 const D = 14;
@@ -80,10 +86,16 @@ export const SPOTS: Record<string, Spot> = {
   racketWall3: { x: 9.6, z: 1.6, yaw: N, card: 'S2', note: '球拍墙第 4 支（300 克）' },
   racketWall4: { x: 10.8, z: 1.6, yaw: N, card: 'S2', note: '球拍墙第 5 支（305 克）' },
   racketWall5: { x: 12.0, z: 1.6, yaw: N, card: 'S2', note: '球拍墙第 6 支（最重 320 克，紫框）' },
-  tryZone: { x: 9, z: 2.6, yaw: 0, card: 'S2', note: '球拍墙前地上的 TRY ZONE 框：拿下拍子在这儿掂一掂、空挥' },
+  tryZone: { x: 9, z: 2.6, yaw: 0, card: 'S2', note: '球拍墙前的迷你球场地垫：拿下拍子在这儿掂一掂、空挥' },
   stringer: { x: 17.0, z: 6.2, yaw: N, card: 'S3', note: '穿线机（17.0, 5.0）前：自己穿线站这儿，按住拉紧' },
   stringDesk: { x: 15.0, z: 4.6, yaw: N, card: 'S3', note: '穿线服务台前：交给穿线师（付工钱、明天取）/ 取件' },
-  stringerStaff: { x: 15.0, z: 2.6, yaw: 0, card: 'S3', note: '店员：穿线师站在服务台北边（台后）' },
+  stringerStaff: {
+    x: 17.0,
+    z: 3.75,
+    yaw: 0,
+    card: 'S3',
+    note: '店员：穿线师站在穿线机后面（北边，朝南），正在穿线；服务台在他西边',
+  },
   stringReels: {
     x: 15.6,
     z: 4.6,
@@ -96,7 +108,7 @@ export const SPOTS: Record<string, Spot> = {
     z: 12.5,
     yaw: N,
     card: 'S4',
-    note: '收银台前（PAY HERE 框里）：推车停这儿，点车里的东西放上扫码台',
+    note: '收银台前留的空地：推车停这儿，点车里的东西放上扫码台',
   },
   scanner: { x: 11.9, z: 11.4, yaw: N, card: 'S4', note: '扫码窗（台面西半边，离地 1.0）' },
   cashier: { x: 13.55, z: 10.3, yaw: 0, card: 'S4', note: '店员：收银员站在收银台北边（台后），收银机旁' },
@@ -224,8 +236,9 @@ function items(): Item[] {
 export const ITEMS: Item[] = items();
 
 /** 店里的两个人：站的位置（局部）、朝向（0 = 朝南 / 朝镜头）、长相 */
-const STAFF: { at: [number, number]; look: CastLook }[] = [
+const STAFF: { at: [number, number]; look: CastLook; prop: string | null }[] = [
   {
+    prop: null,
     // 收银员：海军蓝店服 Polo、白领滚边、卡其短裤，马尾
     at: [SPOTS.cashier.x, SPOTS.cashier.z],
     look: {
@@ -241,7 +254,8 @@ const STAFF: { at: [number, number]; look: CastLook }[] = [
     },
   },
   {
-    // 穿线师：荧光黄绿店服、灰短发、眼镜、炭灰长裤
+    // 穿线师：荧光黄绿店服、灰短发、眼镜、炭灰长裤，手里拿着一支拍子（是谁看手边的东西）
+    prop: 'racket',
     at: [SPOTS.stringerStaff.x, SPOTS.stringerStaff.z],
     look: {
       body: 'adult',
@@ -325,26 +339,26 @@ function build(c: InteriorCtx) {
   };
   const tag = (price: number, x: number, y: number, z: number, sm = false) =>
     kit(priceTag(actx, price, sm ? { size: 'sm' } : {}), x, y, z);
-  const bgNavy = in2Mat(actx, 'navy', FACE);
-  const bgWhite = in2Mat(actx, 'white', FACE);
-  const inkNeon = in2Mat(actx, 'neon', PROD);
-  const inkNavy = in2Mat(actx, 'navy', PROD);
-  const sign = (text: string, x: number, y: number, z: number, w: number, dark = true, h = 0.5) =>
-    kit(fascia(actx, text, { w, h, bg: dark ? bgNavy : bgWhite, ink: dark ? inkNeon : inkNavy }), x, y, z);
+  /** 图标牌（不写字）：牌子下沿离地 y0，牌面背面在 z */
+  const sign = (icon: string, x: number, y0: number, z: number) => put(`in2-sports-sign-${icon}`, x, z, 0, y0);
 
-  // ── 地：天蓝地胶，1.5 米两色大格（地板盒子顶 y 0.02 → 这层 0.026）；墙外一圈暗地（= main.ts 的 INSIDE_BG）──
+  // ── 地：一整片天蓝地胶（地板盒子顶 y 0.02 → 这层 0.026），每 3 米一道浅缝（安静：颜色给货）；墙外一圈暗地（= main.ts 的 INSIDE_BG）──
   {
-    const A: THREE.BufferGeometry[] = [];
-    const B: THREE.BufferGeometry[] = [];
-    const S = 1.5;
-    for (let i = 0; i < W / S; i++)
-      for (let j = 0; j < D / S; j++)
-        ((i + j) % 2 ? B : A).push(
-          new THREE.PlaneGeometry(S, S).rotateX(-Math.PI / 2).translate((i + 0.5) * S, 0.026, (j + 0.5) * S),
-        );
+    const seams: THREE.BufferGeometry[] = [];
+    const S = 3;
+    const L = 0.05;
+    for (let x = S; x < W; x += S)
+      seams.push(new THREE.PlaneGeometry(L, D).rotateX(-Math.PI / 2).translate(x, 0.028, D / 2));
+    for (let z = S; z < D; z += S)
+      seams.push(new THREE.PlaneGeometry(W, L).rotateX(-Math.PI / 2).translate(W / 2, 0.028, z));
     const g = new THREE.Group();
-    g.add(new THREE.Mesh(mergeGeometries(A), in2Mat(actx, 'floorA', { noShadowReceive: true })));
-    g.add(new THREE.Mesh(mergeGeometries(B), in2Mat(actx, 'floorB', { noShadowReceive: true })));
+    g.add(
+      new THREE.Mesh(
+        new THREE.PlaneGeometry(W, D).rotateX(-Math.PI / 2).translate(W / 2, 0.026, D / 2),
+        in2Mat(actx, 'floorA', { noShadowReceive: true }),
+      ),
+    );
+    g.add(new THREE.Mesh(mergeGeometries(seams), in2Mat(actx, 'floorB', { noShadowReceive: true })));
     const voidM = actx.mat('surround', {
       ramp: [0x181532, 0x181532, 0x181532],
       edge: 0,
@@ -360,14 +374,13 @@ function build(c: InteriorCtx) {
     list.push(g);
   }
 
-  // ── 北墙：墙皮（浅冰蓝 + 海军蓝墙裙）；西段鞋墙、正中球拍墙、东段线卷墙，各一条大字条 ──
+  // ── 北墙：墙皮（浅冰蓝 + 海军蓝墙裙）；西段鞋墙、正中球拍墙、东段线卷墙，鞋墙、线卷墙上各一块图标牌（鞋 / 线轴）；球拍墙不挂牌（六支大拍子就是）──
   put('in2-sports-wall', W / 2, 0);
   put('in2-sports-shoe-shelf', P.shoes[0], P.shoes[1]);
-  sign('SHOES', P.shoes[0], 2.36, 0.08, 2.4, true, 0.7);
+  sign('shoe', P.shoes[0], 2.3, 0.04);
   put('in2-sports-racket-wall', P.rackets[0], P.rackets[1]);
-  sign('RACQUETS', P.rackets[0], 3.1, 0.08, 4.6, true, 0.8);
   put('in2-sports-string-board', P.strings[0], P.strings[1]);
-  sign('STRINGING', P.strings[0], 2.56, 0.08, 3.4, true, 0.7);
+  sign('spool', P.strings[0], 2.58, 0.04);
   c.block({ x0: 0, x1: 4.4, z0: 0, z1: 0.6 });
   c.block({ x0: 5.1, x1: 12.9, z0: 0, z1: 0.65 });
 
@@ -376,15 +389,10 @@ function build(c: InteriorCtx) {
     if (it.id.startsWith('racket') || it.id.startsWith('shoes') || it.id.startsWith('reel'))
       tag(it.price, it.x, it.y, it.z, it.id.startsWith('shoes'));
 
-  // ── 球拍墙前：TRY ZONE（S2 掂一掂、空挥）──
-  kit(
-    floorLabel(actx, 'TRY ZONE', { w: 4.2, d: 1.6, ink: in2Mat(actx, 'white', { noShadowReceive: true }) }),
-    9,
-    0.03,
-    2.4,
-  );
+  // ── 球拍墙前：迷你球场地垫（S2 掂一掂、空挥）——原来的 TRY ZONE 字框 ──
+  put('in2-sports-court-mat', P.rackets[0], 1.0 + COURT_MAT.d / 2, 0, 0.026);
 
-  // ── 东北：穿线台（S3）——服务台（穿线师在台后）、穿线机 ──
+  // ── 东北：穿线台（S3）——服务台（台上一支待穿的拍子 + 铃 = 交给店里穿）、穿线机（师傅在机器后面穿线 = 也可以自己穿）──
   put('in2-sports-string-counter', P.stringDesk[0], P.stringDesk[1]);
   c.block({
     x0: P.stringDesk[0] - 1.35,
@@ -392,8 +400,9 @@ function build(c: InteriorCtx) {
     z0: P.stringDesk[1] - 0.45,
     z1: P.stringDesk[1] + 0.45,
   });
-  // 台后（穿线师那一格）不让进：台北边到墙
+  // 台后、穿线机后（穿线师那一格）不让进：台北边到墙，往东一直到墙
   c.block({ x0: 13.6, x1: 16.4, z0: 0.6, z1: P.stringDesk[1] });
+  c.block({ x0: 16.4, x1: W, z0: 0.6, z1: P.stringer[1] - 0.55 });
   {
     const it = ITEMS.find((i) => i.id === 'stringJob');
     if (it) tag(it.price, it.x, it.y, it.z);
@@ -401,47 +410,31 @@ function build(c: InteriorCtx) {
   put('in2-sports-stringer', P.stringer[0], P.stringer[1]);
   c.block({ x0: P.stringer[0] - 0.85, x1: P.stringer[0] + 0.85, z0: P.stringer[1] - 0.55, z1: P.stringer[1] + 0.55 });
 
-  // ── 西：衣架（APPAREL）──
+  // ── 西：衣架（横杆正中立一块 T 恤图标牌）──
   put('in2-sports-apparel', P.apparel[0], P.apparel[1]);
-  sign('APPAREL', P.apparel[0], APPAREL.barY + 0.06, P.apparel[1] + 0.05, 2.6, true, 0.7);
+  sign('shirt', P.apparel[0], APPAREL.barY + 0.04, P.apparel[1] + 0.01);
   c.block({ x0: P.apparel[0] - 1.75, x1: P.apparel[0] + 1.75, z0: P.apparel[1] - 0.35, z1: P.apparel[1] + 0.35 });
   for (const it of ITEMS) if (it.id.startsWith('shirt')) tag(it.price, it.x, it.y, it.z);
 
-  // ── 中西：球罐金字塔（BALLS 牌在它后面两根杆上）+ 72 个装的纸箱 ──
+  // ── 中西：球罐金字塔（不挂牌：一堆荧光球罐自己说明）+ 72 个装的纸箱 ──
   put('in2-sports-pyramid', P.pyramid[0], P.pyramid[1]);
-  sign('BALLS', P.pyramid[0], 1.7, P.pyramid[1] - 0.8, 1.9, true, 0.7);
-  {
-    const post = in2Mat(actx, 'white');
-    const g = new THREE.Group();
-    for (const s of [-1, 1])
-      g.add(new THREE.Mesh(new THREE.BoxGeometry(0.06, 2.3, 0.06).translate(s * 0.85, 1.15, 0), post));
-    g.position.set(P.pyramid[0], 0, P.pyramid[1] - 0.83);
-    list.push(g);
-  }
   c.block({ x0: P.pyramid[0] - 1.0, x1: P.pyramid[0] + 1.0, z0: P.pyramid[1] - 1.0, z1: P.pyramid[1] + 1.0 });
   put('in2-sports-ball-case', P.ballCase[0], P.ballCase[1]);
   c.block({ x0: P.ballCase[0] - 0.65, x1: P.ballCase[0] + 0.65, z0: P.ballCase[1] - 0.4, z1: P.ballCase[1] + 0.4 });
   for (const it of ITEMS) if (it.id === 'ballCan' || it.id === 'ballCase') tag(it.price, it.x, it.y, it.z);
 
-  // ── 中东：球包 A 字架（BAGS）──
+  // ── 中东：球包 A 字架（包身上印着拍子轮廓）──
   put('in2-sports-bag-stand', P.bags[0], P.bags[1]);
-  sign('BAGS', P.bags[0], 1.74, P.bags[1] + 0.02, 1.8, true, 0.7);
   c.block({ x0: P.bags[0] - 1.45, x1: P.bags[0] + 1.45, z0: P.bags[1] - 0.55, z1: P.bags[1] + 0.55 });
   for (const it of ITEMS) if (it.id.startsWith('bag')) tag(it.price, it.x, it.y, it.z);
 
-  // ── 门东：收银台（S4）+ 地上 PAY HERE；东南角寄卖架（S5，USED）──
+  // ── 门东：收银台（S4），台前留空地排队；东南角寄卖架（S5：架顶循环箭头牌、旧拍子拴白吊牌）──
   put('in2-sports-checkout', P.checkout[0], P.checkout[1]);
   c.block({ x0: P.checkout[0] - 1.45, x1: P.checkout[0] + 1.45, z0: P.checkout[1] - 0.5, z1: P.checkout[1] + 0.5 });
   // 收银员那一格（台后）
   c.block({ x0: P.checkout[0] - 1.45, x1: P.checkout[0] + 1.45, z0: P.checkout[1] - 1.6, z1: P.checkout[1] - 0.5 });
-  kit(
-    floorLabel(actx, 'PAY HERE', { w: 2.8, d: 1.3, ink: in2Mat(actx, 'white', { noShadowReceive: true }) }),
-    P.checkout[0],
-    0.03,
-    P.checkout[1] + 1.35,
-  );
   put('in2-sports-used-rack', P.used[0], P.used[1]);
-  sign('USED', P.used[0], 2.08, P.used[1] + 0.05, 1.8, false, 0.7);
+  sign('reuse', P.used[0], 2.08, P.used[1] + 0.01);
   c.block({ x0: P.used[0] - 1.45, x1: P.used[0] + 1.45, z0: P.used[1] - 0.35, z1: P.used[1] + 0.35 });
   for (const it of ITEMS) if (it.id.startsWith('used')) tag(it.price, it.x, it.y, it.z, true);
 
@@ -456,7 +449,7 @@ function build(c: InteriorCtx) {
   for (const s of STAFF) {
     const o = player({ ...c.actx, variant: 0 } as unknown as BaseCtx);
     dresser.dress(o, s.look);
-    o.userData.setProp?.(null);
+    o.userData.setProp?.(s.prop);
     o.userData.pose?.('idle', 0);
     o.position.set(s.at[0], 0, s.at[1]);
     o.rotation.y = 0;
