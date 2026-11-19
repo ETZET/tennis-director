@@ -9,6 +9,7 @@ import { bldgPoly } from './build';
 import { INTERIORS } from './interiors/all';
 import { interiorWalk, ORIGIN } from './interiors/index';
 import { BUILDINGS, HOTEL_BLDGS, houses, REGIONS, regionAt } from './layout';
+import { parkDeckAt } from './parkdeck';
 import { inClubBox, inFloor, trailSurface } from './terrain';
 
 export type Mode = 'walk' | 'cart' | 'car';
@@ -53,6 +54,9 @@ export function createValleyNav(locked: Set<string>): ValleyNav {
         const r = regionAt(x, z);
         if (r && v.locked.has(r.id)) return null;
       }
+      // 日出公园的台地（parkdeck.ts）：台面、台阶上站的高度；开车上不去（墙沿、台阶）
+      const deck = parkDeckAt(x, z);
+      if (deck !== null) return v.mode === 'walk' ? deck : null;
       return 0;
     },
     blocked() {

@@ -703,7 +703,8 @@ export const POIS: Poi[] = [
     ...SIxz(690.5, -495.5),
     note: '校队教练拿着夹板：问他哪几个孩子值得去俱乐部练',
   },
-  { id: 'p_kid', kind: 'person', name: '天才少年', x: 1120, z: -520, note: '每天傍晚在公园公共场对墙打' },
+  // 日出公园的三处（2026-11-18 公园关卡 1；缩完的坐标过 SI，旗子在南边 3 米 = detail/east.ts 的 PARK_SPOTS 里总监站的地方）
+  { id: 'p_kid', kind: 'person', name: '天才少年', ...SIxz(825.6, -421.5), note: '每天傍晚在公园公共场对墙打' },
   { id: 'p_sponsor', kind: 'person', name: '风电公司经理', x: 520, z: -1340, note: '赞助的钱和条件' },
   { id: 'p_retiree', kind: 'person', name: '退休明星', x: 600, z: -1080, note: '电影人街区的老会员候选' },
   { id: 'p_ranger', kind: 'person', name: '部落巡护员', x: 284.3, z: 228.6, note: '峡谷步道的事找他' },
@@ -724,7 +725,14 @@ export const POIS: Poi[] = [
     ...SIxz(665, -490),
     note: '号码布、锥桶、排队的孩子：挑几个进俱乐部的青训队',
   },
-  { id: 'p_park_clinic', kind: 'event', name: '公园公开课', x: 1080, z: -540, note: '周末免费教学，拉新会员' },
+  { id: 'p_park_clinic', kind: 'event', name: '公园公开课', ...SIxz(770, -377), note: '周末免费教学，拉新会员' },
+  {
+    id: 'p_park_pickup',
+    kind: 'event',
+    name: '公园野球局',
+    ...SIxz(781.1, -396.9),
+    note: '公共场上的野球局：挂拍排队、胜者留场，看谁打得好，或者被叫下场',
+  },
   { id: 'p_hotel_exh', kind: 'event', name: '老酒店表演赛', x: 440, z: -960, note: '酒店草坪上的表演赛' },
   { id: 'p_sunrise', kind: 'event', name: '日出球会', x: 30, z: -992, note: '山上观景台的日出慢跑 + 早餐' },
   // 发现

@@ -1,5 +1,6 @@
 // valley 的验收（硬门槛，全过才算完成）。在仓库根运行，dev server 要开着：
 //   node docs/lab/2026-11-07-3d-pixel/tools/valley-accept.mjs <输出目录> [地点表] [时刻表]
+//   dev server 不在 5191：VALLEY_PORT=<端口>
 //   地点表："名字@x,z;名字@x,z;…"（不给 = 下面 SPOTS 全部）；时刻表："12,17.6,21"（默认）
 // 一个页面（unlock=all、cast=0、tspeed=0）里依次传送、换时刻、截图，逐项检查：
 //   1. 控制台没有报错（pageerror / console.error / NaN 几何警告）
@@ -81,8 +82,9 @@ page.on('console', (m) => {
 });
 // 天气固定晴天：自动天气会在某些时刻下雨，满屏雨丝把强边缘推到 0.06～0.07，和画面本身无关（雨天另看）
 // VALLEY_EXTRA：额外的页面参数（例：inv=2 = 第二版店内）
+const PORT = process.env.VALLEY_PORT ?? '5191';
 const EXTRA = process.env.VALLEY_EXTRA ? `&${process.env.VALLEY_EXTRA}` : '';
-await page.goto(`http://localhost:5191/valley.html?unlock=all&cast=0&tspeed=0&hour=12&weather=clear${EXTRA}`);
+await page.goto(`http://localhost:${PORT}/valley.html?unlock=all&cast=0&tspeed=0&hour=12&weather=clear${EXTRA}`);
 await page.waitForFunction(() => window.__walk && window.__valley?.world, null, { timeout: 60000 });
 await page.waitForTimeout(3000);
 
@@ -210,16 +212,16 @@ for (const [name, [x, z]] of spots) {
     ['泳池边', -50, 20],
   ];
   const cw = await b.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1 });
-  await cw.goto('http://localhost:5191/clubwalk.html?cast=0&tspeed=0&hour=12&weather=clear&life=0&clouds=0&wind=0');
+  await cw.goto(`http://localhost:${PORT}/clubwalk.html?cast=0&tspeed=0&hour=12&weather=clear&life=0&clouds=0&wind=0`);
   await cw.waitForFunction(() => window.__walk, null, { timeout: 60000 });
   await cw.waitForTimeout(3000);
   // 基线：clubwalk 再开一份（俱乐部里的人、喷泉、泳池水两次加载本来就不一样），山谷只许比基线多 1.5%
   const cw2 = await b.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1 });
-  await cw2.goto('http://localhost:5191/clubwalk.html?cast=0&tspeed=0&hour=12&weather=clear&life=0&clouds=0&wind=0');
+  await cw2.goto(`http://localhost:${PORT}/clubwalk.html?cast=0&tspeed=0&hour=12&weather=clear&life=0&clouds=0&wind=0`);
   await cw2.waitForFunction(() => window.__walk, null, { timeout: 60000 });
   await cw2.waitForTimeout(3000);
   const vw = await b.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1 });
-  await vw.goto('http://localhost:5191/valley.html?cast=0&tspeed=0&hour=12&weather=clear&life=0&clouds=0&wind=0');
+  await vw.goto(`http://localhost:${PORT}/valley.html?cast=0&tspeed=0&hour=12&weather=clear&life=0&clouds=0&wind=0`);
   await vw.waitForFunction(() => window.__walk && window.__valley?.world, null, { timeout: 60000 });
   await vw.waitForTimeout(3000);
   const place = (pg, x, z) =>

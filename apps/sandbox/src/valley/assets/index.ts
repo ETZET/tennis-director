@@ -1,4 +1,4 @@
-// 市中心三栋办事楼的资产表：各栋的资产文件（paper / sports / hardware，各归一个资产代理）+ 共用的（shared，核心代理）合在一起。
+// 市中心三栋办事楼 + 日出公园的资产表：各栋的资产文件（paper / sports / hardware，各归一个资产代理）+ 共用的（shared，核心代理）合在一起。
 // makeAsset(id, ctx)：画了的用资产；清单（specs.ts）里有、还没画的 → 灰盒（placeholder 灰 + 顶上一条提议的主色）。
 // 画廊（gallery.ts）和场景（detail/sites/*.ts 的 d.asset(makeAsset(id, d.actx).obj)）都走这里。
 import * as THREE from 'three';
@@ -16,6 +16,9 @@ import { ASSETS as HARDWARE2 } from './in2/hardware';
 import { ASSETS as PAPER2 } from './in2/paper';
 import { ASSETS as SPORTS2 } from './in2/sports';
 import { ASSETS as PAPER } from './paper';
+import { ASSETS as PARK_COURT } from './park/court';
+import { ASSETS as PARK_LIFE } from './park/life';
+import { ASSETS as PARK_WALL } from './park/wall';
 import { ASSETS as SCHOOL } from './school';
 import { ASSETS as SHARED } from './shared';
 import { type Batch, SPECS } from './specs';
@@ -40,6 +43,9 @@ export const BY_BATCH: Record<Batch, Record<string, AssetFn>> = {
   CH2: CITYHALL2,
   B2: BANK2,
   D2: DINER2,
+  KC: PARK_COURT,
+  KW: PARK_WALL,
+  KL: PARK_LIFE,
 };
 export const ASSETS: Record<string, AssetFn> = {
   ...SHARED,
@@ -57,6 +63,9 @@ export const ASSETS: Record<string, AssetFn> = {
   ...CITYHALL2,
   ...BANK2,
   ...DINER2,
+  ...PARK_COURT,
+  ...PARK_WALL,
+  ...PARK_LIFE,
 };
 
 /** 全部 id：清单的顺序，再加清单里没有的（资产代理新加的） */

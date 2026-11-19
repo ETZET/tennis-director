@@ -1,4 +1,4 @@
-// valley 市中心三栋办事楼的资产画廊（美术关卡 2）：valleyassets.html?asset=<id> 一块空地上只放这个资产；不带 asset = 列表页。
+// valley 市中心三栋办事楼 + 日出公园的资产画廊（美术关卡 2）：valleyassets.html?asset=<id> 一块空地上只放这个资产；不带 asset = 列表页。
 // 上 / 左 = 游戏里的大小（默认每纹素 1 CSS 像素，米/纹素 0.045 = /valley.html 的默认缩放），下 / 右 = 同一画面放大 3 倍（拖动看不同部位）。
 // 渲染核心照 clubsite/render（colors 最先 import、PixelPipeline、色阶材质、配色方案 ?pal=），时间和天气照 clubsite/daylight（?hour= / ?weather=，
 // 画廊里时间默认停着：tspeed 0、weather clear）。资产：src/valley/assets（各栋一个文件，ASSETS 表；没画的显示 specs.ts 的灰盒）。
@@ -38,7 +38,27 @@ function showList() {
   let html =
     '<h1>valley 市中心 · 资产画廊</h1><p>docs/lab/2026-11-07-3d-pixel/valley-town.md 的资产清单。绿 = 画了，紫 = 还没画（显示灰盒）。' +
     '点开：上 = 游戏里的大小，下 = 放大 3 倍；右下角转、缩放、换时刻。</p>';
-  for (const b of ['P', 'S', 'H', 'C', 'CH', 'B', 'D', 'SC', 'CH2', 'B2', 'D2', 'P2', 'S2', 'H2', 'K2', '?'] as const) {
+  for (const b of [
+    'P',
+    'S',
+    'H',
+    'C',
+    'CH',
+    'B',
+    'D',
+    'SC',
+    'CH2',
+    'B2',
+    'D2',
+    'P2',
+    'S2',
+    'H2',
+    'K2',
+    'KC',
+    'KW',
+    'KL',
+    '?',
+  ] as const) {
     const rows = ids.filter((r) => r.batch === b);
     if (!rows.length) continue;
     html += `<h2>${b === '?' ? '清单外' : BATCH_NAME[b as Batch]}</h2>`;
@@ -147,12 +167,13 @@ function showAsset(assetId: string) {
       pts.push([cx + Math.cos(a) * r, cz + Math.sin(a) * r]);
     }
   }
-  const ground = (params.get('ground') ?? 'sand') as 'sand' | 'concrete' | 'tile' | 'asphalt';
+  const ground = (params.get('ground') ?? 'sand') as 'sand' | 'concrete' | 'tile' | 'asphalt' | 'lawn';
   const GROUND: Record<string, [PalKey, ToonOpts]> = {
     sand: ['sand', { elem: EL.sand }],
     concrete: ['concrete', {}],
     tile: ['tile', { elem: EL.tile }],
     asphalt: ['asphalt', {}],
+    lawn: ['lawn', {}], // 公园的草地（日出公园的资产大多落在草上）
   };
   const [gk, gopt] = GROUND[ground] ?? GROUND.sand;
   const tile = new THREE.Group();
