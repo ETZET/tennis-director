@@ -38,7 +38,7 @@ function showList() {
   let html =
     '<h1>valley 市中心 · 资产画廊</h1><p>docs/lab/2026-11-07-3d-pixel/valley-town.md 的资产清单。绿 = 画了，紫 = 还没画（显示灰盒）。' +
     '点开：上 = 游戏里的大小，下 = 放大 3 倍；右下角转、缩放、换时刻。</p>';
-  for (const b of ['P', 'S', 'H', 'C', '?'] as const) {
+  for (const b of ['P', 'S', 'H', 'C', 'CH', 'B', 'D', 'SC', 'CH2', 'B2', 'D2', 'P2', 'S2', 'H2', 'K2', '?'] as const) {
     const rows = ids.filter((r) => r.batch === b);
     if (!rows.length) continue;
     html += `<h2>${b === '?' ? '清单外' : BATCH_NAME[b as Batch]}</h2>`;

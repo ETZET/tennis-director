@@ -764,7 +764,7 @@ export function buildValley(
   const roofKey: Record<Bldg['kind'], PalKey> = {
     shop: 'concrete',
     civic: 'roofTile',
-    school: 'roofTile',
+    school: 'roofMetal', // 2026-11-18：体育馆金属屋面（教学楼 > 1200 平米走下面的浅色平顶）
     house: 'concrete',
     hotel: 'roofTile',
     gas: 'metal',
@@ -775,7 +775,7 @@ export function buildValley(
   const wallKey: Record<Bldg['kind'], PalKey> = {
     shop: 'stucco',
     civic: 'stucco',
-    school: 'adobe',
+    school: 'cmuGrey', // 2026-11-18：冷灰砌块，和市中心暖沙的灰泥拉开（valley-civic.md）
     house: 'stucco',
     hotel: 'stucco',
     gas: 'stucco',
@@ -821,30 +821,7 @@ export function buildValley(
         put(reg, key, onFace(o, face, aw));
       }
     }
-    if (o.id === 'cityhall') {
-      // 钟楼：塔身 + 一圈檐 + 四角墩子围着的钟室（深色） + 檐 + 四坡尖顶；朝南一面挂钟（原来是一根 6×22 的方柱 + 一块板）
-      const cx = o.x + o.w / 2 - 4;
-      const cz = o.z - o.d / 2 + 4;
-      // 不投影：22 米的方塔在市政厅屋顶上投一整块方的黑影（"大块硬边的影子"）
-      putThin(reg, 'stucco', rbox(6, 17, 6, cx, 0, cz));
-      putThin(reg, 'stucco', rbox(6.8, 0.5, 6.8, cx, 17, cz));
-      putThin(reg, 'ironwork', rbox(4.6, 4, 4.6, cx, 17.5, cz));
-      for (const sx of [-1, 1])
-        for (const sz of [-1, 1]) putThin(reg, 'stucco', rbox(1.3, 4, 1.3, cx + sx * 2.35, 17.5, cz + sz * 2.35));
-      putThin(reg, 'stucco', rbox(7.2, 0.6, 7.2, cx, 21.5, cz));
-      putThin(
-        reg,
-        'roofTile',
-        new THREE.ConeGeometry(5.3, 4.6, 4, 1).rotateY(Math.PI / 4).translate(cx, 22.1 + 2.3, cz),
-      );
-      putThin(
-        reg,
-        'clothWhite',
-        new THREE.CylinderGeometry(1.7, 1.7, 0.2, 18).rotateX(Math.PI / 2).translate(cx, 13.5, cz + 3.08),
-      );
-      putThin(reg, 'ironwork', new THREE.BoxGeometry(0.2, 1.2, 0.08).translate(cx, 14.0, cz + 3.22));
-      putThin(reg, 'ironwork', new THREE.BoxGeometry(0.9, 0.2, 0.08).translate(cx + 0.4, 13.5, cz + 3.22));
-    }
+    // 市政厅的钟楼：2026-11-18 搬到 detail/sites/cityhall.ts（中世纪现代的钟塔，西班牙式红瓦尖顶不要了）
     // 加油站的雨棚板（柱子、加油岛、红边在 detail/town.ts）
     // 不投影：4.5 米高的 16 × 10 米板在前场投一整块方的黑影；薄的板（四根柱 + 红边在 town.ts）
     if (o.kind === 'gas') putThin(reg, 'metal', rbox(16, 0.4, 10, o.x, 4.55, o.z + 14, rot));

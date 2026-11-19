@@ -5,11 +5,18 @@ import * as THREE from 'three';
 import { box } from '../../clubsite/render/geo';
 import type { AssetCtx, AssetFn } from '../ctx';
 import { ASSETS as KIT2 } from '../interiors/v2/kit';
+import { ASSETS as BANK } from './bank';
+import { ASSETS as CITYHALL } from './cityhall';
+import { ASSETS as DINER } from './diner';
 import { ASSETS as HARDWARE } from './hardware';
+import { ASSETS as BANK2 } from './in2/bank';
+import { ASSETS as CITYHALL2 } from './in2/cityhall';
+import { ASSETS as DINER2 } from './in2/diner';
 import { ASSETS as HARDWARE2 } from './in2/hardware';
 import { ASSETS as PAPER2 } from './in2/paper';
 import { ASSETS as SPORTS2 } from './in2/sports';
 import { ASSETS as PAPER } from './paper';
+import { ASSETS as SCHOOL } from './school';
 import { ASSETS as SHARED } from './shared';
 import { type Batch, SPECS } from './specs';
 import { ASSETS as SPORTS } from './sports';
@@ -26,6 +33,13 @@ export const BY_BATCH: Record<Batch, Record<string, AssetFn>> = {
   S2: SPORTS2,
   H2: HARDWARE2,
   K2: KIT2,
+  CH: CITYHALL,
+  B: BANK,
+  D: DINER,
+  SC: SCHOOL,
+  CH2: CITYHALL2,
+  B2: BANK2,
+  D2: DINER2,
 };
 export const ASSETS: Record<string, AssetFn> = {
   ...SHARED,
@@ -36,6 +50,13 @@ export const ASSETS: Record<string, AssetFn> = {
   ...PAPER2,
   ...SPORTS2,
   ...HARDWARE2,
+  ...CITYHALL,
+  ...BANK,
+  ...DINER,
+  ...SCHOOL,
+  ...CITYHALL2,
+  ...BANK2,
+  ...DINER2,
 };
 
 /** 全部 id：清单的顺序，再加清单里没有的（资产代理新加的） */

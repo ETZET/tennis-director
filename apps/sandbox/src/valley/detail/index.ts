@@ -5,6 +5,9 @@ import type { Detail } from '../build';
 import { INTERIORS } from '../interiors/all';
 import { interiorDetail } from '../interiors/index';
 import { detailEast } from './east';
+import { detailBank } from './sites/bank';
+import { detailCityhall } from './sites/cityhall';
+import { detailDiner } from './sites/diner';
 import { detailHardware } from './sites/hardware';
 import { detailPaper } from './sites/paper';
 import { detailSports } from './sites/sports';
@@ -15,6 +18,9 @@ export const DETAILS: Detail[] = [
   detailPaper,
   detailSports,
   detailHardware,
+  detailCityhall,
+  detailBank,
+  detailDiner,
   detailTown,
   detailSouth,
   detailEast,

@@ -3,7 +3,7 @@
 // 这个文件归核心代理；资产代理要改尺寸 / 加资产，在自己的报告里写，或者改自己 assets 文件里的 ASSETS（画廊照样列出来，信息条没有规格）。
 import type { PalKey } from '../palette';
 
-export type Batch = 'P' | 'S' | 'H' | 'C' | 'P2' | 'S2' | 'H2' | 'K2';
+export type Batch = 'P' | 'S' | 'H' | 'C' | 'P2' | 'S2' | 'H2' | 'K2' | 'CH' | 'B' | 'D' | 'SC' | 'CH2' | 'B2' | 'D2';
 export interface Spec {
   batch: Batch;
   name: string;
@@ -27,6 +27,13 @@ export const BATCH_NAME: Record<Batch, string> = {
   S2: '体育店店内 v2（批 S2，assets/in2/sports.ts）',
   H2: '五金店内 v2（批 H2，assets/in2/hardware.ts）',
   K2: '店内 v2 共用件（批 K2，interiors/v2/kit.ts：价签、对话气泡、大字招牌、地面字）',
+  CH: '市政厅（批 CH，assets/cityhall.ts）',
+  B: '沙漠银行（批 B，assets/bank.ts）',
+  D: '餐馆（批 D，assets/diner.ts）',
+  SC: '棕榈泉高中（批 SC，assets/school.ts）',
+  CH2: '市政厅店内（批 CH2，assets/in2/cityhall.ts）',
+  B2: '银行店内（批 B2，assets/in2/bank.ts）',
+  D2: '餐馆店内（批 D2，assets/in2/diner.ts）',
 };
 
 export const SPECS: Record<string, Spec> = {

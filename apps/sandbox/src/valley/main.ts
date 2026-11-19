@@ -26,7 +26,7 @@ import {
 import { createValleyNav } from './nav';
 import { mountWalk, type WalkApi } from './reuse';
 import { CLUB_BOX, inFloor, LOOKOUT } from './terrain';
-import { keepScale, TOWN_K } from './townscale';
+import { keepScale, keepScaleCam, TOWN_K } from './townscale';
 import { mountVehicles, type Vehicles } from './vehicles';
 
 const params = new URLSearchParams(location.search);
@@ -61,7 +61,13 @@ function start() {
     outerSurface: (x, z) => vnav.surface(x, z),
     outerBlocked: () => vnav.blocked(),
     // 店内摆在地图外面很远的地方（interiors/，x ≥ 3000）：导航范围包进去
-    navBounds: { x0: VIEW.x0, x1: 3700, z0: VIEW.z0, z1: VIEW.z1 },
+    // 东边包住地图外面的店内（interiors/index.ts 的 ORIGIN，最东的那家 + 店宽 + 余量）
+    navBounds: {
+      x0: VIEW.x0,
+      x1: Math.max(...INTERIORS.map((d) => ORIGIN[d.id][0] + d.w)) + 40,
+      z0: VIEW.z0,
+      z1: VIEW.z1,
+    },
     farPath: (nav, ax, az, bx, bz) => vnav.farPath(nav, ax, az, bx, bz),
     zoom: [0.4, 2.6],
     camera: { dist: 120, far: 240 },
@@ -247,16 +253,25 @@ function mountInteriors(a: WalkApi) {
       a.day.override = INDOOR_LOOK;
     }
     insideOf = def;
+    // 镜头的取景范围换了（关进房间 / 放出来）：按新范围重新对准总监。不然传送时镜头先被旧范围夹住
+    // （出门时还停在店里），要一两秒才慢慢飞回门口 —— 画面横扫过整张地图
+    a.play.teleport(p.x, p.z);
     // 店里不要小地图（挡住北墙，店里也用不上）
     const mm = document.getElementById('minimap');
     if (mm) mm.style.visibility = def ? 'hidden' : '';
   };
   // 小镇的远近：按总监在不在俱乐部里，相对地推拉（同 vehicles.ts 上下车的缩放，和它乘在一起）；店里不管（进出店是绝对的）
   let townK = 1;
+  let lastX = Number.NaN;
+  let lastZ = Number.NaN;
   const townZoom = (dt: number) => {
     if (insideOf) return;
     const p = a.director.position;
-    const want = keepScale(p.x, p.z) ? 1 : TOWN_ZOOM;
+    // 一帧跳了 20 米以上（传送、验收脚本换点）：直接到位，不慢慢推（不然先拍到的是没推近的画面）
+    if (Math.hypot(p.x - lastX, p.z - lastZ) > 20) dt = 10;
+    lastX = p.x;
+    lastZ = p.z;
+    const want = keepScaleCam(p.x, p.z) ? 1 : TOWN_ZOOM;
     if (Math.abs(want - townK) < 1e-3) return;
     const step = Math.exp(Math.sign(want - townK) * Math.min(Math.abs(Math.log(want / townK)), dt * Math.log(1.25)));
     townK *= step;
@@ -307,6 +322,20 @@ function mountInteriors(a: WalkApi) {
       autoUse: false,
       onUse: () => go(door.x, door.z + 2, 0),
     });
+    // 店里能说话的人 / 能办事的地方（InteriorDef.talk，局部坐标）
+    const [ox, oz] = ORIGIN[def.id];
+    for (const [k, t] of (def.talk ?? []).entries()) {
+      const at = new THREE.Vector3(ox + t.x, 0, oz + t.z);
+      a.play.add({
+        id: `valley:talk:${def.id}:${k}`,
+        at: () => at,
+        radius: t.r ?? 1.6,
+        priority: 6,
+        label: t.label,
+        autoUse: false,
+        onUse: (play) => play.say(a.director, t.line, 4),
+      });
+    }
   }
 }
 

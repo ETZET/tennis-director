@@ -20,7 +20,11 @@
 // - 电线杆、两对球场之间的矮挡风布、车棚删掉（看不懂、投长影）。
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { coach, kid, player } from '../../clubsite/people';
+import type { BaseCtx } from '../../clubsite/render/ctx';
 import { box } from '../../clubsite/render/geo';
+import { makeAsset } from '../assets';
+import { BLEACHER, MAIN_DOOR_X } from '../assets/school';
 import type { DetailCtx, InstItem } from '../build';
 import { ribbon } from '../build';
 import {
@@ -36,6 +40,7 @@ import {
   washDist,
 } from '../layout';
 import type { PalKey } from '../reuse';
+import { keepScale, TOWN_K } from '../townscale';
 
 /** 局部坐标系：原点 (x, z)、绕 y 转 r（同 rbox：局部 z 轴 = 世界 (sin r, cos r)） */
 interface Fr {
@@ -160,6 +165,77 @@ function flatAttrs(g: THREE.BufferGeometry): THREE.BufferGeometry {
   return o;
 }
 const mergeAll = (list: THREE.BufferGeometry[]) => mergeGeometries(list.map(flatAttrs)) as THREE.BufferGeometry;
+
+// ── 棕榈泉高中（2026-11-18 用户定：学校的任务 = 选拔青训队球员；总监来学校就是来看球、挑人）──────────────
+// 版图常数（缩完的世界坐标，米）。校队球场那一块按真实尺寸（townscale.ts 的 PLAY_KEEP 同一个框，往外 0.5 米）。
+// 教学楼、体育馆在 layout.ts（两栋都以南墙为轴缩）：教学楼缩完 580…624 × −563…−538，体育馆 657…679 × −517…−498.5。
+const SCH = {
+  /** 校队球场的北围网（看台、场门、报名桌都挨着它） */
+  F: -491.5,
+  /** 南围网（对着拉蒙路，风挡布上印着校名） */
+  SF: -457,
+  /** 西围网（练习墙那一条 640…653） */
+  X0: 640,
+  /** 一号场的西沿（四片场 653…727，每片 18.5） */
+  CX0: 653,
+  /** 东围网 */
+  X1: 727,
+} as const;
+
+/**
+ * 学校的玩法锚点（以后做互动用）：名字 → 世界坐标（缩完的）+ 总监在这儿干什么。
+ * 挑人的地方都在校队球场一圈：看台、围网边、场门口的教练、练习墙、体育馆门口的排名榜、一号场的选拔日。
+ */
+export const SCHOOL_SPOTS: Record<string, { x: number; z: number; note: string }> = {
+  coach_gate: { x: 691.4, z: -490.4, note: '三号场北场门：校队教练拿着夹板，问他推荐谁、哪个孩子值得看' },
+  stand: { x: 699.4, z: -493.6, note: '三号场的看台：坐下看队内赛（不打扰），看完点人' },
+  fence_rail: {
+    x: 686,
+    z: -492.8,
+    note: '二号场北围网外：站着隔网看（裂了的场、塌了的网就在眼前 —— 青训要去俱乐部练的理由）',
+  },
+  hit_wall: { x: 647.5, z: -484, note: '练习墙前：一个天才孩子自己对墙打；和他说话 = 单独试一试' },
+  rank_board: { x: 668, z: -497.6, note: '体育馆门口的成绩 / 排名榜：先看数据，再去场上看人' },
+  tryout_desk: {
+    x: 663.5,
+    z: -487.5,
+    note: '青训选拔日（一号场）：报名桌、号码布、锥桶、排队的孩子；挑几个进俱乐部青训',
+  },
+  track: { x: 624, z: -488, note: '跑道东弯：体育课跑圈的孩子，跑得快的也是苗子' },
+  front_door: { x: 585.3, z: -536.5, note: '教学楼正门（以后：校长办公室，签青训合作）' },
+  bus_bay: { x: 588, z: -521, note: '校车湾：放学 / 选拔完，孩子们在这儿上校车' },
+};
+
+/**
+ * 摆好姿势的骨骼人 → 按（材质, 投不投影）合并的静态网格（世界坐标）。看不见的部件（收起来的球拍）不要。
+ * 学校的人是画面上的人（不动、不是镇上的真人），一人十几块网格太费绘制。
+ */
+function bakeCrowd(list: THREE.Object3D[], name: string): THREE.Group | null {
+  if (!list.length) return null;
+  const by = new Map<string, { m: THREE.Material; cast: boolean; gs: THREE.BufferGeometry[] }>();
+  const shown = (o: THREE.Object3D | null): boolean => !o || (o.visible && shown(o.parent));
+  for (const p of list) {
+    p.updateMatrixWorld(true);
+    p.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (!m.isMesh || Array.isArray(m.material) || !shown(m)) return;
+      const g = flatAttrs(m.geometry.clone().applyMatrix4(m.matrixWorld));
+      const k = `${m.material.uuid}:${m.castShadow}`;
+      const e = by.get(k) ?? { m: m.material, cast: m.castShadow, gs: [] };
+      e.gs.push(g);
+      by.set(k, e);
+    });
+  }
+  const out = new THREE.Group();
+  out.name = name;
+  for (const { m, cast, gs } of by.values()) {
+    const mesh = new THREE.Mesh(mergeGeometries(gs) as THREE.BufferGeometry, m);
+    mesh.castShadow = cast;
+    if (!cast) mesh.userData.noCast = true;
+    out.add(mesh);
+  }
+  return out;
+}
 
 export function detailEast(d: DetailCtx): void {
   // ── 不投影的东西：按（区域, 材质, 160 米一块）攒，最后各合并成一个实例（cast = false；锁着照样压暗） ──
@@ -380,32 +456,6 @@ export function detailEast(d: DetailCtx): void {
         band('courtCrack', pts, 0.09, Y.crack + 0.012);
       }
     }
-  };
-
-  /** 铝看台：局部 x 沿长、一排排往局部 +z 升高（人朝局部 −z 坐） */
-  const bleacher = (f: Fr, len: number, rows: number, seat: PalKey = 'concrete') => {
-    const step = 0.75;
-    const rise = 0.4;
-    // 座板、踏板也不投影：一排排板子互相投影，下午整个看台是一片抖点的横条
-    thin(() => {
-      for (let k = 0; k < rows; k++) {
-        const y = 0.4 + k * rise;
-        cube(seat, f, 0, k * step, len, 0.1, 0.42, y);
-        cube(seat, f, 0, k * step - 0.4, len, 0.08, 0.32, y - 0.36);
-      }
-    });
-    const xs = [-len / 2 + 0.3, len / 2 - 0.3];
-    if (len > 10) xs.push(0);
-    const top = 0.4 + (rows - 1) * rise;
-    const back = (rows - 1) * step + 0.3;
-    // 架子、后栏杆：细的，不投影
-    thin(() => {
-      for (const lx of xs) for (let k = 0; k < rows; k++) cube('ironwork', f, lx, k * step, 0.18, 0.4 + k * rise, 0.18);
-      cube('ironwork', f, 0, back, len, 0.12, 0.12, top + 0.9);
-      for (const lx of xs) cube('ironwork', f, lx, back, 0.16, top + 0.95, 0.16);
-    });
-    blockRect(f, -len / 2, len / 2, -0.6, back + 0.15);
-    occupy(f, -len / 2, len / 2, -0.6, back + 0.15, 1);
   };
 
   /** 折叠帐篷（四条腿 + 方锥顶 + 一圈帷边） */
@@ -945,203 +995,366 @@ export function detailEast(d: DetailCtx): void {
   }
 
   // ════════════════════════════════════════════════════════════════════
-  // 棕榈泉高中（教学楼、体育馆从 BUILDINGS 读，跑道中心同 build.ts 的 S(795, −700)）
+  // 棕榈泉高中（2026-11-18 青训选拔；关卡 3：资产 assets/school.ts 组装进来；版图常数在文件头的 SCH，锚点 SCHOOL_SPOTS）
   // ════════════════════════════════════════════════════════════════════
+  // 构图：主角 = 校队球场（四片，真实尺寸）+ 三号场北头的看台（也是真实尺寸，PLAY_KEEP 第二个框）。总监来学校先到这儿：
+  // 看台上坐着看队内赛、栏杆外站着看、场门口的教练、西头练习墙一个孩子自己打；体育馆门口贴着排名榜。
+  // 平时 = 校队训练（三片场上三对孩子对打）；?event=tryout = 青训选拔日（一号场：报名帐篷、横幅、锥桶、排队的孩子、拿夹板的老师）。
+  // 学校本身：冷灰砌块墙（build.ts）+ 酒红 + 浅金（school-main-front / school-gym-front）；白色平顶连廊（程序几何：
+  // 长条跨 70 米，按材质合并进区域桶比一跨一件资产省绘制）从正门一路通到球场；前庭、旗杆、电子字牌、两辆黄校车；
+  // 午餐区（遮阳帆 + 长桌）；停车场太阳能车棚；外圈围网（暗带、不投影）；足球场两绿割草条纹。
+  // 人是画面上的人（clubsite/people 的骨骼人，定格的姿势），不是镇上的真人。
+  // 小镇的比例：贴着教学楼、体育馆（缩之前的脚印 + 2 米）的照缩之前写，townwrap 跟楼一起缩；别处照缩完的坐标写；
+  // 球场 / 看台框（PLAY_KEEP）里的不缩。长条（连廊顶、外圈围网、遮阳帆、车棚）townwrap 只压低（高度写缩之前的）。
   function school(): void {
     const rnd = d.rng('valley:east:school');
-    // 第三轮（山谷缩到 0.7）：位置都从教学楼、体育馆、跑道中心（build.ts 同一个 S(795, −700)）、学校车道推出来，大小不缩。
-    // 教学楼南面到跑道只剩 19 米：前门广场 + 校际赛放这条；看台挪到跑道南边（朝北看）；跳远沙坑、记分牌放不下，删了。
-    const mb = BUILDINGS.find((b) => b.id === 'school_main') ?? { x: 616, z: -553, w: 70, d: 40 };
-    const gym = BUILDINGS.find((b) => b.id === 'school_gym') ?? { x: 658, z: -504, w: 36, d: 30 };
+    const K = TOWN_K;
+    const { F, SF, X0, CX0, X1 } = SCH;
+    const CZ = (F + SF) / 2;
+    const EVENT = typeof location === 'undefined' ? null : new URLSearchParams(location.search).get('event');
+    const TRYOUT = EVENT === 'tryout';
+    // 这个文件的 BUILDINGS = BUILDINGS_RAW（缩之前的）；两栋都以南墙为轴缩：南墙的 z 不变，东西往中线收
+    const mb = BUILDINGS.find((b) => b.id === 'school_main') ?? { x: 602, z: -558, w: 70, d: 40, h: 9 };
+    const gym = BUILDINGS.find((b) => b.id === 'school_gym') ?? { x: 668, z: -513.5, w: 36, d: 30, h: 10 };
     const [TKX, TKZ] = S(795, -700);
-    const mx0 = mb.x - mb.w / 2;
-    const mx1 = mb.x + mb.w / 2;
-    const mz1 = mb.z + mb.d / 2; // 教学楼南面
-    const gz0 = gym.z - gym.d / 2;
-    const gz1 = gym.z + gym.d / 2;
-    const EX = mx0 + 32; // 正门（学校车道贴着楼的西半边进来、尽头在 x 602，门开在车道东边）
-    // ── 教学楼：南立面两条带形窗（每 4 米一根窗棂）、入口雨篷、校名 ──
-    {
-      const zf = mz1 + 0.05;
-      // 车道压着楼的西半边南面走（layout 的学校车道）：那一段墙上不贴窗带（贴了就是路面上的东西）
-      for (const y of [1.9, 5.5])
-        for (let x = mx0 + 2; x < mx1 - 2; x += 4.2)
-          if (roadGap(x + 2, zf + 0.5) > 2.5) wcube('signBoard', x + 2, zf, 3.8, 1.3, 0.1, y);
-      wcube('concrete', EX, mz1 + 2, 8, 0.35, 3.6, 3.4);
-      for (const s of [-1, 1]) wcube('concrete', EX + s * 3.6, mz1 + 3.4, 0.32, 3.4, 0.32);
-      wcube('net', EX, zf, 3.4, 2.5, 0.12);
-      wcube('signPaint', mx0 + 41, zf, 16, 0.9, 0.12, 7.3);
-      wcube('clothRed', mx0 + 41, zf + 0.02, 17, 0.2, 0.1, 8.3);
-      // 体育馆：南面两扇大门（对着校队球场的北门）、一条校色带、屋顶空调
-      for (const s of [-1, 1]) wcube('clothRed', gym.x + s * 7, gz1 + 0.05, 4, 3.2, 0.12);
-      wcube('clothRed', gym.x, gz1 + 0.05, gym.w, 0.9, 0.1, 8.0);
-      for (const dx of [-10, 4, 13]) wcube('metal', gym.x + dx, gym.z - 2, 2.4, 1.3, 2.2, 10);
-      // 两楼之间的连廊（L 形，蓝绿顶）：教学楼东面 → 体育馆北面
-      const walk = (a: V2, b: V2) => {
-        const L = Math.hypot(b[0] - a[0], b[1] - a[1]);
-        const u: V2 = [(b[0] - a[0]) / L, (b[1] - a[1]) / L];
-        const rot = Math.atan2(u[0], u[1]);
-        cube('clothTeal', W0, (a[0] + b[0]) / 2, (a[1] + b[1]) / 2, 3.2, 0.2, L, 3.0, rot);
-        for (let s = 0; s <= L; s += 5) {
-          const x = a[0] + u[0] * s;
-          const z = a[1] + u[1] * s;
-          thin(() => {
-            for (const o of [-1.4, 1.4]) wcube('metal', x - u[1] * o, z + u[0] * o, 0.18, 3.0, 0.18);
-          });
-        }
-      };
-      walk([mx1 + 0.5, mz1 - 3], [gym.x, mz1 - 3]);
-      walk([gym.x, mz1 - 3], [gym.x, gz0 - 0.5]);
-    }
-    // 前门广场（压在学校车道的尽头上面；车道贴着楼的南面走，东西都摆在车道南边）
-    const PZ1 = TKZ - 24 - 1;
-    flat('path', W0, mx0 - 9, EX + 16, mz1 + 1, PZ1, Y.path);
-    const SZ = PZ1 - 8; // 车道南边那一条的中线
-    // 旗杆、旗：不投影
-    const FX = EX - 15;
-    thin(() => {
-      wcube('ironwork', FX, SZ, 0.2, 10, 0.2);
-      wcube('clothRed', FX + 1.05, SZ, 1.9, 0.38, 0.06, 9.0);
-      wcube('clothWhite', FX + 1.05, SZ, 1.9, 0.38, 0.06, 8.62);
-      wcube('clothRed', FX + 1.05, SZ, 1.9, 0.38, 0.06, 8.24);
-      wcube('clothBlue', FX + 0.5, SZ, 0.8, 0.76, 0.08, 8.62);
-    });
-    d.block({ x: FX, z: SZ, r: 0.3 });
-    // 校牌（矮土坯墩 + 蓝牌）：广场西南角外
-    {
-      const x = mx0 - 14;
-      const z = PZ1 - 3;
-      wcube('adobe', x, z, 5, 1.3, 1.0);
-      wcube('signBoard', x, z + 0.55, 4.2, 0.7, 0.1, 0.35);
-      blockRect(W0, x - 2.5, x + 2.5, z - 0.5, z + 0.5);
-    }
-    // 两个花池各一棵棕榈
-    for (const x of [mx0 - 6, EX + 13]) {
-      const z = SZ + 0.5;
-      wcube('adobe', x, z, 2.6, 0.55, 2.6);
-      flat('lawn', { x, z, r: 0 }, -1.1, 1.1, -1.1, 1.1, 0.56);
-      inst.palm.push(item(x, z, 0.9, rnd() * 6, 0.55));
-      d.block({ x, z, r: 1.4 });
-    }
-    // 校际赛：主队红帐篷、客队蓝帐篷，中间记分台，后面一条横幅
-    const EZ = PZ1 - 3.4;
-    canopy(EX - 12, EZ, 3.6, 'clothRed');
-    canopy(EX + 12, EZ, 3.6, 'clothBlue');
-    wcube('clothWhite', EX, EZ, 2.6, 0.8, 0.8);
-    // 横幅：一块布 + 两根杆，不投影
-    thin(() => {
-      for (const s of [-1, 1]) wcube('metal', EX + s * 6, SZ + 1, 0.16, 3.1, 0.16);
-      wcube('clothTeal', EX, SZ + 1, 11.6, 1.1, 0.08, 1.9);
-      wcube('signPaint', EX, SZ + 1.07, 7, 0.4, 0.06, 2.25);
-    });
-    for (const s of [-1, 1]) d.block({ x: EX + s * 6, z: SZ + 1, r: 0.25 });
-    // 两队的球包一排（帐篷前面）
-    for (let k = 0; k < 4; k++) {
-      wcube('clothRed', EX - 13.8 + k * 1.2, EZ + 2.3, 0.9, 0.34, 0.36, 0, 0.2 * (rnd() - 0.5));
-      wcube('clothBlue', EX + 10.2 + k * 1.2, EZ + 2.3, 0.9, 0.34, 0.36, 0, 0.2 * (rnd() - 0.5));
-    }
-    d.block({ x: EX - 12, z: EZ, r: 1.5 });
-    d.block({ x: EX + 12, z: EZ, r: 1.5 });
-    occupy(W0, mx0 - 9, EX + 16, mz1, PZ1 + 0.5, 1);
+    const mz1 = mb.z + mb.d / 2; // 教学楼南墙（= 缩完的南墙）
+    const gz1 = gym.z + gym.d / 2; // 体育馆南墙
+    /** 缩完的教学楼西头、正门 */
+    const fx0 = mb.x - (mb.w * K) / 2;
+    const EX = mb.x + MAIN_DOOR_X * K;
 
-    // ── 跑道南边的看台（朝北看跑道），顶上一个播音间 ──
+    /** 放一件资产（原点 = 落地点）。town = 跟小镇缩、比 LONG_M 长的（校车）：先把长宽缩好，townwrap 当长条只压低 → 三个方向都是 TOWN_K */
+    const place = (id: string, x: number, z: number, o: { rot?: number; v?: number; town?: boolean } = {}) => {
+      const { obj } = makeAsset(id, o.v ? { ...d.actx, variant: o.v } : d.actx);
+      obj.position.set(x, 0, z);
+      obj.rotation.y = o.rot ?? 0;
+      if (o.town) obj.scale.set(K, 1, K);
+      d.asset(obj);
+      return obj;
+    };
+    /**
+     * 画面上的人（骨骼人定格一个姿势）：rot 0 = 脸朝南；seat = [座面高, 脚踏高]（坐着）；look = 头转向的世界点。
+     * 骨骼人一个人十几块网格（一个人十几次绘制，影子再来一遍）：摆好姿势以后不放进场景，攒着，最后（bakeCrowd）
+     * 按材质烘成几块静态网格（全校二十来个人 ≈ 二三十次绘制）。人不跟小镇缩（见 bakeCrowd）。
+     */
+    const crowd: { keep: THREE.Object3D[]; town: THREE.Object3D[] } = { keep: [], town: [] };
+    type Make = (c: BaseCtx) => THREE.Object3D;
+    const person = (
+      make: Make,
+      v: number,
+      x: number,
+      z: number,
+      rot: number,
+      pose: string,
+      phase: number,
+      o: { seat?: [number, number]; prop?: string | null; look?: [number, number, number] } = {},
+    ) => {
+      const p = make({ ...d.actx, variant: v } as unknown as BaseCtx);
+      if (o.prop !== undefined) p.userData.setProp?.(o.prop);
+      if (o.seat) p.userData.setSeat?.(o.seat[0], o.seat[1]);
+      p.userData.pose?.(pose, phase);
+      p.position.set(x, o.seat ? o.seat[0] : 0, z);
+      p.rotation.y = rot;
+      p.updateMatrixWorld(true);
+      if (o.look) p.userData.lookAt?.(new THREE.Vector3(...o.look));
+      (keepScale(x, z) ? crowd.keep : crowd.town).push(p);
+      return p;
+    };
+
+    // ════ 1. 主角：校队球场（真实尺寸，PLAY_KEEP 框里不缩）════
+    flat('surround', W0, X0, X1, F, SF, Y.pad);
+    // 四片场：一号 = 训练 / 选拔日、二号 = 面裂了、三号 = 看台那片（最好的场，队内赛）、四号 = 网塌了
+    const CXS = [0, 1, 2, 3].map((i) => CX0 + 9.25 + i * 18.5);
+    court({ x: CXS[0], z: CZ, r: 0 }, 'ok');
+    court({ x: CXS[1], z: CZ, r: 0 }, 'ok', 6, rnd);
+    court({ x: CXS[2], z: CZ, r: 0 }, 'ok');
+    court({ x: CXS[3], z: CZ, r: 0 }, 'sag', 2, rnd);
+    // 三号场北头：场门（教练站的地方）+ 看台
+    const STX = CXS[2] + 0.15; // 看台中线
+    const SL = BLEACHER.len;
+    const gateA = 690.5;
+    const railA = STX - SL / 2 - 0.4;
+    const railB = STX + SL / 2 + 0.4;
+    fenceRect(
+      W0,
+      X0,
+      X1,
+      F,
+      SF,
+      3.6,
+      [
+        // 北边（看球的那一边）从西头到看台东头不立挡风布，换成 1 米的矮栏杆（下面画）：
+        // 3.6 米的暗带会把它后面 2.6 米里的东西（体育馆门口、看台下两排、站着看的人）整个挡住
+        { side: 'n', at: (X0 + railB) / 2, w: railB - X0 },
+        { side: 'w', at: CZ - 6, w: 2.0 }, // 西门：跑道过来
+        { side: 's', at: 646.5, w: 2.0 }, // 南门：拉蒙路人行道
+        { side: 'e', at: CZ, w: 2.0 },
+      ],
+      [
+        // 四号场的挡风布破了两段（只剩铁丝网）
+        { side: 's', s0: 711, s1: 716.5 },
+        { side: 'n', s0: 719.5, s1: 724 },
+      ],
+    );
+    // 北边的矮栏杆：三个场门 = 连廊进来的（练习墙西头）、一二号场之间的（对着体育馆门口）、教练站的（三号场看台西边）
+    const GATES: (readonly [number, number])[] = [
+      [640.6, 642.6],
+      [CX0 + 17.5, CX0 + 19.5],
+      [gateA, railA],
+    ];
+    thin(() => {
+      for (const [a, b] of cut(X0, railB, GATES)) {
+        wcube('ironwork', (a + b) / 2, F, b - a, 0.1, 0.1, 1.0);
+        const n = Math.max(1, Math.round((b - a) / 2.5));
+        for (let k = 0; k <= n; k++) wcube('ironwork', a + ((b - a) * k) / n, F, 0.12, 1.05, 0.12);
+      }
+    });
+    for (const [a, b] of cut(X0, railB, GATES)) blockSeg([a, F], [b, F], 0.2);
+    // 风挡布上褪色的校名（朝镜头的南面）：北围网四号场一段、南围网对着拉蒙路一长条
+    place('school-banner', 717, F + 0.08);
+    place('school-banner', 672, SF + 0.08, { v: 1 });
+    occupy(W0, X0, X1, F, SF, 1);
+
+    // ── 三号场：看台（真实尺寸，朝南）、看台上的人、教练、队内赛、队员长椅；看台背后的记分牌（跟小镇缩）──
+    const SZC = F - 1.0 - BLEACHER.z0; // 看台脚印中心：第一排座板在北网北边 1 米
+    place('school-bleacher', STX, SZC);
+    blockRect(W0, STX - SL / 2 - 0.1, STX + SL / 2 + 0.1, SZC - 1.7, SZC + 2.1);
+    occupy(W0, STX - SL / 2, STX + SL / 2, SZC - 2, SZC + 2.2, 1);
+    // 看台上的人（家长、别的学校的探子）：坐在第 1、2、4 排，看三号场
+    const seatAt = (k: number): [number, number] => {
+      const y = BLEACHER.seat0 + k * BLEACHER.rise;
+      return [y, y - BLEACHER.rise + 0.04];
+    };
+    for (const [lx, k, v] of [
+      [-4.4, 1, 1],
+      [-3.6, 1, 2],
+      [-1.0, 2, 3],
+      [1.4, 3, 0],
+    ] as const)
+      person(player, v, STX + lx, SZC + BLEACHER.z0 - k * BLEACHER.step, 0, k === 2 ? 'clap' : 'sit', 0.15 * k, {
+        seat: seatAt(k),
+        prop: null,
+        look: [CXS[2], 1, CZ - 4],
+      });
+    // 教练：场门里面，侧身看着三号场（以后头顶冒"…"）
+    person(coach, 0, gateA + 0.9, F + 1.2, 0.6, 'idle', 0.3, { prop: null, look: [CXS[2], 1, CZ - 6] });
+    // 队内赛：北边底线的孩子（正手）、南边上网的孩子（准备）
+    person(player, 0, CXS[2] + 2.0, CZ - 12.6, 0, 'forehand', 0.45);
+    person(player, 2, CXS[2] - 1.4, CZ + 5.0, Math.PI, 'ready', 0.2);
+    wcube('ball', CXS[2] + 0.9, CZ - 6.5, 0.12, 0.12, 0.12, 1.15);
+    bench({ x: CXS[2] + 7.4, z: CZ + 2.6, r: Math.PI / 2 }, 2.4);
+    bench({ x: CXS[2] + 7.4, z: CZ - 2.6, r: Math.PI / 2 }, 2.4);
+    // 二号场：一对孩子对打（裂了的场上）
+    person(player, 1, CXS[1] + 1.2, CZ - 11.2, 0, 'backhand', 0.4);
+    person(player, 3, CXS[1] - 2.0, CZ + 10.8, Math.PI, 'ready', 0.6);
+    // 记分牌（看台背后，朝南；中线偏西，不进右上角的小地图）
     {
-      const f: Fr = { x: TKX, z: TKZ + 28, r: 0 };
-      bleacher(f, 34, 6, 'seat');
-      cube('stucco', f, 0, 4.4, 7, 2.6, 2.4, 2.4);
-      cube('signBoard', f, 0, 3.15, 6, 0.9, 0.1, 3.6);
-      cube('concrete', f, 0, 4.4, 7.8, 0.3, 3.2, 5.0);
+      const x = STX - 4.6;
+      const z = F - 8.2;
+      place('school-scoreboard', x, z);
+      blockRect(W0, x - 2.2, x + 2.2, z - 0.3, z + 0.3);
+      occupy(W0, x - 2.2, x + 2.2, z - 0.5, z + 0.5, 0.5);
     }
-    // ── 跑道分道线、终点线、内场的足球门和线 ──
+
+    // ── 一号场：平时校队训练（一对孩子对打）；选拔日（?event=tryout）= 报名帐篷、横幅、排队的孩子、锥桶、球车、老师 ──
+    if (TRYOUT) {
+      const tx = CX0 + 10.5; // 报名桌（一、二号场之间的场门进来往西 8 米）
+      const tz = F + 3.4;
+      place('tryout-tent', tx, tz);
+      d.block({ x: tx, z: tz + 0.5, r: 1.3 });
+      place('school-banner', CX0 + 5.5, F + 0.08, { v: 2 });
+      // 排队的孩子：从场门进来，朝西对着桌子
+      for (let i = 0; i < 5; i++)
+        person(kid, i % 3, tx + 2.6 + i * 0.95, tz + 0.7 + (rnd() - 0.5) * 0.3, -Math.PI / 2, 'idle', rnd(), {
+          prop: null,
+        });
+      // 锥桶两排（绕桩跑），球车，拿夹板的老师，一个正在绕桩跑的孩子
+      for (let j = 0; j < 6; j++) {
+        inst.cone.push(item(CXS[0] - 3.4 + j * 1.35, CZ - 9.4));
+        inst.cone.push(item(CXS[0] - 3.4 + j * 1.35, CZ - 5.6));
+      }
+      wcube('metal', CXS[0] + 4.2, CZ - 7.5, 0.8, 0.8, 0.6);
+      wcube('ball', CXS[0] + 4.2, CZ - 7.5, 0.7, 0.25, 0.5, 0.8);
+      person(coach, 1, CXS[0] + 4.4, CZ - 9.3, -Math.PI / 2, 'idle', 0.5, { prop: null });
+      person(kid, 1, CXS[0] - 1.4, CZ - 7.5, Math.PI / 2, 'walk', 0.3, { prop: null });
+      for (let k = 0; k < 7; k++) inst.ball.push(item(CXS[0] - 4 + rnd() * 9, CZ - 4 + rnd() * 2.5));
+    } else {
+      person(player, 1, CXS[0] + 3.0, CZ - 11.0, 0, 'forehand', 0.3);
+      person(player, 0, CXS[0] + 1.5, CZ + 11.4, Math.PI, 'ready', 0.4);
+      wcube('metal', CX0 + 17.2, CZ - 13.4, 0.8, 0.8, 0.6);
+      wcube('ball', CX0 + 17.2, CZ - 13.4, 0.7, 0.25, 0.5, 0.8);
+    }
+
+    // ── 西头一条：练习墙（一个天才孩子自己打，墙前一块蓝硬地、一块磨白的地）──
     {
-      for (const r of [19.5, 21, 22.5]) {
-        const g = new THREE.RingGeometry(r - 0.05, r + 0.05, 40)
+      // 墙 643.5…652（西头让出连廊进来的场门）
+      const w0 = X0 + 3.5;
+      const w1 = CX0 - 1;
+      const wx = (w0 + w1) / 2;
+      flat('court', W0, w0 - 0.5, w1 + 0.5, F + 1.5, F + 10.5, Y.court);
+      place('hit-wall', wx, F + 1.2);
+      blockRect(W0, w0, w1, F + 1.0, F + 1.4);
+      flat('courtBleach', W0, wx - 1.9, wx + 1.9, F + 6.2, F + 8.6, Y.line);
+      person(kid, 0, wx - 0.2, F + 7.4, Math.PI, 'forehand', 0.55);
+      wcube('clothBlue', CX0 - 2.6, F + 9.8, 0.8, 0.3, 0.35);
+      for (let k = 0; k < 6; k++) inst.ball.push(item(wx - 4 + rnd() * 8, F + 1.8 + rnd() * 1.2));
+    }
+
+    // ════ 2. 体育馆：门面（贴着楼，照缩之前写：门、高窗、校名带、储物柜）+ 排名榜 ════
+    place('school-gym-front', gym.x, gym.z);
+    place('rank-board', gym.x, gz1 + 0.04);
+    // 体育馆门口到球场北边栏杆之间的一条（缩完的坐标）：两条长椅朝南
+    for (const x of [661, 675.5]) bench({ x, z: F - 3.6, r: 0 }, 2.2);
+    occupy(W0, 655, 682, F - 7, F, 0, true);
+
+    // ════ 3. 教学楼：南立面 + 屋顶（贴着楼，照缩之前写）+ 室外平顶连廊（缩完的坐标，只压低）════
+    place('school-main-front', mb.x, mb.z);
+    // 连廊：沿教学楼南面（正门那一跨断开）→ 往东过午餐区 → 往南一直到球场的西北场门（x 641.6）。
+    // 顶板白、外沿一条酒红封檐；细钢柱每 5 米；高度写缩之前的（3.5 → 缩完 2.2）。
+    {
+      const CY = 3.5;
+      const z0 = mz1 + 0.4;
+      const z1 = mz1 + 4.0;
+      const NX = 641.6; // 往南那一段的中线（教学楼缩之前的脚印 + 2 米到 639，体育馆的从 648 起：两边都不沾）
+      const roof = (x0: number, x1: number, za: number, zb: number) => {
+        wcube('pvc', (x0 + x1) / 2, (za + zb) / 2, x1 - x0, 0.3, zb - za, CY);
+      };
+      roof(fx0, EX - 3.6, z0, z1);
+      roof(EX + 3.6, NX + 1.5, z0, z1);
+      roof(NX - 1.5, NX + 1.5, z1, F - 0.6);
+      // 封檐（酒红）：南沿、往南那段的两边
+      wcube('schoolMaroon', (fx0 + EX - 3.6) / 2, z1, EX - 3.6 - fx0, 0.45, 0.14, CY - 0.15);
+      wcube('schoolMaroon', (EX + 3.6 + NX - 1.5) / 2, z1, NX - 1.5 - EX - 3.6, 0.45, 0.14, CY - 0.15);
+      for (const s of [-1, 1])
+        wcube('schoolMaroon', NX + s * 1.5, (z1 + F - 0.6) / 2, 0.14, 0.45, F - 0.6 - z1, CY - 0.15);
+      // 柱子（细的，不投影：一排柱子傍晚投出一排长条，连廊顶的影子已经够了）
+      thin(() => {
+        for (let x = fx0 + 1; x < NX - 1.5; x += 5)
+          if (Math.abs(x - EX) > 3.8) wcube('metal', x, z1 - 0.25, 0.16, CY, 0.16);
+        for (let z = z1 + 3; z < F - 1; z += 5)
+          for (const s of [-1, 1]) wcube('metal', NX + s * 1.3, z, 0.16, CY, 0.16);
+      });
+      for (let z = z1 + 3; z < F - 1; z += 5) for (const s of [-1, 1]) d.block({ x: NX + s * 1.3, z, r: 0.15 });
+      // 往南那段底下一条浅灰的路
+      flat('campusConcrete', W0, NX - 1.6, NX + 1.6, z1, F - 0.2, Y.path);
+      occupy(W0, NX - 1.8, NX + 1.8, z1, F, 0.5);
+    }
+
+    // ════ 4. 前门：浅灰水泥前庭（分格）、旗杆、电子字牌；前庭南边的校车湾（两辆黄校车）；东边草坪上的午餐区 ════
+    // 正门、字牌、旗杆、两辆校车都挤在正门前 15 米宽里：竖屏一屏（at 587,−531）全看得到
+    const PX1 = 640; // 前庭东头（接往南的连廊）
+    const FZ1 = -527; // 前庭南沿 = 校车湾北沿（黄路缘）
+    flat('campusConcrete', W0, 575, PX1, mz1, FZ1, Y.path);
+    // 分格缝（3.5 米一格；楼脚 2 米里不画：那一条归楼的缩放框）
+    for (let x = 578.5; x < PX1 - 0.5; x += 3.5) flat('ironwork', W0, x - 0.04, x + 0.04, mz1 + 2.5, FZ1, Y.line);
+    for (const z of [mz1 + 3.5, mz1 + 7]) flat('ironwork', W0, 575, PX1, z - 0.04, z + 0.04, Y.line);
+    occupy(W0, 575, PX1, mz1, FZ1, 0.5);
+    // 正门前一条 7 米宽的路两边各一块草坪（前庭不是一整片灰；旗杆立在东边那块里）
+    for (const [a, b] of [
+      [575, EX - 3.5],
+      [EX + 3.5, 597],
+    ])
+      flat('lawn', W0, a, b, mz1 + 5.5, FZ1 - 0.6, Y.crack);
+    // 草坪（前庭以南、校车湾以东，到操场北沿）
+    flat('lawn', W0, 600, PX1, FZ1, -518.2, Y.path);
+    occupy(W0, 600, PX1, FZ1, -518.2, 0.5);
+    place('school-flagpole', 591, -530.5);
+    d.block({ x: 591, z: -530.5, r: 0.6 });
+    place('school-marquee', 583.4, -530.4);
+    blockRect(W0, 583.4 - 1.4, 583.4 + 1.4, -530.7, -530.1);
+    // 连廊前的花池 + 棕榈
+    for (const x of [600, 613, 626]) {
+      const z = mz1 + 8.4;
+      wcube('cmuGrey', x, z, 2.4, 0.5, 2.0);
+      // 池里的土：0.2 米厚的一块（比 FLAT_M 高，跟花池一起缩；平铺的不缩会浮在缩过的池子上）
+      wcube('lawn', x, z, 2.0, 0.2, 1.6, 0.32);
+      inst.palm.push(item(x, z, 0.9, rnd() * 6, 0.5));
+      d.block({ x, z, r: 1.2 });
+    }
+    // 午餐区（草坪东头，连廊拐角里）：四张长桌、两片遮阳帆
+    for (const [x, z] of [
+      [630.8, -525.2],
+      [630.8, -520.9],
+      [636.6, -525.2],
+      [636.6, -520.9],
+    ]) {
+      place('lunch-table', x, z);
+      blockRect(W0, x - 1, x + 1, z - 0.9, z + 0.9);
+    }
+    place('lunch-shade', 630.8, -523.05);
+    place('lunch-shade', 636.6, -523.05, { v: 1 });
+    flat('asphalt', W0, 571, 600, FZ1, -521.5, 0.03);
+    wcube('flowerYellow', 586, FZ1 + 0.1, 27, 0.02, 0.15, 0.037);
+    for (const x of [582, 592.4]) {
+      place('school-bus', x, -524.3, { town: true });
+      blockRect(W0, x - 2.55, x + 2.55, -525.1, -523.5);
+    }
+    occupy(W0, 571, 600, FZ1, -521.5, 0.5);
+
+    // ════ 5. 跑道、足球场（割草条纹）、体育课的孩子 ════
+    {
+      // 分道线：和 build.ts 的跑道一样大（RingGeometry 13…17、x 方向 × 1.6）
+      for (const r of [14, 15, 16]) {
+        const g = new THREE.RingGeometry(r - 0.05, r + 0.05, 48)
           .rotateX(-Math.PI / 2)
-          .scale(2, 1, 1)
+          .scale(1.6, 1, 1)
           .translate(TKX, 0.037, TKZ);
         putG(reg(TKX, TKZ), 'line', g);
       }
-      wcube('line', TKX, TKZ + 21, 0.15, 0.02, 6, 0.037);
-      // 内场：50 × 24 的足球场（只画边线、中线、中圈）
-      const F: Fr = { x: TKX, z: TKZ, r: 0 };
-      const ln = (a: number, b: number, c: number, e: number) => flat('line', F, a, b, c, e, 0.03);
+      wcube('line', TKX, TKZ + 15, 0.18, 0.02, 4.0, 0.037);
+      // 内场：32 × 16 的足球场，深浅两绿 4 米一条
+      const P: Fr = { x: TKX, z: TKZ, r: 0 };
+      for (let i = 0; i < 8; i += 2) flat('lawnStripe', P, -16 + i * 4, -12 + i * 4, -8, 8, Y.pad);
+      const ln = (a: number, b: number, c: number, e: number) => flat('line', P, a, b, c, e, Y.court);
       for (const s of [-1, 1]) {
-        ln(-25, 25, s * 12 - 0.05, s * 12 + 0.05);
-        ln(s * 25 - 0.05, s * 25 + 0.05, -12, 12);
+        ln(-16, 16, s * 8 - 0.05, s * 8 + 0.05);
+        ln(s * 16 - 0.05, s * 16 + 0.05, -8, 8);
       }
-      ln(-0.05, 0.05, -12, 12);
+      ln(-0.05, 0.05, -8, 8);
       putG(
         reg(TKX, TKZ),
         'line',
-        new THREE.RingGeometry(4.4, 4.5, 24).rotateX(-Math.PI / 2).translate(TKX, 0.031, TKZ),
+        new THREE.RingGeometry(2.9, 3.0, 24).rotateX(-Math.PI / 2).translate(TKX, Y.court, TKZ),
       );
       for (const s of [-1, 1]) {
-        const x = TKX + s * 25;
-        // 球门：门框 + 后面的网（不投影；网矮一点、只是一条暗带）
+        const x = TKX + s * 16;
         thin(() => {
-          for (const zz of [-3.66, 3.66]) wcube('clothWhite', x, TKZ + zz, 0.14, 2.44, 0.14);
-          wcube('clothWhite', x, TKZ, 0.14, 0.14, 7.46, 2.3);
-          wcube('net', x + s * 1.0, TKZ, 0.06, 1.2, 7.3, 0);
+          for (const zz of [-2.5, 2.5]) wcube('clothWhite', x, TKZ + zz, 0.14, 2.0, 0.14);
+          wcube('clothWhite', x, TKZ, 0.14, 0.14, 5.14, 1.9);
+          wcube('net', x + s * 0.8, TKZ, 0.06, 1.0, 5.0, 0);
         });
-        for (const zz of [-3.66, 3.66]) blockSeg([x, TKZ + zz], [x + s * 1.0, TKZ + zz], 0.15);
-        blockSeg([x + s * 1.0, TKZ - 3.66], [x + s * 1.0, TKZ + 3.66], 0.12);
+        for (const zz of [-2.5, 2.5]) blockSeg([x, TKZ + zz], [x + s * 0.8, TKZ + zz], 0.15);
       }
+      // 体育课：东弯上跑圈的三个孩子（逆时针）+ 看表的老师
+      for (const [a, v] of [
+        [-0.45, 0],
+        [-0.1, 2],
+        [0.3, 1],
+      ] as const) {
+        const x = TKX + Math.cos(a) * 15 * 1.6;
+        const z = TKZ + Math.sin(a) * 15;
+        // 前进方向（逆时针 = 角度减小）：切线 (sin a · 1.6, −cos a)
+        person(player, v, x, z, Math.atan2(Math.sin(a) * 1.6, -Math.cos(a)), 'walk', 0.25 + v * 0.3, { prop: null });
+      }
+      person(coach, 1, TKX + 19, TKZ - 2, -Math.PI / 2, 'idle', 0.7, { prop: null });
     }
 
-    // ── 体育馆南边四片校队球场（教练在体育馆门口等）：南北 34.5 米（拉蒙路在南边，外场每头 5.4 米）；西沿让开跑道的东头 ──
+    // ════ 6. 教职工停车场（太阳能车棚）、外圈围网、遮阴树 ════
     {
-      const BX0 = TKX + 49.5;
-      const BX1 = BX0 + 74;
-      const BZ0 = gz1 + 1.8;
-      const BZ1 = BZ0 + 34.5;
-      const CZ = (BZ0 + BZ1) / 2;
-      flat('surround', W0, BX0, BX1, BZ0, BZ1, Y.pad);
-      for (let i = 0; i < 4; i++) court({ x: BX0 + 9.25 + i * 18.5, z: CZ, r: 0 }, 'ok');
-      fenceRect(W0, BX0, BX1, BZ0, BZ1, 3.6, [
-        { side: 'n', at: BX0 + 18.5 },
-        { side: 'n', at: BX0 + 55.5 },
-        { side: 'e', at: CZ },
-      ]);
-      occupy(W0, BX0, BX1, BZ0, BZ1, 1.5);
-      // 东边围网外挂一条校队横幅（红，朝日出大道）
-      thin(() => {
-        wcube('clothRed', BX1 + 0.12, CZ - 9, 0.06, 1.0, 10, 1.5);
-        wcube('signPaint', BX1 + 0.16, CZ - 9, 0.04, 0.4, 7, 1.8);
-      });
-      // 每片场网边一条队员长椅（东边），一号场一车球、几个锥桶
-      for (let i = 0; i < 4; i++) bench({ x: BX0 + 9.25 + i * 18.5 + 7.7, z: CZ + 3, r: Math.PI / 2 }, 2.4);
-      wcube('metal', BX0 + 6, CZ + 8, 0.8, 0.8, 0.6);
-      wcube('ball', BX0 + 6, CZ + 8, 0.7, 0.25, 0.5, 0.8);
-      for (let k = 0; k < 4; k++) inst.cone.push(item(BX0 + 4 + k * 2.4, CZ - 8));
-      for (let k = 0; k < 6; k++) inst.ball.push(item(BX0 + 10 + rnd() * 10, BZ0 + 0.5 + rnd() * 0.6));
-    }
-
-    // ── 东边一排临时教室（加州学校的标志），西边教职工停车场 ──
-    for (const dx of [66, 82, 98]) {
-      const f: Fr = { x: mb.x + dx, z: mb.z - 9, r: 0 };
-      cube('woodWeathered', f, 0, 0, 13, 3.0, 9, 0.4);
-      cube('concrete', f, 0, 0, 13.6, 0.3, 9.6, 3.4);
-      thin(() => cube('net', f, 0, 0, 13, 0.4, 9, 0));
-      cube('signBoard', f, -3, 4.52, 1.1, 2.1, 0.08, 0.5);
-      cube('wood', f, -3, 5.6, 1.6, 0.4, 2.2, 0);
-      blockRect(f, -6.6, 6.6, -4.6, 6.7);
-      occupy(f, -6.6, 6.6, -4.6, 6.8, 1);
-    }
-    {
-      const LX0 = mb.x - 84;
-      const LZ0 = mb.z - 18;
-      const LZ1 = mb.z + 14;
-      // 停车场和接到学校车道的一小段：和路同一层（0.03）同一个材质，接缝不闪
-      flat('asphalt', W0, LX0, LX0 + 44, LZ0, LZ1, 0.03);
+      const LX0 = 518;
+      const LX1 = 562;
+      const LZ0 = -578;
+      const LZ1 = -546;
+      flat('asphalt', W0, LX0, LX1, LZ0, LZ1, 0.03);
       const sl = road('school_lane');
-      const cx = LX0 + 34;
+      const cx = 553.5;
       band(
         'asphalt',
         [
           [cx, LZ1 - 1],
           [cx, sl ? nearestOn(sl.pts, cx, LZ1)[1] : LZ1 + 6],
         ],
-        3,
+        1.6,
         0.03,
       );
       const CAR: PalKey[] = ['concrete', 'carRed', 'clothWhite', 'clothBlue', 'metal', 'cap'];
@@ -1152,21 +1365,53 @@ export function detailEast(d: DetailCtx): void {
         for (let k = 0; k <= 15; k++) {
           const x = LX0 + 2 + k * 2.75;
           flat('line', W0, x - 0.05, x + 0.05, z0, z1, Y.court);
-          // 接车道那一格空着
-          if (k < 15 && rnd() < 0.45 && Math.abs(x + 1.375 - cx) > 3)
+          if (k < 15 && rnd() < 0.5 && Math.abs(x + 1.375 - cx) > 3)
             car(x + 1.375, cz, rot + (rnd() - 0.5) * 0.06, CAR[Math.floor(rnd() * CAR.length)]);
         }
+        // 太阳能车棚：一整排斜板（南低北高），柱子在中线上每 8 米；townwrap 只压低（3.6 → 2.2）
+        place('solar-carport', (LX0 + LX1) / 2, cz);
+        for (let x = (LX0 + LX1) / 2 - 19; x < LX1 - 1; x += 8) d.block({ x, z: cz, r: 0.2 });
       }
-      occupy(W0, LX0, LX0 + 44, LZ0, LZ1, 1);
-      // 停车场北边一排遮阴树
+      occupy(W0, LX0, LX1, LZ0, LZ1, 1);
       for (const dx of [4, 16, 31, 43]) inst.tree.push(item(LX0 + dx, LZ0 - 3, 0.9 + rnd() * 0.25, rnd() * 6));
     }
-    // 操场边几棵
+    // 外圈围网（暗带，不投影；townwrap 只压低）：拉蒙路北边、日出大道西边
+    {
+      const out = (a: V2, b: V2) => {
+        const L = Math.hypot(b[0] - a[0], b[1] - a[1]);
+        const rr = Math.atan2(b[0] - a[0], b[1] - a[1]);
+        thin(() => {
+          cube('net', { x: (a[0] + b[0]) / 2, z: (a[1] + b[1]) / 2, r: rr }, 0, 0, 0.06, 2.0, L);
+          const n = Math.max(1, Math.round(L / 6));
+          for (let k = 0; k <= n; k++)
+            wcube('ironwork', a[0] + ((b[0] - a[0]) * k) / n, a[1] + ((b[1] - a[1]) * k) / n, 0.14, 2.1, 0.14);
+        });
+        blockSeg(a, b, 0.2);
+      };
+      out([580, -454.5], [X0 - 0.5, -454.5]);
+      out([734.5, SF], [734.5, -580]);
+    }
+    // 遮阴树：拉蒙路围网里一排、看台东边
     for (const [x, z] of [
-      [TKX - 52, TKZ - 22],
-      [TKX + 44, TKZ + 30],
+      [588, -458],
+      [600, -457.5],
+      [612, -458],
+      [624, -457.5],
+      [712, -497],
+      [722, -499],
     ])
-      inst.tree.push(item(x, z, 0.9 + rnd() * 0.25, rnd() * 6));
+      inst.tree.push(item(x, z, 0.95 + rnd() * 0.2, rnd() * 6));
+
+    // ── 人：烘成静态网格（世界坐标，组的原点在世界原点）──
+    // 球场 / 看台框里的：包围盒中心在框里 → townwrap 不动它。跑道上的：一组十几米宽 = "长条"，townwrap 只把 y 乘 TOWN_K →
+    // 先把组的 y 放大 1/TOWN_K 抵掉（人不缩）。
+    const keepG = bakeCrowd(crowd.keep, 'valley:school:crowd');
+    if (keepG) d.asset(keepG, reg(CXS[2], CZ));
+    const townG = bakeCrowd(crowd.town, 'valley:school:crowd-track');
+    if (townG) {
+      townG.scale.y = 1 / K;
+      d.asset(townG, reg(TKX, TKZ));
+    }
   }
 
   // ════════════════════════════════════════════════════════════════════
