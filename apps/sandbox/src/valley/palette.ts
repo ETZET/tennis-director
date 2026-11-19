@@ -1,4 +1,4 @@
-// valley 的调色板 = clubmap2 的表（PAL）+ 市中心三栋办事楼的新材质（TOWN，2026-11-16 美术关卡 2，docs/lab/2026-11-07-3d-pixel/valley-town.md）。
+// valley 的调色板 = clubmap2 的表（PAL）+ 市中心三栋办事楼、日出公园的新材质（TOWN，2026-11-16 美术关卡 2，docs/lab/2026-11-07-3d-pixel/valley-town.md）。
 // 规则同 clubsite/render/palette.ts 头注（material-spec.md）：每档 [本色, 高一级, 低一级]，高/低一级差 6～12，缝、亮边差 15～30（< 60）；
 // 大面积亮面的亮档低一级 ≥ 170，暗档高一级 ≤ 120；暗档往冷（靛、紫、深青）走，不是亮档乘系数。L = 0.2126R + 0.7152G + 0.0722B。
 // 归组：新材质不在 clubsite/render/palettes 的 GROUP 里 → PROXY 借一个同组的老材质名过午后调色（ctx.mat(PROXY[key], 本材质的参数)）。
@@ -345,6 +345,103 @@ const TOWN = {
       [0x6888c0, 0x5a78b0, 0x3c4a78], // 亮边
     ),
   ),
+  // ── 日出公园（2026-11-18 公园关卡 1，用户选"褪色红绿"；docs/lab/2026-11-07-3d-pixel/valley-park.md）──
+  /**
+   * 公共球场内场：偏冷、偏暗的市政绿（2026-11-18 美术返工 G4：原来的 #70bc84 画面 #92be7d 和草地 #8ab044 只差 16 个亮度、色相都是黄绿，
+   * 总览里几乎看不见 → 往青绿、往暗走：画面约 #589877，比草暗 ~22、色相差 ~65°（低一级也留在第 5 档亮度，暗带才单独成一个峰）；俱乐部是饱和青蓝 #22b0d5（S 0.84、195°），这里 S 0.6、≈ 165°）。
+   * 漆面斑块（paint）只差约 6 个亮度（material-spec「沙漠移植」：远看不花，原来 ±10～12 像迷彩）；暗档往冷石板蓝走
+   */
+  muniCourt: s(
+    [0x3ba089, 0x2e7c78, 0x2a4f66],
+    0.03,
+    0.03,
+    tn(
+      [0x3ba089, 0x3ea78f, 0x389983], // L 137 / 143 / 131
+      [0x2e7c78, 0x31837f, 0x2b7571], // L 107 / 113 / 101
+      [0x2a4f66, 0x2d566e, 0x27485e], // L 73 / 79 / 67
+      [0x328874, 0x266764, 0x203d4e], // 缝 −20 / −18 / −17
+      [0x46bda2, 0x399994, 0x386988], // 亮边 +25 / +25 / +24
+    ),
+  ),
+  /** 公共球场外场、场间：褪色的铁锈红（斑块 ±6，同内场） */
+  muniOuter: s(
+    [0xc4806a, 0xa0645e, 0x5c4060],
+    0.03,
+    0.03,
+    tn(
+      [0xc4806a, 0xcc856f, 0xbc7b65], // L 141 / 147 / 135
+      [0xa0645e, 0xa96963, 0x975f59], // L 112 / 118 / 106
+      [0x5c4060, 0x644568, 0x543b58], // L 72 / 78 / 66
+      [0xae6c5a, 0x8a5254, 0x4a3254], // 缝 −20 / −18 / −15
+      [0xdc9c82, 0xb87a70, 0x765878], // 亮边 +27 / +22 / +24
+    ),
+  ),
+  /** 公共球场上重新补过的漆：比内场新一点、亮一点、偏绿一点（跟着内场往冷、往暗走；补丁本身就是元素，平涂） */
+  muniPatch: s(
+    [0x4cae8e, 0x3a8a80, 0x30586c],
+    0.03,
+    0.03,
+    tn(
+      [0x4cae8e, 0x50b694, 0x48a688], // L 150 / 157 / 143
+      [0x3a8a80, 0x3e9286, 0x36827a], // L 119 / 126 / 113
+      [0x30586c, 0x346074, 0x2c5066], // L 81 / 88 / 74
+      [0x3e967a, 0x2e706c, 0x244456], // 缝 −20 / −20 / −16
+      [0x5ccaa6, 0x48a69a, 0x3e7290], // 亮边 +25 / +23 / +25
+    ),
+  ),
+  /** 晒褪的旧绿挡风布、市政铁件（长椅腿、垃圾桶）；薄 → 不接收投影 */
+  windscreenOld: s(
+    [0x6f8f5e, 0x4f6f56, 0x2c4250],
+    0.3,
+    0.1,
+    tn(
+      [0x6f8f5e, 0x7a9a68, 0x668654], // L 133 / 144 / 124
+      [0x4f6f56, 0x58785e, 0x47664e], // L 102 / 111 / 94
+      [0x2c4250, 0x324a58, 0x273a48], // L 62 / 70 / 55
+      [0x5a7a4c, 0x42604c, 0x1e3040], // 缝 −21 / −14 / −17
+      [0x8cab72, 0x6a8a66, 0x44606a], // 亮边 +28 / +26 / +28
+    ),
+    THIN,
+  ),
+  /** 镀锌铁丝网带（围网上沿，不画网眼）、灯杆 */
+  chainLink: s(
+    [0xa7b2b4, 0x7e8a98, 0x474e6a],
+    0.4,
+    0.4,
+    tn(
+      [0xa7b2b4, 0xb2bcbe, 0x9ca8aa], // L 176 / 186 / 166
+      [0x7e8a98, 0x8894a0, 0x74808e], // L 136 / 146 / 126
+      [0x474e6a, 0x4f5672, 0x404662], // L 79 / 87 / 71
+      [0x8c989c, 0x68748a, 0x363c58], // 缝 −26 / −21 / −18
+      [0xc4ced0, 0x9ca8b4, 0x5e6684], // 亮边 +28 / +30 / +24
+    ),
+  ),
+  /** 对墙练习墙：灰绿漆的混凝土；朝南那面在资产里加 SIGN_FACE 那套光照（落中档） */
+  hitWall: s(
+    [0x8fa894, 0x6e8a82, 0x3e5466],
+    0.4,
+    0.2,
+    tn(
+      [0x8fa894, 0x9ab29e, 0x86a08a], // L 161 / 171 / 153
+      [0x6e8a82, 0x78948a, 0x66807a], // L 131 / 141 / 122
+      [0x3e5466, 0x465c6e, 0x384c5e], // L 81 / 89 / 73
+      [0x768e7c, 0x56706c, 0x2c3e50], // 缝 −26 / −25 / −21
+      [0xacc4ae, 0x8ca69a, 0x56707e], // 亮边 +28 / +28 / +27
+    ),
+  ),
+  /** 市政公园牌、挂拍处木牌的棕 */
+  parkBrown: s(
+    [0x9a6a46, 0x74504a, 0x3e3050],
+    0.5,
+    0.4,
+    tn(
+      [0x9a6a46, 0xa6744e, 0x8e603e], // L 114 / 124 / 103
+      [0x74504a, 0x7e5850, 0x6a4844], // L 87 / 96 / 79
+      [0x3e3050, 0x463658, 0x382a48], // L 53 / 60 / 47
+      [0x7e5436, 0x5c3e3c, 0x2c2240], // 缝 −23 / −19 / −15
+      [0xb8865c, 0x946a5c, 0x584870], // 亮边 +28 / +27 / +25
+    ),
+  ),
 } as const satisfies Record<string, Swatch>;
 
 export type TownKey = keyof typeof TOWN;
@@ -378,6 +475,13 @@ export const PROXY = {
   schoolGold: 'flowerYellow',
   campusConcrete: 'surround',
   solarBlue: 'signBoard',
+  muniCourt: 'surround',
+  muniOuter: 'surround',
+  muniPatch: 'surround',
+  windscreenOld: 'lawn',
+  chainLink: 'surround',
+  hitWall: 'surround', // 借 concrete 调完正午只剩 S 0.08（批 KW 量的）→ 中性灰那组
+  parkBrown: 'concrete',
 } as const satisfies Record<TownKey, keyof typeof MAP_PAL>;
 
 /**
@@ -400,6 +504,12 @@ export const TOWN_EL = {
   terrazzo: { kind: 'stones', size: [2, 2], seam: 1, hi: 0.3 },
   cmuGrey: { kind: 'stones', size: [4, 2], seam: 1, hi: 0.3 },
   solarBlue: { kind: 'planks', seam: 1, hi: 0.4, p: [1, 0, 0, 1] },
+  // 公园：球场漆面有机深浅块（大、低对比）；挡风布每 1.5 米一条竖接缝；公园牌木板
+  muniCourt: { kind: 'paint', size: [14, 8] },
+  muniOuter: { kind: 'paint', size: [18, 10] },
+  windscreenOld: { kind: 'planks', seam: 1, hi: 0.3, p: [1, 0, 0, 1.5] },
+  hitWall: { kind: 'paint', size: [12, 6] },
+  parkBrown: { kind: 'planks', seam: 1, hi: 0.5, p: [0, 1, 0, 0.2] },
 } satisfies Partial<Record<TownKey, Elem>>;
 
 export const PAL = { ...MAP_PAL, ...TOWN } as const;
