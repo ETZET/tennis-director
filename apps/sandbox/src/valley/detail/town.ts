@@ -51,6 +51,8 @@ interface Face {
 const STREETS = ROADS.filter((r) => r.kind !== 'trail');
 /** 三家办事的楼（layout.ts 的 SITES）：门面、招牌在 detail/sites/ 摆，通用的店面招牌不做 */
 const ERRAND_IDS = new Set(['paper', 'paper_press', 'sports', 'hardware']);
+/** 2026-11-18 第二批办事楼（sites/cityhall.ts、bank.ts、diner.ts）：门面、招牌归各自的 site 文件，这里的通用店面和"认得出的东西"不做 */
+const CIVIC_IDS = new Set(['cityhall', 'bank', 'diner']);
 const roadById = (id: string) => ROADS.find((r) => r.id === id) as Road;
 /** 折线左手的单位法向（同 build.ts 的 ribbon） */
 const nrm = (a: V2, b: V2): V2 => {
@@ -268,11 +270,6 @@ export function detailTown(d: DetailCtx): void {
       bad = bestBad;
     }
     return bad ? null : b;
-  };
-  /** 从 (x, z) 往 dir 方向走，走到离车道边 < edge 米（踩上人行道）为止，返回那时的 z（最多走 lim 米） */
-  const zToWalk = (x: number, z: number, dir: number, edge: number, lim = 40) => {
-    for (let k = 0; k < lim * 2; k++) if (roadGap(x, z + (dir * k) / 2) < edge) return z + (dir * k) / 2;
-    return null;
   };
 
   // ── 立面 ──
@@ -567,147 +564,9 @@ export function detailTown(d: DetailCtx): void {
   const cityhall = BUILDINGS.find((o) => o.id === 'cityhall') as Bldg;
   const hotel = BUILDINGS.find((o) => o.id === 'hotel_old') as Bldg;
   const cafe = BUILDINGS.find((o) => o.id === 'cafe') as Bldg;
-  {
-    // 喷泉广场：市政厅东边，南边一条小巷接到塔奎兹路的人行道。位置跟着市政厅走；大小按缩过的间距（44 米 × 0.7 起），压到楼 / 路就收边
-    const PZ = fit(
-      {
-        x0: cityhall.x + cityhall.w / 2 + 3,
-        x1: cityhall.x + cityhall.w / 2 + 3 + 44 * SCALE,
-        z0: cityhall.z - cityhall.d / 2 - 20 * SCALE,
-        z1: cityhall.z + cityhall.d / 2 - 4,
-      },
-      18,
-      16,
-    );
-    dbgPlaced.plaza = PZ;
-    if (PZ) {
-      claim(PZ);
-      const cx = (PZ.x0 + PZ.x1) / 2;
-      const cz = (PZ.z0 + PZ.z1) / 2;
-      const hw = (PZ.x1 - PZ.x0) / 2;
-      const hd = (PZ.z1 - PZ.z0) / 2;
-      /** 广场里的相对位置（−1…1）→ 世界坐标；离边 1.5 米内的不放 */
-      const at = (u: number, v: number): V2 | null => {
-        const x = cx + u * hw;
-        const z = cz + v * hd;
-        return x > PZ.x0 + 1.5 && x < PZ.x1 - 1.5 && z > PZ.z0 + 1.5 && z < PZ.z1 - 1.5 ? [x, z] : null;
-      };
-      flat('flagstone', PZ.x1 - PZ.x0, PZ.z1 - PZ.z0, cx, Y.pave, cz);
-      // 小巷：广场南沿到塔奎兹路人行道之间的空当（9 米宽放不下就窄一点，最窄 3.5 米；压楼就往旁边挪）
-      lanes: for (const lw of [9, 7, 5, 3.5])
-        for (let x = PZ.x0 + lw / 2; x <= PZ.x1 - lw / 2; x += 0.5) {
-          const z1 = zToWalk(x, PZ.z1, 1, 4.5);
-          if (z1 === null || z1 - PZ.z1 < 1) continue;
-          const lane: Box2 = { x0: x - lw / 2, x1: x + lw / 2, z0: PZ.z1, z1 };
-          if (boxBad(lane, 0.2, true).length) continue;
-          claim(lane);
-          flat('flagstone', lw, lane.z1 - lane.z0, x, Y.pave, (lane.z0 + lane.z1) / 2);
-          if (lw >= 7 && lane.z1 - lane.z0 > 6) {
-            planter(lane.x0 + 0.9, lane.z1 - 3, true);
-            planter(lane.x1 - 0.9, lane.z1 - 3);
-          }
-          break lanes;
-        }
-      // 喷泉：一圈池沿（外壁 + 沿顶的环，中间是空的）+ 比池沿低一截的水 + 中间的柱子和小盆
-      // （原来池沿是实心圆柱、水面高过池沿，看着是一块蓝色圆饼）
-      const fx = cx + Math.min(3, hw - 6);
-      const fz = cz + Math.min(2, hd - 6);
-      put('cap', new THREE.CylinderGeometry(3.7, 3.8, 0.55, 20, 1, true).translate(fx, 0.275, fz), fx, fz);
-      put('cap', new THREE.RingGeometry(3.15, 3.7, 20).rotateX(-Math.PI / 2).translate(fx, 0.55, fz), fx, fz);
-      put('water', new THREE.CircleGeometry(3.2, 20).rotateX(-Math.PI / 2).translate(fx, 0.4, fz), fx, fz);
-      put('adobe', new THREE.CylinderGeometry(0.45, 0.6, 1.7, 8).translate(fx, 0.85, fz), fx, fz);
-      put('cap', new THREE.CylinderGeometry(1.35, 0.9, 0.3, 12).translate(fx, 1.85, fz), fx, fz);
-      put('water', new THREE.CircleGeometry(1.15, 12).rotateX(-Math.PI / 2).translate(fx, 2.01, fz), fx, fz);
-      put('foam', new THREE.CylinderGeometry(0.16, 0.24, 0.7, 6).translate(fx, 2.0, fz), fx, fz);
-      put('foam', new THREE.RingGeometry(1.5, 2.0, 14).rotateX(-Math.PI / 2).translate(fx, 0.412, fz), fx, fz);
-      block({ x: fx, z: fz, r: 3.9 });
-      // 喷泉旁三条长椅（面朝喷泉；不是四角对称），出了广场的不放
-      for (const a of [Math.PI * 0.2, Math.PI * 0.85, Math.PI * 1.45]) {
-        const r = 6.6 + (a > 3 ? 0.8 : 0);
-        const x = fx + Math.cos(a) * r;
-        const z = fz + Math.sin(a) * r;
-        if (x > PZ.x0 + 1.5 && x < PZ.x1 - 1.5 && z > PZ.z0 + 1.5 && z < PZ.z1 - 1.5)
-          bench(x, z, Math.atan2(fx - x, fz - z));
-      }
-      // 圆花池里的棕榈：散在广场边上（不成排、大小不一）；投影是广场上的暗块
-      for (const [u, v, sc] of [
-        [-0.64, -0.73, 1.1],
-        [-0.45, -0.14, 0.95],
-        [-0.68, 0.55, 1.05],
-        [0.6, -0.55, 1.0],
-        [0.72, 0.41, 1.15],
-      ] as const) {
-        const p = at(u, v);
-        if (!p || Math.hypot(p[0] - fx, p[1] - fz) < 6) continue;
-        addInst('potRound', { x: p[0], z: p[1], s: 1, reg: d.regionOf(p[0], p[1]) });
-        palm(p[0], p[1], sc, 0.5);
-        block({ x: p[0], z: p[1], r: 1.3 });
-      }
-      // 市政厅门口的三根旗杆（广场西沿）
-      for (const [k, key] of (['clothBlue', 'clothWhite', 'clothRed'] as PalKey[]).entries()) {
-        const x = PZ.x0 + 1.6;
-        const z = cz - 5 + k * 5;
-        if (z < PZ.z0 + 1 || z > PZ.z1 - 2.5) continue;
-        bx('metal', 0.18, 8, 0.18, x, 0, z);
-        bx(key, 0.1, 1.2, 1.9, x, 6.6, z + 1.0);
-        block({ x, z, r: 0.3 });
-      }
-      // 广场三盏灯
-      for (const [u, v] of [
-        [-0.32, 0.86],
-        [0.55, 0.73],
-        [0.1, -0.77],
-      ] as const) {
-        const p = at(u, v);
-        if (p && Math.hypot(p[0] - fx, p[1] - fz) > 4.5) lamp(p[0], p[1], Math.atan2(fx - p[0], fz - p[1]));
-      }
-    }
-    // 市政厅背后（北边）一条 6 米宽的石板路，西接酒店草坪、东接广场
-    const back = fit(
-      {
-        x0: cityhall.x - cityhall.w / 2 - 6,
-        x1: PZ ? PZ.x0 : cityhall.x + cityhall.w / 2,
-        z0: cityhall.z - cityhall.d / 2 - 7,
-        z1: cityhall.z - cityhall.d / 2 - 1,
-      },
-      8,
-      3,
-      0.3,
-    );
-    if (back) {
-      claim(back);
-      flat('flagstone', back.x1 - back.x0, back.z1 - back.z0, (back.x0 + back.x1) / 2, Y.pave, (back.z0 + back.z1) / 2);
-    }
-    // 市政厅门前：一块陶砖前庭接到塔奎兹路的人行道（原来是沙地 + 阴影里几团灌木，像一颗颗深绿卷心菜）
-    const fz1 = zToWalk(cityhall.x, cityhall.z + cityhall.d / 2, 1, 4.5);
-    const front =
-      fz1 !== null && fz1 - (cityhall.z + cityhall.d / 2) > 1.5
-        ? fit(
-            {
-              x0: cityhall.x - cityhall.w / 2,
-              x1: cityhall.x + cityhall.w / 2,
-              z0: cityhall.z + cityhall.d / 2 + 0.05,
-              z1: fz1,
-            },
-            12,
-            1.5,
-            0,
-          )
-        : null;
-    if (front) {
-      claim(front);
-      // 陶砖（西班牙复兴式的市政厅门前；整块落在市政厅的影子里，用石板是一片灰紫）
-      flat(
-        'tile',
-        front.x1 - front.x0,
-        front.z1 - front.z0,
-        (front.x0 + front.x1) / 2,
-        Y.pave,
-        (front.z0 + front.z1) / 2,
-      );
-      if (front.z1 - front.z0 > 6) for (const s2 of [-1, 1]) planter(cityhall.x + s2 * 7, front.z0 + 3.5, s2 > 0);
-    }
-  }
+  // 喷泉广场、市政厅背后的石板路、门前前庭：2026-11-18 搬到 sites/cityhall.ts（市政厅的代理），跟着缩完的楼重新摆。
+  // 原来这三块取了 5 个随机数（广场的 5 棵棕榈）：跳过同样多，后面的东西一个数不差
+  for (let k = 0; k < 5; k++) rnd();
   {
     // 老酒店草坪：酒店和市政厅之间，一块草地 + 一片表演赛场（东西向）+ 北边一排看台（正面朝镜头）。
     // 范围跟着两栋楼走（南北按缩过的间距），压到楼 / 路就收边；放不下的东西不放（球场要 34 × 19，看台再要 9 米）
@@ -1030,7 +889,7 @@ export function detailTown(d: DetailCtx): void {
   };
   for (const o of shops) {
     // 三家办事的楼的门面、招牌在第 10 节（白模 → 资产），这里不做
-    if (o.id === 'cityhall' || o.id === 'museum' || ERRAND_IDS.has(o.id)) continue;
+    if (o.id === 'museum' || ERRAND_IDS.has(o.id) || CIVIC_IDS.has(o.id)) continue;
     const f = frontOf(o);
     const key = o.id === 'bank' ? 'signBoard' : pick(SIGN);
     const named = !!o.name;
@@ -1089,26 +948,7 @@ export function detailTown(d: DetailCtx): void {
     fbox(tf, 'carRed', 1.3, 7.5, 0.3, th.w / 2 - 1.6, 4.6, 0.4);
     for (let k = 0; k < 6; k++) fbox(tf, 'flowerYellow', 0.7, 0.6, 0.1, th.w / 2 - 1.6, 11.2 - k * 1.15, 0.6);
     for (const s of [-1, 1]) fbox(tf, 'flowerYellow', 1.2, 1.7, 0.1, s * th.w * 0.42, 0.7, 0.05); // 海报框
-    // 银行：门口四根柱 + 街角一座老钟
-    const bk = get('bank');
-    const bf = frontOf(bk);
-    for (const s of [-1.5, -0.5, 0.5, 1.5]) {
-      fbox(bf, 'stucco', 0.7, bk.h - 0.6, 0.7, s * 2.6, 0, 1.2);
-      const [x, z] = fp(bf, s * 2.6, 1.2);
-      block({ x, z, r: 0.5 });
-    }
-    fbox(bf, 'stucco', 11.5, 0.6, 2.2, 0, bk.h - 0.6, 1.1);
-    // 餐馆：一根高杆上斜着的"太空时代"招牌
-    const dn = get('diner');
-    const df = frontOf(dn);
-    {
-      const [x, z] = fp(df, dn.w / 2 + 1.5, 1.5);
-      bx('ironwork', 0.25, 7.5, 0.25, x, 0, z);
-      const g = box(3.6, 1.6, 0.25, 0, 0, 0).rotateZ(0.28).translate(0, 6.6, 0);
-      put('clothTeal', g.translate(x, 0, z), x, z);
-      put('flowerYellow', new THREE.OctahedronGeometry(0.8, 0).translate(x + 1.9, 8.2, z), x, z);
-      block({ x, z, r: 0.3 });
-    }
+    // 银行、餐馆的门面：2026-11-18 搬到 sites/bank.ts、sites/diner.ts
     // 超市（2026-11-16 和五金店对调，在原来五金店那块）：门口的购物车棚
     const mk = get('market');
     const mf = frontOf(mk);
@@ -1121,10 +961,7 @@ export function detailTown(d: DetailCtx): void {
     for (let k = 0; k < 5; k++)
       bx('carRed', 1.4, 2.0, 0.3, hotel.x - 5 + k * 2.5, hotel.h + 0.35, hotel.z + hotel.d / 2 - 1.5);
     bx('ironwork', 13, 0.25, 0.2, hotel.x, hotel.h + 0.35, hotel.z + hotel.d / 2 - 1.75);
-    // 市政厅：朝南的大门（拱门的暗洞 + 台阶）
-    const cf = southOf(cityhall);
-    fbox(cf, 'ironwork', 4, 3.2, 0.1, 0, 0, 0.05);
-    fbox(cf, 'cap', 7, 0.3, 2.2, 0, 0, 1.1);
+    // 市政厅的门面：2026-11-18 搬到 sites/cityhall.ts
   }
 
   // ══ 6. 老街区：拉斯帕尔马斯、电影人街区、球拍俱乐部路 ══════════════

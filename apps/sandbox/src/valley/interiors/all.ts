@@ -5,6 +5,9 @@ import { INTERIOR_HARDWARE } from './hardware';
 import type { InteriorDef } from './index';
 import { INTERIOR_PAPER } from './paper';
 import { INTERIOR_SPORTS } from './sports';
+import { INTERIOR_BANK } from './v2/bank';
+import { INTERIOR_CITYHALL } from './v2/cityhall';
+import { INTERIOR_DINER } from './v2/diner';
 import { INTERIOR_HARDWARE as HARDWARE_V2 } from './v2/hardware';
 import { INTERIOR_PAPER as PAPER_V2 } from './v2/paper';
 import { INTERIOR_SPORTS as SPORTS_V2 } from './v2/sports';
@@ -16,4 +19,7 @@ export const INTERIORS_V2: InteriorDef[] = [PAPER_V2, SPORTS_V2, HARDWARE_V2];
 export const INTERIOR_VERSION: 1 | 2 =
   typeof location !== 'undefined' && new URLSearchParams(location.search).get('inv') === '2' ? 2 : 1;
 
-export const INTERIORS: InteriorDef[] = INTERIOR_VERSION === 2 ? INTERIORS_V2 : INTERIORS_V1;
+/** 第二批（市政厅、银行、餐馆，2026-11-18）：只有第二版风格（用户："参考第二版"），两种 ?inv= 下都建 */
+export const INTERIORS_CIVIC: InteriorDef[] = [INTERIOR_CITYHALL, INTERIOR_BANK, INTERIOR_DINER];
+
+export const INTERIORS: InteriorDef[] = [...(INTERIOR_VERSION === 2 ? INTERIORS_V2 : INTERIORS_V1), ...INTERIORS_CIVIC];

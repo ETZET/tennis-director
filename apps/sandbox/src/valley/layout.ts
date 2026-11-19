@@ -179,7 +179,7 @@ export const REGIONS: Region[] = [
       [660, -420],
     ],
     open: false,
-    who: '高中的网球教练来借场地 → 回访学校；公园的公共球场要人管',
+    who: '青训缺人 → 高中教练推荐苗子，去学校看球挑人；公园的公共球场要人管',
     color: '#5a9a52',
   },
   {
@@ -413,6 +413,8 @@ export const ROADS: Road[] = [
   ]),
   // 五金大超市的停车场：从印第安峡谷路往东进来，走停车场北边那条通道，到东头拐北去卸货台（缩完的世界坐标，见 SITES）
   road('hardware_lot', '五金大超市停车场', 'lane', [SI(330.5, -557.25), SI(428, -557.25), SI(428, -590)]),
+  // 沙漠银行的 drive-up（2026-11-18）：棕榈谷大道进来，沿停车排北边往东，拐角斜切（直角会压掉 indian_canyon_17），贴着东墙的取款窗往北接塔奎兹路
+  road('bank_drive', '沙漠银行 drive-up', 'lane', [SI(274.4, -583.5), SI(301, -583.5), SI(304, -586.5), SI(304, -628)]),
   // 加油站：从公路拐进去，停在店西墙外的前场（原来 [470, −1300] 正好是店的西墙，路头的圆伸进墙里 2.5 米）
   road('gas_spur', '加油站', 'lane', [
     [430, -1320],
@@ -583,16 +585,23 @@ export const BUILDINGS: Bldg[] = [
   b('sports', 'office', ...SI(252, -724), 22, 18, 5.5, '体育用品店'),
   // 南墙离阿莱霍路边原来只有 1.5 米（人行道铺到楼底下）：浅 4 米、往北挪 2 米 → 留 5.5 米
   b('theater', 'civic', 360, -1022, 22, 26, 10, '广场剧院'),
-  b('diner', 'shop', 386, -800, 16, 12, 4, '餐馆'),
+  // 餐馆（2026-11-18 第二批，sites/diner.ts）：Googie 咖啡店，门朝南（门 x 318.6、南墙 z −556），门前一小块停车场（SITES diner_lot）。
+  // 这一行只是底座（h 0.2 + 屋顶板 = 地坪）：墙、整面玻璃、斜屋顶、卡座和吧台都在 sites/diner.ts，跟着缩放框（townscale FRAMES 'diner'）走。
+  // office：不要 build.ts 自动挂在朝路那面（东）的遮阳篷
+  b('diner', 'office', ...SI(313.115, -561.24), 16.13, 10.48, 0.2, '餐馆'),
   // 五金大超市：印第安峡谷路东边、塔奎兹路的铺面背后（原来超市和它的停车场那块，往南长到市中心的南沿）；
   // 东头一个园艺棚院子、再往东是卸货台，南边一大片停车场（SITES 的 hardware_*）
   b('hardware', 'office', ...SI(376, -586), 48, 28, 8, '五金大超市'),
-  b('cityhall', 'civic', 560, -940, 40, 28, 9, '市政厅（钟楼）'),
+  // 市政厅（2026-11-18 第二批办事楼，sites/cityhall.ts）：中世纪现代的一层平顶长楼（office = 平顶），门朝南对塔奎兹路的尽头；
+  // 深 28 → 18（中心不动，南墙从 −644 退到 −649）：门前留出一块前庭（公告栏、排队、听证会台阶、钟塔）；高 9 → 7.5（一层高的长楼，缩完 4.65）
+  b('cityhall', 'office', 560, -940, 40, 18, 7.5, '市政厅（钟楼）'),
   b('museum', 'museum', 244, -900, 40, 34, 9, '美术馆'),
   b('hotel_old', 'hotel', 440, -960, 34, 30, 12, '老酒店'),
   // 学校、公园
-  b('school_main', 'school', 820, -790, 70, 40, 9, '棕榈泉高中'),
-  b('school_gym', 'school', 880, -720, 36, 30, 10, '体育馆'),
+  // 高中（2026-11-18 青训选拔，detail/east.ts 的 school()）：写缩完的世界坐标（SI）。两栋都以南墙为轴缩（最近的路在南边），
+  // 教学楼缩完 580…624 × −563…−538（南面 = 前门广场），体育馆 657…679 × −517…−498.5（南面 = 选拔日、排名榜，对着校队球场）
+  b('school_main', 'school', ...SI(602, -558), 70, 40, 9, '棕榈泉高中'),
+  b('school_gym', 'school', ...SI(668, -513.5), 36, 30, 10, '体育馆'),
   b('swim_center', 'civic', 1150, -560, 30, 20, 6, '游泳中心'),
   // 公路
   b('gas', 'gas', 480, -1300, 20, 14, 5, '加油站'),
@@ -631,6 +640,11 @@ export const SITES: Site[] = [
   { id: 'hardware_garden', of: 'hardware', x0: 400, x1: 420, z0: -600, z1: -572 },
   // 卸货台（园艺棚再往东，停车场东头的车道拐上来）
   { id: 'hardware_dock', of: 'hardware', x0: 420, x1: 436, z0: -602, z1: -572 },
+  // 餐馆门前（门面线 z −556 以南）：一条陶砖人行 + 一排车位的小停车场，不压印第安峡谷路的弯道（sites/diner.ts）
+  { id: 'diner_lot', of: 'diner', x0: 305, x1: 322, z0: -556, z1: -543.5 },
+  // 银行门前（门面线 z −590 以南，不缩）：人行台 + drive-up 车道（ROADS 'bank_drive'）的东西向那段 + 一排车位、时间温度招牌的花岛
+  //（sites/bank.ts）。原来压在这里的铺面 palm_canyon_112 不撒了
+  { id: 'bank_lot', of: 'bank', x0: 283.5, x1: 301.4, z0: -590, z1: -574.5 },
 ];
 const siteBox = (s: Site): Bldg => ({
   id: s.id,
@@ -666,20 +680,50 @@ export const POIS: Poi[] = [
   // 办事
   // 三家办事的楼：x z 是正门的门槛（朝南的立面上，缩完的坐标过 SI）；build.ts 把旗子立在它南边 3 米 = 总监办事站的地方
   { id: 'p_hardware', kind: 'errand', name: '五金大超市', ...SIxz(365, -569.5), note: '买喷头、网柱零件、场地线漆' },
-  { id: 'p_bank', kind: 'errand', name: '银行', x: 358, z: -860, note: '贷款扩场、存当天的营业款' },
+  // 银行：门在南墙正中（townscale FRAMES 'bank' 的轴），旗子在门前人行台上
+  { id: 'p_bank', kind: 'errand', name: '银行', ...SIxz(292.6, -589.5), note: '贷款扩场、存当天的营业款' },
   { id: 'p_paper', kind: 'errand', name: '报社', ...SIxz(249, -649), note: '登广告、接受采访' },
   { id: 'p_sports', kind: 'errand', name: '体育用品店', ...SIxz(258, -714.5), note: '订球、穿线、谈寄卖' },
-  { id: 'p_cityhall', kind: 'errand', name: '市政厅', x: 560, z: -940, note: '申请办赛许可、扩建审批' },
+  // 市政厅：门槛 = 正门 (434, −649)（缩完的坐标过 SI），旗子在台阶前
+  {
+    id: 'p_cityhall',
+    kind: 'errand',
+    name: '市政厅',
+    ...SIxz(434, -649),
+    note: '申请办赛许可、扩建审批、夜灯投诉的听证会',
+  },
   { id: 'p_gas', kind: 'errand', name: '加油站', x: 480, z: -1300, note: '给车加油（以后）' },
   // 找人
   { id: 'p_coach', kind: 'person', name: '退役教练', x: 262, z: -1226, note: '住在拉斯帕尔马斯，要上门三顾才肯来' },
-  { id: 'p_school_coach', kind: 'person', name: '高中教练', x: 880, z: -720, note: '想借场地带校队' },
+  // 高中教练：校队三号场（看台那片）的北场门外，拿着夹板；旗子在南边 3 米 = 场门口（缩完的坐标过 SI）
+  {
+    id: 'p_school_coach',
+    kind: 'person',
+    name: '高中教练',
+    ...SIxz(690.5, -495.5),
+    note: '校队教练拿着夹板：问他哪几个孩子值得去俱乐部练',
+  },
   { id: 'p_kid', kind: 'person', name: '天才少年', x: 1120, z: -520, note: '每天傍晚在公园公共场对墙打' },
   { id: 'p_sponsor', kind: 'person', name: '风电公司经理', x: 520, z: -1340, note: '赞助的钱和条件' },
   { id: 'p_retiree', kind: 'person', name: '退休明星', x: 600, z: -1080, note: '电影人街区的老会员候选' },
   { id: 'p_ranger', kind: 'person', name: '部落巡护员', x: 284.3, z: 228.6, note: '峡谷步道的事找他' },
+  // 餐馆：门槛（南门 x 318.6、门面线 z −556，缩完的坐标过 SI）；旗子在门前 3 米
+  {
+    id: 'p_diner',
+    kind: 'person',
+    name: '餐馆',
+    ...SIxz(318.6, -556),
+    note: '镇上人吃饭聊天：招场地工、教练，听别处的线索',
+  },
   // 活动
-  { id: 'p_school_event', kind: 'event', name: '校际赛', x: 800, z: -760, note: '俱乐部给高中办比赛' },
+  // 青训选拔日：一号场的报名桌前（体育馆门口的排名榜正对着）；旗子在南边 3 米 = 桌前（缩完的坐标过 SI）
+  {
+    id: 'p_school_event',
+    kind: 'event',
+    name: '青训选拔日',
+    ...SIxz(665, -490),
+    note: '号码布、锥桶、排队的孩子：挑几个进俱乐部的青训队',
+  },
   { id: 'p_park_clinic', kind: 'event', name: '公园公开课', x: 1080, z: -540, note: '周末免费教学，拉新会员' },
   { id: 'p_hotel_exh', kind: 'event', name: '老酒店表演赛', x: 440, z: -960, note: '酒店草坪上的表演赛' },
   { id: 'p_sunrise', kind: 'event', name: '日出球会', x: 30, z: -992, note: '山上观景台的日出慢跑 + 早餐' },
@@ -708,7 +752,8 @@ export const POIS: Poi[] = [
   { id: 'p_lookout', kind: 'view', name: '观景台', x: 30, z: -992, note: '看得见整个山谷' },
   // 远眺风车田：公路边、平地北沿的路肩上（原来在山口外 (560, −1460)，旗子埋在低地里、人也去不了）
   { id: 'p_windmills', kind: 'view', name: '风车田', x: 530, z: -1388, note: '山口外，一路都看得见' },
-  { id: 'p_clock', kind: 'view', name: '市政厅钟楼', x: 560, z: -940, note: '市中心的地标' },
+  // 钟塔：前庭西头的两片立板夹着钟（sites/cityhall.ts），旗子在塔南边
+  { id: 'p_clock', kind: 'view', name: '市政厅钟塔', ...SIxz(428, -645.6), note: '市中心的地标' },
 ];
 
 /** 绿地：高尔夫（棕榈泉到处是）、公园、学校操场、机场跑道（不是绿的，也放这儿） */

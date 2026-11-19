@@ -199,6 +199,152 @@ const TOWN = {
       [0x6e9a8c, 0x56787c, 0x3a4e66], // 亮边 +31 / +29 / +22（黑板框的上沿）
     ),
   ),
+  // ── 第二批办事地点（2026-11-18，docs/lab/2026-11-07-3d-pixel/valley-civic.md）──
+  /** 市政厅：沙色的立面板、挑檐、雨棚顶、钟塔立板（中世纪现代；暗档梅紫）S 0.38 */
+  civicSand: s(
+    [0xe8c890, 0xc49c7c, 0x6c5a86],
+    0.4,
+    0.3,
+    tn(
+      [0xe8c890, 0xf2d49e, 0xdcbc84],
+      [0xc49c7c, 0xcea886, 0xb89072],
+      [0x6c5a86, 0x766490, 0x62507c],
+      [0xcca870, 0xa07c70, 0x4c4070], // 缝
+      [0xfce0ac, 0xdcb898, 0x8c78a8], // 亮边
+    ),
+  ),
+  /** 市政厅：立面的金属管格栅、旗杆顶球（convex 高，出圆柱的明暗）S 0.59 */
+  pipeGold: s(
+    [0xe2b45c, 0xb8884c, 0x5e4a6e],
+    0.5,
+    0.8,
+    tn(
+      [0xe2b45c, 0xeec06a, 0xd6a650],
+      [0xb8884c, 0xc49456, 0xaa7c44],
+      [0x5e4a6e, 0x685478, 0x544064],
+      [0xc2963e, 0x966440, 0x3e3054], // 缝
+      [0xfcd488, 0xd8a864, 0x806a92], // 亮边
+    ),
+  ),
+  /** 银行：遮阳片、铜字、门框、夜间存款口、雨棚封檐（立面上的字 / 板带用 SIGN_FACE）S 0.55 */
+  bankBronze: s(
+    [0xc8925a, 0x9a6a4a, 0x4e3c58],
+    0.6,
+    0.5,
+    tn(
+      [0xc8925a, 0xd29e64, 0xbc8650],
+      [0x9a6a4a, 0xa47452, 0x8e6042],
+      [0x4e3c58, 0x584462, 0x46344e],
+      [0xa8744a, 0x7a5040, 0x342840], // 缝
+      [0xe2ac72, 0xb88660, 0x6a5474], // 亮边
+    ),
+  ),
+  /** 银行：叠石墙、花池、招牌石座（灰缝比规则深、< 60，同 breezeBlock 的洞）S 0.23 */
+  desertStone: s(
+    [0xc4ae96, 0x9a8682, 0x564c6c],
+    0.4,
+    0.3,
+    tn(
+      [0xc4ae96, 0xceb8a0, 0xb8a28a],
+      [0x9a8682, 0xa4908a, 0x907c78],
+      [0x564c6c, 0x605676, 0x4c4262],
+      [0x9a8470, 0x6e5e64, 0x3a3250], // 缝
+      [0xe0ccb0, 0xb8a49c, 0x76698c], // 亮边
+    ),
+  ),
+  /** 餐馆：屋顶封檐、高杆、主牌底、软木板抬头（不用青绿 —— 俱乐部的颜色）。朝南的牌子用 SIGN_FACE。S 0.57 */
+  dinerCoral: s(
+    [0xf4866a, 0xd4605a, 0x7c3e62],
+    0.6,
+    0.4,
+    tn(
+      [0xf4866a, 0xfa9276, 0xea7a60],
+      [0xd4605a, 0xdc6c62, 0xc85852],
+      [0x7c3e62, 0x864868, 0x703658],
+      [0xd86a50, 0xb04a4c, 0x5a2c4c], // 缝
+      [0xffa888, 0xec8070, 0x9a5a7a], // 亮边
+    ),
+  ),
+  /** 餐馆：店堂水磨石地（白格）、门前台阶面 S 0.15 */
+  terrazzo: s(
+    [0xefe2cc, 0xcdbcb4, 0x6e6488],
+    0.3,
+    0.2,
+    tn(
+      [0xefe2cc, 0xf7ead6, 0xe4d6c0],
+      [0xcdbcb4, 0xd6c6be, 0xc2b0aa],
+      [0x6e6488, 0x786e92, 0x645a7e],
+      [0xd6c4b0, 0xb2a2a2, 0x504870], // 缝
+      [0xfff6e6, 0xe2d2ca, 0x8c82aa], // 亮边
+    ),
+  ),
+  /** 学校：教学楼、体育馆的混凝土砌块墙（冷灰，和市中心暖沙的灰泥拉开）S 0.02 */
+  cmuGrey: s(
+    [0xcfd2d4, 0xa9aab8, 0x5e6282],
+    0.4,
+    0.3,
+    tn(
+      [0xcfd2d4, 0xd8dbdd, 0xc4c7cb],
+      [0xa9aab8, 0xb2b3c0, 0x9fa0ae],
+      [0x5e6282, 0x686c8c, 0x565a78],
+      [0xb6b9be, 0x9294a4, 0x4a4e6c], // 缝
+      [0xe6e8ea, 0xc0c2ce, 0x767a9a], // 亮边
+    ),
+  ),
+  /** 学校校色一：酒红（女儿墙带、门、储物柜、帐篷、记分牌；几乎都在朝南立面上 → 默认 SIGN_FACE）S 0.69 */
+  schoolMaroon: s(
+    [0x9c3046, 0x7a2440, 0x46203e],
+    0.6,
+    0.4,
+    tn(
+      [0x9c3046, 0xa83a50, 0x8e283e],
+      [0x7a2440, 0x842c48, 0x6e1e38],
+      [0x46203e, 0x4e2846, 0x3e1a36],
+      [0x7e2236, 0x5a1830, 0x30142c], // 缝
+      [0xc0506a, 0x9c4060, 0x643a5c], // 亮边
+    ),
+    SIGN_FACE,
+  ),
+  /** 学校校色二：浅金（校名字、记分牌的分、校旗金条；SIGN_FACE）S 0.54 */
+  schoolGold: s(
+    [0xcbb85e, 0xa69454, 0x645a66],
+    0.5,
+    0.3,
+    tn(
+      [0xcbb85e, 0xd6c46c, 0xbead52],
+      [0xa69454, 0xb09e5e, 0x9a884a],
+      [0x645a66, 0x6e646e, 0x5a505c],
+      [0xb09c50, 0x8c7646, 0x4c4250], // 缝
+      [0xe6d488, 0xc8b076, 0x867a86], // 亮边
+    ),
+    SIGN_FACE,
+  ),
+  /** 学校：前庭（3.5 米分格）、练习墙、连廊下的路（中性，不被午后金光染黄）S 0.05 */
+  campusConcrete: s(
+    [0xe2ded6, 0xbcb8c0, 0x6a6a88],
+    0.2,
+    0.1,
+    tn(
+      [0xe2ded6, 0xeae6de, 0xd8d4cc],
+      [0xbcb8c0, 0xc6c2ca, 0xb2aeb8],
+      [0x6a6a88, 0x747492, 0x62627e],
+      [0xc4c0b8, 0x9e9aa8, 0x50506e], // 缝
+      [0xf4f0e8, 0xd4d0d8, 0x86869e], // 亮边
+    ),
+  ),
+  /** 学校：屋顶太阳能板、停车场太阳能车棚 S 0.56 */
+  solarBlue: s(
+    [0x4a6aa8, 0x34508a, 0x22305a],
+    0.3,
+    0.3,
+    tn(
+      [0x4a6aa8, 0x5676b4, 0x3e5e9c],
+      [0x34508a, 0x3c5a94, 0x2c4680],
+      [0x22305a, 0x283864, 0x1c2a50],
+      [0x3a5890, 0x283e70, 0x161e40], // 缝
+      [0x6888c0, 0x5a78b0, 0x3c4a78], // 亮边
+    ),
+  ),
 } as const satisfies Record<string, Swatch>;
 
 export type TownKey = keyof typeof TOWN;
@@ -221,6 +367,17 @@ export const PROXY = {
   pvc: 'stucco',
   truckWhite: 'flowerYellow',
   slate: 'signBoard',
+  civicSand: 'concrete',
+  pipeGold: 'flowerYellow',
+  bankBronze: 'flowerYellow',
+  desertStone: 'concrete',
+  dinerCoral: 'flowerYellow',
+  terrazzo: 'stucco',
+  cmuGrey: 'concrete',
+  schoolMaroon: 'flowerYellow',
+  schoolGold: 'flowerYellow',
+  campusConcrete: 'surround',
+  solarBlue: 'signBoard',
 } as const satisfies Record<TownKey, keyof typeof MAP_PAL>;
 
 /**
@@ -237,6 +394,12 @@ export const TOWN_EL = {
   shadeCloth: { kind: 'paint', size: [10, 6] },
   roofMetal: { kind: 'planks', seam: 1, hi: 0.5, p: [1, 0, 0, 0.45] },
   kraft: { kind: 'planks', seam: 1, hi: 0.5, p: [0, 1, 0, 0.18] },
+  // 第二批（2026-11-18）
+  civicSand: { kind: 'planks', seam: 1, hi: 0.3, p: [1, 0, 0, 3] },
+  desertStone: { kind: 'stones', size: [6, 3], seam: 1, hi: 0.4 },
+  terrazzo: { kind: 'stones', size: [2, 2], seam: 1, hi: 0.3 },
+  cmuGrey: { kind: 'stones', size: [4, 2], seam: 1, hi: 0.3 },
+  solarBlue: { kind: 'planks', seam: 1, hi: 0.4, p: [1, 0, 0, 1] },
 } satisfies Partial<Record<TownKey, Elem>>;
 
 export const PAL = { ...MAP_PAL, ...TOWN } as const;

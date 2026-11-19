@@ -35,7 +35,7 @@ export interface TRect {
  * 落在 zone 里的东西按 p' = 轴 + (p − 轴) × TOWN_K 整体走（y 也乘），大小乘 TOWN_K。
  */
 export interface Frame {
-  id: 'paper' | 'sports' | 'hardware';
+  id: 'paper' | 'sports' | 'hardware' | 'bank' | 'cityhall' | 'diner';
   px: number;
   pz: number;
   zone: TRect;
@@ -50,6 +50,11 @@ export const FRAMES: Frame[] = [
   { id: 'sports', px: 258, pz: -715, zone: { x0: 238, x1: 266, z0: -736, z1: -715 + FRONT_PAD } },
   // 五金大超市：楼 352…400 × −600…−572，西边侧院、东边园艺棚和卸货台 339…436，门 x 365
   { id: 'hardware', px: 365, pz: -572, zone: { x0: 337, x1: 438, z0: -604, z1: -572 + FRONT_PAD } },
+  // 第二批（2026-11-18）：门朝南、轴在门口（不按 frontOf 判的临街面）
+  // 银行：楼 282.6…302.6 × −614…−590，门在南墙正中 x 292.6
+  { id: 'bank', px: 292.6, pz: -590, zone: { x0: 282, x1: 303, z0: -615, z1: -590 + FRONT_PAD } },
+  // 餐馆：楼 305.05…321.18 × −568.9…−556，门 x 318.6；x0 302 包住门西边的高杆招牌，x1 322 不伸到印第安峡谷路的人行道
+  { id: 'diner', px: 318.6, pz: -556, zone: { x0: 302, x1: 322, z0: -571, z1: -556 + FRONT_PAD } },
 ];
 
 const inR = (r: TRect, x: number, z: number) => x >= r.x0 && x <= r.x1 && z >= r.z0 && z <= r.z1;
@@ -69,4 +74,17 @@ export const fmapRect = (f: Frame, r: TRect): TRect => {
 /** 不缩的地方：俱乐部那块（同 layout.ts 的 CLUB_BOX_L，缩完的坐标里也原样）、俱乐部的酒店扩张地（HOTEL_PLOT）、地图外面很远的店内 */
 const CLUB: TRect = { x0: -80, x1: 140, z0: -60, z1: 100 };
 const HOTEL: TRect = { x0: 112, x1: 236, z0: 18, z1: 84 };
-export const keepScale = (x: number, z: number): boolean => inR(CLUB, x, z) || inR(HOTEL, x, z) || x > 2500;
+/**
+ * 小镇里按真实尺寸留着的运动场（人要在上面打球：球场、网、围网和俱乐部一样大）。
+ * 2026-11-18 学校（青训选拔）的代理管这张表；坐标 = 缩完的世界坐标。
+ */
+export const PLAY_KEEP: TRect[] = [
+  // 棕榈泉高中的校队球场（detail/east.ts 的 SCH）：四片场 + 西头练习墙那一条，围网 640…727 × −491.5…−457 往外 0.5 米。
+  // 体育馆、记分牌不在框里（跟着小镇缩）。
+  { x0: 639.5, x1: 727.5, z0: -492, z1: -456.5 },
+  // 三号场北头的看台（真实尺寸，人坐得下；2026-11-18 lead 定）：693.4…705.4 × −495.8…−492
+  { x0: 692.9, x1: 706, z0: -496.5, z1: -492 },
+];
+/** 镜头用：俱乐部、酒店扩张地、店内（小镇里真尺寸的运动场不算 —— 走上球场镜头不跳） */
+export const keepScaleCam = (x: number, z: number): boolean => inR(CLUB, x, z) || inR(HOTEL, x, z) || x > 2500;
+export const keepScale = (x: number, z: number): boolean => keepScaleCam(x, z) || PLAY_KEEP.some((r) => inR(r, x, z));

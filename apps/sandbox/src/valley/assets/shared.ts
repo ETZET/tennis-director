@@ -1,5 +1,5 @@
 // 共用的小件（批 C，核心代理）：几栋楼都用的。docs/lab/2026-11-07-3d-pixel/valley-town.md「批 C」。
-// - a-board：人字小黑板（报社"今日头条"、体育店的特价）。变体 v0 = 报社（白粉笔 + 一行黄的标题），v1 = 体育店（球黄的球 + 价钱）
+// - a-board：人字小黑板（报社"今日头条"、体育店的特价）。变体 v0 = 报社（白粉笔 + 一行黄的标题），v1 = 体育店（球黄的球 + 价钱），v2 = 市政厅听证会（红标题）
 // - breeze-wall：花砖墙一段（2 米样品，1.4 米高）：breezeBlock 墙身 + 一格一格的洞 + 压顶；园艺棚的墙用 breezeWallGeo 照着拼
 // 本地原点 = 落地点中心，y 0 = 地面，+z 朝镜头（朝南），单位米。设计纹素 0.09 米：线、缝 1 纹素，最小厚度 3 纹素以上。
 import * as THREE from 'three';
@@ -42,7 +42,8 @@ const aBoard: AssetFn = (ctx) => {
   const wood = ctx.mat('wood');
   const slate = ctx.mat('slate', { lightUp: 0.45, bands: [-0.3, 0.35], noShadowReceive: true });
   const chalk = ctx.mat('signPaint', { noShadowReceive: true });
-  const accent: PalKey = ctx.variant === 1 ? 'ball' : 'flowerYellow';
+  // v2 = 市政厅听证会那天（"今晚听证会"：红的标题）
+  const accent: PalKey = ctx.variant === 1 ? 'ball' : ctx.variant === 2 ? 'clothRed' : 'flowerYellow';
   const hi = ctx.mat(accent, SIGN_FACE);
   const rnd = ctx.rng(`a-board:${ctx.variant}`);
   const parts: [THREE.BufferGeometry, THREE.Material][] = [];

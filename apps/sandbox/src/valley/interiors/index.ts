@@ -11,7 +11,7 @@ import { box } from '../../clubsite/render/geo';
 import type { Detail, DetailCtx, InstItem } from '../build';
 import type { PalKey } from '../reuse';
 
-export type InteriorId = 'paper' | 'sports' | 'hardware';
+export type InteriorId = 'paper' | 'sports' | 'hardware' | 'cityhall' | 'bank' | 'diner';
 
 export interface InteriorDef {
   id: InteriorId;
@@ -27,6 +27,11 @@ export interface InteriorDef {
   poi: string;
   /** 店里镜头的远近：米/纹素 = 进山谷时的默认 × zoom（越小越近；v1 0.8，v2 ≈ 0.5） */
   zoom?: number;
+  /**
+   * 店里能说话的人 / 能办事的地方（局部坐标；2026-11-18 第二批加）：总监走到 r 米以内，HUD 出 label 的按钮，点了在总监头顶说 line。
+   * 餐馆"找人"就是这个：走到某张桌子前和人聊。以后接上模拟再换成真的卡 / 事件。
+   */
+  talk?: { x: number; z: number; r?: number; label: string; line: string }[];
   /** 画里面的东西（局部坐标） */
   build(c: InteriorCtx): void;
 }
@@ -36,6 +41,10 @@ export const ORIGIN: Record<InteriorId, readonly [number, number]> = {
   paper: [3000, 0],
   sports: [3200, 0],
   hardware: [3400, 0],
+  // 第二批（2026-11-18，只有第二版：interiors/v2/cityhall.ts、bank.ts、diner.ts）
+  cityhall: [3600, 0],
+  bank: [3800, 0],
+  diner: [4000, 0],
 };
 /** 墙高、南墙高、墙厚、门洞宽 */
 export const WALL_H = 4.5;
