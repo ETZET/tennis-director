@@ -2,7 +2,10 @@
 // 画廊：/valleyassets.html?asset=in2-sports-…&zoom=0.02（和店里一样近）。场景：interiors/v2/sports.ts。
 //
 // 参考 Sneaky Sasquatch 店内的原则（scratchpad BRIEF-IN2）：镜头近、东西少而大 —— 每件"能买的"东西做成真实的 1.5～2 倍大，
-// 剪影 2～4 个大块，一面墙一段只放 4～6 件主角，彼此留空；价签、大字条、气泡由 interiors/v2/kit.ts 画（这里只留出挂的位置）。
+// 剪影 2～4 个大块，一面墙一段只放 4～6 件主角，彼此留空；价签、气泡由 interiors/v2/kit.ts 画（这里只留出挂的位置）。
+// 2026-11-19 第三轮（用户："let the layout and visual do the explanation, not the subtext"）：店里零字。分区不挂字条，
+// 靠东西本身 + 几块图标牌（in2-sports-sign-*：深蓝圆牌上 9 × 9 的像素图标 —— 球拍、鞋、T 恤、线轴、循环箭头）；
+// 球拍墙前的 TRY ZONE 字框 → 一块迷你球场地垫（in2-sports-court-mat，只有白线）。
 // 店里的光：顶灯（仰角 65°），不投影（main.ts 的 INDOOR_LOOK）。所以：
 // - 卖的东西（球拍、鞋、衣服、线卷、球包）朝镜头的面用 PROD：光往上偏 + 低档位线 → 落亮档，从暗背板上跳出来；
 // - 货架、柜台、背板的正面用 FACE：落中档（暗一档的"框"）；朝上的面（台面、隔板、柜顶）自己是亮档 = 一行亮边。
@@ -41,9 +44,9 @@ const sw = (lit: number, mid: number, dark: number, edge = 0.4, convex = 0.3, st
  * 后面的 L 是 [亮, 中, 暗] 本色的亮度（0.2126R + 0.7152G + 0.0722B）。
  */
 export const IN2 = {
-  /** 地胶：天蓝两色大格（1.5 米一格，差 ~10 亮度）。L 152 / 120 / 104 */
+  /** 地胶：一整片天蓝（第三轮起不铺两色大格了，地要安静）。L 152 / 120 / 104 */
   floorA: sw(0x4cacf4, 0x4a86d2, 0x4a66ba, 0.05, 0),
-  /** L 141 / 112 / 97 */
+  /** 地胶的接缝（每 3 米一道细线，比地暗 ~10）。L 141 / 112 / 97 */
   floorB: sw(0x3e9ce8, 0x407ac6, 0x445cae, 0.05, 0),
   /** 北墙上半：浅冰蓝（正面落中档 = 墙色）。L 214 / 196 / 140 */
   wall: sw(0xc8e2fa, 0xb4d6f8, 0x7894cc, 0.3, 0.2, 8),
@@ -69,6 +72,8 @@ export const IN2 = {
   strings: sw(0xeef0ea, 0xd6dae0, 0x98a0bc, 0.2, 0, 6),
   /** 旧拍子：褪色的灰蓝 / 灰绿（寄卖架）。L 140 / 116 / 78 */
   worn: sw(0x8c9cb4, 0x7686a2, 0x4c5a7c, 0.4, 0.3),
+  /** 迷你球场地垫（球拍墙前，试拍的地方）：哑光球场绿，低对比。L 120 / 98 / 72 */
+  court: sw(0x4a9a70, 0x3c845e, 0x2c5e54, 0.05, 0),
   /** 纸箱（72 个装的比赛球）：冷灰卡纸（不用桃 / 沙色）。L 186 / 160 / 110 */
   carton: sw(0xc2bcb0, 0xa8a49c, 0x6c6e88, 0.4, 0.3),
 } satisfies Record<string, ToonOpts>;
@@ -501,6 +506,10 @@ const bagStand: AssetFn = (ctx) => {
     const body = new THREE.CapsuleGeometry(0.22, 0.8, 4, 12).rotateZ(Math.PI / 2).scale(0.85, 1, 0.7);
     P.add(m(b.body, PROD), body.translate(x, y, z));
     P.add(m(b.band, PROD), plate(0.9, 0.07, x, y - 0.035, z + 0.16));
+    // 包身上印一支横躺的拍子轮廓（拍头朝东）：一眼"球拍包"，不用字
+    const ink = b.body === 'neon' ? 'navy' : 'white';
+    P.add(m(ink, PROD), ellipseRing(0.11, 0.075, 0.025, 16).translate(x + 0.2, y + 0.09, z + 0.162));
+    P.add(m(ink, PROD), plate(0.3, 0.03, x - 0.07, y + 0.075, z + 0.162));
     P.add(m('ink', PROD), plate(0.05, 0.32, x - 0.17, y + 0.15, z + 0.08));
     P.add(m('ink', PROD), plate(0.05, 0.32, x + 0.17, y + 0.15, z + 0.08));
   });
@@ -616,6 +625,14 @@ const usedRack: AssetFn = (ctx) => {
     // 拍框上一圈胶带（白）
     if (i % 2 === 0) P.add(m('white', PROD), plate(0.12, 0.05, x, USED_RACK.headY + 0.25, 0.03));
     P.add(m('ink', PROD), box(0.04, 0.06, 0.06, x, USED_RACK.headY + 0.29, -0.02));
+    // 寄卖的手写吊牌：拍喉上拴一张歪着的白卡片（只有两道看不清的线）—— 和新拍子的统一价签不一样，一看是"别人的"
+    const ty = USED_RACK.headY - 0.5;
+    const tilt = i % 2 ? 0.25 : -0.2;
+    const at = (g: THREE.BufferGeometry) => g.rotateZ(tilt).translate(x + 0.12, ty, 0.05);
+    P.add(m('white', PROD), at(plate(0.16, 0.2, 0, -0.1, 0)));
+    P.add(m('worn', FACE), at(plate(0.1, 0.025, 0, 0.0, 0.002)));
+    P.add(m('worn', FACE), at(plate(0.07, 0.025, -0.015, -0.06, 0.002)));
+    P.add(m('ink', PROD), plate(0.1, 0.02, x + 0.05, ty + 0.1, 0.045));
   });
   return P.build('in2-sports-used-rack');
 };
@@ -702,7 +719,131 @@ const wall: AssetFn = (ctx) => {
   return P.build('in2-sports-wall');
 };
 
+// ══ 图标牌：店里不写字，分区用 9 × 9（或 11 × 11）的像素图标（'#' 主色、'+' 副色），屏幕上一样大 ══
+const ICONS: Record<string, string[]> = {
+  /** 侧面的球鞋（鞋头朝西）：鞋面 + 一道荧光侧标 + 鞋底 */
+  shoe: [
+    '.........',
+    '......##.',
+    '.....####',
+    '..+++####',
+    '.########',
+    '#########',
+    '.........',
+    '#########',
+    '.........',
+  ],
+  /** T 恤 */
+  shirt: [
+    '..##.##..',
+    '.#######.',
+    '#########',
+    '##.###.##',
+    '..#####..',
+    '..#####..',
+    '..#####..',
+    '..#####..',
+    '..#####..',
+  ],
+  /** 线轴（侧面）：上下两片白轮缘 + 中间绕满的荧光线 */
+  spool: [
+    '#########',
+    '.#######.',
+    '..+++++..',
+    '..+++++..',
+    '..+++++..',
+    '..+++++..',
+    '..+++++..',
+    '.#######.',
+    '#########',
+  ],
+  /** 绕回来的箭头 ↺（寄卖 / 二手：旧拍子回到店里再卖），11 × 11 */
+  reuse: [
+    '...........',
+    '..###......',
+    '.####..##..',
+    '.##...####.',
+    '##...######',
+    '##.....##..',
+    '##.....##..',
+    '##.....##..',
+    '.##...##...',
+    '..#####....',
+    '...###.....',
+  ],
+};
+/** 图标的几何：中心 (x, y)、一格 c 米（竖直面上一行 = c / cos45，屏幕上是正方格），'#' → a、'+' → b */
+function iconGeo(name: string, x: number, y: number, z: number, c: number) {
+  const rows = ICONS[name];
+  const r = c / Math.SQRT1_2;
+  const n = rows.length;
+  const a: THREE.BufferGeometry[] = [];
+  const b: THREE.BufferGeometry[] = [];
+  rows.forEach((row, i) => {
+    let k = 0;
+    while (k < row.length) {
+      const ch = row[k];
+      if (ch === '.') {
+        k++;
+        continue;
+      }
+      let e = k;
+      while (e < row.length && row[e] === ch) e++;
+      const g = plate((e - k) * c, r, x + ((k + e) / 2 - row.length / 2) * c, y + (n / 2 - i - 1) * r, z);
+      (ch === '#' ? a : b).push(g);
+      k = e;
+    }
+  });
+  return { a, b };
+}
+/** 图标牌的尺寸：屏幕上是个圆（世界里竖向拉长 1 / cos45）；原点 = 牌子下沿正中，牌面朝 +z（z 0 = 背面） */
+export const PLAQUE = { rx: 0.42, ry: 0.42 / Math.SQRT1_2 };
+const plaque =
+  (name: string, bg: In2Key, ink: In2Key, ink2: In2Key): AssetFn =>
+  (ctx) => {
+    const P = new Parts(ctx);
+    const m = matsOf(ctx);
+    const { rx, ry } = PLAQUE;
+    const cy = ry + 0.03;
+    P.add(m(bg, FACE), ellipse(rx, ry, 28).translate(0, cy, 0.02));
+    P.add(m('white', PROD), ellipseRing(rx + 0.03, ry + 0.03, 0.045, 28).translate(0, cy, 0.024));
+    const { a, b } = iconGeo(name, 0, cy, 0.028, 0.61 / ICONS[name].length);
+    for (const g of a) P.add(m(ink, PROD), g);
+    for (const g of b) P.add(m(ink2, PROD), g);
+    return P.build(`in2-sports-sign-${name}`);
+  };
+
+// ── in2-sports-court-mat：球拍墙前的迷你球场地垫（4.4 × 1.8，平铺在地上）。哑光球场绿 + 白线（底线框、中网线、发球线、中线）。
+// 原来这里是地上的 TRY ZONE 字框（S2：拿下拍子在这儿掂一掂、空挥）—— 一小块球场自己说明"在这儿挥两下" ──
+export const COURT_MAT = { w: 4.4, d: 1.8 };
+const courtMat: AssetFn = (ctx) => {
+  const P = new Parts(ctx);
+  const m = matsOf(ctx);
+  const { w, d } = COURT_MAT;
+  const flat = (fw: number, fd: number, x: number, z: number, y: number) =>
+    new THREE.PlaneGeometry(fw, fd).rotateX(-Math.PI / 2).translate(x, y, z);
+  const ground = { noShadowReceive: true } as ToonOpts;
+  P.add(m('court', ground), flat(w, d, 0, 0, 0.004));
+  const L = 0.05;
+  const y = 0.008;
+  const ln = m('white', ground);
+  // 外框（双打边线 + 底线）
+  P.add(ln, flat(w - 0.2, L, 0, -d / 2 + 0.12, y));
+  P.add(ln, flat(w - 0.2, L, 0, d / 2 - 0.12, y));
+  for (const s of [-1, 1]) P.add(ln, flat(L, d - 0.24, s * (w / 2 - 0.1), 0, y));
+  // 网（正中一条深色粗线）、两条发球线、中线
+  P.add(m('ink', ground), flat(0.08, d - 0.24, 0, 0, y + 0.001));
+  for (const s of [-1, 1]) P.add(ln, flat(L, d - 0.24, s * 1.05, 0, y));
+  P.add(ln, flat(2.1, L, 0, 0, y));
+  return P.build('in2-sports-court-mat');
+};
+
 export const ASSETS: Record<string, AssetFn> = {
+  'in2-sports-sign-shoe': plaque('shoe', 'navy', 'white', 'neon'),
+  'in2-sports-sign-shirt': plaque('shirt', 'navy', 'neon', 'neon'),
+  'in2-sports-sign-spool': plaque('spool', 'navy', 'white', 'neon'),
+  'in2-sports-sign-reuse': plaque('reuse', 'teal', 'white', 'white'),
+  'in2-sports-court-mat': courtMat,
   'in2-sports-racket-wall': racketWall,
   'in2-sports-shoe-shelf': shoeShelf,
   'in2-sports-apparel': apparel,

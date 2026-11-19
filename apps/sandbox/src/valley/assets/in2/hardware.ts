@@ -1,18 +1,20 @@
 // 第二版店内的资产（id 以 in2-hw- 开头），归 hardware 店内代理。本地原点 = 落地点中心（墙上的东西 = 正面底边中心），y 0 = 地面，+z 朝镜头（朝南），单位米。
-// 五金大超市 v2（参考 Sneaky Sasquatch 的店内：镜头近、东西少而大、每件下面挂价签、分区大字条）。interiors/v2/hardware.ts 摆。
+// 五金大超市 v2（参考 Sneaky Sasquatch 的店内：镜头近、东西少而大、每件下面挂价签）。interiors/v2/hardware.ts 摆。
+// **店里零字**（2026-11-19）：分区牌是海军蓝底 + 芥末黄的像素**图标牌**（球场、喷头、滚筒刷、木板、锤子、叉车），收银立杆上一盏只有数字的
+// 通道灯；收货区 = 地上一片黄黑斜纹（hwHatch），叉车位 = 一个空的黄框（hwBay）。剩下的"字形"只有价签的数字。
 //
 // 店里镜头 ≈ 0.02 米/纹素（v1 的 0.45 倍）：1 米 ≈ 50 纹素，所以"线"按 2～3 纹素（4～6 厘米）画，元素尺寸按这个尺度给。
 // 店里的光（valley/main.ts 的 INDOOR_LOOK）：顶灯仰角 65°、方位 15°，不投影 → 朝上的面亮档、朝南（朝镜头）的竖面要靠 lightUp 落中档，
 // 所以每个材质的**中档 = 正面的颜色**（手挑），亮档 = 顶面，暗档（冷）= 背光的侧面。
 // 可买的东西：每个资产自己挂价签（kit.priceTag），userData.items = [{ id, name, price, x, y, z }]（本地坐标，y = 价签底边高），场景按摆放换算成 ITEMS。
 // 配色（店内配色重做 + 用户选的地面）：深灰绿环氧地坪、浅灰绿的漆面砌块墙 + 深青灰墙裙 + 芥末黄腰线、海军蓝立柱 + 芥末黄横梁（品牌色）；
-// 大字条 = 海军蓝底 + 芥末黄字（不学参考图家具大卖场的"深蓝波纹墙 + 黄底黑字大招牌"：墙是浅色砌块、招牌是货架上的一条条横条）。
+// 图标牌 = 海军蓝底 + 芥末黄细框 + 芥末黄图标（白的点缀：水、球网、木头断面）；不学参考图家具大卖场的"深蓝波纹墙 + 黄底黑字大招牌"。
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { box } from '../../../clubsite/render/geo';
 import type { Elem, Tones, ToonOpts } from '../../../clubsite/render/toon';
 import type { AssetCtx, AssetFn } from '../../ctx';
-import { fascia, floorLabel, priceTag } from '../../interiors/v2/kit';
+import { priceTag, textGeo } from '../../interiors/v2/kit';
 import type { PalKey } from '../../palette';
 
 // ════════════════════════════ 材质 ════════════════════════════
@@ -302,12 +304,127 @@ function finish(ctx: AssetCtx, k: Kit, name: string, items: HwItem[] = [], extra
   return g;
 }
 
-/** 大字条（kit.fascia，海军蓝底芥末黄字）：底边中心 (x, y, z) */
-function sign(ctx: AssetCtx, text: string, w: number, h: number, x: number, y: number, z: number): THREE.Object3D {
+// ════════════════════════════ 图标牌（代替分区大字条） ════════════════════════════
+
+/**
+ * 像素图标（# = 芥末黄、o = 白、g = 俱乐部青绿；一行一个字符串，宽度随意）。竖直面上一行 = 一格 / cos45（俯 45° 下屏幕上是方的）。
+ * 各区一个：球场（COURT SUPPLY）、喷头（IRRIGATION）、滚筒刷（PAINT）、木板（LUMBER）、锤子（TOOLS）、叉车（租叉车）。
+ */
+export const HW_ICONS: Record<string, string[]> = {
+  /** 俯看的一片青绿球场（俱乐部的颜色）：白边线、两条发球线、中线、正中球网 */
+  court: [
+    'ooooooooooooooooo',
+    'ogggogggogggogggo',
+    'ogggogggogggogggo',
+    'ogggogggogggogggo',
+    'ogggooooooooogggo',
+    'ogggogggogggogggo',
+    'ogggogggogggogggo',
+    'ogggogggogggogggo',
+    'ooooooooooooooooo',
+  ],
+  /** 弹出式喷头往两边喷水（白的水珠） */
+  sprinkler: [
+    'o.........o',
+    '.o...o...o.',
+    '..o..o..o..',
+    '...o.o.o...',
+    '...........',
+    '....###....',
+    '....###....',
+    '...#####...',
+    '..#######..',
+  ],
+  /** 滚筒刷：芥末黄的滚筒、白的弯框、握把（漆桶在下面的架子上，这里要一眼是"刷漆"） */
+  paint: [
+    '.#########.',
+    '.#########o',
+    '.#########o',
+    '..........o',
+    '.....ooooo.',
+    '.....o.....',
+    '....###....',
+    '....###....',
+    '....###....',
+  ],
+  /** 三根错开摞着的木方，一头露出白的断面 */
+  lumber: [
+    '##########o..',
+    '##########o..',
+    '.............',
+    '..##########o',
+    '..##########o',
+    '.............',
+    '.##########o.',
+    '.##########o.',
+  ],
+  /** 羊角锤：左边方锤面、右边往下弯的羊角，白柄，芥末黄握把 */
+  hammer: [
+    '..#####....',
+    '##########.',
+    '##########.',
+    '##.oo..###.',
+    '...oo....##',
+    '...oo......',
+    '...oo......',
+    '..####.....',
+    '..####.....',
+  ],
+  /** 侧看的叉车：门架、货叉朝西、护顶架、两个白轮 */
+  forklift: [
+    '..#..#####.',
+    '..#..#...#.',
+    '..#..#...#.',
+    '..#..#...##',
+    '..#.#######',
+    '..#.#######',
+    '####.......',
+    '....oo..oo.',
+    '....oo..oo.',
+  ],
+};
+
+/** 图标牌的尺寸（米）：一格 c，四周留 pad */
+export function iconSignSize(icon: string, c = 0.07, pad = 0.09): { w: number; h: number } {
+  const rows = HW_ICONS[icon];
+  return { w: rows[0].length * c + pad * 2, h: (rows.length * c) / Math.SQRT1_2 + pad * 2 };
+}
+
+/**
+ * 一块图标牌（加进 kit）：海军蓝牌 + 芥末黄细框 + 像素图标（贴在牌面前 4 毫米）。底边中心 (x, y, z) = 牌面；一格 c 米。
+ * 牌子本身不写字：图标 + 它底下 / 身后的货说明这一区卖什么。
+ */
+function iconSign(ctx: AssetCtx, k: Kit, icon: string, x: number, y: number, z: number, c = 0.07) {
   const M = mats(ctx);
-  const f = fascia(cachedCtx(ctx), text, { w, h, bg: M.signBg, ink: M.signInk });
-  f.position.set(x, y, z);
-  return f;
+  const rows = HW_ICONS[icon];
+  const pad = 0.09;
+  const { w, h } = iconSignSize(icon, c, pad);
+  const r = c / Math.SQRT1_2;
+  k.bx(M.signBg, w, h, 0.06, x, y, z - 0.03);
+  // 细框（芥末黄，1.5 纹素）
+  const t = 0.03;
+  k.face(M.signInk, w - 0.02, t, x, y + h - 0.01 - t / 2, z + 0.003);
+  k.face(M.signInk, w - 0.02, t, x, y + 0.01 + t / 2, z + 0.003);
+  for (const s of [-1, 1]) k.face(M.signInk, t, h - 0.02, x + s * (w / 2 - 0.01 - t / 2), y + h / 2, z + 0.003);
+  const white = hwMat(ctx, 'white', { lightUp: 0.6, bands: [-0.6, 0.6], edge: 0.1, convex: 0 });
+  const teal = hwMat(ctx, 'teal', { lightUp: 0.6, bands: [-0.6, 0.6], edge: 0.1, convex: 0 });
+  const ink: Record<string, THREE.Material> = { '#': M.signInk, o: white, g: teal };
+  const x0 = x - (rows[0].length * c) / 2;
+  const top = y + pad + rows.length * r;
+  rows.forEach((row, i) => {
+    let a = 0;
+    while (a < row.length) {
+      const ch = row[a];
+      if (ch === '.') {
+        a++;
+        continue;
+      }
+      let e = a;
+      while (e < row.length && row[e] === ch) e++;
+      k.face(ink[ch] ?? M.signInk, (e - a) * c, r, x0 + ((a + e) / 2) * c, top - (i + 0.5) * r, z + 0.004);
+      a = e;
+    }
+  });
 }
 
 /** 托盘（1.2 × 1.0 × 0.15）：面板 + 三根垫木（正面看得见缝） */
@@ -350,12 +467,13 @@ export interface HwFloorMarks {
 
 /**
  * in2-hw-floor：深灰绿环氧地坪（原点 = 局部原点，x 0…w、z 0…d），4 米一道切缝（2 纹素），安全黄标线。
- * 盖在框架的地板上面（y 0.03，不共面）；地上的字框（kit.floorLabel）场景放在 y 0.035。
+ * 盖在框架的地板上面（y 0.03，不共面）；斜纹区、车位框（hwHatch / hwBay）场景放在 y 0.035。
  */
 export function hwFloor(ctx: AssetCtx, w: number, d: number, marks: HwFloorMarks = {}): THREE.Group {
   const k = new Kit();
-  const floorEl: Elem = { kind: 'paint', size: [60, 36], density: [0.004, 0.03], patch: 6 };
-  const floor = hwMat(ctx, 'floor', { edge: 0.05, convex: 0, bands: [-2, 2], toneW: [0.22, 0.22], elem: floorEl });
+  // 安静：大块深浅斑很淡、很稀（2026-11-19 去字那一轮把 toneW 0.22 → 0.08、斑的密度减半）
+  const floorEl: Elem = { kind: 'paint', size: [60, 36], density: [0.002, 0.015], patch: 6 };
+  const floor = hwMat(ctx, 'floor', { edge: 0.05, convex: 0, bands: [-2, 2], toneW: [0.08, 0.08], elem: floorEl });
   const joint = hwMat(ctx, 'joint', { edge: 0, convex: 0, bands: [-2, 2] });
   // 安全黄：芥末黄落中档（L ~143，和地差 < 60，不出强边缘）
   const yellow = palMat(ctx, 'hwMustard', { lightUp: 0, bands: [-2, 2], edge: 0.05, convex: 0, noShadowReceive: true });
@@ -523,9 +641,9 @@ function rackLoad(ctx: AssetCtx, k: Kit, good: RackGood, x: number, y: number, z
 
 /**
  * in2-hw-pallet-rack：靠北墙的高货架（原点 = 正面底边中心，往北深 d，沿 x 共 bays 跨）：海军蓝立柱、芥末黄横梁（上层 2.2 米、顶 4.05 米），
- * 每跨下层两托（顾客拿）、上层两托（叉车取，H2）；每样一个价签（下层挂在托盘正面、上层挂在横梁上）；顶上一条 COURT SUPPLY 大字条。
+ * 每跨下层两托（顾客拿）、上层两托（叉车取，H2）；每样一个价签（下层挂在托盘正面、上层挂在横梁上）；顶梁正中挂一块球场图标牌。
  */
-export function hwPalletRack(ctx: AssetCtx, goods = HW_RACK_GOODS, label = 'COURT SUPPLY'): THREE.Group {
+export function hwPalletRack(ctx: AssetCtx, goods = HW_RACK_GOODS, icon: string | null = 'court'): THREE.Group {
   const k = new Kit();
   const M = mats(ctx);
   const rnd = ctx.rng('in2-hw-pallet-rack');
@@ -558,8 +676,12 @@ export function hwPalletRack(ctx: AssetCtx, goods = HW_RACK_GOODS, label = 'COUR
     items.push({ id: `rack-${i}-low`, ...GOOD_INFO[g.low], x: cx, y: 0.02, z: 0.04 });
     items.push({ id: `rack-${i}-up`, ...GOOD_INFO[g.up], x: cx, y: beam - 0.46, z: zF + 0.06 });
   }
-  const extra = label ? [sign(ctx, label, Math.min(W - 1, 7.4), 0.7, 0, top - 0.24, zF + 0.1)] : [];
-  return finish(ctx, k, 'in2-hw-pallet-rack', items, extra);
+  // 顶梁正中（主过道正对的那根立柱前）挂一块球场图标牌：牌顶齐顶梁，竖屏里不被顶上的按钮挡住
+  if (icon) {
+    const c = 0.08;
+    iconSign(ctx, k, icon, 0, top - iconSignSize(icon, c).h, zF + 0.12, c);
+  }
+  return finish(ctx, k, 'in2-hw-pallet-rack', items);
 }
 
 // ════════════════════════════ 收货门（H3 / H4） ════════════════════════════
@@ -652,18 +774,20 @@ export function hwForklift(ctx: AssetCtx): THREE.Group {
 }
 
 /**
- * in2-hw-rent-sign：叉车租赁的立牌（原点 = 底座中心）：海军蓝立杆 + RENT 字条 + 价签（租一小时）。
+ * in2-hw-rent-sign：叉车租赁的立牌（原点 = 底座中心）：海军蓝立杆 + 横杆下一块叉车图标牌 + 价签（租一小时）。
  */
 export function hwRentSign(ctx: AssetCtx, price = 35): THREE.Group {
   const k = new Kit();
   const M = mats(ctx);
   k.bx(M.navy, 0.5, 0.06, 0.4, 0, 0, 0);
-  k.bx(M.navy, 0.07, 1.6, 0.07, 0, 0.06, 0);
-  k.bx(M.navy, 1.0, 0.06, 0.06, 0, 1.62, 0.02);
+  k.bx(M.navy, 0.07, 1.98, 0.07, 0, 0.06, 0);
+  k.bx(M.navy, 1.2, 0.06, 0.06, 0, 2.0, 0.02);
+  // 横杆下挂一块叉车图标牌（不写 RENT：叉车就停在旁边的黄框里，叉车员站在牌子边上）
+  iconSign(ctx, k, 'forklift', 0, 0.78, 0.08, 0.08);
   const items: HwItem[] = [
-    { id: 'forklift-rent', name: '租叉车（一小时，含叉车员教一遍）', price, x: 0, y: 0.6, z: 0.06 },
+    { id: 'forklift-rent', name: '租叉车（一小时，含叉车员教一遍）', price, x: 0, y: 0.2, z: 0.1 },
   ];
-  return finish(ctx, k, 'in2-hw-rent-sign', items, [sign(ctx, 'RENT', 1.0, 0.5, 0, 1.12, 0.06)]);
+  return finish(ctx, k, 'in2-hw-rent-sign', items);
 }
 
 // ════════════════════════════ PAINT：漆墙、调漆台（H6）、摇漆机、划线车 ════════════════════════════
@@ -677,7 +801,7 @@ export const HW_PAINTS: { id: string; name: string; price: number; body: HwSwatc
 
 /**
  * in2-hw-paint-wall：靠墙的漆架（原点 = 正面底边中心，往北深 0.7）：每段一种颜色的三个大桶（两下一上），层板沿芥末黄，
- * 上面一大块色卡板（6 × 3 的色块），顶上 PAINT 字条。
+ * 上面一大块色卡板（一排排色块），正中嵌一块滚筒刷图标牌。
  */
 export function hwPaintWall(ctx: AssetCtx, paints = HW_PAINTS): THREE.Group {
   const k = new Kit();
@@ -721,7 +845,9 @@ export function hwPaintWall(ctx: AssetCtx, paints = HW_PAINTS): THREE.Group {
         1.47 + (2 - r) * CW,
         -0.6,
       );
-  return finish(ctx, k, 'in2-hw-paint-wall', items, [sign(ctx, 'PAINT', 2.8, 0.7, 0, 2.66, -0.6)]);
+  // 滚筒刷图标牌嵌在色卡板正中（挂高了会被竖屏顶上的按钮挡住；色卡板在店员头顶后面，整块看得见）
+  iconSign(ctx, k, 'paint', 0, 1.36, -0.57, 0.09);
+  return finish(ctx, k, 'in2-hw-paint-wall', items);
 }
 
 /**
@@ -872,7 +998,7 @@ function part(ctx: AssetCtx, k: Kit, i: number, x: number, y: number, z: number)
 
 /**
  * in2-hw-parts-wall：立着的零件墙（原点 = 正面底边中心，宽 8、高 2.4、深 0.4，背后不看）：浅色底板、海军蓝框和底座，
- * 2 行 × 4 格，每格一个放大的零件（对号买，H5），格子下沿挂价签；顶上 IRRIGATION 大字条。
+ * 2 行 × 4 格，每格一个放大的零件（对号买，H5），格子下沿挂价签；顶上一块喷头图标牌。
  */
 export function hwPartsWall(ctx: AssetCtx, parts = HW_PARTS): THREE.Group {
   const k = new Kit();
@@ -895,9 +1021,11 @@ export function hwPartsWall(ctx: AssetCtx, parts = HW_PARTS): THREE.Group {
       k.bx(cell, CW - 0.18, 0.72, 0.03, x, yb, -0.22);
       k.bx(M.mustard, CW - 0.12, 0.05, 0.05, x, yb - 0.05, -0.2);
       part(ctx, k, i, x, yb + 0.42, -0.2);
-      items.push({ ...parts[i], x, y: yb - 0.37, z: -0.16, sm: true });
+      // 下排的价签挂在底座正面（原来在底座后面，被挡住一半）
+      items.push({ ...parts[i], x, y: r === 0 ? yb - 0.37 : 0.0, z: r === 0 ? -0.16 : 0.02, sm: true });
     }
-  return finish(ctx, k, 'in2-hw-parts-wall', items, [sign(ctx, 'IRRIGATION', 5.2, 0.7, 0, 2.5, -0.24)]);
+  iconSign(ctx, k, 'sprinkler', 0, 2.5, -0.24, 0.1);
+  return finish(ctx, k, 'in2-hw-parts-wall', items);
 }
 
 // ════════════════════════════ TOOLS：洞洞板 + 独轮车 ════════════════════════════
@@ -912,7 +1040,7 @@ export const HW_TOOLS: { id: string; name: string; price: number }[] = [
 /**
  * in2-hw-tool-wall：洞洞板货架（原点 = 正面底边中心，宽 4.8、高 2.3）：深青灰洞洞板（亮的工具衬暗底）、海军蓝细框（框都靠后、很薄，
  * 45° 俯视时不挡前面的东西），竖挂四把大工具（拖网刷、刮水滚筒、铁锹、耙子），每把下面一个价签；板前地上一辆红斗独轮车（价签挂车头）；
- * 顶上 TOOLS 字条。
+ * 顶上一块锤子图标牌。
  */
 export function hwToolWall(ctx: AssetCtx): THREE.Group {
   const k = new Kit();
@@ -973,7 +1101,8 @@ export function hwToolWall(ctx: AssetCtx): THREE.Group {
     k.bx(M.navy, 0.05, 0.36, 0.05, bx + s * 0.22, 0.06, wz - 0.1);
   }
   items.push({ id: 'tool-barrow', name: '独轮车', price: 119, x: bx, y: 0.02, z: wz + 0.74 });
-  return finish(ctx, k, 'in2-hw-tool-wall', items, [sign(ctx, 'TOOLS', 2.8, 0.7, 0, 2.34, -0.4)]);
+  iconSign(ctx, k, 'hammer', 0, 2.34, -0.4, 0.1);
+  return finish(ctx, k, 'in2-hw-tool-wall', items);
 }
 
 // ════════════════════════════ LUMBER：悬臂长料架（H1） ════════════════════════════
@@ -989,7 +1118,7 @@ export const HW_LONG: { id: string; name: string; price: number }[] = [
 /**
  * in2-hw-lumber-rack：悬臂长料架（原点 = 立柱背脊的底边中心，宽 13.8）：海军蓝立柱（带脚）、芥末黄悬臂三层，**越往上越短**（下 1.3、中 0.9、上 0.55 米）——
  * 45° 俯视时上一层不压住下一层，三层料一层一层往后退，都看得见。西半边：木方（下）、镀锌管（中）、白 PVC 管（上）；
- * 东半边：一对网柱（下）、深绿围网立柱（中）、上层空着。每样一个小价签（挂在那层悬臂下面、料捆正前方）；顶上一条横梁 + LUMBER 字条。
+ * 东半边：一对网柱（下）、深绿围网立柱（中）、上层空着。每样一个小价签（挂在那层悬臂下面、料捆正前方）；顶上一条横梁 + 一块木方图标牌。
  */
 export function hwLumberRack(ctx: AssetCtx): THREE.Group {
   const k = new Kit();
@@ -1051,7 +1180,8 @@ export function hwLumberRack(ctx: AssetCtx): THREE.Group {
     for (let i = 0; i < 6 - r; i++)
       k.lie(green, 'x', 0.05, 3.2, cxR + 1.4, LV[1].y + 0.05 + r * 0.09, 0.2 + (i + r * 0.5) * 0.11, 8);
   tag(4, cxR + 1.4, 1, 0.86);
-  return finish(ctx, k, 'in2-hw-lumber-rack', items, [sign(ctx, 'LUMBER', 3.4, 0.7, 0, H + 0.12, 0.08)]);
+  iconSign(ctx, k, 'lumber', 0, H + 0.12, 0.08, 0.1);
+  return finish(ctx, k, 'in2-hw-lumber-rack', items);
 }
 
 /** in2-hw-flatbed：平板推车（原点 = 车面中心落地，0.8 × 1.8，把手在北头）：镀锌网面、黑脚轮、海军蓝 U 形把手 */
@@ -1084,7 +1214,7 @@ export function hwFlatbed(ctx: AssetCtx): THREE.Group {
 
 /**
  * in2-hw-checkout：收银台（原点 = 柜台正面底边中心，宽 5.2、深 0.8、高 1.0；收银员站北边）：海军蓝柜身 + 芥末黄台沿、黑色传送带、
- * 收银机（深青屏幕、钱箱）；西头一个小货架（手套、卷尺，各一个价签）、一根立杆 + CHECKOUT 字条（不挡门口的堆头）。
+ * 收银机（深青屏幕、钱箱）；西头一个小货架（手套、卷尺，各一个价签）、东头收银机旁一根立杆 + 一盏只亮数字 1 的通道灯。
  */
 export function hwCheckout(ctx: AssetCtx): THREE.Group {
   const k = new Kit();
@@ -1122,9 +1252,13 @@ export function hwCheckout(ctx: AssetCtx): THREE.Group {
     { id: 'gloves', name: '工作手套', price: 12, x: sx, y: 0.6, z: -0.08, sm: true },
     { id: 'tape', name: '卷尺（30 米，量场地）', price: 15, x: sx, y: -0.02, z: -0.08, sm: true },
   ];
-  // 立杆 + 字条
-  k.bx(M.navy, 0.07, 2.4, 0.07, -W / 2 + 0.35, 0.96, -0.7);
-  return finish(ctx, k, 'in2-hw-checkout', items, [sign(ctx, 'CHECKOUT', 2.4, 0.5, -W / 2 + 0.35, 2.9, -0.62)]);
+  // 立杆 + 顶上一盏通道灯（海军蓝灯箱 + 芥末黄的 "1"：只有数字，超市收银道的样子）
+  const px = W / 2 - 0.3; // 东头、收银机旁边：一进门就在视野里
+  k.bx(M.navy, 0.07, 2.0, 0.07, px, 0.96, -0.7);
+  k.bx(M.signBg, 0.5, 0.72, 0.22, px, 2.92, -0.7);
+  k.bx(M.signInk, 0.54, 0.05, 0.24, px, 3.64, -0.7);
+  k.add(textGeo('1', { x: px, y: 3.0, z: -0.585, cell: 0.055 }), M.signInk);
+  return finish(ctx, k, 'in2-hw-checkout', items);
 }
 
 // ════════════════════════════ 地上的促销堆头 ════════════════════════════
@@ -1220,14 +1354,94 @@ export function hwPromo(ctx: AssetCtx, v = ctx.variant % 5): THREE.Group {
   return finish(ctx, k, 'in2-hw-promo', items);
 }
 
-/** 地上的字框（kit.floorLabel，安全黄）：中心 (x, z)，y 盖在环氧地上 */
-export function hwFloorLabel(ctx: AssetCtx, text: string, w: number, d: number): THREE.Object3D {
-  const ink = palMat(ctx, 'hwMustard', { lightUp: 0, bands: [-2, 2], edge: 0.05, convex: 0, noShadowReceive: true });
-  const o = floorLabel(cachedCtx(ctx), text, { w, d, ink });
-  o.traverse((m) => {
-    m.userData.noCast = true;
+/** 多边形（x, z）被半平面 x + z ≥ k（sign 1）或 ≤ k（sign −1）裁掉一半（Sutherland–Hodgman） */
+function clipDiag(poly: [number, number][], k: number, sign: 1 | -1): [number, number][] {
+  const out: [number, number][] = [];
+  const inside = (p: [number, number]) => sign * (p[0] + p[1] - k) >= 0;
+  for (let i = 0; i < poly.length; i++) {
+    const a = poly[i];
+    const b = poly[(i + 1) % poly.length];
+    const ia = inside(a);
+    const ib = inside(b);
+    if (ia) out.push(a);
+    if (ia !== ib) {
+      const ua = a[0] + a[1] - k;
+      const ub = b[0] + b[1] - k;
+      const t = ua / (ua - ub);
+      out.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]);
+    }
+  }
+  return out;
+}
+
+/** 地上的一块多边形（朝上，点 = 局部 x, z） */
+function floorPoly(pts: [number, number][], y: number): THREE.BufferGeometry {
+  const sh = new THREE.Shape(pts.map(([x, z]) => new THREE.Vector2(x, -z)));
+  return new THREE.ShapeGeometry(sh).rotateX(-Math.PI / 2).translate(0, y, 0);
+}
+
+/**
+ * in2-hw-hatch：地上一片黄黑斜纹（原点 = 中心，w × d 米，盖在环氧地上 y 0.03 以上）：深青黑底 + 芥末黄 "/" 斜纹 + 一圈黄框。
+ * 收货门前的装卸区就靠它认（参考图的车库门前也是黄斜纹框，不写 LOADING ZONE）。
+ */
+export function hwHatch(ctx: AssetCtx, w: number, d: number, o: { pitch?: number; stripe?: number } = {}): THREE.Group {
+  const k = new Kit();
+  const flat = { lightUp: 0, bands: [-2, 2] as [number, number], edge: 0.05, convex: 0, noShadowReceive: true };
+  const yellow = palMat(ctx, 'hwMustard', flat);
+  // "黑"用地坪切缝的深青黑（比灰橡胶多一点颜色，屋里饱和度不掉）
+  const base = hwMat(ctx, 'joint', flat);
+  const pitch = o.pitch ?? 0.6;
+  const st = o.stripe ?? 0.24;
+  const F = 0.12;
+  const x0 = -w / 2;
+  const z0 = -d / 2;
+  k.flat(base, x0, z0, -x0, -z0, 0.002);
+  // 框
+  k.flat(yellow, x0, z0, -x0, z0 + F, 0.004);
+  k.flat(yellow, x0, -z0 - F, -x0, -z0, 0.004);
+  k.flat(yellow, x0, z0, x0 + F, -z0, 0.004);
+  k.flat(yellow, -x0 - F, z0, -x0, -z0, 0.004);
+  // 斜纹：x + z = u 的带子，宽 st·√2（沿 u），每 pitch·√2 一条
+  const rect: [number, number][] = [
+    [x0 + F, z0 + F],
+    [-x0 - F, z0 + F],
+    [-x0 - F, -z0 - F],
+    [x0 + F, -z0 - F],
+  ];
+  const du = pitch * Math.SQRT2;
+  const su = st * Math.SQRT2;
+  for (let u = x0 + z0; u < -x0 - z0; u += du) {
+    const p = clipDiag(clipDiag(rect, u, 1), u + su, -1);
+    if (p.length >= 3) k.add(floorPoly(p, 0.004), yellow);
+  }
+  return finish(ctx, k, 'in2-hw-hatch');
+}
+
+/** in2-hw-bay：地上一个空的黄框（原点 = 中心，w × d 米）：叉车的车位，框里不写字、车停在里面 */
+export function hwBay(ctx: AssetCtx, w: number, d: number): THREE.Group {
+  const k = new Kit();
+  const yellow = palMat(ctx, 'hwMustard', { lightUp: 0, bands: [-2, 2], edge: 0.05, convex: 0, noShadowReceive: true });
+  const F = 0.12;
+  const x0 = -w / 2;
+  const z0 = -d / 2;
+  k.flat(yellow, x0, z0, -x0, z0 + F, 0.004);
+  k.flat(yellow, x0, -z0 - F, -x0, -z0, 0.004);
+  k.flat(yellow, x0, z0, x0 + F, -z0, 0.004);
+  k.flat(yellow, -x0 - F, z0, -x0, -z0, 0.004);
+  return finish(ctx, k, 'in2-hw-bay');
+}
+
+/** in2-hw-icons（画廊用）：六块图标牌一字排开 */
+export function hwIconBoard(ctx: AssetCtx): THREE.Group {
+  const k = new Kit();
+  const names = Object.keys(HW_ICONS);
+  const ws = names.map((n) => iconSignSize(n, 0.075).w);
+  let x = -(ws.reduce((a, b) => a + b, 0) + 0.3 * (names.length - 1)) / 2;
+  names.forEach((n, i) => {
+    iconSign(ctx, k, n, x + ws[i] / 2, 0.4, 0, 0.075);
+    x += ws[i] + 0.3;
   });
-  return o;
+  return finish(ctx, k, 'in2-hw-icons');
 }
 
 // ════════════════════════════ 画廊 ════════════════════════════
@@ -1275,5 +1489,7 @@ export const ASSETS: Record<string, AssetFn> = {
   'in2-hw-flatbed': (ctx) => hwFlatbed(ctx),
   'in2-hw-checkout': (ctx) => wrap(hwCheckout(ctx), 0, 0.4),
   'in2-hw-promo': (ctx) => hwPromo(ctx),
-  'in2-hw-floor-label': (ctx) => hwFloorLabel(ctx, 'LOADING ZONE', 4, 3),
+  'in2-hw-hatch': (ctx) => hwHatch(ctx, 4, 3),
+  'in2-hw-bay': (ctx) => hwBay(ctx, 4, 2.4),
+  'in2-hw-icons': (ctx) => hwIconBoard(ctx),
 };

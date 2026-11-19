@@ -1,11 +1,13 @@
-// 五金大超市 · 第二版店内（?inv=2，参考 Sneaky Sasquatch 的店内和仓库：镜头近、人大、东西少而大、每件下面挂价签、分区大字条、柜台后面有人）。
+// 五金大超市 · 第二版店内（?inv=2，参考 Sneaky Sasquatch 的店内和仓库：镜头近、人大、东西少而大、每件下面挂价签、柜台后面有人）。
+// 店里零字（2026-11-19）：分区靠货本身 + 海军蓝图标牌（球场、喷头、滚筒刷、木板、锤子、叉车）；收货区 = 门前一片黄黑斜纹 + 卷帘门；
+//   叉车位 = 一个空的黄框、叉车停在里面；收银 = 柜台 + 收银机 + 收银员 + 立杆上只亮 "1" 的通道灯（不写 PAY HERE / CHECKOUT）。
 // 设计稿 H1～H6（平板推车、开叉车取上层托盘、装车、倒车进卸货台、对号买喷头、调划线漆）。资产在 assets/in2/hardware.ts（in2-hw-*）。
 //
 // 局部坐标：x 0…36（西 → 东）、z 0…22（北 → 南），南墙正中是门（x 18）。镜头俯 45°、朝北，zoom 0.45（≈ 0.02 米/纹素，竖屏一屏横着 ≈ 8 米）。
-// 构图（一进门往北看）：正中一条 4 米宽的叉车主过道（两边安全黄线），一直通到北墙正中的 COURT SUPPLY 高货架（上层托盘 = H2 要叉车取的红土沙）；
-//   北墙西边收货门 + 地上 LOADING ZONE（H3 / H4），东边 PAINT 漆架 + 调漆台（店员在台后，H6）；货架前的东西向横过道 ≥ 8 米宽，叉车在这里掉头、开去收货门。
-//   中间一排（z 10）：西 IRRIGATION 喷头零件墙（H5）、TOOLS 洞洞板、东 LUMBER 悬臂长料架（H1）。
-//   南边（门两边）：西边收银（收银员在台后、PAY HERE），东边三辆平板推车（H1）；门口两个促销堆头；东南角两件红土场用品。
+// 构图（一进门往北看）：正中一条 4 米宽的叉车主过道（两边安全黄线），一直通到北墙正中的球场用品高货架（上层托盘 = H2 要叉车取的红土沙）；
+//   北墙西边收货门 + 门前黄黑斜纹的装卸区（H3 / H4），东边漆架 + 调漆台（店员在台后，H6）；货架前的东西向横过道 ≥ 8 米宽，叉车在这里掉头、开去收货门。
+//   中间一排（z 10）：西喷头零件墙（H5）、工具洞洞板、东悬臂长料架（H1）。
+//   南边（门两边）：西边收银（收银员在台后、台前一道停止线），东边三辆平板推车（H1）；门口两个促销堆头；东南角两件红土场用品。
 // 叉车过道：主过道 4 米、横过道 ≥ 8 米、到收货门那段 ≥ 3.6 米（硬要求 ≥ 3.2）。
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
@@ -17,12 +19,13 @@ import {
   cachedCtx,
   HW_RACK,
   type HwItem,
+  hwBay,
   hwCheckout,
   hwDockDoor,
   hwFlatbed,
   hwFloor,
-  hwFloorLabel,
   hwForklift,
+  hwHatch,
   hwLumberRack,
   hwPaintCounter,
   hwPaintWall,
@@ -46,8 +49,8 @@ const D = 22;
 const DOCK = { x: 5, z: 0 };
 const RACK = { x: 18, z: HW_RACK.d + 0.02 };
 const FORK = { x: 23.2, z: 5.0 };
-/** FORKLIFT 字框（叉车停在框的北半边，框南半边的字露出来） */
-const FORK_BOX = { x: 22.9, z: 5.9, w: 4.4, d: 3.2 };
+/** 叉车位：一个空的黄框，叉车整个停在里面（框里不写字） */
+const FORK_BOX = { x: 22.85, z: 5.0, w: 4.5, d: 2.1 };
 const RENT = { x: 25.6, z: 7.8 };
 const PAINT_WALL = { x: 30.8, z: 0.72 };
 const PAINT = { x: 31, z: 4.1 };
@@ -69,7 +72,7 @@ export const SPOTS: Record<string, { x: number; z: number; rot: number; y?: numb
     z: 20,
     rot: Math.PI,
     card: '-',
-    note: '进门站的地方（门里 2 米，正对主过道和北墙的 COURT SUPPLY 货架）',
+    note: '进门站的地方（门里 2 米，正对主过道和北墙的球场用品高货架）',
   },
   'h1-flatbed': { x: FLATBEDS[1], z: FLATBED_Z + 1.6, rot: Math.PI, card: 'H1', note: '拿平板推车（三辆，把手朝北）' },
   'h1-lumber-west': { x: 25.2, z: 12.4, rot: Math.PI, card: 'H1', note: '长料架西半：木方、镀锌管、白 PVC 管' },
@@ -79,16 +82,16 @@ export const SPOTS: Record<string, { x: number; z: number; rot: number; y?: numb
     z: RENT.z + 0.9,
     rot: Math.PI,
     card: 'H2',
-    note: '找叉车员登记、付租金（RENT 牌 + 叉车员头顶"…"）',
+    note: '找叉车员登记、付租金（叉车图标牌 + 价签 + 叉车员头顶"…"）',
   },
-  'h2-forklift': { x: FORK.x, z: FORK.z, rot: -Math.PI / 2, card: 'H2', note: '叉车（停在 FORKLIFT 框里，货叉朝西）' },
+  'h2-forklift': { x: FORK.x, z: FORK.z, rot: -Math.PI / 2, card: 'H2', note: '叉车（停在黄框车位里，货叉朝西）' },
   'h2-rack-clay': {
     x: RACK.x - 1.5 * HW_RACK.bay,
     z: RACK.z - HW_RACK.d / 2,
     y: HW_RACK.beam + 0.03,
     rot: 0,
     card: 'H2',
-    note: '上层托盘：红土补土沙整托（COURT SUPPLY 西跨，两托并排；货叉从南边进）',
+    note: '上层托盘：红土补土沙整托（高货架西跨，两托并排；货叉从南边进）',
   },
   'h2-rack-approach': {
     x: RACK.x - 1.5 * HW_RACK.bay,
@@ -102,7 +105,7 @@ export const SPOTS: Record<string, { x: number; z: number; rot: number; y?: numb
     z: 4.0,
     rot: Math.PI,
     card: 'H3',
-    note: '装车：LOADING ZONE 框（货车车斗在门外，叉车 / 推车从这里进车斗）',
+    note: '装车：收货门前的黄黑斜纹区（货车车斗在门外，叉车 / 推车从这里进车斗）',
   },
   'h4-dock-door': { x: DOCK.x, z: 0.5, rot: 0, card: 'H4', note: '收货门（墙外是卸货台；货车倒到门口的防撞块）' },
   'h5-parts-wall': {
@@ -140,14 +143,14 @@ export const SPOTS: Record<string, { x: number; z: number; rot: number; y?: numb
     z: 3.4,
     rot: Math.PI,
     card: 'H2',
-    note: 'COURT SUPPLY 高货架下层（顾客自己拿：补土沙袋、球网、挡风网）',
+    note: '球场用品高货架下层（顾客自己拿：补土沙袋、球网、挡风网）',
   },
   checkout: {
     x: CHECKOUT.x + 0.4,
     z: CHECKOUT.z + 1.2,
     rot: Math.PI,
     card: '-',
-    note: '收银（收银员在台后、头顶"…"；PAY HERE）',
+    note: '收银（收银员在台后、头顶"…"；台前停止线、立杆上的 1 号通道灯）',
   },
   exit: { x: 18, z: D + 1.2, rot: 0, card: '-', note: '出门（门外地垫）' },
 };
@@ -244,27 +247,23 @@ function build(c: InteriorCtx) {
           half: AISLE.half,
         },
       ],
-      // 收银台前的停止线、收货门前的"保持畅通"条
-      lines: [
-        [CHECKOUT.x - 2.4, CHECKOUT.z + 2.4, CHECKOUT.x + 2.4, CHECKOUT.z + 2.5],
-        [DOCK.x - 3.2, 7.0, DOCK.x + 3.2, 7.12],
-      ],
+      // 收银台前的停止线（排队站在线后）
+      lines: [[CHECKOUT.x - 2.4, CHECKOUT.z + 2.4, CHECKOUT.x + 2.4, CHECKOUT.z + 2.5]],
     }),
     0,
     0,
   );
   put(hwWall(a, W, WALL_H, [[DOCK.x - 2.2, DOCK.x + 2.2]]), 0, 0);
-  // 地上的字框（盖在环氧地上：y 0.035）
-  put(hwFloorLabel(a, 'LOADING ZONE', 6.4, 4.6), DOCK.x, 4.0, 0, '', 0.035);
-  put(hwFloorLabel(a, 'FORKLIFT', FORK_BOX.w, FORK_BOX.d), FORK_BOX.x, FORK_BOX.z, 0, '', 0.035);
-  put(hwFloorLabel(a, 'PAY HERE', 3.0, 1.3), CHECKOUT.x + 0.4, CHECKOUT.z + 1.5, 0, '', 0.035);
+  // 地上（盖在环氧地上：y 0.035）：收货门前一片黄黑斜纹（装卸区）、叉车的空黄框车位；都不写字
+  put(hwHatch(a, 6.4, 4.8), DOCK.x, 4.0, 0, '', 0.035);
+  put(hwBay(a, FORK_BOX.w, FORK_BOX.d), FORK_BOX.x, FORK_BOX.z, 0, '', 0.035);
 
   // ── 北墙西：收货门（H3 / H4） ──
   put(hwDockDoor(a), DOCK.x, DOCK.z);
   block(DOCK.x - 2.75, 0, DOCK.x - 2.3, 0.6);
   block(DOCK.x + 2.3, 0, DOCK.x + 2.75, 0.6);
 
-  // ── 北墙正中：COURT SUPPLY 高货架（H2）；叉车 + 租车牌（叉车员） ──
+  // ── 北墙正中：球场用品高货架（H2，顶梁挂球场图标牌）；叉车 + 租车牌（叉车图标、叉车员） ──
   put(hwPalletRack(a), RACK.x, RACK.z, 0, 'court-');
   block(RACK.x - 6.7, 0, RACK.x + 6.7, RACK.z + 0.15);
   put(hwForklift(a), FORK.x, FORK.z, Math.PI / 2);
@@ -272,7 +271,7 @@ function build(c: InteriorCtx) {
   put(hwRentSign(a), RENT.x, RENT.z);
   block(RENT.x - 0.3, RENT.z - 0.25, RENT.x + 0.3, RENT.z + 0.25);
 
-  // ── 北墙东：PAINT 漆架 + 调漆台（H6）+ 摇漆机 + 划线车 ──
+  // ── 北墙东：漆架（滚筒刷图标牌）+ 调漆台（H6）+ 摇漆机 + 划线车 ──
   put(hwPaintWall(a), PAINT_WALL.x, PAINT_WALL.z, 0, 'paintwall-');
   put(hwPaintCounter(a), PAINT.x, PAINT.z, 0, 'paint-');
   // 台后是店员的地方：整块挡住（顾客从台前买）
@@ -284,7 +283,7 @@ function build(c: InteriorCtx) {
   put(hwStriper(a), STRIPER.x, STRIPER.z, 0, 'paint-');
   block(STRIPER.x - 0.4, STRIPER.z - 0.6, STRIPER.x + 0.4, STRIPER.z + 0.6);
 
-  // ── 中间一排：IRRIGATION 零件墙（H5）、TOOLS、LUMBER（H1） ──
+  // ── 中间一排：喷头零件墙（H5，喷头图标）、工具洞洞板（锤子图标）、长料架（H1，木方图标） ──
   put(hwPartsWall(a), PARTS.x, PARTS.z, 0, 'irrigation-');
   block(PARTS.x - 4, PARTS.z - 0.45, PARTS.x + 4, PARTS.z + 0.05);
   put(hwToolWall(a), TOOLS.x, TOOLS.z, 0, 'tools-');
