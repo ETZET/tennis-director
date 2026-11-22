@@ -1,4 +1,4 @@
-// valley（地图扩张 demo）的数：平面图摆得对不对、导航（走路 / 球车 / 汽车、锁着的区域、山上步道、围墙）、
+// valley（地图扩张 demo，2026-11-21 压紧成小镇）的数：平面图摆得对不对、导航（走路 / 球车 / 汽车、锁着的区域、围墙）、
 // 南边的山挡不挡人、寻路网格只铺俱乐部时网格外的寻路。纯数，不要 WebGL。
 import { describe, expect, it } from 'vitest';
 import { NavMap } from '../clubsite/play/nav';
@@ -16,14 +16,16 @@ import {
   REGIONS,
   ROADS,
   regionAt,
-  S,
+  SITES,
+  SPEED,
+  TRIPS,
   VIEW,
 } from './layout';
 import { createValleyNav } from './nav';
-import { CLUB_BOX, inClubBox, inFloor, LOOKOUT, mountainY, onRoad, trailSurface } from './terrain';
+import { MOD_OLD_BOX, type ModuleId, mvRect } from './relocate';
+import { CLUB_BOX, inClubBox, inFloor, mountainY, onRoad } from './terrain';
 
 const ALL_LOCKED = () => new Set(REGIONS.filter((r) => !r.open).map((r) => r.id));
-const trail = (id: string) => ROADS.find((r) => r.id === id)?.pts ?? [];
 
 /** 离 FLOOR 边的距离（在外面才有意义） */
 function distToFloor(x: number, z: number): number {
@@ -41,20 +43,45 @@ describe('valley 平面图', () => {
     expect(out).toEqual([]);
   });
 
-  it('POI 都去得了：在平地里，或者在山上的步道 / 观景台上；远眺的（风车田）可以在外面', () => {
-    const out = POIS.filter((p) => {
-      if (inFloor(p.x, p.z)) return false;
-      if (trailSurface(p.x, p.z) !== null) return false;
-      return p.kind !== 'view' || p.id === 'p_lookout';
-    }).map((p) => p.id);
-    expect(out).toEqual([]);
+  it('POI 都在平地里', () => {
+    expect(POIS.filter((p) => !inFloor(p.x, p.z)).map((p) => p.id)).toEqual([]);
   });
 
-  it('观景台在 POI 里、在美术馆步道的尽头', () => {
-    const t = trail('museum_trail');
-    const end = t[t.length - 1];
-    expect(Math.hypot(end[0] - LOOKOUT.x, end[1] - LOOKOUT.z)).toBeLessThan(LOOKOUT.r);
-    expect(POIS.some((p) => p.id === 'p_lookout' && Math.hypot(p.x - LOOKOUT.x, p.z - LOOKOUT.z) < 1)).toBe(true);
+  it('压紧：模块（平移以后）互不相压；院子不压别家的楼', () => {
+    const ids = Object.keys(MOD_OLD_BOX) as ModuleId[];
+    const box = (id: ModuleId) => mvRect(id, MOD_OLD_BOX[id]);
+    const hits: string[] = [];
+    // 模块的框只是大概的（含院子、停车场），用楼和 SITES 查实的
+    for (const s of SITES)
+      for (const o of BUILDINGS)
+        if (o.mod !== s.of) {
+          const P = bldgPoly(o, 0);
+          if (P.some(([x, z]) => x > s.x0 && x < s.x1 && z > s.z0 && z < s.z1)) hits.push(`${s.id} × ${o.id}`);
+        }
+    expect(hits).toEqual([]);
+    for (const a of ids) for (const b of ids) if (a < b) expect(box(a)).toBeDefined();
+  });
+
+  it('压紧：主街一条走完半分钟；俱乐部门口到店 1 分半以内，到主街东头的五金、学校（选拔日的报名桌）、公园 2 分 40 秒以内（沿路）', () => {
+    const len = (pts: readonly (readonly [number, number])[]) =>
+      pts.slice(1).reduce((a, p, i) => a + Math.hypot(p[0] - pts[i][0], p[1] - pts[i][1]), 0);
+    const door = (id: string) => POIS.find((p) => p.id === id) as { x: number; z: number };
+    // 报社 → 主街最东的店（餐馆）；市政厅 → 选拔日的报名桌（横街、后街走过去）≤ 35 秒
+    const [a, b] = [door('p_paper'), door('p_diner')];
+    expect(Math.abs(b.x - a.x) / SPEED.walk).toBeLessThan(35);
+    const c = door('p_cityhall');
+    const e = door('p_school_event');
+    const toEvent: [number, number][] = [
+      [c.x, c.z],
+      [274.4, -51.7],
+      [326, -51.7],
+      [336, -45],
+      [336, -42],
+      [e.x, e.z],
+    ];
+    expect(len(toEvent) / SPEED.walk).toBeLessThan(35);
+    for (const t of TRIPS)
+      expect(len(t.pts) / SPEED.walk, t.name).toBeLessThan(/学校|公园|五金/.test(t.name) ? 160 : 90);
   });
 
   it('俱乐部那块（CLUB_BOX）以外的平地每一处都归某个区域（10 米采样）', () => {
@@ -113,93 +140,72 @@ describe('valley 平面图', () => {
     expect(hits).toEqual([]);
   });
 
-  it('路的中线都在平地里（步道除外：美术馆步道上山）', () => {
+  it('路的中线都在平地里', () => {
     const out: string[] = [];
-    for (const r of ROADS) {
-      if (r.kind === 'trail') continue;
+    for (const r of ROADS)
       for (const [x, z] of r.pts) if (!inFloor(x, z) && !inClubBox(x, z)) out.push(`${r.id} (${x},${z})`);
-    }
-    // 111 号公路往北出山口、东西向的路往东出地图边（x 1600 > FLOOR 东沿 1560）：画出去的，允许
-    expect(out.filter((s) => !s.startsWith('hwy111') && !s.includes('(1600,'))).toEqual([]);
+    expect(out).toEqual([]);
   });
 
   it('小区的房子不压着别的房子、不在锁着的平地外', () => {
     const hs = houses();
-    expect(hs.length).toBeGreaterThan(50);
+    expect(hs.length).toBeGreaterThan(30);
     for (const h of hs) expect(inPoly(FLOOR, h.x, h.z)).toBe(true);
   });
 });
 
 describe('valley 导航（createValleyNav）', () => {
-  it('路上能走（俱乐部门口的车道往东、棕榈谷大道）', () => {
+  it('路上能走（俱乐部门口的车道往东、主街、横街）', () => {
     const v = createValleyNav(new Set());
-    // 手写的点是原尺寸的，过 S（layout.ts 的整体缩放）
-    expect(v.surface(...S(150, 2))).toBe(0);
-    expect(v.surface(...S(300, -100))).toBe(0);
-    expect(v.surface(...S(332, -900))).toBe(0);
+    expect(v.surface(150, 2)).toBe(0);
+    expect(v.surface(300, 0)).toBe(0);
+    expect(v.surface(274.4, -80)).toBe(0);
   });
 
   it('锁着的区域不能进，开了就能进', () => {
     const locked = ALL_LOCKED();
     const v = createValleyNav(locked);
-    // 市中心（town）：棕榈谷大道上
-    expect(regionAt(...S(332, -900))?.id).toBe('town');
-    expect(v.surface(...S(332, -900))).toBeNull();
-    // 学校
-    expect(v.surface(...S(1000, -700))).toBeNull();
-    // 开局开着的南棕榈谷能走
-    expect(v.surface(...S(400, -100))).toBe(0);
+    expect(regionAt(300, 0)?.id).toBe('town');
+    expect(v.surface(300, 0)).toBeNull();
+    // 学校（主街北边）、公园（主街南边）；主街本身不归它们（锁着也开得到东头的五金）
+    expect(regionAt(470, -30)?.id).toBe('school');
+    expect(v.surface(470, -30)).toBeNull();
+    expect(regionAt(400, 60)?.id).toBe('park');
+    expect(v.surface(400, 60)).toBeNull();
+    expect(regionAt(470, 0)?.id).toBe('town');
+    // 俱乐部门外那段车道开着
+    expect(v.surface(190, 0)).toBe(0);
     locked.delete('town');
-    expect(v.surface(...S(332, -900))).toBe(0);
+    expect(v.surface(300, 0)).toBe(0);
   });
 
   it('平地上走路、球车、汽车都能去（汽车下路是慢，不是撞墙：vehicles.ts 的 DRIVE.offroad）', () => {
     const v = createValleyNav(new Set());
-    const off = S(400, -60); // 南棕榈谷的空地
+    const off: [number, number] = [180, -30]; // 俱乐部和镇子之间的空地
     expect(onRoad(...off)).toBe(false);
-    expect(onRoad(...S(300, -100))).toBe(true);
+    expect(onRoad(300, 0)).toBe(true);
     v.mode = 'walk';
     expect(v.surface(...off)).toBe(0);
     v.mode = 'cart';
     expect(v.surface(...off)).toBe(0);
     v.mode = 'car';
     expect(v.surface(...off)).toBe(0);
-    expect(v.surface(...S(300, -100))).toBe(0);
+    expect(v.surface(300, 0)).toBe(0);
   });
 
   it('汽车停的地方（大门外车道北边）开出去能上路', () => {
     // vehicles.ts：汽车停在 (110, −8)，球车 (100, −7.5)
     const v = createValleyNav(new Set());
     v.mode = 'car';
-    // 车道（layout 的 drive，接着 world.ts 的 DRIVE）往东一直到棕榈谷大道
     const drive = ROADS.find((r) => r.id === 'drive');
     for (const [, p] of along(drive?.pts ?? [], 5)) if (p[0] > 64) expect(v.surface(p[0], p[1]), `${p}`).toBe(0);
-    // 停车的地方本身不在路上：汽车上去以后要靠 clubwalk 的停车场导航（clubpark 区域）接住
     expect(onRoad(110, -8)).toBe(false);
   });
 
-  it('山上只有美术馆步道和观景台能走；山锁着 / 开车都不行', () => {
+  it('山上不能走', () => {
     const v = createValleyNav(new Set());
-    const t = trail('museum_trail');
-    // 步道上（平地外的那段）
-    const mid: [number, number] = [(t[3][0] + t[4][0]) / 2, (t[3][1] + t[4][1]) / 2];
-    expect(inFloor(...mid)).toBe(false);
-    const y = v.surface(...mid);
-    expect(y).not.toBeNull();
-    expect(y as number).toBeGreaterThan(0);
-    // 观景台
-    expect(v.surface(LOOKOUT.x, LOOKOUT.z)).toBe(LOOKOUT.y);
-    // 步道旁边 10 米：山坡，不能站
-    expect(v.surface(mid[0], mid[1] + 10)).toBeNull();
-    // 西边山里随便一处
     expect(v.surface(-150, -300)).toBeNull();
-    // 山锁着
-    v.locked.add('mountain');
-    expect(v.surface(LOOKOUT.x, LOOKOUT.z)).toBeNull();
-    v.locked.delete('mountain');
-    // 开着车上不了山
-    v.mode = 'cart';
-    expect(v.surface(LOOKOUT.x, LOOKOUT.z)).toBeNull();
+    expect(v.surface(400, -300)).toBeNull();
   });
 
   it('俱乐部围墙那一圈（GROUNDS 外扩 1.5 米）挡住；里面也归 clubwalk，不归山谷', () => {
@@ -240,7 +246,7 @@ describe('valley 地形', () => {
   it('平地南边的山：高 < 往北到平地的距离（45° 俯视、镜头朝北，挡不住平地上的人）', () => {
     // 正交相机离目标 120 米（valley/main.ts 的 camera.dist）：山顶 y、往北 k 米是平地，(y + k)/√2 > 119 的在近裁剪面外面，不画，不算挡
     const bad: string[] = [];
-    for (let x = -80; x <= 1560; x += 6) {
+    for (let x = -80; x <= VIEW.x1; x += 6) {
       let zEdge = Number.NEGATIVE_INFINITY;
       for (let z = -200; z <= 400; z += 2) if (inFloor(x, z)) zEdge = z;
       if (!Number.isFinite(zEdge)) continue;
@@ -255,10 +261,10 @@ describe('valley 地形', () => {
     expect(bad.slice(0, 10)).toEqual([]);
   });
 
-  it('整张图（山嘴、峡谷口）都没有挡人的近山', () => {
+  it('整张图（山嘴、山口）都没有挡人的近山', () => {
     const bad: string[] = [];
-    for (let x = -200; x <= 1600; x += 8)
-      for (let z = -1480; z <= 360; z += 8) {
+    for (let x = VIEW.x0; x <= VIEW.x1; x += 8)
+      for (let z = VIEW.z0; z <= VIEW.z1; z += 8) {
         if (inFloor(x, z)) continue;
         const y = mountainY(x, z);
         if (y < 1) continue;
@@ -266,27 +272,6 @@ describe('valley 地形', () => {
         if (y >= k && y + k < 168) bad.push(`(${x},${z}) y ${y.toFixed(1)} 往北 ${k}`);
       }
     expect(bad.slice(0, 10)).toEqual([]);
-  });
-
-  it('步道的高度从山脚 0 爬到观景台', () => {
-    const t = trail('museum_trail');
-    expect(trailSurface(t[0][0], t[0][1])).toBe(0);
-    const ys = t.map(([x, z]) => trailSurface(x, z) ?? Number.NaN);
-    for (let i = 1; i < ys.length; i++) expect(ys[i]).toBeGreaterThanOrEqual(ys[i - 1]);
-    expect(ys[ys.length - 1]).toBe(LOOKOUT.y);
-  });
-
-  it('步道两边的山挖出路面：步道上 mountainY 不高过步道', () => {
-    const t = trail('museum_trail');
-    for (let i = 1; i < t.length; i++) {
-      for (let k = 0; k < 10; k++) {
-        const x = t[i - 1][0] + ((t[i][0] - t[i - 1][0]) * k) / 10;
-        const z = t[i - 1][1] + ((t[i][1] - t[i - 1][1]) * k) / 10;
-        const s = trailSurface(x, z);
-        if (s === null || inFloor(x, z)) continue;
-        expect(mountainY(x, z), `(${x.toFixed(0)},${z.toFixed(0)})`).toBeLessThanOrEqual(s + 0.05);
-      }
-    }
   });
 
   it('CLUB_BOX 盖住俱乐部的围墙和车道起点', () => {

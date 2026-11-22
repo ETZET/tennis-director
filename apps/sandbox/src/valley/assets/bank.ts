@@ -454,7 +454,8 @@ const bankTimetempSign: AssetFn = (ctx) => {
   k.bx(m.bronze, 3.0, 0.25, 0.6, 0, by + 1.75, 0);
   k.add(new THREE.CylinderGeometry(0.42, 0.42, 0.08, 12).rotateX(Math.PI / 2).translate(0, by + 2.4, 0), m.bronzeFace);
   k.bx(m.bronze, 0.12, 0.3, 0.12, 0, by + 2.0, 0);
-  const g = meshes(ctx, k.parts, [amber, m.bronzeFace]);
+  // 白柱缩完 0.19 米：不投影（傍晚是两条长长的麻点细线，critic M12）；牌子照投
+  const g = meshes(ctx, k.parts, [amber, m.bronzeFace, m.white]);
   nightSwap(g, [
     [amber, amberNight],
     [m.bronzeFace, m.bronzeNight],

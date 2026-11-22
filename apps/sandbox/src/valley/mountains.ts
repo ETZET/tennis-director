@@ -8,18 +8,84 @@
 // 三道山梁三个材质（mountainY 的 info.layer）：近的暖玫瑰褐、主山梁浅一点、最外最高的更浅更灰（空气），色阶同
 // clubsite/mountains.ts 的 near / mid / far。
 import * as THREE from 'three';
+import type { Tones } from '../clubsite/render/toon';
 import { EL, type MapCtx } from './reuse';
-import { CLUB_BOX, floorDist, HF, type MountainInfo, mountainY, trailDist } from './terrain';
+import { CLUB_BOX, floorDist, HF, type MountainInfo, mountainY } from './terrain';
 
 export type Ramp = [number, number, number];
 /** 近的那道（山脚、山包）的色阶；build.ts 压暗用 */
-export const MTN_RAMP: Ramp = [0xcc8a74, 0x9c6468, 0x5c4280];
-/** 三道山梁的材质：越远越浅、越灰，明暗差越小（lightUp 大、亮档门槛高） */
-const LAYER_MATS: { ramp: Ramp; edge: number; lightUp: number; bands: [number, number] }[] = [
-  { ramp: MTN_RAMP, edge: 0.3, lightUp: 0.1, bands: [0.15, 0.68] },
-  { ramp: [0xd89c8c, 0xae7880, 0x6c5488], edge: 0.3, lightUp: 0.15, bands: [0.18, 0.7] },
-  { ramp: [0xe6bcb2, 0xc8a0a8, 0x9688b0], edge: 0.22, lightUp: 0.2, bands: [0.2, 0.76] },
+export const MTN_RAMP: Ramp = [0xcc8a74, 0x9c6468, 0x664c8a];
+/**
+ * 三道山梁的材质：越远越浅、越灰，明暗差越小（lightUp 大、亮档门槛高）。
+ * 2026-11-21 小镇精细化（material-1 第 16 条）：岩面加屏幕空间的石块元素（材质规范 v2 的 stones，只动 shader、不加三角形 ——
+ * 用户定过山要便宜）。第 2 轮：stones [16, 8] 一满山像铺地砖 → 先换 paint 斑块；第 3 轮（lead）回到 stones 取折中：
+ * 更大更扁的不规则石块（近 26×9、中 34×11、远 44×14 纹素）、缝色只差 −8～−12（低对比：读成岩面上的斑块，不是一格格铺地）；暗档整体提亮 ≈ 10（大三角板没那么黑）。
+ * 近的那道石块小、缝清楚（默认镜头看得到的山脚）；远的两道石块大、缝淡（空气）。
+ * d = [高一级, 低一级, 缝, 亮边] 的亮度差（亮 / 中 / 暗三档各一组；暗档拉开 +8 / −12，往冷里走）
+ */
+const LAYER_MATS: {
+  ramp: Ramp;
+  edge: number;
+  lightUp: number;
+  bands: [number, number];
+  size: [number, number];
+  dens: [number, number];
+  d: [number, number, number, number][];
+}[] = [
+  {
+    ramp: MTN_RAMP,
+    edge: 0.3,
+    lightUp: 0.1,
+    bands: [0.15, 0.68],
+    size: [30, 9],
+    dens: [0.04, 0.24],
+    d: [
+      [8, -9, -12, 10],
+      [8, -9, -12, 9],
+      [8, -12, -10, 8],
+    ],
+  },
+  {
+    ramp: [0xd89c8c, 0xae7880, 0x765e92],
+    edge: 0.3,
+    lightUp: 0.15,
+    bands: [0.18, 0.7],
+    size: [34, 11],
+    dens: [0.02, 0.14],
+    d: [
+      [6, -7, -9, 8],
+      [6, -7, -9, 7],
+      [7, -9, -8, 6],
+    ],
+  },
+  {
+    ramp: [0xe6bcb2, 0xc8a0a8, 0x9c8eb6],
+    edge: 0.22,
+    lightUp: 0.2,
+    bands: [0.2, 0.76],
+    size: [44, 14],
+    dens: [0, 0.07],
+    d: [
+      [5, -5, -9, 8],
+      [5, -5, -9, 7],
+      [5, -6, -8, 6],
+    ],
+  },
 ];
+/** 一个颜色整体提亮 / 压暗 d（0..255）；压暗时往冷里走一点（蓝少减、红多减） */
+function shade(hex: number, d: number): number {
+  const c = [(hex >> 16) & 255, (hex >> 8) & 255, hex & 255];
+  const k = d < 0 ? [1.15, 1, 0.7] : [1, 1, 1];
+  const o = c.map((v, i) => Math.max(0, Math.min(255, Math.round(v + d * k[i]))));
+  return (o[0] << 16) | (o[1] << 8) | o[2];
+}
+/** 山的元素调色板：每档 [本色, 高一级, 低一级]、缝、亮边都按 d 从 ramp 推 */
+function mtnTones(ramp: Ramp, d: [number, number, number, number][]): Tones {
+  const b = ramp.map((c, i) => [c, shade(c, d[i][0]), shade(c, d[i][1])]) as Tones['bands'];
+  const seam = ramp.map((c, i) => shade(c, d[i][2])) as Tones['seam'];
+  const hi = ramp.map((c, i) => shade(c, d[i][3])) as Tones['hi'];
+  return { bands: b, seam, hi };
+}
 
 /** 最细一档每个 12 米粗格分几份（2 米）；其余档是它的约数 */
 const G = 6;
@@ -109,15 +175,14 @@ export function mountainTris(): { chunk: number; layer: number; pos: number[] }[
   const { x0, z0, cell } = HF;
   const nx = Math.ceil((HF.x1 - HF.x0) / cell);
   const nz = Math.ceil((HF.z1 - HF.z0) / cell);
-  // 每个粗格分几份：步道两边 6（2 米）、山脚一圈和步道附近 3（4 米）、其余 1；整格在平地里的 1（全在地下，不画）
+  // 每个粗格分几份：山脚一圈 3（4 米）、其余 1；整格在平地里的 1（全在地下，不画）
   const S = new Uint8Array(nx * nz);
   for (let j = 0; j < nz; j++)
     for (let i = 0; i < nx; i++) {
       const cx = x0 + (i + 0.5) * cell;
       const cz = z0 + (j + 0.5) * cell;
       const d = floorDist(cx, cz);
-      const td = trailDist(cx, cz);
-      S[j * nx + i] = d < -9 ? 1 : td < 22 ? 6 : d < 90 || td < 110 ? 3 : 1;
+      S[j * nx + i] = d < -9 ? 1 : d < 90 ? 3 : 1;
     }
   const sAt = (i: number, j: number) => (i < 0 || j < 0 || i >= nx || j >= nz ? 0 : S[j * nx + i]);
 
@@ -273,13 +338,62 @@ export function groundGapTiles(): [number, number][] {
 
 /** 山的网格（每块每道山梁一个，视锥外的块不画）+ 山脚补的沙地 */
 export function buildMountains(ctx: MapCtx): THREE.Mesh[] {
-  const mats = LAYER_MATS.map((m) =>
-    ctx.mats.toon(0xffffff, { ramp: m.ramp, edge: m.edge, convex: 0, bands: m.bands, lightUp: m.lightUp }),
+  const mats = LAYER_MATS.map((m, i) =>
+    ctx.mats.toon(0xffffff, {
+      ramp: m.ramp,
+      edge: m.edge,
+      convex: 0,
+      bands: m.bands,
+      lightUp: m.lightUp,
+      elem: { kind: 'stones', size: m.size, seam: 0.6, hi: 0.25, density: m.dens, seed: 31 + i },
+      tones: mtnTones(m.ramp, m.d),
+    }),
   );
-  const out = mountainTris().map(({ layer, pos }) => {
+  const tris = mountainTris();
+  // 法线：面法线 × 0.6 + 平滑法线 × 0.4（第 3 轮：纯面法线 = 一眼一块块大三角板；纯平滑、或平滑占多 = 读不出岩面的朝向，一整片中档像铺地）。
+  // 平滑法线按顶点位置（厘米取整）全图累加，块和块、山梁和山梁接缝两边一样
+  const key = (x: number, z: number) => `${Math.round(x * 100)}|${Math.round(z * 100)}`;
+  const acc = new Map<string, [number, number, number]>();
+  const fn = (p: number[], i: number): [number, number, number] => {
+    const ax = p[i + 3] - p[i];
+    const ay = p[i + 4] - p[i + 1];
+    const az = p[i + 5] - p[i + 2];
+    const bx = p[i + 6] - p[i];
+    const by = p[i + 7] - p[i + 1];
+    const bz = p[i + 8] - p[i + 2];
+    return [ay * bz - az * by, az * bx - ax * bz, ax * by - ay * bx];
+  };
+  for (const { pos } of tris)
+    for (let i = 0; i < pos.length; i += 9) {
+      const n = fn(pos, i);
+      for (let k = 0; k < 3; k++) {
+        const kk = key(pos[i + k * 3], pos[i + k * 3 + 2]);
+        const a = acc.get(kk) ?? [0, 0, 0];
+        a[0] += n[0];
+        a[1] += n[1];
+        a[2] += n[2];
+        acc.set(kk, a);
+      }
+    }
+  const out = tris.map(({ layer, pos }) => {
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-    g.computeVertexNormals();
+    const nor = new Float32Array(pos.length);
+    for (let i = 0; i < pos.length; i += 9) {
+      const f = fn(pos, i);
+      const fl = Math.hypot(f[0], f[1], f[2]) || 1;
+      for (let k = 0; k < 3; k++) {
+        const a = acc.get(key(pos[i + k * 3], pos[i + k * 3 + 2])) ?? f;
+        const al = Math.hypot(a[0], a[1], a[2]) || 1;
+        const v = new THREE.Vector3(
+          (f[0] / fl) * 0.6 + (a[0] / al) * 0.4,
+          (f[1] / fl) * 0.6 + (a[1] / al) * 0.4,
+          (f[2] / fl) * 0.6 + (a[2] / al) * 0.4,
+        ).normalize();
+        nor.set([v.x, v.y, v.z], i + k * 3);
+      }
+    }
+    g.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
     const m = new THREE.Mesh(g, mats[layer]);
     m.name = 'valley:mtn';
     m.castShadow = false;

@@ -30,17 +30,20 @@ export const SIGN_FACE: ToonOpts = { lightUp: 0.55, bands: [-0.4, 0.3], noShadow
 
 /** 市中心三栋楼的新材质（原值 = 午后金光调色之前；后面的 L 是本色 / 高一级 / 低一级） */
 const TOWN = {
-  /** 五金大超市的墙：暖沙粉的预制混凝土板（tilt-up，6 米一块竖缝）；暗档梅紫（同 adobe 一家） */
+  /**
+   * 五金大超市的墙：暖沙粉的预制混凝土板（tilt-up，6 米一块竖缝）；暗档梅紫（同 adobe 一家）。
+   * 2026-11-21：中档、暗档饱和一点（亮度不动）—— 朝南的墙永远落暗档，门口一屏中午饱和度 0.34 < 0.35
+   */
   tiltup: s(
-    [0xe8c4a4, 0xc89a90, 0x6c5a8c],
+    [0xe8c4a4, 0xd28e7e, 0x74489a],
     0.4,
     0.3,
     tn(
       [0xe8c4a4, 0xf2d0b0, 0xdcb898], // L 201 / 213 / 189
-      [0xc89a90, 0xd2a69a, 0xbc8e86], // L 163 / 174 / 151
-      [0x6c5a8c, 0x766496, 0x625082], // L 97 / 107 / 87
-      [0xceaa8a, 0xaa827e, 0x4c4072], // 缝 −26 / −25 / −27
-      [0xfadcc0, 0xdcb2a4, 0x8a76aa], // 亮边 +23 / +23 / +29
+      [0xd28e7e, 0xdc9a8a, 0xc68474],
+      [0x74489a, 0x7e54a4, 0x6a408e],
+      [0xceaa8a, 0xb4766e, 0x54347a], // 缝
+      [0xfadcc0, 0xe4a898, 0x9668b6], // 亮边
     ),
   ),
   /**
@@ -320,16 +323,19 @@ const TOWN = {
     SIGN_FACE,
   ),
   /** 学校：前庭（3.5 米分格）、练习墙、连廊下的路（中性，不被午后金光染黄）S 0.05 */
+  // 2026-11-21：中档、暗档带一点玫瑰（亮度不动）—— 正门前庭大半在连廊的影子里，一屏中午饱和度 0.349 < 0.35
+  // 2026-11-21 核心调色板（小镇压紧 · 关卡 2）：暗档推到玫瑰冷紫 #664a8c（调完 #5a5075 L 85、S 0.32；原 #6c6490 调完 L 105、S 0.27）——
+  // 午后暗档封顶 OKLCH C 0.06，同彩度下只有压一点亮度 S 才上得去；元素 TOWN_EL.campusConcrete（1.6 米一道缝）
   campusConcrete: s(
-    [0xe2ded6, 0xbcb8c0, 0x6a6a88],
+    [0xe2ded6, 0xc0b4bc, 0x664a8c],
     0.2,
     0.1,
     tn(
-      [0xe2ded6, 0xeae6de, 0xd8d4cc],
-      [0xbcb8c0, 0xc6c2ca, 0xb2aeb8],
-      [0x6a6a88, 0x747492, 0x62627e],
-      [0xc4c0b8, 0x9e9aa8, 0x50506e], // 缝
-      [0xf4f0e8, 0xd4d0d8, 0x86869e], // 亮边
+      [0xe2ded6, 0xebe7df, 0xd7d3cb], // L 222 / 231 / 211
+      [0xc0b4bc, 0xc9bdc5, 0xb5a9b1], // L 183 / 192 / 172
+      [0x664a8c, 0x6f5395, 0x583f87], // L 85 / 94 / 74
+      [0xcbc8c2, 0xada2ac, 0x533b85], // 缝 −22 / −18 / −16
+      [0xf4f0e8, 0xd2c6ce, 0x765a9c], // 亮边 +18 / +18 / +16
     ),
   ),
   /** 学校：屋顶太阳能板、停车场太阳能车棚 S 0.56 */
@@ -442,6 +448,197 @@ const TOWN = {
       [0xb8865c, 0x946a5c, 0x584870], // 亮边 +28 / +27 / +25
     ),
   ),
+  // ── 小镇的地面、屋顶、住宅墙（2026-11-21 小镇压紧 · 关卡 2 核心调色板；critic-material-1 第 1、2、3、5、9、11 条）──
+  // 画面色 = 原值过午后调色（PROXY 借的组）再乘一遍暖阳光；下面注的"调完"是过了调色、没乘阳光的（tools 的 grade 脚本算的）。
+  /**
+   * 镇里的车道（ROADS 全部 + 细节模块里铺的 'asphalt'：build.ts 换成这一条；不动共用的 asphalt）。
+   * 照 clubpark lotAsphalt 终稿（俱乐部门口那段车道就是它）：亮档晒暖的灰（画面 ≈ #9b8972，S 0.26；再暖读成土路），
+   * 中档、投影冷石板蓝（调完 ≈ #3d475f）。元素 paint 大块封层斑（±6 / −7）+ 少量擦痕（缝色 −12）。借 asphalt（court 组），和 lotAsphalt 同一套调法。
+   */
+  street: s(
+    [0x918a7c, 0x5e6a80, 0x384862],
+    0.05,
+    0,
+    tn(
+      [0x918a7c, 0x989183, 0x898274], // L 138 / 145 / 130
+      [0x5e6a80, 0x657187, 0x566278], // L 105 / 112 / 97
+      [0x384862, 0x3f4f69, 0x2d4060], // L 70 / 77 / 62
+      [0x7f796d, 0x4f5c74, 0x293d5f], // 缝 −17 / −14 / −11（擦痕、补丁边：> 12 才算一条边）
+      [0xa59e90, 0x727e94, 0x4a5a74], // 亮边 +20 / +20 / +18
+    ),
+  ),
+  /**
+   * 车位漆线、停止线（2 纹素宽，平涂）：褪色奶油漆，和 street 亮档差 47、低一级差 56（< 60，不算强边缘）；中档中性灰、暗档石板蓝灰（投影里的线也还在）。
+   * 同 clubpark lotPaint，借 asphalt（court 组）。不给元素
+   */
+  lotPaint: s(
+    [0xc4b8a6, 0x9e9ca2, 0x5c6274],
+    0.05,
+    0,
+    tn(
+      [0xc4b8a6, 0xcabeac, 0xbeb2a0], // L 185 / 191 / 179（193 时和 street 的低一级差 60，画面上算强边缘）
+      [0x9e9ca2, 0xa4a2a8, 0x98969c], // L 157 / 163 / 151
+      [0x5c6274, 0x62687a, 0x535c74], // L 98 / 104 / 92
+      [0xbdb2a2, 0x919098, 0x4e5872], // 缝
+      [0xd8ccba, 0xaaa8ae, 0x676d7f], // 亮边
+    ),
+  ),
+  /**
+   * 停车场、店前场的暖铺面（五金停车场、餐馆 / 银行的车场、店前的空场）：晒暖的灰褐水泥，比 street（138）亮一档、比沙（调完 195）暗 ~35（画面 ≈ 157 vs 沙 185）
+   * （第 2 轮：原来 #e8c69e 调完 L 211、画面和沙只差 ~14，两个批判都说"就是沙" → 往暗、往暖灰走；彩度留 S 0.36，五金门口的饱和度靠它）。
+   * 暗档提亮到 L 112（调完 ≈ #8a696e）：车影、楼影和亮面差 ≤ 60（18.1 点五金停车场 / 银行强边缘超线）。
+   * 元素 planks 每 1.5 米一道 1 纹素伸缩缝、每条板 ±6、80% 碎石。借 concrete（wall 组），调完亮档 ≈ L 160、S 0.37
+   */
+  lotPave: s(
+    [0xb8926e, 0xa47e80, 0x7c68a0],
+    0.05,
+    0,
+    tn(
+      [0xb8926e, 0xbe9874, 0xb28c68], // L 151 / 157 / 145
+      [0xa47e80, 0xaa8486, 0x9e787a], // L 134 / 140 / 128
+      [0x7c68a0, 0x826ea6, 0x7362a0], // L 112 / 118 / 106
+      [0xa5805e, 0x946f73, 0x6c5c9c], // 缝 −18 / −15 / −12
+      [0xcaa480, 0xb69092, 0x8c78b0], // 亮边 +18 / +18 / +16
+    ),
+  ),
+  /**
+   * 住宅的白碎石平屋面（棕榈泉中世纪现代的 white rock roof）：亮档冷灰白（调完 ≈ #e2e5ed L 229，画面 ≈ L 222，比沙 #edb170 L 185 亮 ~37），
+   * 中档冷灰紫、暗档靛灰（调完 #595a80）。元素 pebbles 6×4 纹素的石团 + 8% 碎石，不画脚印。借 surround（court 组：亮档不被午后染黄）。
+   * 屋顶边一圈 1 纹素亮压顶是几何的事（住宅代理），封檐板颜色不变
+   */
+  // 第 2 轮：亮档 L 220 → 234（调完 243）—— 18.1 点和沙只差 18～23；高一级只留 +7（再高贴白边），低一级 −14（> 12 才算边）。
+  // convex 0.2 → 0.6：顶面和朝南立面的折棱出一纹素亮线 = 屋檐的亮压顶（材质层能做的；要真的一圈压顶条归住宅代理的几何）
+  roofGravel: s(
+    [0xe6eaf2, 0xaca8c0, 0x585a86],
+    0.3,
+    0.6,
+    tn(
+      [0xe6eaf2, 0xedf1f9, 0xd8dce4], // L 234 / 241 / 220
+      [0xaca8c0, 0xb3afc7, 0x9f9bb3], // L 171 / 178 / 158
+      [0x585a86, 0x5f618d, 0x484d7f], // L 93 / 100 / 80
+      [0xc9ced8, 0x9390aa, 0x41477b], // 缝 / 碎石 −28 / −24 / −20
+      [0xf2f6fe, 0xb8b4cc, 0x636591], // 亮边 +12 / +12 / +11
+    ),
+  ),
+  /**
+   * 住宅的灰泥墙（四个色变体，一栋一个：houseStucco 奶油 / houseWhite 白 / housePink 淡粉 / houseMint 浅薄荷）。
+   * 房子的墙几乎都背着太阳（朝南、朝东西）→ 画面上看到的是**暗档**：四个变体主要在暗档拉开（冷丁香 / 靛灰 / 梅紫 / 石板青），
+   * 午后暗档封顶 C 0.06 → 暗档压到 L 87～106、S 0.29～0.36（原 stucco 暗档 #947c7e L 129、S 0.16 发灰）。
+   * 元素 paint 16×10 纹素的深浅块（墙上是竖向的晒褪条）。借 signBoard（club 组：暗档往 285° 拉，留冷色，不被染成玫瑰褐）
+   */
+  houseStucco: s(
+    [0xf4e2c4, 0xd8b8b0, 0x6250a4],
+    0.5,
+    0.5,
+    tn(
+      [0xf4e2c4, 0xfceacc, 0xebd9bb], // L 228 / 236 / 219
+      [0xd8b8b0, 0xe0c0b8, 0xcfafa7], // L 190 / 198 / 181
+      [0x6250a4, 0x6a58ac, 0x5647a1], // L 90 / 98 / 81（调完 #5a567c S 0.31）
+      [0xdfceb2, 0xc6a7a1, 0x50429e], // 缝
+      [0xfff1d3, 0xe6c6be, 0x6f5db1], // 亮边
+    ),
+  ),
+  houseWhite: s(
+    [0xf2f0ea, 0xc4c0cc, 0x5e6496],
+    0.5,
+    0.5,
+    tn(
+      [0xf2f0ea, 0xf8f6f0, 0xe9e7e1], // L 240 / 246 / 231
+      [0xc4c0cc, 0xcac6d2, 0xbbb7c3], // L 194 / 200 / 185
+      [0x5e6496, 0x646a9c, 0x525b93], // L 102 / 108 / 93（调完 #61648a S 0.30）
+      [0xdddcd8, 0xb2afbd, 0x4c5690], // 缝
+      [0xfcfaf4, 0xcecad6, 0x676d9f], // 亮边
+    ),
+  ),
+  housePink: s(
+    [0xf6d8d0, 0xdca8a8, 0x84467e],
+    0.5,
+    0.5,
+    tn(
+      [0xf6d8d0, 0xfddfd7, 0xedcfc7], // L 222 / 229 / 213
+      [0xdca8a8, 0xe3afaf, 0xd39f9f], // L 179 / 186 / 170
+      [0x84467e, 0x8b4d85, 0x783d7b], // L 87 / 94 / 78（调完 #685070 S 0.29）
+      [0xe1c4be, 0xca9799, 0x723878], // 缝
+      [0xffe7df, 0xeab6b6, 0x91538b], // 亮边
+    ),
+  ),
+  houseMint: s(
+    [0xd4ecd8, 0xa8c8c0, 0x4a7088],
+    0.5,
+    0.5,
+    tn(
+      [0xd4ecd8, 0xdbf3df, 0xcbe3cf], // L 229 / 236 / 220
+      [0xa8c8c0, 0xafcfc7, 0x9fbfb7], // L 193 / 200 / 184
+      [0x4a7088, 0x51778f, 0x3e6785], // L 106 / 113 / 96（调完 #566d86 S 0.36）
+      [0xbfd8c6, 0x96b7b1, 0x386282], // 缝
+      [0xe2fae6, 0xb6d6ce, 0x577d95], // 亮边
+    ),
+  ),
+  /**
+   * 镇里的草坪（院子、主街东的草、公园草地；不动俱乐部的 lawn）：亮档同 lawn 的暖草绿，中档（云影）往青绿走（调完 ≈ #6c9261，不是橄榄），
+   * 暗档深青绿。元素 blades 草叶（亮边色的竖划），斑块 3 米、1% → 25%，阴影里照画。借 lawn（plants 组）
+   */
+  townLawn: s(
+    [0x7cb543, 0x389a74, 0x286068],
+    0.05,
+    0,
+    tn(
+      [0x7cb543, 0x85be4c, 0x73ac3a], // L 161 / 170 / 152
+      [0x389a74, 0x41a37d, 0x2f916b], // L 130 / 139 / 121
+      [0x286068, 0x316971, 0x1c5765], // L 85 / 94 / 75
+      [0x67a131, 0x268965, 0x165262], // 缝
+      [0x94cd5b, 0x50b28c, 0x3e767e], // 亮边（草叶）+24 / +24 / +22
+    ),
+  ),
+  /**
+   * 住宅前院的碎石院子（decomposed granite + 碎石）：比沙灰、冷，亮度低一截（调完 ≈ L 172，沙 L 195 → 画面差 ~20），
+   * 中档灰玫瑰、暗档靛紫。元素 pebbles 8×5 纹素的土团 + 25% 碎石，不龟裂。借 surround（court 组：亮档不被染黄，跟沙拉开）
+   */
+  gravelYard: s(
+    [0xb8a090, 0x96808a, 0x5e507a],
+    0.05,
+    0,
+    tn(
+      [0xb8a090, 0xc0a898, 0xaf9787], // L 164 / 172 / 155
+      [0x96808a, 0x9e8892, 0x8d7781], // L 133 / 141 / 124
+      [0x5e507a, 0x665882, 0x524777], // L 86 / 94 / 77
+      [0xa18a7c, 0x836e7a, 0x4b4173], // 缝 / 碎石 −22 / −18 / −15
+      [0xceb6a6, 0xac96a0, 0x72648e], // 亮边 +22 / +22 / +20
+    ),
+  ),
+  // ── 第 3 轮（2026-11-22，critic-material-2 / composition-2）──
+  /**
+   * 住宅后院的暖碎石（替换满铺的陶砖：陶砖占住宅屏 31%）：暖杏色碎石（调完 #e5ad7d L 181、S 0.45），比沙暗 ~14、比陶砖淡；
+   * 暗档梅紫（调完 #6b577a）。元素 pebbles 8×5 纹素土团 + 25% 碎石，不龟裂。借 surround（court 组：亮档不再被染黄、暗档留冷）
+   */
+  yardGravel: s(
+    [0xdca474, 0xbc8070, 0x7e5088],
+    0.05,
+    0,
+    tn(
+      [0xdca474, 0xe4ac7c, 0xd39b6b], // L 172 / 180 / 163
+      [0xbc8070, 0xc48878, 0xb37767], // L 140 / 148 / 131
+      [0x7e5088, 0x865890, 0x724785], // L 94 / 102 / 85
+      [0xc58e60, 0xa96e60, 0x6b4181], // 缝 / 碎石 −22 / −18 / −15
+      [0xf0b888, 0xd09484, 0x90629a], // 亮边 +20 / +20 / +18
+    ),
+  ),
+  /**
+   * 市中心店、办公楼的平屋顶：暖色焦油碎石（tar & gravel，调完 L ≈ 152、S ≈ 0.5；L 162 时 18.1 点和沙只差 22）—— 原来 concrete 调完 L 211、画面 189 和沙 190 同亮、平涂。
+   * 比沙暗 ~40、比 lotPave 略暗略红；暗档冷靛（调完 #584a6e）。元素 pebbles 6×4 纹素 + 40% 碎石。借 surround
+   */
+  roofTar: s(
+    [0xbc865e, 0x9a6a64, 0x5e4870],
+    0.3,
+    0.6,
+    tn(
+      [0xbc865e, 0xc48e66, 0xb37d55], // L 143 / 151 / 134
+      [0x9a6a64, 0xa2726c, 0x91615b], // L 116 / 124 / 107
+      [0x5e4870, 0x665078, 0x523f6d], // L 80 / 88 / 70
+      [0xa36e48, 0x845551, 0x493767], // 缝 / 碎石 −24 / −21 / −18
+      [0xd09a72, 0xae7e78, 0x705a82], // 亮边 +20 / +20 / +18
+    ),
+  ),
 } as const satisfies Record<string, Swatch>;
 
 export type TownKey = keyof typeof TOWN;
@@ -482,7 +679,28 @@ export const PROXY = {
   chainLink: 'surround',
   hitWall: 'surround', // 借 concrete 调完正午只剩 S 0.08（批 KW 量的）→ 中性灰那组
   parkBrown: 'concrete',
+  // 小镇的地面、屋顶、住宅墙（2026-11-21）
+  street: 'asphalt', // court 组，同 clubpark 的 lotAsphalt
+  lotPaint: 'asphalt',
+  lotPave: 'concrete',
+  roofGravel: 'surround',
+  houseStucco: 'signBoard',
+  houseWhite: 'signBoard',
+  housePink: 'signBoard',
+  houseMint: 'signBoard',
+  townLawn: 'lawn',
+  gravelYard: 'surround',
+  yardGravel: 'surround',
+  roofTar: 'surround',
 } as const satisfies Record<TownKey, keyof typeof MAP_PAL>;
+
+/** 住宅墙的四个色变体（一栋一个；住宅代理按 rnd 挑） */
+export const HOUSE_WALLS = [
+  'houseStucco',
+  'houseWhite',
+  'housePink',
+  'houseMint',
+] as const satisfies readonly TownKey[];
 
 /**
  * 新材质的元素图案（材质规范 v2）：大面积的面才给。build.ts 的 ELEM 合进去（put 进区域桶的几何按这个画），资产里 ctx.mat(key, { elem: TOWN_EL.x }) 自己选。
@@ -510,7 +728,69 @@ export const TOWN_EL = {
   windscreenOld: { kind: 'planks', seam: 1, hi: 0.3, p: [1, 0, 0, 1.5] },
   hitWall: { kind: 'paint', size: [12, 6] },
   parkBrown: { kind: 'planks', seam: 1, hi: 0.5, p: [0, 1, 0, 0.2] },
-} satisfies Partial<Record<TownKey, Elem>>;
+  // 小镇的地面、屋顶、住宅墙（2026-11-21 核心调色板）
+  /**
+   * 车道：封层斑（22×12 纹素，+7 / −8）+ 按 4 米斑块 2% → 12% 的擦痕（缝色 −17）。试过 16×9、±9、擦痕 20%：整屏像迷彩，
+   * 横向边缘还是只有 0.035（斑块之间差 < 12 不算边）—— 路面本来就该是安静的中间调带子，边缘留给手摆的东西：
+   * 中线、停止线（lotPaint，2 纹素）、补丁（street 低一级的方块）、井盖是各分区代理手摆的几何。
+   * 再加 chip seal 的碎石（pebbles 0.55：每 7×5 纹素格按斑块 19%～90% 的概率一颗 2 纹素缝色 + 上面一纹素亮边色）——棕榈泉的路多是
+   * 撒石封层，横向边缘靠它到 0.06
+   */
+  street: { kind: 'paint', size: [22, 12], density: [0.02, 0.12], patch: 4, pebbles: 0.55 },
+  /**
+   * 停车场 / 店前场：每 1.5 米（沿 x）一道 1 纹素伸缩缝，缝后 30% 一纹素亮条，每条一个深浅（±6）+ 80% 碎石（骨料；0.2 / 0.45 时场景里横向边缘只有 0.02 / 0.03，±6 的板之间不算边）。
+   * critic 给的是 3 米一道：画廊里量过，3 米（67 纹素）一条板 = 一块平涂，阴影里只剩一个颜色、边缘 0.02 → 1.5 米。
+   * 油渍、轮胎弧、路缘是各店代理手摆的几何（street 低一级 / kerb）
+   */
+  lotPave: { kind: 'planks', seam: 1, hi: 0.3, p: [1, 0, 0, 1.5], pebbles: 0.8 },
+  /** 白碎石屋面：6×4 纹素的石团 + 20% 碎石（缝色 2 纹素 + 上面一纹素亮），不画脚印、不龟裂 */
+  roofGravel: { kind: 'pebbles', size: [6, 4], seam: 0, density: [0, 0], pebbles: 0.2 },
+  /** 住宅墙：16×10 纹素的深浅块（墙上按 x 走 = 竖向晒褪条），擦痕很少 */
+  houseStucco: { kind: 'paint', size: [16, 10], density: [0, 0.02] },
+  houseWhite: { kind: 'paint', size: [16, 10], density: [0, 0.02] },
+  housePink: { kind: 'paint', size: [16, 10], density: [0, 0.02] },
+  houseMint: { kind: 'paint', size: [16, 10], density: [0, 0.02] },
+  /** 草坪：草叶（亮边色的 1 × 2～4 竖划），3 米斑块 3% → 12%（1% 的斑块落在树影里就是一块平涂；28% 亮处边缘 0.26 太忙），阴影里照画；6% 深一级草团 */
+  townLawn: {
+    kind: 'blades',
+    density: [0.03, 0.12],
+    patch: 3,
+    pebbles: 0.06,
+    accent: [0x5f9a32, 0x2a8466, 0x1c4e5c], // 深一级的草团（2 纹素 + 上面一纹素草叶色）
+  },
+  /** 学校前庭：每 1.6 米一道缝（沿 x；critic 的 2.4 米在画廊里一块板就是一块平涂），缝后 30% 亮条，每块一个深浅 + 4% 碎石 */
+  campusConcrete: { kind: 'planks', seam: 1, hi: 0.3, p: [1, 0, 0, 1.6], pebbles: 0.04 },
+  /** 碎石院子：8×5 纹素土团、25% 碎石，不龟裂（第 2 轮：seam 0.5 的龟裂整片像干泥地）、不画脚印 */
+  gravelYard: { kind: 'pebbles', size: [8, 5], seam: 0, density: [0, 0], patch: 3, pebbles: 0.25 },
+  /** 后院暖碎石：同 gravelYard（不龟裂、25% 碎石） */
+  yardGravel: { kind: 'pebbles', size: [8, 5], seam: 0, density: [0, 0], patch: 3, pebbles: 0.25 },
+  /** 焦油碎石平顶：6×4 纹素石团 + 40% 碎石（20% 时一屋顶 3 色、边缘 0.013） */
+  roofTar: { kind: 'pebbles', size: [6, 4], seam: 0, density: [0, 0], pebbles: 0.4 },
+  /**
+   * 土坯（老材质 adobe，原值不动）：EL.adobe 要 aElem 顶点属性（露出高度）+ 墙 uv（米），build.ts 的 prep() 和 houses.ts 的盒子都没有 →
+   * toon.ts 走"实心一条"，朝镜头的墙一块平涂。屏幕空间的 strata 也不行（层按离屏幕 y = 0 数，只有 24 层，远处整面一块）→
+   * valley 里换成屏幕空间的扁 Voronoi 土坯块（20×7 纹素，缝 1 纹素，三成的块上沿亮边；14×5 边缘 0.16 太碎）：任何盒子、任何朝向都有
+   */
+  adobe: { kind: 'stones', size: [20, 7], seam: 0.6, hi: 0.3 },
+  /** 校队球场面（老材质 court，原值不动、只在 valley）：大块漆面深浅 18×10 纹素（court 自己的 tones ±6），很少擦痕 */
+  court: { kind: 'paint', size: [18, 10], density: [0, 0.02] },
+  /** 西班牙红瓦（老材质 roofTile，颜色不变；tones 用下面 TOWN_TONES 的）：筒瓦一列一列（沿 x 每 0.28 米一条缝，缝后 60% 亮条） */
+  roofTile: { kind: 'planks', seam: 1, hi: 0.6, p: [1, 0, 0, 0.28] },
+} satisfies Partial<Record<TownKey | 'roofTile' | 'adobe' | 'court', Elem>>;
+
+/**
+ * 老材质（clubmap2 的表，原值不动）带元素时用的手挑 tones：build.ts 的 mat 在 ELEM 有它时一起给；资产里 ctx.mat('roofTile', { elem: TOWN_EL.roofTile, tones: TOWN_TONES.roofTile })。
+ * roofTile：同 ramp 的三档本色，缝是瓦间的暗槽（−26 / −22 / −18），亮边是筒瓦的圆背
+ */
+export const TOWN_TONES = {
+  roofTile: tn(
+    [0xdc744e, 0xe47c56, 0xd46c46], // L 135 / 143 / 127
+    [0xa84a48, 0xb05250, 0xa04240], // L 94 / 102 / 86
+    [0x5c2c52, 0x64345a, 0x512450], // L 57 / 65 / 49
+    [0xc15a36, 0x913434, 0x461a48], // 缝 −26 / −22 / −18
+    [0xf48c66, 0xc06260, 0x724268], // 亮边 +24 / +24 / +22
+  ),
+} satisfies Partial<Record<keyof typeof MAP_PAL, Tones>>;
 
 export const PAL = { ...MAP_PAL, ...TOWN } as const;
 export type Pal = typeof PAL;

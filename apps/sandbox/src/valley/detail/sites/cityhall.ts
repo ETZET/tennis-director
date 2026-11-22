@@ -17,23 +17,19 @@
 //   比 0.15 米还薄的立件会被当成"平铺"不缩（钟的分针、排队栏的拉带都踩过）：薄片一律 ≥ 0.16。
 // - 注意：缩完的 x 447.6…456（或 412…420.4）× z −669…−647 这条带里**放不进立着的东西**（落在原尺寸脚印里，会被搬到楼上），
 //   铺面要么中心在带外，要么整块比 45 米宽（townwrap 不认它是"贴着楼的"）。
-import * as THREE from 'three';
-import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import type * as THREE from 'three';
 import { makeAsset } from '../../assets';
 import { CANOPY } from '../../assets/cityhall';
 import type { DetailCtx } from '../../build';
-import { siteKit, Y } from './kit';
+import { siteKit } from './kit';
 
 /** 楼：原尺寸（townwrap 之前） */
 const RX = 434;
 const RZ = -649; // 南墙 = 缩放轴
-const RW = 40;
 /** 楼的中心 z（原尺寸）：cityhall-front 的原点 */
 const RCZ = -658;
 /** 听证会那天（?event=hearing） */
 const HEARING = typeof location !== 'undefined' && new URLSearchParams(location.search).get('event') === 'hearing';
-/** 缩完的楼东墙（x 421.6…446.4、z −660.16…−649） */
-const FX1 = RX + (RW / 2) * 0.62;
 
 /**
  * 玩法锚点（缩完的世界坐标）：名字 → 位置 + 总监在这儿干什么。p_cityhall 的门槛 = 正门 (434, −649)，旗子在它南边 3 米。
@@ -57,7 +53,7 @@ export const SPOTS = {
 
 export function detailCityhall(d: DetailCtx): void {
   const k = siteKit(d, d.rng('valley:cityhall'));
-  const { put, blockRect, block, claim, palm, bench, lamp, cyl } = k;
+  const { blockRect, block, claim, palm, bench } = k;
   const prnd = d.rng('valley:cityhall:people');
   /** 放一件资产（原点 = 落地点中心，转 rot 弧度）；v = 变体 */
   const place = (id: string, x: number, z: number, rot = 0, v = 0): THREE.Object3D => {
@@ -147,63 +143,6 @@ export function detailCityhall(d: DetailCtx): void {
     place('a-board', 423.6, -643.4, 0.2, 2);
     block({ x: 423.6, z: -643.4, r: 0.4 });
   }
-
-  // ══ 3. 楼东的石板路 + 楼背后的石板路 + 喷泉广场（缩完的世界坐标）═══════════
-  // 一整块铺面（比 45 米宽：townwrap 不把它当"贴着楼的"搬走）：楼背后 408…446.4 × −667…−660.2（西接酒店草坪）、
-  // 楼东 446.4…461.2 × −667…−649（前庭往北）、广场 456…487.8 × −683…−661（东边铺面背后那块往北让一让）
-  {
-    const plates: [number, number, number, number][] = [
-      [408, FX1, -667, -660.2],
-      [FX1, 461.2, -667, -649],
-      [456, 487.8, -683, -667],
-      [461.2, 487.8, -667, -661],
-    ];
-    const g = mergeGeometries(
-      plates.map(([a, b, c, e]) =>
-        new THREE.PlaneGeometry(b - a, e - c).rotateX(-Math.PI / 2).translate((a + b) / 2, Y.pave, (c + e) / 2),
-      ),
-    );
-    put('flagstone', g, 448, -666);
-    // 占地的矩形也要躲开"贴着楼"的判定（中心在带外，或比 45 米宽）
-    claim({ x0: 408, x1: 456, z0: -667, z1: -660.2 });
-    claim({ x0: 446.4, x1: 466, z0: -667, z1: -649 });
-    claim({ x0: 456, x1: 487.8, z0: -683, z1: -661 });
-  }
-  // 喷泉（同原来 town.ts 的：池沿一圈 + 低一截的水 + 中间的柱子和小盆）
-  const [fx, fz] = [475.9, -670];
-  put('cap', new THREE.CylinderGeometry(3.7, 3.8, 0.55, 20, 1, true).translate(fx, 0.275, fz), fx, fz);
-  put('cap', new THREE.RingGeometry(3.15, 3.7, 20).rotateX(-Math.PI / 2).translate(fx, 0.55, fz), fx, fz);
-  put('water', new THREE.CircleGeometry(3.2, 20).rotateX(-Math.PI / 2).translate(fx, 0.4, fz), fx, fz);
-  put('adobe', new THREE.CylinderGeometry(0.45, 0.6, 1.7, 8).translate(fx, 0.85, fz), fx, fz);
-  put('cap', new THREE.CylinderGeometry(1.35, 0.9, 0.3, 12).translate(fx, 1.85, fz), fx, fz);
-  put('water', new THREE.CircleGeometry(1.15, 12).rotateX(-Math.PI / 2).translate(fx, 2.01, fz), fx, fz);
-  put('foam', new THREE.CylinderGeometry(0.16, 0.24, 0.7, 6).translate(fx, 2.0, fz), fx, fz);
-  put('foam', new THREE.RingGeometry(1.5, 2.0, 14).rotateX(-Math.PI / 2).translate(fx, 0.412, fz), fx, fz);
-  block({ x: fx, z: fz, r: 3.9 });
-  // 喷泉旁三条长椅（面朝喷泉）、圆花池里五棵棕榈（散在广场边上）、三盏灯
-  for (const [x, z] of [
-    [481.2, -666.1],
-    [470.0, -667.0],
-    [474.7, -677.3],
-  ])
-    bench(x, z, Math.atan2(fx - x, fz - z));
-  for (const [x, z, s] of [
-    [463.4, -680.0, 1.1],
-    [466.2, -673.5, 0.95],
-    [462.8, -666.0, 1.05],
-    [481.8, -678.0, 1.0],
-    [483.6, -667.5, 1.15],
-  ]) {
-    cyl('adobe', 1.1, 0.5, x, 0, z, 'y', 10);
-    palm(x, z, s, 0.5);
-    block({ x, z, r: 1.3 });
-  }
-  for (const [x, z] of [
-    [468.1, -662.6],
-    [481.1, -664.0],
-    [474.4, -680.5],
-  ])
-    lamp(x, z, Math.atan2(fx - x, fz - z));
 
   k.finish();
 }

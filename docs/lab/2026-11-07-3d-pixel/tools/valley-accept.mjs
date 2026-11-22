@@ -6,7 +6,7 @@
 //   1. 控制台没有报错（pageerror / console.error / NaN 几何警告）
 //   2. 路面上没东西：__valley.onRoad() 为空（车道两边各收 0.4 米、离地 0.15～4 米的顶点）
 //   3. 不闪：每个地点在 7.0 / 17.6 / 18.3 点附近按 0.004 小时扫 12 步，整屏平均亮度不能来回跳（相邻两步方向相反、都 > 1.5%）
-//   4. 性能：俱乐部那块以外，每帧绘制 ≤ 700、三角形 ≤ 450k
+//   4. 性能：俱乐部那块以外，每帧绘制 ≤ 640、三角形 ≤ 400k（2026-11-22 投影剔除 + 合并网格切格以后从 700 / 450k 收紧）
 //   5. 画面数字（pixel-scene 规范，降到纹素分辨率 = 1 CSS 像素）：强边缘 ≤ 0.05（每张）；
 //      正午饱和度 ≥ 0.35（不到 0.42 记一条提醒）
 //   6. 俱乐部没被山谷盖坏：俱乐部里 4 个点，/valley.html 和 /clubwalk.html 同点同时刻的画面差 ≤ max(2%, clubwalk 自己两次加载的差 + 1.5%)
@@ -21,51 +21,48 @@ const d = readdirSync(`${root}/.pnpm`).find((n) => n.startsWith('playwright-core
 const pw = require(`${root}/.pnpm/${d}/node_modules/playwright-core`);
 const exe = `${process.env.HOME}/Library/Caches/ms-playwright/chromium-1228/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing`;
 
-/** 默认地点：每片区域几处（站得住的点） */
+/** 默认地点（世界坐标，2026-11-21 小镇压紧以后）：俱乐部门外、主街西→东、横街、后街、每家门口、学校、公园、住宅一圈 */
 const SPOTS = {
   门外车道: [150, 0],
-  湾口: [240, -2],
+  进镇: [205, -4],
   酒店地: [175, 60],
-  双棕榈: [440, 60],
-  峡谷口: [300, 230],
-  汽车旅馆: [330, -300],
-  梅萨: [240, -300],
-  过河桥: [326, -560],
-  河床中: [620, -444],
-  瀑布: [36, -610],
-  步道山脚: [228, -930],
-  观景台: [34, -990],
-  市中心南: [332, -800],
-  市中心: [340, -900],
-  市政厅: [560, -925],
-  阿莱霍: [460, -1003],
-  拉斯帕尔马斯: [262, -1200],
-  电影人: [560, -1080],
-  球拍俱乐部: [610, -1190],
-  加油站: [470, -1290],
-  学校: [790, -640],
-  日出公园: [1100, -540],
-  向日葵: [1150, -760],
-  机场: [1330, -840],
-  高尔夫东: [1200, -320],
-  深井: [620, -260],
-  椰枣园: [860, -1100],
-  东棕榈谷: [800, -130],
+  报社门口: [249, -13],
+  横街口: [274, -6],
+  银行门口: [292.6, -22],
+  餐馆门口: [325.6, -19],
+  横街看市政厅: [274.4, -30],
+  市政厅门口: [274.4, -62],
+  体育店门口: [241, -61],
+  后街东: [318, -52],
+  校队球场: [380, -4],
+  选拔日: [358, -37],
+  校队教练: [385, -47.5],
+  跑道: [474.5, -42],
+  学校正门: [461, -85],
+  五金门口: [555, -57],
+  五金停车场: [560, -25],
+  主街南车位: [300, 12],
+  车位东: [540, 12],
+  公园西路: [338, 40],
+  公园球场: [375, 50],
+  对墙: [419.6, 26],
+  公开课: [364, 70],
+  住宅西: [205, -100],
+  住宅北: [372, -150],
+  住宅东: [632, -100],
+  住宅南: [290, 70],
+  日落巷: [590, 110],
 };
-
-/** 同 apps/sandbox/src/valley/layout.ts 的 S（整体缩放 0.7，锚在俱乐部门口 (140, 0)，俱乐部那块不动）。SPOTS 是原尺寸写的 */
-const S = (x, z) =>
-  x >= -80 && x <= 140 && z >= -60 && z <= 100 ? [x, z] : [140 + (x - 140) * 0.7, (z - 0) * 0.7];
 
 const [outDir = 'valley-accept', spotArg, hourArg] = process.argv.slice(2);
 mkdirSync(outDir, { recursive: true });
-// 命令行给的地点表是最终的世界坐标（不再过 S）；默认表按原尺寸写，过 S
+// 地点表都是世界坐标
 const spots = spotArg
   ? spotArg.split(';').map((s) => {
       const [name, xz] = s.split('@');
       return [name, xz.split(',').map(Number)];
     })
-  : Object.entries(SPOTS).map(([n, [x, z]]) => [n, S(x, z)]);
+  : Object.entries(SPOTS);
 const hours = (hourArg ?? '12,17.6,21').split(',').map(Number);
 const CLUB = { x0: -80, x1: 140, z0: -60, z1: 100 };
 
@@ -177,8 +174,8 @@ for (const [name, [x, z]] of spots) {
     if (h === 12 && st.sat < 0.35 && onRoadSpot) warns.push(`${name} 正午（站在车道上）：饱和度 ${st.sat} < 0.35`);
     else if (h === 12 && st.sat < 0.35) fails.push(`${name} 正午：饱和度 ${st.sat} < 0.35`);
     else if (h === 12 && st.sat < 0.42) warns.push(`${name} 正午：饱和度 ${st.sat} < 0.42`);
-    if (!inClub && perf.calls > 700) fails.push(`${name} ${h} 点：绘制 ${perf.calls} > 700`);
-    if (!inClub && perf.triangles > 450000) fails.push(`${name} ${h} 点：三角形 ${perf.triangles} > 450k`);
+    if (!inClub && perf.calls > 640) fails.push(`${name} ${h} 点：绘制 ${perf.calls} > 640`);
+    if (!inClub && perf.triangles > 400000) fails.push(`${name} ${h} 点：三角形 ${perf.triangles} > 400k`);
   }
   // 3. 闪烁：清早、傍晚、日落前后各扫 12 步
   for (const h0 of [7, 17.6, 18.3]) {

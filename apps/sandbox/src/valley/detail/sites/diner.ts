@@ -11,16 +11,23 @@
 // townwrap 再缩回来正好落在写的地方。框外的（停车场、车、棕榈、挡车石）直接写最终坐标：平铺的 townwrap 不动，
 // 立着的小件绕自己的落地点缩 TOWN_K（挡车石的尺寸先除 TOWN_K，车和棕榈同镇上别的）。
 // 随机只用 d.rng('valley:diner')。
-import type * as THREE from 'three';
+import * as THREE from 'three';
+import { box } from '../../../clubsite/render/geo';
 import { makeAsset } from '../../assets';
 import { DINER } from '../../assets/diner';
+import { bake, kerbMat, kerbRing, lotMark, stainGeo } from '../../assets/hardware';
 import type { DetailCtx } from '../../build';
-import { BUILDINGS, bldgFrames, distToLine, ROADS } from '../../layout';
-import { FRAMES, TOWN_K } from '../../townscale';
+import { BUILDINGS, distToLine, ROADS } from '../../layout';
+import { atWorld, MOVE } from '../../relocate';
+import { FRAMES_SRC, TOWN_K } from '../../townscale';
 import { siteKit, Y } from './kit';
 
-/** 缩完的楼（底座）：x 310.2…320.2 × z −562.5…−556 */
-const B = BUILDINGS.find((o) => o.id === 'diner') ?? { x: 315.2, z: -559.25, w: DINER.W, d: DINER.D, h: 0.124 };
+/** 缩完的楼（底座）：x 310.2…320.2 × z −562.5…−556（旧坐标：layout 的世界坐标减掉 relocate.ts 的 MOVE.diner） */
+const B = (() => {
+  const o = BUILDINGS.find((q) => q.id === 'diner');
+  if (!o) return { x: 315.2, z: -559.25, w: DINER.W, d: DINER.D, h: 0.124 };
+  return { ...o, x: o.x - MOVE.diner[0], z: o.z - MOVE.diner[1] };
+})();
 const BX0 = B.x - B.w / 2;
 const BX1 = B.x + B.w / 2;
 /** 朝南的门面线（玻璃） */
@@ -55,12 +62,10 @@ export const SPOTS = {
   },
 } as const;
 
-/** 缩放框：FRAMES 里有 diner 就用它（轴 = 门口），没有就用 layout 按最近的路算的那个 */
+/** 缩放框（旧坐标，轴 = 门口） */
 function frameOf(): { px: number; pz: number; k: number } {
-  const f = FRAMES.find((q) => (q.id as string) === 'diner');
-  if (f) return { px: f.px, pz: f.pz, k: TOWN_K };
-  const b = bldgFrames().find((q) => q.id === 'diner');
-  return b ? { px: b.px, pz: b.pz, k: b.k } : { px: 0, pz: 0, k: 1 };
+  const f = FRAMES_SRC.find((q) => q.id === 'diner');
+  return f ? { px: f.px, pz: f.pz, k: TOWN_K } : { px: 0, pz: 0, k: 1 };
 }
 
 export function detailDiner(d: DetailCtx): void {
@@ -111,8 +116,10 @@ export function detailDiner(d: DetailCtx): void {
   }
   // 停车场：一块水泥（中心在框外 → townwrap 不动），不压印第安峡谷路（含弯道）
   const LOT = { x0: BX0 - 4.5, x1: BX1 + 1.3, z0: WALK1, z1: WALK1 + 10 };
-  const roadClear = (x: number, z: number) =>
-    ROADS.filter((r) => r.kind !== 'trail').every((r) => distToLine(r.pts, x, z) > r.w / 2 + 0.6);
+  const roadClear = (x: number, z: number) => {
+    const [wx, wz] = atWorld(x, z);
+    return ROADS.filter((r) => r.kind !== 'trail').every((r) => distToLine(r.pts, wx, wz) > r.w / 2 + 0.6);
+  };
   for (const [x, z] of [
     [LOT.x0, LOT.z0],
     [LOT.x1, LOT.z0],
@@ -120,8 +127,20 @@ export function detailDiner(d: DetailCtx): void {
     [LOT.x1, LOT.z1],
   ])
     if (!roadClear(x, z)) console.warn(`valley diner: 停车场的角 ${x.toFixed(1)},${z.toFixed(1)} 压到路`);
-  k.flat('concrete', LOT.x1 - LOT.x0, LOT.z1 - LOT.z0, (LOT.x0 + LOT.x1) / 2, Y.pave, (LOT.z0 + LOT.z1) / 2);
+  // 铺面 lotPave（暖铺面、1.5 米一道伸缩缝，2026-11-21 critic M5）+ 一圈路缘（西、东、南；南沿西头留 5 米的车道口接主街）+ 车位里的油渍：
+  // 原来一块平涂水泥、没有边，像贴在沙上的一张纸。路缘、油渍矮于 0.15 米（townwrap 当平铺的不缩），烘成一组
+  k.flat('lotPave', LOT.x1 - LOT.x0, LOT.z1 - LOT.z0, (LOT.x0 + LOT.x1) / 2, Y.pave, (LOT.z0 + LOT.z1) / 2);
   claim(LOT);
+  const marks: THREE.Object3D[] = [];
+  const kerb = kerbMat(d.actx);
+  const mark = lotMark(d.actx);
+  const addG = (g: THREE.BufferGeometry, m: THREE.Material) => {
+    const mesh = new THREE.Mesh(g, m);
+    mesh.userData.noCast = true;
+    marks.push(mesh);
+  };
+  for (const g of kerbRing(LOT.x0, LOT.x1, LOT.z0, LOT.z1, 0.14, 0.3, ['n', 's'])) addG(g, kerb);
+  addG(box(LOT.x1 - LOT.x0 - 5.3, 0.14, 0.3, (LOT.x0 + 5 + LOT.x1 - 0.3) / 2, 0, LOT.z1 - 0.15), kerb);
   // 一排车头朝店的车位（门口那段不停车：旗子 + 进门的路）；车位头一块挡车石（离框 0.05 米：框里的东西会跟着楼缩）
   const ROW_Z = WALK1 + 2.6;
   const SLOT = 2.3;
@@ -130,9 +149,17 @@ export function detailDiner(d: DetailCtx): void {
   for (let x = LOT.x0 + 0.3 + SLOT / 2; x + SLOT / 2 < DOOR_X - 1.4; x += SLOT) slots.push(x);
   for (let i = 0; i <= slots.length; i++) {
     const lx = LOT.x0 + 0.3 + i * SLOT;
-    k.flat('line', 0.12, 4.4, lx, Y.pave2, ROW_Z);
+    k.flat('lotPaint', 0.09, 4.4, lx, Y.pave2, ROW_Z); // 车位线只一条 2 纹素的漆线（critic M13）
   }
-  // 车（离门近的多停）：一辆固定的奶油黄敞篷在靠门的那格
+  // 车（离门近的多停）：一辆固定的奶油黄敞篷在靠门的那格；一半车位一块油渍（车头那头）
+  const mrnd = d.rng('valley:diner:marks');
+  for (const x of slots)
+    if (mrnd() < 0.6)
+      addG(stainGeo(x + (mrnd() - 0.5) * 0.5, ROW_Z - 0.9 - mrnd() * 0.6, 0.4, Y.pave + 0.006, mrnd), mark);
+  {
+    const g = bake(marks, 'valley:diner:lot');
+    d.asset(g, d.regionOf((LOT.x0 + LOT.x1) / 2, (LOT.z0 + LOT.z1) / 2));
+  }
   for (const [i, x] of slots.entries()) {
     k.bx('concrete', 1.6 / TOWN_K, 0.15 / TOWN_K, 0.27 / TOWN_K, x, 0, STOP_Z); // 挡车石（框外的小件 townwrap 缩 TOWN_K）
     const near = i === slots.length - 1;

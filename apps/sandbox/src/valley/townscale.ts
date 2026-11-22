@@ -13,6 +13,8 @@
 //   长度不缩（缩了段和段之间会断开）；平铺的（铺地、斑马线、车位线）和路不动。
 // 这些在 build.ts 的 townWrap（包一层 DetailCtx）里做，细节文件（detail/*.ts、sites/*.ts）照原尺寸写，不用改。
 
+import { MOVE, mvRect } from './relocate';
+
 /** 楼、街边小件 */
 export const TOWN_K = 0.62;
 /** 小区的房子（本来就 3.4～4.6 米高，缩多了门放不下） */
@@ -35,15 +37,15 @@ export interface TRect {
  * 落在 zone 里的东西按 p' = 轴 + (p − 轴) × TOWN_K 整体走（y 也乘），大小乘 TOWN_K。
  */
 export interface Frame {
-  id: 'paper' | 'sports' | 'hardware' | 'bank' | 'cityhall' | 'diner';
+  id: 'paper' | 'sports' | 'hardware' | 'bank' | 'diner';
   px: number;
   pz: number;
   zone: TRect;
 }
 /** 门面线往南多少米还算"贴在楼上"（拱廊、台阶、门头伸出来的部分） */
 export const FRONT_PAD = 3;
-// 坐标 = 缩完的世界坐标（同 detail/sites/*.ts）；门口 = POI 的 x、楼的南墙 z
-export const FRAMES: Frame[] = [
+// 坐标 = 旧坐标（同 detail/sites/*.ts：压紧以前的世界坐标）；门口 = POI 的 x、楼的南墙 z。世界里的是 FRAMES（+ relocate.ts 的 MOVE）
+export const FRAMES_SRC: readonly Frame[] = [
   // 报社：楼 237…261 × −667…−651，后面印刷车间 238…260 × −686…−666，西边货场 222…236.5 × −688…−662
   { id: 'paper', px: 249, pz: -651, zone: { x0: 219, x1: 266, z0: -692, z1: -651 + FRONT_PAD } },
   // 体育店：楼 241…263 × −733…−715，门 x 258
@@ -56,6 +58,12 @@ export const FRAMES: Frame[] = [
   // 餐馆：楼 305.05…321.18 × −568.9…−556，门 x 318.6；x0 302 包住门西边的高杆招牌，x1 322 不伸到印第安峡谷路的人行道
   { id: 'diner', px: 318.6, pz: -556, zone: { x0: 302, x1: 322, z0: -571, z1: -556 + FRONT_PAD } },
 ];
+
+/** 世界坐标的缩放框（旧坐标 + 这家的 MOVE） */
+export const FRAMES: Frame[] = FRAMES_SRC.map((f) => {
+  const [dx, dz] = MOVE[f.id];
+  return { ...f, px: f.px + dx, pz: f.pz + dz, zone: mvRect(f.id, f.zone) };
+});
 
 const inR = (r: TRect, x: number, z: number) => x >= r.x0 && x <= r.x1 && z >= r.z0 && z <= r.z1;
 export const frameAt = (x: number, z: number): Frame | undefined => FRAMES.find((f) => inR(f.zone, x, z));
@@ -76,25 +84,29 @@ const CLUB: TRect = { x0: -80, x1: 140, z0: -60, z1: 100 };
 const HOTEL: TRect = { x0: 112, x1: 236, z0: 18, z1: 84 };
 /**
  * 小镇里按真实尺寸留着的运动场（人要在上面打球：球场、网、围网和俱乐部一样大）。
- * 坐标 = 缩完的世界坐标。2026-11-18 学校（青训选拔）、日出公园各管自己那几行。
+ * 坐标 = 旧坐标（detail/east.ts 的 school()、park() 读这张）；世界的是 PLAY_KEEP。2026-11-18 学校（青训选拔）、日出公园各管自己那几行。
  */
-export const PLAY_KEEP: TRect[] = [
+export const PLAY_KEEP_SRC: readonly (TRect & { mod: 'schoolCourts' | 'park' })[] = [
   // 棕榈泉高中的校队球场（detail/east.ts 的 SCH）：四片场 + 西头练习墙那一条，围网 640…727 × −491.5…−457 往外 0.5 米。
   // 体育馆、记分牌不在框里（跟着小镇缩）。
-  { x0: 639.5, x1: 727.5, z0: -492, z1: -456.5 },
+  { mod: 'schoolCourts', x0: 639.5, x1: 727.5, z0: -492, z1: -456.5 },
   // 三号场北头的看台（真实尺寸，人坐得下；2026-11-18 lead 定）：693.4…705.4 × −495.8…−492
-  { x0: 692.9, x1: 706, z0: -496.5, z1: -492 },
+  { mod: 'schoolCourts', x0: 692.9, x1: 706, z0: -496.5, z1: -492 },
   // 日出公园（detail/east.ts 的 park()，2026-11-18 公园关卡 1）。框只包场地 + 围网 + 外圈（灯杆、场边长椅、挂拍处），不包树、游乐场、楼。
   // 公共球场：三片一排 + 3.6 米围网 758…806.8 × −433…−396.4，四角灯杆在围网外 0.8 米，南围网外的长椅到 −393.9
   // G4 美术返工：三处各抬成一个台（parkdeck.ts），框包住整个台面（台上的东西不能有一半在框外：框外的 y 乘 0.62，会沉进台里）
-  { x0: 756, x1: 808.5, z0: -434.8, z1: -392.2 },
+  { mod: 'park', x0: 756, x1: 808.5, z0: -434.8, z1: -392.2 },
   // 对墙练习场：墙 818.5…827.5（z −427）、场地 815…831 × −427…−408、东南路灯 (830.4, −412)、南边长椅；台 813.6…832.4 × −428.4…−406.6
-  { x0: 813.5, x1: 833, z0: -428.5, z1: -406.5 },
+  { mod: 'park', x0: 813.5, x1: 833, z0: -428.5, z1: -406.5 },
   // 公开课：两张小网的小场 764.5…775.5 × −382.5…−371.5、锥桶、帐篷 + 报名桌 (765.5, −364.5)、横幅 (774.5, −364.6)；草台 757…786.6 × −386.6…−359.6
-  { x0: 756.8, x1: 786.8, z0: -386.8, z1: -359.4 },
+  { mod: 'park', x0: 756.8, x1: 786.8, z0: -386.8, z1: -359.4 },
   // 入口的园牌 park-sign（762.5, −358.7，2.6 × 0.3）：只包住它一块。缩到 0.62 字一格 0.028 米 < 小镇的 1 纹素（0.034），"SUNRISE PARK" 会糊
-  { x0: 761, x1: 764, z0: -359.2, z1: -358.2 },
+  { mod: 'park', x0: 761, x1: 764, z0: -359.2, z1: -358.2 },
 ];
+/** 世界坐标的真尺寸框 */
+export const PLAY_KEEP: TRect[] = PLAY_KEEP_SRC.map(({ mod, ...r }) => mvRect(mod, r));
 /** 镜头用：俱乐部、酒店扩张地、店内（小镇里真尺寸的运动场不算 —— 走上球场镜头不跳） */
 export const keepScaleCam = (x: number, z: number): boolean => inR(CLUB, x, z) || inR(HOTEL, x, z) || x > 2500;
 export const keepScale = (x: number, z: number): boolean => keepScaleCam(x, z) || PLAY_KEEP.some((r) => inR(r, x, z));
+/** 旧坐标里（school()、park() 的代码）这一点在不在真尺寸的球场框里 */
+export const keepScaleSrc = (x: number, z: number): boolean => PLAY_KEEP_SRC.some((r) => inR(r, x, z));

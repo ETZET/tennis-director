@@ -156,6 +156,8 @@ export function mountDaylight(o: DaylightOpts): Daylight {
     for (const l of lights) {
       if (!l.pool) continue;
       const [x, z, r, h] = l.pool();
+      // 关着的灯（半径 0）不占 LAMP_N 的名额：它本来什么也不照，占了名额近处开着的灯就没光圈（2026-11-21 valley 住宅门廊灯）
+      if (r <= 0) continue;
       pools.push([x, z, r, h, (x - t.x) ** 2 + (z - t.z) ** 2]);
     }
     pools.sort((a, b) => a[4] - b[4]);

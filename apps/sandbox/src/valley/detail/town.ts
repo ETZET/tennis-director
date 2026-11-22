@@ -1,32 +1,35 @@
-// valley 细节：市中心（棕榈谷大道 / 印第安峡谷路 / 塔奎兹路一带）和北边的老街区（拉斯帕尔马斯、电影人街区、球拍俱乐部）、111 号公路的加油站。
-// 接口见 build.ts 的 DetailCtx。只改这个文件。
-//
-// 构图（照 pixel-scene 的规矩：先定主角，细节成簇，平地留白）：
-// - 主角是"走得进去"的几处：塔奎兹路北边空地穿进去的小巷 → 市政厅东边的喷泉广场 → 市政厅背后 → 老酒店草坪上的表演赛场 → 酒店前院 → 印第安峡谷路；
-//   棕榈谷大道西边咖啡馆的露天座。街道本身只给人行道、路缘、路口斑马线、路灯和长椅（在店面之间的空当里），不往沙地上撒东西。
-// - 朝镜头（朝南）的立面是暗带：店面玻璃、矮墙、看台的正面都是免费的明暗层次；招牌按朝向挑做法（朝南贴墙、朝北立在屋顶、朝东西用伸出来的竖招牌）。
-// - 小区只做"中世纪现代"的几样：朝路的矮墙（暗带）、车棚、后院泳池、彩色的门、院子里一棵棕榈；不是每家都有。
-// - 发现点：废弃的球拍俱乐部（褪色开裂的老场子、倒了一半的围网、干掉的泳池、钉了木板的窗）。加油站：雨棚的柱子、加油岛、价格牌。
-// 线和杆都 ≥ 2 纹素（默认 0.045 米/纹素）；白线（斑马线、车位线、球场线）是强边缘大户，只放在路口和主角上。
+// valley 细节：小镇的街（主街、横街、后街）：人行道、路缘、路口斑马线、路面标线、行道棕榈 + 路灯、花池、长椅，
+// 主街南边的车位和后院墙，夜里开灯。
+// 六家店自己的门面、院子在 detail/sites/（先跑，占的地记在 siteState 里，这里的街边家具躲开）；住宅的院子在 south.ts。
+// 2026-11-21 小镇压紧：老街区、喷泉广场、老酒店草坪、咖啡馆露天座、店后的停车场、通用铺面的招牌、球拍俱乐部、加油站都删了。
+// 2026-11-21 精细化（街区代理，批判清单 C1 C3 C5 C9 C14 / M1 M6 M12 M13 M14）：
+//   市中心的地铺满萨尔蒂略陶砖（人行道铺到楼脚、店间、楼后）+ adobe 矮边方花池；主街人行道、路缘、行道棕榈铺到 x 626；
+//   棕榈 18 米一棵（方树坑）、路灯在两棵中间、两边错开；横街两排棕榈 + 花槽 + 路口大花盆；主街双黄中线、停止线、补丁、井盖；
+//   车位一格一条 2 纹素漆线、车换六种颜色；车位后面一道连续的后院墙（灰泥 + 花砖段 + 九重葛）。
+// 接口见 build.ts 的 DetailCtx。只改这个文件。坐标都是世界坐标（米）。
+// 线和杆都 ≥ 2 纹素（小镇里镜头拉近到 0.75：1 纹素 = 0.034 米、1 屏幕行 = 0.048 米）；白线是强边缘大户，只放在路口和车位。
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { build as buildAgave } from '../../clubsite/nature/agave';
+import { build as buildBarrel } from '../../clubsite/nature/barrel-cactus';
 import type { Shape } from '../../clubsite/play';
 import { box } from '../../clubsite/render/geo';
-import { bldgPoly, type DetailCtx, type InstItem, rbox, ribbon } from '../build';
+import type { ToonOpts } from '../../clubsite/render/toon';
+import { bldgPoly, type DetailCtx, palmCrownGeo, rbox, ribbon } from '../build';
 import {
   along,
-  type Bldg,
   BUILDINGS_RAW as BUILDINGS,
   distToLine,
   housesRaw as houses,
   inPoly,
   ROADS,
   type Road,
-  S,
-  SCALE,
   SITES_RAW as SITES,
   type V2,
 } from '../layout';
+import { TOWN_EL } from '../palette';
 import type { PalKey } from '../reuse';
+import { FRAMES, keepScale, TOWN_K } from '../townscale';
 import { hitsRoad, siteState, Y } from './sites/kit';
 
 interface Box2 {
@@ -35,24 +38,20 @@ interface Box2 {
   z0: number;
   z1: number;
 }
-/** 立面的坐标系：origin 是立面中心（地面），out 朝外，tan 顺着立面 */
-interface Face {
-  o: Bldg;
-  ox: number;
-  oz: number;
-  out: V2;
-  tan: V2;
-  /** 立面一半长 */
-  half: number;
-  /** 楼在 out 方向的一半深 */
-  depth: number;
-}
+
+/** 小镇里的 1 纹素（米）：默认 0.045 × main.ts 的 TOWN_ZOOM 0.75 */
+const TX = 0.045 * 0.75;
+/** 1 屏幕行（沿 z 的米数）：俯 45° 下 z 方向一纹素 = TX / cos45 */
+const ROWZ = TX / Math.SQRT1_2;
+/** 小件按原尺寸写，townWrap 乘 K（townscale.ts）；要它缩完正好多大就写 目标 / K */
+const K = TOWN_K;
+/** 市中心铺满的陶砖底（垫在人行道 Y.walk、车道 0.03 的下面；店的铺面、广场在 Y.pave 往上盖） */
+const Y_BASE = 0.01;
+/** 路面上的东西（车道 0.03 之上，斑马线 0.045）：补丁、标线 / 井盖各一层，叠着的差 ≥ 0.01 */
+const Y_PATCH = 0.05;
+const Y_MARK = 0.06;
 
 const STREETS = ROADS.filter((r) => r.kind !== 'trail');
-/** 三家办事的楼（layout.ts 的 SITES）：门面、招牌在 detail/sites/ 摆，通用的店面招牌不做 */
-const ERRAND_IDS = new Set(['paper', 'paper_press', 'sports', 'hardware']);
-/** 2026-11-18 第二批办事楼（sites/cityhall.ts、bank.ts、diner.ts）：门面、招牌归各自的 site 文件，这里的通用店面和"认得出的东西"不做 */
-const CIVIC_IDS = new Set(['cityhall', 'bank', 'diner']);
 const roadById = (id: string) => ROADS.find((r) => r.id === id) as Road;
 /** 折线左手的单位法向（同 build.ts 的 ribbon） */
 const nrm = (a: V2, b: V2): V2 => {
@@ -144,52 +143,75 @@ function runsAlong(
     }
   }
 }
+/** 合并前统一：不带索引、只留 position + normal */
+function prepG(g: THREE.BufferGeometry, keepColor = false): THREE.BufferGeometry {
+  const o = g.index ? g.toNonIndexed() : g;
+  for (const a of Object.keys(o.attributes))
+    if (a !== 'position' && a !== 'normal' && !(keepColor && a === 'color')) o.deleteAttribute(a);
+  if (!o.attributes.normal) o.computeVertexNormals();
+  return o;
+}
+/** 一团（球面法线，细分 1：不是面法线的多面体）；sx sy sz 压成椭球 */
+function blob(r: number, sx = 1, sy = 1, sz = 1, detail = 1): THREE.BufferGeometry {
+  const g = new THREE.IcosahedronGeometry(r, detail);
+  const p = g.attributes.position as THREE.BufferAttribute;
+  const n = g.attributes.normal as THREE.BufferAttribute;
+  const v = new THREE.Vector3();
+  for (let i = 0; i < p.count; i++) {
+    v.set(p.getX(i), p.getY(i), p.getZ(i)).normalize();
+    n.setXYZ(i, v.x, v.y, v.z);
+  }
+  return g.scale(sx, sy, sz);
+}
+/** 资产（clubsite/nature）拆成按网格序号的几何（本地坐标，世界矩阵烘进去），拿去实例化 */
+function assetParts(obj: THREE.Object3D): THREE.BufferGeometry[] {
+  obj.updateMatrixWorld(true);
+  const out: THREE.BufferGeometry[] = [];
+  obj.traverse((o) => {
+    const m = o as THREE.Mesh;
+    if (!m.isMesh) return;
+    out.push(prepG(m.geometry.clone().applyMatrix4(m.matrixWorld)));
+  });
+  return out;
+}
 
 // 平铺层的高度（Y）、车道守卫（hitsRoad）在 sites/kit.ts（三栋办事楼也用）
 
 export function detailTown(d: DetailCtx): void {
   const rnd = d.rng('valley:town');
-  const pick = <T>(a: readonly T[]): T => a[Math.floor(rnd() * a.length) % a.length];
   // ── 车道守卫：离地 0.12～4.5 米（路缘 0.1 米高不算）的东西，有一个顶点落进任何一条车道（半宽以内）就整件不放（高处的树冠、招牌可以伸过去）──
-  // （铺面、人行道、斑马线、路缘这些贴地的不管。招牌、雨棚、道具跟着店面走，店面是 layout.ts 撒的，会变；
-  //  这里兜底，保证 town.ts 的东西永远不进车道。）
   let skipped = 0;
   /** 调试：主角块放下了没有、放在哪（lights.userData.placed） */
-  const dbgPlaced: Record<string, Box2 | null> = {};
+  const dbgPlaced: Record<string, Box2 | number | null> = {};
+  /** 调试：这个文件放了多少三角形（烘进区域桶的 + 自己的网格），lights.userData.placed.tris */
+  let tris = 0;
+  const count = (g: THREE.BufferGeometry) => {
+    tris += (g.index ? g.index.count : g.attributes.position.count) / 3;
+  };
+  const dput = (region: string, key: PalKey, g: THREE.BufferGeometry) => {
+    count(g);
+    d.put(region, key, g);
+  };
   const put = (key: PalKey, g: THREE.BufferGeometry, x: number, z: number) => {
     if (hitsRoad(g)) {
       skipped++;
       g.dispose();
       return;
     }
-    d.put(d.regionOf(x, z), key, g);
+    dput(d.regionOf(x, z), key, g);
   };
   /** 转过的盒子（中心 x z、底 y） */
   const bx = (key: PalKey, w: number, h: number, dd: number, x: number, y: number, z: number, rot = 0) =>
     put(key, rbox(w, h, dd, x, y, z, rot), x, z);
   /** 地上的一块平面（矩形，可转） */
+  const plane = (w: number, dd: number, x: number, y: number, z: number, rot = 0) =>
+    new THREE.PlaneGeometry(w, dd)
+      .rotateX(-Math.PI / 2)
+      .rotateY(rot)
+      .translate(x, y, z);
   const flat = (key: PalKey, w: number, dd: number, x: number, y: number, z: number, rot = 0) =>
-    put(
-      key,
-      new THREE.PlaneGeometry(w, dd)
-        .rotateX(-Math.PI / 2)
-        .rotateY(rot)
-        .translate(x, y, z),
-      x,
-      z,
-    );
+    put(key, plane(w, dd, x, y, z, rot), x, z);
   const block = (sh: Shape) => d.block(sh);
-  const blockRect = (x: number, z: number, w: number, dd: number, rot = 0) => {
-    const c = Math.cos(rot);
-    const s = Math.sin(rot);
-    const poly = [
-      [-w / 2, -dd / 2],
-      [w / 2, -dd / 2],
-      [w / 2, dd / 2],
-      [-w / 2, dd / 2],
-    ].map(([a, b]) => [x + a * c + b * s, z - a * s + b * c] as const);
-    block({ poly });
-  };
 
   // ── 占地查询：楼（有名字的 + 撒的）、路 ──
   const BLD = [...BUILDINGS, ...houses()].map((o) => ({ o, r: Math.hypot(o.w, o.d) / 2 }));
@@ -202,22 +224,8 @@ export function detailTown(d: DetailCtx): void {
     for (const r of STREETS) if (r !== except) best = Math.min(best, distToLine(r.pts, x, z) - r.w / 2);
     return best;
   };
-  const free = (x: number, z: number, pad = 0.3) => !inBldg(x, z, pad) && roadGap(x, z) > pad;
-  /** 转过的矩形（中心、宽 w 沿 rot 的本地 x）四角 + 边中点 + 中心都空 */
-  const rectFree = (x: number, z: number, w: number, dd: number, rot = 0, pad = 0.3) => {
-    const c = Math.cos(rot);
-    const s = Math.sin(rot);
-    for (const a of [-0.5, 0, 0.5])
-      for (const b of [-0.5, 0, 0.5]) {
-        const lx = a * w;
-        const lz = b * dd;
-        if (!free(x + lx * c + lz * s, z - lx * s + lz * c, pad)) return false;
-      }
-    return true;
-  };
-  /** 我自己占掉的地（广场、草坪、停车场、露天座）：街边家具躲开 */
+  /** 店的院子、停车排（sites/ 和 layout.ts 的 SITES）：街边家具躲开 */
   const taken: Box2[] = [];
-  /** 占地：街边家具躲开，build.ts 的灌木和大道棕榈也不往这里撒 */
   const claim = (r: Box2) => {
     taken.push(r);
     d.clear(r);
@@ -225,272 +233,374 @@ export function detailTown(d: DetailCtx): void {
   const inTaken = (x: number, z: number, pad = 0) =>
     taken.some((r) => x > r.x0 - pad && x < r.x1 + pad && z > r.z0 - pad && z < r.z1 + pad);
 
-  // ── 山谷按 layout.ts 的 S() 缩过（位置 × 0.7、尺寸不变）：写死的世界坐标一律过 SB；铺面类的块按"空不空"收边 ──
-  /** 旧坐标（缩之前）的矩形 → 现在的世界坐标 */
-  const SB = (b: Box2): Box2 => {
-    const [ax, az] = S(b.x0, b.z0);
-    const [bx2, bz] = S(b.x1, b.z1);
-    return { x0: Math.min(ax, bx2), x1: Math.max(ax, bx2), z0: Math.min(az, bz), z1: Math.max(az, bz) };
+  // ── 手挑颜色的东西（路面标线、补丁、井盖、车）：按（材质, 区域）合成一个网格，d.asset 放（锁着的区域跟着压暗）──
+  // 网格名用调色板的键（town 第 9 节夜里按网格名找材质）。立着的（车）：townWrap 对一整块"长条"只压低（y × K），
+  // 这里先把它们按最终的样子摆好、y 先除 K；两头各垫一个退化的三角形把包围盒撑到 > LONG_M（单独一辆也走"长条"那条路）。
+  const custom = new Map<
+    string,
+    { key: PalKey; extra: ToonOpts; stand: boolean; cast: boolean; by: Map<string, THREE.BufferGeometry[]> }
+  >();
+  const defCustom = (id: string, key: PalKey, extra: ToonOpts, stand = false, cast = false) =>
+    custom.set(id, { key, extra, stand, cast, by: new Map() });
+  const cput = (id: string, g: THREE.BufferGeometry, x: number, z: number, region?: string) => {
+    const e = custom.get(id);
+    if (!e) return;
+    const reg = region ?? d.regionOf(x, z);
+    const l = e.by.get(reg) ?? [];
+    l.push(prepG(g, !!e.extra.vertexColors));
+    e.by.set(reg, l);
   };
-  /** 整块（每 1.5 米一个采样点）不压楼、不压路、不压我已经占的地 */
-  const boxBad = (b: Box2, pad: number, avoidTaken: boolean) => {
-    const bad: V2[] = [];
-    const nx = Math.max(2, Math.ceil((b.x1 - b.x0) / 1.5));
-    const nz = Math.max(2, Math.ceil((b.z1 - b.z0) / 1.5));
-    for (let i = 0; i <= nx; i++)
-      for (let j = 0; j <= nz; j++) {
-        const x = b.x0 + ((b.x1 - b.x0) * i) / nx;
-        const z = b.z0 + ((b.z1 - b.z0) * j) / nz;
-        if (!free(x, z, pad) || (avoidTaken && inTaken(x, z, -0.01))) bad.push([x, z]);
-      }
-    return bad;
-  };
-  /** 压到东西就往里收边（每步试四条边各收 1 米，挑剩下压得最少的那条），收到比 minW × minD 还小就放弃（返回 null）：放不下宁可不放，不叠 */
-  const fit = (b0: Box2, minW: number, minD: number, pad = 0.4, avoidTaken = true): Box2 | null => {
-    let b = { ...b0 };
-    let bad = boxBad(b, pad, avoidTaken).length;
-    for (let it = 0; it < 200 && bad; it++) {
-      let best: Box2 | null = null;
-      let bestBad = Number.POSITIVE_INFINITY;
-      for (const c of [
-        { ...b, x0: b.x0 + 1 },
-        { ...b, x1: b.x1 - 1 },
-        { ...b, z0: b.z0 + 1 },
-        { ...b, z1: b.z1 - 1 },
-      ]) {
-        if (c.x1 - c.x0 < minW || c.z1 - c.z0 < minD) continue;
-        const n = boxBad(c, pad, avoidTaken).length;
-        if (n < bestBad) {
-          bestBad = n;
-          best = c;
+  const finishCustom = () => {
+    for (const { key, extra, stand, cast, by } of custom.values())
+      for (const [reg, list] of by) {
+        const g = mergeGeometries(list);
+        for (const x of list) x.dispose();
+        if (!g) continue;
+        count(g);
+        if (stand) {
+          g.computeBoundingBox();
+          const bb = g.boundingBox as THREE.Box3;
+          const cx = (bb.min.x + bb.max.x) / 2;
+          const cz = (bb.min.z + bb.max.z) / 2;
+          if (!keepScale(cx, cz)) g.scale(1, 1 / K, 1);
+          const pad = new THREE.BufferGeometry();
+          pad.setAttribute(
+            'position',
+            new THREE.Float32BufferAttribute(
+              [cx - 2.6, 0, cz, cx - 2.6, 0, cz, cx - 2.6, 0, cz, cx + 2.6, 0, cz, cx + 2.6, 0, cz, cx + 2.6, 0, cz],
+              3,
+            ),
+          );
+          pad.setAttribute(
+            'normal',
+            new THREE.Float32BufferAttribute(
+              new Array(18).fill(0).map((_, i) => (i % 3 === 1 ? 1 : 0)),
+              3,
+            ),
+          );
+          if (g.attributes.color) pad.setAttribute('color', new THREE.Float32BufferAttribute(new Array(18).fill(1), 3));
+          const all = mergeGeometries([g, pad]) as THREE.BufferGeometry;
+          g.dispose();
+          pad.dispose();
+          const m = new THREE.Mesh(all, d.actx.mat(key, extra));
+          m.name = `valley:${reg}:${key}`;
+          if (!cast) m.userData.noCast = true;
+          d.asset(m, reg);
+        } else {
+          const m = new THREE.Mesh(g, d.actx.mat(key, extra));
+          m.name = `valley:${reg}:${key}`;
+          m.userData.noCast = true;
+          d.asset(m, reg);
         }
       }
-      if (!best) return null;
-      b = best;
-      bad = bestBad;
-    }
-    return bad ? null : b;
   };
 
-  // ── 立面 ──
-  const faceOf = (o: Bldg, ax: 'x' | 'z', sgn: number): Face => {
-    const r = o.rot ?? 0;
-    const lx: V2 = [Math.cos(r), -Math.sin(r)];
-    const lz: V2 = [Math.sin(r), Math.cos(r)];
-    const out: V2 = ax === 'z' ? [lz[0] * sgn, lz[1] * sgn] : [lx[0] * sgn, lx[1] * sgn];
-    const tan: V2 = ax === 'z' ? lx : lz;
-    const depth = ax === 'z' ? o.d / 2 : o.w / 2;
-    return {
-      o,
-      ox: o.x + out[0] * depth,
-      oz: o.z + out[1] * depth,
-      out,
-      tan,
-      half: ax === 'z' ? o.w / 2 : o.d / 2,
-      depth,
-    };
-  };
-  /** 离路最近的那面（店面 / 正门） */
-  const frontOf = (o: Bldg): Face => {
-    let best: Face | null = null;
-    let bd = Number.POSITIVE_INFINITY;
-    for (const ax of ['z', 'x'] as const)
-      for (const sgn of [1, -1]) {
-        const f = faceOf(o, ax, sgn);
-        const g = roadGap(f.ox + f.out[0] * 2, f.oz + f.out[1] * 2);
-        if (g < bd - 0.5) {
-          bd = g;
-          best = f;
-        }
-      }
-    return best as Face;
-  };
-  /** 最朝南（朝镜头）的那面 */
-  const southOf = (o: Bldg): Face => {
-    let best = faceOf(o, 'z', 1);
-    for (const ax of ['z', 'x'] as const)
-      for (const sgn of [1, -1]) {
-        const f = faceOf(o, ax, sgn);
-        if (f.out[1] > best.out[1]) best = f;
-      }
-    return best;
-  };
-  /** 立面坐标系里的点：t 顺着立面、u 往外 */
-  const fp = (f: Face, t: number, u: number): V2 => [
-    f.ox + f.tan[0] * t + f.out[0] * u,
-    f.oz + f.tan[1] * t + f.out[1] * u,
+  // ══ 0. 形状 ═════════════════════════════════════════════════════════════════
+  // 路灯：杆 + 朝路的短臂（本地 +z 朝路）+ 灯头。灯头只伸到路缘外 0.1 米（不悬在车道上）；夜里换自发光（见最后的"夜里"）
+  // 杆、臂都不投影（傍晚细杆的长影是一条条麻点细线，M12）
+  // 路灯、行道棕榈不实例化：按原尺寸烘进区域桶（ironwork、signPaint、palm…… 别的模块也有这几个桶，不多出绘制），
+  // townWrap 把挨着的几块（杆 + 臂 + 灯头、干 + 裙 + 冠）归成一件、绕它的中心缩 K。thin = 不投影
+  type Part = { key: PalKey; thin: boolean; g: THREE.BufferGeometry };
+  const LAMP: Part[] = [
+    { key: 'ironwork', thin: true, g: prepG(box(0.18, 4.4, 0.18, 0, 0, 0)) },
+    { key: 'ironwork', thin: true, g: prepG(box(0.12, 0.12, 0.8, 0, 4.25, 0.35)) },
+    // 灯头进 signPaint 的桶（第 9 节夜里按网格名 valley:区域:signPaint 换自发光）
+    { key: 'signPaint', thin: false, g: prepG(box(0.42, 0.3, 0.42, 0, 3.98, 0.7)) },
   ];
-  const fRot = (f: Face) => Math.atan2(-f.tan[1], f.tan[0]);
-  /** 立面坐标系里的盒子：sx 顺着立面、sz 往外 */
-  const fbox = (f: Face, key: PalKey, sx: number, h: number, sz: number, t: number, y: number, u: number, tilt = 0) => {
-    const [x, z] = fp(f, t, u);
-    const g = box(sx, h, sz, 0, -h / 2, 0);
-    if (tilt) g.rotateZ(tilt);
-    g.translate(0, y + h / 2, 0)
-      .rotateY(fRot(f))
-      .translate(x, 0, z);
-    put(key, g, x, z);
-  };
-
-  // ── 实例化的小件 ──
-  const inst = new Map<string, { g: THREE.BufferGeometry; key: PalKey; items: InstItem[]; cast: boolean }>();
-  const instM = new THREE.Matrix4();
-  const instQ = new THREE.Quaternion();
-  const UP = new THREE.Vector3(0, 1, 0);
-  /** 这一件（几个实例化部件一起）会不会压到车道 */
-  const instHits = (names: readonly string[], it: InstItem) => {
-    instQ.setFromAxisAngle(UP, it.rot ?? 0);
-    instM.compose(new THREE.Vector3(it.x, it.y ?? 0, it.z), instQ, new THREE.Vector3(it.s, it.s, it.s));
-    return names.some((n) => {
-      const e = inst.get(n);
-      return !!e && hitsRoad(e.g, instM);
-    });
-  };
-  const addInst = (name: string, it: InstItem) => {
-    if (instHits([name], it)) {
+  // 行道棕榈：同 build.ts 大道的加州蒲葵（树干 + 枯叶裙 + 下垂的长叶冠，球面法线）。树干不投影（低太阳下一条又直又黑的长带）
+  const PALM: Part[] = [
+    { key: 'palmTrunk', thin: true, g: prepG(new THREE.CylinderGeometry(0.24, 0.36, 8, 6).translate(0, 4, 0)) },
+    { key: 'palmSkirt', thin: false, g: prepG(new THREE.CylinderGeometry(0.75, 0.95, 2.4, 8).translate(0, 6.95, 0)) },
+    // 叶片不投影（傍晚一片片锯齿长影是强边缘大户：银行门口 17.6 点 0.054）；投影只留枯叶裙 + 冠心一团（圆的团影）
+    { key: 'palm', thin: true, g: palmCrownGeo(10, 3.4, 8.15, 3) },
+    { key: 'palm', thin: false, g: prepG(blob(1.15, 1, 0.5, 1).translate(0, 8.0, 0)) },
+  ];
+  /** 一件（几块）摆到 (x, y, z)、缩放 s、转 rot，烘进区域桶；有一块压到车道就整件不放 */
+  const bake = (reg: string, parts: Part[], x: number, y: number, z: number, s: number, rot: number) => {
+    const gs = parts.map((p) => p.g.clone().scale(s, s, s).rotateY(rot).translate(x, y, z));
+    if (gs.some((g) => hitsRoad(g))) {
       skipped++;
+      for (const g of gs) g.dispose();
       return false;
     }
-    inst.get(name)?.items.push(it);
+    parts.forEach((p, k) => {
+      count(gs[k]);
+      if (p.thin && d.putThin) d.putThin(reg, p.key, gs[k]);
+      else dput(reg, p.key, gs[k]);
+    });
+    const tag = parts === PALM ? 'palms' : parts === LAMP ? 'lamps' : parts === BENCH ? 'benches' : 'bins';
+    dbgPlaced[tag] = ((dbgPlaced[tag] as number) ?? 0) + 1;
     return true;
   };
-  const defInst = (name: string, key: PalKey, parts: THREE.BufferGeometry[], cast = true) => {
-    const list = parts.map((p) => (p.index ? p.toNonIndexed() : p));
-    for (const p of list)
-      for (const a of Object.keys(p.attributes)) if (a !== 'position' && a !== 'normal') p.deleteAttribute(a);
-    const pos: number[] = [];
-    for (const p of list) pos.push(...(p.attributes.position.array as Float32Array));
-    const g = new THREE.BufferGeometry();
-    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-    g.computeVertexNormals();
-    inst.set(name, { g, key, items: [], cast });
-  };
-  // 路灯：杆 + 朝路的短臂（本地 +z 朝路）+ 灯头。灯头只伸到路缘外 0.1 米（不悬在车道上）；夜里换自发光（见最后的"夜里"）
-  defInst('lampPole', 'ironwork', [box(0.18, 4.4, 0.18, 0, 0, 0), box(0.12, 0.12, 0.8, 0, 4.25, 0.35)]);
-  defInst('lampHead', 'signPaint', [box(0.42, 0.3, 0.42, 0, 3.98, 0.7)], false);
-  // 长椅（面朝本地 +z）
-  defInst('bench', 'wood', [box(1.9, 0.12, 0.55, 0, 0.42, 0), box(1.9, 0.45, 0.12, 0, 0.55, -0.26)]);
-  // 小件不投影（省阴影 pass 的三角形；凳腿、桶、车上的零件的影子都被大件的影子盖住）
-  defInst('benchLeg', 'ironwork', [box(0.12, 0.42, 0.5, -0.8, 0, 0), box(0.12, 0.42, 0.5, 0.8, 0, 0)], false);
-  // 方花槽 + 里面一团草（一半的槽再冒两三朵红花：原来整团红色的二十面体像一颗红宝石）
-  defInst('planter', 'adobe', [box(1.3, 0.6, 1.3, 0, 0, 0)]);
-  defInst(
-    'planterSage',
-    'sage',
-    [new THREE.IcosahedronGeometry(0.62, 0).scale(1, 0.55, 1).translate(0, 0.72, 0)],
-    false,
-  );
-  defInst(
-    'planterBloom',
-    'flowerRed',
-    [
-      new THREE.IcosahedronGeometry(0.2, 0).translate(-0.25, 1.0, 0.18),
-      new THREE.IcosahedronGeometry(0.18, 0).translate(0.28, 0.98, -0.12),
-      new THREE.IcosahedronGeometry(0.17, 0).translate(0.05, 1.04, 0.32),
-    ],
-    false,
-  );
-  // 垃圾桶
-  defInst('bin', 'ironwork', [new THREE.CylinderGeometry(0.3, 0.27, 0.9, 6).translate(0, 0.45, 0)], false);
-  // 屋顶的空调箱（棕榈泉每个平顶上都有）
-  defInst('ac', 'metal', [box(1.3, 0.8, 1.0, 0, 0, 0)], false);
-  // 棕榈（同 build.ts 的形状：八片往下垂的叶子 + 中间一小团；原来的扁八面体看着是一块绿菱形，影子是一大块菱形黑斑）
-  defInst('palmTrunk', 'palmTrunk', [new THREE.CylinderGeometry(0.22, 0.34, 8, 5).translate(0, 4, 0)]);
+  // 长椅（面朝本地 +z）、垃圾桶：同上烘进桶（凳腿、桶不投影）
+  const BENCH: Part[] = [
+    { key: 'wood', thin: false, g: prepG(box(1.9, 0.12, 0.55, 0, 0.42, 0)) },
+    { key: 'wood', thin: false, g: prepG(box(1.9, 0.45, 0.12, 0, 0.55, -0.26)) },
+    { key: 'ironwork', thin: true, g: prepG(box(0.12, 0.42, 0.5, -0.8, 0, 0)) },
+    { key: 'ironwork', thin: true, g: prepG(box(0.12, 0.42, 0.5, 0.8, 0, 0)) },
+  ];
+  const BIN: Part[] = [
+    { key: 'ironwork', thin: true, g: prepG(new THREE.CylinderGeometry(0.3, 0.27, 0.9, 6).translate(0, 0.45, 0)) },
+  ];
+  // 下面这些（树坑、花池、花槽、花盆、里面的植物）不实例化：直接 put 进区域桶（和别的模块的 adobe、仙人掌……合成一个网格，不多出绘制）。
+  // put 的东西 townWrap 照样处理：平的（树坑）不缩；立着的挨着的几块归成一件、绕它的中心缩 K（花池 + 植物一起缩）
+  /** 花池里的植物：桶形仙人掌一组、龙舌兰（clubsite/nature 的资产拆开：法线照资产的）、九重葛（绿团 + 玫红 / 珊瑚花团） */
+  const PLANT: { key: PalKey; g: THREE.BufferGeometry }[][] = [];
   {
-    const fronds: THREE.BufferGeometry[] = [new THREE.IcosahedronGeometry(0.55, 0).translate(0, 8.1, 0)];
-    for (let k = 0; k < 8; k++) {
-      const a = (k / 8) * Math.PI * 2 + (k % 2) * 0.2;
-      const droop = k % 2 ? 0.55 : 0.32;
-      fronds.push(
-        new THREE.BoxGeometry(0.55, 0.08, 3.1).translate(0, 0, 1.45).rotateX(droop).rotateY(a).translate(0, 8.15, 0),
-      );
-    }
-    defInst('palmCrown', 'palm', fronds);
+    const barrel = assetParts(buildBarrel(d.actx));
+    PLANT.push([
+      { key: 'cactus', g: barrel[0] },
+      ...(barrel[1] ? [{ key: 'flowerYellow' as PalKey, g: barrel[1] }] : []),
+    ]);
+    const agave = assetParts(buildAgave(d.actx));
+    PLANT.push([{ key: 'silverBlue', g: mergeGeometries(agave) as THREE.BufferGeometry }]);
+    PLANT.push([
+      {
+        key: 'olive',
+        g: mergeGeometries(
+          [blob(0.62, 1.15, 0.8, 1, 0).translate(0, 0.55, 0), blob(0.42, 1, 1, 1, 0).translate(0.45, 0.85, 0.1)].map(
+            (g) => prepG(g),
+          ),
+        ) as THREE.BufferGeometry,
+      },
+      {
+        key: 'flowerPurple',
+        g: mergeGeometries(
+          [
+            blob(0.26, 1, 1, 1, 0).translate(-0.3, 0.98, 0.25),
+            blob(0.22, 1, 1, 1, 0).translate(0.25, 1.1, 0.3),
+            blob(0.2, 1, 1, 1, 0).translate(0.62, 0.92, -0.1),
+            blob(0.18, 1, 1, 1, 0).translate(-0.55, 0.7, 0.4),
+          ].map((g) => prepG(g)),
+        ) as THREE.BufferGeometry,
+      },
+      {
+        key: 'flowerRed',
+        g: mergeGeometries(
+          [
+            blob(0.17, 1, 1, 1, 0).translate(0.05, 1.12, -0.05),
+            blob(0.16, 1, 1, 1, 0).translate(-0.12, 0.8, 0.52),
+            blob(0.15, 1, 1, 1, 0).translate(0.5, 0.62, 0.5),
+          ].map((g) => prepG(g)),
+        ) as THREE.BufferGeometry,
+      },
+    ]);
   }
-  // 圆花池（棕榈坐在里面）
-  defInst('potRound', 'adobe', [new THREE.CylinderGeometry(1.15, 1.2, 0.55, 10).translate(0, 0.275, 0)]);
-  // 六十年代的长车身敞篷（同 vehicles.ts 的样子；车头朝本地 +z）
-  const CAR_KEYS: PalKey[] = ['carRed', 'clothTeal', 'clothBlue', 'canvas', 'flowerYellow', 'seat'];
-  for (const k of CAR_KEYS) defInst(`car:${k}`, k, [box(2.0, 0.7, 4.8, 0, 0.28, 0)]);
-  defInst('carTrim', 'stucco', [box(0.14, 0.12, 4.9, -0.96, 0.84, 0), box(0.14, 0.12, 4.9, 0.96, 0.84, 0)], false);
-  defInst('carSeat', 'clothWhite', [box(1.7, 0.45, 1.2, 0, 0.98, -0.4)], false);
-  defInst('carGlass', 'silverBlue', [box(1.7, 0.4, 0.1, 0, 1.0, 0.6)], false);
-  // 底盘 + 轮子：一块收进去的暗盒（俯视 45° 只看得见车身下沿一条暗边；原来四个轮子 48 个三角形）
-  defInst('carTyre', 'ironwork', [box(1.84, 0.3, 3.9, 0, 0, 0)], false);
-  // 杂草 / 小仙人掌（废弃球场的裂缝里、院子里）
-  defInst('weed', 'sage', [new THREE.IcosahedronGeometry(0.5, 0).scale(1, 0.6, 1).translate(0, 0.2, 0)], false);
-  defInst('agave', 'cactus', [new THREE.ConeGeometry(0.55, 0.9, 5).translate(0, 0.45, 0)], false);
 
-  const car = (x: number, z: number, rot: number, key?: PalKey) => {
-    const k = key ?? pick(CAR_KEYS);
-    const it = { x, z, s: 1, rot, reg: d.regionOf(x, z) };
-    const parts = [`car:${k}`, 'carTrim', 'carSeat', 'carGlass', 'carTyre'];
-    if (instHits(parts, it)) return;
-    for (const n of parts) addInst(n, it);
-    blockRect(x, z, 2.1, 4.9, rot);
+  // ── 手挑的颜色 ──
+  // 主街双黄中线：赭黄（hwMustard 往灰里收；亮档 L ≈ 170，和 street 亮档 138 差 32 < 60）。朝上的平面：不要 SIGN_FACE 的往上偏的光
+  defCustom('yellow', 'hwMustard', {
+    ramp: [0xd8aa4c, 0xa48446, 0x5a4c60],
+    lightUp: 0,
+    bands: [0.1, 0.5],
+    noShadowReceive: false,
+    edge: 0.05,
+    convex: 0,
+  });
+  // 补丁：street 低一级（同一套元素：封层斑还在）
+  const streetTones = (dl: number) => {
+    const sh = (c: number) => {
+      const r = Math.max(0, Math.min(255, ((c >> 16) & 255) + dl));
+      const g = Math.max(0, Math.min(255, ((c >> 8) & 255) + dl));
+      const b = Math.max(0, Math.min(255, (c & 255) + dl));
+      return (r << 16) | (g << 8) | b;
+    };
+    const tri = (a: number, b: number, c: number) => [sh(a), sh(b), sh(c)] as [number, number, number];
+    return {
+      ramp: tri(0x918a7c, 0x5e6a80, 0x384862),
+      tones: {
+        bands: [
+          tri(0x918a7c, 0x989183, 0x898274),
+          tri(0x5e6a80, 0x657187, 0x566278),
+          tri(0x384862, 0x3f4f69, 0x2d4060),
+        ] as [[number, number, number], [number, number, number], [number, number, number]],
+        seam: tri(0x7f796d, 0x4f5c74, 0x293d5f),
+        hi: tri(0xa59e90, 0x727e94, 0x4a5a74),
+      },
+      elem: TOWN_EL.street,
+    } satisfies ToonOpts;
   };
-  const palm = (x: number, z: number, s = 1, y = 0) => {
-    const it = { x, z, s, y, rot: rnd() * 6, reg: d.regionOf(x, z) };
-    if (instHits(['palmTrunk', 'palmCrown'], it)) return;
-    addInst('palmTrunk', it);
-    addInst('palmCrown', it);
-    block({ x, z, r: 0.45 });
-  };
+  defCustom('patch', 'street', streetTones(-13));
+  // 井盖：铸铁的暗灰紫 + 一纹素亮边（亮边那圈用 lotPaint 的颜色，单独一圈）
+  // 井盖：铸铁（ironwork，平的、不投影）+ 一纹素亮边（lotPaint 一圈）—— 都进区域桶，不多出绘制
+  // 车：六种车身（M14：红 / 海军蓝 / 薄荷 / 金 / 奶油 / 银），车顶同色亮一级；挡风玻璃深蓝
+  const CARS: { body: [number, number, number]; roof: [number, number, number] }[] = [
+    { body: [0xd8503e, 0xa83a48, 0x5e2a58], roof: [0xee7058, 0xbc4c52, 0x6a3260] },
+    { body: [0x40609e, 0x2e4482, 0x22285a], roof: [0x5878b8, 0x3c5496, 0x2a3468] },
+    { body: [0x7cc8a4, 0x4e9a8c, 0x2c5a6e], roof: [0x9adcba, 0x62ae98, 0x346676] },
+    { body: [0xe0aa40, 0xb07a3c, 0x664a5c], roof: [0xf2c45e, 0xc48e48, 0x725466] },
+    { body: [0xf0dcb4, 0xc8a8a0, 0x7a6894], roof: [0xfbecd2, 0xd8bcb4, 0x86769e] },
+    { body: [0xb8c2cc, 0x8a94aa, 0x505878], roof: [0xd0d8e0, 0xa0aabc, 0x5c6684] },
+  ];
+  // 车身、车顶一个材质：ramp 近白（中档、暗档往冷紫里偏），颜色是顶点色（省 11 个绘制）
+  defCustom('car', 'carRed', { ramp: [0xffffff, 0xc0b4cc, 0x6c64a0], vertexColors: true }, true, true);
+
+  // ── 放东西的小工具 ──
+  /**
+   * 立着的小件放不进的地：三栋店的缩放框（townscale.ts 的 FRAMES：贴着楼的那块地里的东西跟着楼缩向门口，世界里写的位置会被挪走）、
+   * 住宅脚印外 2.3 米（同理跟着房子缩）。这些地只铺平的（陶砖底、树坑那种 < 0.15 米的不缩）
+   */
+  const inFrame = (x: number, z: number) =>
+    FRAMES.some((f) => x >= f.zone.x0 - 0.8 && x <= f.zone.x1 + 0.8 && z >= f.zone.z0 - 0.8 && z <= f.zone.z1 + 0.8) ||
+    BLD.some(
+      ({ o, r }) => o.kind === 'house' && Math.hypot(o.x - x, o.z - z) < r + 3 && inPoly(bldgPoly(o, 2.4), x, z),
+    );
+  /** 街边家具都放下了的位置（互相让开） */
+  const placed: V2[] = [];
+  const near = (x: number, z: number, r: number) => placed.some((p) => Math.hypot(p[0] - x, p[1] - z) < r);
   const bench = (x: number, z: number, rot: number) => {
-    const it = { x, z, s: 1, rot, reg: d.regionOf(x, z) };
-    if (instHits(['bench', 'benchLeg'], it)) return;
-    addInst('bench', it);
-    addInst('benchLeg', it);
+    if (!bake(d.regionOf(x, z), BENCH, x, 0, z, 1, rot)) return false;
     const c = Math.cos(rot);
     const s = Math.sin(rot);
     block({ a: [x - 0.9 * c, z + 0.9 * s], b: [x + 0.9 * c, z - 0.9 * s], r: 0.4 });
+    return true;
   };
   /** 路灯的灯光圈（夜里）：灯头底下、往路那边挪一点 */
   const lampPools: { x: number; z: number; reg: string; r?: number; h?: number }[] = [];
-  const lamp = (x: number, z: number, rot: number) => {
-    const it = { x, z, s: 1, rot, reg: d.regionOf(x, z) };
-    if (instHits(['lampPole', 'lampHead'], it)) return;
-    addInst('lampPole', it);
-    addInst('lampHead', it);
+  const lamp = (x: number, z: number, rot: number, s = 1) => {
+    if (inFrame(x, z) || inTaken(x, z, 0.4)) return false;
+    const reg = d.regionOf(x, z);
+    if (!bake(reg, LAMP, x, 0, z, s, rot)) return false;
     block({ x, z, r: 0.25 });
-    lampPools.push({ x: x + Math.sin(rot) * 0.7, z: z + Math.cos(rot) * 0.7, reg: it.reg });
+    lampPools.push({ x: x + Math.sin(rot) * 0.45, z: z + Math.cos(rot) * 0.45, reg, r: 4.2 * s, h: 4.6 * s });
+    placed.push([x, z]);
+    return true;
   };
-  const planter = (x: number, z: number, bloom = false) => {
-    const it = { x, z, s: 1, rot: rnd() * 6, reg: d.regionOf(x, z) };
-    if (instHits(['planter', 'planterSage', 'planterBloom'], it)) return;
-    addInst('planter', { ...it, rot: 0 });
-    addInst('planterSage', it);
-    if (bloom) addInst('planterBloom', it);
-    block({ x, z, r: 0.8 });
+  /** 一棵行道棕榈 + 方树坑 */
+  const palm = (x: number, z: number, pit = true) => {
+    // plaza.ts（在 town 之前跑）占的地、店的院子都在 taken 里：躲开
+    if (inFrame(x, z) || inTaken(x, z, 0.6)) return false;
+    if (!bake(d.regionOf(x, z), PALM, x, 0, z, 0.9 + rnd() * 0.25, rnd() * 6.28)) return false;
+    if (pit) {
+      // 树坑：1.4 米见方、0.1 米高的 adobe 沿（朝南一纹素多的暗边）+ 里面一块碎石（平的：不跟着缩）
+      put('adobe', box(1.4, 0.1, 1.4, x, 0, z), x, z);
+      put('gravelYard', plane(1.12, 1.12, x, 0.104, z), x, z);
+      // 树坑南半边一小丛花（九重葛的玫红 + 珊瑚红，脚下一团绿）：人行道上多一点颜色（第 3 轮：主街中饱和度 0.38）
+      const pk = (key: PalKey, r: number, dx: number, dz: number, y: number) =>
+        put(key, blob(r / K, 1, 0.7, 1, 0).translate(x + dx, y / K, z + dz), x + dx, z + dz);
+      pk('olive', 0.26, 0.05, 0.36, 0.1);
+      pk('flowerPurple', 0.17, -0.3, 0.38, 0.14);
+      pk('flowerRed', 0.15, 0.36, 0.3, 0.13);
+    }
+    block({ x, z, r: 0.5 });
+    placed.push([x, z]);
+    return true;
+  };
+  /** 花池里的一株：桶仙人掌、龙舌兰、九重葛轮流（按种子） */
+  const plant = (x: number, z: number, y: number, kind: number, s = 1) => {
+    const r = rnd() * 6.28;
+    const k = kind === 1 ? s * 0.95 : s;
+    for (const { key, g } of PLANT[kind]) put(key, g.clone().scale(k, k, k).rotateY(r).translate(x, y, z), x, z);
+  };
+  /**
+   * 路缘线上的长花槽（第 3 轮：人行道上的颜色）：缩完 2.6 × 0.9 米、0.35 米高的 adobe 槽，两丛九重葛。
+   * 按原尺寸写 /K（< LONG_M 的小件整件绕中心缩 K；缩完要 2.6 米只能这么写）
+   */
+  const flowerBox = (x: number, z: number) => {
+    if (inFrame(x, z) || inTaken(x, z, 0.5) || roadGap(x, z) < 0.6) return false;
+    const reg = d.regionOf(x, z);
+    dput(reg, 'adobe', box(2.6 / K, 0.56, 0.9 / K, x, 0, z));
+    dput(reg, 'gravelYard', box(2.6 / K - 0.3, 0.2, 0.9 / K - 0.3, x, 0.38, z));
+    for (const dx of [-0.62, 0.62]) plant(x + dx / K, z, 0.58, 2, 0.95);
+    block({ x0: x - 1.35, x1: x + 1.35, z0: z - 0.5, z1: z + 0.5 });
+    placed.push([x, z]);
+    dbgPlaced.flowerBoxes = ((dbgPlaced.flowerBoxes as number) ?? 0) + 1;
+    return true;
+  };
+  /** 方花池（缩完 1.4 米见方）+ 一株 */
+  let bedN = 0;
+  const bed = (x: number, z: number, kind = bedN % 3, minGap = 1.6) => {
+    // 店的缩放框里（报社东边那条）：townWrap 会把框里的东西按门口缩过去 —— 写反算回去的位置（反算出了框 = 这里放不了）
+    let wx = x;
+    let wz = z;
+    const f = FRAMES.find((q) => x >= q.zone.x0 && x <= q.zone.x1 && z >= q.zone.z0 && z <= q.zone.z1);
+    if (f) {
+      wx = f.px + (x - f.px) / K;
+      wz = f.pz + (z - f.pz) / K;
+      if (!(wx > f.zone.x0 + 1 && wx < f.zone.x1 - 1 && wz > f.zone.z0 + 1 && wz < f.zone.z1 - 1)) return false;
+    } else if (inFrame(x, z) || roadGap(x, z) < minGap) return false;
+    // 楼的脚印（BUILDINGS_RAW 是缩之前的）按写的位置查
+    if (inBldg(wx, wz, 0.6)) return false;
+    // 方花池（M8）：缩完 1.4 米见方、0.4 米高的 adobe 矮边（上沿 adobe 自己的亮边），里面碎石 + 一株
+    dput(d.regionOf(wx, wz), 'adobe', box(2.26, 0.65, 2.26, wx, 0, wz));
+    dput(d.regionOf(wx, wz), 'gravelYard', box(1.94, 0.2, 1.94, wx, 0.42, wz));
+    plant(wx, wz, 0.62, kind);
+    block({ x: wx, z: wz, r: 0.75 });
+    placed.push([x, z]);
+    bedN++;
+    return true;
   };
 
-  // 招牌的底色（每家一个）、门的颜色（棕榈泉的彩色门）
-  const SIGN: PalKey[] = ['signBoard', 'carRed', 'seat', 'clothTeal', 'toolOrange', 'clothPurple'];
-  const DOOR: PalKey[] = ['flowerYellow', 'clothTeal', 'toolOrange', 'clothPurple', 'carRed', 'canvasStripe'];
+  // ══ 1. 市中心的地：陶砖铺满（C1）══════════════════════════════════════════
+  // 人行道 = 路两边的陶砖带（陶砖比步道的浅土色暖、饱和，和车道、沙地都分得开）；店前、店间、楼后整块铺一层陶砖底（Y_BASE，
+  // 店的铺面、广场在 Y.pave 往上盖）。底是一整块（比哪个缩放框都大，townWrap 不动它；putFlat 按区域边切开）。
+  // 停车场 = 店自己的 lotPave；车道 = street；住宅前院 = 碎石（south.ts）。沙只留在住宅圈外。
+  const BASE: Box2[] = [
+    // 主街北边、后街南边、两家店之间和楼后（报社西边 G1 那块归 plaza.ts：x 214…228）
+    { x0: 228, x1: 333, z0: -48.2, z1: -5 },
+    // 主街南边西段：车位 + 后面的人行道，一直到后院墙（z 14.2）；横街对面 G4 小广场那段 plaza.ts 往上盖
+    { x0: 214, x1: 341, z0: 5, z1: 14.2 },
+    // 主街南边东段（公园东边到东头）
+    { x0: 476, x1: 612, z0: 5, z1: 14.2 },
+    // 五金门前：x 612 以西 z −8 以北是 hardware.ts 朝主街的花池带（不叠两层）；612 以东铺到停车场的南沿 z −11.7
+    { x0: 612, x1: 626, z0: -11.7, z1: -5 },
+    // 后街东头（第 3 轮）：回车圈、G2 停车场南沿和后街北边人行道之间那条、去校队球场西北门的小径（plaza.ts 的门柱、旗、长椅站在这上面）
+    { x0: 296, x1: 346, z0: -58.7, z1: -55.0 },
+    { x0: 326, x1: 346, z0: -55.0, z1: -47.2 },
+  ];
+  {
+    const pos: number[] = [];
+    for (const r of BASE)
+      pos.push(
+        ...[r.x0, Y_BASE, r.z0, r.x0, Y_BASE, r.z1, r.x1, Y_BASE, r.z0],
+        ...[r.x1, Y_BASE, r.z0, r.x0, Y_BASE, r.z1, r.x1, Y_BASE, r.z1],
+      );
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    g.computeVertexNormals();
+    if (d.putFlat) d.putFlat('tile', g);
+    else put('tile', g, 280, -20);
+  }
+  // 撒点（build.ts 的灌木、大道棕榈）躲开：市中心、主街两边到后院墙、横街、后街、五金门前
+  for (const r of [
+    { x0: 214, x1: 334, z0: -49, z1: -5 },
+    { x0: 214, x1: 628, z0: -12, z1: 14.6 },
+    { x0: 200, x1: 330, z0: -58.5, z1: -45 },
+    { x0: 296, x1: 346, z0: -59, z1: -47 },
+  ])
+    d.clear(r);
 
-  // ══ 1. 市中心的街：人行道、路缘、斑马线 ══════════════════════════════
-  // 人行道 = 路两边各宽 sw 米的陶砖带（陶砖比步道的浅土色暖、饱和，和车道、沙地都分得开）（在路面底下铺一条更宽的带子，路面盖住中间）；路缘 = 路边一条矮石条，遇到横路断开
-  // 塔奎兹路只铺到旧 x 660（市中心这片的东边界；再往东是学校那片，归 detail/east.ts）
-  const DT: Record<string, { sw: number; clip: Box2 }> = {
-    palm_canyon: { sw: 4, clip: SB({ x0: 280, x1: 380, z0: -1100, z1: -775 }) },
-    indian_canyon: { sw: 3, clip: SB({ x0: 380, x1: 440, z0: -1090, z1: -775 }) },
-    tahquitz: { sw: 4, clip: SB({ x0: 268, x1: 659, z0: -930, z1: -880 }) },
-    alejo: { sw: 2.5, clip: SB({ x0: 320, x1: 659, z0: -1030, z1: -980 }) },
-  };
+  // 人行道（陶砖带）+ 路缘
+  // 主街西段（市中心）门前 4.5 米；东段贴学校、公园的 3 米；横街 3 米；后街 2.5 米
+  const DT: { id: string; sw: number; clip: Box2 }[] = [
+    { id: 'main', sw: 4.5, clip: { x0: 214, x1: 333, z0: -20, z1: 20 } },
+    { id: 'main', sw: 3, clip: { x0: 333, x1: 626, z0: -20, z1: 20 } },
+    { id: 'cross', sw: 3, clip: { x0: 260, x1: 290, z0: -140, z1: 0 } },
+    { id: 'back', sw: 2.5, clip: { x0: 200, x1: 400, z0: -60, z1: -40 } },
+  ];
+  /** 主街南边的车位排（车头朝里，盖住那一段人行道）：横街斑马线那段（G4）、公园那段不放 */
+  const PK = { z0: 5.1, z1: 10.6, walk1: 14, stall: 2.6 };
+  const PARK_RUNS: [number, number][] = [
+    [237, 263.4],
+    [285.4, 329],
+    [480, 604],
+  ];
+  const inParkRun = (x: number, z: number) =>
+    z > 4.5 && z < PK.z1 + 0.2 && PARK_RUNS.some(([a, b]) => x > a - 0.2 && x < b + 0.2);
   const runs: { r: Road; pts: V2[]; sw: number }[] = [];
-  for (const [id, { sw, clip: c }] of Object.entries(DT)) {
+  for (const { id, sw, clip: c } of DT) {
     const r = roadById(id);
     for (const pts of clip(r.pts, c)) runs.push({ r, pts, sw });
   }
   for (const { r, pts, sw } of runs) {
     const mid = pts[Math.floor(pts.length / 2)];
     put('tile', ribbon(pts, r.w / 2 + sw, Y.walk), mid[0], mid[1]);
-    // 路缘：两边各一条 0.3 宽、0.1 高；跨过别的路的地方断开
+    // 路缘：两边各一条 0.3 宽、0.1 高；跨过别的路、车位入口的地方断开
     for (const side of [-1, 1]) {
       const edge = offsetLine(pts, side * (r.w / 2 + 0.1));
       runsAlong(
         edge,
-        (x, z) => roadGap(x, z, r) > 0.4,
+        (x, z) => roadGap(x, z, r) > 0.4 && !inParkRun(x, z),
         (a, b) => {
           const L = Math.hypot(b[0] - a[0], b[1] - a[1]);
           const cx = (a[0] + b[0]) / 2;
@@ -500,7 +610,8 @@ export function detailTown(d: DetailCtx): void {
       );
     }
   }
-  // 斑马线：两条路的交点，每条路在交点两边各一道（那边有路才画）
+
+  // 斑马线：两条路的交点，每条路在交点两边各一道（那边有路才画）；斑马线外 1 米一道 2 纹素的停止线（只拦驶向路口的那半边）
   const tangentAt = (r: Road, x: number, z: number): V2 => {
     let best = Number.POSITIVE_INFINITY;
     let t: V2 = [0, 1];
@@ -518,10 +629,8 @@ export function detailTown(d: DetailCtx): void {
   };
   const crossings: V2[] = [];
   for (const [ia, ib] of [
-    ['palm_canyon', 'tahquitz'],
-    ['indian_canyon', 'tahquitz'],
-    ['palm_canyon', 'alejo'],
-    ['indian_canyon', 'alejo'],
+    ['cross', 'main'],
+    ['cross', 'back'],
   ] as const) {
     const A = roadById(ia);
     const B = roadById(ib);
@@ -548,314 +657,363 @@ export function detailTown(d: DetailCtx): void {
         const rot = Math.atan2(t[0], t[1]);
         for (let u = -R.w / 2 + 0.9; u <= R.w / 2 - 0.6; u += 1.3)
           flat('line', 0.65, 2.8, cx + n[0] * u, Y.zebra, cz + n[1] * u, rot);
+        // 停止线：斑马线再往外 1 米；车往路口开（方向 −s·t），右手边那半条车道（世界里右手 = (−dz, dx)）
+        const o = O.w / 2 + 2.4 + 1.4 + 0.9;
+        const sx = P[0] + t[0] * s * o;
+        const sz = P[1] + t[1] * s * o;
+        const dir: V2 = [-s * t[0], -s * t[1]];
+        const right: V2 = [-dir[1], dir[0]];
+        const span = R.w / 2 - 0.7;
+        // 沿路方向 2 纹素：东西向的路 → 停止线在屏幕上是竖的（2 纹素 x）；南北向 → 横的（2 屏幕行 z）
+        const thick = Math.abs(t[0]) > 0.7 ? 2 * TX : 2 * ROWZ;
+        const ux = sx + right[0] * (0.3 + span / 2);
+        const uz = sz + right[1] * (0.3 + span / 2);
+        flat('lotPaint', span, thick, ux, Y_MARK, uz, rot);
       }
     }
   }
   const nearCrossing = (x: number, z: number, r: number) => crossings.some((p) => Math.hypot(p[0] - x, p[1] - z) < r);
 
-  // ══ 1b. 三家办事的楼：报社、体育用品店、五金大超市 —— 搬到 detail/sites/（paper.ts、sports.ts、hardware.ts，2026-11-16 美术关卡 2）══
-  // 它们在 town 之前跑；这里只把院子（layout.ts 的 SITES）和它们占的地（报箱那一条……）记进 taken，街边家具躲开。
-  // 原来第 1b 节在这里取了 153 个随机数（停车场的车、绿岛的棕榈）：跳过同样多，town 后面的东西（招牌颜色、车棚……）一个数不差。
+  // ══ 1b. 六家店（detail/sites/）在 town 之前跑；这里只把院子（layout.ts 的 SITES）和它们占的地记进 taken，街边家具躲开 ══
   for (const s of SITES) claim(s);
   for (const r of siteState(d).claims) taken.push(r);
-  for (let k = 0; k < 153; k++) rnd();
 
-  // ══ 2. 主角：喷泉广场、小巷、市政厅背后、老酒店草坪和表演赛场、酒店前院、咖啡馆露天座 ═══
-  const cityhall = BUILDINGS.find((o) => o.id === 'cityhall') as Bldg;
-  const hotel = BUILDINGS.find((o) => o.id === 'hotel_old') as Bldg;
-  const cafe = BUILDINGS.find((o) => o.id === 'cafe') as Bldg;
-  // 喷泉广场、市政厅背后的石板路、门前前庭：2026-11-18 搬到 sites/cityhall.ts（市政厅的代理），跟着缩完的楼重新摆。
-  // 原来这三块取了 5 个随机数（广场的 5 棵棕榈）：跳过同样多，后面的东西一个数不差
-  for (let k = 0; k < 5; k++) rnd();
+  // ══ 1c. 路面（C14 / M1）：主街双黄中线、横街黄虚线、补丁、停止线、井盖（磨痕试过：低一级看不出来，省一个绘制） ══════════════
   {
-    // 老酒店草坪：酒店和市政厅之间，一块草地 + 一片表演赛场（东西向）+ 北边一排看台（正面朝镜头）。
-    // 范围跟着两栋楼走（南北按缩过的间距），压到楼 / 路就收边；放不下的东西不放（球场要 34 × 19，看台再要 9 米）
-    const LW = fit(
-      {
-        x0: hotel.x + hotel.w / 2 + 2,
-        x1: cityhall.x - cityhall.w / 2 - 6,
-        z0: cityhall.z - 40 * SCALE,
-        z1: cityhall.z + 11 * SCALE,
-      },
-      14,
-      10,
-    );
-    dbgPlaced.lawn = LW;
-    if (LW) {
-      claim(LW);
-      const W = LW.x1 - LW.x0;
-      const D = LW.z1 - LW.z0;
-      const cx = (LW.x0 + LW.x1) / 2;
-      flat('lawn', W, D, cx, Y.pave, (LW.z0 + LW.z1) / 2);
-      // 球场靠南放（南边留 5 米给伞），看台在它北边
-      // 场边（17 米深）放不下就收到草坪深度 − 0.8（最少 15）；南边够 5 米才放伞
-      const court = W >= 34 && D >= 15;
-      const sd = Math.min(17, D - 0.8);
-      const roomy = D >= 23;
-      const stands = court && D >= 28.5;
-      const cz = court ? (roomy ? LW.z1 - 5 - 8.5 : (LW.z0 + LW.z1) / 2) : 0;
-      if (court) {
-        flat('surround', 33, sd, cx, Y.pave2, cz);
-        flat('court', 23.77, 10.97, cx, Y.pave3, cz);
-        // 线（2 纹素以上宽）：底线、单双打边线、发球线、中线
-        const L = (w: number, dd: number, x: number, z: number) => flat('line', w, dd, x, Y.pave4, z);
-        for (const s of [-1, 1]) {
-          L(0.12, 10.97, cx + s * 11.885, cz);
-          L(23.77, 0.12, cx, cz + s * 5.485);
-          L(23.77, 0.1, cx, cz + s * 4.115);
-          L(0.1, 8.23, cx + s * 6.4, cz);
-        }
-        L(12.8, 0.1, cx, cz);
-        // 网：两根柱子 + 一条暗带（不画网眼）+ 白边
-        for (const s of [-1, 1]) bx('ironwork', 0.16, 1.07, 0.16, cx, 0, cz + s * 6.4);
-        bx('net', 0.06, 0.9, 12.8, cx, 0.08, cz);
-        bx('netTape', 0.1, 0.08, 12.8, cx, 0.98, cz);
-        block({ a: [cx, cz - 6.5], b: [cx, cz + 6.5], r: 0.2 });
+    const main = roadById('main');
+    // 中线断开的地方：路口（横街 274.4、公园西路 336、学校车道 450、五金进口 520.5）和东头的岔口
+    const GAPS: [number, number][] = [
+      [263.9, 284.9],
+      [329, 343],
+      [442, 458],
+      [515, 526],
+    ];
+    const x0 = 214;
+    const x1 = 604;
+    const segs: [number, number][] = [];
+    let a = x0;
+    for (const [g0, g1] of GAPS) {
+      if (g0 > a) segs.push([a, g0]);
+      a = g1;
+    }
+    segs.push([a, x1]);
+    // 双黄线：各 2 屏幕行、中间隔 2 屏幕行（每条正好盖 2 个像素中心，不会时有时无）
+    for (const [s0, s1] of segs)
+      for (const zc of [-1.5 * ROWZ, 1.5 * ROWZ]) {
+        const L = s1 - s0;
+        cput('yellow', plane(L, 2 * ROWZ, (s0 + s1) / 2, Y_MARK, zc), (s0 + s1) / 2, zc);
       }
-      if (stands) {
-        // 看台：北边三级（朝南，正面是暗带）
-        const sz = cz - 8.5 - 2.2;
-        for (let k = 0; k < 3; k++) {
-          bx('wood', 14, 0.45 * (k + 1), 1.0, cx, 0, sz - k * 1.0 + 1.0);
-          bx('seat', 14, 0.1, 0.5, cx, 0.45 * (k + 1), sz - k * 1.0 + 1.15);
-        }
-        blockRect(cx, sz, 14.2, 3.2);
-      }
-      // 草坪南边：几把遮阳伞 + 躺椅（酒店的客人），放得下几把放几把
-      for (let k = 0; k < 3; k++) {
-        const x = LW.x0 + 6 + k * 9;
-        const z = LW.z1 - 3.2;
-        if (x + 2.5 > LW.x1 || D < 7 || (court && !roomy)) break;
-        bx('wood', 0.14, 2.3, 0.14, x, 0, z);
-        const key: PalKey = k % 2 ? 'fabricStripe' : 'canvasStripe';
-        put(key, new THREE.ConeGeometry(1.5, 0.5, 8).translate(x, 2.35, z), x, z);
-        bx('clothWhite', 0.7, 0.3, 1.8, x + 1.3, 0, z + 0.2);
-        block({ x, z, r: 0.4 });
-        blockRect(x + 1.3, z + 0.2, 0.8, 1.9);
-      }
-      // 草坪北沿一道矮绿篱（暗带）：碰到楼就断开；看台占了北沿就不种
-      if (!stands || cz - 8.5 - 4.5 > LW.z0 + 1.5)
-        runsAlong(
-          [
-            [LW.x0 + 2, LW.z0 + 0.6],
-            [LW.x1 - 2, LW.z0 + 0.6],
-          ],
-          (x, z) => !inBldg(x, z, 0.8),
-          (a, b) => {
-            const len = b[0] - a[0];
-            if (len < 2) return;
-            bx('olive', len, 0.8, 0.9, (a[0] + b[0]) / 2, 0, a[1]);
-            blockRect((a[0] + b[0]) / 2, a[1], len, 1);
-          },
+    // 补丁：30～40 米一块，两条车道轮流，硬边、低一级；不压中线
+    const prnd = d.rng('valley:town:patches');
+    let lane = 1;
+    for (let x = x0 + 12; x < x1 - 6; x += 30 + prnd() * 10) {
+      if (GAPS.some(([g0, g1]) => x > g0 - 4 && x < g1 + 4)) continue;
+      const w = 1.6 + prnd() * 1.8;
+      const dz = 1.1 + prnd() * 1.4;
+      const zc = lane * (0.45 + dz / 2 + prnd() * 1.4);
+      cput('patch', plane(w, dz, x, Y_PATCH, zc), x, zc);
+      lane = -lane;
+    }
+    // 横街：黄虚线中线（2 纹素宽，段 1.5 米、隔 2 米；两头让开斑马线和停止线）
+    for (let z = -12.5; z > -41.5; z -= 3.5) cput('yellow', plane(2 * TX, 1.5, 274.4, Y_MARK, z - 0.75), 274.4, z);
+    // 横街、后街：各两块补丁
+    for (const [x, z, w, dz] of [
+      [272.2, -24, 2.2, 1.6],
+      [276.6, -36.5, 1.8, 2.4],
+      [236, -50.2, 2.6, 1.4],
+      [304, -53.0, 2.0, 1.6],
+    ] as const)
+      cput('patch', plane(w, dz, x, Y_PATCH, z), x, z);
+    // 井盖：车道正中、约 55 米一个，两条车道轮流（1 纹素亮边：亮的一圈 + 里面一块暗铁）
+    let side = -1;
+    for (let x = 240; x < x1; x += 52 + prnd() * 8) {
+      if (GAPS.some(([g0, g1]) => x > g0 - 3 && x < g1 + 3)) continue;
+      const zc = side * 2.6;
+      const r = 0.42;
+      put('lotPaint', new THREE.CircleGeometry(r, 14).rotateX(-Math.PI / 2).translate(x, Y_MARK, zc), x, zc);
+      d.putThin?.(
+        d.regionOf(x, zc),
+        'ironwork',
+        new THREE.CircleGeometry(r - TX, 14).rotateX(-Math.PI / 2).translate(x, Y_MARK + 0.004, zc),
+      );
+      side = -side;
+    }
+    void main;
+  }
+
+  // ══ 1d. 主街南边：店的对面一排车位（M13 / M14）══════════════════════════════
+  // 车头朝里的直车位贴着路缘（z 5.1…10.6，盖住那一段的人行道），车位后面 3.4 米人行道（z 10.6…14），再往南是后院墙。
+  // 每格一条 2 纹素的平漆线（芥末黄，不要凸起的隔条；地是 lotPave）；车位后沿一条矮路缘（暗带）。车按小镇的比例（缩完 1.24 × 3 米），六种颜色轮流。
+  {
+    const crnd = d.rng('valley:town:parking:cars');
+    let lastColor = -1;
+    let carN = 0;
+    for (const [x0, x1] of PARK_RUNS) {
+      const n = Math.floor((x1 - x0) / PK.stall);
+      const xa = (x0 + x1) / 2 - (n * PK.stall) / 2;
+      const xb = xa + n * PK.stall;
+      // 车位的地 = 停车场的暖铺面 lotPave（lead 定的：停车场一律 lotPave；第 3 轮从 street 换过来，主街中饱和度 0.38）
+      flat('lotPave', xb - xa, PK.z1 - PK.z0, (xa + xb) / 2, 0.03, (PK.z0 + PK.z1) / 2);
+      for (let k = 0; k <= n; k++)
+        // 车位线：芥末黄（同中线，lotPave 的板缝是 1 纹素的浅缝，奶油漆线混在里面分不出来）
+        cput(
+          'yellow',
+          plane(2 * TX, PK.z1 - PK.z0 - 0.8, xa + k * PK.stall, Y_MARK, (PK.z0 + PK.z1) / 2 + 0.4),
+          xa + k * PK.stall,
+          (PK.z0 + PK.z1) / 2,
         );
-    }
-  }
-  {
-    // 酒店前院：南门口的石板地、门廊（红瓦顶 + 四根柱）、两棵花池里的棕榈
-    const f = southOf(hotel);
-    const F = fit(
-      { x0: hotel.x - hotel.w / 2 - 4, x1: hotel.x + hotel.w / 2 + 2, z0: f.oz + 0.05, z1: f.oz + 15 },
-      14,
-      6,
-      0,
-    );
-    if (F) {
-      claim(F);
-      flat('flagstone', F.x1 - F.x0, F.z1 - F.z0, (F.x0 + F.x1) / 2, Y.pave, (F.z0 + F.z1) / 2);
-      const px = hotel.x - 8;
-      if (F.z1 - f.oz > 7.5 && px - 5.5 > F.x0 && px + 5.5 < F.x1) {
-        for (const [dx, dz] of [
-          [-4.5, 1],
-          [4.5, 1],
-          [-4.5, 5.6],
-          [4.5, 5.6],
-        ] as const) {
-          bx('stucco', 0.45, 3.6, 0.45, px + dx, 0, f.oz + dz);
-          block({ x: px + dx, z: f.oz + dz, r: 0.35 });
-        }
-        bx('roofTile', 10.6, 0.4, 7.2, px, 3.6, f.oz + 3.3);
-        bx('clothRed', 10.7, 0.25, 7.3, px, 3.5, f.oz + 3.3);
+      bx('concrete', xb - xa, 0.12, 0.25, (xa + xb) / 2, 0, PK.z1);
+      for (let k = 0; k < n; k++) {
+        if (crnd() > 0.6) continue;
+        const x = xa + (k + 0.5) * PK.stall;
+        let c = Math.floor(crnd() * CARS.length);
+        if (c === lastColor) c = (c + 1 + Math.floor(crnd() * (CARS.length - 1))) % CARS.length;
+        lastColor = c;
+        // 七成车头朝里（南）
+        const rot = crnd() < 0.7 ? 0 : Math.PI;
+        car(x, (PK.z0 + PK.z1) / 2 + 0.2, rot, c);
+        carN++;
       }
-      if (F.z1 - f.oz > 9)
-        for (const x of [hotel.x + 3, hotel.x + 14]) {
-          if (x + 1.5 > F.x1) continue;
-          addInst('potRound', { x, z: f.oz + 7, s: 1, reg: d.regionOf(x, f.oz + 7) });
-          palm(x, f.oz + 7, 1.15, 0.5);
-          block({ x, z: f.oz + 7, r: 1.3 });
-        }
+      taken.push({ x0, x1, z0: PK.z0, z1: PK.z1 });
+      block({ x0: xa, x1: xb, z0: PK.z0, z1: PK.z1 - 0.2 });
     }
+    dbgPlaced.cars = carN;
   }
+  /** 一辆车（最终尺寸 = 原尺寸 × K，绕落地点；车头朝本地 +z） */
+  function car(x: number, z: number, rot: number, color: number) {
+    const col = (g: THREE.BufferGeometry, hex: number) => {
+      const c = new THREE.Color(hex);
+      const n = g.attributes.position.count;
+      g.setAttribute(
+        'color',
+        new THREE.Float32BufferAttribute(
+          new Array(n).fill(0).flatMap(() => [c.r, c.g, c.b]),
+          3,
+        ),
+      );
+      return g;
+    };
+    const parts: THREE.BufferGeometry[] = [
+      col(box(2.0, 0.66, 4.8, 0, 0.28, 0).toNonIndexed(), CARS[color].body[0]),
+      col(box(1.8, 0.1, 1.94, 0, 1.36, -0.35).toNonIndexed(), CARS[color].roof[0]),
+    ];
+    // 车身 + 车顶（顶点色、一个材质）都归 town（车位排西头那几格在俱乐部的区域里：一辆车不值得多一组网格）
+    for (const g of parts) {
+      g.scale(K, K, K).rotateY(rot).translate(x, 0, z);
+      cput('car', g, x, z, 'town');
+    }
+    // 底盘、玻璃进区域桶（ironwork、silverBlue）：照原尺寸写在各自的中心，townWrap 绕中心缩 K（中心先按 K 挪好）
+    const at = (dz: number): [number, number] => [x + Math.sin(rot) * dz * K, z + Math.cos(rot) * dz * K];
+    const [tx, tz] = at(0);
+    put('ironwork', rbox(1.84, 0.3, 3.9, tx, 0, tz, rot), tx, tz);
+    const [gx, gz] = at(-0.25);
+    put('silverBlue', rbox(1.74, 0.42, 2.5, gx, 0.94, gz, rot), gx, gz);
+  }
+
+  // ══ 2. 后院墙（C5）：车位后人行道的南沿一道连续的墙 ══════════════════════════
+  // 土坯灰泥墙（adobe：和花池一家，暗面梅紫、有夯土层元素；缩完 1.5 米）+ 压顶，每 7 米灰泥后一段 4.6 米花砖（镂空：一格一格的暗洞）；接缝一根方墩。
+  // 墙头几处搭九重葛。G4 小广场那段（横街对面）、公园西路、公园门口断开。墙朝南的面（院子那边）是画面上的暗带。
   {
-    // 咖啡馆露天座：咖啡馆朝棕榈谷大道那面和大道之间的空地
-    const r = roadById('palm_canyon');
-    const x1 = cafe.x - cafe.w / 2 - 0.5;
-    // 西沿 = 大道路缘外 0.6 米（从咖啡馆往西走到那里；原来写死 x 332）
-    let x0 = x1;
-    while (x0 > x1 - 40 && distToLine(r.pts, x0 - 0.25, cafe.z) - r.w / 2 > 0.6) x0 -= 0.25;
-    let z0 = cafe.z + cafe.d / 2;
-    let z1 = cafe.z - cafe.d / 2 - 8;
-    // 南北收到两边的店之间
-    while (z0 > z1 + 4 && !rectFree((x0 + x1) / 2, z0 - 0.5, x1 - x0, 1, 0, 0.2)) z0 -= 1;
-    while (z1 < z0 - 4 && !rectFree((x0 + x1) / 2, z1 + 0.5, x1 - x0, 1, 0, 0.2)) z1 += 1;
-    const P: Box2 = { x0, x1, z0: z1, z1: z0 };
-    if (z0 - z1 >= 6 && x1 - x0 >= 5 && x0 > x1 - 39 && !boxBad(P, 0.2, true).length) {
-      claim(P);
-      flat('flagstone', x1 - x0, z0 - z1, (x0 + x1) / 2, Y.pave, (z0 + z1) / 2);
-      // 朝路一排花槽（中间留口）
-      for (let z = z1 + 1; z <= z0 - 1; z += 2.2) {
-        if (Math.abs(z - (z0 + z1) / 2) < 1.4) continue;
-        planter(x0 + 0.7, z, rnd() < 0.4);
-      }
-      // 桌子 + 条纹伞 + 椅子
-      let k = 0;
-      // 一排错开半格（原来一格一格对齐，像棋盘）
-      let row = 0;
-      for (let z = z1 + 2.6; z <= z0 - 2.4; z += 4.2, row++)
-        for (let x = x0 + 3.2 + (row % 2) * 1.9; x <= x1 - 1.5; x += 3.8) {
-          bx('clothWhite', 1.0, 0.1, 1.0, x, 0.72, z);
-          bx('ironwork', 0.14, 0.72, 0.14, x, 0, z);
-          bx('ironwork', 0.5, 0.5, 0.5, x - 0.9, 0, z);
-          bx('ironwork', 0.5, 0.5, 0.5, x + 0.9, 0, z);
-          bx('wood', 0.12, 2.4, 0.12, x, 0.82, z);
-          const key: PalKey = k++ % 2 ? 'canvasStripe' : 'fabricStripe';
-          put(key, new THREE.ConeGeometry(1.45, 0.45, 8).translate(x, 2.85, z), x, z);
-          blockRect(x, z, 2.4, 1.0);
+    const WZ = 14.4;
+    const H = 1.5 / K;
+    const T = 0.3;
+    const wrnd = d.rng('valley:town:wall');
+    const SEGS: [number, number][] = [
+      [232, 263.4],
+      [285.4, 331],
+      [478, 609],
+    ];
+    /** 花砖一格：缩完 7 纹素宽、4 屏幕行高；洞 3.5 纹素 × 2 行（长墙不缩长度，只压低：高度写 /K） */
+    const CW = 7 * TX;
+    const CH = (4 * ROWZ) / K;
+    // 墙后（院子那边）一条碎石：住宅把离这道墙 < 2.5 米的院子北墙删掉、用这道墙封口，中间不留沙缝（第 3 轮）
+    for (const [s0, s1] of SEGS) {
+      const g = new THREE.PlaneGeometry(s1 - s0, 3.2)
+        .rotateX(-Math.PI / 2)
+        .translate((s0 + s1) / 2, 0.006, WZ + 0.15 + 1.6);
+      if (d.putFlat) d.putFlat('gravelYard', g);
+      d.clear({ x0: s0, x1: s1, z0: WZ, z1: WZ + 3.4 });
+    }
+    for (const [s0, s1] of SEGS) {
+      let x = s0;
+      let breeze = false;
+      while (x < s1 - 1) {
+        // 一段 ≥ 4.6 米（townWrap 把 < 4.5 米的一块当小件缩短，接缝会断）：末尾剩不到 4.6 米就并进这一段
+        let L = breeze ? 4.6 : 7;
+        if (s1 - (x + L) < 4.6) L = s1 - x;
+        const cx = x + L / 2;
+        const reg = d.regionOf(cx, WZ);
+        if (breeze) {
+          // 花砖段：墙身 breezeBlock（元素是一块块砖），朝南的面上一格一格的暗洞（合成一块几何，和墙一样长）
+          dput(reg, 'breezeBlock', box(L, H - 0.2, T, cx, 0, WZ));
+          const holes: THREE.BufferGeometry[] = [];
+          const nx = Math.floor((L - 0.3) / CW);
+          const ny = Math.floor((H - 0.2 - 0.45) / CH);
+          for (let i = 0; i < nx; i++)
+            for (let j = 0; j < ny; j++)
+              holes.push(
+                new THREE.PlaneGeometry(3.5 * TX, CH / 2).translate(
+                  cx - (nx * CW) / 2 + (i + 0.5) * CW,
+                  0.35 + (j + 0.5) * CH,
+                  WZ + T / 2 + 0.01,
+                ),
+              );
+          const hg = mergeGeometries(holes.map((g) => prepG(g)));
+          if (hg) dput(reg, 'ironwork', hg);
+        } else dput(reg, 'adobe', box(L, H - 0.2, T, cx, 0, WZ));
+        // 压顶（伸出 3 厘米）
+        dput(reg, 'cap', box(L + 0.06, 0.2, T + 0.1, cx, H - 0.2, WZ));
+        // 方墩（段与段的接缝）
+        if (x > s0) dput(reg, 'cap', box(0.5, H + 0.15, 0.48, x, 0, WZ));
+        // 九重葛：灰泥段一半搭一丛（墙头 + 往北垂下来）
+        if (!breeze && L >= 5 && wrnd() < 0.55) {
+          const bxp = cx + (wrnd() - 0.5) * (L - 2.5);
+          // 实例的 y 跟着乘 K：写缩之前的高度（墙头往下埋一点）
+          plant(bxp, WZ - 0.25, (1.5 - 0.4) / K, 2, 1.25);
         }
-      // 门口的小黑板
-      bx('ironwork', 0.7, 1.0, 0.25, x0 + 1.8, 0, (z0 + z1) / 2 + 0.6);
+        block({ x0: x, x1: x + L, z0: WZ - T / 2 - 0.1, z1: WZ + T / 2 + 0.1 });
+        x += L;
+        breeze = !breeze;
+      }
     }
   }
 
-  // ══ 3. 停车场（店后面）：沥青 + 车位线 + 几辆车 + 角上一棵棕榈 ═══════
-  const lot = (L: Box2, carsN: boolean) => {
-    // 车位：carsN = 车头朝南北（车位沿 x 排成行），否则朝东西
-    const W = L.x1 - L.x0;
-    const D = L.z1 - L.z0;
-    claim(L);
-    // 浅色水泥地（沙漠里的停车场多是水泥；整片灰沥青在正午是一大块灰，饱和度 0.16）
-    flat('concrete', W, D, (L.x0 + L.x1) / 2, Y.pave, (L.z0 + L.z1) / 2);
-    // 行：车位 5.5 深、通道 6.5；背靠背的两行中间夹一条 2.4 米的绿化带（草 + 棕榈 + 灌木）：S A S | S A S | S …
-    // （原来一整片灰沥青 + 一格格白线，正午饱和度 0.16）
-    const across = carsN ? D : W;
-    const rows: number[] = [];
-    const islands: number[] = [];
-    let pos = 0;
-    while (pos + 5.5 <= across) {
-      rows.push(pos + 2.75);
-      pos += 5.5;
-      if (rows.length % 2 === 1) pos += 6.5;
-      else if (pos + 2.4 + 5.5 <= across) {
-        islands.push(pos + 1.2);
-        pos += 2.4;
-      }
-    }
-    const len = carsN ? W : D;
-    const nStall = Math.floor((len - 1) / 2.8);
-    const off = (len - nStall * 2.8) / 2;
-    rows.forEach((rr, ri) => {
-      // 行朝哪边开进来：偶数行车头朝 +，奇数行朝 −
-      const face = ri % 2 === 0 ? 1 : -1;
-      for (let k = 0; k <= nStall; k++) {
-        const a = off + k * 2.8;
-        if (carsN) flat('line', 0.15, 5.0, L.x0 + a, Y.pave2, L.z0 + rr);
-        else flat('line', 5.0, 0.15, L.x0 + rr, Y.pave2, L.z0 + a);
-        if (k === nStall || rnd() > 0.65) continue;
-        const b = a + 1.4;
-        if (carsN) car(L.x0 + b, L.z0 + rr, face > 0 ? 0 : Math.PI);
-        else car(L.x0 + rr, L.z0 + b, face > 0 ? Math.PI / 2 : -Math.PI / 2);
-      }
-    });
-    for (const c of islands) {
-      const il = len - 2;
-      const ix = carsN ? (L.x0 + L.x1) / 2 : L.x0 + c;
-      const iz = carsN ? L.z0 + c : (L.z0 + L.z1) / 2;
-      flat('lawn', carsN ? il : 2.4, carsN ? 2.4 : il, ix, Y.pave2, iz);
-      for (const s2 of [-1, 1]) {
-        if (carsN) bx('cap', il, 0.15, 0.2, ix, 0, iz + s2 * 1.2);
-        else bx('cap', 0.2, 0.15, il, ix + s2 * 1.2, 0, iz);
-      }
-      blockRect(ix, iz, carsN ? il : 2.6, carsN ? 2.6 : il);
-      // 棕榈：间隔 10～15 米不等；中间夹几丛灌木
-      for (let u = 3 + rnd() * 3; u < il - 2; u += 10 + rnd() * 5) {
-        const px = carsN ? L.x0 + 1 + u : ix;
-        const pz = carsN ? iz : L.z0 + 1 + u;
-        palm(px, pz, 0.85 + rnd() * 0.25);
-        const v = u + 4 + rnd() * 2;
-        if (v < il - 2) {
-          const wx = carsN ? L.x0 + 1 + v : ix;
-          const wz = carsN ? iz : L.z0 + 1 + v;
-          addInst('weed', { x: wx, z: wz, s: 1.1 + rnd() * 0.4, rot: rnd() * 6, reg: d.regionOf(wx, wz) });
+  // ══ 3. 行道棕榈 + 路灯（M6 / C3）：同一条线交替 —— 棕榈 18 米一棵，灯在两棵中间；两边错开半格 ══════════
+  // 线在路缘里侧 1 米（北边 z −6；南边车位那几段在车位后的人行道上 z 12.3，公园那段 z 6）。躲开斑马线、店门、岔路口、车位。
+  {
+    const main = roadById('main');
+    const DOORS = [249, 292.6, 325.6];
+    const okAt = (x: number, z: number) =>
+      !nearCrossing(x, z, 10.5) &&
+      roadGap(x, z, main) > 0.9 &&
+      !inBldg(x, z, 0.8) &&
+      !inParkRun(x, z) &&
+      !near(x, z, 2.2) &&
+      !(z < 0 && DOORS.some((dx) => Math.abs(dx - x) < 2.6));
+    const lineZ = (side: number, x: number) => {
+      if (side < 0) return -6;
+      if (x > 341 && x < 476) return 6.1;
+      return 12.3;
+    };
+    for (const side of [-1, 1]) {
+      const xEnd = side < 0 ? 625 : 607;
+      for (let s = side < 0 ? 0 : 9; 216 + s < xEnd; s += 9) {
+        const x = 216 + s;
+        // 南边 G4 小广场那段（横街对面，plaza.ts）不放
+        if (side > 0 && x > 262 && x < 287.5) continue;
+        const z = lineZ(side, x);
+        if (!okAt(x, z)) {
+          // 挪一两米再试（躲店门、岔路口）
+          const alt = [1.8, -1.8, 3.2, -3.2].map((dx) => x + dx).find((xx) => okAt(xx, z));
+          if (alt === undefined) continue;
+          if ((s / 9) % 2 === (side < 0 ? 0 : 1)) palm(alt, z);
+          else lamp(alt, z, side < 0 ? 0 : Math.PI);
+          continue;
         }
+        const isPalm = (s / 9) % 2 === (side < 0 ? 0 : 1);
+        if (isPalm) {
+          // 棕榈两边 4.5 米（棕榈和灯中间）各一个九重葛方花池：人行道上的颜色（第 3 轮）
+          if (palm(x, z)) for (const dx of [-4.5, 4.5]) if (okAt(x + dx, z)) flowerBox(x + dx, z);
+        } else lamp(x, z, side < 0 ? 0 : Math.PI);
       }
     }
-    // 角上一棵棕榈 + 一盏灯
-    palm(L.x1 - 1.2, L.z0 + 1.2, 0.95);
-    lamp(L.x0 + 1, L.z1 - 1, carsN ? Math.PI : Math.PI / 2);
-  };
-  // 位置是缩之前量的（过 S），大小按缩过的间距收：压到楼 / 路就收边，比 14 × 12 还小就不铺
-  for (const [b, n] of [
-    // 原来"超市的停车场"（464…538, −873…−818）那块现在是五金大超市（第 1b 节）
-    [{ x0: 359, x1: 390, z0: -978, z1: -952 }, false], // 咖啡馆背后
-    [{ x0: 371, x1: 390, z0: -874, z1: -827 }, false], // 银行背后
-    [{ x0: 283, x1: 307, z0: -877, z1: -846 }, false], // 超市背后（原来的五金店）
-  ] as const) {
-    const L = fit(SB(b), 14, 12, 0.4);
-    dbgPlaced[`lot${Object.keys(dbgPlaced).length}`] = L;
-    if (L) lot(L, n);
   }
 
-  // ══ 4. 街边：路灯（路缘里侧）、长椅、花槽、垃圾桶 —— 只放在店面之间的空当里 ═══
+  // ══ 4. 横街（C9）：两排棕榈（8 米一棵、两边对齐，方树坑）+ 树坑间的长花槽（花槽里的路灯）+ 路口大花盆 ══════════
+  // 后街北边市政厅门口：横街轴线两边一对高灯柱（框住钟塔）
   {
-    const palms: V2[] = [];
-    for (const r of ROADS)
-      if (r.kind === 'avenue')
-        for (const [, p, t] of along(r.pts, 18))
-          for (const side of [-1, 1])
-            palms.push([p[0] - t[1] * side * (r.w / 2 + 2.2), p[1] + t[0] * side * (r.w / 2 + 2.2)]);
-    const nearPalm = (x: number, z: number, r: number) => palms.some((p) => Math.hypot(p[0] - x, p[1] - z) < r);
-    const placed: V2[] = [];
-    const clear = (x: number, z: number, r: Road, pad: number) =>
-      !inBldg(x, z, pad) &&
-      roadGap(x, z, r) > 3 &&
-      !nearCrossing(x, z, 9) &&
-      !inTaken(x, z, 0.6) &&
-      !nearPalm(x, z, 1.6) &&
-      !placed.some((p) => Math.hypot(p[0] - x, p[1] - z) < 2.2);
+    const W = 274.4 - 5 - 1.0;
+    const E = 274.4 + 5 + 1.0;
+    for (const x of [W, E]) {
+      for (const z of [-13, -21, -29, -37]) palm(x, z);
+      for (const z of [-17, -25, -33]) {
+        // 长花槽：adobe 沿 0.9 宽 + 碎石；长 4.6 米 ≥ LONG_M = "长条"，townWrap 只压低（高度写 /K），长度不缩。
+        // 银行 drive-up 从横街东边进来（z −18.5）：压到那条车道的不放
+        if (roadGap(x, z - 2.3) < 0.2 || roadGap(x, z + 2.3) < 0.2 || roadGap(x, z) < 0.2) continue;
+        put('adobe', box(0.9, 0.55, 4.6, x, 0, z), x, z);
+        put('gravelYard', box(0.72, 0.2, 4.6, x, 0.36, z), x, z);
+        for (const dz of [-1.5, 1.5]) plant(x, z + dz, 0.56, dz < 0 ? 2 : 1, 0.85);
+        block({ x0: x - 0.35, x1: x + 0.35, z0: z - 2.3, z1: z + 2.3 });
+        placed.push([x, z]);
+        // 花槽正中立一盏灯（−17、−33）
+        if (z !== -25) lamp(x, z, x < 274.4 ? Math.PI / 2 : -Math.PI / 2);
+      }
+    }
+    // 路口四角的大花盆：主街口两角、后街口两角（各一棵小棕榈或一丛龙舌兰 + 九重葛）
+    for (const [x, z, k] of [
+      [264.9, -8.4, 0],
+      [283.9, -8.4, 1],
+      // 后街口两角：报社、银行的缩放框边上让开（放进框里会被挪向店门）
+      [267.4, -44.2, 1],
+      [281.0, -44.2, 0],
+    ] as const) {
+      if (inFrame(x, z)) continue;
+      // 大圆花盆（缩完半径 0.75 米）
+      const reg = d.regionOf(x, z);
+      dput(reg, 'adobe', new THREE.CylinderGeometry(1.2, 1.05, 0.9, 12).translate(x, 0.45, z));
+      dput(reg, 'gravelYard', new THREE.CylinderGeometry(1.05, 1.05, 0.2, 12).translate(x, 0.78, z));
+      if (k === 0) {
+        bake(reg, PALM, x, 0.95, z, 0.55, rnd() * 6);
+      } else {
+        plant(x - 0.2, z, 0.98, 1, 1.1);
+        plant(x + 0.35, z + 0.25, 0.98, 2, 0.8);
+      }
+      block({ x, z, r: 0.8 });
+      placed.push([x, z]);
+    }
+    // 市政厅门口的一对高灯柱：后街北边的人行道上，横街轴线两边
+    for (const x of [268.4, 280.4]) lamp(x, -56.6, 0, 1.4);
+  }
+
+  // ══ 5. 店间、楼后的方花池（C1 / M8）：8～12 米一个 ══════════════════════════
+  {
+    const spots: V2[] = [
+      // 报社和横街之间（报社东墙 256.5 …… 横街人行道 266.4）：报社的缩放框里，只够得着贴墙那 3 米（x ≤ 259.5、z ≥ −41.4）
+      [258.6, -20],
+      [258.6, -29.5],
+      [258.6, -39],
+      // 报社、印刷车间后面、银行西边那条也在缩放框里、反算出框（只铺陶砖；要摆东西得在 sites/paper.ts、bank.ts 里写）
+      // 主街南边，车位排的两头（人行道上）
+      [238.5, 12.3],
+      [479.5, 12.3],
+      [606.5, 12.3],
+    ];
+    const why: string[] = [];
+    for (const [x, z] of spots) {
+      const r = [inTaken(x, z, 0.6) && 'taken', roadGap(x, z) <= 0.9 && 'road', near(x, z, 1.8) && 'near'].filter(
+        Boolean,
+      );
+      if (r.length || !bed(x, z)) why.push(`${x},${z}:${r.join('+') || 'frame'}`);
+    }
+    dbgPlaced.bedWhy = why.length;
+    (dbgPlaced as Record<string, unknown>).bedWhyList = why;
+  }
+
+  // ══ 6. 街边：长椅 + 垃圾桶 / 花池 —— 只在店门口（背后 14 米内有楼），间隔 24～50 米不等 ═══
+  {
+    const clearAt = (x: number, z: number, r: Road, pad: number) =>
+      !inBldg(x, z, pad) && roadGap(x, z, r) > 3 && !nearCrossing(x, z, 9) && !inTaken(x, z, 0.6) && !near(x, z, 2.2);
     for (const { r, pts, sw } of runs) {
       for (const side of [-1, 1]) {
-        let lastLamp = -99;
         let lastBench = -99;
         let gapBench = 24;
         for (const [s, p, t] of along(pts, 1)) {
           const n: V2 = [-t[1] * side, t[0] * side];
           const toRoad = Math.atan2(-n[0], -n[1]);
-          // 路灯：路缘里侧 0.9 米，≥ 20 米一盏（灯头伸到路缘上方，不进车道）
-          if (s - lastLamp >= 20) {
-            const o = r.w / 2 + 0.9;
-            const x = p[0] + n[0] * o;
-            const z = p[1] + n[1] * o;
-            if (clear(x, z, r, 0.3)) {
-              lamp(x, z, toRoad);
-              placed.push([x, z]);
-              lastLamp = s;
-            }
-          }
-          // 长椅 + 垃圾桶 / 花槽：人行道靠店那侧，只在店门口（背后 14 米内有楼），间隔 24～50 米不等
-          // （原来空地前面也摆、每 26 米一套，长长一条街一眼看完）
           if (sw >= 3 && s - lastBench >= gapBench) {
             const o = r.w / 2 + sw - 0.9;
             const x = p[0] + n[0] * o;
             const z = p[1] + n[1] * o;
+            if (inParkRun(x, z)) continue;
             const shop = [3, 7, 11, 14].some((k) => inBldg(x + n[0] * k, z + n[1] * k, 0.3));
-            const ok = shop && [-1.2, 0, 1.2].every((k) => clear(x + t[0] * k, z + t[1] * k, r, 0.4));
+            const ok = shop && [-1.2, 0, 1.2].every((k) => clearAt(x + t[0] * k, z + t[1] * k, r, 0.4));
             const x2 = x + t[0] * 2.2;
             const z2 = z + t[1] * 2.2;
-            if (ok && clear(x2, z2, r, 0.4)) {
-              bench(x, z, toRoad);
+            if (ok && clearAt(x2, z2, r, 0.4) && bench(x, z, toRoad)) {
               if (rnd() < 0.5) {
-                addInst('bin', { x: x2, z: z2, s: 1, reg: d.regionOf(x2, z2) });
+                bake(d.regionOf(x2, z2), BIN, x2, 0, z2, 1, 0);
                 block({ x: x2, z: z2, r: 0.35 });
-              } else planter(x2, z2, rnd() < 0.5);
+              } else bed(x2, z2);
               placed.push([x, z], [x2, z2]);
               lastBench = s;
               gapBench = 24 + rnd() * 26;
@@ -866,507 +1024,8 @@ export function detailTown(d: DetailCtx): void {
     }
   }
 
-  // ══ 5. 店面：招牌（按朝向）、朝南的玻璃和门、屋顶空调 ══════════════════
-  const SHOPS = SB({ x0: 270, x1: 720, z0: -1110, z1: -770 });
-  const shops = BLD.map((b) => b.o).filter(
-    (o) =>
-      (o.kind === 'shop' || o.kind === 'civic' || o.kind === 'office' || o.kind === 'hotel') &&
-      o.x > SHOPS.x0 &&
-      o.x < SHOPS.x1 &&
-      o.z < SHOPS.z1 &&
-      o.z > SHOPS.z0,
-  );
-  /** 一行"字"：招牌面上几块浅色小块（按词断开） */
-  const letters = (f: Face, t0: number, len: number, y: number, h: number, u: number, vertical = false) => {
-    const n = Math.max(2, Math.floor(len / 0.55));
-    const step = len / n;
-    for (let k = 0; k < n; k++) {
-      if (rnd() < 0.18 && k > 0 && k < n - 1) continue; // 词和词之间
-      const lw = step * (0.55 + rnd() * 0.2);
-      if (vertical) fbox(f, 'signPaint', 0.06, step * 0.7, lw, t0, y + h - (k + 0.85) * step, u);
-      else fbox(f, 'signPaint', lw, h * 0.5, 0.06, t0 - len / 2 + (k + 0.5) * step, y + h * 0.25, u);
-    }
-  };
-  for (const o of shops) {
-    // 三家办事的楼的门面、招牌在第 10 节（白模 → 资产），这里不做
-    if (o.id === 'museum' || ERRAND_IDS.has(o.id) || CIVIC_IDS.has(o.id)) continue;
-    const f = frontOf(o);
-    const key = o.id === 'bank' ? 'signBoard' : pick(SIGN);
-    const named = !!o.name;
-    if (!named && rnd() < 0.25) continue;
-    if (f.out[1] > 0.7) {
-      // 朝南（朝镜头）：玻璃店面 + 门 + 贴墙的招牌
-      const bw = Math.min(f.half * 1.3, named ? 11 : 8);
-      const y = Math.min(o.h - 1.3, 3.1);
-      fbox(f, 'jug', f.half * 1.4, 1.7, 0.1, 0, 0.45, 0.05); // 玻璃（夜里亮，见最后的"夜里"）
-      fbox(f, pick(DOOR), 1.2, 2.3, 0.14, f.half * 0.55, 0, 0.07);
-      fbox(f, key, bw, 1.0, 0.22, 0, y, 0.12);
-      letters(f, 0, bw - 0.8, y, 1.0, 0.26);
-    } else if (f.out[1] < -0.7) {
-      // 朝北（背对镜头）：屋顶前沿立一块招牌，镜头看得到它的南面
-      const bw = Math.min(f.half * 1.3, named ? 11 : 8);
-      fbox(f, 'ironwork', 0.18, 0.5, 0.18, -bw / 2 + 0.6, o.h + 0.35, -0.8);
-      fbox(f, 'ironwork', 0.18, 0.5, 0.18, bw / 2 - 0.6, o.h + 0.35, -0.8);
-      fbox(f, key, bw, 1.3, 0.22, 0, o.h + 0.75, -0.8);
-      letters(f, 0, bw - 0.8, o.h + 0.75, 1.3, -0.95);
-    } else {
-      // 朝东西：伸出来的竖招牌（板面朝南北，镜头看得到）
-      const side = f.tan[1] > 0 ? 1 : -1; // 板的朝镜头那面
-      const t = (rnd() < 0.5 ? -1 : 1) * f.half * 0.55;
-      const tall = named || rnd() < 0.35;
-      const h = tall ? 2.6 : 1.3;
-      const y = Math.max(2.9, Math.min(o.h - h + 0.6, 3.4));
-      fbox(f, 'ironwork', 0.1, 0.12, 1.7, t, y + h, 0.85);
-      fbox(f, key, 0.2, h, 1.3, t, y, 0.95);
-      if (tall) {
-        // 竖着排的字
-        const n = Math.max(3, Math.floor(h / 0.5));
-        for (let k = 0; k < n; k++)
-          fbox(f, 'signPaint', 0.06, 0.32, 0.7, t + side * 0.13, y + h - 0.45 - (k * (h - 0.4)) / n, 0.95);
-      } else for (const u of [0.6, 1.3]) fbox(f, 'signPaint', 0.06, 0.55, 0.5, t + side * 0.13, y + 0.38, u);
-    }
-    // 屋顶空调（一两台）
-    const r = o.rot ?? 0;
-    const nAc = o.w * o.d > 300 ? 2 : 1;
-    for (let k = 0; k < nAc; k++) {
-      const lx = (rnd() - 0.5) * (o.w - 3);
-      const lz = (rnd() - 0.5) * (o.d - 3);
-      const x = o.x + lx * Math.cos(r) + lz * Math.sin(r);
-      const z = o.z - lx * Math.sin(r) + lz * Math.cos(r);
-      addInst('ac', { x, z, s: 1, y: o.h + 0.35, rot: r, reg: d.regionOf(x, z) });
-    }
-  }
-  // 有名字的几家各一样认得出的东西
-  {
-    const get = (id: string) => BUILDINGS.find((o) => o.id === id) as Bldg;
-    // 广场剧院：朝阿莱霍路的大雨棚（灯泡边）+ 角上一根高过屋顶的竖招牌
-    const th = get('theater');
-    const tf = frontOf(th);
-    // 雨棚只伸出 1.4 米（剧院离阿莱霍路很近，原来 3 米深的雨棚伸到了车道上方）
-    fbox(tf, 'signPaint', th.w * 0.7, 0.9, 1.4, 0, 3.4, 0.7);
-    fbox(tf, 'flowerYellow', th.w * 0.7 + 0.2, 0.2, 1.6, 0, 4.3, 0.7);
-    fbox(tf, 'carRed', 1.3, 7.5, 0.3, th.w / 2 - 1.6, 4.6, 0.4);
-    for (let k = 0; k < 6; k++) fbox(tf, 'flowerYellow', 0.7, 0.6, 0.1, th.w / 2 - 1.6, 11.2 - k * 1.15, 0.6);
-    for (const s of [-1, 1]) fbox(tf, 'flowerYellow', 1.2, 1.7, 0.1, s * th.w * 0.42, 0.7, 0.05); // 海报框
-    // 银行、餐馆的门面：2026-11-18 搬到 sites/bank.ts、sites/diner.ts
-    // 超市（2026-11-16 和五金店对调，在原来五金店那块）：门口的购物车棚
-    const mk = get('market');
-    const mf = frontOf(mk);
-    fbox(mf, 'metal', 4, 1.0, 1.4, mk.w * 0.3, 0, 2);
-    {
-      const [x, z] = fp(mf, mk.w * 0.3, 2);
-      blockRect(x, z, 4.2, 1.6, fRot(mf));
-    }
-    // 老酒店：屋顶一排大字（老招牌的铁架）
-    for (let k = 0; k < 5; k++)
-      bx('carRed', 1.4, 2.0, 0.3, hotel.x - 5 + k * 2.5, hotel.h + 0.35, hotel.z + hotel.d / 2 - 1.5);
-    bx('ironwork', 13, 0.25, 0.2, hotel.x, hotel.h + 0.35, hotel.z + hotel.d / 2 - 1.75);
-    // 市政厅的门面：2026-11-18 搬到 sites/cityhall.ts
-  }
-
-  // ══ 6. 老街区：拉斯帕尔马斯、电影人街区、球拍俱乐部路 ══════════════
-  {
-    const hs = houses().filter((o) => /^(las_palmas|movie_colony|racquet)/.test(o.id));
-    for (const o of hs) {
-      const f = frontOf(o);
-      const gap = roadGap(f.ox, f.oz);
-      const yard = Math.min(Math.max(gap - 0.8, 2.5), 9);
-      const cs = rnd() < 0.5 ? -1 : 1; // 车棚在哪边
-      const wallKey: PalKey = pick(['stucco', 'stucco', 'adobe', 'flagstone']);
-      /** 立面坐标里的一段（t0 → t1，离墙 u）整段都空着（不压楼、不压路） */
-      const segFree = (t0: number, t1: number, u: number, pad: number) => {
-        const n = Math.max(2, Math.ceil(Math.abs(t1 - t0) / 0.5));
-        for (let k = 0; k <= n; k++) {
-          const [x, z] = fp(f, t0 + ((t1 - t0) * k) / n, u);
-          if (!free(x, z, pad)) return false;
-        }
-        return true;
-      };
-      // 车棚：屋子侧面一块平顶（贴着墙，原来离墙 0.4 米悬着）+ 外侧两根柱；一半有车
-      const cpT = cs * (f.half + 3);
-      const [cpx, cpz] = fp(f, cpT, -2.5);
-      const [ckx, ckz] = fp(f, cs * (f.half + 3.4), -2.5);
-      /** 立面坐标里的矩形（t 方向宽 w、u 方向深 dd）的外接框：占掉，后面的老场子、泳池躲开 */
-      const claimF = (t: number, u: number, w: number, dd: number) => {
-        const c = [-0.5, 0.5].flatMap((a) => [-0.5, 0.5].map((b) => fp(f, t + a * w, u + b * dd)));
-        claim({
-          x0: Math.min(...c.map((p) => p[0])),
-          x1: Math.max(...c.map((p) => p[0])),
-          z0: Math.min(...c.map((p) => p[1])),
-          z1: Math.max(...c.map((p) => p[1])),
-        });
-      };
-      const hasCarport = rectFree(ckx, ckz, 5.2, 6.6, fRot(f), 0.2) && !inTaken(ckx, ckz, 3) && rnd() < 0.7;
-      if (hasCarport) {
-        fbox(f, 'concrete', 6, 0.22, 6.8, cpT, 2.5, -2.5);
-        claimF(cpT, -2.5, 6, 6.8);
-        for (const u of [-5.4, 0.6]) {
-          fbox(f, 'ironwork', 0.18, 2.5, 0.18, cpT + cs * 2.7, 0, u);
-          const [x, z] = fp(f, cpT + cs * 2.7, u);
-          block({ x, z, r: 0.2 });
-        }
-        if (rnd() < 0.55) car(cpx, cpz, Math.atan2(f.out[0], f.out[1]));
-        // 车道：车棚到路边（路面盖住伸进路的那一截）
-        if (segFree(cpT - 1.6, cpT + 1.6, yard * 0.5, 0) && segFree(cpT - 1.6, cpT + 1.6, yard - 0.5, 0)) {
-          const [dx, dz] = fp(f, cpT, yard / 2 + 0.6);
-          flat('concrete', 4, yard + 1.2, dx, Y.pave, dz, fRot(f));
-        }
-      }
-      // 朝路的矮墙（中间留门口；车道那边断开）：南面朝镜头就是一条暗带。整段都要空着（原来只看中点，拐角处的墙伸进了路）
-      if (rnd() < 0.75) {
-        const u = yard;
-        const end = cs * (f.half + (hasCarport ? 0.6 : 2));
-        const far = -cs * (f.half + 1.5);
-        let any = false;
-        for (const [a, b] of [
-          [far, -cs * 0.9],
-          [cs * 0.9, end],
-        ] as const) {
-          const t = (a + b) / 2;
-          const len = Math.abs(b - a);
-          if (len < 1 || !segFree(a, b, u, 0.6)) continue;
-          fbox(f, wallKey, len, 0.85, 0.3, t, 0, u);
-          fbox(f, 'cap', len + 0.1, 0.1, 0.4, t, 0.85, u);
-          const [ax, az] = fp(f, a, u);
-          const [bx2, bz] = fp(f, b, u);
-          block({ a: [ax, az], b: [bx2, bz], r: 0.25 });
-          any = true;
-        }
-        // 门口的石板小路（有墙才有）
-        if (any) {
-          const [wx, wz] = fp(f, 0, u / 2);
-          flat('flagstone', 1.3, u, wx, Y.pave2, wz, fRot(f));
-        }
-      }
-      // 前院一半是草坪（老街区浇得起水；门口小路压在草上面一层）
-      if (yard > 3.5 && rnd() < 0.5) {
-        const lw = f.half * 2 - 1;
-        const [lx, lz] = fp(f, 0, yard / 2);
-        if (segFree(-lw / 2, lw / 2, yard / 2, 0.3) && segFree(-lw / 2, lw / 2, yard - 0.8, 0.3))
-          flat('lawn', lw, yard - 1.4, lx, Y.pave, lz, fRot(f));
-      }
-      // 彩色的门（朝南的才看得见）
-      if (f.out[1] > 0.3) fbox(f, pick(DOOR), 1.1, 2.2, 0.12, -cs * 0.5, 0, 0.06);
-      // 朝南那面的窗（暗玻璃两块）
-      const sf = southOf(o);
-      if (sf.out[1] > 0.5)
-        for (const s of [-1, 1])
-          fbox(
-            sf,
-            rnd() < 0.6 ? 'jug' : 'ironwork',
-            Math.min(2.6, sf.half * 0.6),
-            1.2,
-            0.08,
-            s * sf.half * 0.5,
-            0.9,
-            0.04,
-          );
-      // 后院泳池（俯视下的一块蓝，最"棕榈泉"）：池沿是一圈（四条），水面比池沿低一截
-      // （原来池沿是一整块实心板、水面高过池沿 1 厘米，像一块蓝色的板子摆在地上）
-      if (rnd() < 0.55) {
-        const u = -2 * f.depth - 4;
-        const t = -cs * 1.5;
-        const [x, z] = fp(f, t, u);
-        if (rectFree(x, z, 9.5, 6, fRot(f), 0.3) && !inTaken(x, z, 5)) {
-          claimF(t, u, 10, 6.4);
-          const [px, pz] = fp(f, t, u);
-          flat('concrete', 10, 6.4, px, Y.pave, pz, fRot(f));
-          flat('water', 7.8, 4.0, px, 0.1, pz, fRot(f));
-          for (const s of [-1, 1]) {
-            fbox(f, 'cap', 8.4, 0.16, 0.3, t, 0, u + s * 2.15);
-            fbox(f, 'cap', 0.3, 0.16, 4.0, t + s * 4.05, 0, u);
-          }
-          if (rnd() < 0.5) fbox(f, 'clothWhite', 0.7, 0.3, 1.8, t + 4.6, 0, u);
-          blockRect(x, z, 8.4, 4.6, fRot(f));
-        }
-      }
-      // 院子：一棵棕榈（不在车棚那边）、一两丛龙舌兰
-      if (rnd() < 0.6) {
-        const [x, z] = fp(f, -cs * (f.half + 1.2), yard * 0.55);
-        if (free(x, z, 1)) palm(x, z, 0.85 + rnd() * 0.3);
-      }
-      for (let k = 0; k < 2; k++) {
-        if (rnd() < 0.5) continue;
-        // 不种在门口的石板小路上（|t| < 1.2）
-        const t = (rnd() < 0.5 ? -1 : 1) * (1.4 + rnd() * Math.max(0.2, f.half * 0.8 - 1.4));
-        const [x, z] = fp(f, t, 1.2 + rnd() * (yard - 2));
-        if (free(x, z, 0.5)) addInst('agave', { x, z, s: 0.8 + rnd() * 0.5, rot: rnd() * 6, reg: d.regionOf(x, z) });
-      }
-      if (rnd() < 0.5) {
-        const lx = (rnd() - 0.5) * (o.w - 3);
-        const lz = (rnd() - 0.5) * (o.d - 3);
-        const r = o.rot ?? 0;
-        const x = o.x + lx * Math.cos(r) + lz * Math.sin(r);
-        const z = o.z - lx * Math.sin(r) + lz * Math.cos(r);
-        addInst('ac', { x, z, s: 0.85, y: o.h + 0.35, rot: r, reg: d.regionOf(x, z) });
-      }
-    }
-  }
-
-  // ══ 7. 废弃的球拍俱乐部（发现点）════════════════════════════════════
-  {
-    const rc = BUILDINGS.find((o) => o.id === 'racquet_club') as Bldg;
-    const sf = southOf(rc);
-    // 朝南的立面：褪色的长招牌（一头掉下来斜挂着）、钉了木板的窗、墙上的老海报
-    fbox(sf, 'woodWeathered', 11, 1.2, 0.2, 0, 3.4, 0.15, 0.12);
-    for (let k = 0; k < 8; k++) fbox(sf, 'rust', 0.6, 0.55, 0.06, -4.6 + k * 1.25, 3.62 + k * 0.15, 0.28);
-    for (const t of [-10, -5.5, 5.5, 10]) {
-      fbox(sf, 'ironwork', 2.2, 1.4, 0.06, t, 1.0, 0.03);
-      fbox(sf, 'woodWeathered', 2.6, 0.25, 0.12, t, 1.6, 0.1, 0.45);
-      fbox(sf, 'woodWeathered', 2.6, 0.25, 0.12, t, 1.6, 0.1, -0.4);
-    }
-    fbox(sf, 'ironwork', 1.6, 2.4, 0.06, 0, 0, 0.03); // 门洞
-    fbox(sf, 'flowerYellow', 0.9, 1.3, 0.05, 2.2, 1.1, 0.04); // 老海报
-    fbox(sf, 'clothRed', 0.8, 1.1, 0.05, 3.3, 1.2, 0.04);
-    // 老场子：在俱乐部旁边找一块空地（先北边，再东、西、南）
-    const W = 28;
-    const D = 14;
-    let site: V2 | null = null;
-    // 先找南边（楼前，镜头看得全），再北边（往北多挪几米，楼的立面不挡住场子），最后东西两边
-    for (const [dx, dz] of [
-      [0, rc.d / 2 + D / 2 + 1],
-      [0, -(rc.d / 2 + D / 2 + 5)],
-      [0, -(rc.d / 2 + D / 2 + 3)],
-      [0, -(rc.d / 2 + D / 2 + 1)],
-      [rc.w / 2 + W / 2 + 1, 0],
-      [-(rc.w / 2 + W / 2 + 1), 0],
-    ] as const) {
-      for (let k = 0; k < 12 && !site; k++) {
-        const x = rc.x + dx + (k % 2 ? 1 : -1) * Math.floor(k / 2) * 1.5;
-        const z = rc.z + dz;
-        if (!boxBad({ x0: x - W / 2, x1: x + W / 2, z0: z - D / 2, z1: z + D / 2 }, 0.2, true).length) site = [x, z];
-      }
-      if (site) break;
-    }
-    if (site) {
-      const [cx, cz] = site;
-      claim({ x0: cx - W / 2 - 1, x1: cx + W / 2 + 1, z0: cz - D / 2 - 1, z1: cz + D / 2 + 1 });
-      flat('surroundCrack', W, D, cx, Y.pave, cz);
-      flat('courtBleach', 23.77, 10.97, cx, Y.pave2, cz);
-      // 线：褪了一半，有的段没了
-      const seg = (w: number, dd: number, x: number, z: number) => {
-        if (rnd() < 0.3) return;
-        flat('line', w, dd, x, Y.pave3, z);
-      };
-      for (const s of [-1, 1]) {
-        seg(0.12, 10.97, cx + s * 11.885, cz);
-        for (const h of [-1, 1]) seg(11.8, 0.12, cx + h * 5.95, cz + s * 5.485);
-        seg(0.1, 8.23, cx + s * 6.4, cz);
-      }
-      // 裂缝：三条 2 纹素宽的折线（缝 + 下沿一条亮边）、裂缝里的杂草
-      for (let c = 0; c < 3; c++) {
-        let x = cx - 10 + rnd() * 20;
-        let z = cz - 5;
-        let a = Math.PI / 2 + (rnd() - 0.5) * 0.8;
-        for (let k = 0; k < 7; k++) {
-          const L = 1.2 + rnd() * 1.2;
-          const nx = x + Math.cos(a) * L;
-          const nz = z + Math.sin(a) * L;
-          const rot = Math.atan2(nx - x, nz - z);
-          flat('courtCrack', 0.1, L + 0.05, (x + nx) / 2, Y.pave4, (z + nz) / 2, rot);
-          // 下沿一条亮边（翘起来的漆皮迎光）：垫在缝底下、往南挪一点，只露出南边那一纹素
-          flat('line', 0.1, L, (x + nx) / 2, Y.pave3, (z + nz) / 2 + 0.06, rot);
-          if (rnd() < 0.4)
-            addInst('weed', { x: nx, z: nz, s: 0.5 + rnd() * 0.5, rot: rnd() * 6, reg: d.regionOf(nx, nz) });
-          x = nx;
-          z = nz;
-          a += (rnd() - 0.5) * 1.1;
-        }
-      }
-      // 吹进来的沙（两三块）
-      for (let k = 0; k < 3; k++) {
-        const x = cx + (rnd() - 0.5) * 22;
-        const z = cz + (rnd() - 0.5) * 9;
-        put(
-          'sand',
-          new THREE.CircleGeometry(0.9 + rnd() * 0.9, 9)
-            .rotateX(-Math.PI / 2)
-            .scale(1.6, 1, 1)
-            .translate(x, Y.pave4 + 0.012, z),
-          x,
-          z,
-        );
-      }
-      // 网：一根柱子歪了，网塌下来一半
-      bx('rust', 0.16, 1.07, 0.16, cx, 0, cz - 6.4);
-      put(
-        'rust',
-        box(0.16, 1.07, 0.16, 0, 0, 0)
-          .rotateX(0.5)
-          .translate(cx, 0, cz + 6.4),
-        cx,
-        cz,
-      );
-      put('net', box(0.06, 0.8, 12.8, 0, 0, 0).rotateX(-0.06).translate(cx, 0.12, cz), cx, cz);
-      block({ a: [cx, cz - 6.5], b: [cx, cz + 6.5], r: 0.2 });
-      // 围网：一圈锈柱子，北、东、西三面还挂着暗带，南面倒了（一片躺在地上），几处柱子没了
-      const fx0 = cx - W / 2 + 0.3;
-      const fx1 = cx + W / 2 - 0.3;
-      const fz0 = cz - D / 2 + 0.3;
-      const fz1 = cz + D / 2 - 0.3;
-      const fence = (a: V2, b: V2, standing: number) => {
-        const L = Math.hypot(b[0] - a[0], b[1] - a[1]);
-        const n = Math.round(L / 3);
-        const rot = Math.atan2(b[0] - a[0], b[1] - a[1]);
-        for (let k = 0; k <= n; k++) {
-          const x = a[0] + ((b[0] - a[0]) * k) / n;
-          const z = a[1] + ((b[1] - a[1]) * k) / n;
-          if (rnd() < 0.18) continue;
-          const lean = rnd() < 0.2 ? (rnd() - 0.5) * 0.6 : 0;
-          put('rust', box(0.16, 3, 0.16, 0, 0, 0).rotateX(lean).rotateY(rot).translate(x, 0, z), x, z);
-          block({ x, z, r: 0.2 });
-          if (k === n) continue;
-          const mx = x + (b[0] - a[0]) / n / 2;
-          const mz = z + (b[1] - a[1]) / n / 2;
-          if (rnd() < standing) {
-            put(
-              'net',
-              box(0.06, 2.4, L / n - 0.2, 0, 0.4, 0)
-                .rotateY(rot)
-                .translate(mx, 0, mz),
-              mx,
-              mz,
-            );
-            block({ a: [x, z], b: [x + (b[0] - a[0]) / n, z + (b[1] - a[1]) / n], r: 0.15 });
-          } else if (rnd() < 0.4)
-            put(
-              'net',
-              new THREE.PlaneGeometry(L / n - 0.3, 2.2)
-                .rotateX(-Math.PI / 2)
-                .rotateY(rot + Math.PI / 2)
-                .translate(mx + 0.4, Y.pave4 + 0.024, mz + 0.9),
-              mx,
-              mz,
-            );
-        }
-      };
-      fence([fx0, fz0], [fx1, fz0], 0.7);
-      fence([fx0, fz0], [fx0, fz1], 0.6);
-      fence([fx1, fz0], [fx1, fz1], 0.6);
-      fence([fx0, fz1], [fx1, fz1], 0.12);
-      // 一把散了架的长椅
-      bx('woodWeathered', 1.9, 0.12, 0.5, cx - 8, 0.0, cz + D / 2 + 1.2, 0.3);
-      blockRect(cx - 8, cz + D / 2 + 1.2, 2, 0.8, 0.3);
-    }
-    // 干掉的泳池：俱乐部另一边（剥落的蓝底 + 沙 + 池沿）
-    for (const [dx, dz] of [
-      [rc.w / 2 + 6, 0],
-      [-(rc.w / 2 + 6), 0],
-      [0, rc.d / 2 + 6],
-    ] as const) {
-      const x = rc.x + dx;
-      const z = rc.z + dz;
-      const pw = dx ? 7 : 12;
-      const pd = dx ? 12 : 7;
-      if (
-        boxBad({ x0: x - pw / 2 - 0.8, x1: x + pw / 2 + 0.8, z0: z - pd / 2 - 0.8, z1: z + pd / 2 + 0.8 }, 0.2, true)
-          .length
-      )
-        continue;
-      claim({ x0: x - pw / 2 - 1, x1: x + pw / 2 + 1, z0: z - pd / 2 - 1, z1: z + pd / 2 + 1 });
-      // 池沿一圈（四条）+ 池底 + 北边一条暗带（看得见的那面池壁）+ 吹进来的一堆沙
-      // （原来池沿是一整块实心板、池底铺在板顶上，看着是一块浅蓝的垫子）
-      for (const s of [-1, 1]) {
-        bx('cap', pw + 1.2, 0.2, 0.6, x, 0, z + s * (pd / 2 + 0.3));
-        bx('cap', 0.6, 0.2, pd, x + s * (pw / 2 + 0.3), 0, z);
-      }
-      flat('courtBleach', pw, pd, x, Y.pave, z);
-      flat('courtCrack', pw, 0.9, x, Y.pave2, z - pd / 2 + 0.45);
-      put(
-        'sand',
-        new THREE.CircleGeometry(Math.min(pw, pd) * 0.35, 8)
-          .rotateX(-Math.PI / 2)
-          .scale(1.3, 1, 1)
-          .translate(x + 0.8, Y.pave3, z + pd * 0.2),
-        x,
-        z,
-      );
-      blockRect(x, z, pw + 1.2, pd + 1.2);
-      break;
-    }
-    // 门口两棵没人修剪的棕榈（垂着的枯叶裙）
-    for (const s of [-1, 1]) {
-      const [x, z] = fp(sf, s * (sf.half + 2), 3);
-      if (!free(x, z, 0.8)) continue;
-      palm(x, z, 1.15);
-      put('palmSkirt', new THREE.CylinderGeometry(0.9, 0.5, 2.4, 6).translate(x, 8.1 * 1.15 - 1.1, z), x, z);
-    }
-  }
-
-  // ══ 8. 111 号公路的加油站 ═════════════════════════════════════════
-  {
-    const gs = BUILDINGS.find((o) => o.id === 'gas') as Bldg;
-    const cx = gs.x;
-    const cz = gs.z + 14; // 雨棚（build.ts 画的顶）
-    // 前场水泥地 + 接到加油站支路尽头的一段（原来前场和路不连着，四周一圈沙）
-    const FC = fit({ x0: cx - 17, x1: cx + 17, z0: gs.z + gs.d / 2 + 0.05, z1: cz + 11 }, 18, 10, 0.3);
-    if (FC) {
-      claim(FC);
-      flat('concrete', FC.x1 - FC.x0, FC.z1 - FC.z0, (FC.x0 + FC.x1) / 2, Y.pave, (FC.z0 + FC.z1) / 2);
-    }
-    const spur = roadById('gas_spur');
-    const end = spur.pts[spur.pts.length - 1];
-    {
-      const x0 = end[0] - 7;
-      const x1 = end[0] + 2;
-      const z0 = end[1] - 1;
-      const z1 = cz - 8;
-      if (x1 > x0 && z1 > z0) {
-        d.clear({ x0, x1, z0, z1 });
-        flat('concrete', x1 - x0, z1 - z0, (x0 + x1) / 2, Y.pave2, (z0 + z1) / 2);
-      }
-    }
-    // 雨棚：四根柱 + 红色的边（盖住 build.ts 那块雨棚板的四个侧面，顶面还是它的）
-    for (const [dx, dz] of [
-      [-6.5, -3],
-      [6.5, -3],
-      [-6.5, 3],
-      [6.5, 3],
-    ] as const) {
-      bx('stucco', 0.5, 4.5, 0.5, cx + dx, 0, cz + dz);
-      block({ x: cx + dx, z: cz + dz, r: 0.35 });
-    }
-    bx('clothRed', 16.2, 0.42, 10.2, cx, 4.52, cz);
-    // 夜里雨棚底下亮着（一个大灯光圈，见最后的"夜里"）
-    lampPools.push({ x: cx, z: cz + 2, reg: d.regionOf(cx, cz), r: 10, h: 4.4 });
-    // 两个加油岛，各两台加油机
-    for (const ix of [-3.2, 3.2]) {
-      bx('concrete', 1.4, 0.22, 6.2, cx + ix, 0, cz);
-      for (const dz of [-1.6, 1.6]) {
-        bx('clothRed', 0.8, 1.7, 0.6, cx + ix, 0.22, cz + dz);
-        bx('clothWhite', 0.86, 0.3, 0.66, cx + ix, 1.92, cz + dz);
-        bx('ironwork', 0.5, 0.35, 0.08, cx + ix, 1.3, cz + dz + 0.32);
-      }
-      blockRect(cx + ix, cz, 1.4, 6.2);
-    }
-    // 一辆车停在油枪旁边
-    car(cx - 6.2 + 1.2, cz + 0.5, 0, 'clothTeal');
-    // 店面朝南：玻璃 + 门 + 招牌；门口冰柜、充气机
-    const f = southOf(gs);
-    fbox(f, 'jug', gs.w * 0.6, 1.7, 0.1, -2, 0.45, 0.05);
-    fbox(f, 'clothBlue', 1.2, 2.3, 0.14, 6, 0, 0.07);
-    fbox(f, 'clothRed', 9, 1.0, 0.22, -1, 3.4, 0.12);
-    letters(f, -1, 8, 3.4, 1.0, 0.26);
-    fbox(f, 'clothWhite', 1.8, 1.1, 0.8, 3, 0, 0.6);
-    fbox(f, 'clothBlue', 1.2, 0.3, 0.05, 3, 0.55, 1.02);
-    {
-      const [x, z] = fp(f, 3, 0.6);
-      blockRect(x, z, 1.9, 0.9);
-    }
-    // 价格牌：高杆 + 红牌 + 三条白色价格条（朝南；原来 3 × 3 的白方块像一扇窗）
-    const px = cx - 15;
-    const pz = cz + 7;
-    bx('metal', 0.35, 5.5, 0.35, px, 0, pz);
-    bx('clothRed', 3.2, 3.0, 0.3, px, 5.5, pz);
-    bx('clothWhite', 3.0, 0.6, 0.32, px, 7.9, pz);
-    for (let k = 0; k < 3; k++) bx('signPaint', 2.4, 0.42, 0.34, px, 5.85 + k * 0.68, pz);
-    block({ x: px, z: pz, r: 0.35 });
-    // 路边一个充气机（黄）
-    bx('flowerYellow', 0.6, 1.2, 0.5, cx + 13, 0, cz + 2);
-    block({ x: cx + 13, z: cz + 2, r: 0.45 });
-  }
-
-  for (const { g, key, items, cast } of inst.values()) if (items.length) d.instance(g, key, items, cast);
+  finishCustom();
+  dbgPlaced.tris = Math.round(tris);
 
   // ══ 9. 夜里：路灯头、招牌的字、店面和住家的窗（jug）换成自发光的暖白，每盏灯一个灯光圈（clubsite/daylight 找 userData.night）═══
   // 锁着的区域（build.ts 换了压暗的材质）不开灯：看那片区域的网格现在是不是原色材质
@@ -1393,6 +1052,7 @@ export function detailTown(d: DetailCtx): void {
       d.root.traverse((o) => {
         if (ok || !(o as THREE.Mesh).isMesh || !o.name.startsWith(`valley:${reg}:`)) return;
         const key = o.name.split(':')[2] as PalKey;
+        if (!(key in (d.actx.pal as object))) return;
         const m = (o as THREE.Mesh).material;
         if (m === d.mat(key) || m === glow || m === glowWin) ok = true;
       });
@@ -1401,7 +1061,7 @@ export function detailTown(d: DetailCtx): void {
     const lights = new THREE.Group();
     lights.name = 'valley:town:lights';
     lights.userData.roadSkipped = skipped;
-    lights.userData.placed = dbgPlaced; // 车道守卫拦下的件数（调试看）
+    lights.userData.placed = dbgPlaced; // 车道守卫拦下的件数、每样放了几件（调试看）
     lights.userData.night = {
       setOn(v: boolean) {
         on = v;

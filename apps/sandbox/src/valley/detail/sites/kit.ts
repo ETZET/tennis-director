@@ -7,6 +7,7 @@ import type { Shape } from '../../../clubsite/play';
 import { box } from '../../../clubsite/render/geo';
 import { type DetailCtx, type InstItem, rbox } from '../../build';
 import { distToLine, ROADS } from '../../layout';
+import { atWorld, curShift } from '../../relocate';
 import type { PalKey } from '../../reuse';
 
 export interface Box2 {
@@ -40,18 +41,22 @@ const ROAD_BOX = STREETS.map((r) => {
 const onCarriage = (x: number, z: number) =>
   ROAD_BOX.some((b) => x > b.x0 && x < b.x1 && z > b.z0 && z < b.z1 && distToLine(b.r.pts, x, z) < b.r.w / 2);
 const V = new THREE.Vector3();
+const SH = new THREE.Vector3();
 /** 这块几何（可带变换）有没有离地 0.12～4.5 米的顶点落进车道 */
 export function hitsRoad(g: THREE.BufferGeometry, m?: THREE.Matrix4): boolean {
   g.computeBoundingBox();
   const bb = (g.boundingBox as THREE.Box3).clone();
   if (m) bb.applyMatrix4(m);
+  // 模块的细节代码写旧坐标（relocate.ts）：比之前挪到世界
+  const { dx, dz } = curShift();
+  bb.translate(SH.set(dx, 0, dz));
   if (bb.max.y < 0.12 || bb.min.y > 4.5) return false;
   if (!ROAD_BOX.some((b) => bb.max.x > b.x0 && bb.min.x < b.x1 && bb.max.z > b.z0 && bb.min.z < b.z1)) return false;
   const pos = g.attributes.position as THREE.BufferAttribute;
   for (let i = 0; i < pos.count; i++) {
     V.fromBufferAttribute(pos, i);
     if (m) V.applyMatrix4(m);
-    if (V.y >= 0.12 && V.y <= 4.5 && onCarriage(V.x, V.z)) return true;
+    if (V.y >= 0.12 && V.y <= 4.5 && onCarriage(V.x + dx, V.z + dz)) return true;
   }
   return false;
 }
@@ -69,12 +74,13 @@ interface SiteState {
   claims: Box2[];
   pools: Pool[];
 }
-const STATE = new WeakMap<DetailCtx, SiteState>();
+// 按 d.root 记（模块的细节跑在平移过的 DetailCtx 上，和 town.ts 拿到的不是同一个对象，root 是同一个）；里面存世界坐标
+const STATE = new WeakMap<object, SiteState>();
 export function siteState(d: DetailCtx): SiteState {
-  let s = STATE.get(d);
+  let s = STATE.get(d.root);
   if (!s) {
     s = { claims: [], pools: [] };
-    STATE.set(d, s);
+    STATE.set(d.root, s);
   }
   return s;
 }
@@ -122,7 +128,8 @@ export function siteKit(d: DetailCtx, rnd: () => number) {
   };
   /** 占地：town.ts 的街边家具躲开，build.ts 的灌木和大道棕榈也不往这里撒 */
   const claim = (r: Box2) => {
-    st.claims.push(r);
+    const { dx, dz } = curShift();
+    st.claims.push({ x0: r.x0 + dx, x1: r.x1 + dx, z0: r.z0 + dz, z1: r.z1 + dz });
     d.clear(r);
   };
   /** 灰盒：中心 (x, z)、底 y；blk = 挡路（底 < 1.8 米才挡） */
@@ -260,7 +267,10 @@ export function siteKit(d: DetailCtx, rnd: () => number) {
     block({ a: [x - 0.9 * c, z + 0.9 * s], b: [x + 0.9 * c, z - 0.9 * s], r: 0.4 });
   };
   /** 夜里的灯光圈（town.ts 第 9 节开关） */
-  const pool = (x: number, z: number, r?: number, h?: number) => st.pools.push({ x, z, reg: d.regionOf(x, z), r, h });
+  const pool = (x: number, z: number, r?: number, h?: number) => {
+    const [wx, wz] = atWorld(x, z);
+    st.pools.push({ x: wx, z: wz, reg: d.regionOf(x, z), r, h });
+  };
   /** 路灯（本地 +z 朝路），同 town.ts */
   const lamp = (x: number, z: number, rot: number) => {
     const it = { x, z, s: 1, rot, reg: d.regionOf(x, z) };
@@ -268,7 +278,8 @@ export function siteKit(d: DetailCtx, rnd: () => number) {
     addInst('lampPole', it);
     addInst('lampHead', it);
     block({ x, z, r: 0.25 });
-    st.pools.push({ x: x + Math.sin(rot) * 0.7, z: z + Math.cos(rot) * 0.7, reg: it.reg });
+    const [px, pz] = atWorld(x + Math.sin(rot) * 0.7, z + Math.cos(rot) * 0.7);
+    st.pools.push({ x: px, z: pz, reg: it.reg });
   };
   /** 收尾：实例化的小件交给 build.ts；返回车道守卫拦下的件数 */
   const finish = () => {
