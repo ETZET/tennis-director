@@ -36,6 +36,7 @@ import {
 } from './layout';
 import { buildMountains, MTN_RAMP } from './mountains';
 import { TOWN_EL, valleyMat } from './palette';
+import { parkDeckY } from './parkdeck';
 import { EL, type MapCtx, PAL, type PalKey } from './reuse';
 import { CLUB_BOX, HF, inClubBox, LOOKOUT, mountainY, trailY } from './terrain';
 import { TOWN_K } from './townscale';
@@ -966,7 +967,7 @@ export function buildValley(
           }
       }
       flagAt.push([x, z]);
-      const y = hill ? LOOKOUT.y : inPoly(FLOOR, x, z) ? 0 : Math.max(0, mountainY(x, z));
+      const y = hill ? LOOKOUT.y : inPoly(FLOOR, x, z) ? parkDeckY(x, z) : Math.max(0, mountainY(x, z));
       const reg = hill ? 'mountain' : regionOf(x, z);
       put(reg, 'concrete', new THREE.CylinderGeometry(0.32, 0.4, 0.2, 8).translate(x, y + 0.1, z));
       put(reg, 'metal', box(0.14, 3.4, 0.14, x, y, z));
