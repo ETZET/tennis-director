@@ -243,6 +243,8 @@ export function townWrap(d: DetailCtx): TownWrapped {
   };
   return {
     ...d,
+    // 不缩的原样上下文（世界坐标的细节要放挡路形状、或整块自己缩好的东西时用：plaza.ts）
+    raw: d,
     flush() {
       flushPieces(pieces);
       pieces.length = 0;
@@ -266,7 +268,9 @@ export function townWrap(d: DetailCtx): TownWrapped {
       // 实例：一件一件按它的落地点分（几何本身是本地的、落地点在原点）
       g.computeBoundingBox();
       const bb = g.boundingBox;
-      if (!bb || bb.max.y - bb.min.y < FLAT_M) return d.instance(g, key, items, cast);
+      // 平铺 = 贴在地上（最高点 < FLAT_M），不是"薄"：车身两侧 0.12 米厚的饰条在 0.84 米高，按厚度判会被当成平铺、不跟车身一起缩
+      //（2026-11-21：每辆停着的车两边留下两条原尺寸的 4.9 米白条）
+      if (!bb || bb.max.y < FLAT_M) return d.instance(g, key, items, cast);
       const out: InstItem[] = items.map((it) => {
         const w = (bb.max.x - bb.min.x) * it.s;
         const dd = (bb.max.z - bb.min.z) * it.s;

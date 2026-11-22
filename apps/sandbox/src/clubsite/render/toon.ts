@@ -722,11 +722,16 @@ const RAMP_OUT = /* glsl */ `
   // 边上最多一纹素的棋盘抖动；只压亮档（侧面、投影本来就不吃直射光）。亮 → 中只差 35～40 个亮度，不出强边缘。
   // uCloudCut：1 = 手摆的云；> 1 云团更胖（多云）；≥ 50 = 满天（阴天：亮档全压到中档，连没开云影的地图也压）
   if (band > 1.5 && uCloudCut >= 50.0) band = 1.0;
+  // 飘云绕回的那道缝（cloudR 里 q.x 每 CLOUD_W 米折回去一次）：缝两边 cr 跳一大截，fwidth(cr) 跟着变大 →
+  // 原来缝上一整列都走下面的棋盘抖动 = 一条 1 纹素的蓝灰点线，跟着云慢慢飘（2026-11-22 valley 路面上的南北细线）。缝上不抖。
+  // 按位置判（离折回点 2 纹素以内），不用导数：多一个 fwidth 会改掉投影边上那圈棋盘（分支里的导数本来就没定义，编译一变就变）
+  float cloudQm = mod(vCloudXZ.x - uCloudVel.x * uTime + CLOUD_W * 0.5, CLOUD_W);
+  bool cloudSeam = cloudQm < uTexel * 2.0 || cloudQm > CLOUD_W - uTexel * 2.0;
   if (uCloudStrength > 0.0 && band > 1.5) {
     float cr = cloudR(vCloudXZ);
     if (cr < uCloudCut) band = 1.0;
     else if (cr - fwidth(cr) < uCloudCut) {
-      if (mod(scrT.x + scrT.y, 2.0) < 0.5) band = 1.0;
+      if (!cloudSeam && mod(scrT.x + scrT.y, 2.0) < 0.5) band = 1.0;
     }
   }
 

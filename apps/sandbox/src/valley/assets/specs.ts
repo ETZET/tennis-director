@@ -21,7 +21,9 @@ export type Batch =
   | 'D2'
   | 'KC'
   | 'KW'
-  | 'KL';
+  | 'KL'
+  | 'PZ'
+  | 'HS';
 export interface Spec {
   batch: Batch;
   name: string;
@@ -55,9 +57,64 @@ export const BATCH_NAME: Record<Batch, string> = {
   CH2: '市政厅店内（批 CH2，assets/in2/cityhall.ts）',
   B2: '银行店内（批 B2，assets/in2/bank.ts）',
   D2: '餐馆店内（批 D2，assets/in2/diner.ts）',
+  PZ: '小镇的街道家具和空当（批 PZ，assets/plaza.ts）',
+  HS: '只有外景的住宅（批 HS，assets/houses.ts：v0 西班牙、v1 蝶形、v2 平顶 + 车棚、v3 单坡；地被一簇）',
 };
 
 export const SPECS: Record<string, Spec> = {
+  // ── 批 PZ：小镇的街道家具 + 空当的主角（detail/plaza.ts 摆；场景里整件 × 0.62）──
+  'pz-hydrant': { batch: 'PZ', name: '红消防栓', w: 0.5, h: 0.85, d: 0.4, key: 'clothRed', tris: 150 },
+  'pz-mailbox': { batch: 'PZ', name: '蓝邮筒（无商标）', w: 0.56, h: 1.25, d: 0.5, key: 'clothBlue', tris: 150 },
+  'pz-phone': {
+    batch: 'PZ',
+    name: '公用电话（立柱 + 小罩 + 蓝灯箱）',
+    w: 0.9,
+    h: 2.3,
+    d: 0.6,
+    key: 'metal',
+    tris: 150,
+  },
+  'pz-menu': { batch: 'PZ', name: '餐馆户外菜单牌', w: 1.1, h: 1.7, d: 0.3, key: 'slate', tris: 200 },
+  'pz-bikerack': { batch: 'PZ', name: '自行车架 + 两辆车', w: 2.6, h: 1.0, d: 0.8, key: 'metal', tris: 500, n: 3 },
+  'pz-pot': { batch: 'PZ', name: '街角大花盆', w: 1.7, h: 1.6, d: 1.7, key: 'adobe', tris: 600, n: 4 },
+  'pz-planter': {
+    batch: 'PZ',
+    name: '方花池（1.6 方 / 2×4 长条）',
+    w: 1.6,
+    h: 1.2,
+    d: 1.6,
+    key: 'adobe',
+    tris: 700,
+    n: 5,
+  },
+  'pz-shelter': {
+    batch: 'PZ',
+    name: '公交站棚（背板朝南、彩色檐、站牌）',
+    w: 4.4,
+    h: 2.7,
+    d: 1.9,
+    key: 'dinerCoral',
+    tris: 400,
+  },
+  'pz-dumpster': { batch: 'PZ', name: '深绿大垃圾箱', w: 1.9, h: 1.3, d: 1.2, key: 'cactus', tris: 100 },
+  'pz-crates': { batch: 'PZ', name: '叠起来的牛奶箱', w: 1.2, h: 1.1, d: 0.8, key: 'clothRed', tris: 200 },
+  'pz-dock': {
+    batch: 'PZ',
+    name: '报社发报台（1.2 米台 + 单坡顶）',
+    w: 13.4,
+    h: 4.2,
+    d: 4.6,
+    key: 'campusConcrete',
+    tris: 300,
+  },
+  'pz-racquet-rack': { batch: 'PZ', name: '球拍展示架 + 一桶球', w: 1.4, h: 1.5, d: 0.7, key: 'wood', tris: 900 },
+  'pz-racquet-sign': { batch: 'PZ', name: '球拍形立地招牌', w: 1.1, h: 2.4, d: 0.5, key: 'clothRed', tris: 300 },
+  'pz-car': { batch: 'PZ', name: '路边的车（六种车身色）', w: 2.0, h: 1.5, d: 4.8, key: 'carRed', tris: 100, n: 6 },
+  'pz-gate': { batch: 'PZ', name: '毛石门柱一对', w: 3.8, h: 2.0, d: 0.7, key: 'desertStone', tris: 100 },
+  'pz-pennant': { batch: 'PZ', name: '校队三角旗', w: 1.6, h: 4.6, d: 0.2, key: 'schoolMaroon', tris: 100 },
+  'pz-tree': { batch: 'PZ', name: '大遮阴树（牧豆树）', w: 5.4, h: 5.6, d: 5.4, key: 'olive', tris: 2000 },
+  'pz-bench': { batch: 'PZ', name: '街边长椅', w: 1.9, h: 0.85, d: 0.6, key: 'wood', tris: 100 },
+  'pz-bin': { batch: 'PZ', name: '街边垃圾桶', w: 0.6, h: 0.95, d: 0.6, key: 'ironwork', tris: 100 },
   // ── 批 P：报社 ──
   'paper-front': { batch: 'P', name: '报社门脸（南立面 + 屋顶边）', w: 24, h: 8, d: 16, key: 'stucco', tris: 2500 },
   'paper-tower': { batch: 'P', name: '塔 + 太阳牌 + 竖招牌', w: 5.5, h: 15.6, d: 5.5, key: 'sunEnamel', tris: 1200 },

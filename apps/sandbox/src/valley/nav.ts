@@ -1,6 +1,6 @@
 // valley 的导航：俱乐部外面哪些地方能站、多高（clubwalk 的 outerSurface 钩子）、挡路的形状、出俱乐部的寻路。
-// - 平地（FLOOR）里能走；锁着的区域不能进（路口有路障）；山上只有美术馆步道和观景台能走。
-// - 开车：球车、汽车都能下路（除了山上的步道和锁着的地方）；下了路是沙地，慢（vehicles.ts 的 DRIVE.offroad），不是撞墙。
+// - 平地（FLOOR）里能走；锁着的区域不能进（路口有路障）；山上不能走。
+// - 开车：球车、汽车都能下路（除了锁着的地方）；下了路是沙地，慢（vehicles.ts 的 DRIVE.offroad），不是撞墙。
 // - 俱乐部围墙那一圈不能穿（墙里面归 clubwalk 管，门在东墙）。
 
 import type { NavMap, Shape } from '../clubsite/play';
@@ -10,7 +10,7 @@ import { INTERIORS } from './interiors/all';
 import { interiorWalk, ORIGIN } from './interiors/index';
 import { BUILDINGS, HOTEL_BLDGS, houses, REGIONS, regionAt } from './layout';
 import { parkDeckAt } from './parkdeck';
-import { inClubBox, inFloor, trailSurface } from './terrain';
+import { inClubBox, inFloor } from './terrain';
 
 export type Mode = 'walk' | 'cart' | 'car';
 
@@ -46,10 +46,7 @@ export function createValleyNav(locked: Set<string>): ValleyNav {
           : null;
       // 围墙那一圈（门洞归 clubwalk 的 BASE_WALK）
       if (x >= wallBand.x0 && x <= wallBand.x1 && z >= wallBand.z0 && z <= wallBand.z1) return null;
-      if (!inFloor(x, z)) {
-        if (v.mode !== 'walk' || v.locked.has('mountain')) return null;
-        return trailSurface(x, z);
-      }
+      if (!inFloor(x, z)) return null;
       if (!inClubBox(x, z)) {
         const r = regionAt(x, z);
         if (r && v.locked.has(r.id)) return null;

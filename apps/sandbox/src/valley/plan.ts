@@ -4,7 +4,6 @@
 import { CLUBHOUSE, COURTS, GOLF, GROUNDS, LOT_N, LOT_S, POOL } from '../clubsite/world';
 import {
   type Bldg,
-  BRIDGES,
   BUILDINGS,
   distToLine,
   FLOOR,
@@ -21,14 +20,13 @@ import {
   type Rect,
   ROADS,
   SPEED,
-  S as SV,
+  TRACK,
   TRIPS,
   type V2,
   VIEW,
-  WASH,
-  washDist,
   windmills,
 } from './layout';
+import { PLAY_KEEP } from './townscale';
 
 declare global {
   interface Window {
@@ -37,7 +35,7 @@ declare global {
 }
 
 const params = new URLSearchParams(location.search);
-const S = Number(params.get('s') ?? 0.6);
+const S = Number(params.get('s') ?? 1.3);
 const SHOW_LOCK = params.get('locked') !== '0';
 const M = 24;
 const W = Math.ceil((VIEW.x1 - VIEW.x0) * S) + M * 2;
@@ -131,91 +129,22 @@ for (let z = Math.ceil(VIEW.z0 / 100) * 100; z <= VIEW.z1; z += 100) {
   g.stroke();
 }
 
-// ── 干河床 ──
-{
-  const { pts, half } = WASH;
-  for (const [fill, extra] of [
-    ['#d4b483', 3],
-    ['#e3cfa6', 0],
-  ] as const) {
-    g.fillStyle = fill;
-    for (let i = 1; i < pts.length; i++) {
-      const [ax, az] = pts[i - 1];
-      const [bx, bz] = pts[i];
-      const n = Math.ceil(Math.hypot(bx - ax, bz - az) / 6);
-      for (let k = 0; k <= n; k++) {
-        const t = k / n;
-        const r = half[i - 1] + (half[i] - half[i - 1]) * t + extra;
-        g.beginPath();
-        g.arc(sx(ax + (bx - ax) * t), sy(az + (bz - az) * t), r * S, 0, Math.PI * 2);
-        g.fill();
-      }
-    }
-  }
-  // 河床里的石头
-  g.fillStyle = 'rgba(140,110,90,0.5)';
-  for (let i = 0; i < 160; i++) {
-    const k = (i * 0.618) % 1;
-    const seg = Math.floor(k * (pts.length - 1));
-    const t = (k * (pts.length - 1)) % 1;
-    const [ax, az] = pts[seg];
-    const [bx, bz] = pts[seg + 1];
-    const h = half[seg] * (((i * 0.37) % 1) * 1.6 - 0.8);
-    const L = Math.hypot(bx - ax, bz - az);
-    const x = ax + (bx - ax) * t + (-(bz - az) / L) * h;
-    const z = az + (bz - az) * t + ((bx - ax) / L) * h;
-    g.beginPath();
-    g.arc(sx(x), sy(z), 1.4, 0, Math.PI * 2);
-    g.fill();
-  }
-}
-
 // ── 绿地、跑道 ──
 const GREEN_FILL: Record<GreenKind, string> = {
-  golf: '#9cc47a',
   park: 'rgba(120,180,90,0.75)',
   field: 'rgba(120,180,90,0.6)',
-  runway: '#7a777f',
-  grove: 'rgba(200,180,120,0.5)',
 };
 for (const q of GREENS) {
   path(q.poly, true);
   g.fillStyle = GREEN_FILL[q.kind];
   g.fill();
-  if (q.kind === 'grove') {
-    const xs = q.poly.map((v) => v[0]);
-    const zs = q.poly.map((v) => v[1]);
-    g.fillStyle = '#5f8a4a';
-    for (let x = Math.min(...xs) + 6; x < Math.max(...xs); x += 12)
-      for (let z = Math.min(...zs) + 6; z < Math.max(...zs); z += 12) {
-        if (!inPoly(q.poly, x, z)) continue;
-        g.beginPath();
-        g.arc(sx(x), sy(z), 2.2, 0, Math.PI * 2);
-        g.fill();
-      }
-    label(q.name, (Math.min(...xs) + Math.max(...xs)) / 2, (Math.min(...zs) + Math.max(...zs)) / 2, {
-      size: 10,
-      color: '#3a5a2a',
-    });
-  }
-  if (q.kind === 'golf') {
-    // 果岭、沙坑
-    const [cx, cz] = q.poly.reduce(([a, b], [x, z]) => [a + x / q.poly.length, b + z / q.poly.length], [0, 0]);
-    for (let k = 0; k < 5; k++) {
-      const a = k * 2.4;
-      g.beginPath();
-      g.arc(sx(cx + Math.cos(a) * (40 + k * 12)), sy(cz + Math.sin(a) * (30 + k * 6)), 5, 0, Math.PI * 2);
-      g.fillStyle = k % 2 ? '#f3e2b8' : '#b6dc8e';
-      g.fill();
-    }
-  }
 }
 // 沙漠里的灌木（空地上撒，确定性）
 g.fillStyle = 'rgba(110,130,80,0.55)';
 for (let i = 0; i < 2600; i++) {
   const x = VIEW.x0 + ((i * 0.7548776662) % 1) * (VIEW.x1 - VIEW.x0);
   const z = VIEW.z0 + ((i * 0.569840291) % 1) * (VIEW.z1 - VIEW.z0);
-  if (!inPoly(FLOOR, x, z) || washDist(x, z) < 2) continue;
+  if (!inPoly(FLOOR, x, z)) continue;
   if (GREENS.some((q) => inPoly(q.poly, x, z))) continue;
   if (ROADS.some((r) => distToLine(r.pts, x, z) < r.w / 2 + 3)) continue;
   g.beginPath();
@@ -244,14 +173,6 @@ for (const r of ROADS) {
   g.strokeStyle = r.kind === 'highway' ? '#76737c' : ROAD;
   g.stroke();
 }
-// 桥
-for (const br of BRIDGES) {
-  g.fillStyle = '#5b5560';
-  g.fillRect(sx(br.x) - 6, sy(br.z) - 14, 12, 28);
-  g.fillStyle = '#a9a5ad';
-  g.fillRect(sx(br.x) - 4, sy(br.z) - 14, 8, 28);
-}
-
 // ── 俱乐部（world.ts 的） ──
 rect(GROUNDS);
 g.fillStyle = '#e8b98a';
@@ -304,18 +225,16 @@ const KIND_FILL: Record<Bldg['kind'], string> = {
   misc: '#dcd0c0',
 };
 for (const o of BUILDINGS) bldg(o, KIND_FILL[o.kind]);
-// 公园的公共球场、学校的跑道
-// 手写的位置（原尺寸）过 layout 的整体缩放 SV；间距、大小不缩
-const PARK_COURTS = SV(1040, -610);
-const TRACK = SV(795, -700);
-for (let i = 0; i < 4; i++) {
+// 学校的校队球场、公园的公共球场（真尺寸的框）、学校的跑道
+for (const r of PLAY_KEEP) {
+  if (r.x1 - r.x0 < 15) continue;
   g.fillStyle = '#4f8ab0';
-  g.fillRect(sx(PARK_COURTS[0] + i * 26), sy(PARK_COURTS[1]), 22 * S, 36 * S);
+  g.fillRect(sx(r.x0), sy(r.z0), (r.x1 - r.x0) * S, (r.z1 - r.z0) * S);
 }
 g.strokeStyle = '#d06a4a';
 g.lineWidth = 2;
 g.beginPath();
-g.ellipse(sx(TRACK[0]), sy(TRACK[1]), 40 * S, 22 * S, 0, 0, Math.PI * 2);
+g.ellipse(sx(TRACK[0]), sy(TRACK[1]), 27 * S, 17 * S, 0, 0, Math.PI * 2);
 g.stroke();
 
 // 风车（地图外的远景）
@@ -409,26 +328,18 @@ for (const r of ROADS) {
 const REGION_AT: Record<string, V2> = {
   // 俱乐部那块挨着的标签不缩（缩了会压在酒店地块的字上）；南棕榈谷挪到东边空地（原位置缩完压在高尔夫的字上）
   club: [40, 130],
-  south: SV(900, 20),
-  town: SV(480, -1180),
-  school: SV(900, -960),
-  wash: SV(760, -470),
-  mountain: SV(-40, -1120),
-  highway: SV(620, -1380),
-  east: SV(1250, -1120),
+  town: [300, -175],
+  school: [430, -150],
+  park: [400, 150],
 };
 for (const r of REGIONS) {
   const p = REGION_AT[r.id];
   if (!p) continue;
   label(`${r.open ? '' : '🔒 '}${r.name}`, p[0], p[1], { size: 15, bold: true, color: r.color });
 }
-label('塔奎兹溪（干河床）', ...SV(1240, -300), { size: 11, color: '#7a5a2a' });
-label('圣哈辛托山', ...SV(-120, -400), { size: 14, bold: true, color: '#fff3e6', halo: false });
-label('圣罗莎山', ...SV(760, 300), { size: 14, bold: true, color: '#fff3e6', halo: false });
-label('风车田 →I-10', ...SV(560, -1440), { size: 12, bold: true, color: '#fff3e6', halo: false });
-label('机场', ...SV(1420, -760), { size: 11, bold: true });
-for (const q of GREENS)
-  if (q.kind === 'golf') label(q.name, q.poly[0][0] + 84, q.poly[0][1] + 42, { size: 10, color: '#3a6a2a' });
+label('圣哈辛托山', -120, -300, { size: 14, bold: true, color: '#fff3e6', halo: false });
+label('圣罗莎山', 420, 240, { size: 14, bold: true, color: '#fff3e6', halo: false });
+label('风车田（远景）', 410, -420, { size: 12, bold: true, color: '#fff3e6', halo: false });
 
 // ── 事（POI） ──
 const POI_STYLE: Record<PoiKind, { fill: string; glyph: string }> = {

@@ -232,10 +232,11 @@ ASSETS['school-main-front'] = (ctx) => {
   p.add(glass, [...lit, ...dark], false);
   // 两头的落水管
   for (const s of [-1, 1]) p.add(frame, box(0.22, MH - 0.3, 0.22, s * (MW / 2 - 0.4), 0, zf + 0.15), false);
-  // 屋顶（build.ts 的屋顶板顶 = 缩完 h + 0.35 → 缩之前 h + 0.565）：三排太阳能板（斜 0.2，矮腿）、两台空调、一个检修口
+  // 屋顶（build.ts 的屋顶板顶 = 缩完 h + 0.35 → 缩之前 h + 0.565）：四排太阳能板（斜 0.2，矮腿）、两台空调、一个检修口
+  //（2026-11-21：第四排 dz 12 靠前沿 —— 正门一屏上半截原来是一整块奶白的平顶，中午饱和度 0.346 < 0.35）
   const ry = MH + 0.6;
   const solar = ctx.mat('solarBlue', { elem: TOWN_EL.solarBlue });
-  for (const dz of [-12, -4, 4]) {
+  for (const dz of [-12, -4, 4, 12]) {
     p.add(solar, new THREE.BoxGeometry(34, 0.16, 4.2).rotateX(0.2).translate(-1, ry + 0.75, dz));
     for (const dx of [-16, -8, 0, 8, 14]) p.add(frame, box(0.16, 0.6, 0.16, dx - 1, ry, dz + 1.2), false);
   }
@@ -597,4 +598,209 @@ ASSETS['solar-carport'] = (ctx) => {
     p.add(ctx.mat('metal'), new THREE.BoxGeometry(0.16, 0.16, 5.2).rotateX(0.17).translate(x, 3.45, 0), false);
   }
   return p.build('solar-carport');
+};
+
+// ════ 批 CP（campus，2026-11-21 小镇压紧 · 关卡 2 美术）：学校北边的活动教室区、篮球半场、饮水台；日出公园东半边的野餐桌、入口石柱 ════
+// 除了 campus-goal，都在 PLAY_KEEP 外：小件（< 4.5 米）跟小镇缩（townwrap 乘 0.62）→ 照缩之前的尺寸画；
+// 活动教室是长条（> 4.5 米）→ townwrap 只压低 y：长宽照缩完写、高照缩之前写。
+
+/** 一块竖直的三角形面（伞面、坡顶）：三个点 + 往外的法线（球面：从 c 指向面心） */
+function tri(a: THREE.Vector3, b: THREE.Vector3, c: THREE.Vector3, up: THREE.Vector3): THREE.BufferGeometry {
+  const g = new THREE.BufferGeometry();
+  const n = new THREE.Vector3().subVectors(b, a).cross(new THREE.Vector3().subVectors(c, a)).normalize();
+  const flip = n.dot(up) < 0;
+  const P = flip ? [a, c, b] : [a, b, c];
+  g.setAttribute(
+    'position',
+    new THREE.Float32BufferAttribute(
+      P.flatMap((p) => [p.x, p.y, p.z]),
+      3,
+    ),
+  );
+  g.computeVertexNormals();
+  return g;
+}
+
+// ══ campus-picnic：公园的野餐桌 + 遮阳伞（原尺寸 2.4 × 2.7 × 3.2，跟小镇缩）══
+// 旧木桌面 + 两条长凳 + A 字腿；伞：八瓣，一瓣色一瓣白（v0 红、v1 黄、v2 蓝 —— 不用青绿：公园里青绿只给俱乐部的帐篷）。
+// 伞面投影（桌子落在伞影里 = 一块暗块，lessons「树影暗块」），伞杆、桌腿不投。
+ASSETS['campus-picnic'] = (ctx) => {
+  const p = new Parts(ctx);
+  const v = ctx.variant % 3;
+  const wood = ctx.mat('woodWeathered', { ...PROP, elem: { kind: 'planks', seam: 1, hi: 0.4, p: [0, 1, 0, 0.16] } });
+  const legs = ctx.mat('ironwork', PROP);
+  p.add(wood, box(2.4, 0.08, 0.92, 0, 0.74, 0));
+  for (const s of [-1, 1]) p.add(wood, box(2.4, 0.07, 0.34, 0, 0.44, s * 0.74));
+  for (const x of [-0.9, 0.9]) {
+    p.add(legs, box(0.1, 0.74, 0.1, x, 0, 0), false);
+    p.add(legs, box(0.1, 0.08, 1.8, x, 0.36, 0), false);
+  }
+  // 伞
+  const H = 2.55;
+  const R = 1.6;
+  p.add(ctx.mat('metal', PROP), box(0.09, H + 0.25, 0.09, 0, 0, 0), false);
+  const col = (['clothRed', 'flowerYellow', 'clothBlue'] as const)[v];
+  const canopyOpts: ToonOpts = { lightUp: 0.35, bands: [-0.35, 0.35], convex: 0.25, edge: 0.6, noShadowReceive: true };
+  const ca = ctx.mat(col, canopyOpts);
+  const cb = ctx.mat('clothWhite', canopyOpts);
+  const apex = new THREE.Vector3(0, H + 0.5, 0);
+  const up = new THREE.Vector3(0, 1, 0);
+  const N = 8;
+  for (let i = 0; i < N; i++) {
+    const a0 = ((i + 0.5) / N) * Math.PI * 2;
+    const a1 = ((i + 1.5) / N) * Math.PI * 2;
+    const r0 = new THREE.Vector3(Math.cos(a0) * R, H, Math.sin(a0) * R);
+    const r1 = new THREE.Vector3(Math.cos(a1) * R, H, Math.sin(a1) * R);
+    p.add(i % 2 ? cb : ca, tri(apex, r0, r1, up));
+    // 垂边（一圈 0.14 米的帷边，朝南那几瓣看得见 = 伞的下沿一条亮色）
+    const d0 = r0.clone().setY(H - 0.14);
+    const d1 = r1.clone().setY(H - 0.14);
+    const out = new THREE.Vector3((r0.x + r1.x) / 2, 0, (r0.z + r1.z) / 2).normalize();
+    p.add(i % 2 ? cb : ca, tri(r0, d0, r1, out), false);
+    p.add(i % 2 ? cb : ca, tri(r1, d0, d1, out), false);
+  }
+  return p.build('campus-picnic');
+};
+
+// ══ campus-gate：公园朝主街的入口，两根石柱（长条 5.3 米：xz 照缩完写、高照缩之前写，townwrap 只把高压到 0.62）══
+// 叠石柱身（desertStone，同银行的花池石）+ 浅色压顶 + 顶上一盏方灯（夜里亮、柱间地上一圈光）；朝南那面一块搪瓷太阳圆牌（图标，不写字）。
+// 两根柱子一件资产（一起合材质：两根各放一件是两倍的绘制）。柱心距 4.6 米（中间 3.9 米 = 步道 + 两边草）
+ASSETS['campus-gate'] = (ctx) => {
+  const p = new Parts(ctx);
+  const stone = ctx.mat('desertStone', { ...SIGN_FACE, elem: TOWN_EL.desertStone, bands: [-0.55, 0.3] });
+  const cap = ctx.mat('civicSand', { edge: 0.6, convex: 0.4 });
+  const sun = ctx.mat('sunEnamel', SIGN_FACE);
+  const iron = ctx.mat('ironwork', PROP);
+  const glass = ctx.mat('jug', PROP);
+  const glassN = glow(ctx, 'flowerYellow', PROP, 0xffc060);
+  const W = 0.7;
+  for (const s of [-1, 1]) {
+    const x = s * 2.3;
+    p.add(stone, box(W, 2.5, W, x, 0, 0));
+    p.add(cap, box(W + 0.16, 0.22, W + 0.16, x, 2.5, 0));
+    p.add(cap, box(W - 0.14, 0.14, W - 0.14, x, 2.72, 0));
+    // 太阳圆牌：一块圆 + 四道光芒（朝南，贴在柱身上；高照缩之前写，圆在画面上压成扁的 → 圆牌本身先竖着拉长 1/0.62）
+    p.add(
+      sun,
+      new THREE.CylinderGeometry(0.2, 0.2, 0.05, 12)
+        .rotateX(Math.PI / 2)
+        .scale(1, 1 / 0.62, 1)
+        .translate(x, 1.6, W / 2 + 0.025),
+      false,
+    );
+    for (const [dx, dy, w, h] of [
+      [0, 0.5, 0.07, 0.2],
+      [0, -0.5, 0.07, 0.2],
+      [0.3, 0, 0.1, 0.12],
+      [-0.3, 0, 0.1, 0.12],
+    ])
+      p.add(sun, box(w, h, 0.04, x + dx, 1.6 + dy - h / 2, W / 2 + 0.02), false);
+    p.add(iron, box(0.34, 0.06, 0.34, x, 2.86, 0), false);
+    p.add(glass, box(0.26, 0.42, 0.26, x, 2.92, 0), false);
+    p.add(iron, box(0.38, 0.08, 0.38, x, 3.34, 0), false);
+  }
+  const root = p.build('campus-gate');
+  nightSwitch(root, new Map([[glass, glassN]]), { x: 0, z: 1.2, r: 3.2, h: 3.2 });
+  return root;
+};
+
+// ══ campus-portable：活动教室（长条：8.4 × 5.2 的脚印照缩完写；高照缩之前写，townwrap 乘 0.62 → 落地 ≈ 2.8 米）══
+// 抬高的底座（裙板一条暗带）+ 浅色 T1-11 竖缝板墙 + 酒红封檐 + 平顶；朝南一扇门、两扇窗、门前平台 + 往东下的坡道和栏杆，西头一台空调。
+// v0 门在西、坡道往东；v1 门在东、坡道往西（2×2 摆成一组，两排之间对着一条走道）。
+ASSETS['campus-portable'] = (ctx) => {
+  const p = new Parts(ctx);
+  const m = ctx.variant % 2 ? -1 : 1;
+  const W = 8.4;
+  const D = 5.2;
+  const B = 1.0; // 底座高（缩之前）
+  const WH = 3.3; // 墙高
+  const wall = ctx.mat('pvc', { ...WALL, elem: { kind: 'planks', seam: 1, hi: 0.25, p: [1, 0, 0, 0.6] } });
+  const skirt = ctx.mat('ironwork', { ...WALL, elem: { kind: 'planks', seam: 1, hi: 0.2, p: [1, 0, 0, 0.3] } });
+  const trim = ctx.mat('schoolMaroon', FACE);
+  // 顶：暖褐的压型板（冷灰白一大块平顶 = 一屏饱和度掉到 0.33；教室坐在草上，褐顶和沙不挨着）
+  const roof = ctx.mat('civicSand', { elem: TOWN_EL.roofMetal, edge: 0.7, convex: 0.3 });
+  p.add(skirt, box(W - 0.3, B, D - 0.3, 0, 0, 0), false);
+  p.add(wall, box(W, WH, D, 0, B, 0));
+  p.add(roof, box(W + 0.4, 0.22, D + 0.4, 0, B + WH, 0));
+  p.add(trim, box(W + 0.44, 0.34, 0.06, 0, B + WH - 0.08, D / 2 + 0.22), false);
+  // 门（酒红）+ 门框，两扇窗（玻璃 + 白框）
+  const dx = -m * 2.6;
+  p.add(ctx.mat('pvc', FACE), box(1.2, 2.45, 0.05, dx, B, D / 2 + 0.01), false);
+  p.add(trim, box(0.95, 2.25, 0.06, dx, B, D / 2 + 0.03), false);
+  const glass = ctx.mat('jug', FACE);
+  for (const wx of [m * 0.2, m * 2.6]) {
+    p.add(ctx.mat('pvc', FACE), box(1.7, 1.3, 0.05, wx, B + 1.1, D / 2 + 0.01), false);
+    p.add(glass, box(1.5, 1.1, 0.06, wx, B + 1.2, D / 2 + 0.03), false);
+  }
+  // 门前平台 + 坡道（往门的另一边下）+ 栏杆
+  const deck = ctx.mat('woodWeathered', { elem: { kind: 'planks', seam: 1, hi: 0.4, p: [1, 0, 0, 0.18] } });
+  const rail = ctx.mat('metal', PROP);
+  const PD = 1.3;
+  p.add(deck, box(1.8, 0.1, PD, dx, B - 0.1, D / 2 + PD / 2));
+  p.add(skirt, box(1.7, B - 0.1, PD - 0.1, dx, 0, D / 2 + PD / 2), false);
+  const RL = 4.6;
+  const rx0 = dx + m * 0.9;
+  const slope = Math.atan2(B, RL);
+  const rampG = new THREE.BoxGeometry(Math.hypot(RL, B), 0.1, 1.1)
+    .rotateZ(-m * slope)
+    .translate(rx0 + (m * RL) / 2, B / 2 - 0.05, D / 2 + PD - 0.55);
+  p.add(deck, rampG);
+  const railG = new THREE.BoxGeometry(Math.hypot(RL, B), 0.07, 0.07)
+    .rotateZ(-m * slope)
+    .translate(rx0 + (m * RL) / 2, B / 2 + 0.85, D / 2 + PD + 0.02);
+  p.add(rail, railG, false);
+  p.add(rail, box(1.8, 0.07, 0.07, dx, B + 0.85, D / 2 + PD + 0.02), false);
+  for (const x of [dx - m * 0.9, rx0, rx0 + m * RL * 0.5]) {
+    const h = B + 0.9 - (Math.max(0, (x - rx0) * m) / RL) * B;
+    p.add(rail, box(0.08, h, 0.08, x, 0, D / 2 + PD + 0.02), false);
+  }
+  // 空调（门那头的山墙外，朝南的侧面看得见一块灰盒子）
+  p.add(ctx.mat('metal'), box(0.6, 0.9, 1.0, -m * (W / 2 + 0.3), B + 0.6, -0.8));
+  return p.build('campus-portable');
+};
+
+// ══ campus-hoop：篮球架（原尺寸 1.9 × 4.0 × 1.6，跟小镇缩；原点 = 篮筐下的地面，篮板朝南）══
+ASSETS['campus-hoop'] = (ctx) => {
+  const p = new Parts(ctx);
+  const pole = ctx.mat('schoolMaroon');
+  p.add(pole, box(0.2, 3.5, 0.2, 0, 0, -1.3), false);
+  p.add(pole, box(0.14, 0.14, 1.1, 0, 3.25, -0.8), false);
+  p.add(ctx.mat('pvc', FACE), box(1.8, 1.05, 0.08, 0, 2.85, -0.25));
+  p.add(ctx.mat('schoolMaroon', FACE), box(0.6, 0.46, 0.09, 0, 3.0, -0.24), false);
+  p.add(ctx.mat('pvc', FACE), box(0.46, 0.32, 0.1, 0, 3.07, -0.24), false);
+  // 篮筐：四根 2 纹素的橙条 + 一截白网（梯形）
+  const rim = ctx.mat('toolOrange', PROP);
+  p.add(rim, box(0.46, 0.05, 0.05, 0, 3.05, 0.2), false);
+  p.add(rim, box(0.46, 0.05, 0.05, 0, 3.05, -0.2), false);
+  for (const s of [-1, 1]) p.add(rim, box(0.05, 0.05, 0.4, s * 0.21, 3.05, 0), false);
+  p.add(ctx.mat('clothWhite', PROP), box(0.36, 0.34, 0.04, 0, 2.72, 0.18), false);
+  return p.build('campus-hoop');
+};
+
+// ══ campus-fountain：一排三个饮水台（原尺寸 2.8 × 1.0 × 0.9，跟小镇缩）══
+// 水泥垫 + 三个方柱（浅灰水泥）+ 不锈钢碗；一个碗旁边一小摊水（深一档的水泥）。
+ASSETS['campus-fountain'] = (ctx) => {
+  const p = new Parts(ctx);
+  p.add(ctx.mat('campusConcrete', { elem: TOWN_EL.campusConcrete }), box(2.8, 0.08, 1.0, 0, 0, 0), false);
+  const post = ctx.mat('campusConcrete', { ...PROP, lightUp: 0.4, bands: [-0.6, 0.2] });
+  const bowl = ctx.mat('roofMetal', { ...PROP, lightUp: 0.4, bands: [-0.4, 0.3] });
+  for (const x of [-0.9, 0, 0.9]) {
+    p.add(post, box(0.42, 0.82, 0.42, x, 0.08, 0));
+    p.add(bowl, box(0.56, 0.14, 0.5, x, 0.9, 0.04));
+  }
+  p.add(ctx.mat('jug', { noShadowReceive: true, bands: [0.2, 0.6] }), box(0.6, 0.02, 0.36, 0.5, 0.08, 0.42), false);
+  return p.build('campus-fountain');
+};
+
+// ══ campus-goal：足球门（5.4 × 2.0 × 1.6；跑道内场、练习场都是照缩完写的场，门是长条 → townwrap 只压低到 1.24 米）══
+// 白门框 2 纹素以上 + 网是一片斜着的浅灰蓝（同网球网身的 jug，一块透光的面，不画网眼）；薄的都不投影。
+ASSETS['campus-goal'] = (ctx) => {
+  const p = new Parts(ctx);
+  const white = ctx.mat('clothWhite', { ...PROP, lightUp: 0.4, bands: [-0.5, 0.2] });
+  for (const s of [-1, 1]) p.add(white, box(0.2, 2.0, 0.2, s * 2.6, 0, 0), false);
+  p.add(white, box(5.4, 0.2, 0.2, 0, 1.9, 0), false);
+  const net = ctx.mat('jug', { noShadowReceive: true, lightUp: 0.5, bands: [-0.6, 0.3] });
+  p.add(net, new THREE.BoxGeometry(5.2, 0.04, 2.1).rotateX(-1.0).translate(0, 1.0, -0.85), false);
+  for (const s of [-1, 1]) p.add(net, box(0.04, 1.9, 1.5, s * 2.6, 0, -0.8), false);
+  return p.build('campus-goal');
 };

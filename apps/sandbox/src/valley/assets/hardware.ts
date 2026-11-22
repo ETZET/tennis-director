@@ -11,8 +11,10 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { box } from '../../clubsite/render/geo';
 import type { ToonOpts } from '../../clubsite/render/toon';
+import { REUSED } from '../../clubsite/reuse';
 import type { AssetCtx, AssetFn } from '../ctx';
 import { SIGN_FACE, TOWN_EL } from '../palette';
+import { TOWN_K } from '../townscale';
 import { breezeWallGeo } from './shared';
 
 /** 游戏里一个纹素（米，/valley.html 默认缩放）、竖直面上一屏幕行（俯 45°） */
@@ -667,7 +669,8 @@ const cartCorral: AssetFn = (ctx) => {
     k.bx(handle, 0.1, 0.1, 0.52, x0 + n + 0.06, 0.78, z);
   }
   k.face(sign, 0.54, 3 * R, 0.6, 0.93, Dp / 2 + 0.01);
-  return meshes(ctx, k.parts, [sign, handle, inside]);
+  // 钢管栏 0.12 米（缩完 0.07）：不投影（critic M12）
+  return meshes(ctx, k.parts, [sign, handle, inside, rail]);
 };
 
 /**
@@ -789,7 +792,8 @@ const lotLight: AssetFn = (ctx) => {
     k.bx(head, 0.62, 0.22, 0.46, s * 1.05, 7.82, 0);
     k.bx(lens, 0.52, 0.06, 0.4, s * 1.05, 7.76, 0.01);
   }
-  const g = meshes(ctx, k.parts, [lens]);
+  // 杆、横担缩完只有 0.14 米粗：不投影（傍晚是一条 30 米的麻点细线，critic M12）；灯头照投
+  const g = meshes(ctx, k.parts, [lens, pole]);
   nightSwap(g, [[lens, lensNight]]);
   return g;
 };
@@ -921,6 +925,528 @@ const palletStack: AssetFn = (ctx) => {
   const { wood, woodDark } = palletMats(ctx);
   for (let i = 0; i < 5; i++) pallet(k, wood, woodDark, (rnd() - 0.5) * 0.1, i * 0.145, (rnd() - 0.5) * 0.08);
   return meshes(ctx, k.parts);
+};
+
+// ════════════════════════════ 停车场、店后货场（批 shops，2026-11-21 小镇压紧 · 关卡 2 美术） ════════════════════════════
+// critic composition C3 / C12、material M5 / M12：五金停车场的花池岛、行道树花池带、油渍和轮胎印、路缘；五金店后的货场（建材棚 + 卷帘门、
+// 半挂车、围起来的建材场、工具棚、北边 2 米砖墙）。餐馆、银行的停车场也用这里的油渍、路缘（sites/diner.ts、bank.ts）。
+// 尺寸：shops-barn、shops-toolshed、shops-island 按**缩完的最终尺寸**画（场景里不再缩）；车、货、木料按真尺寸画，场景里绕落地点缩 TOWN_K。
+// 场景里这些东西（还有借来的植物）烘成一两个网格组（bake）再 d.asset：一组按材质合并，十几个绘制，不是一件一件几十个。
+
+/** 停车场的油渍、轮胎印：lotPave 低一级（2026-11-22 核心把 lotPave 调暗到 L 151：油渍 L 131，差 20 < 60），平涂、不描边 */
+export const lotMark = (ctx: AssetCtx) =>
+  ctx.mat('lotPave', { ramp: [0xa07c5e, 0x8c6a6e, 0x625290], edge: 0, convex: 0, noShadowReceive: false });
+/** 路缘石（0.3 宽、0.14 高：顶面亮一条，朝南那面一条暗线）—— 和 town.ts 的路缘同一个 concrete */
+export const kerbMat = (ctx: AssetCtx) => ctx.mat('concrete', { edge: 0.4, convex: 0.6 });
+
+/** 一圈路缘（矩形 x0..x1 × z0..z1 的外沿，高 h、宽 w）；open = 不画的边 */
+export function kerbRing(
+  x0: number,
+  x1: number,
+  z0: number,
+  z1: number,
+  h = 0.14,
+  w = 0.3,
+  open: ('n' | 's' | 'w' | 'e')[] = [],
+): THREE.BufferGeometry[] {
+  const out: THREE.BufferGeometry[] = [];
+  if (!open.includes('n')) out.push(box(x1 - x0, h, w, (x0 + x1) / 2, 0, z0 + w / 2));
+  if (!open.includes('s')) out.push(box(x1 - x0, h, w, (x0 + x1) / 2, 0, z1 - w / 2));
+  if (!open.includes('w')) out.push(box(w, h, z1 - z0 - 2 * w, x0 + w / 2, 0, (z0 + z1) / 2));
+  if (!open.includes('e')) out.push(box(w, h, z1 - z0 - 2 * w, x1 - w / 2, 0, (z0 + z1) / 2));
+  return out;
+}
+
+/** 一块油渍：不规则的圆团（9 个点，半径 r 上下 30%），平铺在 y */
+export function stainGeo(x: number, z: number, r: number, y: number, rnd: () => number): THREE.BufferGeometry {
+  const n = 9;
+  const pos: number[] = [];
+  const rr = Array.from({ length: n }, () => r * (0.7 + rnd() * 0.6));
+  const sx = 1 + rnd() * 0.5; // 车底下滴的油往车长方向拉开一点
+  for (let i = 0; i < n; i++) {
+    const a0 = (i / n) * Math.PI * 2;
+    const a1 = ((i + 1) / n) * Math.PI * 2;
+    const r0 = rr[i];
+    const r1 = rr[(i + 1) % n];
+    pos.push(
+      x,
+      y,
+      z,
+      x + Math.cos(a1) * r1,
+      y,
+      z + Math.sin(a1) * r1 * sx,
+      x + Math.cos(a0) * r0,
+      y,
+      z + Math.sin(a0) * r0 * sx,
+    );
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.computeVertexNormals();
+  return g;
+}
+
+/** 一道轮胎印：圆弧带（圆心 cx cz、半径 r、角 a0..a1、宽 w），只留 keep(x, z) 的段 */
+export function arcGeo(
+  cx: number,
+  cz: number,
+  r: number,
+  a0: number,
+  a1: number,
+  w: number,
+  y: number,
+  keep: (x: number, z: number) => boolean = () => true,
+): THREE.BufferGeometry {
+  const n = Math.max(6, Math.ceil(Math.abs(a1 - a0) * r * 2));
+  const pos: number[] = [];
+  for (let i = 0; i < n; i++) {
+    const t0 = a0 + ((a1 - a0) * i) / n;
+    const t1 = a0 + ((a1 - a0) * (i + 1)) / n;
+    const m = (t0 + t1) / 2;
+    if (!keep(cx + Math.cos(m) * r, cz + Math.sin(m) * r)) continue;
+    const p = (t: number, rr: number) => [cx + Math.cos(t) * rr, y, cz + Math.sin(t) * rr];
+    const [a, b, c, e] = [p(t0, r - w / 2), p(t1, r - w / 2), p(t1, r + w / 2), p(t0, r + w / 2)];
+    pos.push(...a, ...c, ...b, ...a, ...e, ...c);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.computeVertexNormals();
+  // 朝上（三角形的绕向两种都有：法线统一朝上）
+  const nrm = g.attributes.normal as THREE.BufferAttribute;
+  for (let i = 0; i < nrm.count; i++) nrm.setXYZ(i, 0, 1, 0);
+  return g;
+}
+
+/**
+ * 摆好的一堆资产 → 按（材质, 顶点属性, 投不投影）合并的静态网格（世界坐标）。东西多、重复（花池岛、货、木料、植物）时用它，绘制按材质算。
+ * 夜里要换材质的（壁灯）合并完再 nightSwap（材质还是同一份）。
+ */
+export function bake(list: THREE.Object3D[], name: string): THREE.Group {
+  const by = new Map<string, { m: THREE.Material; cast: boolean; gs: THREE.BufferGeometry[] }>();
+  const shown = (o: THREE.Object3D | null): boolean => !o || (o.visible && shown(o.parent));
+  for (const p of list) {
+    p.updateMatrixWorld(true);
+    p.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (!m.isMesh || Array.isArray(m.material) || !shown(m)) return;
+      let g = m.geometry.clone().applyMatrix4(m.matrixWorld);
+      if (g.index) g = g.toNonIndexed();
+      for (const a of Object.keys(g.attributes)) if (a === 'uv' || a === 'uv1' || a === 'uv2') g.deleteAttribute(a);
+      g.morphAttributes = {};
+      const sig = Object.keys(g.attributes).sort().join(',');
+      const cast = m.castShadow && !m.userData.noCast;
+      const k = `${m.material.uuid}:${sig}:${cast}`;
+      const e = by.get(k) ?? { m: m.material, cast, gs: [] };
+      e.gs.push(g);
+      by.set(k, e);
+    });
+  }
+  const out = new THREE.Group();
+  out.name = name;
+  for (const { m, cast, gs } of by.values()) {
+    const merged = mergeGeometries(gs);
+    if (!merged) continue;
+    const mesh = new THREE.Mesh(merged, m);
+    mesh.castShadow = cast;
+    mesh.receiveShadow = true;
+    if (!cast) mesh.userData.noCast = true;
+    out.add(mesh);
+  }
+  return out;
+}
+export { nightSwap, poolAt };
+
+/**
+ * shops-island w × 0.14 × d（默认 4 × 5.5，最终尺寸；原点 = 中心）：停车排两头的花池岛（Sasquatch 的超市停车场那种）——
+ * 一圈 0.3 宽的水泥路缘（朝南那面一条暗线），里面碎石（gravelYard，比沙灰冷），v0 一棵假紫荆 + 两个桶形仙人掌，
+ * v1 两丛龙舌兰 + 一个桶形仙人掌 + 一块石头，v2 只有碎石（停车场的高杆招牌立在里面）。植物是借的（clubsite/nature），按 TOWN_K 缩。
+ */
+export function island(ctx: AssetCtx, w = 4, d = 5.5, v = 0): THREE.Group {
+  const k = kit();
+  const kerb = kerbMat(ctx);
+  const gravel = ctx.mat('gravelYard', { elem: TOWN_EL.gravelYard });
+  for (const g of kerbRing(-w / 2, w / 2, -d / 2, d / 2, 0.16)) k.add(g, kerb);
+  k.add(new THREE.PlaneGeometry(w - 0.6, d - 0.6).rotateX(-Math.PI / 2).translate(0, 0.1, 0), gravel);
+  const g = meshes(ctx, k.parts);
+  const plant = (id: string, x: number, z: number, s: number, rot: number, variant = 0) => {
+    const o = (REUSED[id] as unknown as AssetFn)({ ...ctx, variant });
+    o.position.set(x, 0.1, z);
+    o.scale.setScalar(s * TOWN_K);
+    o.rotation.y = rot;
+    g.add(o);
+  };
+  const rnd = ctx.rng(`shops-island:${v}:${w}:${d}`);
+  if (v % 3 === 0) {
+    plant('palo-verde', (rnd() - 0.5) * 0.4, -d * 0.12, 0.95 + rnd() * 0.15, rnd() * 6, Math.floor(rnd() * 2));
+    plant('barrel-cactus', w * 0.22, d * 0.3, 1, rnd() * 6, 0);
+    plant('barrel-cactus', -w * 0.24, d * 0.26, 0.8, rnd() * 6, 1);
+  } else if (v % 3 === 1) {
+    plant('agave', -w * 0.18, -d * 0.18, 1.1, rnd() * 6);
+    plant('agave', w * 0.16, d * 0.2, 0.95, rnd() * 6);
+    plant('barrel-cactus', w * 0.2, -d * 0.24, 1.1, rnd() * 6, 2);
+    plant('rocks', -w * 0.2, d * 0.28, 0.45, rnd() * 6, 1);
+  }
+  return g;
+}
+const shopsIsland: AssetFn = (ctx) => island(ctx, 4, 5.5, ctx.variant);
+
+/**
+ * shops-semi 2.6 × 4.1 × 15.3（真尺寸，本地 +z = 车头）：半挂车 —— 白厢（顶上 1.2 米一道横缝、两侧一条芥末黄腰带、后轮两轴）+ 海军蓝牵引车
+ * （卧铺、驾驶室、前挡风、镀铬格栅、芥末黄保险杠、两根排气管）。场景里车头朝南（朝镜头）、车尾倒在建材棚的卸货台上。
+ */
+const shopsSemi: AssetFn = (ctx) => {
+  const k = kit();
+  const white = ctx.mat('truckWhite', { lightUp: 0.4, bands: [-0.35, 0.45], noShadowReceive: true });
+  const roof = ctx.mat('truckWhite', { elem: { kind: 'planks', p: [0, 0, 1, 1.2], seam: 1, hi: 0.4 } });
+  const cab = ctx.mat('hwNavy', { lightUp: 0.3, bands: [-0.3, 0.45] });
+  const cabTop = ctx.mat('hwNavy');
+  const under = ctx.mat('ironwork');
+  const win = ctx.mat('jug', { noShadowReceive: true });
+  const stripe = ctx.mat('hwMustard', { noShadowReceive: true });
+  const chrome = ctx.mat('roofMetal', { convex: 0.3, noShadowReceive: true });
+  const wheel = (x: number, z: number, r = 0.5) =>
+    k.add(new THREE.CylinderGeometry(r, r, 0.36, 8).rotateZ(Math.PI / 2).translate(x, r, z), under);
+  // 挂车：z −6.6…3.8，底 1.25，顶 4.05
+  const tz0 = -6.6;
+  const tz1 = 3.8;
+  const tzc = (tz0 + tz1) / 2;
+  k.bx(under, 2.1, 0.4, tz1 - tz0 - 0.6, 0, 0.85, tzc);
+  for (const z of [-5.6, -4.5]) for (const s of [-1, 1]) wheel(s * 1.02, z);
+  for (const s of [-1, 1]) k.bx(under, 0.16, 1.1, 0.16, s * 0.85, 0, 1.6); // 支腿
+  k.bx(white, 2.56, 2.75, tz1 - tz0, 0, 1.25, tzc);
+  k.bx(roof, 2.58, 0.06, tz1 - tz0 + 0.02, 0, 4.0, tzc);
+  for (const s of [-1, 1])
+    k.add(
+      new THREE.PlaneGeometry(tz1 - tz0 - 0.5, 3 * R).rotateY((s * Math.PI) / 2).translate(s * 1.29, 1.6, tzc),
+      stripe,
+    );
+  // v1：只有挂车（甩挂，支腿放下）
+  if (ctx.variant % 2 === 1) return meshes(ctx, k.parts, [win, stripe, chrome]);
+  // 牵引车：底盘 3.6…9.0；卧铺 4.1…5.2（高 3.5）、驾驶室 5.2…7.3（高 3.2）、车头 7.3…8.9（高 2.1）
+  k.bx(under, 1.9, 0.55, 5.4, 0, 0.45, 6.3);
+  for (const z of [4.4, 5.6]) for (const s of [-1, 1]) wheel(s * 1.0, z);
+  for (const s of [-1, 1]) wheel(s * 1.0, 8.0, 0.52);
+  k.bx(cab, 2.36, 2.35, 1.1, 0, 1.15, 4.65);
+  k.bx(cab, 2.44, 2.05, 2.1, 0, 1.15, 6.25);
+  k.bx(cabTop, 2.36, 0.08, 3.2, 0, 3.2, 5.7);
+  k.bx(cab, 2.3, 1.05, 1.6, 0, 1.0, 8.1);
+  // 前挡风（驾驶室朝 +z 那面，往后斜）、侧窗、格栅、保险杠、车灯
+  k.add(new THREE.PlaneGeometry(2.2, 0.85).rotateX(-0.25).translate(0, 2.65, 7.33), win);
+  for (const s of [-1, 1])
+    k.add(new THREE.PlaneGeometry(1.0, 0.7).rotateY((s * Math.PI) / 2).translate(s * 1.23, 2.6, 6.6), win);
+  k.face(chrome, 1.5, 0.9, 0, 1.5, 8.91);
+  k.bx(stripe, 2.4, 0.32, 0.3, 0, 0.5, 8.85);
+  for (const s of [-1, 1]) k.face(ctx.mat('signPaint', { noShadowReceive: true }), 0.3, 0.2, s * 0.95, 1.55, 8.92);
+  // 排气管（驾驶室后两侧，细，不投影）
+  for (const s of [-1, 1]) k.cyl(chrome, 0.1, 0.1, 2.6, s * 1.3, 1.2, 5.15, 6);
+  return meshes(ctx, k.parts, [win, stripe, chrome]);
+};
+
+/**
+ * shops-lumber 4.8 × 1.1 × 2.6（真尺寸）：两捆木料（每捆 4.8 × 1.15，木板沿 x，顶面和朝南那面每 0.2 米一条板缝、每块一个深浅），
+ * 垫在三根暗的方木上，每捆两道钢带 + 一张芥末黄标签。v1 北边那捆高一层。
+ */
+const shopsLumber: AssetFn = (ctx) => {
+  const k = kit();
+  const wood = ctx.mat('wood', {
+    elem: { kind: 'planks', p: [0, Math.SQRT1_2, Math.SQRT1_2, 0.14], seam: 1, hi: 0.5 },
+  });
+  const { woodDark } = palletMats(ctx);
+  const band = ctx.mat('ironwork', { noShadowReceive: true });
+  const tag = ctx.mat('hwMustard', { noShadowReceive: true });
+  const L = 4.8;
+  for (const x of [-1.9, 0, 1.9]) k.bx(woodDark, 0.18, 0.14, 2.6, x, 0, 0);
+  for (const [z, h] of [
+    [-0.64, 0.84 + (ctx.variant % 2) * 0.28],
+    [0.64, 0.7],
+  ] as const) {
+    k.bx(wood, L, h, 1.15, (z > 0 ? 0.15 : -0.1) * (ctx.variant % 3), 0.14, z);
+    for (const x of [-1.5, 1.5]) k.bx(band, 0.07, h + 0.02, 1.17, x, 0.14, z);
+    k.face(tag, 0.34, 2 * R, 1.95, 0.14 + h * 0.55, z + 0.585);
+  }
+  return meshes(ctx, k.parts, [band, tag]);
+};
+
+/** shops-bricks 1.2 × 1.0 × 1.0（真尺寸）：一托砖（货板 + 一方红砖，砖缝 = stones 4 × 2 纹素）+ 两道钢带；变体高低不同 */
+const shopsBricks: AssetFn = (ctx) => {
+  const k = kit();
+  const { wood, woodDark } = palletMats(ctx);
+  const brick = ctx.mat('pot', { elem: { kind: 'stones', size: [5, 2], seam: 1, hi: 0.3 } });
+  const band = ctx.mat('ironwork', { noShadowReceive: true });
+  pallet(k, wood, woodDark);
+  const h = 0.62 + (ctx.variant % 3) * 0.12;
+  k.bx(brick, 1.1, h, 0.94, 0, 0.14, 0);
+  for (const x of [-0.3, 0.3]) k.bx(band, 0.05, h + 0.02, 0.96, x, 0.14, 0);
+  return meshes(ctx, k.parts, [band]);
+};
+
+/** shops-pvc 5.4 × 0.75 × 1.2（真尺寸）：一捆躺着的管子（白 PVC 两层 × 4 根，v1 换灰、v2 一层蓝的灌溉管），垫两根方木 */
+const shopsPvc: AssetFn = (ctx) => {
+  const k = kit();
+  const { woodDark } = palletMats(ctx);
+  const keys = [
+    ['pvc', 'pvc'],
+    ['roofMetal', 'pvc'],
+    ['clothBlue', 'pvc'],
+  ] as const;
+  const [top, bottom] = keys[ctx.variant % 3];
+  const mTop = ctx.mat(top, { convex: 0.3 });
+  const mBot = ctx.mat(bottom, { convex: 0.3 });
+  for (const x of [-1.8, 1.8]) k.bx(woodDark, 0.16, 0.12, 1.2, x, 0, 0);
+  const r = 0.13;
+  for (let l = 0; l < 2; l++)
+    for (let i = 0; i < 4 - l; i++) {
+      const z = -0.39 + i * 0.26 + l * 0.13;
+      const len = 5.0 + ((i * 3 + l) % 3) * 0.2;
+      k.add(
+        new THREE.CylinderGeometry(r, r, len, 6, 1, true)
+          .rotateZ(Math.PI / 2)
+          .translate((l - 0.5) * 0.15, 0.12 + r + l * 0.22, z),
+        l ? mTop : mBot,
+      );
+    }
+  return meshes(ctx, k.parts);
+};
+
+/** 建材棚、工具棚的顶：镀锌板的冷灰（和暖色的地、tilt-up 墙分开；roofMetal 原色在午后金光里是一整块奶白，和铺地一个色），1 米一条肋 */
+const barnRoof = (ctx: AssetCtx) =>
+  ctx.mat('roofMetal', {
+    ramp: [0xc6ccd8, 0x9a9eb4, 0x545a7c],
+    tones: {
+      bands: [
+        [0xc6ccd8, 0xd0d6e2, 0xbcc2ce],
+        [0x9a9eb4, 0xa4a8be, 0x9094aa],
+        [0x545a7c, 0x5c6284, 0x4c5274],
+      ],
+      seam: [0xaab0be, 0x84889e, 0x444a6c],
+      hi: [0xdee4ee, 0xb0b4c8, 0x6a7092],
+    },
+    elem: { kind: 'planks', p: [1, 0, 0, 1.0], seam: 1, hi: 0.5 },
+  });
+
+/**
+ * shops-toolshed 3.4 × 2.7 × 2.6（最终尺寸，原点 = 脚印中心）：工具棚 —— tilt-up 色的墙、往北高的单坡压型板顶（roofMetal，
+ * 0.5 米一条肋）、朝南一扇海军蓝双开门（芥末黄门框）+ 一扇小窗；门前一块水泥台。
+ */
+const shopsToolshed: AssetFn = (ctx) => {
+  const k = kit();
+  // 材质和建材棚同一份（场景里烘在同一组：少几种材质就少几个绘制）
+  const wall = ctx.mat('tiltup', { elem: TOWN_EL.tiltup, noShadowReceive: true });
+  const roof = barnRoof(ctx);
+  const { navy } = brand(ctx);
+  const trim = ctx.mat('hwMustard', { noShadowReceive: true });
+  const dark = ctx.mat('ironwork', { noShadowReceive: true });
+  const { day: glassDay } = glass(ctx);
+  const W = 3.4;
+  const D = 2.6;
+  const hS = 2.2;
+  const hN = 2.7;
+  // 墙（南墙到 hS；两侧墙顶按坡切，用盒子到 hS + 三角山墙片）
+  k.bx(wall, W, hS, 0.15, 0, 0, D / 2 - 0.075);
+  k.bx(wall, W, hN, 0.15, 0, 0, -D / 2 + 0.075);
+  for (const s of [-1, 1]) {
+    k.bx(wall, 0.15, hS, D - 0.3, s * (W / 2 - 0.075), 0, 0);
+    const tri = new THREE.BufferGeometry();
+    const x = s * (W / 2 - 0.075);
+    tri.setAttribute(
+      'position',
+      new THREE.Float32BufferAttribute(
+        [x, hS, D / 2, x, hS, -D / 2, x, hN, -D / 2, x, hS, -D / 2, x, hS, D / 2, x, hN, -D / 2],
+        3,
+      ),
+    );
+    tri.computeVertexNormals();
+    k.add(tri, wall);
+  }
+  // 顶：南低北高，出挑 0.25
+  const len = Math.hypot(D + 0.5, hN - hS);
+  k.add(
+    new THREE.BoxGeometry(W + 0.4, 0.08, len)
+      .rotateX(Math.atan2(hN - hS, D + 0.5))
+      .translate(0, (hS + hN) / 2 + 0.05, 0),
+    roof,
+  );
+  // 门（双开）+ 门框 + 中缝；小窗
+  k.bx(navy, 1.5, 1.9, 0.06, -0.5, 0, D / 2 + 0.03);
+  k.face(dark, T, 1.85, -0.5, 0.95, D / 2 + 0.065);
+  for (const x of [-1.29, 0.29]) k.bx(trim, 0.09, 1.98, 0.08, x, 0, D / 2 + 0.04);
+  k.bx(trim, 1.67, 0.09, 0.08, -0.5, 1.9, D / 2 + 0.04);
+  k.face(glassDay, 0.7, 0.5, 1.0, 1.45, D / 2 + 0.04);
+  k.bx(trim, 0.8, 0.06, 0.1, 1.0, 1.16, D / 2 + 0.05);
+  return meshes(ctx, k.parts, [trim, glassDay]);
+};
+
+/**
+ * shops-dumpster 2.0 × 1.6 × 1.7（真尺寸）：商用垃圾箱 —— 海军蓝箱体（前面往下收的斜面、两侧叉车套）、两片黑塑料盖（v1 一片掀开靠在后面）、
+ * 正面一条芥末黄反光条。店后货场贴着楼背后放两个。
+ */
+const shopsDumpster: AssetFn = (ctx) => {
+  const k = kit();
+  const body = ctx.mat('hwNavy', { lightUp: 0.3, bands: [-0.3, 0.45] });
+  const lid = ctx.mat('ironwork', { lightUp: 0.3, convex: 0.3 });
+  const stripe = ctx.mat('hwMustard', { noShadowReceive: true });
+  const inside = ctx.mat('ironwork', { edge: 0, convex: 0 });
+  // 箱体：后高前低（前面 1.25、后面 1.5），斜面朝前
+  const g = new THREE.BoxGeometry(2.0, 1.5, 1.6).toNonIndexed();
+  const p = g.attributes.position as THREE.BufferAttribute;
+  for (let i = 0; i < p.count; i++) if (p.getY(i) > 0 && p.getZ(i) > 0) p.setY(i, 1.25 - 0.75);
+  g.computeVertexNormals();
+  k.add(g.translate(0, 0.75, 0), body);
+  for (const s of [-1, 1]) k.bx(body, 0.16, 0.2, 1.3, s * 1.06, 0.55, 0);
+  k.face(stripe, 1.6, 2 * R, 0, 0.95, 0.81);
+  const open = ctx.variant % 2 === 1;
+  for (const s of [-1, 1]) {
+    if (open && s > 0) {
+      k.add(new THREE.PlaneGeometry(0.94, 1.5).rotateX(-Math.PI / 2 + 0.17).translate(0.5, 1.39, 0), inside);
+      k.bx(lid, 0.98, 0.9, 0.06, 0.5, 1.5, -0.86);
+    } else k.add(new THREE.BoxGeometry(0.98, 0.06, 1.66).rotateX(0.16).translate(s * 0.5, 1.42, 0.0), lid);
+  }
+  return meshes(ctx, k.parts, [stripe]);
+};
+
+/**
+ * shops-rack 8.1 × 4.4 × 1.2（真尺寸，场景里缩 TOWN_K；原点 = 底面中心，货朝 +z）：店后的露天托盘货架 —— 三跨（每跨 2.7 米），
+ * 芥末黄立柱、海军蓝横梁两层（1.6、3.0 米），地上 + 两层每跨一托货：袋装（kraft，一袋一条缝）、白桶（pvc）、陶盆（pot）、蓝箱（clothBlue）轮着、
+ * 少数格空着。货是胖块（一托一块），从上往下看是一格一格的彩色顶，朝南那面落暗档、一条一条的层。变体换货的排法。
+ */
+const shopsRack: AssetFn = (ctx) => {
+  const k = kit();
+  const rnd = ctx.rng(`shops-rack:${ctx.variant}`);
+  const post = ctx.mat('hwMustard', { lightUp: 0.2, bands: [-0.1, 0.45], noShadowReceive: true });
+  const beam = ctx.mat('hwNavy', { noShadowReceive: true });
+  const { wood } = palletMats(ctx);
+  const goods = [
+    ctx.mat('kraft', { elem: { kind: 'planks', p: [1, 0, 0, 0.56], seam: 0, hi: 0 } }),
+    ctx.mat('pvc', { convex: 0.3 }),
+    ctx.mat('pot', { elem: { kind: 'stones', size: [5, 2], seam: 1, hi: 0.3 } }),
+    ctx.mat('clothBlue', { convex: 0.3 }),
+  ];
+  const BAY = 2.7;
+  const D = 1.1;
+  const levels = [0, 1.6, 3.0];
+  for (let i = 0; i <= 3; i++)
+    for (const z of [-D / 2 + 0.05, D / 2 - 0.05]) k.bx(post, 0.1, 4.4, 0.1, -1.5 * BAY + i * BAY, 0, z);
+  for (const y of levels.slice(1))
+    for (const z of [-D / 2 + 0.05, D / 2 - 0.05]) k.bx(beam, 3 * BAY, 0.14, 0.1, 0, y - 0.14, z);
+  for (let b = 0; b < 3; b++)
+    for (const [li, y] of levels.entries()) {
+      if (rnd() < (li === 2 ? 0.3 : 0.12)) continue;
+      const x = -BAY + b * BAY;
+      const m = goods[Math.floor(rnd() * goods.length)];
+      const h = 0.75 + rnd() * 0.45;
+      k.bx(wood, 2.3, 0.13, 1.0, x, y, 0);
+      k.bx(m, 2.2 - rnd() * 0.3, h, 0.95, x + (rnd() - 0.5) * 0.15, y + 0.13, 0);
+    }
+  return meshes(ctx, k.parts, [post, beam]);
+};
+
+/** 建材棚的尺寸（最终尺寸）：宽、深、南檐、北檐、三扇卷帘门的 x、门宽高、卸货台（门 2、3 前） */
+export const BARN = {
+  W: 30,
+  D: 9,
+  hS: 3.9,
+  hN: 4.8,
+  doors: [-9, 0, 9],
+  doorW: 3.6,
+  doorH: 3.0,
+  dock: { x0: -2.6, x1: 11.6, d: 1.7, h: 0.75 },
+} as const;
+/**
+ * shops-barn 30 × 4.8 × 9（最终尺寸，原点 = 脚印中心）：五金店后的建材棚 —— tilt-up 墙（和大卖场一样 6 米一块）、南墙顶一条芥末黄带 + 海军蓝腰线、
+ * 往南低的单坡压型钢板顶（1 米一条肋）；朝南三扇卷帘门（芥末黄门框）：门 1 关着（横条灰钢板）、门 2 开着（半挂车倒在这儿）、门 3 开着
+ * （里面暗、一垛木料的端头）；门 2、3 前一条 0.75 米高的卸货台（黄边、黑缓冲块、西头台阶）；三盏壁灯（夜里亮 + 门前灯光圈）。
+ */
+const shopsBarn: AssetFn = (ctx) => {
+  const k = kit();
+  const { W, D, hS, hN, doors, doorW, doorH, dock: dk } = BARN;
+  const wall = ctx.mat('tiltup', { elem: TOWN_EL.tiltup, noShadowReceive: true });
+  const roof = barnRoof(ctx);
+  const { navy, mustard } = brand(ctx);
+  const band = ctx.mat('hwMustard', { noShadowReceive: true });
+  const shutter = ctx.mat('roofMetal', {
+    elem: { kind: 'planks', p: [0, 1, 0, 0.16], seam: 1, hi: 0.6 },
+    lightUp: 0.35,
+    bands: [-0.4, 0.4],
+    noShadowReceive: true,
+  });
+  const inside = ctx.mat('ironwork', { edge: 0, convex: 0, noShadowReceive: true });
+  const woodEnd = ctx.mat('wood', { lightUp: 0.4, bands: [-0.3, 0.4], noShadowReceive: true });
+  const conc = ctx.mat('concrete', { elem: { kind: 'planks', p: [1, 0, 0, 2], seam: 1, hi: 0.3 }, toneW: [0.2, 0.2] });
+  const bump = ctx.mat('ironwork');
+  const yellow = ctx.mat('flowerYellow', { edge: 0.1, convex: 0 });
+  const lamp = ctx.mat('ironwork', { noShadowReceive: true });
+  const lens = ctx.mat('signPaint', { noShadowReceive: true });
+  const lensNight = ctx.mat('signPaint', { emissive: 0x7a6a40, noShadowReceive: true });
+  const fz = D / 2;
+  // 南墙：门洞之间的墙段（到 hS − 带），门上的过梁，顶上芥末黄带
+  const bandH = 0.55;
+  const cuts = doors.map((x) => [x - doorW / 2 - 0.15, x + doorW / 2 + 0.15] as const);
+  let x0 = -W / 2;
+  for (const [a, b] of [...cuts, [W / 2, W / 2] as const]) {
+    if (a > x0) k.bx(wall, a - x0, hS - bandH, 0.3, (x0 + a) / 2, 0, fz - 0.15);
+    x0 = b;
+  }
+  for (const [a, b] of cuts) k.bx(wall, b - a, hS - bandH - doorH, 0.3, (a + b) / 2, doorH, fz - 0.15);
+  k.bx(band, W, bandH, 0.3, 0, hS - bandH, fz - 0.15);
+  k.bx(navy, W, 2 * R, 0.06, 0, hS - bandH - 3 * R, fz + 0.03);
+  // 北墙、两侧墙（侧墙顶按坡：盒子到 hS + 三角片）
+  k.bx(wall, W, hN, 0.3, 0, 0, -fz + 0.15);
+  for (const s of [-1, 1]) {
+    const x = s * (W / 2 - 0.15);
+    k.bx(wall, 0.3, hS, D - 0.6, x, 0, 0);
+    const tri = new THREE.BufferGeometry();
+    tri.setAttribute(
+      'position',
+      new THREE.Float32BufferAttribute([x, hS, fz, x, hS, -fz, x, hN, -fz, x, hS, -fz, x, hS, fz, x, hN, -fz], 3),
+    );
+    tri.computeVertexNormals();
+    k.add(tri, wall);
+  }
+  // 顶：往南低，出挑 0.4
+  const run = D + 0.8;
+  k.add(
+    new THREE.BoxGeometry(W + 0.6, 0.1, Math.hypot(run, hN - hS))
+      .rotateX(Math.atan2(hN - hS, run))
+      .translate(0, (hS + hN) / 2 + 0.06, 0),
+    roof,
+  );
+  // 卷帘门：门框（芥末黄）+ 门 1 关着；门 2、3 开着（暗的门洞，门 3 里面一垛木料的端头，卷起来的帘子在门顶一截）
+  doors.forEach((x, i) => {
+    for (const s of [-1, 1]) k.bx(band, 0.16, doorH, 0.1, x + s * (doorW / 2 + 0.08), 0, fz + 0.05);
+    k.bx(band, doorW + 0.32, 0.14, 0.1, x, doorH, fz + 0.05);
+    if (i === 0) {
+      k.bx(shutter, doorW, doorH, 0.06, x, 0, fz - 0.1);
+      k.bx(inside, doorW, 0.1, 0.07, x, 0, fz - 0.05);
+    } else {
+      k.add(new THREE.PlaneGeometry(doorW, doorH).translate(x, doorH / 2, fz - 0.4), inside);
+      k.bx(shutter, doorW, 0.45, 0.06, x, doorH - 0.45, fz - 0.1);
+      if (i === 2)
+        for (let r = 0; r < 4; r++)
+          for (let c = 0; c < 6; c++)
+            k.face(woodEnd, 0.24, 0.15, x - 1.0 + c * 0.32 + (r % 2) * 0.08, 0.35 + r * 0.19, fz - 0.35);
+    }
+  });
+  // 卸货台：水泥台（门 2、3 前）+ 顶上一条黄边 + 黑缓冲块（朝南）+ 西头三级台阶
+  const dcx = (dk.x0 + dk.x1) / 2;
+  k.bx(conc, dk.x1 - dk.x0, dk.h, dk.d, dcx, 0, fz + dk.d / 2);
+  k.add(
+    new THREE.PlaneGeometry(dk.x1 - dk.x0, 4 * T).rotateX(-Math.PI / 2).translate(dcx, dk.h + 0.005, fz + dk.d - 2 * T),
+    yellow,
+  );
+  for (const x of [doors[1] - 1.3, doors[1] + 1.3, doors[2] - 1.3, doors[2] + 1.3])
+    k.bx(bump, 0.4, 0.4, 0.2, x, 0.25, fz + dk.d + 0.1);
+  for (let i = 0; i < 3; i++) k.bx(conc, 0.35, dk.h - (i + 1) * 0.25, dk.d, dk.x0 - 0.175 - i * 0.35, 0, fz + dk.d / 2);
+  // 壁灯：三扇门上各一盏（灯头 + 下面一条灯罩）+ 灯光圈
+  const pools: THREE.Object3D[] = [];
+  for (const x of doors) {
+    k.bx(lamp, 0.5, 0.28, 0.3, x, doorH + 0.3, fz + 0.15);
+    k.bx(lens, 0.42, 0.05, 0.24, x, doorH + 0.26, fz + 0.17);
+    pools.push(poolAt(x, fz + 3, 5, 3.5));
+  }
+  const g = meshes(ctx, k.parts, [band, lens, yellow, inside, woodEnd]);
+  nightSwap(g, [[lens, lensNight]], pools);
+  void mustard;
+  return g;
 };
 
 // ════════════════════════════ 店内（in-，2026-11-16 室内关卡 1+2；interiors/hardware.ts 摆） ════════════════════════════
@@ -2482,6 +3008,16 @@ export const ASSETS: Record<string, AssetFn> = {
   'lot-light': lotLight,
   'pickup-lumber': pickupLumber,
   'pallet-stack': palletStack,
+  // 停车场、店后货场（批 shops，2026-11-21）
+  'shops-island': shopsIsland,
+  'shops-semi': shopsSemi,
+  'shops-lumber': shopsLumber,
+  'shops-bricks': shopsBricks,
+  'shops-pvc': shopsPvc,
+  'shops-toolshed': shopsToolshed,
+  'shops-barn': shopsBarn,
+  'shops-dumpster': shopsDumpster,
+  'shops-rack': shopsRack,
   // 店内（in-）
   'in-hw-floor': inFloorAsset,
   'in-hw-rack': inRack,

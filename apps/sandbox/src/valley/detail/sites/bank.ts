@@ -15,8 +15,9 @@
 // - drive-up 车道（ROADS 的 'bank_drive'，归 lead）：棕榈谷大道 (274.4, −583.5) → 往东 (301, −583.5) → 斜切拐角 (304, −586.5) → 往北 (304, −628)
 //   塔奎兹路。车往北开、驾驶座在左 = 西 = 银行东墙的取款窗。车道上不放任何东西（只有平的白漆）。ROADS 里没有它时这里先铺一块预览。
 // 随机只用 d.rng('valley:bank')。
-import type * as THREE from 'three';
+import * as THREE from 'three';
 import { makeAsset } from '../../assets';
+import { bake, kerbMat, kerbRing, lotMark, stainGeo } from '../../assets/hardware';
 import type { DetailCtx } from '../../build';
 import { ROADS } from '../../layout';
 import { TOWN_K } from '../../townscale';
@@ -94,9 +95,26 @@ export function detailBank(d: DetailCtx): void {
   const LZ0 = -581;
   const LZ1 = -575.3;
   const LZC = (LZ0 + LZ1) / 2;
-  flat('concrete', 17.6, LZ1 - LZ0, 292.4, Y.pave, LZC);
+  // 铺面 lotPave（暖铺面、1.5 米一道伸缩缝，2026-11-21 critic M5）；车位线只一条 2 纹素的漆线（M13）；
+  // 西、东、南三面路缘（北面接 drive-up 车道，车从那边倒进来）+ 车位里的油渍：矮于 0.15 米，townwrap 当平铺的不缩，烘成一组
+  flat('lotPave', 17.6, LZ1 - LZ0, 292.4, Y.pave, LZC);
   const lines = [283.6, 286.4, 289.2, 292.0, 294.8, 297.6, 300.4];
-  for (const x of lines) flat('line', 0.15, 4.8, x, Y.pave2, LZC + 0.2);
+  for (const x of lines) flat('lotPaint', 0.09, 4.8, x, Y.pave2, LZC + 0.2);
+  {
+    const marks: THREE.Object3D[] = [];
+    const add = (g: THREE.BufferGeometry, m: THREE.Material) => {
+      const mesh = new THREE.Mesh(g, m);
+      mesh.userData.noCast = true;
+      marks.push(mesh);
+    };
+    const kerb = kerbMat(d.actx);
+    for (const g of kerbRing(292.4 - 8.8, 292.4 + 8.8, LZ0, LZ1, 0.14, 0.3, ['n'])) add(g, kerb);
+    const mrnd = d.rng('valley:bank:marks');
+    for (const x of [285.0, 287.8, 293.4, 296.2, 299.0])
+      if (mrnd() < 0.7)
+        add(stainGeo(x + (mrnd() - 0.5) * 0.5, LZ0 + 1.2 + mrnd() * 0.6, 0.4, Y.pave + 0.006, mrnd), lotMark(d.actx));
+    d.asset(bake(marks, 'valley:bank:lot'), d.regionOf(292.4, LZC));
+  }
   const ISL = 290.6;
   for (const x of [285.0, 287.8, 293.4, 296.2, 299.0]) if (rnd() < 0.7) car(x, LZC + 0.1, Math.PI);
   // 花岛：矮石沿（平铺，不缩）+ 沙 + 两棵龙舌兰；中间时间 / 温度双柱招牌（一件小件，绕自己缩 0.62）

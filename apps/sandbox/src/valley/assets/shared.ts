@@ -6,7 +6,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { box } from '../../clubsite/render/geo';
 import type { AssetCtx, AssetFn } from '../ctx';
-import { type PalKey, SIGN_FACE } from '../palette';
+import { HOUSE_WALLS, type PalKey, SIGN_FACE, TOWN_EL, TOWN_TONES } from '../palette';
 
 /** 竖直面上一屏幕行 = 0.09 / cos45 米（俯 45°） */
 const ROW = 0.09 / Math.SQRT1_2;
@@ -130,7 +130,67 @@ const breezeWall: AssetFn = (ctx) => {
   ]);
 };
 
+/**
+ * 小镇地面 / 屋顶 / 住宅墙的材质小样（2026-11-21 核心调色板，palette.ts 的 street、lotPave、campusConcrete、townLawn、gravelYard、
+ * roofGravel、roofTile 筒瓦、houseStucco / White / Pink / Mint）：每块 2.6 米见方（地面）或 2.6 × 0.7 米的台子（屋顶）、2 × 2 米的墙，
+ * 地面那几块左半边上方 0.9 米悬一块板 → 投影落在块上（看暗档里元素还在不在）。v0 = 全部，v1.. = 只放一块（大，隔离看）：
+ * 1 street（带 2 纹素 lotPaint 车位线和停止线） 2 lotPave 3 campusConcrete 4 townLawn 5 gravelYard 6 roofGravel 7 roofTile 8 住宅墙四色
+ * 9 yardGravel 10 roofTar 11 adobe 墙（valley 的屏幕空间土坯层）12 court（valley 的漆面深浅）
+ */
+const townSwatches: AssetFn = (ctx) => {
+  const parts: [THREE.BufferGeometry, THREE.Material][] = [];
+  const el = (k: keyof typeof TOWN_EL) => ({ elem: TOWN_EL[k] });
+  const shade = ctx.mat('placeholder');
+  const S = 2.6;
+  /** 一块地：中心 (x, z)，左半边头顶 1.6 米一块板（投影）；extra = 块上再放的东西 */
+  const flat = (key: PalKey, x: number, z: number, s = S) => {
+    parts.push([box(s, 0.03, s, x, 0, z), ctx.mat(key, el(key as keyof typeof TOWN_EL))]);
+    // 正午太阳在北边高处，0.9 米高的板投影往南挪 ~0.8 米：影子落在块的左半边中间
+    parts.push([box(s / 2, 0.06, s * 0.45, x - s / 4, 0.9, z - s * 0.3), shade]);
+  };
+  const v = ctx.variant;
+  const all = v === 0;
+  const big = all ? S : 5;
+  if (all || v === 1) {
+    const x = all ? -3 : 0;
+    const z = 0;
+    flat('street', x, z, big);
+    // 车位线（2 纹素 = 0.09 米，沿 z）+ 停止线（沿 x，靠南）
+    const paint = ctx.mat('lotPaint');
+    for (const dx of [-0.25, 0.25]) parts.push([box(0.09, 0.035, big * 0.7, x + dx * big, 0, z - big * 0.1), paint]);
+    parts.push([box(big * 0.8, 0.035, 0.09, x, 0, z + big * 0.38), paint]);
+  }
+  if (all || v === 2) flat('lotPave', all ? 0 : 0, 0, big);
+  if (all || v === 3) flat('campusConcrete', all ? 3 : 0, 0, big);
+  if (all || v === 4) flat('townLawn', all ? -3 : 0, all ? 3 : 0, big);
+  if (all || v === 5) flat('gravelYard', all ? 0 : 0, all ? 3 : 0, big);
+  // 屋顶：0.7 米高的台子（顶面亮档、朝南的面暗档），放在沙上看和沙的亮度差
+  const roof = (key: 'roofGravel' | 'roofTile', x: number, z: number, s: number) => {
+    const m =
+      key === 'roofTile'
+        ? ctx.mat('roofTile', { elem: TOWN_EL.roofTile, tones: TOWN_TONES.roofTile })
+        : ctx.mat(key, el(key));
+    parts.push([box(s, 0.7, s, x, 0, z), m]);
+  };
+  if (all || v === 6) roof('roofGravel', all ? 3 : 0, all ? 3 : 0, big);
+  if (v === 9) flat('yardGravel', 0, 0, big);
+  if (v === 10) parts.push([box(big, 0.7, big, 0, 0, 0), ctx.mat('roofTar', el('roofTar'))]);
+  if (v === 11) parts.push([box(4, 2.2, 1.2, 0, 0, 0), ctx.mat('adobe', el('adobe'))]);
+  if (v === 12) flat('court', 0, 0, big);
+  if (all || v === 7) roof('roofTile', all ? -3 : 0, all ? -3.4 : 0, all ? S : big);
+  // 住宅墙四色：2 × 2 米的方盒（朝南的面 = 画面上的暗档墙）
+  if (all || v === 8) {
+    HOUSE_WALLS.forEach((k, i) => {
+      const w = all ? 1.3 : 2;
+      const x = all ? -0.6 + i * 1.5 : -3.3 + i * 2.2;
+      parts.push([box(w, 2, 1.2, x, 0, all ? -3.4 : 0), ctx.mat(k, el(k))]);
+    });
+  }
+  return meshes(ctx, parts);
+};
+
 export const ASSETS: Record<string, AssetFn> = {
   'a-board': aBoard,
   'breeze-wall': breezeWall,
+  'town-swatches': townSwatches,
 };

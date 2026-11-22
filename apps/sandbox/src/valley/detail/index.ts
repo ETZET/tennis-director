@@ -4,7 +4,10 @@
 import type { Detail } from '../build';
 import { INTERIORS } from '../interiors/all';
 import { interiorDetail } from '../interiors/index';
+import { schoolPart } from '../relocate';
 import { detailEast } from './east';
+import { detailPlaza } from './plaza';
+import { moduleDetail } from './shift';
 import { detailBank } from './sites/bank';
 import { detailCityhall } from './sites/cityhall';
 import { detailDiner } from './sites/diner';
@@ -14,16 +17,21 @@ import { detailSports } from './sites/sports';
 import { detailSouth } from './south';
 import { detailTown } from './town';
 
+// 2026-11-21 小镇压紧：八个模块（六家店、学校、公园）的细节照旧坐标写，moduleDetail 按 relocate.ts 的 MOVE 整块挪过去
 export const DETAILS: Detail[] = [
-  detailPaper,
-  detailSports,
-  detailHardware,
-  detailCityhall,
-  detailBank,
-  detailDiner,
+  moduleDetail('paper', detailPaper),
+  moduleDetail('sports', detailSports),
+  moduleDetail('hardware', detailHardware),
+  moduleDetail('cityhall', detailCityhall),
+  moduleDetail('bank', detailBank),
+  moduleDetail('diner', detailDiner),
+  // 空当和街上的生活（世界坐标；在 town 之前跑：占的地、灯光圈记在 siteState 里，town 的街边家具躲开、夜里一起开灯）
+  detailPlaza,
   detailTown,
   detailSouth,
-  detailEast,
+  // 高中拆两块：校队球场那块（schoolCourts）和教学楼、跑道那块（school），按旧坐标的位置分
+  moduleDetail('school', (d) => detailEast(d, 'school'), schoolPart),
+  moduleDetail('park', (d) => detailEast(d, 'park')),
   // 店内（地图外面很远的地方，进门换场景：interiors/）
   ...INTERIORS.map(interiorDetail),
 ];

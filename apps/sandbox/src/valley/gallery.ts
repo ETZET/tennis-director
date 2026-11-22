@@ -57,6 +57,7 @@ function showList() {
     'KC',
     'KW',
     'KL',
+    'PZ',
     '?',
   ] as const) {
     const rows = ids.filter((r) => r.batch === b);

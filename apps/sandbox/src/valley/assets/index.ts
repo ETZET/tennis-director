@@ -9,6 +9,7 @@ import { ASSETS as BANK } from './bank';
 import { ASSETS as CITYHALL } from './cityhall';
 import { ASSETS as DINER } from './diner';
 import { ASSETS as HARDWARE } from './hardware';
+import { ASSETS as HOUSES } from './houses';
 import { ASSETS as BANK2 } from './in2/bank';
 import { ASSETS as CITYHALL2 } from './in2/cityhall';
 import { ASSETS as DINER2 } from './in2/diner';
@@ -19,6 +20,7 @@ import { ASSETS as PAPER } from './paper';
 import { ASSETS as PARK_COURT } from './park/court';
 import { ASSETS as PARK_LIFE } from './park/life';
 import { ASSETS as PARK_WALL } from './park/wall';
+import { ASSETS as PLAZA } from './plaza';
 import { ASSETS as SCHOOL } from './school';
 import { ASSETS as SHARED } from './shared';
 import { type Batch, SPECS } from './specs';
@@ -46,6 +48,8 @@ export const BY_BATCH: Record<Batch, Record<string, AssetFn>> = {
   KC: PARK_COURT,
   KW: PARK_WALL,
   KL: PARK_LIFE,
+  PZ: PLAZA,
+  HS: HOUSES,
 };
 export const ASSETS: Record<string, AssetFn> = {
   ...SHARED,
@@ -66,6 +70,8 @@ export const ASSETS: Record<string, AssetFn> = {
   ...PARK_COURT,
   ...PARK_WALL,
   ...PARK_LIFE,
+  ...HOUSES,
+  ...PLAZA,
 };
 
 /** 全部 id：清单的顺序，再加清单里没有的（资产代理新加的） */

@@ -1,7 +1,9 @@
 // 日出公园的台地（2026-11-18 公园美术返工 G4，docs/lab/2026-11-07-3d-pixel/valley-park.md「美术返工」）。
 // 平地一整片亮绿没有骨架（lessons「沙漠失败复盘」第 2 条：暗带是免费的构图工具）→ 三处主角各抬成一个台：
 // 朝南的挡土墙在太阳后方时永远落暗档（一条暗带），下面一条投影。台上能走，上下走台阶（clubsite/play 的 stepUp 0.36：墙沿自己挡住）。
-// 这里只有数据和高度：nav.ts（能站多高）、build.ts（旗子立多高）、detail/east.ts（画台、东西放多高）三处读同一份。坐标 = 缩完的世界坐标。
+// 这里只有数据和高度：nav.ts（能站多高）、build.ts（旗子立多高）、detail/east.ts（画台、东西放多高）三处读同一份。
+// 坐标 = 旧坐标（压紧以前，park() 的代码照这个画）；世界坐标的查询（nav、build）走 parkDeckAt / parkDeckY（减掉 relocate.ts 的 MOVE.park）。
+import { MOVE } from './relocate';
 
 export interface DeckRect {
   id: string;
@@ -53,8 +55,8 @@ export function stairRect(s: DeckStair): { x0: number; x1: number; z0: number; z
     : { x0: s.x, x1: s.x + L, z0: s.z - s.w / 2, z1: s.z + s.w / 2 };
 }
 
-/** (x, z) 在公园的台或台阶上 → 站的高度；不在 → null */
-export function parkDeckAt(x: number, z: number): number | null {
+/** 旧坐标 (x, z) 在公园的台或台阶上 → 站的高度；不在 → null */
+export function parkDeckAtSrc(x: number, z: number): number | null {
   if (x < BOUND.x0 || x > BOUND.x1 || z < BOUND.z0 || z > BOUND.z1) return null;
   for (const d of DECKS) if (x >= d.x0 && x <= d.x1 && z >= d.z0 && z <= d.z1) return d.h;
   for (const s of STAIRS) {
@@ -66,5 +68,9 @@ export function parkDeckAt(x: number, z: number): number | null {
   return null;
 }
 
-/** 地面高度（台外 = 0） */
+/** 旧坐标的地面高度（台外 = 0）：park() 的代码用 */
+export const parkDeckYSrc = (x: number, z: number): number => parkDeckAtSrc(x, z) ?? 0;
+/** 世界坐标：在公园的台或台阶上 → 站的高度；不在 → null */
+export const parkDeckAt = (x: number, z: number): number | null => parkDeckAtSrc(x - MOVE.park[0], z - MOVE.park[1]);
+/** 世界坐标的地面高度（台外 = 0） */
 export const parkDeckY = (x: number, z: number): number => parkDeckAt(x, z) ?? 0;

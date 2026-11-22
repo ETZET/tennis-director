@@ -10,22 +10,12 @@ import { ALL_REGION_IDS, buildValley, type ValleyWorld } from './build';
 import { DETAILS } from './detail';
 import { INTERIORS } from './interiors/all';
 import { entryAt, exitAt, type InteriorDef, ORIGIN } from './interiors/index';
-import {
-  distToLine,
-  FLOOR,
-  HOTEL_PLOT,
-  POIS,
-  type PoiKind,
-  REGIONS,
-  ROADS,
-  regionAt,
-  S,
-  type V2,
-  VIEW,
-} from './layout';
+import { distToLine, FLOOR, HOTEL_PLOT, POIS, type PoiKind, REGIONS, ROADS, regionAt, type V2, VIEW } from './layout';
 import { createValleyNav } from './nav';
+import { MOD_BOUNDS } from './relocate';
 import { mountWalk, type WalkApi } from './reuse';
-import { CLUB_BOX, inFloor, LOOKOUT } from './terrain';
+import { mountShadowCull } from './shadowcull';
+import { CLUB_BOX, inFloor } from './terrain';
 import { keepScale, keepScaleCam, TOWN_K } from './townscale';
 import { mountVehicles, type Vehicles } from './vehicles';
 
@@ -37,6 +27,7 @@ vnav.hotel = params.get('hotel') === '1';
 let world: ValleyWorld | null = null;
 let api: WalkApi | null = null;
 let cars: Vehicles | null = null;
+let shCull: ReturnType<typeof mountShadowCull> | null = null;
 
 const POI_LABEL: Record<PoiKind, string> = {
   errand: '办事',
@@ -82,6 +73,9 @@ function start() {
     },
     ready(a) {
       api = a;
+      // 影子落不进画面的东西这一帧不投影（shadowcull.ts；?shcull=0 关掉做对照）
+      shCull = mountShadowCull(a.scene, a.pipe.camera, a.pipe.renderer);
+      shCull.enabled = params.get('shcull') !== '0';
       cars = mountVehicles({
         scene: a.scene,
         play: a.play,
@@ -121,11 +115,11 @@ function start() {
         if (d < 22 && (!best || d < best.d)) best = { name: p.name, d };
       }
       if (best) return best.name;
-      if (!inFloor(x, z)) return Math.hypot(x - LOOKOUT.x, z - LOOKOUT.z) < 30 ? '观景台' : '美术馆步道';
+      if (!inFloor(x, z)) return null;
       if (x > HOTEL_PLOT.x0 && x < HOTEL_PLOT.x1 && z > HOTEL_PLOT.z0 && z < HOTEL_PLOT.z1)
         return vnav.hotel ? '俱乐部酒店' : '未来的酒店（扩张地）';
       if (x > CLUB_BOX.x0 && x < CLUB_BOX.x1 && z > CLUB_BOX.z0 && z < CLUB_BOX.z1) return null;
-      return regionAt(x, z)?.name ?? '山谷';
+      return regionAt(x, z)?.name ?? '小镇';
     },
     drawMap: (g, W, H, view) => drawMap(g, W, H, view),
     step(dt, t) {
@@ -422,18 +416,15 @@ function drawMap(
 }
 
 // ── 调试面板：区域开关、酒店、传送 ──
-// 原尺寸的坐标，过 S（layout.ts 的整体缩放）
 const TELEPORTS: { name: string; at: V2 }[] = [
   { name: '俱乐部门口', at: [96, 0] },
-  { name: '市中心', at: S(340, -900) },
-  { name: '日出公园', at: S(1080, -520) },
-  { name: '学校', at: S(790, -640) },
-  { name: '河床', at: S(620, -440) },
-  { name: '塔奎兹瀑布', at: S(30, -610) },
-  { name: '步道山脚', at: S(228, -930) },
-  { name: '观景台', at: [LOOKOUT.x, LOOKOUT.z] },
-  { name: '111 号公路', at: S(470, -1300) },
-  { name: '印第安峡谷', at: S(300, 260) },
+  { name: '主街西头（报社）', at: [249, -9] },
+  { name: '横街 · 市政厅', at: [274.4, -58] },
+  { name: '后街 · 体育店', at: [241, -55] },
+  { name: '学校 · 校队球场', at: [358, -37] },
+  { name: '五金大超市', at: [555, -50] },
+  { name: '日出公园', at: [345, 40] },
+  { name: '住宅', at: [300, -140] },
 ];
 function mountDebug() {
   const host = document.getElementById('debug');
@@ -535,8 +526,14 @@ Object.assign(window, {
     get cars() {
       return cars;
     },
+    /** 投影剔除（shadowcull.ts）开关，对照截图用 */
+    get shCull() {
+      return shCull;
+    },
     near: (x: number, z: number) => ROADS.filter((r) => distToLine(r.pts, x, z) < 30).map((r) => r.name),
     /** 站在车道上（验收：这种点画面大半是沥青，饱和度只记提醒） */
+    /** 压紧（relocate.ts）：每个模块真放下去的东西的世界外框 */
+    modBounds: () => MOD_BOUNDS,
     onCarriageway: (x: number, z: number) => ROADS.some((r) => r.kind !== 'trail' && distToLine(r.pts, x, z) < r.w / 2),
     /**
      * 验收：路面（车道，不含步道、人行道；两边各收 0.4 米）上离地 0.15～4 米的顶点，按网格名计数（应为 0）。

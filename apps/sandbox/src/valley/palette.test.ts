@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { PAL as MAP_PAL } from '../clubmap2/palette';
 import { BY_BATCH, SPECS } from './assets';
-import { gradeKey, PAL, PROXY, swatchOpts, TOWN_KEYS } from './palette';
+import { gradeKey, HOUSE_WALLS, PAL, PROXY, swatchOpts, TOWN_EL, TOWN_KEYS } from './palette';
 
 const L = (c: number) => 0.2126 * ((c >> 16) & 255) + 0.7152 * ((c >> 8) & 255) + 0.0722 * (c & 255);
 
@@ -55,6 +55,19 @@ describe('valley 调色板（市中心的新材质）', () => {
       if (!t) throw new Error(`${k} 没有 tones`);
       expect(L(t.bands[0][2] as number), k).toBeGreaterThanOrEqual(170);
     }
+  });
+
+  it('小镇地面 / 屋顶（2026-11-21）：白碎石顶比沙亮 25～50、车位漆和车道每档差 < 60、住宅墙四色都有元素', () => {
+    const sand = PAL.sand.tones?.bands[0][0] as number;
+    const roof = PAL.roofGravel.tones?.bands[0][0] as number;
+    expect(L(roof) - L(sand)).toBeGreaterThanOrEqual(25);
+    expect(L(roof) - L(sand)).toBeLessThan(50);
+    PAL.lotPaint.tones?.bands.forEach((b, i) => {
+      for (const s of PAL.street.tones?.bands[i] ?? [])
+        expect(Math.abs(L(b[0] as number) - L(s as number)), `档 ${i}`).toBeLessThan(60);
+    });
+    for (const k of HOUSE_WALLS) expect(TOWN_EL[k].kind, k).toBe('paint');
+    expect(TOWN_EL.roofTile.kind).toBe('planks');
   });
 
   it('五金大超市用芥末黄 + 深海军蓝（用户 2026-11-16），没有青绿的 parapetTeal', () => {
