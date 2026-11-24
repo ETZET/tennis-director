@@ -131,6 +131,25 @@ export class Commute {
   private v = new THREE.Vector3();
   /** 调试：接管过多少次 */
   stats = { leave: 0, chase: 0, caught: 0, gaveUp: 0, legit: 0, offscreen: 0 };
+  /**
+   * 整个藏起来（俱乐部的一天的观察模式 clubwalk/sim：场景演出里的人都换成引擎的人）。
+   * 藏着时 visible 读出来一律 false（演出照写，记下它想要的），替身也不出；放回来时按演出想要的显示
+   */
+  private suppressed = false;
+
+  get isSuppressed() {
+    return this.suppressed;
+  }
+  suppress(on: boolean) {
+    if (on === this.suppressed) return;
+    this.suppressed = on;
+    for (const w of this.walkers) if (w.busy) this.release(w, 'suppressed');
+    for (const h of this.hooked.values()) {
+      h.held = false;
+      h.last = null;
+    }
+    this.appeared.length = 0;
+  }
 
   constructor(private o: CommuteOpts) {}
 
@@ -151,11 +170,12 @@ export class Commute {
     Object.defineProperty(obj, 'visible', {
       configurable: true,
       enumerable: true,
-      get: () => h.want && !h.held,
+      get: () => h.want && !h.held && !this.suppressed,
       set: (v: boolean) => {
         v = !!v;
         if (v === h.want) return;
         h.want = v;
+        if (this.suppressed) return;
         if (v) this.onAppear(h);
         else this.onVanish(h);
       },
@@ -405,6 +425,7 @@ export class Commute {
 
   /** 每个模拟步（cast.step 里） */
   step(dt: number) {
+    if (this.suppressed) return;
     this.settleAppeared(dt);
     // 看得见、离总监不远的人：记下这一步在哪儿
     const d0 = this.o.director.position;

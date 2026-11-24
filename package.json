@@ -15,7 +15,8 @@
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "check:deps": "depcruise packages apps --config .dependency-cruiser.cjs",
-    "check": "pnpm typecheck && pnpm lint && pnpm check:deps && pnpm test && pnpm build"
+    "check": "pnpm typecheck && pnpm lint && pnpm check:deps && pnpm test && pnpm build",
+    "simday": "tsx docs/lab/2026-11-24-clubsim/tools/simday.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.4",

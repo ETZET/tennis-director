@@ -63,6 +63,24 @@ module.exports = {
       },
     },
     {
+      name: 'clubsim-is-pure',
+      comment:
+        '俱乐部的一天（clubsite/sim）是纯数据 + 纯函数（以后和 cast 一起搬进 packages/sim）：只许 import 人物（clubsite/cast）和' +
+        '世界坐标（clubsite/world.ts）；不依赖 three，也不依赖画面那几层（clubsite 的 render、people、play、assets、tools、nature，' +
+        'clubsite 顶层别的文件）和任何场景。演出在 clubwalk/sim。',
+      severity: 'error',
+      from: { path: '^apps/sandbox/src/clubsite/sim/' },
+      to: {
+        path: [
+          'node_modules/(three|@types/three)/',
+          '^apps/sandbox/src/clubsite/(render|people|play|assets|tools|nature|daylight)/',
+          '^apps/sandbox/src/clubsite/(?!world\\.ts$)[^/]+\\.ts$',
+          '^apps/sandbox/src/club(?!site/)[^/]*/',
+          '^apps/sandbox/src/(?!club)[^/]+/',
+        ],
+      },
+    },
+    {
       name: 'clubwalk-is-top',
       comment:
         'src/clubwalk（所有场景连成的大世界）是唯一 import 各场景模块（scene.ts）拼在一起的地方；反过来谁也不 import clubwalk。' +

@@ -497,6 +497,27 @@ function mountDebug() {
       a.refreshBlocked();
     },
   );
+  // 俱乐部的一天（clubwalk/sim）：引擎的人换掉场景演出的人，加速看一整天（早上来、打球、午饭、傍晚回家）
+  section('俱乐部的一天');
+  btn(
+    // sim 在 mountWalk 的最后才建（ready 钩子比它早）：按钮文字先按"没开"
+    () => (a.sim?.on ? '观察中 · 重新从 6:30 看' : '观察俱乐部的一天（加速）'),
+    () => !!a.sim?.on,
+    () => {
+      // 站到前台外的前院（看得到停车场来的人、签到的队），从 6:30 开始，30 倍速
+      a.play.teleport(57, -2);
+      a.sim.enable(true, { at: 6.5 * 60, speed: 30, panel: true });
+      list.hidden = true;
+    },
+  );
+  btn(
+    () => '关掉观察（场景的人回来）',
+    () => false,
+    () => {
+      a.sim?.enable(false);
+      list.hidden = true;
+    },
+  );
   section('传送');
   for (const t of TELEPORTS)
     btn(

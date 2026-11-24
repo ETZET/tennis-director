@@ -1,0 +1,769 @@
+// 俱乐部的一天 · 报告：把引擎跑一整天，数每小时在场的人、各地点用了多少、排队等了多久、谁放弃了、午饭的人、
+// 抽几个人读他的一天（"07:40 北停车场下车 → 07:46 前台排队 …"），再查不变式（club-sim.md 第六点五节）。
+// 纯函数（命令行 docs/lab/2026-11-24-clubsim/tools/simday.ts 和测试都用它）。
+import { isFixedRole } from '../cast/slots';
+import { SCENE_NAME, SCENES, type SceneId } from '../cast/types';
+import { DOING_ZH, personOf, startDay, step } from './engine';
+import { CLOSE, calendar, DAY_END, H, hm, indexPlaces, OPEN, SEASON_ZH, WEEKDAY_ZH } from './plan';
+import type { Agent, AgentId, Doing, Minute, PlaceId, SimConfig, SimEvent, SimState, Weather } from './types';
+
+// ── 不变式 ───────────────────────────────────────────────────────────────────────
+
+/** 一个状态里的不变式：一人一处、地点人数 ≤ cap、站位不重、关门半小时后没有客人。返回违反的说明（空 = 都对） */
+export function checkState(cfg: SimConfig, s: SimState): string[] {
+  const out: string[] = [];
+  const idx = indexPlaces(cfg.places);
+  const seen = new Map<AgentId, string>();
+  const note = (id: AgentId, where: string) => {
+    const prev = seen.get(id);
+    if (prev) out.push(`${hm(s.minute)} ${id} 同时在 ${prev} 和 ${where}`);
+    else seen.set(id, where);
+  };
+  for (const pid of Object.keys(s.occupants)) {
+    const l = s.occupants[pid];
+    const p = idx.byId.get(pid);
+    if (!p) out.push(`${hm(s.minute)} 不认识的地点 ${pid}`);
+    else if (l.length > p.cap) out.push(`${hm(s.minute)} ${p.name}（${pid}）${l.length} 人 > cap ${p.cap}`);
+    const spots = new Set<number>();
+    for (const id of l) {
+      note(id, pid);
+      const a = s.agents[id];
+      if (a?.where.kind !== 'at' || a.where.at !== pid)
+        out.push(`${hm(s.minute)} ${id} 在 ${pid} 的名单里，人却不在那`);
+      const sp = a?.spot;
+      if (sp !== undefined) {
+        if (spots.has(sp)) out.push(`${hm(s.minute)} ${pid} 的站位 ${sp} 有两个人`);
+        spots.add(sp);
+      }
+    }
+  }
+  for (const pid of Object.keys(s.queues))
+    for (const id of s.queues[pid]) {
+      note(id, `${pid} 的队`);
+      const a = s.agents[id];
+      if (a?.where.kind !== 'queue' || a.where.at !== pid)
+        out.push(`${hm(s.minute)} ${id} 在 ${pid} 的队里，人却不在队里`);
+    }
+  for (const id of Object.keys(s.agents)) {
+    const a = s.agents[id];
+    const w = a.where;
+    if ((w.kind === 'at' || w.kind === 'queue') && !seen.has(id))
+      out.push(`${hm(s.minute)} ${id} 说在 ${w.at}，名单里没有他`);
+    if (s.minute >= CLOSE + 30 && w.kind !== 'away' && !isFixedRole(a.role))
+      out.push(`${hm(s.minute)} 关门半小时了，${id} 还在（${a.doing}）`);
+  }
+  return out;
+}
+
+// ── 跑一天 ───────────────────────────────────────────────────────────────────────
+
+export interface RunOptions {
+  weather?: Weather;
+  /** 总监在哪（固定一个地点，或者按时刻给）；默认在前台 */
+  director?: PlaceId | null | ((t: Minute) => PlaceId | null);
+  /** 跑到几点（默认 DAY_END） */
+  until?: Minute;
+  /** 每步都查不变式（慢一点；默认查） */
+  check?: boolean;
+}
+
+/** 每分钟记下来的数（报告用） */
+interface Rec {
+  minutes: Minute[];
+  present: number[];
+  staff: number[];
+  members: number[];
+  guests: number[];
+  kids: number[];
+  byScene: Record<string, number[]>;
+  byGroup: Record<Group, number[]>;
+  /** 地点的占用：人·分钟、最多几个人、开着的分钟 */
+  placeMin: Map<PlaceId, number>;
+  placePeak: Map<PlaceId, number>;
+  queuePeak: Map<PlaceId, number>;
+  /** 要员工在岗才开的地点：营业时间里有人的分钟 / 营业分钟 */
+  staffedMin: Map<PlaceId, [number, number]>;
+  /** 午饭时段（11:45–13:15）：上午就来了的非员工在场几分钟；11:00–13:30 吃过的 */
+  lunchPresent: Map<AgentId, number>;
+  lunchAte: Set<AgentId>;
+  /** 室外网球场、匹克球场的占用（人·分钟）：早上 8–10、午后 13–15 */
+  /** 在吃（点单、吃）的人数 */
+  eating: number[];
+  courtsMorning: number;
+  courtsNoon: number;
+  violations: string[];
+}
+
+type Group = 'play' | 'food' | 'queue' | 'sit' | 'sport' | 'work' | 'move';
+const GROUP_OF: Record<Doing, Group> = {
+  arrive: 'move',
+  leave: 'move',
+  travel: 'move',
+  queue: 'queue',
+  checkin: 'queue',
+  tennis: 'play',
+  pickle: 'play',
+  lesson: 'play',
+  coach: 'work',
+  warmup: 'play',
+  watch: 'sit',
+  rest: 'sit',
+  chat: 'sit',
+  order: 'food',
+  eat: 'food',
+  drink: 'food',
+  shop: 'sit',
+  gym: 'sport',
+  change: 'sport',
+  swim: 'sport',
+  sunbathe: 'sit',
+  golf: 'play',
+  kidplay: 'sport',
+  work: 'work',
+  break: 'work',
+};
+const GROUP_ZH: Record<Group, string> = {
+  play: '打球',
+  food: '吃喝',
+  queue: '排队',
+  sit: '歇看',
+  sport: '游健',
+  work: '干活',
+  move: '路上',
+};
+
+export interface DayRun {
+  cfg: SimConfig;
+  final: SimState;
+  rec: Rec;
+  /** 引擎跑了多少毫秒 */
+  ms: number;
+  director: string;
+}
+
+const isStaff = (a: Agent) => isFixedRole(a.role);
+
+export function runDay(cfg: SimConfig, dayNo: number, opts: RunOptions = {}): DayRun {
+  const idx = indexPlaces(cfg.places);
+  const dir = opts.director === undefined ? 'desk.counter' : opts.director;
+  const dirAt = typeof dir === 'function' ? dir : () => dir;
+  const until = opts.until ?? DAY_END;
+  const check = opts.check ?? true;
+  const rec: Rec = {
+    minutes: [],
+    present: [],
+    staff: [],
+    members: [],
+    guests: [],
+    kids: [],
+    byScene: Object.fromEntries([...SCENES, 'travel'].map((k) => [k, []])),
+    byGroup: { play: [], food: [], queue: [], sit: [], sport: [], work: [], move: [] },
+    placeMin: new Map(),
+    placePeak: new Map(),
+    queuePeak: new Map(),
+    staffedMin: new Map(),
+    lunchPresent: new Map(),
+    lunchAte: new Set(),
+    eating: [],
+    courtsMorning: 0,
+    courtsNoon: 0,
+    violations: [],
+  };
+  let s = startDay(cfg, dayNo, opts.weather);
+  let ms = 0;
+  while (s.minute < until) {
+    const t0 = performance.now();
+    s = step(cfg, s, { director: dirAt(s.minute + 1) }).state;
+    ms += performance.now() - t0;
+    const t = s.minute;
+    rec.minutes.push(t);
+    let present = 0;
+    let staff = 0;
+    let members = 0;
+    let guests = 0;
+    let kids = 0;
+    let eat = 0;
+    const scene: Record<string, number> = {};
+    const group: Record<string, number> = {};
+    for (const id of Object.keys(s.agents)) {
+      const a = s.agents[id];
+      const w = a.where;
+      if (w.kind === 'away') continue;
+      present++;
+      if (isStaff(a)) staff++;
+      else if (a.role === 'kid') kids++;
+      else if (a.role === 'guest' || id.startsWith('guest:')) guests++;
+      else members++;
+      const sc = w.kind === 'travel' ? 'travel' : (idx.byId.get(w.at)?.scene ?? 'travel');
+      scene[sc] = (scene[sc] ?? 0) + 1;
+      if (a.doing === 'eat' || a.doing === 'order') eat++;
+      const g = GROUP_OF[a.doing];
+      group[g] = (group[g] ?? 0) + 1;
+      // 午饭：11:45 以前就到了、11:45–13:15 在场的人，11:00–13:30 之间吃没吃
+      if (!isStaff(a) && a.arrive < H(11, 45) && t >= H(11, 45) && t < H(13, 15))
+        rec.lunchPresent.set(id, (rec.lunchPresent.get(id) ?? 0) + 1);
+      if (!isStaff(a) && t >= H(11) && t < H(13, 30) && (a.doing === 'eat' || a.doing === 'order'))
+        rec.lunchAte.add(id);
+      if (w.kind === 'at') {
+        const p = idx.byId.get(w.at);
+        if (p && (p.kind === 'court' || p.kind === 'pickle')) {
+          if (t >= H(8) && t < H(10)) rec.courtsMorning++;
+          if (t >= H(13) && t < H(15)) rec.courtsNoon++;
+        }
+      }
+    }
+    rec.present.push(present);
+    rec.eating.push(eat);
+    rec.staff.push(staff);
+    rec.members.push(members);
+    rec.guests.push(guests);
+    rec.kids.push(kids);
+    for (const k of Object.keys(rec.byScene)) rec.byScene[k].push(scene[k] ?? 0);
+    for (const k of Object.keys(rec.byGroup) as Group[]) rec.byGroup[k].push(group[k] ?? 0);
+    for (const pid of Object.keys(s.occupants)) {
+      const n = s.occupants[pid].length;
+      rec.placeMin.set(pid, (rec.placeMin.get(pid) ?? 0) + n);
+      rec.placePeak.set(pid, Math.max(rec.placePeak.get(pid) ?? 0, n));
+    }
+    for (const pid of Object.keys(s.queues))
+      rec.queuePeak.set(pid, Math.max(rec.queuePeak.get(pid) ?? 0, s.queues[pid].length));
+    for (const p of cfg.places) {
+      // 守岗只看给客人开的窗口、吧台、店、泳池（课、团课、理疗按排的钟点，不算）
+      if (!p.needs || p.kind === 'lesson' || p.kind === 'gym') continue;
+      const [a, b] = p.open ?? [OPEN, CLOSE];
+      if (t < a || t >= b) continue;
+      const v = rec.staffedMin.get(p.id) ?? [0, 0];
+      const on = (s.occupants[p.needs] ?? []).some((id) => ['work', 'coach'].includes(s.agents[id].doing));
+      rec.staffedMin.set(p.id, [v[0] + (on ? 1 : 0), v[1] + 1]);
+    }
+    if (check && rec.violations.length < 50)
+      rec.violations.push(...checkState(cfg, s).slice(0, 50 - rec.violations.length));
+  }
+  return { cfg, final: s, rec, ms, director: dir === null ? '不在' : typeof dir === 'string' ? dir : '按时刻' };
+}
+
+// ── 报告 ─────────────────────────────────────────────────────────────────────────
+
+export interface HourRow {
+  hour: number;
+  present: number;
+  staff: number;
+  members: number;
+  guests: number;
+  kids: number;
+  byScene: Record<string, number>;
+  byGroup: Record<Group, number>;
+}
+export interface PlaceRow {
+  id: PlaceId;
+  name: string;
+  kind: string;
+  scene: SceneId;
+  cap: number;
+  /** 营业时间里平均坐满了几成 */
+  util: number;
+  peak: number;
+  queuePeak: number;
+}
+export interface WaitRow {
+  id: PlaceId;
+  name: string;
+  served: number;
+  avg: number;
+  max: number;
+  gaveUp: number;
+}
+export interface Check {
+  name: string;
+  ok: boolean;
+  detail: string;
+}
+export interface DayReport {
+  title: string;
+  counts: { total: number; staff: number; members: number; guests: number; kids: number; parties: number };
+  peak: { t: Minute; n: number };
+  hourly: HourRow[];
+  places: PlaceRow[];
+  waits: WaitRow[];
+  /** 凑人打球：等了的人、凑上了的、平均等了几分钟 */
+  seek: { waited: number; matched: number; gaveUp: number; avg: number };
+  gaveUps: { t: Minute; who: string; note: string }[];
+  lunchShare: number;
+  courts: { morning: number; noon: number };
+  coverage: { id: PlaceId; name: string; share: number }[];
+  samples: { id: string; name: string; title: string; lines: string[] }[];
+  checks: Check[];
+  violations: string[];
+  ms: number;
+}
+
+const avgOf = (xs: readonly number[]) => (xs.length ? xs.reduce((s, x) => s + x, 0) / xs.length : 0);
+
+/** 一个人的一天（事件 → 一行一行的"07:40 北停车场下车"） */
+export function personDay(cfg: SimConfig, s: SimState, id: AgentId, log: readonly SimEvent[] = s.log): string[] {
+  const out: string[] = [];
+  const name = (pid: PlaceId | undefined) => (pid ? (indexPlaces(cfg.places).byId.get(pid)?.name ?? pid) : '');
+  for (const e of log) {
+    if (e.agent !== id) continue;
+    const at = hm(e.t);
+    switch (e.kind) {
+      case 'arrive':
+        out.push(`${at} ${e.note ?? `${name(e.at)}到了`}`);
+        break;
+      case 'queue':
+        out.push(`${at} ${e.note ?? `${name(e.at)}排队`}`);
+        break;
+      case 'start':
+        if (e.doing === 'checkin' || e.doing === 'order') break;
+        if (e.doing === 'leave') out.push(`${at} 往外走（${e.note ?? '回家'}）`);
+        else out.push(`${at} ${e.note ?? `${name(e.at)}${DOING_ZH[e.doing ?? 'rest']}`}`);
+        break;
+      case 'served':
+        if (e.note) out.push(`${at} ${e.note}`);
+        break;
+      case 'end':
+        if (e.note) out.push(`${at} ${e.note}`);
+        break;
+      case 'gaveUp':
+      case 'full':
+        out.push(`${at} ✗ ${e.note ?? '放弃了'}`);
+        break;
+      case 'shift':
+        if (e.note !== '下班') out.push(`${at} ${e.note ?? '上岗'}`);
+        break;
+      case 'leave':
+        out.push(`${at} ${e.note ?? '走了'}`);
+        break;
+    }
+  }
+  // 连着的一样的行（"上岗"两次之间没别的）合并
+  return out.filter((l, i) => i === 0 || l.slice(6) !== out[i - 1].slice(6));
+}
+
+const SAMPLE_PREF = [
+  'hector',
+  'harold',
+  'raj',
+  'hannah',
+  'marcus',
+  'linh',
+  'omar',
+  'hal',
+  'deb',
+  'curtis',
+  'tina',
+  'rex',
+];
+
+function pickSamples(s: SimState, want?: readonly string[]): string[] {
+  const here = (id: string) => !!s.agents[id] && s.log.some((e) => e.agent === id && e.kind === 'arrive');
+  if (want?.length) return want.filter((id) => s.agents[id]);
+  const out: string[] = [];
+  for (const id of SAMPLE_PREF) if (out.length < 4 && here(id)) out.push(id);
+  const ids = Object.keys(s.agents);
+  const add = (f: (a: Agent) => boolean, n = 1) => {
+    for (const id of ids) {
+      if (n <= 0) break;
+      if (!out.includes(id) && here(id) && f(s.agents[id])) {
+        out.push(id);
+        n--;
+      }
+    }
+  };
+  add((a) => a.role === 'member' && a.person.startsWith('reg:'));
+  add((a) => a.role === 'kid');
+  add((a) => a.person.startsWith('guest:sim:') && a.role === 'guest', 2);
+  add((a) => a.role === 'vendor');
+  add((a) => a.role === 'staff');
+  while (out.length < 10) {
+    const before = out.length;
+    add((a) => !isStaff(a));
+    if (out.length === before) break;
+  }
+  return out.slice(0, Math.max(10, want?.length ?? 0));
+}
+
+export function buildReport(run: DayRun, opts: { people?: readonly string[] } = {}): DayReport {
+  const { cfg, final: s, rec } = run;
+  const idx = indexPlaces(cfg.places);
+  const cal = calendar(s.dayNo, s.weather);
+  const w = s.weather;
+  const sky = w.rain ? '雨' : w.wind ? '风沙' : '晴';
+  const title =
+    `第 ${s.dayNo} 天 ${cal.date} ${WEEKDAY_ZH[cal.weekday]} · ${SEASON_ZH[cal.season]} · 最高 ${w.high}°C ${sky}` +
+    `${cal.exhibition ? ' · 晚上有表演赛' : ''} · 总监${run.director === 'desk.counter' ? '在前台' : run.director === '不在' ? '不在前台' : run.director}`;
+  // 来了的人
+  const came = Object.values(s.agents).filter((a) => s.log.some((e) => e.agent === a.id && e.kind === 'arrive'));
+  const counts = {
+    total: came.length,
+    staff: came.filter(isStaff).length,
+    members: came.filter((a) => !isStaff(a) && a.role !== 'kid' && a.role !== 'guest' && !a.id.startsWith('guest:'))
+      .length,
+    guests: came.filter((a) => !isStaff(a) && a.role !== 'kid' && (a.role === 'guest' || a.id.startsWith('guest:')))
+      .length,
+    kids: came.filter((a) => a.role === 'kid').length,
+    parties: Object.keys(s.parties).length,
+  };
+  let peak = { t: 0, n: 0 };
+  rec.present.forEach((n, i) => {
+    if (n > peak.n) peak = { t: rec.minutes[i], n };
+  });
+  // 每小时（这一小时里的平均）
+  const hourly: HourRow[] = [];
+  for (let h = 5; h <= 23; h++) {
+    const is = rec.minutes.map((t, i) => [t, i] as const).filter(([t]) => t >= h * 60 && t < h * 60 + 60);
+    if (!is.length) continue;
+    const av = (xs: number[]) => Math.round(avgOf(is.map(([, i]) => xs[i])));
+    hourly.push({
+      hour: h,
+      present: av(rec.present),
+      staff: av(rec.staff),
+      members: av(rec.members),
+      guests: av(rec.guests),
+      kids: av(rec.kids),
+      byScene: Object.fromEntries(Object.keys(rec.byScene).map((k) => [k, av(rec.byScene[k])])),
+      byGroup: Object.fromEntries(Object.keys(rec.byGroup).map((k) => [k, av(rec.byGroup[k as Group])])) as Record<
+        Group,
+        number
+      >,
+    });
+  }
+  // 地点
+  const places: PlaceRow[] = cfg.places
+    .filter((p) => p.kind !== 'post' && p.kind !== 'entry')
+    .map((p) => {
+      const [a, b] = p.open ?? [OPEN, CLOSE];
+      const open = Math.max(1, b - a);
+      return {
+        id: p.id,
+        name: p.name,
+        kind: p.kind,
+        scene: p.scene,
+        cap: p.cap,
+        util: (rec.placeMin.get(p.id) ?? 0) / (p.cap * open),
+        peak: rec.placePeak.get(p.id) ?? 0,
+        queuePeak: rec.queuePeak.get(p.id) ?? 0,
+      };
+    });
+  // 排队（事件：排上 → 轮到 / 放弃）
+  const qStart = new Map<string, number>();
+  const waitAcc = new Map<PlaceId, { served: number; sum: number; max: number; gaveUp: number }>();
+  const acc = (pid: PlaceId) => {
+    let v = waitAcc.get(pid);
+    if (!v) waitAcc.set(pid, (v = { served: 0, sum: 0, max: 0, gaveUp: 0 }));
+    return v;
+  };
+  const gaveUps: DayReport['gaveUps'] = [];
+  let seekWaited = 0;
+  let seekMatched = 0;
+  let seekGave = 0;
+  let seekSum = 0;
+  const seekStart = new Map<string, number>();
+  for (const e of s.log) {
+    const k = `${e.agent}@${e.at}`;
+    if (e.kind === 'queue' && e.at && e.doing === 'queue' && !/拍架边/.test(e.note ?? '')) qStart.set(k, e.t);
+    if (
+      e.kind === 'start' &&
+      e.at &&
+      (e.doing === 'checkin' || e.doing === 'order' || e.doing === 'drink' || e.doing === 'shop')
+    ) {
+      const p = idx.byId.get(e.at);
+      if (p && (p.queue ?? 0) > 0) {
+        const t0 = qStart.get(k);
+        const v = acc(e.at);
+        v.served++;
+        const wt = t0 === undefined ? 0 : e.t - t0;
+        v.sum += wt;
+        v.max = Math.max(v.max, wt);
+        qStart.delete(k);
+      }
+    }
+    if (e.kind === 'gaveUp' || e.kind === 'full') {
+      gaveUps.push({ t: e.t, who: personOf(cfg, s, e.agent)?.nameZh ?? e.agent, note: e.note ?? '' });
+      if (e.kind === 'gaveUp' && e.at && qStart.has(k)) {
+        acc(e.at).gaveUp++;
+        qStart.delete(k);
+      }
+    }
+    // 凑人打球
+    if (e.kind === 'start' && /找人凑/.test(e.note ?? '')) {
+      if (!seekStart.has(e.agent)) seekStart.set(e.agent, e.t);
+    }
+    if (e.kind === 'queue' && /拍架边/.test(e.note ?? '') && !seekStart.has(e.agent)) seekStart.set(e.agent, e.t);
+    if (e.kind === 'end' && /凑齐了/.test(e.note ?? '') && seekStart.has(e.agent)) {
+      seekWaited++;
+      seekMatched++;
+      seekSum += e.t - (seekStart.get(e.agent) ?? e.t);
+      seekStart.delete(e.agent);
+    }
+    if (e.kind === 'gaveUp' && /没凑够|没等到空场|没轮上/.test(e.note ?? '') && seekStart.has(e.agent)) {
+      seekWaited++;
+      seekGave++;
+      seekStart.delete(e.agent);
+    }
+  }
+  const waits: WaitRow[] = [...waitAcc.entries()]
+    .map(([id, v]) => ({
+      id,
+      name: idx.byId.get(id)?.name ?? id,
+      served: v.served,
+      avg: v.served ? v.sum / v.served : 0,
+      max: v.max,
+      gaveUp: v.gaveUp,
+    }))
+    .sort((a, b) => b.avg * b.served - a.avg * a.served);
+  // 午饭
+  let lunchN = 0;
+  let lunchAte = 0;
+  for (const [id, m] of rec.lunchPresent) {
+    if (m < 30) continue;
+    lunchN++;
+    if (rec.lunchAte.has(id)) lunchAte++;
+  }
+  const lunchShare = lunchN ? lunchAte / lunchN : 0;
+  const coverage = [...rec.staffedMin.entries()]
+    .map(([id, [on, all]]) => ({ id, name: idx.byId.get(id)?.name ?? id, share: on / Math.max(1, all) }))
+    .sort((a, b) => a.share - b.share);
+  // 抽样
+  const samples = pickSamples(s, opts.people).map((id) => {
+    const p = personOf(cfg, s, id);
+    const a = s.agents[id];
+    const party = a.party ? s.parties[a.party] : undefined;
+    const withWho = party
+      ? `，和${party.members
+          .filter((m) => m !== id)
+          .map((m) => personOf(cfg, s, m)?.nameZh ?? m)
+          .join('、')}一起`
+      : '';
+    return {
+      id,
+      name: p ? `${p.nameZh}（${p.name}）` : id,
+      title: `${p?.title ?? a.role}${withWho}`,
+      lines: personDay(cfg, s, id),
+    };
+  });
+  // 节奏
+  const at = (h: number, m = 30) => rec.present[rec.minutes.indexOf(H(h, m))] ?? 0;
+  const patrons = rec.present.map((n, i) => n - rec.staff[i]);
+  const maxIn = (a: Minute, b: Minute, xs: number[] = patrons) =>
+    Math.max(0, ...rec.minutes.map((t, i) => (t >= a && t < b ? xs[i] : 0)));
+  const minIn = (a: Minute, b: Minute, xs: number[] = patrons) =>
+    Math.min(...rec.minutes.map((t, i) => (t >= a && t < b ? xs[i] : Number.POSITIVE_INFINITY)));
+  const morning = maxIn(H(7), H(11));
+  const dip = minIn(H(13, 30), H(15, 30));
+  const evening = maxIn(H(17), H(20, 30));
+  const food = rec.eating;
+  const lunchFood = maxIn(H(11, 30), H(13, 30), food);
+  const midFood = maxIn(H(9), H(10, 30), food);
+  const summer = cal.season === 'summer';
+  const noonIdx = rec.minutes.map((t, i) => [t, i] as const).filter(([t]) => t >= H(12) && t < H(15));
+  const patronsNoon = avgOf(noonIdx.map(([, i]) => patrons[i]));
+  const poolNoon = avgOf(noonIdx.map(([, i]) => rec.byScene.clubpool[i]));
+  const late = [21, 21.5, 22, 22.5].map((x) => at(Math.floor(x), x % 1 ? 30 : 0));
+  const named = Object.values(s.agents).filter((a) => cfg.cast.get(a.id)?.tier === 'named' && !isStaff(a));
+  const namedMissing = cfg.cast
+    .roster()
+    .filter((p) => p.tier === 'named' && !isFixedRole(p.role) && p.week?.days.includes(cal.weekday))
+    .filter((p) => !(cal.season === 'summer' && p.traits.includes('snowbird')) && !w.rain && !w.wind)
+    .filter((p) => !came.some((a) => a.id === p.id))
+    .map((p) => p.id);
+  const checks: Check[] = [
+    { name: '早高峰', ok: morning > dip * 1.2, detail: `7–11 点最多 ${morning} 位客人 / 午后最少 ${dip}` },
+    summer
+      ? {
+          name: '夏天中午只剩泳池',
+          ok: poolNoon >= patronsNoon * 0.4,
+          detail: `12–15 点平均 ${patronsNoon.toFixed(0)} 位客人，泳池 ${poolNoon.toFixed(0)}（夏天不看午饭高峰）`,
+        }
+      : {
+          name: '午饭高峰',
+          ok: lunchFood > midFood * 1.5,
+          detail: `11:30–13:30 在吃的最多 ${lunchFood} 人 / 9–10:30 ${midFood}`,
+        },
+    {
+      name: '午饭的人吃了',
+      ok: summer || lunchN < 5 || lunchShare >= 0.6,
+      detail: `上午就来、午饭时段还在（≥30 分钟）的 ${lunchN} 人里 ${(lunchShare * 100).toFixed(0)}% 在俱乐部吃了`,
+    },
+    { name: '午后低谷', ok: dip < morning * 0.85, detail: `13:30–15:30 最少 ${dip} / 早上最多 ${morning}` },
+    { name: '晚场高峰', ok: evening > dip * 1.2, detail: `17–20:30 最多 ${evening} / 午后最少 ${dip}` },
+    {
+      name: '中午室外场空一半',
+      ok: rec.courtsNoon < rec.courtsMorning * 0.5,
+      detail: `场地占用（人·分钟）8–10 点 ${rec.courtsMorning}，13–15 点 ${rec.courtsNoon}`,
+    },
+    { name: '21 点以后只减不增', ok: late.every((x, i) => i === 0 || x <= late[i - 1]), detail: late.join(' → ') },
+    {
+      name: 'named 会员按 week 来',
+      ok: namedMissing.length === 0,
+      detail: namedMissing.length ? `没来：${namedMissing.join('、')}` : `${named.length} 位都来了`,
+    },
+    {
+      name: '员工守住营业时间',
+      ok: coverage.every((c) => c.share >= 0.75),
+      detail:
+        coverage
+          .filter((c) => c.share < 0.9)
+          .map((c) => `${c.name} ${(c.share * 100).toFixed(0)}%`)
+          .join('、') || '都 ≥ 90%',
+    },
+    {
+      name: '不变式',
+      ok: rec.violations.length === 0,
+      detail: rec.violations.length ? `${rec.violations.length} 条（见下）` : '没有违反',
+    },
+  ];
+  return {
+    title,
+    counts,
+    peak,
+    hourly,
+    places,
+    waits,
+    seek: { waited: seekWaited, matched: seekMatched, gaveUp: seekGave, avg: seekMatched ? seekSum / seekMatched : 0 },
+    gaveUps,
+    lunchShare,
+    courts: { morning: rec.courtsMorning, noon: rec.courtsNoon },
+    coverage,
+    samples,
+    checks,
+    violations: rec.violations,
+    ms: run.ms,
+  };
+}
+
+// ── 排版 ─────────────────────────────────────────────────────────────────────────
+
+/** 显示宽度（中文两格） */
+export function textWidth(s: string): number {
+  let w = 0;
+  for (const ch of s) w += /[ᄀ-￿]/.test(ch) && !/[─-▟]/.test(ch) ? 2 : 1;
+  return w;
+}
+const padE = (s: string, n: number) => s + ' '.repeat(Math.max(0, n - textWidth(s)));
+const padS = (s: string, n: number) => ' '.repeat(Math.max(0, n - textWidth(s))) + s;
+
+const SCENE_SHORT: Record<string, string> = {
+  clubpark: '停车',
+  clubdesk: '前台',
+  clubpickle: '匹克',
+  clubplaza: '广场',
+  clubstadium: '中心',
+  clubcourts: '会员',
+  clubclay: '红土',
+  clubhouse: '会所',
+  clubpool: '泳池',
+  clubgolf: '球道',
+  clubfood: '美食',
+  travel: '路上',
+};
+
+function wrap(parts: readonly string[], width: number, indent: string): string[] {
+  const out: string[] = [];
+  let line = '';
+  for (const p of parts) {
+    const next = line ? `${line} → ${p}` : p;
+    if (line && textWidth(indent + next) > width) {
+      out.push(indent + line);
+      line = `→ ${p}`;
+    } else line = next;
+  }
+  if (line) out.push(indent + line);
+  return out;
+}
+
+export function formatReport(r: DayReport, opts: { samples?: number } = {}): string {
+  const L: string[] = [];
+  L.push(`══ 俱乐部的一天 · ${r.title} ══`);
+  const c = r.counts;
+  L.push(
+    `今天来了 ${c.total} 人：员工 ${c.staff}、会员和常客 ${c.members}、客人 ${c.guests}、孩子 ${c.kids}（${c.parties} 伙一起来的）；` +
+      `最多同时 ${r.peak.n} 人（${hm(r.peak.t)}）。引擎一整天 ${r.ms.toFixed(0)} ms。`,
+  );
+  L.push('');
+  // 每小时
+  const scenes = [...SCENES, 'travel'];
+  const maxP = Math.max(1, ...r.hourly.map((h) => h.present));
+  const groups = Object.keys(GROUP_ZH) as Group[];
+  const head =
+    `${padE('时刻', 6)}${padS('在场', 5)}${padS('员工', 5)}${padS('会员', 5)}${padS('客人', 5)}${padS('孩子', 5)} │` +
+    groups.map((g) => padS(GROUP_ZH[g], 5)).join('') +
+    ' │' +
+    scenes.map((k) => padS(SCENE_SHORT[k], 5)).join('') +
+    '  在场人数';
+  L.push('【每小时在场（这一小时的平均）】');
+  L.push(head);
+  for (const h of r.hourly) {
+    const bar = '█'.repeat(Math.round((h.present / maxP) * 30));
+    L.push(
+      `${padE(`${String(h.hour).padStart(2, '0')}:00`, 6)}${padS(String(h.present), 5)}${padS(String(h.staff), 5)}${padS(String(h.members), 5)}${padS(String(h.guests), 5)}${padS(String(h.kids), 5)} │` +
+        groups.map((g) => padS(String(h.byGroup[g] || '·'), 5)).join('') +
+        ' │' +
+        scenes.map((k) => padS(String(h.byScene[k] || '·'), 5)).join('') +
+        `  ${bar}`,
+    );
+  }
+  L.push('');
+  L.push('【节奏检查】');
+  for (const k of r.checks) L.push(`  ${k.ok ? '✓' : '✗'} ${padE(k.name, 20)} ${k.detail}`);
+  L.push('');
+  // 各场景的地点
+  L.push('【地点（营业时间里平均坐满几成 · 最多几个人 / 容量 · 队最长）】');
+  const byScene = new Map<string, PlaceRow[]>();
+  for (const p of r.places) {
+    let l = byScene.get(p.scene);
+    if (!l) byScene.set(p.scene, (l = []));
+    l.push(p);
+  }
+  for (const sc of SCENES) {
+    const l = byScene.get(sc);
+    if (!l?.length) continue;
+    L.push(`  ${SCENE_NAME[sc]}`);
+    for (const p of l) {
+      const bar = '▇'.repeat(Math.round(Math.min(1, p.util) * 10)).padEnd(10, '·');
+      L.push(
+        `    ${padE(p.name, 34)} ${bar} ${padS(`${Math.round(p.util * 100)}%`, 4)}  最多 ${padS(String(p.peak), 3)}/${padE(String(p.cap), 4)}${p.queuePeak ? ` 队 ${p.queuePeak}` : ''}`,
+      );
+    }
+  }
+  L.push('');
+  L.push('【排队（排了多久才轮到）】');
+  L.push(`  ${padE('地点', 30)}${padS('人次', 6)}${padS('平均', 7)}${padS('最长', 7)}${padS('放弃', 6)}`);
+  for (const w of r.waits.slice(0, 14))
+    L.push(
+      `  ${padE(w.name, 30)}${padS(String(w.served), 6)}${padS(`${w.avg.toFixed(1)}分`, 7)}${padS(`${w.max}分`, 7)}${padS(String(w.gaveUp), 6)}`,
+    );
+  L.push(
+    `  凑人打球：坐在场边 / 拍架边等的 ${r.seek.waited} 伙，凑上了 ${r.seek.matched}（平均等 ${r.seek.avg.toFixed(1)} 分钟），没凑上走了 ${r.seek.gaveUp}`,
+  );
+  L.push('');
+  L.push(`【放弃、换地方（${r.gaveUps.length} 次，按时刻）】`);
+  const why = new Map<string, number>();
+  for (const g of r.gaveUps) {
+    const k = g.note.replace(/\d+/g, 'N').replace(/（.*?）/g, '');
+    why.set(k, (why.get(k) ?? 0) + 1);
+  }
+  for (const [k, n] of [...why.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10))
+    L.push(`  ${padS(String(n), 4)} × ${k}`);
+  for (const g of r.gaveUps.slice(0, 8)) L.push(`    ${hm(g.t)} ${g.who}：${g.note}`);
+  L.push('');
+  L.push('【员工守岗（要人在岗才开的地方：营业时间里有人的比例，最低的几个）】');
+  L.push(
+    `  ${r.coverage
+      .slice(0, 8)
+      .map((c) => `${c.name} ${(c.share * 100).toFixed(0)}%`)
+      .join(' · ')}`,
+  );
+  L.push('');
+  L.push('【抽几个人的一天】');
+  for (const sm of r.samples.slice(0, opts.samples ?? 10)) {
+    L.push(`  ◆ ${sm.name} · ${sm.title}`);
+    L.push(...wrap(sm.lines, 118, '      '));
+  }
+  L.push('');
+  L.push(`【不变式】${r.violations.length ? `${r.violations.length} 条` : '没有违反'}`);
+  for (const v of r.violations.slice(0, 12)) L.push(`  ✗ ${v}`);
+  return L.join('\n');
+}
+
+export { CLOSE, DAY_END, hm };
