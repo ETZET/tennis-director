@@ -90,6 +90,13 @@ export interface Place {
   needs?: PlaceId;
   /** 要总监在才服务（前台签到）：不在就慢慢自己来（见 club-sim.md「总监」） */
   director?: boolean;
+  /**
+   * 窗口边等餐的位置（摊位、咖啡吧这种点单的窗口才有）：点完单（spot 0，doing 'order'）站到窗口旁边等取餐，
+   * 还在 occupants 里、doing 还是 'order'，spot = cap + k（k = 0..pickup−1，画面按 k 挑窗口边的站位）。不给 = 点完直接拿走
+   */
+  pickup?: number;
+  /** 停车场（entry）的车位数：开车来的一伙人占一个车位，从下车到开走（见 club-sim.md「停车」） */
+  stalls?: number;
   /** 一个人在这里待多久（分钟，[最少, 最多]；不给按 doing 的默认） */
   stay?: [number, number];
   /** 几点到几点开（不给 = 营业时间） */
@@ -103,6 +110,13 @@ export interface Place {
 }
 
 // ── 人 ────────────────────────────────────────────────────────────────────────────
+
+/**
+ * 怎么来的（一伙人一样）：lotN / lotS 自己停在北 / 南停车场（占一个车位，stall 是第几个）；
+ * valet 停车场满了或者 VIP，在代客落客点把车交给泊车员（车开去场外）；drop 别人开车送到落客点放下（孩子、家长送）；
+ * walk 走路来（东头车道）；staff 员工、摊主、球员停在员工区（画面上不占客人的车位，从南停车场那边走进来）
+ */
+export type CarMode = 'lotN' | 'lotS' | 'valet' | 'drop' | 'walk' | 'staff';
 
 /** 一伙一起来、一起走的人（夫妻、一家人、约好的双打四个人） */
 export interface Party {
@@ -124,6 +138,8 @@ export interface Intent {
   minutes: number;
   /** 必须的（员工的班、约好的课）：满了就等；不是必须的满了就跳过 */
   must?: boolean;
+  /** 吃点零食（吉事果、冰棍、奶茶、果昔）：只去卖零食的窗口，不算一顿饭 */
+  snack?: boolean;
 }
 
 /** 人此刻的处境 */
@@ -149,8 +165,12 @@ export interface Agent {
   /** 今天几点到、最晚几点走 */
   arrive: Minute;
   leaveBy: Minute;
-  /** 从哪个出入口来、回哪去 */
+  /** 从哪个出入口来、回哪去（停车场满了到的时候会改成代客落客点） */
   entry: PlaceId;
+  /** 怎么来的（一伙人一样）；停车场停满了，到的那一分钟改成 valet */
+  car?: CarMode;
+  /** 停在 lotN / lotS 的第几个车位（0..stalls−1，一伙人同一个；到的时候分，走了就空出来） */
+  stall?: number;
   /** 剩下的日程（第一项是正在做的或下一件） */
   plan: Intent[];
   where: Where;
@@ -159,7 +179,19 @@ export interface Agent {
   /** 还能等几分钟（排队、等场；用完就放弃这一项） */
   patience: number;
   /** 今天的经历（报告、以后的心情）：等了多久、放弃了几次、被总监接待了没有 */
-  day: { waited: number; gaveUp: number; served: boolean; played: number; ate: boolean };
+  day: {
+    waited: number;
+    gaveUp: number;
+    served: boolean;
+    played: number;
+    ate: boolean;
+    /** 上一顿正餐吃完的时刻（两小时里不再吃正餐，只买零食、饮料） */
+    ateAt?: Minute;
+    /** 日程空了、离走还早，补了几次"去会所 / 阴凉处坐坐"（最多两次，之后才回家） */
+    fill?: number;
+  };
+  /** 今天已经记过一笔的"想干没干成"（doing + 地点种类）：同一件事只记一次，不刷屏 */
+  missed?: string[];
   /** 在 at 地点里占的第几个位置（0..cap−1；进去时挑最小的空位，待到走都不变，画面按它站）。排队、路上不用 */
   spot?: number;
 }
@@ -236,7 +268,7 @@ export interface SimConfig {
   places: readonly Place[];
   /** 演员表（clubsite/cast 的 CAST）：named、regular 从这里拿；客人用 makePerson 生成 */
   cast: import('../cast/types').Cast;
-  /** 走路速度（米/分钟，默认 78 ≈ 1.3 米/秒）；路程 = 直线距离 × 1.35 */
+  /** 走路速度（米 / 游戏分钟，默认 WALK_M_PER_MIN = 12：观察 2× 时画面上 24 米 / 秒，看得见人走）；路程 = 直线距离 × 1.35 */
   walk?: number;
   /** 员工位置 → 岗位（places.ts 的 POST_OF_SLOT，键 '<scene>:<slot>'）：员工、摊主、教练上哪个岗 */
   posts?: Readonly<Record<string, PlaceId>>;

@@ -3,7 +3,7 @@
 //   自己起一个 vite（端口 SPOTCHECK_PORT，默认 5182）；已经有 dev server 开着就给 SPOTCHECK_URL=http://localhost:5173
 //
 // 怎么查（导航 = clubsite/play/nav.ts 的 NavMap）：
-//   - 站着的位置、排队的点、门：standAt(x, z) 不是 null（脚下能站、身体一圈没压到墙、网、桌子、水、围网、摆件）；
+//   - 站着的位置、排队的点、窗口边等餐的点（pickup）、门：standAt(x, z) 不是 null（脚下能站、身体一圈没压到墙、网、桌子、水、围网、摆件）；
 //   - 坐的位置（pose 'sit'，y 不给或贴地）：人坐在长椅 / 桌凳的脚印里（导航挡着），查 height(x, z) 有地面、
 //     旁边 1.2 米以内有一个 standAt 的点（走过去停在那儿再坐下）；
 //   - 给了 y 的矮座（喷泉池沿：座位离旁边能站的地 < 0.4 米）照坐的查；
@@ -94,7 +94,7 @@ const res = await page.evaluate(async () => {
     return Math.hypot(e[0] - x, e[1] - z) < 0.35;
   };
   const fails = [];
-  const stats = { stand: 0, sit: 0, queue: 0, door: 0, skipped: 0 };
+  const stats = { stand: 0, sit: 0, queue: 0, pickup: 0, door: 0, skipped: 0 };
   const why = (x, z) => {
     const h = nav.height(x, z);
     if (h === null) return '脚下没有地面（不在导航里 / 水里 / 墙里）';
@@ -163,6 +163,12 @@ const res = await page.evaluate(async () => {
         fails.push({ id: p.id, what: `queue ${i}`, at: [q.x, q.z], why: why(q.x, q.z), near: nearest(q.x, q.z) });
       else if (!reach(q.x, q.z)) fails.push({ id: p.id, what: `queue ${i}`, at: [q.x, q.z], why: '走不到' });
     });
+    (s.pickup ?? []).forEach((q, i) => {
+      stats.pickup++;
+      if (nav.standAt(q.x, q.z) === null)
+        fails.push({ id: p.id, what: `pickup ${i}`, at: [q.x, q.z], why: why(q.x, q.z), near: nearest(q.x, q.z) });
+      else if (!reach(q.x, q.z)) fails.push({ id: p.id, what: `pickup ${i}`, at: [q.x, q.z], why: '走不到' });
+    });
   }
   return { fails, excepts, stats, paths, places: PLACES.length };
 });
@@ -172,7 +178,7 @@ if (server) await server.close();
 
 const { fails, excepts, stats, paths, places } = res;
 console.log(
-  `地点 ${places}：站着 ${stats.stand}、坐 ${stats.sit}、排队 ${stats.queue}、门 ${stats.door}、不查（高处 / 水里 / 藏着）${stats.skipped}；寻路 ${paths} 条`,
+  `地点 ${places}：站着 ${stats.stand}、坐 ${stats.sit}、排队 ${stats.queue}、等餐 ${stats.pickup}、门 ${stats.door}、不查（高处 / 水里 / 藏着）${stats.skipped}；寻路 ${paths} 条`,
 );
 if (excepts.length)
   console.log(

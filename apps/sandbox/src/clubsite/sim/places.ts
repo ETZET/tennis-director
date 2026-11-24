@@ -50,7 +50,7 @@ const post = (
   for: STAFF,
   ...extra,
 });
-/** 摊位窗口：一人点单 1–3 分钟，排 6 个，要摊主在岗 */
+/** 摊位窗口：一人点单 2–4 分钟，排 6 个，要摊主在岗；点完站到窗口边等取餐（pickup 个位置，饭 3–6 分钟、喝的 1–3 分钟） */
 const stall = (id: PlaceId, name: string, x: number, z: number, needs: PlaceId, extra: Partial<Place> = {}): Place => ({
   id,
   scene: 'clubfood',
@@ -62,7 +62,8 @@ const stall = (id: PlaceId, name: string, x: number, z: number, needs: PlaceId, 
   queue: 6,
   doing: 'order',
   needs,
-  stay: [1, 3],
+  stay: [2, 4],
+  pickup: 4,
   open: STALL_OPEN,
   ...extra,
 });
@@ -153,6 +154,7 @@ export const PLACES: readonly Place[] = [
     x: 75.3,
     z: -16.1,
     cap: 14,
+    stalls: 14,
     doing: 'arrive',
     stay: [1, 2],
   },
@@ -164,6 +166,7 @@ export const PLACES: readonly Place[] = [
     x: 75.3,
     z: 16.1,
     cap: 14,
+    stalls: 14,
     doing: 'arrive',
     stay: [1, 2],
   },
@@ -275,6 +278,7 @@ export const PLACES: readonly Place[] = [
     doing: 'order',
     needs: 'post.plaza.drinks',
     stay: [1, 2],
+    pickup: 2,
     open: STALL_OPEN,
   },
   water('plaza.water', 'clubplaza', '广场饮水点', 37.95, -14.4),
@@ -308,6 +312,19 @@ export const PLACES: readonly Place[] = [
     party: true,
     for: KID,
   },
+  // 青训场围网外对着墙打（大一点的孩子：Tommy 等 Sofía 下课的时候）
+  {
+    id: 'courts.wall',
+    scene: 'clubcourts',
+    kind: 'play',
+    name: '青训场围网外（对着墙打）',
+    x: -4,
+    z: -2.2,
+    cap: 2,
+    doing: 'tennis',
+    stay: [20, 60],
+    for: KID,
+  },
   standSeat('courts.lesson.parents', 'clubcourts', '青训场边家长长椅', -12, -1.1, 3, { shade: true }),
   standSeat('courts.member.bench', 'clubcourts', '会员场帆下长椅', -17, 17.55, 4, { shade: true }),
   standSeat('courts.practice.bench', 'clubcourts', '青训东场长椅', 14.6, -1.2, 2),
@@ -334,6 +351,7 @@ export const PLACES: readonly Place[] = [
     doing: 'order',
     needs: 'post.house.barista',
     stay: [1, 3],
+    pickup: 3,
     open: CAFE_OPEN,
     shade: true,
   },
@@ -421,6 +439,7 @@ export const PLACES: readonly Place[] = [
     doing: 'order',
     needs: 'post.house.nutri',
     stay: [1, 3],
+    pickup: 2,
     open: SHOP_OPEN,
     shade: true,
   },
@@ -712,7 +731,8 @@ export const PLACES: readonly Place[] = [
   stall('food.taco', '塔可车', -31.2, -37.4, 'post.food.taco'),
   stall('food.pizza', '披萨车', -25.6, -37.4, 'post.food.pizza'),
   stall('food.agua', '鲜果水车', -25.16, -33.25, 'post.food.agua'),
-  stall('food.paleta', '冰棍车', -24.2, -28.4, 'post.food.paleta'),
+  // 冰棍从冰柜里拿：不用等
+  stall('food.paleta', '冰棍车', -24.2, -28.4, 'post.food.paleta', { stay: [1, 2], pickup: 0 }),
   stall('food.burger', '银色汉堡拖车', -39.9, -22.5, 'post.food.burger'),
   stall('food.boba', '奶茶三轮', -40.6, -13.0, 'post.food.boba'),
   stall('food.churro', '吉事果车', -26.7, -11.4, 'post.food.churro'),
@@ -740,10 +760,11 @@ export const PLACES: readonly Place[] = [
     stay: [10, 30],
     for: KID,
   },
+  // 只给带孩子的大人（role parent）：没带孩子的人不会站在这儿"看球"
   standSeat('food.lawn.watch', 'clubfood', '草皮角边（看孩子）', -32.8, -10.15, 2, {
     doing: 'chat',
     stay: [10, 30],
-    for: ['parent', 'member', 'guest'],
+    for: ['parent'],
   }),
   water('food.water', 'clubfood', '餐车院子自助水站', -26.3, -23.6),
   {

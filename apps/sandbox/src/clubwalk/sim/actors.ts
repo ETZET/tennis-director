@@ -51,8 +51,11 @@ export class BodyPool {
     return n;
   }
 
-  /** 给这个人一具身子；没有预算 / 到上限 = null（下一帧再试） */
-  acquire(id: string, p: CastPerson | undefined, kind: BodyKind, force = false): Body | null {
+  /**
+   * 给这个人一具身子；没有预算 / 到上限 = null（下一帧再试）。
+   * dress = false：先不换装（快进时路上一晃而过的人，换装比他在画面里待的还久）；停下来以后 redress 补上
+   */
+  acquire(id: string, p: CastPerson | undefined, kind: BodyKind, force = false, dress = true): Body | null {
     // 先找穿着他的衣服、空着的
     let b = this.all.find((q) => !q.user && q.dressed === id && q.kind === kind) ?? null;
     if (!b) {
@@ -73,23 +76,34 @@ export class BodyPool {
         this.budget -= dt;
         this.stats.ms += dt;
       }
-      if (p && b.dressed !== id) {
-        const t0 = performance.now();
-        try {
-          this.dresser?.dress(b.obj, p.look);
-        } catch (e) {
-          console.warn('[sim] dress failed', id, e);
-        }
-        const dt = performance.now() - t0;
-        this.budget -= dt;
-        this.stats.ms += dt;
-        this.stats.dressed++;
-        b.dressed = id;
-      }
+      if (dress) this.dressOn(b, id, p);
     }
     b.user = id;
     b.obj.userData.castId = p?.id ?? id;
     return b;
+  }
+
+  /** 身子穿的不是他的衣服（快进时先借来用的）：有预算就换上；换了 / 本来就对 = true */
+  redress(b: Body, id: string, p: CastPerson | undefined): boolean {
+    if (b.dressed === id || !p) return true;
+    if (this.budget <= 0) return false;
+    this.dressOn(b, id, p);
+    return true;
+  }
+
+  private dressOn(b: Body, id: string, p: CastPerson | undefined) {
+    if (!p || b.dressed === id) return;
+    const t0 = performance.now();
+    try {
+      this.dresser?.dress(b.obj, p.look);
+    } catch (e) {
+      console.warn('[sim] dress failed', id, e);
+    }
+    const dt = performance.now() - t0;
+    this.budget -= dt;
+    this.stats.ms += dt;
+    this.stats.dressed++;
+    b.dressed = id;
   }
 
   release(b: Body) {

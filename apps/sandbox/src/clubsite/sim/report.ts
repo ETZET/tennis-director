@@ -3,7 +3,7 @@
 // 纯函数（命令行 docs/lab/2026-11-24-clubsim/tools/simday.ts 和测试都用它）。
 import { isFixedRole } from '../cast/slots';
 import { SCENE_NAME, SCENES, type SceneId } from '../cast/types';
-import { DOING_ZH, personOf, startDay, step } from './engine';
+import { DOING_ZH, handoverPosts, personOf, postStaffed, startDay, step } from './engine';
 import { CLOSE, calendar, DAY_END, H, hm, indexPlaces, OPEN, SEASON_ZH, WEEKDAY_ZH } from './plan';
 import type { Agent, AgentId, Doing, Minute, PlaceId, SimConfig, SimEvent, SimState, Weather } from './types';
 
@@ -23,7 +23,10 @@ export function checkState(cfg: SimConfig, s: SimState): string[] {
     const l = s.occupants[pid];
     const p = idx.byId.get(pid);
     if (!p) out.push(`${hm(s.minute)} 不认识的地点 ${pid}`);
-    else if (l.length > p.cap) out.push(`${hm(s.minute)} ${p.name}（${pid}）${l.length} 人 > cap ${p.cap}`);
+    else if (l.length > p.cap + (p.pickup ?? 0))
+      out.push(
+        `${hm(s.minute)} ${p.name}（${pid}）${l.length} 人 > cap ${p.cap}${p.pickup ? ` + 等餐 ${p.pickup}` : ''}`,
+      );
     const spots = new Set<number>();
     for (const id of l) {
       note(id, pid);
@@ -44,6 +47,25 @@ export function checkState(cfg: SimConfig, s: SimState): string[] {
       if (a?.where.kind !== 'queue' || a.where.at !== pid)
         out.push(`${hm(s.minute)} ${id} 在 ${pid} 的队里，人却不在队里`);
     }
+  // 车位：一伙人一个，同一个车位不停两伙，停的车不超过车位数
+  const stallOwner = new Map<string, string>();
+  for (const id of Object.keys(s.agents)) {
+    const a = s.agents[id];
+    if (a.where.kind === 'away' || (a.car !== 'lotN' && a.car !== 'lotS')) continue;
+    if (a.stall === undefined) {
+      out.push(`${hm(s.minute)} ${id} 开车停在 ${a.car}，没有车位`);
+      continue;
+    }
+    const k = `${a.car}#${a.stall}`;
+    const owner = a.party ?? id;
+    const prev = stallOwner.get(k);
+    if (prev && prev !== owner) out.push(`${hm(s.minute)} ${a.car} 的车位 ${a.stall} 停了两伙（${prev}、${owner}）`);
+    stallOwner.set(k, owner);
+    const lot = idx.entries.find(
+      (e) => (e.stalls ?? 0) > 0 && (/北|lotN/i.test(e.id + e.name) ? 'lotN' : 'lotS') === a.car,
+    );
+    if (lot && a.stall >= (lot.stalls ?? 0)) out.push(`${hm(s.minute)} ${id} 的车位 ${a.stall} 超出 ${lot.name}`);
+  }
   for (const id of Object.keys(s.agents)) {
     const a = s.agents[id];
     const w = a.where;
@@ -89,6 +111,8 @@ interface Rec {
   /** 室外网球场、匹克球场的占用（人·分钟）：早上 8–10、午后 13–15 */
   /** 在吃（点单、吃）的人数 */
   eating: number[];
+  /** 11:50–12:30 每个餐车窗口的队最长几个人 */
+  lunchQueue: Map<PlaceId, number>;
   courtsMorning: number;
   courtsNoon: number;
   violations: string[];
@@ -141,7 +165,8 @@ export interface DayRun {
   director: string;
 }
 
-const isStaff = (a: Agent) => isFixedRole(a.role);
+/** 员工（球员不算：他们是来练球、打表演赛的，算在会员那一栏） */
+const isStaff = (a: Agent) => isFixedRole(a.role) && a.role !== 'pro';
 
 export function runDay(cfg: SimConfig, dayNo: number, opts: RunOptions = {}): DayRun {
   const idx = indexPlaces(cfg.places);
@@ -165,11 +190,15 @@ export function runDay(cfg: SimConfig, dayNo: number, opts: RunOptions = {}): Da
     lunchPresent: new Map(),
     lunchAte: new Set(),
     eating: [],
+    lunchQueue: new Map(),
     courtsMorning: 0,
     courtsNoon: 0,
     violations: [],
   };
   let s = startDay(cfg, dayNo, opts.weather);
+  // 今天有人上班的岗位（轮休的餐车不算"没守住"）
+  const manned = new Set<PlaceId>();
+  for (const a of Object.values(s.agents)) for (const it of a.plan) if (it.doing === 'work' && it.at) manned.add(it.at);
   let ms = 0;
   while (s.minute < until) {
     const t0 = performance.now();
@@ -225,15 +254,20 @@ export function runDay(cfg: SimConfig, dayNo: number, opts: RunOptions = {}): Da
       rec.placeMin.set(pid, (rec.placeMin.get(pid) ?? 0) + n);
       rec.placePeak.set(pid, Math.max(rec.placePeak.get(pid) ?? 0, n));
     }
-    for (const pid of Object.keys(s.queues))
+    for (const pid of Object.keys(s.queues)) {
       rec.queuePeak.set(pid, Math.max(rec.queuePeak.get(pid) ?? 0, s.queues[pid].length));
+      if (t >= H(11, 50) && t <= H(12, 30) && idx.byId.get(pid)?.scene === 'clubfood')
+        rec.lunchQueue.set(pid, Math.max(rec.lunchQueue.get(pid) ?? 0, s.queues[pid].length));
+    }
+    let hand: Set<PlaceId> | undefined;
     for (const p of cfg.places) {
       // 守岗只看给客人开的窗口、吧台、店、泳池（课、团课、理疗按排的钟点，不算）
-      if (!p.needs || p.kind === 'lesson' || p.kind === 'gym') continue;
+      if (!p.needs || p.kind === 'lesson' || p.kind === 'gym' || !manned.has(p.needs)) continue;
       const [a, b] = p.open ?? [OPEN, CLOSE];
       if (t < a || t >= b) continue;
       const v = rec.staffedMin.get(p.id) ?? [0, 0];
-      const on = (s.occupants[p.needs] ?? []).some((id) => ['work', 'coach'].includes(s.agents[id].doing));
+      hand ??= handoverPosts(s.agents, s.minute);
+      const on = postStaffed(s, p.needs, hand);
       rec.staffedMin.set(p.id, [v[0] + (on ? 1 : 0), v[1] + 1]);
     }
     if (check && rec.violations.length < 50)
@@ -303,9 +337,16 @@ const avgOf = (xs: readonly number[]) => (xs.length ? xs.reduce((s, x) => s + x,
 export function personDay(cfg: SimConfig, s: SimState, id: AgentId, log: readonly SimEvent[] = s.log): string[] {
   const out: string[] = [];
   const name = (pid: PlaceId | undefined) => (pid ? (indexPlaces(cfg.places).byId.get(pid)?.name ?? pid) : '');
+  // 同一处接着坐（喝着、聊着、歇着）只写一行
+  const calm = (d?: Doing) => d === 'rest' || d === 'chat' || d === 'drink';
+  let sat: { at?: PlaceId; d?: Doing } = {};
   for (const e of log) {
     if (e.agent !== id) continue;
     const at = hm(e.t);
+    if (e.kind === 'start' && e.doing !== 'leave') {
+      if (calm(e.doing) && calm(sat.d) && sat.at === e.at) continue;
+      sat = { at: e.at, d: e.doing };
+    }
     switch (e.kind) {
       case 'arrive':
         out.push(`${at} ${e.note ?? `${name(e.at)}到了`}`);
@@ -567,12 +608,97 @@ export function buildReport(run: DayRun, opts: { people?: readonly string[] } = 
     .filter((p) => !(cal.season === 'summer' && p.traits.includes('snowbird')) && !w.rain && !w.wind)
     .filter((p) => !came.some((a) => a.id === p.id))
     .map((p) => p.id);
+  // ── 人物照着设定过（第 1 轮 critique 的几条）──
+  const fair = !w.rain && !w.wind;
+  const busyDay = fair && !summer;
+  // 员工 ≤ 在场的 35%（8–20 点每小时）
+  const staffShare = r0Hourly(rec, 8, 20).map(([h, st, all]) => [h, all ? st / all : 0] as const);
+  const worstStaff = staffShare.reduce((m, x) => (x[1] > m[1] ? x : m), [0, 0] as readonly [number, number]);
+  // 平日午饭：12 点前后三家以上的餐车前排着 ≥ 4 个人
+  const longQ = [...rec.lunchQueue.values()].filter((n) => n >= 4).length;
+  // 晚上 20–21 点还有人（酒吧、露台、晚场）
+  const patronsAt = (t: Minute) => {
+    const i = rec.minutes.indexOf(t);
+    return i < 0 ? 0 : rec.present[i] - rec.staff[i];
+  };
+  const eveningN = Math.min(patronsAt(H(20)), patronsAt(H(20, 30)));
+  // 老伤的人不上场
+  const hurtPlayed = [
+    ...new Set(
+      s.log
+        .filter((e) => e.kind === 'start' && (e.doing === 'tennis' || e.doing === 'pickle'))
+        .filter((e) => !isFixedRole(s.agents[e.agent].role) && personOf(cfg, s, e.agent)?.traits.includes('oldinjury'))
+        .map((e) => e.agent),
+    ),
+  ];
+  // 孩子不自己来：跟着大人一伙（来当球童的从落客点进）
+  const working = new Set(s.log.filter((e) => e.kind === 'shift').map((e) => e.agent));
+  const loneKids = came
+    .filter((a) => a.role === 'kid' || personOf(cfg, s, a.id)?.look.body === 'kid')
+    .filter((a) => {
+      if (isStaff(a) || working.has(a.id)) return !/drop|valet|落客/.test(a.entry);
+      const party = a.party ? s.parties[a.party] : undefined;
+      if (!party || party.lead === a.id) return true;
+      return !party.members.some((m) => {
+        const p = personOf(cfg, s, m);
+        return p?.look.body === 'adult' && p.role !== 'kid';
+      });
+    })
+    .map((a) => a.id);
+  // 一天里不撞名（英文全名不重；不出第二个和有名有姓的人同名的）
+  const fullNames = new Map<string, number>();
+  const namedZh = new Set(
+    cfg.cast
+      .roster()
+      .filter((p) => p.tier === 'named')
+      .map((p) => p.nameZh),
+  );
+  let zhClash = 0;
+  for (const a of came) {
+    const p = personOf(cfg, s, a.id);
+    if (!p) continue;
+    fullNames.set(p.name, (fullNames.get(p.name) ?? 0) + 1);
+    if ((a.id.startsWith('guest:sim:') || a.id.startsWith('staff:sim:')) && namedZh.has(p.nameZh)) zhClash++;
+  }
+  const dupNames = [...fullNames.values()].filter((n) => n > 1).length;
+  // 凑人打球放弃的比例
+  const giveUpRate = seekWaited ? seekGave / seekWaited : 0;
+  // 来了不到半小时就走的（不算下雨、起风沙这种有原因的）
+  const firstSeen = new Map<AgentId, Minute>();
+  let shortVisits = 0;
+  const shortWho: string[] = [];
+  for (const e of s.log) {
+    if (e.kind === 'arrive') firstSeen.set(e.agent, e.t);
+    if (e.kind === 'start' && e.doing === 'leave') {
+      const a = s.agents[e.agent];
+      const t0 = firstSeen.get(e.agent);
+      if (!a || isStaff(a) || t0 === undefined || e.t - t0 >= 30 || /下雨|风沙|关门/.test(e.note ?? '')) continue;
+      shortVisits++;
+      if (shortWho.length < 4) shortWho.push(`${e.agent}（${e.note ?? ''}）`);
+    }
+  }
+  // 一个饭点只吃一顿正餐（在塔可、披萨、汉堡这种正餐车拿了两次饭、隔了不到两个钟头）
+  const mealAt = new Map<AgentId, Minute>();
+  let twoMeals = 0;
+  for (const e of s.log) {
+    if (e.kind !== 'served' || e.doing !== 'order' || !e.at) continue;
+    const p = idx.byId.get(e.at);
+    if (!p || !/taco|pizza|burger|塔可|披萨|汉堡/i.test(`${p.id}${p.name}`)) continue;
+    const prev = mealAt.get(e.agent);
+    if (prev !== undefined && e.t - prev < 120) twoMeals++;
+    mealAt.set(e.agent, e.t);
+  }
+  const poolCover = coverage.filter((c) => idx.byId.get(c.id)?.kind === 'pool');
   const checks: Check[] = [
-    { name: '早高峰', ok: morning > dip * 1.2, detail: `7–11 点最多 ${morning} 位客人 / 午后最少 ${dip}` },
+    {
+      name: '早高峰',
+      ok: w.rain || morning > dip * 1.2,
+      detail: `7–11 点最多 ${morning} 位客人 / 午后最少 ${dip}${w.rain ? '（下雨天不看）' : ''}`,
+    },
     summer
       ? {
           name: '夏天中午只剩泳池',
-          ok: poolNoon >= patronsNoon * 0.4,
+          ok: !fair || poolNoon >= patronsNoon * 0.4,
           detail: `12–15 点平均 ${patronsNoon.toFixed(0)} 位客人，泳池 ${poolNoon.toFixed(0)}（夏天不看午饭高峰）`,
         }
       : {
@@ -585,11 +711,11 @@ export function buildReport(run: DayRun, opts: { people?: readonly string[] } = 
       ok: summer || lunchN < 5 || lunchShare >= 0.6,
       detail: `上午就来、午饭时段还在（≥30 分钟）的 ${lunchN} 人里 ${(lunchShare * 100).toFixed(0)}% 在俱乐部吃了`,
     },
-    { name: '午后低谷', ok: dip < morning * 0.85, detail: `13:30–15:30 最少 ${dip} / 早上最多 ${morning}` },
-    { name: '晚场高峰', ok: evening > dip * 1.2, detail: `17–20:30 最多 ${evening} / 午后最少 ${dip}` },
+    { name: '午后低谷', ok: w.rain || dip < morning * 0.85, detail: `13:30–15:30 最少 ${dip} / 早上最多 ${morning}` },
+    { name: '晚场高峰', ok: w.rain || evening > dip * 1.2, detail: `17–20:30 最多 ${evening} / 午后最少 ${dip}` },
     {
       name: '中午室外场空一半',
-      ok: rec.courtsNoon < rec.courtsMorning * 0.5,
+      ok: !fair || rec.courtsNoon < rec.courtsMorning * 0.5,
       detail: `场地占用（人·分钟）8–10 点 ${rec.courtsMorning}，13–15 点 ${rec.courtsNoon}`,
     },
     { name: '21 点以后只减不增', ok: late.every((x, i) => i === 0 || x <= late[i - 1]), detail: late.join(' → ') },
@@ -606,6 +732,56 @@ export function buildReport(run: DayRun, opts: { people?: readonly string[] } = 
           .filter((c) => c.share < 0.9)
           .map((c) => `${c.name} ${(c.share * 100).toFixed(0)}%`)
           .join('、') || '都 ≥ 90%',
+    },
+    {
+      name: '员工不超过三成五',
+      ok: !busyDay || worstStaff[1] <= 0.35,
+      detail: `8–20 点员工占在场的比例最高 ${(worstStaff[1] * 100).toFixed(0)}%（${worstStaff[0]} 点）`,
+    },
+    {
+      name: '平日午饭排队',
+      ok: !busyDay || cal.weekend || longQ >= 3,
+      detail: `11:50–12:30 队排到 ≥ 4 人的餐车 ${longQ} 家（${[...rec.lunchQueue.entries()].map(([k, n]) => `${idx.byId.get(k)?.name ?? k} ${n}`).join('、') || '没有队'}）`,
+    },
+    {
+      name: '晚上 20 点还有人',
+      ok: !busyDay || eveningN >= 25,
+      detail: `20:00、20:30 在场的客人（不算员工）最少 ${eveningN}`,
+    },
+    {
+      name: '老伤的不上场',
+      ok: hurtPlayed.length === 0,
+      detail: hurtPlayed.length ? `打了球：${hurtPlayed.join('、')}` : '都只在场边看、坐着聊',
+    },
+    {
+      name: '孩子不自己来',
+      ok: loneKids.length === 0,
+      detail: loneKids.length ? `自己来的：${loneKids.join('、')}` : '都跟着大人（当球童的从落客点进）',
+    },
+    {
+      name: '不撞名',
+      ok: dupNames === 0 && zhClash === 0,
+      detail: `英文全名重的 ${dupNames} 个；和有名有姓的人同名的生成的人 ${zhClash} 个`,
+    },
+    {
+      name: '凑人打球少放弃',
+      ok: seekWaited < 6 || giveUpRate < 0.15,
+      detail: `坐场边 / 拍架边等的 ${seekWaited} 伙里没凑上的 ${seekGave}（${(giveUpRate * 100).toFixed(0)}%）`,
+    },
+    {
+      name: '不一来就走',
+      ok: !fair || shortVisits === 0,
+      detail: shortVisits ? `${shortVisits} 个人来了不到半小时就走：${shortWho.join('、')}` : '没有来了半小时内就走的',
+    },
+    {
+      name: '一顿饭只吃一次',
+      ok: twoMeals === 0,
+      detail: twoMeals ? `${twoMeals} 次两个钟头内又去正餐车买饭` : '没有',
+    },
+    {
+      name: '泳池营业不关',
+      ok: !fair || poolCover.every((c) => c.share >= 0.99),
+      detail: poolCover.map((c) => `${c.name} ${(c.share * 100).toFixed(1)}%`).join('、') || '泳池不开',
     },
     {
       name: '不变式',
@@ -630,6 +806,24 @@ export function buildReport(run: DayRun, opts: { people?: readonly string[] } = 
     violations: rec.violations,
     ms: run.ms,
   };
+}
+
+/** 每小时（这一小时的平均）[时, 员工, 在场] */
+function r0Hourly(rec: Rec, h0: number, h1: number): [number, number, number][] {
+  const out: [number, number, number][] = [];
+  for (let h = h0; h <= h1; h++) {
+    let st = 0;
+    let all = 0;
+    let n = 0;
+    rec.minutes.forEach((t, i) => {
+      if (t < h * 60 || t >= h * 60 + 60) return;
+      st += rec.staff[i];
+      all += rec.present[i];
+      n++;
+    });
+    if (n) out.push([h, st / n, all / n]);
+  }
+  return out;
 }
 
 // ── 排版 ─────────────────────────────────────────────────────────────────────────

@@ -23,4 +23,5 @@ export function personOf(cfg: SimConfig, id: string, s?: SimState | null): CastP
   return CAST.get(id) ?? (s ? enginePerson(cfg, s, id) : undefined);
 }
 
+export { DAY_END, OPEN } from '../../clubsite/sim';
 export { CAST };

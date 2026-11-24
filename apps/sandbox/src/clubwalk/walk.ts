@@ -657,7 +657,8 @@ export function mountWalk(hooks: WalkHooks = {}) {
       if (!sim?.on) p.say(anchor, text, sec, dy);
     };
     w.toast = (text, sec) => {
-      if (current) p.toast(text, sec);
+      // 观察模式：场景自己的提示（午饭高峰、人手不够……）是总监自己玩时的，不出
+      if (current && !sim?.on) p.toast(text, sec);
     };
     return {
       play: w,
@@ -1045,6 +1046,10 @@ export function mountWalk(hooks: WalkHooks = {}) {
   // ── 时间和天气（clubsite/daylight）：太阳绕着走、影子跟着转，夜里月亮 + 球场灯；面板在像素级别下面 ──
   const day = mountDaylight({ scene, pipe, sun, uniforms, params, scheme, placeSun: aimSun, hud: pxEl });
 
+  /** 会所现在是剖面（一楼看得见；总监在里面，或者观察模式的镜头看进会所） */
+  let houseInside = false;
+  /** 会所区域的范围（总监在会所里时只画这一块） */
+  const CLUBHOUSE_RECTS = lives.find((l) => l.def.id === 'clubhouse')?.def.rects ?? [CLUBHOUSE];
   sim = mountSim({
     scene,
     pipe,
@@ -1072,13 +1077,15 @@ export function mountWalk(hooks: WalkHooks = {}) {
       for (const L of lives) if (L.region) hideCrowd(L.root, on);
     },
     openCard: cast ? (id) => cast.open(id) : undefined,
+    // 总监在会所里（沉浸式）：只画会所，外面是黑的，外面的人不画
+    visibleAt: (x, z) => !immersive || inRects(CLUBHOUSE_RECTS, x, z),
+    houseOpen: () => houseInside,
   });
 
   // ── 固定步长循环 ──
   const DT = 1 / 60;
   let simT = 0;
   let unhideT = 0;
-  let houseInside = false;
   const route: [number, number][] = (params.get('route') ?? '')
     .split(';')
     .map((s) => s.split(',').map(Number) as [number, number])
@@ -1117,11 +1124,16 @@ export function mountWalk(hooks: WalkHooks = {}) {
         // 会所的脚印（L 形，不含东边 clubfood 的拱廊前小院）；楼上、地下（脚下离地 > 1 米）在会所那一片里都算里面
         const nearHouse = p.x > -64.5 && p.x < -39.5 && p.z > -43 && p.z < -1;
         const inHouse = nearHouse && (Math.abs(p.y) > 1 || !outsideHouse(p.x, p.z, 1, -0.2));
-        if (hr && inHouse !== houseInside) {
-          houseInside = inHouse;
-          hr.setInside(inHouse);
-          setImmersive(inHouse);
+        // 观察模式：镜头看进会所（跟着的人进了会所、look 到会所里）→ 剖面看一楼，外面照常画（不沉浸）
+        const f = sim?.focus();
+        const camIn =
+          !inHouse && !!f && f.x > -64.5 && f.x < -39.5 && f.z > -43 && f.z < -1 && !outsideHouse(f.x, f.z, 1, -0.2);
+        const open = inHouse || camIn;
+        if (hr && open !== houseInside) {
+          houseInside = open;
+          hr.setInside(open);
         }
+        if (hr && inHouse !== immersive) setImmersive(inHouse);
         // 楼梯上换层：脚下高度过了阈值（floorFor 带滞回）→ 剖面和导航换成那一层（onFloor 的回调重建网格，见 buildRegion）。
         // 两个平台、半跑在相邻两层的导航里都有，换过去的那一刻脚下站得住
         if (hr && inHouse) {

@@ -23,6 +23,7 @@ import { SPOTS as PS, ROWS, STALL } from '../../clubpark/layout';
 import { QUEUE_DOOR, QUEUE_IN } from '../../clubpickle/layout';
 import { FOUNTAIN_SPEC, SPOTS as ZS } from '../../clubplaza/layout';
 import { SPOTS as LS, H as POOL_H } from '../../clubpool/layout';
+import { PLACES } from '../../clubsite/sim/places';
 import type { PlaceId } from '../../clubsite/sim/types';
 import { COURTS, type Court, FOUNTAIN, POOL } from '../../clubsite/world';
 import { seatList } from '../../clubstadium/assets/stands/seats';
@@ -62,6 +63,42 @@ const bench = (c: V2, rot: number, s = 1): Spot[] =>
  */
 const queue = (from: V2, pts: readonly V2[]): Spot[] => pts.map((p, k) => at(p, face(p, k === 0 ? from : pts[k - 1])));
 /** 自助饮水点：接水的人站 p 朝 yaw，后面等的两个人在他背后一条线上 */
+/**
+ * 窗口边等取餐的 n 个位置：客人站位 c 的左右两边（sides：1 = 往右手、−1 = 往左手，先给的那边先站），
+ * 往后退 back 米、每个隔 gap 米，人朝着窗口（c 前面 1.2 米）。只给一边的（另一边是队）：那一边站两排，不拉成一长串
+ */
+function pickupAt(
+  c: Spot,
+  n: number,
+  sides: readonly number[] | readonly (readonly [number, number])[] = [1, -1],
+  back = 0.35,
+  gap = 0.95,
+): Spot[] {
+  const fx = Math.sin(c.yaw);
+  const fz = Math.cos(c.yaw);
+  // 右手 = 朝向顺时针转 90°
+  const rx = -fz;
+  const rz = fx;
+  const win: V2 = [c.x + fx * 1.2, c.z + fz * 1.2];
+  const out: Spot[] = [];
+  // 手摆的：[往右手几米（负 = 左手）, 往后几米]
+  if (typeof sides[0] !== 'number') {
+    for (const [l, b] of (sides as readonly (readonly [number, number])[]).slice(0, n)) {
+      const p: V2 = [r2(c.x + rx * l - fx * b), r2(c.z + rz * l - fz * b)];
+      out.push(at(p, r2(face(p, win))));
+    }
+    return out;
+  }
+  const rows = sides.length === 1 ? [back, back + 0.9] : [back];
+  for (let d = 1.15; out.length < n; d += gap)
+    for (const sd of sides as readonly number[])
+      for (const b of rows) {
+        if (out.length >= n) break;
+        const p: V2 = [r2(c.x + rx * sd * d - fx * b), r2(c.z + rz * sd * d - fz * b)];
+        out.push(at(p, r2(face(p, win))));
+      }
+  return out;
+}
 const tap = (p: V2, yaw: number): PlaceSpots => {
   const back: V2 = [-Math.sin(yaw), -Math.cos(yaw)];
   const pts = [1, 2].map((k) => [p[0] + back[0] * 0.9 * k, p[1] + back[1] * 0.9 * k] as V2);
@@ -139,12 +176,28 @@ const DRINKS_Q: V2[] = [
 
 // ── 中心球场（clubstadium：看台座位 = assets/stands/seats.ts 的 seatList，球员、裁判、球童 = SPOTS）───────────
 const SEATS = seatList();
-/** 一面看台的座位，按"前排、居中"先排（来看球的人先坐好位置） */
+/**
+ * 一面看台的座位：每排按左右切成"两个座 + 空一个"的小块，按"前排、居中"先坐小块里的两个座（一伙人挨着坐，
+ * 和下一伙隔一个空座，不一排人肩并肩贴着），小块都坐满了才坐空着的那些（表演赛人多时坐满）
+ */
 function stand(id: 'north' | 'east' | 'south'): Spot[] {
   const mid = id === 'east' ? -21 : 0;
-  return SEATS.filter((s) => s.stand === id)
-    .map((s) => ({ s, k: s.row * 2.2 + Math.abs((id === 'east' ? s.z : s.x) - mid) / 2.5 }))
-    .sort((a, b) => a.k - b.k || a.s.x - b.s.x || a.s.z - b.s.z)
+  const axis = (s: (typeof SEATS)[number]) => (id === 'east' ? s.z : s.x);
+  const mine = SEATS.filter((s) => s.stand === id);
+  const rows = new Map<number, typeof mine>();
+  for (const s of mine) rows.set(s.row, [...(rows.get(s.row) ?? []), s]);
+  const ranked: { s: (typeof SEATS)[number]; k: number }[] = [];
+  for (const [row, list] of rows) {
+    list.sort((a, b) => axis(a) - axis(b));
+    list.forEach((s, i) => {
+      const blk = Math.floor(i / 3);
+      const gap = i % 3 === 2;
+      const c = list.slice(blk * 3, blk * 3 + 2).reduce((m, q) => m + axis(q), 0) / Math.min(2, list.length - blk * 3);
+      ranked.push({ s, k: (gap ? 1000 : 0) + row * 2.2 + Math.abs(c - mid) / 2.5 + (i % 3) * 0.001 });
+    });
+  }
+  return ranked
+    .sort((a, b) => a.k - b.k || axis(a.s) - axis(b.s))
     .map(({ s }) => at([s.x, s.z], s.rotY, 'sit', s.y - BENCH));
 }
 /** 北看台东走道（x 7）第 3 级：卖水的站的地方（clubstadium SLOTS 的 vendor） */
@@ -179,6 +232,8 @@ const SOUTH_PAIRS = [-57.4, -52.7, -48.0, -43.3];
 const WEST_PAIRS = [5.6, 10.6];
 /** 泡在水里：脚在水面下 1.1 米（clubpool 的 swimmer：y = 水面 − sink） */
 const SWIM_Y = POOL_H.water - 1.1;
+/** 泳池的"门"：浅水台阶（POOL_STEPS x −44.5…−43、z 5.5…10.5）东边的池畔 */
+const POOL_DOOR = { x: -42.2, z: 8.0 };
 const KID_Y = POOL_H.water - 0.75;
 
 // ── 餐车院子（clubfood/layout.ts；小推车的位置、朝向照抄那边没导出的常量）──────────────
@@ -232,11 +287,11 @@ const paleta = cart(
   [-0.2, 1.0],
   [
     [-24.95, -27.75],
-    [-25.0, -26.9],
-    [-24.6, -26.15],
-    [-24.2, -25.4],
-    [-23.8, -24.65],
-    [-23.4, -23.9],
+    [-25.0, -26.75],
+    [-24.6, -25.85],
+    [-24.15, -24.95],
+    [-23.7, -24.05],
+    [-23.25, -23.15],
   ],
   undefined,
   [0.3, 0.08],
@@ -282,12 +337,12 @@ const churro = cart(
   [0.2, -0.85],
   [-0.2, 1.2],
   [
-    [-26.0, -11.05],
-    [-25.2, -10.75],
-    [-24.4, -10.45],
-    [-23.6, -10.15],
-    [-23.3, -11.0],
-    [-23.0, -11.85],
+    [-25.95, -11.0],
+    [-24.95, -10.75],
+    [-23.95, -10.5],
+    [-23.2, -11.15],
+    [-22.95, -12.1],
+    [-22.7, -12.85],
   ],
 );
 /** 长桌（TABLE_ROWS × TABLE_XS，桌长 4.2、凳离桌心 0.65）切成两半，每半张四个座：北凳两个、南凳两个，先排面对面 */
@@ -387,9 +442,10 @@ const table: Record<PlaceId, PlaceSpots> = {
   'plaza.bench.w': { spots: bench(ZS.benchW, face(ZS.benchW, FC)) },
   'plaza.bench.n': { spots: bench(ZS.benchN, S_) },
   'plaza.bench.prom': { spots: bench([53.4, -9.4], S_) },
-  // 坐在喷泉池沿上（池壁 0.6 高：座高 1.2 + 0.6；人背对池子朝外）
+  // 坐在喷泉池沿上（池壁 0.6 高：座高 1.2 + 0.6；人背对池子朝外）。一整圈分四处、每处两个挨着的座（一伙人挨着坐），
+  // 按南、北、东、西的顺序先坐：陌生人隔着池子坐开，不在南边一小段肩并肩
   'plaza.rim': {
-    spots: [80, 100, 120, 60, 140, 40, 160, 20].map((deg) => {
+    spots: [80, 100, 260, 280, 350, 10, 170, 190].map((deg) => {
       const s = aroundFountain(deg, RIM_R, 'sit', 1.2 + 0.6 - BENCH);
       return { ...s, yaw: r2(s.yaw + P) };
     }),
@@ -447,6 +503,8 @@ const table: Record<PlaceId, PlaceSpots> = {
     door: { x: -30.5, z: -2.3 },
   },
   // 家长：伞下长椅（−12.6, −1.2）两个座 + 旁边站着鼓掌的一个（clubcourts SLOTS parent-3）
+  // 青训场北围网外的步道（围网 z −2.3，挡风布当墙）：大一点的孩子对着挡风布打（Tommy 等 Sofía 下课），朝南对着网
+  'courts.wall': { spots: [at([-6.0, -3.25], S_), at([-9.6, -3.25], S_)] },
   'courts.lesson.parents': {
     spots: [...bench([-12.6, -1.2], S_), at([-9.9, -0.9], -0.5, 'clap')],
     door: { x: -30.5, z: -2.3 },
@@ -609,10 +667,12 @@ const table: Record<PlaceId, PlaceSpots> = {
 
   // ═════ 泳池 ═════
   // 水里：三条泳道 × 四段（避开东头浅水台阶 x > −44 那块）
+  // 下水、上岸都走东头的浅水台阶（POOL_STEPS）：门在台阶东边的池畔上（水里不在导航里，演出从门直着游过去）
   'pool.water': {
     spots: [5.0, 8.0, 11.0].flatMap((z, i) =>
       [-55.5, -52.5, -49.5, -46.5].map((x, k) => at([x, z], (i + k) % 2 ? E_ : W_, 'idle', SWIM_Y)),
     ),
+    door: POOL_DOOR,
   },
   // 浅水台阶下（POOL_STEPS x −44.05…−42.55、z 5.5…10.5 的西边）：孩子玩水
   'pool.kids': {
@@ -622,6 +682,7 @@ const table: Record<PlaceId, PlaceSpots> = {
       at([-44.7, 9.5], W_, 'idle', KID_Y),
       at([-45.7, 7.2], E_, 'idle', KID_Y),
     ],
+    door: POOL_DOOR,
   },
   // 池边泡脚（北池沿，同 clubpool SLOTS edge-sit：坐在池沿 0.53、脚在水里）
   'pool.edge': {
@@ -685,7 +746,13 @@ const table: Record<PlaceId, PlaceSpots> = {
   'food.picnic.3': { spots: picnic(PICNIC_XS[2]) },
   // 孩子的草皮角（clubfood SLOTS kid-throw、kid-wait、kid-jenga + 一个）、看孩子的家长
   'food.lawn': {
-    spots: [at([-35.0, -11.4], E_), at([-35.6, -12.6], E_ + 0.3), at([-29.1, -11.2], N_ + 0.4), at([-30.2, -12.2], W_)],
+    // 第三个往草皮里挪半米（东边是吉事果车等餐的人）
+    spots: [
+      at([-35.0, -11.4], E_),
+      at([-35.6, -12.6], E_ + 0.3),
+      at([-29.7, -11.35], N_ + 0.4),
+      at([-30.45, -12.4], W_),
+    ],
   },
   'food.lawn.watch': { spots: [at([-33.3, -10.2], N_ - 0.3, 'sip'), at([-32.2, -10.1], N_ + 0.2)] },
   // 自助水站（water-station (−25.6, −23.6) 朝西）：西边贴着凉棚东南角的柱子，人站南边朝北
@@ -695,5 +762,48 @@ const table: Record<PlaceId, PlaceSpots> = {
     spots: [at([-35.0, -41.6], S_), at([-34.3, -41.6], S_), at([-28.4, -41.7], S_), at([-22.0, -41.6], S_)],
   },
 };
+
+/**
+ * 窗口边等取餐（地点表的 pickup）：客人站位的哪一边先站（1 = 右手、−1 = 左手），不给 = 两边轮着。
+ * 队在哪边就站另一边；车挨着车的那边留给隔壁的车。
+ */
+const PICKUP_SIDES: Record<PlaceId, readonly number[] | readonly (readonly [number, number])[]> = {
+  // 咖啡吧：队往西，等餐的站东边（吧台延长段的脚印到 x −47.1）
+  'house.cafe': [
+    [1.05, 0.35],
+    [1.05, 1.25],
+    [2.5, 0.35],
+  ],
+  'house.nutri': [-1],
+  'plaza.drinks': [-1],
+  // 鲜果水：右手是自己的队拐弯的地方、左手再远是披萨车的队：右手两个、左手一个、右手后排一个
+  'food.agua': [
+    [1.15, 0.35],
+    [-0.85, 0.35],
+    [2.05, 0.35],
+    [1.15, 1.25],
+  ],
+  'food.boba': [1],
+  // 吉事果：队往东，等餐的站西边两排（再西是草皮角）
+  'food.churro': [
+    [-1.15, 0.35],
+    [-1.15, 1.25],
+    [-2.0, 0.35],
+    [-2.0, 1.25],
+  ],
+  // 汉堡拖车：东边第二个往后半步（回收站的边）
+  'food.burger': [
+    [1.15, 0.35],
+    [-1.15, 0.35],
+    [2.05, 0.75],
+    [-2.05, 0.35],
+  ],
+};
+for (const p of PLACES) {
+  const n = p.pickup ?? 0;
+  const t = table[p.id];
+  if (!n || !t || t.pickup) continue;
+  t.pickup = pickupAt(t.spots[0], n, PICKUP_SIDES[p.id]);
+}
 
 export const SPOTS: SpotTable = table;

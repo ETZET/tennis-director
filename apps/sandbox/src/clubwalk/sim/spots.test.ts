@@ -61,9 +61,10 @@ describe('站位表', () => {
     for (const id of Object.keys(SPOTS)) expect(PLACE_BY_ID[id], id).toBeDefined();
   });
 
-  it('站位个数 = cap；排队的点 = queue（有队的地点）', () => {
+  it('站位个数 = cap；排队的点 = queue（有队的地点）；窗口边等餐的点 = pickup', () => {
     for (const p of PLACES) {
       expect(SPOTS[p.id].spots.length, p.id).toBe(p.cap);
+      expect(SPOTS[p.id].pickup?.length ?? 0, p.id).toBe(p.pickup ?? 0);
       if (p.queue) expect(SPOTS[p.id].queue?.length, p.id).toBe(p.queue);
       else expect(SPOTS[p.id].queue, p.id).toBeUndefined();
     }
@@ -79,7 +80,7 @@ describe('站位表', () => {
 
   it('同一个地点里的站位、排队的点不叠在一起（隔 ≥ 0.45 米）', () => {
     for (const [id, s] of Object.entries(SPOTS)) {
-      const pts = [...s.spots, ...(s.queue ?? [])];
+      const pts = [...s.spots, ...(s.queue ?? []), ...(s.pickup ?? [])];
       for (let i = 0; i < pts.length; i++)
         for (let j = i + 1; j < pts.length; j++) {
           const d = Math.hypot(pts[i].x - pts[j].x, pts[i].z - pts[j].z) + Math.abs((pts[i].y ?? 0) - (pts[j].y ?? 0));
@@ -90,7 +91,7 @@ describe('站位表', () => {
 
   it('不同地点的站位不叠在一起（隔 ≥ 0.4 米；同一层）', () => {
     const all = Object.entries(SPOTS).flatMap(([id, s]) =>
-      [...s.spots, ...(s.queue ?? [])].map((p) => ({ id, x: p.x, z: p.z, y: p.y ?? 0 })),
+      [...s.spots, ...(s.queue ?? []), ...(s.pickup ?? [])].map((p) => ({ id, x: p.x, z: p.z, y: p.y ?? 0 })),
     );
     const clash: string[] = [];
     for (let i = 0; i < all.length; i++)
@@ -107,7 +108,7 @@ describe('站位表', () => {
     const out: string[] = [];
     for (const p of PLACES) {
       const s = SPOTS[p.id];
-      for (const q of [...s.spots, ...(s.queue ?? []), ...(s.door ? [s.door] : [])])
+      for (const q of [...s.spots, ...(s.queue ?? []), ...(s.pickup ?? []), ...(s.door ? [s.door] : [])])
         if (!inScene(p.scene, q.x, q.z)) out.push(`${p.id} (${q.x}, ${q.z})`);
     }
     expect(out).toEqual([]);

@@ -10,6 +10,7 @@ import {
   BK_ROLL_HAND,
   carryTool,
   cartTool,
+  type ExtraName,
   NEW_PERIOD,
   NEW_POSES,
   type NewPose,
@@ -131,6 +132,19 @@ export function wrapPerson(ctx: PeopleCtx, root: THREE.Group, opts: PersonOpts):
   });
   ctx.mats.prepare(root);
 
+  // 新姿势自己带的小东西（cook 的锅铲、eat 的一口吃的和左手的杯子）：第一次用到才建，别的姿势一律藏着
+  const extras = new Map<ExtraName, THREE.Object3D>();
+  const extra = (n: ExtraName): THREE.Object3D => {
+    let o = extras.get(n);
+    if (!o) {
+      o = buildExtra(ctx, n);
+      (n === 'cupL' ? b.armL.hand : b.armR.hand).add(o);
+      ctx.mats.prepare(o);
+      extras.set(n, o);
+    }
+    return o;
+  };
+
   const e: PoseEnv = {
     b,
     body,
@@ -144,6 +158,10 @@ export function wrapPerson(ctx: PeopleCtx, root: THREE.Group, opts: PersonOpts):
     out: { dir: null, crankAngle: 0 },
     shade: V(0.7, 0, 0.2),
     ball,
+    extra,
+    hipK,
+    eat: { table: 0.76 },
+    swim: { surface: 1.1 },
   };
 
   // ── 状态 ──
@@ -194,6 +212,7 @@ export function wrapPerson(ctx: PeopleCtx, root: THREE.Group, opts: PersonOpts):
     holder.group.quaternion.identity();
     paddle.rotation.set(-0.35, 0, 0);
     ball.visible = false;
+    for (const o of extras.values()) o.visible = false;
 
     if (isNewPose(current)) {
       setRigProp(null);
@@ -289,6 +308,10 @@ export function wrapPerson(ctx: PeopleCtx, root: THREE.Group, opts: PersonOpts):
   /** 是一个人（clubwalk 的演员表按它在场景里找人）；poseName() 现在的姿势（点人时"在干什么"用） */
   ud.isPerson = true;
   ud.poseName = () => current;
+  /** 现在姿势的 phase（0..1；演出按它对时：吃饭喝的那一口、递出窗口的那一下） */
+  ud.posePhase = () => phase;
+  /** 建这个人的上下文（演出要建和他同一套材质的小东西时用） */
+  ud.peopleCtx = ctx;
   ud.period = (n?: string) => (n && isNewPose(n) ? NEW_PERIOD[n] : n && isRigPose(n) ? RIG_PERIOD[n] : period());
   ud.update = (dt: number) => {
     if (fixed) return;
@@ -370,6 +393,14 @@ export function wrapPerson(ctx: PeopleCtx, root: THREE.Group, opts: PersonOpts):
     } else e.crank.set(-0.12, 0.62, 0.55);
     apply();
   };
+  /** eat：桌面比人站的地面高多少米（长桌 0.76）；null = 没有桌子，吃的放在腿上 */
+  ud.setEat = (o: { table?: number | null }) => {
+    if (o.table !== undefined) e.eat.table = o.table;
+  };
+  /** swim：水面比人的根节点高多少米（默认 1.1 = 站在水面下 1.1 米的池底） */
+  ud.setSwim = (o: { surface?: number }) => {
+    if (o.surface !== undefined) e.swim.surface = o.surface;
+  };
   /** crank：当前曲柄角（弧度，0 = 手在转轴右边（人物 −x），一遍转一圈）——让绞盘的鼓跟着转 */
   ud.crankAngle = () => e.out.crankAngle;
   /** skim：水面比人站的地面高多少米（默认 0.42 = 喷泉池水比广场高 0.42） */
@@ -429,4 +460,25 @@ export function wrapPerson(ctx: PeopleCtx, root: THREE.Group, opts: PersonOpts):
     apply();
   }
   return root;
+}
+
+/** 新姿势的小道具（挂在拳头上，原点 = 拳头）：锅铲（木柄 + 金属铲面，沿 −y）、一口吃的（面包色一小块）、左手的外带杯 */
+function buildExtra(ctx: PeopleCtx, n: ExtraName): THREE.Object3D {
+  if (n === 'cupL') return buildCup(ctx);
+  const g = new THREE.Group();
+  g.name = `extra-${n}`;
+  const box = (w: number, h: number, d: number, mat: THREE.Material, y: number, z = 0) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+    m.position.set(0, y, z);
+    return m;
+  };
+  if (n === 'spatula') {
+    // 柄 2 纹素粗（≥ 2 纹素才不闪），铲面 2 × 2.5 纹素、薄（俯视里是一块亮的金属）
+    g.add(box(0.08, 0.26, 0.08, ctx.mat('wood', { ...PERSON, edge: 0.4, convex: 0.3 }), -0.1));
+    g.add(box(0.2, 0.22, 0.05, ctx.mat('metal', { ...PERSON, edge: 0.45, convex: 0.3 }), -0.34));
+  } else {
+    // 一口吃的（塔可、汉堡、披萨角）：面包色的一小块，在拳头前面一点
+    g.add(box(0.16, 0.1, 0.13, ctx.mat('dryGrass', { ...PERSON, edge: 0.4, convex: 0.4 }), 0.02, 0.1));
+  }
+  return g;
 }

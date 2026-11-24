@@ -1,6 +1,8 @@
 // 观察面板（手机优先，竖屏 390×844）：屏幕底部一张抽屉。
-// 收起时两行：时间 + 时段 + 在场人数（点它展开），加速档位（⏸ 慢 1× 10× 30× 60×）；跟着一个人时多一行"跟着谁、在干什么"。
-// 展开：跳到某个时刻、看全图、跟着一个人（他今天的日程，现在这一项高亮）、此刻在场的人里挑一个、各区域人数、最近的事、画面缺口。
+// 默认收起（只占底下两行，画面留给俱乐部）：时间 + 时段 + 在场人数（点它展开），加速档位（⏸ 慢 1× 2× 5× 15× 60×，15× 起是快进）；
+// 跟着一个人时多一行"跟着谁、在哪、干什么"。
+// 展开：跳到某个时刻、看全图、跟着一个人（他今天的日程，现在这一项高亮）、此刻在场的人（客人、会员在前，员工在后）、各区域人数、最近的事、画面缺口。
+// 观察时场景自己的提示（play-toast：午饭高峰、人手不够……）不出来：那是总监自己玩的时候的。
 // 所有按钮 ≥ 44 px，Pointer Events（click），不靠悬停和键盘。外观跟 .pxsel button（各页面 html 里）同一套像素框。
 import { hhmm, JUMPS, SPEED_LABEL, SPEEDS } from './clock';
 
@@ -26,6 +28,8 @@ export interface HudData {
     canCard: boolean;
   };
   picks: { id: string; name: string; note: string }[];
+  /** 此刻在场（看得见）的员工、教练几个（名单里排在后面） */
+  staff: number;
   feed: { t: string; text: string }[];
   overview: boolean;
   gaps: string[];
@@ -39,10 +43,12 @@ export interface HudHost {
   followRandom(): void;
   openCard(): void;
   toggleOverview(): void;
+  /** 面板展开了：马上把展开的那些（名单、日程、事件）填上（收起时不算，省时间） */
+  opened?(): void;
 }
 
 const CSS = `
-body.sim-on .play-hint, body.sim-on .play-buttons, body.sim-on .play-bar, body.sim-on .cast-open { display: none; }
+body.sim-on .play-hint, body.sim-on .play-buttons, body.sim-on .play-bar, body.sim-on .cast-open, body.sim-on .play-toast { display: none; }
 .sim-sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 7; padding: 8px max(10px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left)); background: rgba(44, 36, 80, 0.94); box-shadow: 0 -3px 0 0 #fff3d6, 0 -6px 0 0 #171230; color: #fff3d6; font: 700 13px/1.25 "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", ui-monospace, monospace; letter-spacing: 0.5px; user-select: none; -webkit-user-select: none; touch-action: manipulation; }
 .sim-sheet[hidden], .sim-sheet [hidden] { display: none !important; }
 .sim-sheet button { border: 0; margin: 0; color: #fff3d6; font: inherit; cursor: pointer; background: #2c2450; min-height: 44px; -webkit-tap-highlight-color: transparent; box-shadow: 2px 0 0 0 #fff3d6, -2px 0 0 0 #fff3d6, 0 2px 0 0 #fff3d6, 0 -2px 0 0 #fff3d6; }
@@ -81,7 +87,10 @@ body.sim-on .play-hint, body.sim-on .play-buttons, body.sim-on .play-bar, body.s
 .sim-feed b { display: inline-block; min-width: 40px; opacity: 0.7; }
 .sim-gaps { font-size: 10px; font-weight: 400; opacity: 0.7; padding: 0 4px 6px; }
 .sim-tag { position: fixed; left: 0; top: 0; z-index: 3; pointer-events: none; padding: 3px 6px; background: #fff3d6; color: #2c2450; font: 700 12px/1.1 "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", ui-monospace, monospace; white-space: nowrap; box-shadow: 2px 0 0 0 #2c2450, -2px 0 0 0 #2c2450, 0 2px 0 0 #2c2450, 0 -2px 0 0 #2c2450; }
-.sim-tag[hidden] { display: none; }
+.sim-tag[hidden], .sim-badge[hidden] { display: none; }
+.sim-badge { position: fixed; left: 0; top: 0; z-index: 3; pointer-events: none; padding: 3px 7px; background: #2c2450; color: #fff3d6; font: 700 12px/1.1 "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", ui-monospace, monospace; white-space: nowrap; box-shadow: 2px 0 0 0 #fff3d6, -2px 0 0 0 #fff3d6, 0 2px 0 0 #fff3d6, 0 -2px 0 0 #fff3d6, 0 4px 0 0 #171230; }
+.sim-badge b { color: #ffd23c; font-size: 14px; margin-left: 2px; }
+.sim-badge::after { content: ""; position: absolute; left: 50%; bottom: -8px; margin-left: -3px; border: 3px solid transparent; border-top: 4px solid #fff3d6; }
 .sim-tag small { font-weight: 400; opacity: 0.8; margin-left: 4px; }
 @media (orientation: landscape) { .sim-sheet { left: auto; width: min(420px, 46vw); } }
 `;
@@ -92,6 +101,8 @@ const esc = (s: string) =>
 export interface SimHud {
   el: HTMLElement;
   tag: HTMLElement;
+  /** 会所屋顶上的人数小牌 */
+  badge: HTMLElement;
   show(on: boolean): void;
   open(on?: boolean): void;
   isOpen(): boolean;
@@ -127,7 +138,7 @@ export function createSimHud(h: HudHost): SimHud {
         <ul class="sim-agenda"></ul>
         <div class="sim-row"><button type="button" class="sim-card">名片</button><button type="button" class="sim-stop">不跟了</button></div>
       </div>
-      <div class="sim-h">此刻在场的人（点一个跟着他；也可以直接点画面里的人）</div>
+      <div class="sim-h">此刻在场的人（点一个跟着他；也可以直接点画面里的人）<span class="sim-staffn"></span></div>
       <div class="sim-picks"></div>
       <div class="sim-h">各处人数</div>
       <div class="sim-areas"></div>
@@ -141,6 +152,10 @@ export function createSimHud(h: HudHost): SimHud {
   tag.className = 'sim-tag';
   tag.hidden = true;
   document.body.appendChild(tag);
+  const badge = document.createElement('div');
+  badge.className = 'sim-badge';
+  badge.hidden = true;
+  document.body.appendChild(badge);
 
   const $ = <T extends HTMLElement>(s: string) => el.querySelector(s) as T;
   const bar = $<HTMLButtonElement>('.sim-bar');
@@ -156,6 +171,7 @@ export function createSimHud(h: HudHost): SimHud {
     more.hidden = !on;
     bar.setAttribute('aria-expanded', String(on));
     $<HTMLElement>('.sim-caret').textContent = on ? '▼' : '▲';
+    if (on) h.opened?.();
   };
   bar.addEventListener('click', () => open());
   fol.addEventListener('click', (e) => {
@@ -204,15 +220,20 @@ export function createSimHud(h: HudHost): SimHud {
   return {
     el,
     tag,
+    badge,
     show(on) {
       el.hidden = !on;
       document.body.classList.toggle('sim-on', on);
-      if (!on) tag.hidden = true;
+      if (!on) {
+        tag.hidden = true;
+        badge.hidden = true;
+      }
     },
     open,
     isOpen: () => !more.hidden,
     sync(d) {
       $<HTMLElement>('.sim-clock').textContent = d.clock;
+      $<HTMLElement>('.sim-staffn').textContent = d.staff ? ` · 员工 ${d.staff} 人在岗，排在后面` : '';
       $<HTMLElement>('.sim-period').textContent = d.paused ? `${d.period} · 停着` : d.period;
       $<HTMLElement>('.sim-count b').textContent = String(d.total);
       pause.setAttribute('aria-pressed', String(d.paused));

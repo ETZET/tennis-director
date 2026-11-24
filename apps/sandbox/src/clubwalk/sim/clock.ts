@@ -2,9 +2,16 @@
 // 引擎的分钟就是天光的时刻（clubsite/daylight）：中午最亮、傍晚开灯，见 mount.ts 的 syncDaylight。
 import type { Minute } from '../../clubsite/sim/types';
 
-/** 加速档位（游戏分钟 / 真实秒）。0.2 = 慢放（一分钟 5 秒，跟着一个人看走路）；1×、10×、30×、60× 是设计文档里的四档 */
-export const SPEEDS = [0.2, 1, 10, 30, 60] as const;
-export const SPEED_LABEL: Record<number, string> = { 0.2: '慢', 1: '1×', 10: '10×', 30: '30×', 60: '60×' };
+/**
+ * 加速档位（游戏分钟 / 真实秒）。默认 2×：一天（6:30–23:15）八分钟多放完，走路（引擎 12 米 / 游戏分钟）画面上 24 米 / 秒，
+ * 像延时摄影，看得出谁从停车场走过来、谁去吃饭。0.2 = 慢放（跟着一个人看走路）；15×、60× 是快进（路上的人一晃而过，画成小跑，见 FAST）。
+ */
+export const SPEEDS = [0.2, 1, 2, 5, 15, 60] as const;
+export const SPEED_LABEL: Record<number, string> = { 0.2: '慢', 1: '1×', 2: '2×', 5: '5×', 15: '15×', 60: '60×' };
+/** 观察的默认档 */
+export const DEFAULT_SPEED = 2;
+/** 到这一档就是快进：路上的人画成前倾小跑（不再假装在走） */
+export const FAST = 15;
 
 /** 跳到的时刻（设计文档：7:00、12:00、16:00、19:00） */
 export const JUMPS: readonly Minute[] = [7 * 60, 12 * 60, 16 * 60, 19 * 60];
@@ -14,7 +21,7 @@ const MAX_STEPS = 3;
 
 export class SimClock {
   /** 游戏分钟 / 真实秒 */
-  speed = 30;
+  speed = DEFAULT_SPEED;
   paused = false;
   /** 还没推的零头（0..1 分钟）：画面在两步之间插值 */
   frac = 0;

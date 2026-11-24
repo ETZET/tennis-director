@@ -504,9 +504,9 @@ function mountDebug() {
     () => (a.sim?.on ? '观察中 · 重新从 6:30 看' : '观察俱乐部的一天（加速）'),
     () => !!a.sim?.on,
     () => {
-      // 站到前台外的前院（看得到停车场来的人、签到的队），从 6:30 开始，30 倍速
-      a.play.teleport(57, -2);
-      a.sim.enable(true, { at: 6.5 * 60, speed: 30, panel: true });
+      // 总监站到前台柜台后面（朝排队的人：引擎按"总监在前台"跑，看到的是有人守着的那一天），镜头对着前院
+      // （柜台、签到的队、大门、停车场来的人）；从 6:30 开始，2×（一天八分钟，走路看得见）；面板收起，画面留给俱乐部
+      a.sim.enable(true, { at: 6.5 * 60, speed: 2, panel: false, desk: true });
       list.hidden = true;
     },
   );

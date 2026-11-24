@@ -2,8 +2,22 @@
 // 引擎只说 doing（打球、吃、干活……）和在哪个地点；这里按地点的种类、站位表里写的姿势、员工岗位的名字挑一个现成的姿势
 // （clubsite/people 的 ALL_POSES）。没有合适姿势的活用最接近的代替，每一种代替都记进 gaps.ts（以后补画面）。
 // 打网球、匹克球的节奏（同一块场上的人对着打、轮流击球）在 mount.ts 里按场地排，这里只给"是对打"。
+// 跟着事件走的画面（递出窗口、端托盘、桌上的吃的、球、车、等烦了）在 fx/ 里，在这里摆好的姿势上面再改。
 import type { Doing, Place } from '../../clubsite/sim/types';
+import { PLACES } from './deps';
 import type { Anchor } from './motion';
+
+/**
+ * 摊主的岗位 → 卖什么：卖饭的窗口（塔可、披萨、汉堡、吉事果的油锅）翻锅铲（cook），卖喝的（咖啡、果汁、冰棍、奶茶、吧台）摇杯子（shake）。
+ * 岗位 = 摊位 / 咖啡吧 / 酒吧的 needs。递出窗口（handout）是 fx/food.ts 按点单的人对时摆的。
+ */
+const COOK_STALLS = new Set(['food.taco', 'food.pizza', 'food.burger', 'food.churro']);
+export const VENDOR_OF_POST: ReadonlyMap<string, { stall: Place; cook: boolean }> = new Map(
+  PLACES.filter((p) => (p.kind === 'stall' || p.kind === 'cafe' || p.kind === 'bar') && p.needs).map((p) => [
+    p.needs as string,
+    { stall: p, cook: COOK_STALLS.has(p.id) },
+  ]),
+);
 
 export type BodyKind = 'adult' | 'kid' | 'teen';
 
@@ -114,7 +128,7 @@ function workAt(place: Place | undefined): PoseSpec {
  * doing + 地点 + 站位 → 姿势。spot.pose（站位表写的）优先于按 doing 推的默认（客人坐的长椅、看台写 sit 之类）；
  * 打球、喂球、干活这些"活"本身的节奏仍由 doing 决定。
  */
-export function poseSpec(doing: Doing, place: Place | undefined, spot: Anchor | undefined, body: BodyKind): PoseSpec {
+export function poseSpec(doing: Doing, place: Place | undefined, spot: Anchor | undefined, _body: BodyKind): PoseSpec {
   const kind = place?.kind;
   const seated = !!kind && SEATED_KINDS.has(kind);
   switch (doing) {
@@ -123,19 +137,24 @@ export function poseSpec(doing: Doing, place: Place | undefined, spot: Anchor | 
     case 'pickle':
       return { pose: 'dink', prop: 'paddle', anim: 'pickle' };
     case 'lesson':
-      return { pose: 'ready', prop: 'racket', anim: 'rally' };
+      return { pose: 'ready', prop: 'racket', anim: 'rally', gap: 'lesson.ball' };
     case 'coach':
       return { pose: 'feed', prop: 'racket', anim: 'feed' };
     case 'warmup':
       return { pose: 'ready', prop: 'racket', anim: 'loop', gap: 'warmup' };
     case 'golf':
       return { pose: 'idle', prop: null, seat: null, anim: 'loop', gap: 'golf' };
-    case 'work':
+    case 'work': {
+      // 摊主：做饭 / 摇饮料（站位表给的 idle 只是"站在窗口后面"）
+      const vend = place ? VENDOR_OF_POST.get(place.id) : undefined;
+      if (vend) return { pose: vend.cook ? 'cook' : 'shake', prop: null, anim: 'loop' };
       return spot?.pose ? fromSpotPose(spot.pose) : workAt(place);
+    }
     case 'break':
       return { pose: 'sip', prop: 'cup', seat: BENCH, anim: 'loop' };
     case 'eat':
-      return { pose: 'sip', prop: 'cup', seat: BENCH, anim: 'loop', gap: 'eat' };
+      // 坐着吃：托盘在桌上（fx/food.ts 摆），右手一口口送到嘴边、左手端杯子喝一口；没有桌子的座位吃的放腿上
+      return { pose: 'eat', prop: null, seat: BENCH, anim: 'loop' };
     case 'drink':
       return seated || kind === 'cafe'
         ? { pose: 'sip', prop: 'cup', seat: BENCH, anim: 'loop' }
@@ -145,20 +164,28 @@ export function poseSpec(doing: Doing, place: Place | undefined, spot: Anchor | 
         ? { pose: 'sit', prop: null, seat: BENCH, anim: 'watch' }
         : { pose: 'idle', prop: null, seat: null, anim: 'watch' };
     case 'rest':
-      return seated || spot?.pose === 'sit' || kind === 'pool' || kind === 'lounger'
-        ? { pose: 'sit', prop: null, seat: kind === 'lounger' ? 0.4 : BENCH, anim: 'loop' }
+      // 躺椅上歇着 = 躺下（池边的躺椅、会所露台的躺椅）
+      if (kind === 'lounger') return { pose: 'lie', prop: null, seat: 0.4, anim: 'loop' };
+      return seated || spot?.pose === 'sit' || kind === 'pool'
+        ? { pose: 'sit', prop: null, seat: BENCH, anim: 'loop' }
         : { pose: 'idle', prop: null, seat: null, anim: 'loop' };
     case 'sunbathe':
-      return { pose: 'sit', prop: null, seat: 0.4, anim: 'loop', gap: 'sunbathe' };
-    case 'swim':
-      // 泳池水里的站位已经在水面下 1.1 米（孩子 0.75），姿势 idle；站位没给高度时自己往下沉
       return {
-        pose: 'idle',
+        pose: 'lie',
+        prop: null,
+        seat: 0.4,
+        anim: 'loop',
+        gap: place?.id === 'pool.loungers.s' ? 'lounge.view' : undefined,
+      };
+    case 'swim':
+      // 蛙泳：姿势按"水面在根节点上 1.1 米"摆（泳道的站位就是水面下 1.1）；浅水区（孩子那块，水面下 0.75）往下沉 0.35，
+      // 站位没给高度（不该有）就按地面往下沉 1.1。在泳道里来回游由 fx/pool.ts 推
+      return {
+        pose: 'swim',
         prop: null,
         seat: null,
         anim: 'loop',
-        sink: spot?.y === undefined ? (body === 'kid' ? 0.75 : 1.1) : 0,
-        gap: 'swim',
+        sink: spot?.y === undefined ? 1.1 : place?.id === 'pool.kids' ? 0.35 : 0,
       };
     case 'gym':
       return { pose: 'push', prop: null, seat: null, anim: 'loop', gap: 'gym' };
@@ -209,6 +236,14 @@ export const PERIOD: Record<string, number> = {
   bkStand: 3.2,
   bkRoll: 1.2,
   bkUmbrella: 3.2,
+  cook: 1.0,
+  shake: 0.7,
+  handout: 1.6,
+  eat: 7,
+  carry: 0.9,
+  swim: 1.8,
+  lie: 4.5,
+  tap: 3.2,
 };
 
 /** 中文：在干什么（面板、名字小牌） */
