@@ -342,6 +342,40 @@ export function mountWalk(hooks: WalkHooks = {}) {
     });
   }
 
+  /**
+   * 观察模式里场景演出自己的道具（第 3 轮用户："食物会飞"）：演出的人藏起来了（cast 的通勤访问器），演出照样在跑，
+   * 他们端着的托盘、桌上吃剩的托盘、丢出去的沙包、对打的球是另外的物体（不挂在人身上），就剩下东西自己在空中飘、摆在没人的桌上。
+   * 观察时这些都藏起来（同通勤：visible 换成访问器，演出照常 set，观察关掉就按演出最后想要的显示），引擎的人自己的托盘、球在 fx 里画。
+   * 只认这几样：clubfood 的托盘池（food-tray:N）、地上的垃圾、草坪游戏的沙包；看台 / 红土 / 会员场演出的球、看台上的杯子
+   */
+  const SCENE_PROP = /^(food-tray:\d|food-litter$|stadium-life:(ball|cups)|clay-life:ball|courts-life:loose)/;
+  /** clubfood 草坪游戏的沙包（slot:lawn-games 里的 bag-1..3，演出的人扔来扔去） */
+  const LAWN_BAG = /^bag-\d$/;
+  let propsHidden = false;
+  const hookedProps = new WeakSet<THREE.Object3D>();
+  function hookProp(o: THREE.Object3D, food = false) {
+    if (hookedProps.has(o) || !(SCENE_PROP.test(o.name) || (food && LAWN_BAG.test(o.name)))) return;
+    hookedProps.add(o);
+    let want = o.visible;
+    Object.defineProperty(o, 'visible', {
+      configurable: true,
+      enumerable: true,
+      get: () => want && !propsHidden,
+      set: (v: boolean) => {
+        want = !!v;
+      },
+    });
+  }
+  /** 一个区域的演出道具都装上访问器；之后演出新建的（托盘池按需建、scene.add 到区域根上）加进来时装 */
+  function adoptProps(root: THREE.Object3D, id: string) {
+    if (root.userData.simProps) return;
+    root.userData.simProps = true;
+    const food = id === 'clubfood';
+    const hook = (o: THREE.Object3D) => hookProp(o, food);
+    root.traverse(hook);
+    root.addEventListener('childadded', (e: { child: THREE.Object3D }) => e.child.traverse(hook));
+  }
+
   /** 静的一整片：世界矩阵算好，以后 scene.updateMatrixWorld 整片跳过（要再动它得先把 matrixWorldAutoUpdate 设回 true） */
   function freezeMatrices(g: THREE.Object3D) {
     g.updateMatrixWorld(true);
@@ -457,6 +491,7 @@ export function mountWalk(hooks: WalkHooks = {}) {
     }
     hooks.afterRegion?.(L.root, L.def.id);
     // 观察模式开着：新区域里的人马上藏起来（不等演员表下一次扫描），看台上的剪影观众也藏
+    adoptProps(L.root, L.def.id);
     if (sim?.on) {
       cast?.adopt(L.root, L.def.id);
       hideCrowd(L.root, true);
@@ -1070,6 +1105,8 @@ export function mountWalk(hooks: WalkHooks = {}) {
     prewarm: (root) => pipe.prewarm(root, scene),
     suppressScene(on) {
       cast?.suppress(on);
+      propsHidden = on;
+      for (const L of lives) if (L.region) adoptProps(L.root, L.def.id);
       for (const o of basePeople) o.visible = !on;
       for (const L of lives) if (L.region) hideCrowd(L.root, on);
     },
@@ -1077,6 +1114,7 @@ export function mountWalk(hooks: WalkHooks = {}) {
     // 总监在会所里（沉浸式）：只画会所，外面是黑的，外面的人不画
     visibleAt: (x, z) => !immersive || inRects(CLUBHOUSE_RECTS, x, z),
     houseOpen: () => houseInside,
+    houseFloor: () => asHouse(lives.find((l) => l.def.id === 'clubhouse')?.region)?.floor() ?? 1,
   });
 
   // ── 固定步长循环 ──

@@ -2247,7 +2247,8 @@ function matchPass(T: Tick, leads: readonly AgentId[]): void {
     }
     // 匹克球凑成三个（一伙两个 + 一个人、三个一个人来的）：拆出能打的两个先上，剩下那一个接着排
     if (total === 3 && s.kind === 'pickle' && group.length > 1) {
-      const single = group.findLastIndex((g) => g.pl.length === 1);
+      let single = -1;
+      for (let i = group.length - 1; i >= 0 && single < 0; i--) if (group[i].pl.length === 1) single = i;
       if (single >= 0) {
         group = group.filter((_, i) => i !== single);
         total = 2;

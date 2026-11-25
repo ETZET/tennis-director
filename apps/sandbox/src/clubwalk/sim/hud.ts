@@ -1,7 +1,7 @@
 // 观察面板（手机优先，竖屏 390×844）：屏幕底部一张抽屉。
 // 默认收起（只占底下两行，画面留给俱乐部）：时间 + 时段 + 在场人数（点它展开），加速档位（⏸ 慢 1× 2× 5× 15× 60×，15× 起是快进）；
 // 跟着一个人时多一行"跟着谁、在哪、干什么"。
-// 展开：跳到某个时刻、看全图、跟着一个人（他今天的日程，现在这一项高亮）、此刻在场的人（客人、会员在前，员工在后）、各区域人数、最近的事、画面缺口。
+// 展开：跳到某个时刻、看全图、跟着一个人（他今天的日程，现在这一项高亮）、此刻在场的人（客人、会员在前，员工在后）、各区域人数、最近的事（?dev=1 时最下面还有给开发看的画面缺口）。
 // 观察时场景自己的提示（play-toast：午饭高峰、人手不够……）不出来：那是总监自己玩的时候的；
 // 页面自己的按钮（valley 的"调试"、像素 / 时间牌）也收起来（压在画面中间），面板右上角自己有"退出"。
 // 看全图时收起来的那两行上面多一行图例（点的颜色 = 在干什么），点它回到原来的镜头。
@@ -177,8 +177,8 @@ export function createSimHud(h: HudHost): SimHud {
       <div class="sim-areas"></div>
       <div class="sim-h">刚刚</div>
       <div class="sim-feed"></div>
-      <div class="sim-h">画面缺口（引擎有、画面还没有的）</div>
-      <div class="sim-gaps"></div>
+      <div class="sim-h sim-gaps-h" hidden>开发 · 画面缺口</div>
+      <div class="sim-gaps" hidden></div>
     </div>`;
   document.body.appendChild(el);
   const tag = document.createElement('div');
@@ -334,7 +334,11 @@ export function createSimHud(h: HudHost): SimHud {
         $<HTMLElement>('.sim-feed'),
         d.feed.map((e) => `<div><b>${esc(e.t)}</b>${esc(e.text)}</div>`).join('') || '<div>（还没有）</div>',
       );
-      put('gaps', $<HTMLElement>('.sim-gaps'), d.gaps.map((g) => `<div>· ${esc(g)}</div>`).join(''));
+      // 画面缺口是写给开发的（第 3 轮评审：用户看不懂）：只在 ?dev=1 时给（mount 不给就整节藏起来）
+      const gapsEl = $<HTMLElement>('.sim-gaps');
+      gapsEl.hidden = !d.gaps.length;
+      $<HTMLElement>('.sim-gaps-h').hidden = !d.gaps.length;
+      put('gaps', gapsEl, d.gaps.map((g) => `<div>· ${esc(g)}</div>`).join(''));
     },
   };
 }

@@ -81,12 +81,16 @@ export interface SimHost {
   visibleAt?(x: number, z: number): boolean;
   /** 会所现在是剖面（一楼看得见）还是外观（屋顶盖着） */
   houseOpen?(): boolean;
+  /** 剖面看的是哪一层（总监下到负一层、上到二楼：−1 / 2；不给 = 1） */
+  houseFloor?(): -1 | 1 | 2;
   /** 面板里点了"退出"（页面自己的按钮跟着变） */
   onExit?(): void;
 }
 
 export interface SimMount {
   readonly on: boolean;
+  /** 引擎现在几点（游戏分钟）；还没开过 = null。退出再进接着看（valley 的调试按钮） */
+  minute(): Minute | null;
   /** desk：总监站到前台柜台后面（朝排队的人），镜头先对着前院（看得到停车场、大门来的人） */
   enable(on: boolean, o?: { at?: Minute; speed?: number; panel?: boolean; desk?: boolean }): void;
   /** 固定步长（play.update 之后）：推引擎、管镜头 */
@@ -110,8 +114,43 @@ const MARGIN = 5;
 const SETTLE_V = 1.6;
 /** 顶上的按钮（像素、时间、小地图）占多高（CSS 像素）：跟着的人放在它和底部面板之间的正中 */
 const TOP_UI = 120;
-/** 一伙人走路时左右让开多少米 */
+/** 跟着的人回家了，过几秒（真实秒）换一个 */
+const GONE_S = 2.5;
+/** 一伙人走路时左右让开多少米、前后两排隔多远 */
 const SIDE = 0.38;
+const ROW_BACK = 0.8;
+/** 一伙人走路的队形（formationOf）：几个人 → 每个人 [往右手几米, 往后几米] */
+const FORMATION: Record<number, readonly (readonly [number, number])[]> = {
+  2: [
+    [-SIDE, 0],
+    [SIDE, 0.45],
+  ],
+  3: [
+    [-SIDE, 0],
+    [SIDE, 0.15],
+    [0, ROW_BACK],
+  ],
+  4: [
+    [-SIDE, 0],
+    [SIDE, 0.15],
+    [-SIDE, ROW_BACK],
+    [SIDE, ROW_BACK + 0.15],
+  ],
+  5: [
+    [0, 0],
+    [-SIDE * 1.6, 0.2],
+    [SIDE * 1.6, 0.2],
+    [-SIDE, ROW_BACK + 0.1],
+    [SIDE, ROW_BACK + 0.2],
+  ],
+};
+const NO_OFFSET = [0, 0] as const;
+/** 人人靠右走多少米（迎面过来的错开） */
+const KEEP_RIGHT = 0.3;
+/** 路的两头这么多米里队形慢慢收拢（从站位走出来、走到站位上） */
+const LANE_FADE = 1.4;
+/** 站着的人（排队、窗口边、柜台前、刚走到站位）身子至少隔多远（米）：近了互相推开一点（separate） */
+const PERSONAL = 0.5;
 /** 排队的一伙人：同伙站在排着的那个人旁边多远（米） */
 const COMPANION = 1.2;
 /** 没有门的地点：第 0 个站位离自己这么近（米）才拿它当路口（路按地点对缓存） */
@@ -271,6 +310,24 @@ export function mountSim(host: SimHost): SimMount {
     if (!ps) noteGap(`nospot:${id}`, `站位表里没有「${placeBy.get(id)?.name ?? id}」（${id}）：站在地点的估算坐标上`);
     return ps;
   };
+  /**
+   * 会所的地点在哪一层（第 3 轮用户：总监下到负一层，一楼的人按负一层的导航画在健身器械中间、站着不动）：
+   * 藏着的（hidden）看站位的高度（≥ 2 二楼、≤ −2 负一层），别的会所地点一楼；不是会所的 = 0
+   */
+  const floorBy = new Map<PlaceId, number>();
+  for (const p of PLACES) {
+    if (p.scene !== 'clubhouse') continue;
+    const ps = SPOTS[p.id];
+    const y = ps?.hidden ? (ps.spots[0]?.y ?? 0) : 0;
+    floorBy.set(p.id, y >= 2 ? 2 : y <= -2 ? -1 : 1);
+  }
+  const floorOf = (id: PlaceId) => floorBy.get(id) ?? 0;
+  /** 剖面现在看哪一层（frame 开头取；外观 = 1：楼上楼下的照旧藏着） */
+  let shownFloor = 1;
+  /** 会所的脚印（同 walk.ts：L 形的外包框） */
+  const inHouse = (x: number, z: number) => x > -64.5 && x < -39.5 && z > -43 && z < -1;
+  /** ?dev=1：面板最下面给开发看的"画面缺口" */
+  const devPanel = params.get('dev') === '1';
   let dayNo = num('simday', 3);
   const clock = new SimClock();
   clock.speed = num('simspeed', DEFAULT_SPEED);
@@ -525,7 +582,7 @@ export function mountSim(host: SimHost): SimMount {
     if (w.kind === 'at' || w.kind === 'queue') {
       const place = placeBy.get(w.at);
       const ps = spotsOf(w.at);
-      if (w.kind === 'at' && ps?.hidden) {
+      if (w.kind === 'at' && ps?.hidden && floorOf(w.at) !== shownFloor) {
         const d = ps.door ?? { x: place?.x ?? 0, z: place?.z ?? 0 };
         return { x: d.x, z: d.z, yaw: a.yaw, key: `in:${w.at}`, hidden: true };
       }
@@ -572,14 +629,27 @@ export function mountSim(host: SimHost): SimMount {
     const fz = Math.cos(base.yaw);
     const back = Math.floor((rank - 1) / 2) * 0.7;
     const first = rank % 2 ? 1 : -1;
-    for (const side of [first, -first]) {
-      // 右手 = (−fz, fx)
-      const x = base.x - fz * side * COMPANION - fx * back;
-      const z = base.z + fx * side * COMPANION - fz * back;
-      if (play.nav.height(x, z) !== null && play.nav.lineClear(base.x, base.z, x, z))
-        return { x, z, y: base.y, yaw: base.yaw, key: `queue:${at}:${leadUnit}+${rank}${side}` };
-    }
-    return { ...queueOf(place, ps, me), key: `queue:${at}:${me}` };
+    // 旁边 COMPANION 米站不住就近一点（0.65 米），再不行站到他斜后方
+    for (const [w, b] of [
+      [COMPANION, back],
+      [COMPANION * 0.55, back],
+      [COMPANION * 0.55, back + 0.55],
+    ])
+      for (const side of [first, -first]) {
+        // 右手 = (−fz, fx)
+        const x = base.x - fz * side * w - fx * b;
+        const z = base.z + fx * side * w - fz * b;
+        if (play.nav.standAt(x, z) !== null && play.nav.lineClear(base.x, base.z, x, z))
+          return { x, z, y: base.y, yaw: base.yaw, key: `queue:${at}:${leadUnit}+${rank}${side}${w}` };
+      }
+    // 都站不住（窄道）：贴在他身后半步（第 3 轮：原来退回队里自己的号 —— 按人数数的号压在后面那伙人身上），挤的交给 separate 推开
+    return {
+      x: base.x - fx * 0.55 * rank,
+      z: base.z - fz * 0.55 * rank,
+      y: base.y,
+      yaw: base.yaw,
+      key: `queue:${at}:${leadUnit}+${rank}b`,
+    };
   }
 
   /**
@@ -718,17 +788,26 @@ export function mountSim(host: SimHost): SimMount {
         const near = Math.abs(a.x - cx) + Math.abs(a.z - cz);
         const route = a.body || near < (fastNow ? 28 : 45) ? buildRoute(leg, near) : null;
         if (route) {
-          along(route, f * route.len, tmp);
+          // 一伙人走成一小队（第 3 轮评审问题 4：同一条路、同一个速度，四个人叠成一个）：按在一伙里的位置左右让开、往后错开
+          // （两个人并排、三到五个人前后两排）；人人都靠右走一点（迎面走过来的不穿过去）。往后错开的沿着路退（不会退进墙里），
+          // 左右让开的那一点站不住（门、窄道、围网边）就让一半，还不行就不让；两头 LANE_FADE 米里慢慢收拢（从站位走出来、走到站位上）
+          const [lat0, back] = formationOf(v);
+          const sAt = Math.max(0, f * route.len - back);
+          along(route, sAt, tmp);
           let x = tmp.x;
           let z = tmp.z;
-          // 一伙人并排走：按在一伙里的位置左右让开（站不住就不让）
-          const off = sideOf(v);
-          if (off && f > 0.02 && f < 0.98) {
-            const ox = x - tmp.dz * off;
-            const oz = z + tmp.dx * off;
-            if (play.nav.height(ox, oz) !== null) {
-              x = ox;
-              z = oz;
+          const fade = Math.min(1, Math.max(0, Math.min(sAt, route.len - sAt) / LANE_FADE));
+          const lat = (lat0 + KEEP_RIGHT) * fade;
+          if (lat !== 0 && play.nav.standAt(x, z) !== null) {
+            for (const k of [1, 0.5]) {
+              // 右手 = (−dz, dx)
+              const ox = x - tmp.dz * lat * k;
+              const oz = z + tmp.dx * lat * k;
+              if (play.nav.standAt(ox, oz) !== null && play.nav.standAt((x + ox) / 2, (z + oz) / 2) !== null) {
+                x = ox;
+                z = oz;
+                break;
+              }
             }
           }
           if (Math.hypot(x - a.x, z - a.z) > 1e-4) {
@@ -763,11 +842,13 @@ export function mountSim(host: SimHost): SimMount {
         continue;
       }
       if (an.key !== a.anchorKey) {
+        const wasIn = a.anchorKey.startsWith('in:');
         a.anchorKey = an.key;
         a.pace = null;
         // 离站位还有一段：真实时间走过去（排队往前挪、到了以后找自己的位置）
         const d = Math.hypot(an.x - a.x, an.z - a.z);
-        if (a.body && d > 0.15 && d < 40) a.settle = { route: makeRoute([[a.x, a.z]]), s: 0, key: '' };
+        // 从"藏在里面"换成看得见的（剖面换到了他那一层）：直接站到位，不从楼梯口走过去
+        if (a.body && d > 0.15 && d < 40 && !wasIn) a.settle = { route: makeRoute([[a.x, a.z]]), s: 0, key: '' };
         else {
           a.settle = null;
           a.x = an.x;
@@ -820,14 +901,96 @@ export function mountSim(host: SimHost): SimMount {
   /** 观察面板的上沿（CSS 像素；syncHud 里量） */
   let panelTop = innerHeight;
 
-  /** 一伙人里第几个：左右让开的距离（2 人 ±，3–4 人再往外） */
-  function sideOf(v: AgentView): number {
-    if (!v.party || !s) return 0;
+  /**
+   * 一伙人走路的队形：[往右手让开几米, 往后错开几米]（按在一伙里的序号；带头的是 0 号）。
+   * 两个人并排（右边那个错后半步）；三个人前两个、后一个；四个人两排；五个人前三后二；再多两个一排往后排
+   */
+  function formationOf(v: AgentView): readonly [number, number] {
+    if (!v.party || !s) return NO_OFFSET;
     const ms = s.parties[v.party]?.members;
-    if (!ms || ms.length < 2) return 0;
+    if (!ms || ms.length < 2) return NO_OFFSET;
     const i = ms.indexOf(v.id);
+    if (i < 0) return NO_OFFSET;
     const n = ms.length;
-    return (i - (n - 1) / 2) * SIDE * 2 * (n > 2 ? 0.75 : 1);
+    const row = FORMATION[n];
+    if (row) return row[i];
+    return [i % 2 ? SIDE : -SIDE, Math.floor(i / 2) * ROW_BACK];
+  }
+  /**
+   * 身子不叠（第 3 轮评审问题 4：柜台前、窗口前、排队的一伙人、一起走到站位上的叠成一团）：画面里站着 / 走着的身子
+   * 两两近于 PERSONAL 米的，各往外让一半（重合的按 id 定一个方向）；让过去站不住（墙、柜台、桌子）的不让、另一个让全部。
+   * 坐着的、高处的（看台、裁判椅、水里）不动。每帧从引擎给的位置重新算（不攒着），站着的人位置定了推开的结果也定了，不抖
+   */
+  const sepCells = new Map<number, Actor[]>();
+  const sepList: Actor[] = [];
+  let sepPushed = 0;
+  function separate() {
+    sepCells.clear();
+    sepList.length = 0;
+    sepPushed = 0;
+    if (overview) return;
+    const C = PERSONAL;
+    const cell = (x: number, z: number) => Math.floor(x / C) * 4099 + Math.floor(z / C);
+    for (const a of actors.values()) {
+      if (!a.body || a.hidden || a.pace || a.fixY !== undefined || a.spec?.seat) continue;
+      sepList.push(a);
+      const k = cell(a.x, a.z);
+      const l = sepCells.get(k);
+      if (l) l.push(a);
+      else sepCells.set(k, [a]);
+    }
+    const nav = play.nav;
+    for (const a of sepList) {
+      const cx = Math.floor(a.x / C);
+      const cz = Math.floor(a.z / C);
+      for (let i = -1; i <= 1; i++)
+        for (let j = -1; j <= 1; j++) {
+          const l = sepCells.get((cx + i) * 4099 + cz + j);
+          if (!l) continue;
+          for (const o of l) {
+            if (o === a || o.id < a.id) continue;
+            let dx = o.x - a.x;
+            let dz = o.z - a.z;
+            let d = Math.hypot(dx, dz);
+            if (d >= C) continue;
+            if (d < 1e-3) {
+              const t = hashOf(a.id + o.id) * Math.PI * 2;
+              dx = Math.cos(t);
+              dz = Math.sin(t);
+              d = 0;
+            } else {
+              dx /= d;
+              dz /= d;
+            }
+            const need = C - d;
+            const ax = a.x - dx * need * 0.5;
+            const az = a.z - dz * need * 0.5;
+            const ox = o.x + dx * need * 0.5;
+            const oz = o.z + dz * need * 0.5;
+            const aOk = nav.standAt(ax, az) !== null;
+            const oOk = nav.standAt(ox, oz) !== null;
+            if (aOk && oOk) {
+              a.x = ax;
+              a.z = az;
+              o.x = ox;
+              o.z = oz;
+            } else if (aOk) {
+              const bx = a.x - dx * need;
+              const bz = a.z - dz * need;
+              if (nav.standAt(bx, bz) === null) continue;
+              a.x = bx;
+              a.z = bz;
+            } else if (oOk) {
+              const bx = o.x + dx * need;
+              const bz = o.z + dz * need;
+              if (nav.standAt(bx, bz) === null) continue;
+              o.x = bx;
+              o.z = bz;
+            } else continue;
+            sepPushed++;
+          }
+        }
+    }
   }
 
   function turn(a: number, b: number, k: number) {
@@ -1202,10 +1365,11 @@ export function mountSim(host: SimHost): SimMount {
       follow(id);
     },
     followRandom() {
-      const cands = views.filter((v) => v.where.kind !== 'away' && !isHiddenNow(v));
-      if (!cands.length) return;
-      const pick = cands[Math.floor((rt * 7919) % cands.length)];
-      follow(pick.id);
+      const id = pickFollow(null, followId);
+      if (!id) return;
+      follow(id);
+      // 点完收起面板（第 3 轮：跟人以后面板一直展开着占三分之二屏），镜头里看得见他
+      hud.open(false);
     },
     openCard() {
       const a = followId ? s?.agents[followId] : undefined;
@@ -1226,6 +1390,76 @@ export function mountSim(host: SimHost): SimMount {
       syncHud(true);
     },
   });
+  /** 看着有意思的事（跟人时挑的、跟的人走了换人时挑的）：打球、上课、吃喝、游泳、看球、玩…… */
+  const WORTH = new Set<string>([
+    'tennis',
+    'pickle',
+    'lesson',
+    'warmup',
+    'watch',
+    'chat',
+    'order',
+    'eat',
+    'drink',
+    'swim',
+    'sunbathe',
+    'golf',
+    'kidplay',
+    'rest',
+    'queue',
+  ]);
+  let pickNo = 0;
+  /**
+   * 挑一个人跟（第 3 轮评审问题 6：随便跟到的人十分钟就回家、或者藏在会所里，镜头停在空落客点）：
+   * 客人、会员（不挑员工教练），还要待一个小时以上、日程里还有不止"回家"，此刻看得见；在干有意思的事的、有名有姓的往前。
+   * near = 换人时离他近的先（跟的人回家了：就近换一个）；skip = 不挑他。点几次"随便跟一个人"在前几名里轮着换
+   */
+  function pickFollow(near: { x: number; z: number } | null, skip: AgentId | null): AgentId | null {
+    if (!s) return null;
+    const now = s.minute;
+    const scored: { id: AgentId; k: number }[] = [];
+    for (const v of views) {
+      const ag = s.agents[v.id];
+      if (!ag || v.id === skip || v.where.kind === 'away' || isHiddenNow(v) || isStaff(ag.role)) continue;
+      if (v.doing === 'leave' || ag.leaveBy - now < 60 || !ag.plan.some((q) => q.doing !== 'leave')) continue;
+      const a = actors.get(v.id);
+      if (a?.hidden) continue;
+      let k = 0;
+      if (!WORTH.has(v.doing) && v.where.kind !== 'travel') k += 40;
+      if (personOf(cfg, ag.person, s)?.tier === 'named') k -= 15;
+      k -= Math.min(4, (ag.leaveBy - now) / 60) * 3;
+      if (near && a) k += Math.hypot(a.x - near.x, a.z - near.z) * 0.6;
+      scored.push({ id: v.id, k: k + hashOf(v.id) * 6 });
+    }
+    if (!scored.length) return null;
+    scored.sort((p, q) => p.k - q.k);
+    if (near) return scored[0].id;
+    return scored[pickNo++ % Math.min(5, scored.length)].id;
+  }
+  /** 跟着的人回家了：什么时候（真实秒）、最后在哪 */
+  let goneAt = -1;
+  const goneFrom = { x: 0, z: 0 };
+  /** 跟着的人走了（离开俱乐部）：过 GONE_S 真实秒就近换一个，"刚刚"里写一句；没人可换就不跟了（镜头回总监） */
+  function followWatch() {
+    if (!followId || !s) return;
+    const ag = s.agents[followId];
+    const a = actors.get(followId);
+    if (a && !a.hidden) {
+      goneFrom.x = a.x;
+      goneFrom.z = a.z;
+    }
+    if (ag && ag.where.kind !== 'away') {
+      goneAt = -1;
+      return;
+    }
+    if (goneAt < 0) goneAt = rt;
+    if (rt - goneAt < GONE_S) return;
+    goneAt = -1;
+    const was = nameOf(followId);
+    const next = pickFollow(goneFrom, followId);
+    if (next) pushFeed(s.minute, `${was} 回家了，换着跟 ${nameOf(next)}`);
+    follow(next);
+  }
   function isHiddenNow(v: AgentView) {
     const w = v.where;
     return w.kind === 'at' && !!SPOTS[w.at]?.hidden;
@@ -1431,7 +1665,7 @@ export function mountSim(host: SimHost): SimMount {
         .map((e) => ({ t: hhmm(e.t), text: e.text })),
       overview,
       desk: { away: deskAway(), moving: !!deskWalk },
-      gaps: full ? gapLines() : [],
+      gaps: full && devPanel ? gapLines() : [],
     };
     hud.sync(d);
     countHouse();
@@ -1504,7 +1738,7 @@ export function mountSim(host: SimHost): SimMount {
       const w = v.where;
       if (w.kind !== 'at' && w.kind !== 'queue') continue;
       if (placeBy.get(w.at)?.scene !== 'clubhouse') continue;
-      if (!open || (w.kind === 'at' && SPOTS[w.at]?.hidden)) n++;
+      if (!open || floorOf(w.at) !== shownFloor) n++;
     }
     badgeN = n;
     badgeOpen = open;
@@ -1539,6 +1773,7 @@ export function mountSim(host: SimHost): SimMount {
     get on() {
       return on;
     },
+    minute: () => (s ? s.minute : null),
     enable(v, o = {}) {
       if (o.speed !== undefined) clock.speed = o.speed;
       if (v && o.desk) {
@@ -1630,15 +1865,29 @@ export function mountSim(host: SimHost): SimMount {
       const ct = host.pipe.rig.target;
       frameNo++;
       const t1 = performance.now();
+      shownFloor = host.houseOpen?.() ? (host.houseFloor?.() ?? 1) : 1;
+      followWatch();
       place(nowMin(), ct.x, ct.z);
       // 画不出来的地方（总监在会所里：只画会所，外面是黑的）：那里的人不给身子，免得漂在黑底上
       const vis = host.visibleAt;
       if (vis) for (const a of actors.values()) if (!a.hidden && !vis(a.x, a.z)) a.hidden = true;
+      // 剖面看的不是一楼（总监下到负一层 / 上到二楼）：一楼的人、会所里走着的人不画（导航是那一层的，画出来就站到别的层的器械中间去了）
+      if (shownFloor !== 1)
+        for (const v of views) {
+          const a = actors.get(v.id);
+          if (!a || a.hidden) continue;
+          const w = v.where;
+          if (w.kind === 'travel') {
+            if (inHouse(a.x, a.z)) a.hidden = true;
+          } else if ((w.kind === 'at' || w.kind === 'queue') && floorOf(w.at) !== shownFloor && inHouse(a.x, a.z))
+            a.hidden = true;
+        }
       const t2 = performance.now();
       // 建身子、换装的预算（毫秒）：快进时少给（人进出画面太快，换不过来也看不出来）
       pool.frame(clock.speed >= FAST ? 0.8 : 3);
       if (warmBodies && pool.prebuild(WARM_BODIES, WARM_MS)) warmBodies = false;
       assignBodies(vr, host.viewRect(MARGIN + 10), host.viewRect(0), ct.x, ct.z);
+      separate();
       const t3 = performance.now();
       // 身子摆到位、摆姿势
       const nav = play.nav;
@@ -1904,9 +2153,44 @@ export function mountSim(host: SimHost): SimMount {
         byArea,
         follow: followId,
         overview,
+        /** 这一帧身子挨太近、互相推开了几对（separate） */
+        separated: sepPushed,
       };
     },
     speeds: SPEEDS,
+    /** 调试（watch.mjs 量重叠、站位）：画面里每具身子 —— 谁、在哪、朝哪、走着没有、一伙、地点、站位号、姿势 */
+    bodies: () => {
+      const out: {
+        id: AgentId;
+        x: number;
+        z: number;
+        yaw: number;
+        moving: boolean;
+        party: string | null;
+        at: string | null;
+        spot: number;
+        doing: string;
+        pose: string;
+      }[] = [];
+      for (const a of actors.values()) {
+        if (!a.body?.obj.visible) continue;
+        const v = viewBy.get(a.id);
+        const w = v?.where;
+        out.push({
+          id: a.id,
+          x: +a.body.obj.position.x.toFixed(2),
+          z: +a.body.obj.position.z.toFixed(2),
+          yaw: +a.body.obj.rotation.y.toFixed(2),
+          moving: a.moving,
+          party: s?.agents[a.id]?.party ?? null,
+          at: w && (w.kind === 'at' || w.kind === 'queue') ? `${w.kind === 'queue' ? 'q:' : ''}${w.at}` : null,
+          spot: v?.spot ?? -1,
+          doing: v?.doing ?? '',
+          pose: (a.body.obj.userData.poseName?.() as string | undefined) ?? '',
+        });
+      }
+      return out;
+    },
     /** 调试：哪具身子给了谁（一具身子只该有一个人） */
     owners: () => {
       const m: Record<string, string[]> = {};

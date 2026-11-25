@@ -43,6 +43,18 @@ const BUF = 1.2;
 const SIDE_M = 0.05;
 /** 碰撞检查的步长（米） */
 const SUB = 0.8;
+/**
+ * 车让人（第 3 轮评审问题 3：车从站着的人身上开过去）：车头（倒车看车尾）前面 PED_AHEAD 米、车身两边各宽 PED_SIDE 米的框里
+ * 有看得见的人（不算这辆车自己的人）就停下等；人站着不走、让了 PED_GIVEUP 真实秒还挡着（不该有：路边等车的站在车道外）才慢慢挪过去，记一笔
+ */
+const PED_AHEAD = 1.5;
+const PED_SIDE = 0.3;
+const PED_R = 0.2;
+const PED_GIVEUP = 8;
+/** 人的身子半径（绕车走：身子落在车框外扩这么多里的挪出去） */
+const PED_BODY = 0.28;
+/** 车会开到的地方（车道、停车场、落客点、大门外掉头的院子）：这里面的人才要让 */
+const PED_X0 = 58;
 
 const LOTS = PLACES.filter((p) => (p.stalls ?? 0) > 0);
 const lotOfPlace = (id: PlaceId | undefined): 'n' | 's' | null =>
@@ -107,6 +119,8 @@ interface Unit {
   rev: boolean;
   by: Unit | null;
   blocked: number;
+  /** 让人让了多久（真实秒） */
+  pedWait: number;
   kind: 'car' | 'suv';
   paint: number;
   car: Car | null;
@@ -292,6 +306,12 @@ interface Box {
   hw: number;
   hl: number;
 }
+/** 点 (x, z)（半径 r 的人）在不在框里 */
+function inBox(b: Box, x: number, z: number, r: number): boolean {
+  const dx = x - b.x;
+  const dz = z - b.z;
+  return Math.abs(dx * b.fx + dz * b.fz) <= b.hl + r && Math.abs(-dx * b.fz + dz * b.fx) <= b.hw + r;
+}
 function overlap(a: Box, b: Box): boolean {
   const dx = b.x - a.x;
   const dz = b.z - a.z;
@@ -338,6 +358,8 @@ export function createCars(scene: THREE.Scene): FxPart & { prewarm(k: FxKits, i:
   const hiddenCars = new Set<THREE.Object3D>();
   let scanT = 0;
   const patched = new WeakSet<object>();
+  /** 这一帧车开得到的地方看得见的人（车让人、自检用） */
+  const peds: { id: string; x: number; z: number; moving: boolean; a: FxActor }[] = [];
   let lastS: SimState | null = null;
   let drivers: AgentId[] = [];
   /** 车位猜过的（这一帧里按到的先后猜：后到的不跟先到的抢） */
@@ -355,6 +377,21 @@ export function createCars(scene: THREE.Scene): FxPart & { prewarm(k: FxKits, i:
     overlapFrames: 0,
     overlapPairs: [] as string[],
     mismatch: 0,
+    /** 这一帧在让人的车（车前 PED_AHEAD 米里有人）、累计让了多久（真实秒）、让太久硬走的次数（应该一直是 0） */
+    yielding: 0,
+    yieldS: 0,
+    pedPush: 0,
+    /** 自检：这一帧车身压着的人（看得见的身子在车框里）、累计帧数、最近几个（应该一直是 0） */
+    runover: 0,
+    runoverFrames: 0,
+    runoverWho: [] as string[],
+    /** 自检：停着的车框里站着 / 走过的人（人的导航不知道停着的车）：这一帧几个、累计帧数 */
+    clip: 0,
+    clipFrames: 0,
+    /** 这一帧绕着车挪开的人；累计被开着的车（> 0.3 米/秒）挤开的次数（车让人做好了应该很少） */
+    nudged: 0,
+    shoved: 0,
+    shovedWho: [] as string[],
   };
 
   // ── 场景的车：visible 换成"场景想不想显示 && 不在观察" ──
@@ -482,6 +519,7 @@ export function createCars(scene: THREE.Scene): FxPart & { prewarm(k: FxKits, i:
       rev: false,
       by: null,
       blocked: 0,
+      pedWait: 0,
       kind: hashOf(`${key}:kind`) < 0.3 ? 'suv' : 'car',
       paint: Math.floor(h * CAR_PAINTS.length) % CAR_PAINTS.length,
       car: null,
@@ -576,6 +614,47 @@ export function createCars(scene: THREE.Scene): FxPart & { prewarm(k: FxKits, i:
         continue;
       }
       return o;
+    }
+    return null;
+  }
+  /** 车在 (x, z, rot) 往前（倒车往后）PED_AHEAD 米里有没有人（自己的人也让：落客点放下人就开走的车，人还在车边走开） */
+  function pedAhead(u: Unit, x: number, z: number, rot: number, rev: boolean): string | null {
+    if (!peds.length) return null;
+    const b = boxOf(u, x, z, rot, PED_AHEAD, rev, PED_SIDE);
+    for (const pd of peds) {
+      if (Math.abs(pd.x - x) > 5.5 || Math.abs(pd.z - z) > 5.5) continue;
+      if (inBox(b, pd.x, pd.z, PED_R)) return pd.id;
+    }
+    return null;
+  }
+  /** (x, z) 落在哪辆车的车框里（人当 PED_BODY 半径的圆；skip = 不算这辆） */
+  function carAt(x: number, z: number, skip: Unit | null): Unit | null {
+    for (const u of units.values()) {
+      if (u === skip || !present(u, lastNow) || Math.abs(u.x - x) > 4 || Math.abs(u.z - z) > 4) continue;
+      if (inBox(boxOf(u, u.x, u.z, u.rot), x, z, PED_BODY)) return u;
+    }
+    return null;
+  }
+  /** 人在车框里：挪到最近的那条边外面（落到别的车里的那边不要）；四边都不行 = null */
+  function pushOut(u: Unit, x: number, z: number): V2 | null {
+    const b = boxOf(u, u.x, u.z, u.rot);
+    const dx = x - b.x;
+    const dz = z - b.z;
+    const lf = dx * b.fx + dz * b.fz;
+    const ll = -dx * b.fz + dz * b.fx;
+    const L = b.hl + PED_BODY + 0.02;
+    const W = b.hw + PED_BODY + 0.02;
+    const exits: [number, number, number][] = [
+      [L - lf, L, ll],
+      [L + lf, -L, ll],
+      [W - ll, lf, W],
+      [W + ll, lf, -W],
+    ];
+    exits.sort((p, q) => p[0] - q[0]);
+    for (const [, nf, nl] of exits) {
+      const px = b.x + nf * b.fx - nl * b.fz;
+      const pz = b.z + nf * b.fz + nl * b.fx;
+      if (!carAt(px, pz, u)) return [px, pz];
     }
     return null;
   }
@@ -797,13 +876,17 @@ export function createCars(scene: THREE.Scene): FxPart & { prewarm(k: FxKits, i:
       st.waiting++;
       ds = lim;
     }
-    // 一小步一小步看前面
+    // 一小步一小步看前面（车、人）
     let ok = 0;
     let by: Unit | null = null;
+    let ped: string | null = null;
+    const pushing = u.pedWait > PED_GIVEUP;
     for (let s = Math.min(SUB, ds); ; s = Math.min(s + SUB, ds)) {
       at(p, d.s + s, tmp);
       by = blocker(u, tmp.x, tmp.z, tmp.rot, p.rev, f.now);
       if (by) break;
+      ped ??= pedAhead(u, tmp.x, tmp.z, tmp.rot, p.rev);
+      if (ped && !pushing) break;
       ok = s;
       if (s >= ds) break;
     }
@@ -816,8 +899,15 @@ export function createCars(scene: THREE.Scene): FxPart & { prewarm(k: FxKits, i:
       u.blocked = 0;
       u.by = null;
     }
+    if (!ped) u.pedWait = 0;
+    else if (!pushing) {
+      u.pedWait += dt;
+      st.yielding++;
+      st.yieldS += dt;
+      if (u.pedWait > PED_GIVEUP) st.pedPush++;
+    } else ok = Math.min(ok, 0.8 * dt);
     ds = ok;
-    v = by ? 0 : ds / dt;
+    v = by || (ped && !pushing) ? 0 : ds / dt;
     d.s += ds;
     at(p, d.s, tmp);
     const x0 = u.x;
@@ -926,7 +1016,13 @@ export function createCars(scene: THREE.Scene): FxPart & { prewarm(k: FxKits, i:
       const dt = f.speed > 0 ? f.dt : 0;
       clock += dt;
       for (const u of units.values()) u.seen = false;
-      st.waiting = st.hidden = st.guessMiss = 0;
+      st.waiting = st.hidden = st.guessMiss = st.yielding = 0;
+      peds.length = 0;
+      for (const a of f.actors.values()) {
+        const o = a.body?.obj;
+        if (!o || a.hidden || !o.visible || a.x < PED_X0) continue;
+        peds.push({ id: a.id, x: a.x, z: a.z, moving: a.moving, a });
+      }
       if (s !== lastS) {
         lastS = s;
         drivers = Object.values(s.agents)
@@ -1146,6 +1242,48 @@ export function createCars(scene: THREE.Scene): FxPart & { prewarm(k: FxKits, i:
         }
       }
       if (st.overlaps) st.overlapFrames++;
+      // 人绕着车走（车让人之外的另一半：人的路是导航给的，导航不知道车 —— 车停下让人、停在落客点、停在车位上，人照样会走进车里）：
+      // 身子落在车框里的，挪到最近的车框边外（绕着车身走过去 / 让开一步）；挪到别的车里的换一边。车压着人的自检在挪完以后量
+      st.runover = 0;
+      st.clip = 0;
+      st.nudged = 0;
+      for (const pd of peds) {
+        const a = pd.a;
+        pd.x = a.x;
+        pd.z = a.z;
+        const u = carAt(a.x, a.z, null);
+        if (!u) continue;
+        const p = pushOut(u, a.x, a.z);
+        if (!p) {
+          // 挪不出去（四边都是车）：记下来
+          if (u.phase === 'stop' || !u.drive) st.clip++;
+          else {
+            st.runover++;
+            st.runoverWho.push(
+              `${pd.id}${pd.moving ? '(走)' : ''}@${a.x.toFixed(1)},${a.z.toFixed(1)} ${u.key.slice(-8)}/${u.phase} v${u.v.toFixed(1)}`,
+            );
+            if (st.runoverWho.length > 12) st.runoverWho.shift();
+          }
+          continue;
+        }
+        st.nudged++;
+        if (u.drive && u.v > 0.3) {
+          st.shoved++;
+          st.shovedWho.push(
+            `${pd.id}${u.members.includes(pd.id) ? '(自己的)' : ''} ${u.key.slice(-8)}/${u.mode}/${u.phase}`,
+          );
+          if (st.shovedWho.length > 8) st.shovedWho.shift();
+        }
+        a.x = pd.x = p[0];
+        a.z = pd.z = p[1];
+        const o = a.body?.obj;
+        if (o) {
+          o.position.x = p[0];
+          o.position.z = p[1];
+        }
+      }
+      if (st.clip) st.clipFrames++;
+      if (st.runover) st.runoverFrames++;
       st.mismatch = 0;
       for (const u of list) {
         const L = s.agents[u.lead];
@@ -1204,6 +1342,8 @@ export function createCars(scene: THREE.Scene): FxPart & { prewarm(k: FxKits, i:
       return {
         ...st,
         overlapPairs: [...st.overlapPairs],
+        runoverWho: [...st.runoverWho],
+        shovedWho: [...st.shovedWho],
         pool: pool.length,
         live: live.length,
         drops: drops.length,
