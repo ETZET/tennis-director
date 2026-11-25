@@ -177,6 +177,8 @@ export interface PlaceIndex {
   entries: Place[];
   /** 地点 → 在 list 里的序号（排序稳定） */
   order: Map<PlaceId, number>;
+  /** 岗位 → 要这个岗位有人才开的地方（窗口、吧台、泳池） */
+  byNeeds: Map<PlaceId, Place[]>;
 }
 
 const IDX = new WeakMap<readonly Place[], PlaceIndex>();
@@ -189,7 +191,15 @@ export function indexPlaces(places: readonly Place[]): PlaceIndex {
     if (!l) byKind.set(p.kind, (l = []));
     l.push(p);
   }
+  const byNeeds = new Map<PlaceId, Place[]>();
+  for (const p of places) {
+    if (!p.needs) continue;
+    let l = byNeeds.get(p.needs);
+    if (!l) byNeeds.set(p.needs, (l = []));
+    l.push(p);
+  }
   idx = {
+    byNeeds,
     list: places,
     byId: new Map(places.map((p) => [p.id, p])),
     byKind,
@@ -367,12 +377,19 @@ const OUTDOOR_FOCUS: readonly Focus[] = ['tennis', 'clay', 'pickle', 'golf', 'sw
 
 /** 老伤（people.md："约他打会推掉，坐着聊最舒服"）：不上场，在场边看朋友打、聊天、喝咖啡 */
 export const injured = (p: CastPerson) => p.traits.includes('oldinjury');
+/**
+ * 老伤里能打匹克球的：膝盖跑不了网球，匹克球场小、不用跑（喜欢里写着匹克球的，像 Curtis："网球跑不动了，匹克球刚好"）。
+ * 网球照样不上场
+ */
+export const picklesAnyway = (p: CastPerson) => injured(p) && p.likes.some((l) => l.includes('匹克'));
+/** 这个人冲着 f 来、却因为老伤不上场 */
+export const sitsOut = (p: CastPerson, f?: Focus) => injured(p) && !(f === 'pickle' && picklesAnyway(p));
 const isPlay = (i: Intent) => i.doing === 'tennis' || i.doing === 'pickle';
 
 /** 主要的那一段 */
 function mainBlock(f: Focus, r: Rng, p: CastPerson, budget: number): Intent[] {
   const sporty = p.traits.includes('sporty');
-  if (injured(p) && (f === 'tennis' || f === 'clay' || f === 'pickle')) {
+  if (sitsOut(p, f) && (f === 'tennis' || f === 'clay' || f === 'pickle')) {
     // 场边坐着看（喜欢红土的去红土场边），喝一杯，再坐一会儿；不换衣服、不上场
     return [
       intent.watch(r, 40, 70),
@@ -1058,19 +1075,32 @@ function planCoach(c: Ctx, p: CastPerson, post: Place, r: Rng): void {
   const start = jobs[0].at - int(r, 25, 35);
   let clock = start;
   let rested = false;
+  // 空档收拾在青训场上（捡球、摆标志盘），不站在教练位上对着空场"喂球"（第 3 轮 critique）
+  let tidy = post;
+  for (const x of kindsOf(c.idx, 'lesson'))
+    if (
+      x.scene === post.scene &&
+      (tidy === post || Math.hypot(x.x - post.x, x.z - post.z) < Math.hypot(tidy.x - post.x, tidy.z - post.z))
+    )
+      tidy = x;
   for (const j of jobs) {
     // 私教课在另一块场上：提前走过去（从教练位走过去要几分钟）
-    const walkTo = j.kind === 'private' && court ? travelMin(post, court, c.walk) + 1 : 0;
+    const walkTo =
+      j.kind === 'private' && court
+        ? travelMin(tidy, court, c.walk) + 1
+        : tidy !== post
+          ? travelMin(tidy, post, c.walk) + 1
+          : 0;
     let gap = j.at - walkTo - clock;
     // 空档：收拾球筐、摆标志盘（每次 15–20 分钟）和歇着（场边坐坐；赶上午饭歇 40 分钟吃饭）轮着来，课前 10 分钟回到场上
     while (gap > 0) {
       const lunch = !rested && clock >= H(11, 15) && gap >= 55;
       if (gap <= 25) {
-        plan.push(I('work', gap, { at: post.id, after: clock, must: true }));
+        plan.push(I('work', gap, { at: tidy.id, after: clock, must: true }));
         break;
       }
       const prep = int(r, 15, 20);
-      plan.push(I('work', prep, { at: post.id, after: clock, must: true }));
+      plan.push(I('work', prep, { at: tidy.id, after: clock, must: true }));
       clock += prep;
       const sit = Math.min(gap - prep - 10, lunch ? 40 : 35);
       if (sit >= 10) {
@@ -1091,7 +1121,7 @@ function planCoach(c: Ctx, p: CastPerson, post: Place, r: Rng): void {
     }
     clock = j.at + j.len;
   }
-  plan.push(I('work', int(r, 10, 20), { at: post.id, after: clock, must: true }));
+  plan.push(I('work', int(r, 10, 20), { at: tidy.id, after: clock, must: true }));
   const entry = pickEntry(c, p, 'staff');
   // 上课前先去扫中心球场的台阶（Dale 周日带课的日子也扫）
   let t0 = start;
@@ -1245,9 +1275,12 @@ function groupVisitors(vs: Visitor[]): Visitor[][] {
   const sport = (v: Visitor) => (v.focus === 'clay' ? 'tennis' : v.focus);
   // 老伤的人不约球（跟着家里人来，坐场边看）
   const tennisy = (v: Visitor) =>
-    (v.focus === 'tennis' || v.focus === 'clay' || v.focus === 'pickle') && v.p.look.body === 'adult' && !injured(v.p);
+    (v.focus === 'tennis' || v.focus === 'clay' || v.focus === 'pickle') &&
+    v.p.look.body === 'adult' &&
+    !sitsOut(v.p, v.focus);
   // 一伙里上场的最多四个（坐场边看的老伤不算）
-  const size = (v: Visitor) => (v.group === undefined ? 1 : groups[v.group].filter((x) => !injured(x.p)).length);
+  const size = (v: Visitor) =>
+    v.group === undefined ? 1 : groups[v.group].filter((x) => !sitsOut(x.p, x.focus)).length;
   const noKids = (v: Visitor) => v.group === undefined || groups[v.group].every((x) => x.p.look.body === 'adult');
   for (const v of vs) {
     if (!tennisy(v) || !noKids(v)) continue;
@@ -1374,7 +1407,7 @@ function addGroup(c: Ctx, g: Visitor[], tag: string): void {
   // 带头的：大人里最先到的（夫妻、一家人里第一个大人）；来打球的一伙由上场的人带头（老伤的坐场边）
   const adults = g.filter((v) => !isKid(v.p));
   const byArrive = adults.slice().sort((a, b) => a.arrive - b.arrive);
-  const lead = byArrive.find((v) => !injured(v.p)) ?? byArrive[0] ?? g[0];
+  const lead = byArrive.find((v) => !sitsOut(v.p, v.focus)) ?? byArrive[0] ?? g[0];
   const fam = familyPlan(c, g, r);
   let leaveBy = lead.leaveBy;
   if (fam) leaveBy = Math.max(...adults.map((v) => v.leaveBy));
@@ -1396,7 +1429,10 @@ function addGroup(c: Ctx, g: Visitor[], tag: string): void {
   const kids = g.some((v) => isKid(v.p));
   const entry = pickEntry(c, lead.p, howCome(r, lead.p, kids));
   const ids = [lead.p.id, ...g.filter((v) => v !== lead).map((v) => v.p.id)];
-  const players = ids.filter((id) => !injured(g.find((v) => v.p.id === id)?.p as CastPerson));
+  const players = ids.filter((id) => {
+    const v = g.find((x) => x.p.id === id) as Visitor;
+    return !sitsOut(v.p, lead.focus);
+  });
   let arrive = lead.arrive;
   if (!fam && !c.w.rain) {
     const clay = lead.focus === 'clay' || lead.p.likes.some((l) => l.includes('红土'));
@@ -1432,7 +1468,11 @@ function addGroup(c: Ctx, g: Visitor[], tag: string): void {
   }
   // 一伙人一起到、一起走（孩子跟着大人；老伤的跟着看）
   for (const v of g) {
-    const own = fam ? (fam.get(v.p.id) as Intent[]) : injured(v.p) && v !== lead ? companionPlan(plan) : plan;
+    const own = fam
+      ? (fam.get(v.p.id) as Intent[])
+      : sitsOut(v.p, lead.focus) && v !== lead
+        ? companionPlan(plan)
+        : plan;
     c.agents[v.p.id] = newAgent(c, v.p, arrive, leaveBy, entry, own.slice());
   }
   if (ids.length > 1) {

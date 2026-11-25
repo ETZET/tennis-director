@@ -513,6 +513,25 @@ function unshiftAll(T: Tick, ms: readonly AgentId[], it: Intent): void {
 function popAll(T: Tick, ms: readonly AgentId[]): void {
   for (const id of ms) T.set(id, { plan: T.get(id).plan.slice(1) });
 }
+/**
+ * 带头的这一项干不成（没地方、关着、满了）：拿掉这一项。一伙里有人这一项是别的必须的事（孩子在上课、等着上课）的，
+ * 他那一项留着（不因为家长没抢到长椅把孩子的课也拿掉）
+ */
+function dropFirst(T: Tick, ms: readonly AgentId[]): void {
+  const it = T.get(ms[0]).plan[0];
+  for (const id of ms) if (!keepsOwn(T, ms, id, it)) T.set(id, { plan: T.get(id).plan.slice(1) });
+}
+/** 一伙里这个人正在干自己那一项必须的事（孩子在课上，还没下课）：带头的干完一件、换地方时不把他拉走 */
+function busyOwn(T: Tick, ms: readonly AgentId[], id: AgentId, it: Intent | undefined): boolean {
+  const a = T.get(id);
+  const w = a.where;
+  return keepsOwn(T, ms, id, it) && w.kind === 'at' && w.at === a.plan[0]?.at && T.t < w.until;
+}
+/** 一伙里这个人眼下这一项是别的必须的事（孩子上课）：带头的改主意时不动他的 */
+function keepsOwn(T: Tick, ms: readonly AgentId[], id: AgentId, it: Intent | undefined): boolean {
+  const x = T.get(id).plan[0];
+  return id !== ms[0] && !!x && x !== it && !!x.must && (x.doing !== it?.doing || x.at !== it?.at);
+}
 function setFirstAll(T: Tick, ms: readonly AgentId[], f: (it: Intent) => Intent): void {
   for (const id of ms) {
     const plan = T.get(id).plan;
@@ -539,6 +558,8 @@ function doingAt(it: Intent, p: Place, partySize: number, seeing = false, seek =
   if (d === 'rest' && (p.kind === 'cafe' || p.kind === 'bar')) return 'drink';
   if (d === 'rest' && p.kind === 'stand' && seeing) return 'watch';
   if (d === 'watch' && !p.faces && !seek) return partySize >= 2 ? 'chat' : 'rest';
+  // 场边坐着等搭子、看得到的场此刻没人打（也不马上开打）：坐着等人，不是"看球"
+  if (d === 'watch' && seek && !seeing) return partySize >= 2 ? 'chat' : 'rest';
   if (d === 'rest' && partySize >= 2) return 'chat';
   if (d === 'kidplay' && p.kind === 'pool') return 'swim';
   if (d === 'tennis' && p.kind === 'pickle') return 'pickle';
@@ -754,6 +775,8 @@ function moveUnit(T: Tick, ms: readonly AgentId[], to: readonly PlaceId[]): void
     const a = T.get(id);
     const from = curPlace(a);
     if (from === to[i] && a.where.kind === 'at') {
+      // 孩子还在课上（这一项就是他正在干的、还没到点）：接着上课，不重新进一次
+      if (busyOwn(T, ms, id, T.get(ms[0]).plan[0])) return;
       // 原地接着干下一件
       T.release(id);
       landAt(T, id, ms, to[i]);
@@ -854,11 +877,20 @@ function landAt(T: Tick, id: AgentId, ms: readonly AgentId[], pid: PlaceId): voi
   }
   const qcap = p.queue ?? 0;
   const qlen = T.qOf(pid).length;
-  // 走到了才发现窗口关着（摊主歇班去了），一时半会儿回不来：不在关着的窗口前干排，换一家
-  if (lead && qcap > 0 && !it.must && p.needs && !T.isOpen(p) && !backSoon(T, p.needs, 8)) {
-    missOnce(T, id, it, pid, `${shortName(p)}关着（摊主歇班），换一家`, `closed:${pid}`);
-    decide(T, ms, new Set([pid]));
-    return;
+  // 走到了才发现窗口关着（摊主歇班去了、到点关门了），十分钟里开不了：不在关着的窗口前干排，换一家，
+  // 半小时里也不再挑它；指定了这一家的点单不点了，后面坐下吃喝的那一项重新挑窗口
+  if (lead && qcap > 0 && !it.must && !T.isOpen(p)) {
+    const back = reopenIn(T, p);
+    if (back > SHUT_WAIT) {
+      const day = T.t >= (p.open ?? [OPEN, CLOSE])[1];
+      missOnce(T, id, it, pid, `${shortName(p)}${day ? '关门了' : '关着（摊主歇班）'}，换一家`, `closed:${pid}`);
+      markShut(T, ms, pid);
+      if (it.at) unpin(T, ms, it);
+      decide(T, ms, new Set([pid]));
+      return;
+    }
+    // 一会儿就开：排着等，耐心至少撑到开的那一分钟再多两分钟
+    T.set(id, { patience: Math.max(T.get(id).patience, back + 2) });
   }
   if (qcap > 0 && (isService(p) || qlen > 0 || T.room(p) <= 0 || !T.isOpen(p))) {
     if (!lead) {
@@ -886,19 +918,7 @@ function landAt(T: Tick, id: AgentId, ms: readonly AgentId[], pid: PlaceId): voi
     }
     // 顺路接杯水的：队满了就算了，不记一笔
     if (!isWater(p)) missOnce(T, id, it, pid, `${p.name}的队排满了，换一家`, `full:${pid}`);
-    if (it.at && !it.must) {
-      // 指定了这一处（点单、接杯水）：这一项不干了；点单后面那一项（坐下吃喝）重新挑一家窗口
-      for (const m of ms) {
-        const plan = T.get(m).plan;
-        const nx = plan[1];
-        T.set(m, {
-          plan:
-            it.doing === 'order' && nx && (nx.doing === 'eat' || nx.doing === 'drink')
-              ? [{ ...nx, kinds: ['stall', 'cafe', 'bar'] }, ...plan.slice(2)]
-              : plan.slice(1),
-        });
-      }
-    }
+    if (it.at && !it.must) unpin(T, ms, it);
     decide(T, ms, new Set([pid]));
     return;
   }
@@ -980,17 +1000,22 @@ function enterIntent(T: Tick, id: AgentId, p: Place, it: Intent, size: number, k
   }
   if (!isSeeking(a.plan)) T.set(id, { patience: patienceOf(T.person(id)) });
   if (doing === 'work' && p.kind !== 'post')
-    T.emit('start', id, p.id, 'work', `${shortName(p)}${COURTY.has(p.kind) ? '拖场、扫线' : '收拾、扫地'}`);
+    T.emit(
+      'start',
+      id,
+      p.id,
+      'work',
+      `${shortName(p)}${p.kind === 'lesson' ? '捡球、摆标志盘' : COURTY.has(p.kind) ? '拖场、扫线' : '收拾、扫地'}`,
+    );
   else if (doing === 'work') T.emit('shift', id, p.id, 'work', `上岗（${p.name}）`);
   else if (doing === 'break') T.emit('shift', id, p.id, 'break', `歇班 ${until - T.t} 分钟（${p.name}）`);
-  else if (!(doing === 'watch' && isSeeking(a.plan)))
-    T.emit('start', id, p.id, doing, startNote(T, id, p, doing, until - T.t));
+  else if (!(seek && it.doing === 'watch')) T.emit('start', id, p.id, doing, startNote(T, id, p, doing, until - T.t));
   else
     T.emit(
       'start',
       id,
       p.id,
-      'watch',
+      doing,
       `${shortName(p)}坐着等，找人凑一场${a.plan[1].doing === 'pickle' ? '匹克球' : '球'}`,
     );
 }
@@ -1060,8 +1085,30 @@ function unitTick(T: Tick, leadId: AgentId): void {
     if (T.t >= L.where.until) decide(T, ms);
     return;
   }
+  if (T.t >= L.where.until && sellOut(T, L)) {
+    T.set(leadId, { where: { ...L.where, until: T.t + 1 } });
+    return;
+  }
   if (T.t >= L.where.until) advance(T, ms, true);
   else if (interrupt(T, L, ms)) advance(T, ms, false);
+}
+
+/**
+ * 摊主到点歇班，窗口前还排着人（没人来接班）：先把排着的卖完再走，最多多干 10 分钟（到点关门不算：那是营业时间）。
+ * 不让排着的人对着拉下卷帘的车干等
+ */
+function sellOut(T: Tick, a: Agent): boolean {
+  if (a.doing !== 'work' || a.where.kind !== 'at') return false;
+  const post = a.where.at;
+  const it = a.plan[0];
+  if (!it || it.at !== post || T.t >= (it.after ?? a.where.since) + it.minutes + 10) return false;
+  const nx = a.plan[1];
+  if ((nx && nx.at === post && nx.doing === 'work') || T.handover().has(post)) return false;
+  for (const c of T.idx.byNeeds.get(post) ?? []) {
+    if (!c.queue || T.t >= (c.open ?? [OPEN, CLOSE])[1]) continue;
+    if (T.qOf(c.id).length > 0) return true;
+  }
+  return false;
 }
 
 function interrupt(T: Tick, L: Agent, ms: readonly AgentId[]): boolean {
@@ -1094,7 +1141,8 @@ function interrupt(T: Tick, L: Agent, ms: readonly AgentId[]): boolean {
   }
   if (T.w.rain && rainedOn(p) && p.kind !== 'entry') return true;
   // 看着的场没人打了（打完了、表演赛散场），一会儿也没人来：坐不了多久就起身（每分钟四分之一的人起身，散场不一下子全走）
-  if (L.doing === 'watch' && p.faces && !isSeeking(L.plan)) {
+  // （一伙里有人在上必须的课、打约好的场：家长不因为看腻了把孩子从课上拉走）
+  if (L.doing === 'watch' && p.faces && !isSeeking(L.plan) && !unitMust(T, ms)) {
     const it = L.plan[0];
     const waiting = !!it && it.after !== undefined && T.t < it.after;
     if (!waiting && !T.watchable(p, 10) && T.rng(L.id, 'bored')() < 0.25) return true;
@@ -1144,7 +1192,10 @@ function advance(T: Tick, ms: readonly AgentId[], done = true): void {
         .find((a) => SPORT.has(a.doing) && a.where.kind === 'at' && T.place(a.where.at)?.kind !== 'post')
     : undefined;
   if (it) {
+    // 孩子还在课上：不算他干完、不拿掉他的课（等下了课再说）
+    const busy = new Set(ms.filter((id) => busyOwn(T, ms, id, it)));
     for (const id of ms) {
+      if (busy.has(id)) continue;
       const a = T.get(id);
       const d = a.doing;
       const n = { ...a.needs };
@@ -1172,7 +1223,7 @@ function advance(T: Tick, ms: readonly AgentId[], done = true): void {
       else if (d !== 'arrive' && d !== 'leave' && a.where.kind === 'at') T.emit('end', id, a.where.at, d);
       T.set(id, { needs: n, day });
     }
-    popAll(T, ms);
+    for (const id of ms) if (!busy.has(id)) T.set(id, { plan: T.get(id).plan.slice(1) });
     // 跟着排队的（带头的点完单 / 签完到）出队
     for (const id of ms) {
       const a = T.get(id);
@@ -1303,19 +1354,82 @@ function heatSkip(T: Tick, ms: readonly AgentId[], it: Intent): 'left' | 'change
     `${why}，不打${it.doing === 'golf' ? '高尔夫' : '球'}了，改去${DOING_ZH[alt.doing]}`,
   );
   setFirstAll(T, ms, () => alt);
+  // 这一阵子（大约一个多钟头里）日程上再排着的同样的球也不打了：不歇二十分钟又回场边坐着等、再被晒走
+  for (const id of ms) {
+    const plan = T.get(id).plan;
+    let at = T.t + plan[0].minutes;
+    const kept = [plan[0]];
+    for (let i = 1; i < plan.length; i++) {
+      const x = plan[i];
+      if (x.doing === it.doing && !x.at && !x.must && x.after === undefined && at < T.t + 75) continue;
+      kept.push(x);
+      at = Math.max(at, x.after ?? at) + x.minutes;
+    }
+    if (kept.length !== plan.length) T.set(id, { plan: kept });
+  }
   return 'changed';
 }
 
-/** 岗位上的人 within 分钟以内回来（歇完班、来接班） */
-function backSoon(T: Tick, post: PlaceId, within: number): boolean {
-  for (const id of T.staffHere) {
-    const plan = T.get(id).plan;
-    for (let i = 0; i < 3 && i < plan.length; i++) {
-      const x = plan[i];
-      if (x.at === post && x.doing === 'work' && x.after !== undefined && x.after <= T.t + within) return true;
-    }
+/** 指定了这一处（点单、接杯水）去不成：这一项不干了；点单后面那一项（坐下吃喝）重新挑一家窗口 */
+function unpin(T: Tick, ms: readonly AgentId[], it: Intent): void {
+  for (const m of ms) {
+    const plan = T.get(m).plan;
+    const nx = plan[1];
+    T.set(m, {
+      plan:
+        it.doing === 'order' && nx && (nx.doing === 'eat' || nx.doing === 'drink')
+          ? [{ ...nx, kinds: ['stall', 'cafe', 'bar'] }, ...plan.slice(2)]
+          : plan.slice(1),
+    });
+  }
+}
+
+/** 关着的窗口：等得了几分钟（再久就换一家），换了以后多久不再挑它 */
+const SHUT_WAIT = 10;
+const SHUT_FOR = 30;
+
+/** 这伙人记下"这家关着"（半小时里不再挑；只留两个钟头以内的） */
+function markShut(T: Tick, ms: readonly AgentId[], pid: PlaceId): void {
+  for (const m of ms) {
+    const a = T.get(m);
+    T.set(m, { shut: [...(a.shut ?? []).filter(([x, t]) => x !== pid && T.t - t < 120), [pid, T.t]] });
+  }
+}
+
+/** 这伙人半小时内发现它关着 */
+function knownShut(T: Tick, ids: readonly AgentId[], pid: PlaceId): boolean {
+  for (const id of ids) {
+    const sh = T.get(id).shut;
+    if (sh) for (const [x, t] of sh) if (x === pid && T.t - t < SHUT_FOR) return true;
   }
   return false;
+}
+
+/** 关着的地方再过几分钟开（开着 = 0；今天不开了、下雨关了、没人回来 = 无穷） */
+function reopenIn(T: Tick, p: Place): number {
+  if (T.isOpen(p)) return 0;
+  const [a, b] = p.open ?? [OPEN, CLOSE];
+  if (T.t >= b) return Number.POSITIVE_INFINITY;
+  let at = Math.max(T.t, a);
+  if (p.needs && !T.staffed(p.needs)) at = Math.max(at, T.t + backIn(T, p.needs));
+  return at - T.t || Number.POSITIVE_INFINITY;
+}
+
+/** 岗位上的人几分钟以后回来（歇完班、来接班；没人要回来 = 无穷） */
+function backIn(T: Tick, post: PlaceId): number {
+  let best = Number.POSITIVE_INFINITY;
+  for (const id of T.staffHere) {
+    const a = T.get(id);
+    const plan = a.plan;
+    // 正在岗上干着的这一段不算"回来"（看的是下岗以后谁、几点回来）
+    const on = a.where.kind === 'at' && a.where.at === post;
+    for (let i = on ? 1 : 0; i < 3 && i < plan.length; i++) {
+      const x = plan[i];
+      if (x.at === post && x.doing === 'work' && x.after !== undefined)
+        best = Math.min(best, Math.max(1, x.after - T.t));
+    }
+  }
+  return best;
 }
 
 /** 要员工在岗的地方：岗上的人歇完回来是几点（没人要回来 = 无穷） */
@@ -1448,7 +1562,7 @@ function decide(T: Tick, ms: readonly AgentId[], avoid?: ReadonlySet<PlaceId>): 
     const pick = choose(T, ms, skip);
     if ((pick === 'none' || pick === 'full' || pick === 'closed') && eatStanding(T, ms, it)) continue;
     if (pick === 'none') {
-      popAll(T, ms);
+      dropFirst(T, ms);
       continue;
     }
     if (pick === 'closed') {
@@ -1476,7 +1590,7 @@ function decide(T: Tick, ms: readonly AgentId[], avoid?: ReadonlySet<PlaceId>): 
           curPlace(L),
           `想${DOING_ZH[it.doing]}，${(it.kinds ?? []).map((k) => KIND_ZH[k]).join('、')}没开，算了`,
         );
-      popAll(T, ms);
+      dropFirst(T, ms);
       continue;
     }
     if (pick === 'full') {
@@ -1506,7 +1620,7 @@ function decide(T: Tick, ms: readonly AgentId[], avoid?: ReadonlySet<PlaceId>): 
       // 累了想坐没地方：站着缓一缓（不一分钟想一次）
       if (it.doing === 'rest')
         for (const id of ms) T.set(id, { needs: { ...T.get(id).needs, tired: Math.min(T.get(id).needs.tired, 55) } });
-      popAll(T, ms);
+      dropFirst(T, ms);
       skip = undefined;
       continue;
     }
@@ -1520,6 +1634,7 @@ function decide(T: Tick, ms: readonly AgentId[], avoid?: ReadonlySet<PlaceId>): 
       };
       if (it.snack) then.snack = true;
       for (const id of ms) {
+        if (keepsOwn(T, ms, id, it)) continue;
         const plan = T.get(id).plan;
         T.set(id, { plan: [{ doing: 'order', minutes: 2, at: p0.id }, then, ...plan.slice(1)] });
       }
@@ -1563,22 +1678,50 @@ function recentlyAte(T: Tick, ms: readonly AgentId[]): boolean {
 
 /** "想干没干成"记一笔：同一个人同一件事（doing + 地点种类）一天只记一次（不在事件流里刷屏） */
 function missOnce(T: Tick, id: AgentId, it: Intent, at: PlaceId, note: string, k?: string): void {
-  const key = k ?? `${it.doing}:${it.at ?? (it.kinds ?? []).join(',')}`;
+  // 默认按"干什么 + 说的话"记（种类不一样、说出来一样的，比如两回"想看球，没有空地方"，也只记一次）
+  const key = k ?? `${it.doing}:${note}`;
   const a = T.get(id);
   if (a.missed?.includes(key)) return;
   T.set(id, { missed: [...(a.missed ?? []), key] });
   T.emit('full', id, at, it.doing, note);
 }
 
+/**
+ * 走过去到了它已经关了：到点关门（营业时间的尾巴，差 3 分钟也不去）；
+ * 或者摊主在走到之前就下岗歇班、十分钟里没人回来（看得见摊主在收拾，不往那走）
+ */
+function closesBefore(T: Tick, p: Place, ids: readonly AgentId[]): boolean {
+  const b = (p.open ?? [OPEN, CLOSE])[1];
+  const soon = b - T.t <= 40;
+  let off = Number.POSITIVE_INFINITY;
+  if (p.needs) {
+    off = 0;
+    for (const id of T.occOf(p.needs)) {
+      const w = T.get(id).where;
+      if (w.kind === 'at') off = Math.max(off, w.until);
+    }
+    if (!off) off = Number.POSITIVE_INFINITY; // 交接的那一两分钟：下一个人马上到
+  }
+  if (!soon && off - T.t > 40) return false;
+  // 一伙人走最慢的那个到了才算到（再多算一分钟）
+  let arrive = T.t;
+  for (const id of ids) arrive = Math.max(arrive, T.t + travelMin(T.place(curPlace(T.get(id))), p, T.walk) + 1);
+  if (arrive + 3 > b) return true;
+  return arrive > off && backIn(T, p.needs as PlaceId) > arrive - T.t + SHUT_WAIT;
+}
+
 /** 候选地点：种类对、开着、给这种人用、吃喝的摊位卖对东西 */
 function candidates(T: Tick, it: Intent, ids: readonly AgentId[], avoid?: ReadonlySet<PlaceId>): Place[] {
   const out: Place[] = [];
   const roles = ids.map((id) => T.get(id).role);
+  let kid: PlaceId | undefined;
   for (const k of it.kinds ?? []) {
     for (const p of kindsOf(T.idx, k)) {
       // 员工干活不看营业时间（开门前拖场），但不占有人在用的独占地方
       const working = it.doing === 'work';
       if (avoid?.has(p.id) || (!working && !T.isOpen(p))) continue;
+      // 半小时前走到那儿发现关着的窗口不再挑；快关门的窗口（走到了也关了）不去
+      if (!working && p.queue && (knownShut(T, ids, p.id) || closesBefore(T, p, ids))) continue;
       if (working && (isExclusive(p) ? !T.vacant(p, ids) || (T.isOpen(p) && T.t >= OPEN) : false)) continue;
       // 孩子跟着家长排队签到（前台不给孩子单独签）
       if (!working && !roles.every((r) => allows(p, r) || (p.kind === 'desk' && r === 'kid'))) continue;
@@ -1596,13 +1739,30 @@ function candidates(T: Tick, it: Intent, ids: readonly AgentId[], avoid?: Readon
       if (!working && it.doing === 'watch') {
         const horizon = it.after !== undefined ? Math.max(15, it.after - T.t + 5) : 15;
         if (!p.faces || !T.watchable(p, horizon)) continue;
+        // 孩子要上课的家长只看自家孩子那块场（家长长椅坐满了就在离那块场最近的地方坐着等，不去看喷泉、别的场）
+        kid ??= kidCourt(T, T.get(ids[0])) ?? '';
+        if (kid && (!p.faces.includes(kid) || T.room(p, ids) < ids.length)) continue;
       }
+      // 端着饭不坐看台、场边长椅、家长长椅（对着场的地方不是吃饭的地方；对着孩子玩的草皮角、喷泉的可以）
+      if (!working && it.doing === 'eat' && p.faces?.some((f) => T.place(f)?.kind !== 'play')) continue;
       // 小孩玩水、玩沙包不去围网外对着墙打的那块（那是大孩子打球的）
       if (it.doing === 'kidplay' && p.kind === 'play' && p.doing === 'tennis') continue;
       out.push(p);
     }
   }
   return out;
+}
+
+/** 一伙里孩子这会儿（或接下来）上课、打球的那块场（家长看球坐看得到它的长椅） */
+function kidCourt(T: Tick, lead: Agent): PlaceId | undefined {
+  if (!lead.party) return undefined;
+  for (const m of T.s.parties[lead.party]?.members ?? []) {
+    if (m === lead.id) continue;
+    // 课前先坐着等的（日程第一项是"歇着"）也算：看第二项
+    for (const x of T.get(m).plan.slice(0, 2))
+      if (x.at && x.after !== undefined && (x.doing === 'lesson' || x.doing === 'tennis')) return x.at;
+  }
+  return undefined;
 }
 
 function score(T: Tick, lead: Agent, it: Intent, p: Place, from: Place | undefined): number {
@@ -1624,6 +1784,11 @@ function score(T: Tick, lead: Agent, it: Intent, p: Place, from: Place | undefin
   else if (it.doing === 'watch' && p.faces && !it.at) {
     if (from && p.faces.includes(from.id)) s -= 12;
     s += p.faces.some((f) => T.liveAt(f)) ? -4 : 2;
+  }
+  // 孩子要上课 / 在上课：家长看球坐看得到那块场的长椅
+  if (it.doing === 'watch' && p.faces && !it.at) {
+    const kid = kidCourt(T, lead);
+    if (kid && p.faces.includes(kid)) s -= 30;
   }
   // 理疗床（歇着的日程里写了 gym：球员练完、老伤的）：开着、空着就先去躺一会儿
   if (p.kind === 'gym' && it.doing === 'rest') s -= 8;
@@ -1798,10 +1963,13 @@ function waitSeat(
   if (!anchor) return undefined;
   let best: Place | undefined;
   let bs = Number.POSITIVE_INFINITY;
+  const lead = T.get(ids[0]);
   for (const k of ['stand', 'seat'] as const)
     for (const p of kindsOf(T.idx, k)) {
       if (!T.isOpen(p) || !roles.every((r) => allows(p, r)) || T.room(p, ids) < ids.length) continue;
-      const d = Math.hypot(p.x - anchor.x, p.z - anchor.z) + (p.scene === anchor.scene ? 0 : 25);
+      // 这两个钟头坐过的地方往后排（别在一处打转）
+      const d =
+        Math.hypot(p.x - anchor.x, p.z - anchor.z) + (p.scene === anchor.scene ? 0 : 25) + visitsTo(T, lead, p.id) * 15;
       if (d < bs) {
         bs = d;
         best = p;
@@ -1863,7 +2031,8 @@ function courtPlay(T: Tick, ms: readonly AgentId[], it: Intent): void {
   const size = pl.length;
   const from = T.place(curPlace(L));
   const clay = kind === 'court' && prefersClay(T, L);
-  const enough = size === 4 || (kind === 'court' && size === 2) || (kind === 'pickle' && size >= 2 && size !== 3);
+  // 匹克球三个人也打（轮着下一个，"三个人的车轮战"）
+  const enough = size === 4 || (kind === 'court' && size === 2) || (kind === 'pickle' && size >= 2);
   // 匹克球轮换：拍架边有人排着，打完的这伙也去排（不霸着场）
   const waiting = kind === 'pickle' && kindsOf(T.idx, 'pickle').some((p) => T.qOf(p.id).length > 0);
   if (enough && !waiting) {
@@ -1968,7 +2137,11 @@ function courtPlay(T: Tick, ms: readonly AgentId[], it: Intent): void {
     unshiftAll(T, ms, { doing: 'drink', minutes: int(r, 15, 30), kinds: ['stall', 'cafe', 'bar', 'seat'] });
     return;
   }
-  if (kind === 'pickle' && ms.length === size) {
+  // 拍架边排队只在两块场都有人打（或已经有人排着、马上就凑上）的时候；有空场、一个人来的坐到场边长椅等个搭子，
+  // 不在拍架边对着空场站着（第 3 轮 critique 问题 2）
+  const rackFree =
+    kind === 'pickle' && !waiting && !!freeCourt(T, kind, from, false, pl, ms[0], Math.min(40, it.minutes));
+  if (kind === 'pickle' && ms.length === size && !rackFree) {
     // 拍架边排队：挑队短的那块场
     let best: Place | undefined;
     for (const p of kindsOf(T.idx, 'pickle')) {
@@ -1983,13 +2156,30 @@ function courtPlay(T: Tick, ms: readonly AgentId[], it: Intent): void {
       return;
     }
   }
-  const seat = waitSeat(T, kind, from, ms, clay);
+  // 已经坐在这片场边等着了（上一轮坐的地方）：接着坐，不一轮换一个长椅
+  const best = waitSeat(T, kind, from, ms, clay);
+  const seat =
+    best &&
+    L.where.kind === 'at' &&
+    from &&
+    from.id !== best.id &&
+    (from.kind === 'seat' || from.kind === 'stand') &&
+    from.scene === best.scene &&
+    T.isOpen(from)
+      ? from
+      : best;
   if (!seat) {
     missOnce(T, ms[0], it, curPlace(L), '场边连坐的地方都没有，不打了');
     popAll(T, ms);
     return;
   }
-  unshiftAll(T, ms, { doing: 'watch', minutes: clamp(L.patience, 3, 10), at: seat.id });
+  // 两块场都有人打、拍架边又排满了：坐在旁边等，跟排拍架一样知道要等一两局（只在头一轮抬一次）
+  let pat = L.patience;
+  if (kind === 'pickle' && !rackFree && pat >= patienceOf(T.person(ms[0]))) {
+    pat = clamp(pat + 10, 15, 28);
+    T.set(ms[0], { patience: pat });
+  }
+  unshiftAll(T, ms, { doing: 'watch', minutes: clamp(pat, 3, 10), at: seat.id });
 }
 
 interface Seeker {
@@ -2020,7 +2210,9 @@ function matchPass(T: Tick, leads: readonly AgentId[]): void {
       ntrp += p?.attrs.ntrp ?? 3;
       if (p?.traits.includes('competitive')) comp = true;
     }
-    const waited = patienceOf(T.person(id)) - a.patience;
+    // 等了多久：场边坐着等的按耗掉的耐心算（一轮一轮地坐，since 每轮重来）；拍架边排着的按排上那一刻算
+    // （排拍架时耐心被抬高了 10 分钟，按耐心差算刚排上是负数，空场前要先"还清"十分钟）
+    const waited = Math.max(patienceOf(T.person(id)) - a.patience, a.where.kind === 'queue' ? T.t - a.where.since : 0);
     const pickle = a.plan[1].doing === 'pickle';
     seekers.push({
       ms,
@@ -2028,8 +2220,8 @@ function matchPass(T: Tick, leads: readonly AgentId[]): void {
       kind: pickle ? 'pickle' : 'court',
       ntrp: ntrp / pl.length,
       waited,
-      // 等得越久越不挑：每等 5 分钟能差的水平多 0.25
-      tol: (comp ? 0.5 : 1) + Math.floor(waited / 5) * 0.25 + (pickle ? 0.5 : 0),
+      // 等得越久越不挑：每等 5 分钟能差的水平多 0.25；匹克球拍架是轮换的，排到谁谁上，不挑水平
+      tol: pickle ? Number.POSITIVE_INFINITY : (comp ? 0.5 : 1) + Math.floor(waited / 5) * 0.25,
       clay: prefersClay(T, a),
     });
   }
@@ -2041,7 +2233,8 @@ function matchPass(T: Tick, leads: readonly AgentId[]): void {
     let group = [s];
     let total = s.pl.length;
     for (const o of seekers) {
-      if (o === s || used.has(o) || o.kind !== s.kind || total + o.pl.length > 4) continue;
+      if (o === s || used.has(o) || o.kind !== s.kind) continue;
+      if (total + o.pl.length > 4) continue;
       if (Math.abs(o.ntrp - s.ntrp) > Math.min(s.tol, o.tol)) continue;
       group.push(o);
       total += o.pl.length;
@@ -2052,9 +2245,19 @@ function matchPass(T: Tick, leads: readonly AgentId[]): void {
       group = group.slice(0, 2);
       total = 2;
     }
-    // 四个人最好；两个人等了几分钟也行（单打）；三个人（一伙三个）等久了也打
+    // 匹克球凑成三个（一伙两个 + 一个人、三个一个人来的）：拆出能打的两个先上，剩下那一个接着排
+    if (total === 3 && s.kind === 'pickle' && group.length > 1) {
+      const single = group.findLastIndex((g) => g.pl.length === 1);
+      if (single >= 0) {
+        group = group.filter((_, i) => i !== single);
+        total = 2;
+      }
+    }
+    // 四个人最好；网球两个人等了几分钟也行（单打）；三个人（一伙三个）等久了也打。
+    // 匹克球有空场、凑得出两三个就上（拍架边只在两块场都有人打的时候排）
     const ok =
       total === 4 ||
+      (s.kind === 'pickle' && total >= 2) ||
       (total === 2 && group.every((g) => g.waited >= 3)) ||
       (total === 3 && group.every((g) => g.waited >= 10));
     if (!ok) continue;
@@ -2087,6 +2290,29 @@ function matchPass(T: Tick, leads: readonly AgentId[]): void {
         g.ms.map((id) => T.get(id).plan[0]?.at ?? c.id),
       );
     }
+  }
+  // 拍架边还排着、可已经有空场了（凑不上：就一个人）：不在拍架边对着空场站着，坐到场边长椅上等个搭子
+  for (const s of seekers) {
+    if (used.has(s) || s.kind !== 'pickle') continue;
+    const a = T.get(s.ms[0]);
+    if (a.where.kind !== 'queue') continue;
+    const pid = a.where.at;
+    const from = T.place(pid);
+    if (!freeCourt(T, 'pickle', from, false, s.pl, s.ms[0], 40)) continue;
+    const seat = waitSeat(T, 'pickle', from, s.ms, false);
+    if (!seat) continue;
+    for (const m of s.ms) {
+      standBy(T, m, pid);
+      const plan = T.get(m).plan;
+      T.set(m, {
+        plan: [{ ...plan[0], doing: 'watch', minutes: clamp(a.patience, 3, 10), at: seat.id }, ...plan.slice(1)],
+      });
+    }
+    moveUnit(
+      T,
+      s.ms,
+      s.ms.map(() => seat.id),
+    );
   }
 }
 
@@ -2139,15 +2365,25 @@ function queuePass(T: Tick): void {
             ? `拍架边排了 ${waited} 分钟没轮上，不打了`
             : p.kind === 'desk'
               ? `前台排了 ${waited} 分钟没轮到，没签到就进去了`
-              : `${p.name}排了 ${waited} 分钟${T.isOpen(p) ? '没轮到' : '一直没开'}，不等了`,
+              : T.isOpen(p)
+                ? `${p.name}排了 ${waited} 分钟没轮到，不等了`
+                : reopenIn(T, p) === Number.POSITIVE_INFINITY
+                  ? `${p.name}排了 ${waited} 分钟，到点关门了，没买上`
+                  : reopenIn(T, p) > SHUT_WAIT
+                    ? `${p.name}排着排着摊主歇班去了，换一家`
+                    : `${p.name}排了 ${waited} 分钟一直没开，不等了`,
         );
-      popAll(T, ms);
+      // 没买上：点单后面那一项（坐下吃喝）重新挑一家窗口，不空着手去桌边"吃"；关着的这家半小时里不再挑
+      const it0 = a.plan[0];
+      if (!seek && it0?.doing === 'order' && it0.at === pid) unpin(T, ms, it0);
+      else popAll(T, ms);
+      if (!seek && !T.isOpen(p)) markShut(T, ms, pid);
       for (const m of ms) {
         const b = T.get(m);
         T.set(m, { patience: patienceOf(T.person(m)) });
         if (seek) T.set(m, { plan: b.plan.filter((x) => !isCourtPlay(x) || !!x.at) });
       }
-      decide(T, ms);
+      decide(T, ms, seek ? undefined : new Set([pid]));
     }
     if (!T.isOpen(p)) continue;
     // 队头进去
@@ -2211,7 +2447,9 @@ function needsPass(T: Tick, leads: readonly AgentId[]): void {
       // 排着的窗口关了（摊主歇班）：等不了多久
       const p = T.place(a.where.at);
       const closed = !!p && !T.isOpen(p) && a.plan[0]?.doing !== 'queue';
-      T.set(id, { patience: a.patience - (closed ? 4 : 1) });
+      // 排着排着窗口关了：到点关门、摊主歇班十分钟里回不来 → 不再等，换一家；一会儿就回来 → 接着排
+      const done = closed && reopenIn(T, p) > SHUT_WAIT;
+      T.set(id, { patience: done ? 0 : a.patience - 1 });
     } else if (a.where.kind === 'at' && isSeeking(a.plan)) T.set(id, { patience: a.patience - 1 });
   }
 }

@@ -13,6 +13,7 @@ import {
   H,
   isWater,
   OPEN,
+  picklesAnyway,
   rainedOn,
   travelMin,
   WALK_M_PER_MIN,
@@ -293,15 +294,20 @@ describe('第 1 轮 critique 的几条', () => {
     }
   });
 
-  it('老伤的人不上场；孩子不自己来、不开车；Tommy 平日跟着 Verónica 来', () => {
+  // 第 3 轮：老伤的不上网球场；喜欢匹克球的老伤（Curtis："网球跑不动了，匹克球刚好"，people.md 的匹克球迷）打匹克球
+  it('老伤的人不上网球场（喜欢匹克球的打匹克球）；孩子不自己来、不开车；Tommy 平日跟着 Verónica 来', () => {
+    let curtis = 0;
     for (const run of WEEK) {
       const s = run.final;
-      const played = new Set(
-        s.log.filter((e) => e.kind === 'start' && (e.doing === 'tennis' || e.doing === 'pickle')).map((e) => e.agent),
-      );
+      const played = new Set(s.log.filter((e) => e.kind === 'start' && e.doing === 'tennis').map((e) => e.agent));
+      const pickled = new Set(s.log.filter((e) => e.kind === 'start' && e.doing === 'pickle').map((e) => e.agent));
+      if (pickled.has('curtis')) curtis++;
       for (const a of Object.values(s.agents)) {
         const p = personOf(cfg, s, a.id);
-        if (p?.traits.includes('oldinjury') && !isFixedRole(a.role)) expect(played.has(a.id), a.id).toBe(false);
+        if (p?.traits.includes('oldinjury') && !isFixedRole(a.role)) {
+          expect(played.has(a.id), a.id).toBe(false);
+          expect(pickled.has(a.id) && !picklesAnyway(p), a.id).toBe(false);
+        }
         if (
           p &&
           (p.role === 'kid' || p.look.body === 'kid') &&
@@ -316,6 +322,8 @@ describe('第 1 轮 critique 的几条', () => {
       if (wd < 5 && s.agents.tommy && s.agents.veronica)
         expect(s.agents.tommy.party, `第 ${s.dayNo} 天`).toBe(s.agents.veronica.party);
     }
+    // Curtis 一周来六天（周一到周六早上），匹克球场是他的地方：至少有几天打上了
+    expect(curtis).toBeGreaterThanOrEqual(3);
   });
 
   it('一天里不撞名：生成的人英文全名不重，也不和有名有姓的人同名', () => {
@@ -567,10 +575,23 @@ describe('第 2 轮 critique 的几条', () => {
       }
     }
     // 坐着歇完、下一件是看球：不去更衣室；下一件是打球：去换
-    const s0 = runTo(startDay(cfg, 1, FAIR), H(10));
+    // 10 点以后头一个更衣室宽裕的分钟（里面的 + 正往那走的至少空四个：同一分钟别人也会去；满了引擎就不换了，测不到换不换），
+    // 挑一个还要待一个多钟头的（快走的人"换衣服 + 打球"来不及，引擎会都不做）
+    const lockerRoom = (x: SimState) =>
+      PLACE_BY_ID['house.locker'].cap -
+      (x.occupants['house.locker'] ?? []).length -
+      Object.values(x.agents).filter((a) => a.where.kind === 'travel' && a.where.to === 'house.locker').length;
+    let s0 = runTo(startDay(cfg, 1, FAIR), H(10));
+    while (lockerRoom(s0) < 4 && s0.minute < H(12)) s0 = runTo(s0, s0.minute + 1);
     const id = Object.keys(s0.agents).find((k) => {
       const a = s0.agents[k];
-      return !a.party && a.where.kind === 'at' && !isFixedRole(a.role) && (a.doing === 'rest' || a.doing === 'drink');
+      return (
+        !a.party &&
+        a.where.kind === 'at' &&
+        !isFixedRole(a.role) &&
+        (a.doing === 'rest' || a.doing === 'drink') &&
+        a.leaveBy - s0.minute > 90
+      );
     }) as string;
     const goes = (next: Intent): string | undefined => {
       const a = s0.agents[id];
@@ -595,6 +616,54 @@ describe('第 2 轮 critique 的几条', () => {
     };
     expect(goes({ doing: 'watch', minutes: 30, kinds: ['stand'] })).not.toBe('house.locker');
     expect(goes({ doing: 'tennis', minutes: 60, kinds: ['court'] })).toBe('house.locker');
+  });
+});
+
+describe('第 3 轮 critique 的几条', () => {
+  const SUMMER = runDay(cfg, 200, { weather: { high: 42, rain: false, wind: false } });
+
+  it('拍架边只在两块场都有人打的时候排：排拍架时有空场的分钟 < 5%', () => {
+    for (const run of [...WEEK, SUMMER]) {
+      const r = buildReport(run).rack;
+      if (r.min < 30) continue;
+      expect(r.idle / r.min, `第 ${run.final.dayNo} 天：${r.idle}/${r.min}`).toBeLessThan(0.05);
+    }
+  });
+
+  it('关着的窗口：走到了发现关着就换一家、半小时里不再去；不对着关着的窗口干排', () => {
+    for (const run of [...WEEK, SUMMER]) {
+      const s = run.final;
+      const seen = new Map<string, number>();
+      for (const e of s.log) {
+        if (e.kind === 'gaveUp') expect(e.note ?? '', `${e.agent} 第 ${s.dayNo} 天`).not.toMatch(/一直没开/);
+        if (e.kind !== 'full' || !/关着|关门了/.test(e.note ?? '')) continue;
+        const k = `${e.agent}@${e.at}`;
+        const t = seen.get(k);
+        if (t !== undefined) expect(e.t - t, `${k} 第 ${s.dayNo} 天`).toBeGreaterThan(30);
+        seen.set(k, e.t);
+      }
+    }
+  });
+
+  it('孩子的课不被家长拉走：排了课的孩子都上了，上满 45 分钟以上；端着饭不坐看台、场边长椅', () => {
+    for (const run of WEEK) {
+      const s = run.final;
+      const s0 = startDay(cfg, s.dayNo, FAIR);
+      for (const [id, a] of Object.entries(s0.agents)) {
+        const L = a.plan.find((x) => x.doing === 'lesson' && x.must);
+        if (!L) continue;
+        const st = s.log.find((e) => e.agent === id && e.kind === 'start' && e.doing === 'lesson');
+        expect(st, `${id} 第 ${s.dayNo} 天`).toBeDefined();
+        const en = s.log.find(
+          (e) =>
+            e.agent === id && e.t > (st?.t ?? 0) && (e.kind === 'start' || e.kind === 'end') && e.doing !== 'lesson',
+        );
+        if (en) expect(en.t - (L.after ?? 0), `${id} 第 ${s.dayNo} 天`).toBeGreaterThanOrEqual(45);
+      }
+      for (const e of s.log)
+        if (e.kind === 'start' && e.doing === 'eat' && e.at)
+          expect(PLACE_BY_ID[e.at].kind, `${e.agent} ${e.at}`).not.toBe('stand');
+    }
   });
 });
 
