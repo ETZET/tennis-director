@@ -120,6 +120,12 @@ export class Planner {
   stats = { calls: 0, ms: 0, hits: 0, fails: 0, snapped: 0 };
   /** 最近搜不到的几段（调试：起点 > 终点） */
   lastFails: string[] = [];
+  /** 最近规划的几段（调试：起点 > 终点 耗时） */
+  recent: string[] = [];
+  /** 规划一段平均多久（毫秒，滑动平均）：剩下的时间不够规划一段就留到下一帧 */
+  private cost = 1;
+  /** 上一次真规划了一段的时刻（真实秒）：太久没规划（饿着了）就不管预算先规划一段 */
+  private lastRun = 0;
 
   constructor(private nav: () => PathNav) {}
 
@@ -186,8 +192,11 @@ export class Planner {
     return null;
   }
 
-  /** 每帧调：按优先级（离镜头近的先）规划 budget 段；now = 真实时间（秒） */
-  run(now: number, budget = PATH_BUDGET, ms = PATH_MS) {
+  /**
+   * 每帧调：按优先级（离镜头近的先）规划 budget 段、最多 ms 毫秒；now = 真实时间（秒）。
+   * 剩下的时间不够一段（按平均耗时估）就不开始（帧的耗时不超）；但 starve 秒没规划过就至少规划一段（路排着的人别一直等）
+   */
+  run(now: number, budget = PATH_BUDGET, ms = PATH_MS, starve = 0) {
     // 上一帧（含）以来没人要的扔掉
     for (const [k, w] of this.want) if (w.seen < this.now - 1e-6) this.want.delete(k);
     this.now = now;
@@ -195,12 +204,21 @@ export class Planner {
     const list = [...this.want.entries()].sort((a, b) => a[1].pri - b[1].pri).slice(0, budget);
     const nav = this.nav();
     const start = performance.now();
+    let n = 0;
     for (const [k, w] of list) {
-      if (performance.now() - start > ms) break;
+      const used = performance.now() - start;
+      const hungry = n === 0 && now - this.lastRun >= starve;
+      if (!hungry && used + this.cost > ms) break;
+      n++;
+      this.lastRun = now;
       this.want.delete(k);
       const t0 = performance.now();
       let p = this.solve(nav, w);
-      this.stats.ms += performance.now() - t0;
+      const dt = performance.now() - t0;
+      this.stats.ms += dt;
+      this.cost += (Math.min(dt, 8) - this.cost) * 0.1;
+      this.recent.push(`${w.ax.toFixed(1)},${w.az.toFixed(1)}>${w.bx.toFixed(1)},${w.bz.toFixed(1)} ${dt.toFixed(1)}`);
+      if (this.recent.length > 60) this.recent.shift();
       this.stats.calls++;
       if (!p) {
         this.stats.fails++;
@@ -223,6 +241,143 @@ export class Planner {
   drop() {
     this.want.clear();
   }
+}
+
+// ── 步子 ──────────────────────────────────────────────────────────────────────────
+
+/**
+ * 步子（第 2 轮评审：默认 2× 下腿慢慢摆、身子平移过去，像溜冰）。规矩：脚永远不溜 —— 腿一个周期走多远（步幅）是定的，
+ * 周期按身子真走了多远推（phase += 路程 / 步幅），不封顶：
+ * - 走（平滑过的真实速度 ≤ RUN_V）：rig 的 walk 步幅（成人 0.92 米，孩子按腿长缩）；
+ * - 跑（> RUN_V）：同一个 walk 周期，步幅拉到 RUN_STRIDE（腿摆到 rig 允许的最大），身子前倾，每一步腾空一下
+ *   （后脚蹬地、前脚还没落的时候最高，脚在身子正下方时落地）；
+ * - 冲（平均一帧走的路超过 0.45 个跑步周期 —— 2× 下 30 帧的手机、15× 起所有人：腿的周期比帧还快，按路程推只会乱闪 / 倒着转）：
+ *   双脚离地（腿一前一后叉开、身子抬起 DASH_LIFT、前倾更多），两只脚轮着在前（真实时间 DASH_HZ 换一次）。脚不着地就不溜。
+ * 速度按 0.3 秒平滑（固定步长：一帧推 0 / 1 / 2 步，一帧一帧的路程忽大忽小，不能拿它换步态），跑 / 走、冲 / 跑之间留滞回
+ */
+export const GAIT = {
+  RUN_V: 2.1,
+  RUN_STRIDE: 1.55,
+  RUN_LEAN: 0.12,
+  RUN_HOP: 0.06,
+  DASH_LEAN: 0.2,
+  DASH_LIFT: 0.12,
+  DASH_HZ: 7,
+  /** 一帧挪了这么远以上（刚借到这具身子、60× 下）：只按这么远算 */
+  JUMP: 12,
+} as const;
+
+export interface GaitState {
+  /** 0 走、1 跑、2 冲 */
+  gait: number;
+  /** 平滑过的速度（真实米 / 秒） */
+  vs: number;
+  /** walk 的 phase（0..1） */
+  walkPh: number;
+  /** 身子离地多高（米：跑的腾空、冲） */
+  lift: number;
+  /** 0..1：每个人错开 */
+  hash: number;
+}
+
+/**
+ * 走了 dist 米（这一帧，dt 秒；dtAvg = 平均一帧多长，rt = 真实时间）：更新步态、phase、腾空；返回身子前倾多少（弧度）。
+ * stride(s) = 把这具身子的步幅设成 s（不给 = 默认的走路步幅），返回这个人一个周期实际走多远（clubsite/people 的 setStride）
+ */
+export function stepGait(
+  g: GaitState,
+  dist0: number,
+  dt: number,
+  dtAvg: number,
+  rt: number,
+  stride: (s?: number) => number,
+): number {
+  const dist = Math.min(dist0, GAIT.JUMP);
+  const k = 1 - Math.exp(-dt / 0.3);
+  g.vs += (dist / Math.max(1e-3, dt) - g.vs) * k;
+  const runK = g.gait > 0 ? 0.85 : 1;
+  const st = stride(g.vs > GAIT.RUN_V * runK ? GAIT.RUN_STRIDE : undefined);
+  const dashK = g.gait === 2 ? 0.8 : 1;
+  g.gait = g.vs <= GAIT.RUN_V * runK ? 0 : g.vs * dtAvg > st * 0.45 * dashK ? 2 : 1;
+  g.lift = 0;
+  if (g.gait === 2) {
+    // 冲：腾空，phase 0.25 / 0.75 = 腿叉得最开
+    g.walkPh = Math.floor(rt * GAIT.DASH_HZ + g.hash * 2) % 2 ? 0.25 : 0.75;
+    g.lift = GAIT.DASH_LIFT;
+    return GAIT.DASH_LEAN;
+  }
+  g.walkPh = (g.walkPh + dist / st) % 1;
+  if (g.gait === 0) return 0;
+  g.lift = GAIT.RUN_HOP * Math.abs(Math.sin(g.walkPh * Math.PI * 2));
+  return GAIT.RUN_LEAN;
+}
+
+// ── 干道 ──────────────────────────────────────────────────────────────────────────
+
+/**
+ * 干道上的路口（clubsite/world.ts 的 PATHS：东西向的长廊 z −6.5、南边两条横道、东西两条纵道）。
+ * 长路（两头隔 TRUNK_MIN 米以上：从餐车院子走到停车场、从会所走到红土）拆成"地点 → 路口 → 路口 → 地点"三段：
+ * 两个地点之间直接规划，地点对有几万种、一段 A* 5–12 毫秒（第 2 轮：60× 下 P95 超预算的就是它们）；拆开以后
+ * "地点 ↔ 路口"只有地点数 × 几个，"路口 ↔ 路口"几十段，很快都在缓存里。人本来也走干道
+ */
+export const JUNCTIONS: readonly P2[] = [
+  [-36.5, -6.5],
+  [-18, -6.5],
+  [0, -6.5],
+  [18, -6.5],
+  [34.8, -6.5],
+  [50, -6.5],
+  [57, -3],
+  [64, 0],
+  [-36.5, 15.5],
+  [0, 15.5],
+  [34.8, 15.5],
+  [-36.5, 34.3],
+  [-17, 34.3],
+  [34.8, 34.3],
+  [34.8, -20],
+  [-36.5, 45],
+  [34.8, 45],
+];
+/** 两头隔多远（米）才走干道 */
+export const TRUNK_MIN = 40;
+/** 走干道最多比直线远多少（倍）：再绕就不走干道，直接规划 */
+const TRUNK_DETOUR = 1.45;
+
+/**
+ * 长路走哪两个路口：离起点近、又往终点那边的那个（d(起点, J) + 0.5·d(J, 终点) 最小），终点那头同理；
+ * 两个是同一个就只经过一个。太近（< TRUNK_MIN）或绕得太远 = []（直接规划）
+ */
+export function trunk(ax: number, az: number, bx: number, bz: number): P2[] {
+  const d = (x0: number, z0: number, x1: number, z1: number) => Math.hypot(x1 - x0, z1 - z0);
+  const direct = d(ax, az, bx, bz);
+  if (direct < TRUNK_MIN) return [];
+  let ja = JUNCTIONS[0];
+  let jb = JUNCTIONS[0];
+  let ka = Number.POSITIVE_INFINITY;
+  let kb = Number.POSITIVE_INFINITY;
+  for (const j of JUNCTIONS) {
+    const sa = d(ax, az, j[0], j[1]) + 0.5 * d(j[0], j[1], bx, bz);
+    const sb = d(bx, bz, j[0], j[1]) + 0.5 * d(j[0], j[1], ax, az);
+    if (sa < ka) {
+      ka = sa;
+      ja = j;
+    }
+    if (sb < kb) {
+      kb = sb;
+      jb = j;
+    }
+  }
+  const pts = ja === jb ? [ja] : [ja, jb];
+  let len = 0;
+  let px = ax;
+  let pz = az;
+  for (const [x, z] of [...pts, [bx, bz] as P2]) {
+    len += d(px, pz, x, z);
+    px = x;
+    pz = z;
+  }
+  return len <= direct * TRUNK_DETOUR + 8 ? pts : [];
 }
 
 // ── 站位 ──────────────────────────────────────────────────────────────────────────

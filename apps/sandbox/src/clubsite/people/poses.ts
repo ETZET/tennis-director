@@ -6,7 +6,7 @@ import * as THREE from 'three';
 import { type Bones, env, HIP_Y, keys, keysV, lerp, orient, pointIn, reach, smooth, V } from './bones';
 import type { Holder } from './hold';
 import type { KneeLegs } from './legs';
-import { walkLegs } from './rig/rig';
+import { strideAmp, WALK_STRIDE, walkLegs } from './rig/rig';
 
 export const NEW_POSES = [
   'sit',
@@ -34,6 +34,11 @@ export const NEW_POSES = [
   'swim',
   'lie',
   'tap',
+  // 第二轮：坐着等烦了（场边等人凑场）、弯腰在饮水点喝水
+  'tapSit',
+  'drinkTap',
+  // 躺椅上靠着（靠背立起 50° 的躺椅：上身顺着靠背、腿伸直搭在垫子上）
+  'recline',
 ] as const;
 export type NewPose = (typeof NEW_POSES)[number];
 
@@ -63,6 +68,9 @@ export const NEW_PERIOD: Record<NewPose, number> = {
   swim: 1.8,
   lie: 4.5,
   tap: 3.2,
+  tapSit: 3.2,
+  drinkTap: 2.4,
+  recline: 4.5,
 };
 
 /** clap：两只手拍到一起的 phase */
@@ -606,7 +614,8 @@ export function applyNewPose(e: PoseEnv, name: NewPose, p: number): void {
     case 'carry': {
       // 端着托盘走（演出把托盘摆在两只拳头中间）：走路的腿（同 walk 的步幅，脚不溜），上身直、手臂不摆，
       // 两只手在身前腰高握托盘的两条短边，跟着步子轻轻一颠
-      const s = walkLegs(b, p, 0.55);
+      // 腿按身上记的步幅摆（clubwalk 跑起来的人步幅大：userData.stride；默认 WALK_STRIDE = 摆幅 0.55，同原来）
+      const s = walkLegs(b, p, strideAmp((b.root.userData.stride as number | undefined) ?? WALK_STRIDE));
       b.torso.rotation.x = -0.03;
       b.torso.rotation.y = s * 0.04;
       b.head.rotation.x = 0.04;
@@ -671,6 +680,53 @@ export function applyNewPose(e: PoseEnv, name: NewPose, p: number): void {
       b.head.rotation.x = 0.22 * watch;
       reach(body, b.armR, V(0.1, 0.84, 0.26).lerp(V(-0.26, 0.56, 0.06), watch));
       reach(body, b.armL, V(-0.1, 0.9, 0.24).lerp(V(0.02, 1.0, 0.36), watch));
+      break;
+    }
+    case 'drinkTap': {
+      // 饮水点喝水（站着，龙头在身前 0.45 米、高 0.9 米上下）：上身往前弯、头低下去凑到龙头上，右手按着按钮、左手扶着池沿；
+      // 一遍 = 喝两口（头一点一点），0.8..1 抬一下头喘口气
+      const up = env(p, 0.78, 0.86, 0.94, 1);
+      const sipK = Math.max(0, Math.sin(p * Math.PI * 4)) * (1 - up);
+      b.legL.rotation.x = 0.08;
+      b.legR.rotation.x = -0.12;
+      b.torso.rotation.x = 0.62 - 0.22 * up;
+      b.head.rotation.x = 0.28 + 0.06 * sipK - 0.2 * up;
+      b.head.position.y -= 0.02 * sipK;
+      reach(body, b.armR, V(-0.16, 0.86, 0.46));
+      reach(body, b.armL, V(0.2, 0.84, 0.44));
+      break;
+    }
+    case 'recline': {
+      // 躺椅上靠着（setSeat 垫子高）：上身往后靠 ≈ 43°（顺着立起 50° 的靠背），头略往前（看着脚那头 = 池子），
+      // 两腿伸直搭在垫子上、一只脚叠在另一只上，两手交叉搭在肚子上；一遍 = 一次慢呼吸。
+      // 镜头在靠背后面时（南边那排）：头、肩露在靠背上面，腿和脚伸在垫子上 —— 看得出一个人躺着，不只是一颗头
+      const s = e.seat ?? { h: 0.44, foot: 0 };
+      const hipY = s.h + BUTT;
+      knees.show(true);
+      knees.set('R', -1.52, -0.06, 0.04);
+      knees.set('L', -1.46, 0.05, 0.1);
+      b.hips.position.y = hipY;
+      b.torso.rotation.x = -0.75;
+      b.torso.scale.y = 1 + breath * 0.03;
+      b.head.rotation.x = 0.32;
+      reach(body, b.armR, V(-0.08, hipY + 0.28 + breath * 0.01, 0.12), [0.8, 1.2]);
+      reach(body, b.armL, V(0.08, hipY + 0.3 + breath * 0.01, 0.14), [0.8, 1.2]);
+      break;
+    }
+    case 'tapSit': {
+      // 坐着等烦了（场边长椅上等人凑场、等场）：身子往前探、两手抱在胸前，右腿一下一下抖（大腿抬起、脚跟离地，一遍六下），
+      // 头左右张望（找人）；0.6..0.9 松开手、抬起左手腕看表（头低下去看）。setSeat 同 sit
+      const watch = env(p, 0.6, 0.66, 0.84, 0.9);
+      const t = Math.max(0, Math.sin(p * Math.PI * 12)) * (1 - watch);
+      const { hipY, chestY } = seated(e, 0.1);
+      const s = e.seat ?? { h: 0.5, foot: 0 };
+      const shin = THREE.MathUtils.clamp(knees.shinFor(hipY - s.foot, -1.32), 0.55, 1.9);
+      knees.set('R', -1.32 - 0.16 * t, -0.1, 1.32, shin);
+      b.torso.rotation.y = 0.07 * Math.sin(p * Math.PI * 2);
+      b.head.rotation.y = 0.6 * Math.sin(p * Math.PI * 2) * (1 - watch);
+      b.head.rotation.x = -0.04 + 0.26 * watch;
+      reach(body, b.armR, V(0.1, chestY - 0.04, 0.26).lerp(V(-0.19, hipY + 0.14, 0.2), watch));
+      reach(body, b.armL, V(-0.1, chestY + 0.02, 0.24).lerp(V(0.02, chestY + 0.12, 0.38), watch));
       break;
     }
   }

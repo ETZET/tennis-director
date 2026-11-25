@@ -20,28 +20,27 @@ export const GAPS: readonly Gap[] = [
   { key: 'work.golf', what: '高尔夫场地维护', now: '浇水（water + 水管代用件）' },
   { key: 'work.tidy', what: '收拾桌椅、看台', now: '扫地（sweep + 扫帚），没有擦桌子' },
   { key: 'work.idle', what: '别的岗位上的活', now: '站着' },
-  { key: 'lesson.ball', what: '上课喂的球', now: '对打有球（fx/ball.ts），教练喂球、学员接的那一下还没有球' },
   {
-    key: 'car.queue',
-    what: '车让车',
-    now: '车按时间表开（fx/cars.ts），同一时刻进出口有两辆车时会穿过去，不排队、不让',
-  },
-  {
-    key: 'car.full',
-    what: '停车场满了',
-    now: '会员、客人只有 28 个车位：满了的那伙人没有车，从车道东头走进来；员工的车不在画面里',
+    key: 'car.lot',
+    what: '停车场高峰',
+    now: '停车场里一次只开一辆车（fx/cars.ts 的牌子，不穿车、不顶牛）：早高峰、散场、周六车在进出口东边的车道上排队；排得久的那伙人已经下车走开了，车还在路上',
   },
   {
     key: 'lounge.view',
     what: '南边躺椅上躺着的人',
-    now: '躺下了（lie），但躺椅头朝镜头，45° 俯视下大头挡住身子，只看得出一颗头',
+    now: '躺椅背对镜头（靠背在南头）：靠着（recline）露出头和肩，身子被靠背挡住；要看得见整个人得把那排躺椅转过来朝南（clubpool 的 LOUNGE_S + 站位）',
+  },
+  {
+    key: 'wall.view',
+    what: '对着墙打球的孩子',
+    now: '有球、有挥拍（fx/ball.ts），但站位在挡风布北边 0.95 米，45° 俯视下被 2 米高的挡风布挡住；站位往北挪到 z ≈ −5.6 就看得见',
   },
 ];
 
 /** 跑起来才发现的缺口（地点没有站位、路规划不到……）：key → 说明 */
 const found = new Map<string, string>();
 /** 用到过的静态缺口 */
-const used = new Set<string>(['car.queue', 'car.full']);
+const used = new Set<string>(['car.lot', 'lounge.view', 'wall.view']);
 
 export function noteGap(key: string, text?: string) {
   if (text) {

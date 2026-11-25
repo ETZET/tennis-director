@@ -43,6 +43,12 @@ export interface SimFx {
   /** 关掉观察：道具都藏起来，场景的车放回来 */
   off(): void;
   stats(): Record<string, unknown>;
+  /**
+   * 预热（观察一打开就调）：托盘、杯子、车、关摊的卷帘先建好放进池子，再建几个"替身"摆遍新姿势、拿遍道具，
+   * 全部在镜头底下的地面以下画两帧（编译着色器、上传几何），然后收起来。分在接下来的几十帧里做（每帧 ≤ 4 毫秒），
+   * 要等第一具身子出来（材质上下文从它身上拿）才开始。之后第一次出托盘、第一次躺下就不卡了。
+   */
+  prewarm(): void;
 }
 
 /** 道具要的材质上下文：各场景的 kit（同一套 uniforms → 跟着天光、配色方案走） */
@@ -54,7 +60,11 @@ export interface FxKits {
 
 export interface FxHost {
   scene: THREE.Scene;
-  pipe: { rig: { metersPerTexel: number } };
+  pipe: { rig: { metersPerTexel: number; target: THREE.Vector3 } };
+  /** 建一具 Q 版人（预热的替身；mount 的 SimHost.make） */
+  make?(kind: 'adult' | 'kid' | 'teen'): THREE.Object3D;
+  /** 预编着色器（mount 的 SimHost.prewarm = pipe.prewarm）：root 里看得见的网格三套 pass 都编好 */
+  prewarm?(root: THREE.Object3D): Promise<unknown>;
 }
 
 export interface FxPart {

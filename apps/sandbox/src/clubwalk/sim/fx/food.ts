@@ -39,7 +39,7 @@ interface Prop {
   cup: THREE.Object3D | null;
 }
 
-export function createFood(scene: THREE.Scene): FxPart {
+export function createFood(scene: THREE.Scene): FxPart & { prewarm(k: FxKits, kind: number | 'cup'): THREE.Object3D } {
   const root = new THREE.Group();
   root.name = 'sim:fx:food';
   scene.add(root);
@@ -53,6 +53,23 @@ export function createFood(scene: THREE.Scene): FxPart {
   const st = { trays: 0, cups: 0, handouts: 0, carriers: 0, eaters: 0 };
 
   let made = 0;
+  function build(k: FxKits, kind: number | 'cup'): Prop {
+    let obj: THREE.Object3D;
+    let cup: THREE.Object3D | null = null;
+    if (kind === 'cup') {
+      obj = buildCup(k.people);
+      // 杯子的原点在拳头（同人手里的杯子）：杯身往前 0.1、往上 0.06
+      obj.position.set(0, 0, 0);
+    } else {
+      obj = k.food.makeAsset('food-tray', kind).obj;
+      // food-tray：最后一个网格是杯子（clothWhite，v0–v3）
+      cup = obj.children[obj.children.length - 1] ?? null;
+    }
+    root.add(obj);
+    if (kind === 'cup') st.cups++;
+    else st.trays++;
+    return { obj, kind, used: false, cup };
+  }
   function take(k: FxKits, id: AgentId, kind: number | 'cup'): Prop | null {
     let p = held.get(id);
     if (p && p.kind !== kind) {
@@ -65,24 +82,10 @@ export function createFood(scene: THREE.Scene): FxPart {
       const i = free.findIndex((q) => q.kind === kind);
       if (i >= 0) p = free.splice(i, 1)[0];
       else {
-        // 新建一个托盘 ~2 毫秒：一下子看到坐满的院子时分几帧建（这一帧没轮上的下一帧再摆）
+        // 新建一个托盘 ~2 毫秒：一下子看到坐满的院子时分几帧建（这一帧没轮上的下一帧再摆）；观察一打开 prewarm 先建一批
         if (made >= 2) return null;
         made++;
-        let obj: THREE.Object3D;
-        let cup: THREE.Object3D | null = null;
-        if (kind === 'cup') {
-          obj = buildCup(k.people);
-          // 杯子的原点在拳头（同人手里的杯子）：杯身往前 0.1、往上 0.06
-          obj.position.set(0, 0, 0);
-        } else {
-          obj = k.food.makeAsset('food-tray', kind).obj;
-          // food-tray：最后一个网格是杯子（clothWhite，v0–v3）
-          cup = obj.children[obj.children.length - 1] ?? null;
-        }
-        root.add(obj);
-        p = { obj, kind, used: false, cup };
-        if (kind === 'cup') st.cups++;
-        else st.trays++;
+        p = build(k, kind);
       }
       held.set(id, p);
     }
@@ -244,7 +247,14 @@ export function createFood(scene: THREE.Scene): FxPart {
       bought.clear();
     },
     stats() {
-      return { ...st, held: held.size, bought: bought.size };
+      return { ...st, held: held.size, bought: bought.size, free: free.length };
+    },
+    /** 预热：先建一个托盘（kind = 变体 0..3）/ 杯子放进池子（午饭一开始几十个人一起端托盘），返回它（给 prewarm 摆到画面里渲染一次） */
+    prewarm(k, kind) {
+      const p = build(k, kind);
+      p.obj.visible = false;
+      free.push(p);
+      return p.obj;
     },
   };
 }

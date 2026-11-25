@@ -133,11 +133,15 @@ export function poseSpec(doing: Doing, place: Place | undefined, spot: Anchor | 
   const seated = !!kind && SEATED_KINDS.has(kind);
   switch (doing) {
     case 'tennis':
+      // 表演赛换边歇着的那个：坐在场边的球员椅上（站位表写了 sit），拍子靠着
+      if (spot?.pose === 'sit') return { pose: 'sit', prop: null, seat: BENCH, anim: 'loop' };
       return { pose: 'ready', prop: 'racket', anim: 'rally' };
     case 'pickle':
       return { pose: 'dink', prop: 'paddle', anim: 'pickle' };
     case 'lesson':
-      return { pose: 'ready', prop: 'racket', anim: 'rally', gap: 'lesson.ball' };
+      // 站在击球点上的孩子接教练喂的球（fx/ball.ts 按喂球的节奏摆）；排着的孩子拿着拍子站着等
+      if (spot && spot.pose !== 'ready') return { pose: 'idle', prop: 'racket', seat: null, anim: 'loop' };
+      return { pose: 'ready', prop: 'racket', anim: 'rally' };
     case 'coach':
       return { pose: 'feed', prop: 'racket', anim: 'feed' };
     case 'warmup':
@@ -148,6 +152,9 @@ export function poseSpec(doing: Doing, place: Place | undefined, spot: Anchor | 
       // 摊主：做饭 / 摇饮料（站位表给的 idle 只是"站在窗口后面"）
       const vend = place ? VENDOR_OF_POST.get(place.id) : undefined;
       if (vend) return { pose: vend.cook ? 'cook' : 'shake', prop: null, anim: 'loop' };
+      // 在看台、长椅、桌边、躺椅、场地上干活（Dale 早上扫看台）：站位表写的是客人的坐姿，干活的人按地点挑活（扫地、刮水、拖红土）
+      if (kind && (SEATED_KINDS.has(kind) || kind === 'court' || kind === 'pickle' || kind === 'lesson'))
+        return workAt(place);
       return spot?.pose ? fromSpotPose(spot.pose) : workAt(place);
     }
     case 'break':
@@ -156,6 +163,8 @@ export function poseSpec(doing: Doing, place: Place | undefined, spot: Anchor | 
       // 坐着吃：托盘在桌上（fx/food.ts 摆），右手一口口送到嘴边、左手端杯子喝一口；没有桌子的座位吃的放腿上
       return { pose: 'eat', prop: null, seat: BENCH, anim: 'loop' };
     case 'drink':
+      // 自助饮水点（kind stall、不要摊主）：弯腰凑到龙头上喝
+      if (kind === 'stall' && !place?.needs) return { pose: 'drinkTap', prop: null, seat: null, anim: 'loop' };
       return seated || kind === 'cafe'
         ? { pose: 'sip', prop: 'cup', seat: BENCH, anim: 'loop' }
         : { pose: 'idle', prop: 'cup', seat: null, anim: 'loop' };
@@ -164,19 +173,17 @@ export function poseSpec(doing: Doing, place: Place | undefined, spot: Anchor | 
         ? { pose: 'sit', prop: null, seat: BENCH, anim: 'watch' }
         : { pose: 'idle', prop: null, seat: null, anim: 'watch' };
     case 'rest':
-      // 躺椅上歇着 = 躺下（池边的躺椅、会所露台的躺椅）
-      if (kind === 'lounger') return { pose: 'lie', prop: null, seat: 0.4, anim: 'loop' };
+      // 躺椅上歇着 = 躺下（池边的躺椅、会所露台的躺椅）；理疗床上躺着（会所里的理疗室，kind gym）
+      if (kind === 'lounger') return { pose: 'recline', prop: null, seat: 0.44, anim: 'loop' };
+      if (kind === 'gym' && /physio|理疗/.test(`${place?.id}${place?.name}`))
+        return { pose: 'lie', prop: null, seat: BENCH, anim: 'loop' };
       return seated || spot?.pose === 'sit' || kind === 'pool'
         ? { pose: 'sit', prop: null, seat: BENCH, anim: 'loop' }
         : { pose: 'idle', prop: null, seat: null, anim: 'loop' };
     case 'sunbathe':
-      return {
-        pose: 'lie',
-        prop: null,
-        seat: 0.4,
-        anim: 'loop',
-        gap: place?.id === 'pool.loungers.s' ? 'lounge.view' : undefined,
-      };
+      // 躺椅（clubpool 的 lounger：靠背立起 50°）：顺着靠背靠着（fx/pool.ts 把人往靠背那头挪一点）；
+      // 南边那排背对镜头：头、肩露在靠背上面，腿伸在垫子上（第 2 轮要补的画面 6）
+      return { pose: 'recline', prop: null, seat: 0.44, anim: 'loop' };
     case 'swim':
       // 蛙泳：姿势按"水面在根节点上 1.1 米"摆（泳道的站位就是水面下 1.1）；浅水区（孩子那块，水面下 0.75）往下沉 0.35，
       // 站位没给高度（不该有）就按地面往下沉 1.1。在泳道里来回游由 fx/pool.ts 推
@@ -244,6 +251,9 @@ export const PERIOD: Record<string, number> = {
   swim: 1.8,
   lie: 4.5,
   tap: 3.2,
+  tapSit: 3.2,
+  drinkTap: 2.4,
+  recline: 4.5,
 };
 
 /** 中文：在干什么（面板、名字小牌） */

@@ -27,7 +27,7 @@ import { PLACES } from '../../clubsite/sim/places';
 import type { PlaceId } from '../../clubsite/sim/types';
 import { COURTS, type Court, FOUNTAIN, POOL } from '../../clubsite/world';
 import { seatList } from '../../clubstadium/assets/stands/seats';
-import { northTread, SPOTS as SS } from '../../clubstadium/layout';
+import { EAST_STAIRS, northTread, SPOTS as SS, STANDS } from '../../clubstadium/layout';
 import type { PlaceSpots, Spot, SpotTable } from './types';
 
 type V2 = readonly [number, number];
@@ -202,6 +202,46 @@ function stand(id: 'north' | 'east' | 'south'): Spot[] {
 }
 /** 北看台东走道（x 7）第 3 级：卖水的站的地方（clubstadium SLOTS 的 vendor） */
 const T3 = northTread(3);
+
+/**
+ * 看台座位 ↔ 导航（第 2 轮评审：北看台散场一小时寻路失败 24 次，人从座位上消失）：座位排、踏面不在世界导航里，
+ * 所以从座位走到"排头"那一小段直着走（顺着这一排），排头接导航：
+ * - 北看台：最近的走道（x −14、−7、7、14；西头 −20.6 是端梯）在这一排的那一点 —— 走道是坡道，导航里有，从那儿上到横走道、走西头端梯下来；
+ * - 东看台：南半边顺着排往南走到看台南头，下到东南角的地面；北半边顺着排走到东边台阶（EAST_STAIRS）那一段，往东上台阶；
+ * - 南看台（两级，背对镜头）：顺着排走到最近的一头（场地东、西沿外），下到地面。
+ * 返回从座位出去的几个点（不含座位本身，最后一个在导航里站得住）；不是看台 = null。来的时候演出倒过来走
+ */
+const N_AISLES = [STANDS.north.x0 - 0.6, ...STANDS.aisles];
+/** 北看台走道口最北到哪（最高一级的横走道里，离后墙一个身子） */
+const N_TOP_Z = -36.6;
+const E_STAIR_Z = (EAST_STAIRS.z0 + EAST_STAIRS.z1) / 2;
+export function seatWay(id: PlaceId, x: number, z: number): [number, number][] | null {
+  if (id === 'stadium.stand.n') {
+    let ax = N_AISLES[0];
+    for (const c of N_AISLES) if (Math.abs(c - x) < Math.abs(ax - x)) ax = c;
+    // 最高一排的座位贴着后墙：走道口收到横走道里（z ≥ N_TOP_Z）
+    return [[ax, Math.max(z, N_TOP_Z)]];
+  }
+  if (id === 'stadium.stand.e') {
+    if (z > -18)
+      return [
+        [x, STANDS.east.z1 - 0.3],
+        [STANDS.east.front + 1.6, STANDS.east.z1 + 0.8],
+      ];
+    return [
+      [x, E_STAIR_Z],
+      [EAST_STAIRS.x0 + 1.2, E_STAIR_Z],
+    ];
+  }
+  if (id === 'stadium.stand.s') {
+    const sx = x < 0 ? STANDS.south.x0 - 0.7 : STANDS.south.x1 + 0.7;
+    return [
+      [sx, z],
+      [sx, STANDS.south.front + 1.0],
+    ];
+  }
+  return null;
+}
 
 // ── 会员场 · 青训（clubcourts/layout.ts）────────────────────────────────────────
 const PE = court('practice_e');
@@ -461,7 +501,8 @@ const table: Record<PlaceId, PlaceSpots> = {
   'post.plaza.drinks': { spots: [at([46.6, -33.45], S_)] },
 
   // ═════ 中心球场 ═════
-  'stadium.stand.n': { spots: stand('north') },
+  // 北看台只有一条路上下：西头端梯 → 最高一级的横走道 → 四条走道（clubstadium STAND_RAMPS）；门 = 端梯脚下（座位到走道口见 seatWay）
+  'stadium.stand.n': { spots: stand('north'), door: { x: STANDS.north.x0 - 0.6, z: STANDS.north.front + 0.8 } },
   'stadium.stand.e': { spots: stand('east') },
   'stadium.stand.s': { spots: stand('south') },
   // 长廊边的饮水点（drink-fountain 在 SPOTS.fountain 北边 0.2，朝南）
@@ -784,6 +825,9 @@ const PICKUP_SIDES: Record<PlaceId, readonly number[] | readonly (readonly [numb
     [1.15, 1.25],
   ],
   'food.boba': [1],
+  // 塔可、披萨：队都往西南拐（左手），等餐的只站右手两排（第 2 轮评审：两边都站，左边的压着队头，窗口前一团）
+  'food.taco': [1],
+  'food.pizza': [1],
   // 吉事果：队往东，等餐的站西边两排（再西是草皮角）
   'food.churro': [
     [-1.15, 0.35],

@@ -8,7 +8,8 @@
 //     旁边 1.2 米以内有一个 standAt 的点（走过去停在那儿再坐下）；
 //   - 给了 y 的矮座（喷泉池沿：座位离旁边能站的地 < 0.4 米）照坐的查；
 //   - 高处的位置（y ≥ 0.3：看台、裁判椅、车窗里、楼上）、藏起来的（hidden，只查 door）、水里的（y < 0）：不查站位；
-//   - 走得到：从大门里（59, 0.6）寻路（findPath）到每个能站的点（坐的 = 旁边那个点、门），终点离目标 < 0.35 米。
+//   - 走得到：从大门里（59, 0.6）寻路（findPath）到每个能站的点（坐的 = 旁边那个点、门），终点离目标 < 0.35 米；
+//   - 看台座位的出口（spots.ts 的 seatWay，座位排里直着走到的那一点）站得住、走得到，北看台的走道口寻得到路到门；干道路口（motion.ts 的 JUNCTIONS）站得住、走得到。
 // 没过的列出来（地点、第几个、坐标、原因、最近能站的点），退出码 1。
 import { existsSync, readdirSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -170,6 +171,40 @@ const res = await page.evaluate(async () => {
       else if (!reach(q.x, q.z)) fails.push({ id: p.id, what: `pickup ${i}`, at: [q.x, q.z], why: '走不到' });
     });
   }
+  // 看台座位的出口（spots.ts 的 seatWay）：最后一个点站得住、走得到（座位到那儿是顺着座位排直着走的，不查）；
+  // 北看台的走道口到门（端梯脚下）寻得到路
+  const { seatWay } = await import('/src/clubwalk/sim/spots.ts');
+  for (const id of ['stadium.stand.n', 'stadium.stand.e', 'stadium.stand.s']) {
+    const s = SPOTS[id];
+    const seen = new Set();
+    for (const q of s.spots) {
+      const way = seatWay(id, q.x, q.z);
+      if (!way?.length) {
+        fails.push({ id, what: 'seatWay', at: [q.x, q.z], why: '没有出口' });
+        continue;
+      }
+      const [x, z] = way.at(-1);
+      const k = `${x.toFixed(1)},${z.toFixed(1)}`;
+      if (seen.has(k)) continue;
+      seen.add(k);
+      stats.exit = (stats.exit ?? 0) + 1;
+      if (nav.standAt(x, z) === null) fails.push({ id, what: 'seatWay', at: [x, z], why: why(x, z), near: nearest(x, z) });
+      else if (!reach(x, z)) fails.push({ id, what: 'seatWay', at: [x, z], why: '走不到' });
+      else if (s.door) {
+        paths++;
+        const p = nav.findPath(x, z, s.door.x, s.door.z);
+        if (!p || Math.hypot(p.at(-1)[0] - s.door.x, p.at(-1)[1] - s.door.z) > 0.35)
+          fails.push({ id, what: 'seatWay → door', at: [x, z], why: '走道口到门寻不到路' });
+      }
+    }
+  }
+  // 干道的路口（motion.ts 的 JUNCTIONS）：站得住、走得到
+  const { JUNCTIONS } = await import('/src/clubwalk/sim/motion.ts');
+  for (const [x, z] of JUNCTIONS) {
+    stats.junction = (stats.junction ?? 0) + 1;
+    if (nav.standAt(x, z) === null) fails.push({ id: 'JUNCTIONS', what: 'junction', at: [x, z], why: why(x, z) });
+    else if (!reach(x, z)) fails.push({ id: 'JUNCTIONS', what: 'junction', at: [x, z], why: '走不到' });
+  }
   return { fails, excepts, stats, paths, places: PLACES.length };
 });
 
@@ -178,7 +213,7 @@ if (server) await server.close();
 
 const { fails, excepts, stats, paths, places } = res;
 console.log(
-  `地点 ${places}：站着 ${stats.stand}、坐 ${stats.sit}、排队 ${stats.queue}、等餐 ${stats.pickup}、门 ${stats.door}、不查（高处 / 水里 / 藏着）${stats.skipped}；寻路 ${paths} 条`,
+  `地点 ${places}：站着 ${stats.stand}、坐 ${stats.sit}、排队 ${stats.queue}、等餐 ${stats.pickup}、门 ${stats.door}、看台出口 ${stats.exit ?? 0}、干道路口 ${stats.junction ?? 0}、不查（高处 / 水里 / 藏着）${stats.skipped}；寻路 ${paths} 条`,
 );
 if (excepts.length)
   console.log(

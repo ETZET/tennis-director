@@ -1,9 +1,8 @@
 // 演员池：离镜头近的人才给一具 Q 版人（clubsite/people 的 player / kid / ball-kid，按演员表的 look 换装），远了收回来给别人用。
 // - 上限 CAP 具（画面 + 一圈余量里最多也就几十个人）；新建一具 ~1–3 毫秒、换装 ~1 毫秒，每帧按预算建 / 换。
 // - 收回来的身子留着衣服：同一个人又走回画面时不用再换装。
-// 看全图（远景）时不用身子，每个人一根彩色小柱（按衣服的颜色，InstancedMesh，一种颜色一批）。
+// 看全图（远景）时不用身子，每个人一个贴地的彩色圆点（按在干什么上色，见 Dots）。
 import * as THREE from 'three';
-import { CLOTH } from '../../clubsite/cast/colors';
 import type { CastLook, CastPerson } from '../../clubsite/cast/types';
 import type { BodyKind } from './pose';
 
@@ -11,7 +10,13 @@ export interface Dresser {
   dress(obj: THREE.Object3D, look: CastLook): void;
 }
 
-export const CAP = 90;
+/** 最多几具身子同时在画面上（第 2 轮：90 → 110，周末看台坐得满一点；坐着的人隔帧摆姿势，省出来的时间够） */
+export const CAP = 110;
+/**
+ * 池子最多建几具（三种身子加起来；不用的藏着，不画不摆）：比 CAP 多一截，大人、孩子、少年各自够用
+ * （第 2 轮：池子只比 CAP 多 12，大人那种先建满了，周末看台上的大人最多 98 个）
+ */
+export const POOL_MAX = CAP + 30;
 
 export interface Body {
   obj: THREE.Object3D;
@@ -62,7 +67,7 @@ export class BodyPool {
       if (this.budget <= 0 && !force) return null;
       b = this.all.find((q) => !q.user && q.kind === kind) ?? null;
       if (!b) {
-        if (this.all.length >= CAP + 12) return null;
+        if (this.all.length >= POOL_MAX) return null;
         const t0 = performance.now();
         const obj = this.make(kind);
         obj.name = 'sim:actor';
@@ -106,6 +111,40 @@ export class BodyPool {
     b.dressed = id;
   }
 
+  /**
+   * 预建（观察一打开，分几帧做）：每种身子先建到 want 具藏着（建一具 1–3 毫秒：别等午饭、表演赛人一多时当场建、一帧卡几十毫秒）。
+   * 这一帧最多花 ms 毫秒；都建好了 = true
+   */
+  prebuild(want: Readonly<Record<BodyKind, number>>, ms: number): boolean {
+    const t0 = performance.now();
+    for (const kind of Object.keys(want) as BodyKind[]) {
+      let have = 0;
+      for (const b of this.all) if (b.kind === kind) have++;
+      while (have < want[kind]) {
+        if (performance.now() - t0 > ms || this.all.length >= POOL_MAX) return this.all.length >= POOL_MAX;
+        const obj = this.make(kind);
+        obj.name = 'sim:actor';
+        obj.visible = false;
+        obj.userData.simActor = true;
+        // 每具身子第一次坐下、吃、做饭时要建自己的小东西（一口吃的、左手的杯子、锅铲，clubsite/people 的 extra）：
+        // 一具 10–20 毫秒，午饭时几十个人一起坐下就是一帧卡一下 —— 建身子的时候先摆一遍，再站回来
+        const ud = obj.userData;
+        ud.setSeat?.(0.52);
+        ud.pose?.('sit', 0.3);
+        ud.pose?.('eat', 0.3);
+        ud.pose?.('eat', 0.86);
+        ud.setSeat?.(null);
+        ud.pose?.('cook', 0.4);
+        ud.pose?.('idle', 0);
+        this.scene.add(obj);
+        this.all.push({ obj, kind, dressed: null, user: null, prop: undefined, seat: '' });
+        this.stats.made++;
+        have++;
+      }
+    }
+    return true;
+  }
+
   release(b: Body) {
     b.user = null;
     b.obj.visible = false;
@@ -125,60 +164,54 @@ export class BodyPool {
   }
 }
 
-// ── 远景的小柱 ──────────────────────────────────────────────────────────────────
+// ── 看全图的人点 ────────────────────────────────────────────────────────────────
 
-/** 柱子比真人大（远景里一个人只有两三个纹素，放大才看得见）：宽 × 高（米） */
-const PAWN = { w: 2.8, h: 5.6 };
-const PAWN_N = 600;
+/**
+ * 看全图时每个人一个贴地的圆点（第 2 轮评审：一根根彩色柱子挤在一起像柱状图，看不出谁在干什么）：
+ * 直径 DOT.d 米、高 DOT.h 米（矮矮的一块：描边按深度差画得出来），颜色按在干什么（mount.ts 的 dotColor），不打光（夜里也看得清）。
+ * 一个 InstancedMesh（每个点自己的颜色），最多 DOT_N 个
+ */
+const DOT = { d: 3, h: 0.8 };
+const DOT_N = 900;
 
-export class Pawns {
-  private groups = new Map<string, THREE.InstancedMesh>();
-  private root = new THREE.Group();
-  private geo = new THREE.BoxGeometry(PAWN.w, PAWN.h, PAWN.w).translate(0, PAWN.h / 2, 0);
+export class Dots {
+  private mesh: THREE.InstancedMesh;
   private m = new THREE.Matrix4();
-  private q = new THREE.Quaternion();
-  private s = new THREE.Vector3(1, 1, 1);
-  private p = new THREE.Vector3();
+  private c = new THREE.Color();
+  private n = 0;
 
-  constructor(
-    scene: THREE.Scene,
-    /** 衣服色 → 材质（walk.ts 给：CLOTH 的三档 + 人物的明暗参数） */
-    private matFor: (cloth: string) => THREE.Material,
-  ) {
-    this.root.name = 'sim:pawns';
-    this.root.visible = false;
-    scene.add(this.root);
+  constructor(scene: THREE.Scene) {
+    const geo = new THREE.CylinderGeometry(DOT.d / 2, DOT.d / 2, DOT.h, 10).translate(0, DOT.h / 2 + 0.05, 0);
+    this.mesh = new THREE.InstancedMesh(geo, new THREE.MeshBasicMaterial({ color: 0xffffff }), DOT_N);
+    this.mesh.name = 'sim:dots';
+    this.mesh.count = 0;
+    this.mesh.frustumCulled = false;
+    this.mesh.visible = false;
+    // 每个点一种颜色：先填一遍白的（instanceColor 建出来）
+    for (let i = 0; i < DOT_N; i++) this.mesh.setColorAt(i, this.c.set(0xffffff));
+    scene.add(this.mesh);
   }
 
   set visible(v: boolean) {
-    this.root.visible = v;
+    this.mesh.visible = v;
   }
 
   begin() {
-    for (const g of this.groups.values()) g.count = 0;
+    this.n = 0;
   }
 
-  /** 一根柱：颜色按衣服（look.accent ?? shirt 的中档） */
-  add(look: CastLook | undefined, x: number, y: number, z: number, scale = 1) {
-    const cloth = look ? (look.accent ?? look.shirt) : 'white';
-    let g = this.groups.get(cloth);
-    if (!g) {
-      g = new THREE.InstancedMesh(this.geo, this.matFor(cloth in CLOTH ? cloth : 'white'), PAWN_N);
-      g.count = 0;
-      g.frustumCulled = false;
-      g.castShadow = true;
-      g.name = `sim:pawn:${cloth}`;
-      this.groups.set(cloth, g);
-      this.root.add(g);
-    }
-    if (g.count >= PAWN_N) return;
-    this.p.set(x, y, z);
-    this.s.set(scale, scale, scale);
-    this.m.compose(this.p, this.q, this.s);
-    g.setMatrixAt(g.count++, this.m);
+  /** 一个点：在 (x, y, z)，颜色 color（0xRRGGBB），scale 缩放（孩子小一点） */
+  add(x: number, y: number, z: number, color: number, scale = 1) {
+    if (this.n >= DOT_N) return;
+    this.m.makeScale(scale, 1, scale).setPosition(x, y, z);
+    this.mesh.setMatrixAt(this.n, this.m);
+    this.mesh.setColorAt(this.n, this.c.setHex(color));
+    this.n++;
   }
 
   end() {
-    for (const g of this.groups.values()) g.instanceMatrix.needsUpdate = true;
+    this.mesh.count = this.n;
+    this.mesh.instanceMatrix.needsUpdate = true;
+    if (this.mesh.instanceColor) this.mesh.instanceColor.needsUpdate = true;
   }
 }

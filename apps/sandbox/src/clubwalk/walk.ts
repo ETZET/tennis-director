@@ -21,7 +21,6 @@ import { placements } from '../clubmap2/scatter';
 import { CLOUDS as PARK_CLOUDS, SPOTS as PARK_SPOTS } from '../clubpark/layout';
 import { createParkKit } from '../clubpark/scene';
 import { CLOUDS as PLAZA_CLOUDS } from '../clubplaza/layout';
-import { CLOTH } from '../clubsite/cast/colors';
 import { mountDaylight } from '../clubsite/daylight';
 import {
   ballKid as clubBallKid,
@@ -30,7 +29,6 @@ import {
   player as clubPlayer,
 } from '../clubsite/people';
 import { createDresser } from '../clubsite/people/dress';
-import { PERSON } from '../clubsite/people/props';
 import {
   type Circle,
   type Hud,
@@ -693,10 +691,15 @@ export function mountWalk(hooks: WalkHooks = {}) {
   function viewRect(margin: number): Rect {
     const low = pipe.lowSize;
     const mpt = pipe.rig.metersPerTexel;
-    const hw = (low.x * mpt) / 2 + margin;
-    const hd = (low.y * mpt) / 2 / Math.sin(pipe.rig.pitch) + margin;
+    const hw = (low.x * mpt) / 2;
+    const hd = (low.y * mpt) / 2 / Math.sin(pipe.rig.pitch);
     const t = pipe.rig.target;
-    return { x0: t.x - hw, x1: t.x + hw, z0: t.z - hd, z1: t.z + hd };
+    // 镜头转过来（观察模式竖屏看全图：从东边往西看）：画面在地上的那块转了 yaw，取它的外接框
+    const c = Math.abs(Math.cos(pipe.rig.yaw));
+    const sn = Math.abs(Math.sin(pipe.rig.yaw));
+    const ex = hw * c + hd * sn + margin;
+    const ez = hw * sn + hd * c + margin;
+    return { x0: t.x - ex, x1: t.x + ex, z0: t.z - ez, z1: t.z + ez };
   }
   const wanted = (L: Live, v: Rect) => L.def.rects.some((r) => rectDist(r, v) === 0);
 
@@ -897,8 +900,6 @@ export function mountWalk(hooks: WalkHooks = {}) {
         });
 
   // ── 俱乐部的一天（clubwalk/sim）：观察模式；?sim=1 开局就开，valley 的调试面板里开关 ──
-  // 远景小柱的材质：衣服色的三档 + 人物的明暗参数（同 dress.ts）
-  const pawnMats = new Map<string, THREE.Material>();
   const simDresser = (() => {
     try {
       return createDresser({ mats: dirKit.mats, scheme: scheme ?? null });
@@ -969,12 +970,17 @@ export function mountWalk(hooks: WalkHooks = {}) {
     if (!g) return;
     const W = mapEl.width;
     const H = mapEl.height;
-    if (hooks.drawMap) {
+    // 观察模式（俱乐部的一天）：页面自己的小地图（valley 的整座山谷）换成俱乐部这张，上面每个人一个点
+    if (hooks.drawMap && !sim?.on) {
       hooks.drawMap(g, W, H, viewRect(0));
       return;
     }
-    const sx = (x: number) => ((x - MAP_VIEW.x0) / (MAP_VIEW.x1 - MAP_VIEW.x0)) * W;
-    const sz = (z: number) => ((z - MAP_VIEW.z0) / (MAP_VIEW.z1 - MAP_VIEW.z0)) * H;
+    // 等比例放进画布（valley 的画布近乎方的：俱乐部这张上下留沙地色）
+    const S = Math.min(W / (MAP_VIEW.x1 - MAP_VIEW.x0), H / (MAP_VIEW.z1 - MAP_VIEW.z0));
+    const ox = (W - (MAP_VIEW.x1 - MAP_VIEW.x0) * S) / 2;
+    const oz = (H - (MAP_VIEW.z1 - MAP_VIEW.z0) * S) / 2;
+    const sx = (x: number) => ox + (x - MAP_VIEW.x0) * S;
+    const sz = (z: number) => oz + (z - MAP_VIEW.z0) * S;
     g.clearRect(0, 0, W, H);
     g.fillStyle = '#e8c48a';
     g.fillRect(0, 0, W, H);
@@ -1061,16 +1067,7 @@ export function mountWalk(hooks: WalkHooks = {}) {
     make: (k) =>
       (k === 'kid' ? clubKid : k === 'teen' ? clubBallKid : clubPlayer)(dirKit.ctxFor(0) as unknown as BaseCtx),
     dresser: simDresser,
-    pawnMat(cloth) {
-      let m = pawnMats.get(cloth);
-      if (!m) {
-        const r = CLOTH[cloth as keyof typeof CLOTH] ?? CLOTH.white;
-        const o: ToonOpts = { ...PERSON, ramp: [r[0], r[1], r[2]], noShadowReceive: false };
-        m = dirKit.mats.toon(0xffffff, scheme ? schemeOpts(scheme, 'clothWhite', o) : o);
-        pawnMats.set(cloth, m);
-      }
-      return m;
-    },
+    prewarm: (root) => pipe.prewarm(root, scene),
     suppressScene(on) {
       cast?.suppress(on);
       for (const o of basePeople) o.visible = !on;
