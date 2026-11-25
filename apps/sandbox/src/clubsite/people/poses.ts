@@ -6,7 +6,7 @@ import * as THREE from 'three';
 import { type Bones, env, HIP_Y, keys, keysV, lerp, orient, pointIn, reach, smooth, V } from './bones';
 import type { Holder } from './hold';
 import type { KneeLegs } from './legs';
-import { walkLegs } from './rig/rig';
+import { strideAmp, WALK_STRIDE, walkLegs } from './rig/rig';
 
 export const NEW_POSES = [
   'sit',
@@ -25,6 +25,20 @@ export const NEW_POSES = [
   'bkStand',
   'bkRoll',
   'bkUmbrella',
+  // 俱乐部的一天（clubwalk/sim）加的：摊主做饭 / 摇饮料 / 递出窗口、坐着吃、端托盘走、游泳、躺椅上躺着、等烦了
+  'cook',
+  'shake',
+  'handout',
+  'eat',
+  'carry',
+  'swim',
+  'lie',
+  'tap',
+  // 第二轮：坐着等烦了（场边等人凑场）、弯腰在饮水点喝水
+  'tapSit',
+  'drinkTap',
+  // 躺椅上靠着（靠背立起 50° 的躺椅：上身顺着靠背、腿伸直搭在垫子上）
+  'recline',
 ] as const;
 export type NewPose = (typeof NEW_POSES)[number];
 
@@ -46,6 +60,17 @@ export const NEW_PERIOD: Record<NewPose, number> = {
   bkStand: 3.2,
   bkRoll: 1.2,
   bkUmbrella: 3.2,
+  cook: 1.0,
+  shake: 0.7,
+  handout: 1.6,
+  eat: 7,
+  carry: 0.9,
+  swim: 1.8,
+  lie: 4.5,
+  tap: 3.2,
+  tapSit: 3.2,
+  drinkTap: 2.4,
+  recline: 4.5,
 };
 
 /** clap：两只手拍到一起的 phase */
@@ -64,6 +89,16 @@ export const CALL_UP: [number, number] = [0.3, 0.6];
 export const SQUEEGEE_PUSH: [number, number] = [0, 0.55];
 /** bkRoll：球离手的 phase（userData.rollPoint() 是这一刻球的位置） */
 export const BK_ROLL_RELEASE = 0.5;
+/** handout：两只手伸出去、停在窗口外的那一段（递东西 / 接东西） */
+export const HANDOUT_OUT: [number, number] = [0.3, 0.7];
+/** eat：两口吃的（右手到嘴边）、一口喝的（左手的杯子到嘴边）各在哪一段 */
+export const EAT_BITES: [number, number][] = [
+  [0.06, 0.3],
+  [0.42, 0.66],
+];
+export const EAT_SIP: [number, number] = [0.72, 0.96];
+/** carry：托盘端在身前（body 坐标，两只手各握一条短边）。演出把托盘摆在两只拳头中间 */
+export const CARRY_AT = V(0, 0.9, 0.4);
 /** bkRoll：球离手时拳头的位置（body 坐标）；滚的方向 = 人物的 +z */
 export const BK_ROLL_HAND = V(-0.22, 0.12, 0.52);
 
@@ -91,7 +126,21 @@ export interface PoseEnv {
   shade: THREE.Vector3;
   /** 球童手里的球（bkRoll 出手前显示；挂在右拳上） */
   ball: THREE.Object3D;
+  /**
+   * 新姿势自己带的小东西（锅铲、一口吃的、左手的杯子）：第一次用到才建（person.ts 的 extra），别的姿势一律藏着。
+   * 没用过这些姿势的人不建 → 原来的场景一个网格都不多。
+   */
+  extra(name: ExtraName): THREE.Object3D;
+  /** 身材比例：孩子的臀高最后会乘它（person.ts 的 post），按根节点算高度的姿势（游泳）先除掉 */
+  hipK: number;
+  /** eat：桌面比座位的地面高多少（body 坐标）；null = 没有桌子，吃的放在腿上 */
+  eat: { table: number | null };
+  /** swim：水面比人的根节点高多少（米，根节点坐标；clubwalk 的泳池站位 = 水面下 1.1） */
+  swim: { surface: number };
 }
+
+/** 新姿势的小道具：spatula 锅铲（右拳）、bite 一口吃的（右拳）、cupL 左手的外带杯 */
+export type ExtraName = 'spatula' | 'bite' | 'cupL';
 
 /** 臀的高度（成人单位），坐着时由座面算：臀部网格下沿在髋下 0.11 */
 const BUTT = 0.1;
@@ -493,5 +542,199 @@ export function applyNewPose(e: PoseEnv, name: NewPose, p: number): void {
       }
       break;
     }
+    // ── 俱乐部的一天（clubwalk/sim）加的 ──
+    case 'cook': {
+      // 摊主在窗口后面做饭（锅铲在右手）：上身略前倾看着台面，左手扶着锅柄一下一下颠；
+      // 右手翻：0..0.3 锅铲贴着台面往前铲 → 0.3..0.5 翻腕往上挑 → 落回。一遍一下
+      const sp = e.extra('spatula');
+      sp.visible = true;
+      const flip = env(p, 0.3, 0.46, 0.56, 0.84);
+      const shove = smooth(0, 0.3, p) * (1 - smooth(0.32, 0.5, p));
+      b.legL.rotation.x = -0.1;
+      b.legR.rotation.x = 0.06;
+      b.torso.rotation.x = 0.16;
+      b.torso.rotation.y = 0.07 * breath;
+      b.head.rotation.x = 0.06;
+      reach(body, b.armR, V(-0.24, 0.84 + 0.2 * flip, 0.38 + 0.12 * shove));
+      orient(sp, body, V(-0.05, lerp(-0.6, 0.55, flip), 1), V(0, 1, 0));
+      const jig = Math.max(0, Math.sin(p * Math.PI * 4)) * 0.05;
+      reach(body, b.armL, V(0.26, 0.84 + jig, 0.4));
+      break;
+    }
+    case 'shake': {
+      // 摇饮料（咖啡、果汁、奶茶、柠檬水）：左手握杯、右手捂住杯口，两只手一起在胸前上下摇（一遍两下），身子跟着晃
+      const cup = e.extra('cupL');
+      cup.visible = true;
+      const k = Math.sin(p * Math.PI * 4);
+      const y = 0.96 + k * 0.08;
+      b.torso.rotation.x = 0.06;
+      b.torso.rotation.y = k * 0.06;
+      b.head.rotation.x = -0.04;
+      reach(body, b.armL, V(0.08, y - 0.08, 0.36));
+      orient(cup, body, V(0, -1, 0), V(0, 0, 1));
+      reach(body, b.armR, V(-0.02, y + 0.16, 0.38));
+      break;
+    }
+    case 'handout': {
+      // 递东西出窗口 / 隔着窗口接东西（客人用同一个姿势）：0..HANDOUT_OUT[0] 两只手往前伸 → 停在身前 0.6 米、胸口高 → 收回。
+      // 递的东西（托盘、杯子）由演出摆在两只拳头中间（userData.handPoint）
+      const out = env(p, 0.04, HANDOUT_OUT[0], HANDOUT_OUT[1], 0.96);
+      b.torso.rotation.x = 0.04 + 0.18 * out;
+      b.head.rotation.x = -0.04;
+      reach(body, b.armR, V(-0.22, 0.7, 0.14).lerp(V(-0.14, 0.96, 0.62), out), [0.85, 1.2]);
+      reach(body, b.armL, V(0.22, 0.7, 0.14).lerp(V(0.14, 0.96, 0.62), out), [0.85, 1.2]);
+      break;
+    }
+    case 'eat': {
+      // 坐着吃（setSeat；桌面高 setEat({ table })，null = 吃的放在腿上）：身子往桌子探一点，
+      // EAT_BITES 两口：右手从托盘拿起一口送到嘴边（一口吃的在手里）→ 放回，中间嚼着（头一点一点）；
+      // EAT_SIP 一口喝的：左手的杯子从桌上端到嘴边、头略仰 → 放回（杯子只在这一段出现：桌上那只由演出藏起来）
+      const { hipY } = seated(e, 0.12);
+      const tY = e.eat.table;
+      const plate = tY === null ? V(-0.04, hipY + 0.17, 0.3) : V(-0.1, tY + 0.07, 0.42);
+      const mouthY = hipY + 0.08 + 0.46 + 0.1;
+      let up = 0;
+      for (const [a, c] of EAT_BITES) up = Math.max(up, env(p, a, a + 0.08, c - 0.07, c));
+      const sip = env(p, EAT_SIP[0], EAT_SIP[0] + 0.07, EAT_SIP[1] - 0.06, EAT_SIP[1]);
+      const chew = p > EAT_BITES[0][1] && p < EAT_BITES[1][0] ? Math.abs(Math.sin(p * Math.PI * 24)) : 0;
+      b.torso.scale.y = 1 + breath * 0.02;
+      b.head.position.y += chew * 0.02;
+      b.head.rotation.x = 0.1 * (1 - up) * (1 - sip) - 0.06 * up - 0.16 * sip;
+      reach(body, b.armR, plate.clone().lerp(V(-0.06, mouthY - 0.1, 0.3), up));
+      const bite = e.extra('bite');
+      bite.visible = up > 0.04;
+      const cupAt = tY === null ? V(0.2, hipY + 0.2, 0.24) : V(0.18, tY + 0.07, 0.38);
+      const cup = e.extra('cupL');
+      cup.visible = p > EAT_SIP[0] - 0.01 && p < EAT_SIP[1] + 0.01;
+      reach(body, b.armL, cup.visible ? cupAt.clone().lerp(V(0.08, mouthY - 0.12, 0.34), sip) : cupAt);
+      const tilt = 0.7 * sip;
+      orient(cup, body, V(0, -Math.cos(tilt), Math.sin(tilt)), V(0, Math.sin(tilt), Math.cos(tilt)));
+      break;
+    }
+    case 'carry': {
+      // 端着托盘走（演出把托盘摆在两只拳头中间）：走路的腿（同 walk 的步幅，脚不溜），上身直、手臂不摆，
+      // 两只手在身前腰高握托盘的两条短边，跟着步子轻轻一颠
+      // 腿按身上记的步幅摆（clubwalk 跑起来的人步幅大：userData.stride；默认 WALK_STRIDE = 摆幅 0.55，同原来）
+      const s = walkLegs(b, p, strideAmp((b.root.userData.stride as number | undefined) ?? WALK_STRIDE));
+      b.torso.rotation.x = -0.03;
+      b.torso.rotation.y = s * 0.04;
+      b.head.rotation.x = 0.04;
+      const bob = Math.abs(s) * 0.015;
+      reach(body, b.armR, V(-0.21, CARRY_AT.y + bob, CARRY_AT.z));
+      reach(body, b.armL, V(0.21, CARRY_AT.y + bob, CARRY_AT.z));
+      break;
+    }
+    case 'swim': {
+      // 蛙泳（头露在水面上，Q 版人看得出脸）：身子往前趴 ≈ 63°、头、肩和划水的手露出水面（水面 = 根节点上 setSwim({ surface })）。
+      // 0..0.4 两手从身前并拢往外、往后划（划水时身子抬一点）→ 0.4..0.6 收到胸前 → 0.6..1 往前伸直滑行。手一直贴着水面（划开时露出水面一点）
+      const k = e.hipK;
+      const surf = e.swim.surface;
+      const rise = env(p, 0.12, 0.38, 0.52, 0.86);
+      b.hips.rotation.x = 1.1 - 0.14 * rise;
+      b.hips.position.y = (surf - 0.25 + 0.06 * rise) / k;
+      b.head.rotation.x = -0.92 + 0.12 * rise;
+      b.legR.rotation.z = -0.25 * smooth(0.5, 0.7, p) * (1 - smooth(0.75, 0.95, p));
+      b.legL.rotation.z = -b.legR.rotation.z;
+      for (const [arm, sx] of [
+        [b.armR, -1],
+        [b.armL, 1],
+      ] as const) {
+        const h = keysV(p, [
+          [0, V(0.1 * sx, surf + 0.0, 0.86)],
+          [0.38, V(0.52 * sx, surf + 0.03, 0.58)],
+          [0.58, V(0.16 * sx, surf - 0.02, 0.48)],
+          [0.95, V(0.1 * sx, surf + 0.0, 0.86)],
+          [1, V(0.1 * sx, surf + 0.0, 0.86)],
+        ]);
+        reach(body, arm, fromRoot(e, h), [0.8, 1.2]);
+      }
+      break;
+    }
+    case 'lie': {
+      // 躺椅上躺着（setSeat 座面高，躺椅 0.4）：臀落在座面上，上身往后躺平（≈ 75°：45° 俯视下才看得见身子，不只是一颗头），两腿伸直搭在躺椅上，
+      // 两手搭在肚子上，下巴收一点（脸朝脚那头 = 朝池子）；一遍 = 一次慢呼吸（胸口一起一伏）
+      const s = e.seat ?? { h: 0.4, foot: 0 };
+      const hipY = s.h + BUTT;
+      knees.show(true);
+      knees.set('R', -1.5, -0.05, 0.05);
+      knees.set('L', -1.44, 0.07, 0.12);
+      b.hips.position.y = hipY;
+      b.torso.rotation.x = -1.3;
+      b.torso.scale.y = 1 + breath * 0.03;
+      b.head.rotation.x = 0.4;
+      reach(body, b.armR, V(-0.16, hipY + 0.2 + breath * 0.01, -0.1), [0.8, 1.2]);
+      reach(body, b.armL, V(0.16, hipY + 0.18 + breath * 0.01, -0.06), [0.8, 1.2]);
+      break;
+    }
+    case 'tap': {
+      // 等烦了（排队、等场）：两手抱在胸前，右脚尖一下一下点地（一遍五下），头左右张望；
+      // 0.6..0.9 松开抱着的手、抬起左手腕看表（头低下去看）
+      const watch = env(p, 0.6, 0.66, 0.84, 0.9);
+      const t = Math.max(0, Math.sin(p * Math.PI * 10)) * (1 - watch);
+      b.legL.rotation.z = 0.05;
+      b.legR.rotation.z = -0.1;
+      b.legR.rotation.x = -0.16 * t;
+      b.legR.position.y += 0.035 * t;
+      b.torso.rotation.y = 0.08 * Math.sin(p * Math.PI * 2);
+      b.head.rotation.y = 0.6 * Math.sin(p * Math.PI * 2) * (1 - watch);
+      b.head.rotation.x = 0.22 * watch;
+      reach(body, b.armR, V(0.1, 0.84, 0.26).lerp(V(-0.26, 0.56, 0.06), watch));
+      reach(body, b.armL, V(-0.1, 0.9, 0.24).lerp(V(0.02, 1.0, 0.36), watch));
+      break;
+    }
+    case 'drinkTap': {
+      // 饮水点喝水（站着，龙头在身前 0.45 米、高 0.9 米上下）：上身往前弯、头低下去凑到龙头上，右手按着按钮、左手扶着池沿；
+      // 一遍 = 喝两口（头一点一点），0.8..1 抬一下头喘口气
+      const up = env(p, 0.78, 0.86, 0.94, 1);
+      const sipK = Math.max(0, Math.sin(p * Math.PI * 4)) * (1 - up);
+      b.legL.rotation.x = 0.08;
+      b.legR.rotation.x = -0.12;
+      b.torso.rotation.x = 0.62 - 0.22 * up;
+      b.head.rotation.x = 0.28 + 0.06 * sipK - 0.2 * up;
+      b.head.position.y -= 0.02 * sipK;
+      reach(body, b.armR, V(-0.16, 0.86, 0.46));
+      reach(body, b.armL, V(0.2, 0.84, 0.44));
+      break;
+    }
+    case 'recline': {
+      // 躺椅上靠着（setSeat 垫子高）：上身往后靠 ≈ 43°（顺着立起 50° 的靠背），头略往前（看着脚那头 = 池子），
+      // 两腿伸直搭在垫子上、一只脚叠在另一只上，两手交叉搭在肚子上；一遍 = 一次慢呼吸。
+      // 镜头在靠背后面时（南边那排）：头、肩露在靠背上面，腿和脚伸在垫子上 —— 看得出一个人躺着，不只是一颗头
+      const s = e.seat ?? { h: 0.44, foot: 0 };
+      const hipY = s.h + BUTT;
+      knees.show(true);
+      knees.set('R', -1.52, -0.06, 0.04);
+      knees.set('L', -1.46, 0.05, 0.1);
+      b.hips.position.y = hipY;
+      b.torso.rotation.x = -0.75;
+      b.torso.scale.y = 1 + breath * 0.03;
+      b.head.rotation.x = 0.32;
+      reach(body, b.armR, V(-0.08, hipY + 0.28 + breath * 0.01, 0.12), [0.8, 1.2]);
+      reach(body, b.armL, V(0.08, hipY + 0.3 + breath * 0.01, 0.14), [0.8, 1.2]);
+      break;
+    }
+    case 'tapSit': {
+      // 坐着等烦了（场边长椅上等人凑场、等场）：身子往前探、两手抱在胸前，右腿一下一下抖（大腿抬起、脚跟离地，一遍六下），
+      // 头左右张望（找人）；0.6..0.9 松开手、抬起左手腕看表（头低下去看）。setSeat 同 sit
+      const watch = env(p, 0.6, 0.66, 0.84, 0.9);
+      const t = Math.max(0, Math.sin(p * Math.PI * 12)) * (1 - watch);
+      const { hipY, chestY } = seated(e, 0.1);
+      const s = e.seat ?? { h: 0.5, foot: 0 };
+      const shin = THREE.MathUtils.clamp(knees.shinFor(hipY - s.foot, -1.32), 0.55, 1.9);
+      knees.set('R', -1.32 - 0.16 * t, -0.1, 1.32, shin);
+      b.torso.rotation.y = 0.07 * Math.sin(p * Math.PI * 2);
+      b.head.rotation.y = 0.6 * Math.sin(p * Math.PI * 2) * (1 - watch);
+      b.head.rotation.x = -0.04 + 0.26 * watch;
+      reach(body, b.armR, V(0.1, chestY - 0.04, 0.26).lerp(V(-0.19, hipY + 0.14, 0.2), watch));
+      reach(body, b.armL, V(-0.1, chestY + 0.02, 0.24).lerp(V(0.02, chestY + 0.12, 0.38), watch));
+      break;
+    }
   }
+}
+
+/** 根节点坐标（米）里的一点 → body 坐标（大人一样；孩子的 body 是缩过的） */
+function fromRoot(e: PoseEnv, v: THREE.Vector3): THREE.Vector3 {
+  if (e.body === e.b.root) return v;
+  e.b.root.updateMatrixWorld(true);
+  return e.body.worldToLocal(e.b.root.localToWorld(v.clone()));
 }

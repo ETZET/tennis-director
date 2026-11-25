@@ -497,6 +497,28 @@ function mountDebug() {
       a.refreshBlocked();
     },
   );
+  // 俱乐部的一天（clubwalk/sim）：引擎的人换掉场景演出的人，加速看一整天（早上来、打球、午饭、傍晚回家）。
+  // 观察时"调试"按钮收起来（hud.ts 的 body.sim-on），面板右上角有"退出"；小地图换成俱乐部那张、上面每个人一个点（walk.ts）
+  section('俱乐部的一天');
+  btn(
+    // sim 在 mountWalk 的最后才建（ready 钩子比它早）：按钮文字先按"没开"
+    () => (a.sim?.on ? '观察中 · 重新从 6:30 看' : '观察俱乐部的一天（加速）'),
+    () => !!a.sim?.on,
+    () => {
+      // 总监站到前台柜台后面（朝排队的人：引擎按"总监在前台"跑，看到的是有人守着的那一天），镜头对着前院
+      // （柜台、签到的队、大门、停车场来的人）；从 6:30 开始，2×（一天八分钟，走路看得见）；面板收起，画面留给俱乐部
+      a.sim.enable(true, { at: 6.5 * 60, speed: 2, panel: false, desk: true });
+      list.hidden = true;
+    },
+  );
+  btn(
+    () => '关掉观察（场景的人回来）',
+    () => false,
+    () => {
+      a.sim?.enable(false);
+      list.hidden = true;
+    },
+  );
   section('传送');
   for (const t of TELEPORTS)
     btn(
@@ -509,6 +531,8 @@ function mountDebug() {
     );
   chip.addEventListener('click', () => {
     list.hidden = !list.hidden;
+    // 观察模式可能从它自己的面板"退出"了：按钮文字按现在的状态重写
+    for (const f of sync) f();
   });
   host.append(chip, list);
 }

@@ -1,5 +1,6 @@
 // 姿势一览（画廊用，不放进场景）：<场景>.html?asset=people-sheet（&px=1 看 1×；&phase=0.3 全部定格；&row=0..3 只看一排）。
-// 一排排摆好：总监的干活姿势（拿代用工具）、匹克球 / 孩子、坐着的人（长椅、裁判椅）、球童 / 裁判 / 刮水 / 推划线车。
+// 一排排摆好：总监的干活姿势（拿代用工具）、匹克球 / 孩子、坐着的人（长椅、裁判椅）、球童 / 裁判 / 刮水 / 推划线车、
+// 俱乐部的一天的新姿势（做饭、递餐、吃、端托盘、躺、等烦了、游泳）。
 import * as THREE from 'three';
 import { build as bench } from '../assets/bench';
 import { build as umpireChair } from '../assets/umpire-chair';
@@ -61,6 +62,24 @@ const ROWS: { z: number; items: Entry[] }[] = [
       { who: 'umpire', v: 1, pose: 'sit', x: 1.9, seat: [0.52, 0] },
       { who: 'director', pose: 'squeegee', prop: 'squeegee', x: 3.0 },
       { who: 'director', pose: 'push', prop: 'marker', x: 4.8 },
+    ],
+  },
+  {
+    // 俱乐部的一天（clubwalk/sim）：做饭、摇饮料、递出窗口、坐着吃、端托盘走、躺椅上躺着、等烦了、游泳（画廊里没有水：水面当离地 1.1）
+    z: 7.6,
+    items: [
+      { who: 'player', v: 0, pose: 'cook', prop: null, x: -4.6 },
+      { who: 'player', v: 1, pose: 'shake', prop: null, x: -3.5 },
+      { who: 'player', v: 2, pose: 'handout', prop: null, x: -2.4 },
+      { who: 'player', v: 3, pose: 'eat', prop: null, x: -1.3, seat: [0.52, 0] },
+      { who: 'kid', v: 0, pose: 'eat', x: -0.4, seat: [0.52, 0] },
+      { who: 'player', v: 1, pose: 'carry', prop: null, x: 0.6 },
+      { who: 'player', v: 2, pose: 'lie', prop: null, x: 1.8, seat: [0.4, 0] },
+      { who: 'player', v: 0, pose: 'tap', prop: null, x: 3.0 },
+      { who: 'player', v: 1, pose: 'tapSit', prop: null, x: 5.6, seat: [0.52, 0] },
+      { who: 'player', v: 2, pose: 'drinkTap', prop: null, x: 6.7 },
+      { who: 'player', v: 0, pose: 'recline', prop: null, x: 7.8, seat: [0.44, 0] },
+      { who: 'player', v: 3, pose: 'swim', prop: null, x: 4.4, rotY: 1.2 },
     ],
   },
 ];

@@ -43,6 +43,15 @@ export interface MountCastOpts {
 export interface CastMount {
   step(dt: number): void;
   frame(): void;
+  /**
+   * 场景演出里的人整个藏起来（俱乐部的一天的观察模式，clubwalk/sim）：靠通勤装的 visible 访问器（commute.ts），
+   * 不改演出代码。没有通勤（?commute=0）时不起作用。
+   */
+  suppress(on: boolean): void;
+  /** 一个区域刚建好：马上给里面的人装上访问器（藏着的时候，不等下一次扫描，免得冒出来半秒） */
+  adopt(root: THREE.Object3D, scene: string): void;
+  /** 打开某个人的卡片 */
+  open(id: string): void;
 }
 
 /** 互动点：总监多近才给人注册（米） */
@@ -503,6 +512,25 @@ export function mountCast(o: MountCastOpts): CastMount {
   let lastClock = '';
 
   const mount: CastMount = {
+    suppress(on) {
+      commute?.suppress(on);
+      if (on) {
+        for (const L of o.lives) if (L.region) mount.adopt(L.root, L.def.id);
+        card.close();
+        roster.close();
+      }
+    },
+    adopt(root, scene) {
+      if (!commute) return;
+      root.traverse((obj) => {
+        const ud = obj.userData;
+        if (ud.pose && ud.setProp && obj !== director && ud.personKind !== 'director' && !ud.simActor)
+          commute.hook(obj, scene);
+      });
+    },
+    open(id) {
+      card.open(id);
+    },
     step(dt) {
       binder.step(dt, state.day);
       commute?.step(dt);

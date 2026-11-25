@@ -5,6 +5,8 @@
 // URL：px（默认 1）、zoom、pause=1、warm=秒、at=x,z（开局站哪）、walk=x,z（开局点地面走过去）、
 //      route=x,z;x,z;…（依次走过去，截图用）、pal、seed、life=0、clouds=0、eager=1（开局就把所有区域建好）、perf=1（左下角性能）、
 //      smooth=0（关掉渲染插值和帧间隔贴齐）、prebuild=0（关掉站着时的预建），对照用。
+//      sim=1（俱乐部的一天的观察模式，clubwalk/sim：引擎的人换掉场景演出的人）、simat=分钟（从几点开始，默认 390 = 6:30）、
+//      simspeed=游戏分钟/秒（默认 30）、simday=第几天（默认 3 = 周三）、simseed。
 import '../clubsite/render/colors';
 import * as THREE from 'three';
 import { CLOUDS as CLAY_CLOUDS } from '../clubclay/layout';
@@ -20,7 +22,13 @@ import { CLOUDS as PARK_CLOUDS, SPOTS as PARK_SPOTS } from '../clubpark/layout';
 import { createParkKit } from '../clubpark/scene';
 import { CLOUDS as PLAZA_CLOUDS } from '../clubplaza/layout';
 import { mountDaylight } from '../clubsite/daylight';
-import { director as clubDirector, kid as clubKid, player as clubPlayer } from '../clubsite/people';
+import {
+  ballKid as clubBallKid,
+  director as clubDirector,
+  kid as clubKid,
+  player as clubPlayer,
+} from '../clubsite/people';
+import { createDresser } from '../clubsite/people/dress';
 import {
   type Circle,
   type Hud,
@@ -58,6 +66,7 @@ import { mountCast } from './cast';
 import { clipMesh } from './clip';
 import { grow, keepOwn, outside, overlaps, shapeBox } from './navclip';
 import { inRects, REGIONS, type RegionDef, rectDist } from './regions';
+import { mountSim, type SimMount } from './sim/mount';
 
 /**
  * 外面的世界（src/valley 的山谷）接进来的钩子。都不给 = 原来的 clubwalk。
@@ -107,6 +116,8 @@ export interface WalkApi {
   refreshBlocked(): void;
   /** 时间和天气（clubsite/daylight）：山谷的店里用 override 定住光照 */
   day: ReturnType<typeof mountDaylight>;
+  /** 俱乐部的一天（clubwalk/sim）：sim.enable(true, { at, speed, panel }) 打开观察模式 */
+  sim: SimMount;
 }
 
 export function mountWalk(hooks: WalkHooks = {}) {
@@ -260,6 +271,8 @@ export function mountWalk(hooks: WalkHooks = {}) {
     params: new URLSearchParams(),
     variant: 0,
   };
+  /** 底图上摆的人（低细节的远景）：观察模式（clubwalk/sim）时藏起来 */
+  const basePeople: THREE.Object3D[] = [];
   /** 底图：rest = 不归任何区域的（一直显示）；每个区域一块（区域没显示时显示） */
   const base = { rest: new THREE.Group(), by: new Map<string, THREE.Group>() };
   base.rest.name = 'base:rest';
@@ -308,6 +321,7 @@ export function mountWalk(hooks: WalkHooks = {}) {
       if (p.asset === 'player' || p.asset === 'coach' || p.asset === 'director') {
         o.userData.setProp?.(p.prop === undefined ? 'racket' : p.prop);
         o.userData.pose?.('idle', 0);
+        basePeople.push(o);
       }
       const d = ownerOf(p.x, p.z);
       const rc = hooks.restClip;
@@ -317,6 +331,15 @@ export function mountWalk(hooks: WalkHooks = {}) {
     // 底图是静的（没有演出、风摆在着色器里）：世界矩阵算一次就冻住，每帧的 updateMatrixWorld 跳过这整片（≈ 1500 个物体）
     for (const g of [base.rest, ...base.by.values()]) freezeMatrices(g);
     console.info(`clubwalk: 底图 ${(performance.now() - t0).toFixed(0)} ms`);
+  }
+
+  /**
+   * 中心球场看台上的剪影观众（clubstadium/assets/crowd.ts，一块 InstancedMesh）：观察模式里看台上坐的是引擎的人，剪影藏起来
+   */
+  function hideCrowd(root: THREE.Object3D, on: boolean) {
+    root.traverse((o) => {
+      if (o.name === 'crowd' && o.userData.fill) o.visible = !on;
+    });
   }
 
   /** 静的一整片：世界矩阵算好，以后 scene.updateMatrixWorld 整片跳过（要再动它得先把 matrixWorldAutoUpdate 设回 true） */
@@ -388,6 +411,8 @@ export function mountWalk(hooks: WalkHooks = {}) {
   });
 
   let play: (Play & { hud: Hud }) | null = null;
+  /** 俱乐部的一天（clubwalk/sim）：时间系统建好以后才建（见下面 mountDaylight 之后） */
+  let sim: SimMount | null = null;
 
   function buildRegion(L: Live) {
     const t0 = performance.now();
@@ -431,6 +456,11 @@ export function mountWalk(hooks: WalkHooks = {}) {
       }
     }
     hooks.afterRegion?.(L.root, L.def.id);
+    // 观察模式开着：新区域里的人马上藏起来（不等演员表下一次扫描），看台上的剪影观众也藏
+    if (sim?.on) {
+      cast?.adopt(L.root, L.def.id);
+      hideCrowd(L.root, true);
+    }
     // 导航
     takeNav(L);
     // 会所：开局是外观（走进门里切成剖面，见 step 里的 houseInside）
@@ -444,6 +474,7 @@ export function mountWalk(hooks: WalkHooks = {}) {
       play.nav.setBlocked(next, grow(L.def.rects, 1));
       navBlocked = next;
       navPrep = true;
+      sim?.navChanged();
     });
     L.buildMs = performance.now() - t0;
     // 着色器先编（颜色 / 法线 / 投影三套）：离进画面还有 WANT_MARGIN 那么远，异步编完再画就不卡
@@ -617,10 +648,15 @@ export function mountWalk(hooks: WalkHooks = {}) {
     };
     w.bubble = (key, anchor, text, dy) => {
       bubbles.add(key);
-      p.bubble(pre(key), active ? anchor : null, text, dy);
+      // 观察模式：场景演出的人都藏着，他们头上的气泡也不冒
+      p.bubble(pre(key), active && !sim?.on ? anchor : null, text, dy);
+    };
+    w.say = (anchor, text, sec, dy) => {
+      if (!sim?.on) p.say(anchor, text, sec, dy);
     };
     w.toast = (text, sec) => {
-      if (current) p.toast(text, sec);
+      // 观察模式：场景自己的提示（午饭高峰、人手不够……）是总监自己玩时的，不出
+      if (current && !sim?.on) p.toast(text, sec);
     };
     return {
       play: w,
@@ -655,10 +691,15 @@ export function mountWalk(hooks: WalkHooks = {}) {
   function viewRect(margin: number): Rect {
     const low = pipe.lowSize;
     const mpt = pipe.rig.metersPerTexel;
-    const hw = (low.x * mpt) / 2 + margin;
-    const hd = (low.y * mpt) / 2 / Math.sin(pipe.rig.pitch) + margin;
+    const hw = (low.x * mpt) / 2;
+    const hd = (low.y * mpt) / 2 / Math.sin(pipe.rig.pitch);
     const t = pipe.rig.target;
-    return { x0: t.x - hw, x1: t.x + hw, z0: t.z - hd, z1: t.z + hd };
+    // 镜头转过来（观察模式竖屏看全图：从东边往西看）：画面在地上的那块转了 yaw，取它的外接框
+    const c = Math.abs(Math.cos(pipe.rig.yaw));
+    const sn = Math.abs(Math.sin(pipe.rig.yaw));
+    const ex = hw * c + hd * sn + margin;
+    const ez = hw * sn + hd * c + margin;
+    return { x0: t.x - ex, x1: t.x + ex, z0: t.z - ez, z1: t.z + ez };
   }
   const wanted = (L: Live, v: Rect) => L.def.rects.some((r) => rectDist(r, v) === 0);
 
@@ -705,13 +746,15 @@ export function mountWalk(hooks: WalkHooks = {}) {
   /** 一帧最多建一个（建一个 0.1～0.5 秒）。要用的（画面 + WANT_MARGIN 碰到的）马上建；站着不动时按远近预建别的 */
   function stream(dt: number, force = false) {
     const v = viewRect(WANT_MARGIN);
+    // 看全图（观察模式）：区域细节都收起来，底图顶着（整座俱乐部的细节一起画太重）
+    const ov = !!sim?.overview();
     let built = false;
     const fresh: Live[] = [];
     const moving = !!play && (play.state().speed > 0.05 || play.pathLeft() > 0);
     stillT = moving ? 0 : stillT + dt;
     sinceBuild += dt;
     for (const L of lives) {
-      const want = wanted(L, v);
+      const want = !ov && wanted(L, v);
       if (want && !L.region) {
         if (built && !force) continue;
         buildRegion(L);
@@ -726,11 +769,11 @@ export function mountWalk(hooks: WalkHooks = {}) {
         if (!L.visible) setVisible(L, true);
       } else if (L.visible) {
         L.idle += dt;
-        if (L.idle > HIDE_AFTER) setVisible(L, false);
+        if (L.idle > HIDE_AFTER || ov) setVisible(L, false);
       }
     }
     // 预建：这一帧没建、总监站定了一会儿、离上次建隔够了 → 建离画面最近的一个没建的（建好先藏着，走近了直接显示）
-    if (!built && !force && PREBUILD && stillT > PREBUILD_IDLE && sinceBuild > PREBUILD_GAP) {
+    if (!built && !force && !ov && PREBUILD && stillT > PREBUILD_IDLE && sinceBuild > PREBUILD_GAP) {
       let best: Live | null = null;
       let bestD = Number.POSITIVE_INFINITY;
       const vNow = viewRect(0);
@@ -776,6 +819,7 @@ export function mountWalk(hooks: WalkHooks = {}) {
       play.nav.setBlocked(next, navDirty(fresh, next));
       navBlocked = next;
       navPrep = true;
+      sim?.navChanged();
       // 正在点地面走：路是按建区域之前的（底图的粗平地）规划的，按新的网格从现在的位置重新规划（走不到就停）
       if (play.pathLeft()) play.replan();
       console.info(`clubwalk: 导航重建 ${(performance.now() - t0).toFixed(0)} ms ${fresh.map((L) => L.def.id)}`);
@@ -855,6 +899,16 @@ export function mountWalk(hooks: WalkHooks = {}) {
           makePerson: (k) => (k === 'kid' ? clubKid : clubPlayer)(dirKit.ctxFor(0) as unknown as BaseCtx),
         });
 
+  // ── 俱乐部的一天（clubwalk/sim）：观察模式；?sim=1 开局就开，valley 的调试面板里开关 ──
+  const simDresser = (() => {
+    try {
+      return createDresser({ mats: dirKit.mats, scheme: scheme ?? null });
+    } catch (e) {
+      console.warn('[sim] no dresser', e);
+      return null;
+    }
+  })();
+
   hooks.ready?.({
     scene,
     pipe,
@@ -866,10 +920,15 @@ export function mountWalk(hooks: WalkHooks = {}) {
       const next = allBlocked();
       play.nav.setBlocked(next, navDirty([], next));
       navBlocked = next;
+      sim?.navChanged();
     },
     // 时间系统在后面才建：用的时候（进店）早就建好了
     get day() {
       return day;
+    },
+    // 观察模式在后面才建（要时间系统）：ready 里读到的是 null，点按钮的时候早就有了
+    get sim() {
+      return sim as SimMount;
     },
   });
 
@@ -911,12 +970,17 @@ export function mountWalk(hooks: WalkHooks = {}) {
     if (!g) return;
     const W = mapEl.width;
     const H = mapEl.height;
-    if (hooks.drawMap) {
+    // 观察模式（俱乐部的一天）：页面自己的小地图（valley 的整座山谷）换成俱乐部这张，上面每个人一个点
+    if (hooks.drawMap && !sim?.on) {
       hooks.drawMap(g, W, H, viewRect(0));
       return;
     }
-    const sx = (x: number) => ((x - MAP_VIEW.x0) / (MAP_VIEW.x1 - MAP_VIEW.x0)) * W;
-    const sz = (z: number) => ((z - MAP_VIEW.z0) / (MAP_VIEW.z1 - MAP_VIEW.z0)) * H;
+    // 等比例放进画布（valley 的画布近乎方的：俱乐部这张上下留沙地色）
+    const S = Math.min(W / (MAP_VIEW.x1 - MAP_VIEW.x0), H / (MAP_VIEW.z1 - MAP_VIEW.z0));
+    const ox = (W - (MAP_VIEW.x1 - MAP_VIEW.x0) * S) / 2;
+    const oz = (H - (MAP_VIEW.z1 - MAP_VIEW.z0) * S) / 2;
+    const sx = (x: number) => ox + (x - MAP_VIEW.x0) * S;
+    const sz = (z: number) => oz + (z - MAP_VIEW.z0) * S;
     g.clearRect(0, 0, W, H);
     g.fillStyle = '#e8c48a';
     g.fillRect(0, 0, W, H);
@@ -930,6 +994,8 @@ export function mountWalk(hooks: WalkHooks = {}) {
     g.strokeStyle = '#fff3d6';
     g.lineWidth = 1;
     g.strokeRect(sx(v.x0), sz(v.z0), sx(v.x1) - sx(v.x0), sz(v.z1) - sz(v.z0));
+    // 观察模式：引擎里每个在场的人一个点（远的人画面上没有身子，只在小地图上）
+    sim?.drawMap(g, sx, sz);
     g.fillStyle = '#ffd23c';
     g.strokeStyle = '#2c2450';
     g.beginPath();
@@ -986,11 +1052,37 @@ export function mountWalk(hooks: WalkHooks = {}) {
   // ── 时间和天气（clubsite/daylight）：太阳绕着走、影子跟着转，夜里月亮 + 球场灯；面板在像素级别下面 ──
   const day = mountDaylight({ scene, pipe, sun, uniforms, params, scheme, placeSun: aimSun, hud: pxEl });
 
+  /** 会所现在是剖面（一楼看得见；总监在里面，或者观察模式的镜头看进会所） */
+  let houseInside = false;
+  /** 会所区域的范围（总监在会所里时只画这一块） */
+  const CLUBHOUSE_RECTS = lives.find((l) => l.def.id === 'clubhouse')?.def.rects ?? [CLUBHOUSE];
+  sim = mountSim({
+    scene,
+    pipe,
+    play,
+    director,
+    day,
+    params,
+    viewRect,
+    make: (k) =>
+      (k === 'kid' ? clubKid : k === 'teen' ? clubBallKid : clubPlayer)(dirKit.ctxFor(0) as unknown as BaseCtx),
+    dresser: simDresser,
+    prewarm: (root) => pipe.prewarm(root, scene),
+    suppressScene(on) {
+      cast?.suppress(on);
+      for (const o of basePeople) o.visible = !on;
+      for (const L of lives) if (L.region) hideCrowd(L.root, on);
+    },
+    openCard: cast ? (id) => cast.open(id) : undefined,
+    // 总监在会所里（沉浸式）：只画会所，外面是黑的，外面的人不画
+    visibleAt: (x, z) => !immersive || inRects(CLUBHOUSE_RECTS, x, z),
+    houseOpen: () => houseInside,
+  });
+
   // ── 固定步长循环 ──
   const DT = 1 / 60;
   let simT = 0;
   let unhideT = 0;
-  let houseInside = false;
   const route: [number, number][] = (params.get('route') ?? '')
     .split(';')
     .map((s) => s.split(',').map(Number) as [number, number])
@@ -1011,12 +1103,17 @@ export function mountWalk(hooks: WalkHooks = {}) {
         L.region?.post?.(DT, simT);
       }
       cast?.step(DT);
+      sim?.step(DT);
       // 走路线（截图用）：到了一个点就走下一个
       if (play && route.length && !play.pathLeft()) {
         const [x, z] = route.shift() as [number, number];
         play.tapWorld(x, z);
       }
-      placeSun(director.position.x, director.position.z);
+      {
+        // 阴影相机跟着镜头看的地方（观察模式跟着一个人 / 看全图时不是总监）
+        const f = sim?.focus();
+        placeSun(f ? f.x : director.position.x, f ? f.z : director.position.z);
+      }
       // 会所：总监进了门（会所的体块里）→ 剖面（娃娃屋），出门 → 外观
       {
         const hr = asHouse(lives.find((l) => l.def.id === 'clubhouse')?.region);
@@ -1024,11 +1121,16 @@ export function mountWalk(hooks: WalkHooks = {}) {
         // 会所的脚印（L 形，不含东边 clubfood 的拱廊前小院）；楼上、地下（脚下离地 > 1 米）在会所那一片里都算里面
         const nearHouse = p.x > -64.5 && p.x < -39.5 && p.z > -43 && p.z < -1;
         const inHouse = nearHouse && (Math.abs(p.y) > 1 || !outsideHouse(p.x, p.z, 1, -0.2));
-        if (hr && inHouse !== houseInside) {
-          houseInside = inHouse;
-          hr.setInside(inHouse);
-          setImmersive(inHouse);
+        // 观察模式：镜头看进会所（跟着的人进了会所、look 到会所里）→ 剖面看一楼，外面照常画（不沉浸）
+        const f = sim?.focus();
+        const camIn =
+          !inHouse && !!f && f.x > -64.5 && f.x < -39.5 && f.z > -43 && f.z < -1 && !outsideHouse(f.x, f.z, 1, -0.2);
+        const open = inHouse || camIn;
+        if (hr && open !== houseInside) {
+          houseInside = open;
+          hr.setInside(open);
         }
+        if (hr && inHouse !== immersive) setImmersive(inHouse);
         // 楼梯上换层：脚下高度过了阈值（floorFor 带滞回）→ 剖面和导航换成那一层（onFloor 的回调重建网格，见 buildRegion）。
         // 两个平台、半跑在相邻两层的导航里都有，换过去的那一刻脚下站得住
         if (hr && inHouse) {
@@ -1086,6 +1188,7 @@ export function mountWalk(hooks: WalkHooks = {}) {
     }
     stream(real);
     hooks.frame?.(real);
+    sim?.frame(real);
     updatePlace();
     pipe.renderer.info.reset();
     if (SMOOTH && !paused) lerp.begin(acc / DT);
@@ -1176,5 +1279,5 @@ export function mountWalk(hooks: WalkHooks = {}) {
     },
   });
 
-  return { scene, pipe, play, director, lives, step, stream };
+  return { scene, pipe, play, director, lives, step, stream, sim };
 }
