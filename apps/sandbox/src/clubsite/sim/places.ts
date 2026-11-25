@@ -11,6 +11,7 @@
 // - 酒吧（bar）是坐下来就有人招呼：吧凳和高脚桌就是 cap，要酒保在岗。
 // - 场地（court / pickle）party：一伙人占一块；匹克球有拍架边的队（等场），网球场没有（满了就去别处）。
 // - 中心球场的场地不对会员开放（表演赛 = 职业球员的岗位 post.stadium.pros）；会员、客人坐看台看。
+// - 看台、场边长椅的 faces = 看得到哪几块场：看球的人只在那儿有人在打（或马上开打）时去，没人打了就起身（第 2 轮 critique 8）。
 import type { Minute, Place, PlaceId } from './types';
 
 const h = (hh: number, mm = 0): Minute => hh * 60 + mm;
@@ -27,6 +28,8 @@ const GOLF_OPEN: [Minute, Minute] = [h(6), h(18, 30)];
 const SHOP_OPEN: [Minute, Minute] = [h(8), h(20)];
 
 const STAFF = ['staff'] as const;
+/** 中心球场三面看台看的那块场（表演赛、球员练球 = 球员的岗位） */
+const STADIUM = ['post.stadium.pros'] as const;
 const KID = ['kid'] as const;
 
 /** 员工的岗位 */
@@ -241,7 +244,10 @@ export const PLACES: readonly Place[] = [
     stay: [12, 18],
     party: true,
   },
-  standSeat('pickle.benches', 'clubpickle', '匹克球场边伞下长椅', 44.25, 6.25, 4, { shade: true }),
+  standSeat('pickle.benches', 'clubpickle', '匹克球场边伞下长椅', 44.25, 6.25, 4, {
+    shade: true,
+    faces: ['pickle.court1', 'pickle.court2'],
+  }),
   water('pickle.water', 'clubpickle', '匹克球场边水站', 49.85, 6.3),
   seat('pickle.lawn', 'clubpickle', '球员草坪（遮阳帆下拉伸）', 41.5, 21.0, 6, {
     doing: 'warmup',
@@ -253,7 +259,7 @@ export const PLACES: readonly Place[] = [
   seat('plaza.bench.w', 'clubplaza', '喷泉西边长椅', 38.0, -20.6, 2),
   seat('plaza.bench.n', 'clubplaza', '喷泉北边长椅', 40.6, -33.4, 2),
   seat('plaza.bench.prom', 'clubplaza', '长廊边长椅（广场台阶下）', 53.4, -9.4, 2),
-  seat('plaza.rim', 'clubplaza', '喷泉池沿', 44, -19.7, 8, { stay: [5, 20] }),
+  seat('plaza.rim', 'clubplaza', '喷泉池沿', 44, -19.7, 8, { stay: [5, 20], faces: ['plaza.fountain'] }),
   {
     id: 'plaza.fountain',
     scene: 'clubplaza',
@@ -285,9 +291,9 @@ export const PLACES: readonly Place[] = [
   post('post.plaza.drinks', 'clubplaza', '饮料车摊主', 47.2, -33.45, 1, { open: STALL_OPEN }),
 
   // ═════ 中心球场 ═════
-  standSeat('stadium.stand.n', 'clubstadium', '中心球场北看台', 0, -33.5, 336),
-  standSeat('stadium.stand.e', 'clubstadium', '中心球场东看台', 19.8, -21, 87),
-  standSeat('stadium.stand.s', 'clubstadium', '中心球场南看台', 0, -10.9, 124),
+  standSeat('stadium.stand.n', 'clubstadium', '中心球场北看台', 0, -33.5, 336, { faces: STADIUM }),
+  standSeat('stadium.stand.e', 'clubstadium', '中心球场东看台', 19.8, -21, 87, { faces: STADIUM }),
+  standSeat('stadium.stand.s', 'clubstadium', '中心球场南看台', 0, -10.9, 124, { faces: STADIUM }),
   water('stadium.water', 'clubstadium', '长廊饮水点（中心球场南）', 4.25, -8.35),
   post('post.stadium.pros', 'clubstadium', '中心球场表演赛', 0, -21, 3, { doing: 'tennis' }),
   post('post.stadium.umpire', 'clubstadium', '中心球场裁判椅', 0, -28.68),
@@ -325,16 +331,25 @@ export const PLACES: readonly Place[] = [
     stay: [20, 60],
     for: KID,
   },
-  standSeat('courts.lesson.parents', 'clubcourts', '青训场边家长长椅', -12, -1.1, 3, { shade: true }),
-  standSeat('courts.member.bench', 'clubcourts', '会员场帆下长椅', -17, 17.55, 4, { shade: true }),
-  standSeat('courts.practice.bench', 'clubcourts', '青训东场长椅', 14.6, -1.2, 2),
+  standSeat('courts.lesson.parents', 'clubcourts', '青训场边家长长椅', -12, -1.1, 3, {
+    shade: true,
+    faces: ['courts.lesson', 'courts.wall'],
+  }),
+  standSeat('courts.member.bench', 'clubcourts', '会员场帆下长椅', -17, 17.55, 4, {
+    shade: true,
+    faces: ['courts.member'],
+  }),
+  standSeat('courts.practice.bench', 'clubcourts', '青训东场长椅', 14.6, -1.2, 2, { faces: ['courts.practice'] }),
   water('courts.water', 'clubcourts', '会员场水站', -23.3, 18.1),
   post('post.courts.coach', 'clubcourts', '青训教练（喂球）', -18.7, 6.4, 1, { doing: 'coach' }),
 
   // ═════ 红土场 ═════
   tennisCourt('clay.court1', 'clubclay', '1 号红土场（远场）', 17, 25),
   tennisCourt('clay.court2', 'clubclay', '2 号红土场（近场）', 17, 42.6),
-  standSeat('clay.courtside', 'clubclay', '红土近场伞下长椅', 20, 35.0, 7, { shade: true }),
+  standSeat('clay.courtside', 'clubclay', '红土近场伞下长椅', 20, 35.0, 7, {
+    shade: true,
+    faces: ['clay.court1', 'clay.court2'],
+  }),
   water('clay.water', 'clubclay', '红土场边水站', 21.4, 35.45),
   post('post.clay.umpire', 'clubclay', '红土场裁判椅', 17, 35.18),
 
@@ -765,6 +780,7 @@ export const PLACES: readonly Place[] = [
     doing: 'chat',
     stay: [10, 30],
     for: ['parent'],
+    faces: ['food.lawn'],
   }),
   water('food.water', 'clubfood', '餐车院子自助水站', -26.3, -23.6),
   {

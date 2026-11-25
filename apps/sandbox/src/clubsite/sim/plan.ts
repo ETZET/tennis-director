@@ -129,6 +129,10 @@ const OUTDOOR_KINDS: readonly PlaceKind[] = [
   'table',
 ];
 export const isOutdoor = (p: Place) => !p.shade && OUTDOOR_KINDS.includes(p.kind);
+/** 有顶的（会所里头、凉亭、拱廊、凉棚）：伞下、帆下的长椅挡太阳不挡雨 */
+export const roofed = (p: Place) => /凉亭|拱廊|凉棚/.test(p.name) || (p.scene === 'clubhouse' && !/露台/.test(p.name));
+/** 下雨淋得到的（下雨天关）：室外的场、座、桌、池子，没有顶的 */
+export const rainedOn = (p: Place) => OUTDOOR_KINDS.includes(p.kind) && !roofed(p);
 /** 只能一伙人用的（场、桌、高尔夫）：不和陌生人拼。青训课、团课虽然标了 party，是好几家的孩子一起上，不算 */
 export const isExclusive = (p: Place) =>
   (!!p.party && p.kind !== 'lesson' && p.kind !== 'gym') ||
@@ -197,6 +201,23 @@ export function indexPlaces(places: readonly Place[]): PlaceIndex {
 }
 
 export const kindsOf = (idx: PlaceIndex, k: PlaceKind) => idx.byKind.get(k) ?? [];
+
+/** 在场上"打着"的（看台、场边长椅上的人看的就是这些）：打球、上课、带课、热身、孩子玩 */
+export const LIVE_DOING: ReadonlySet<Doing> = new Set<Doing>([
+  'tennis',
+  'pickle',
+  'lesson',
+  'coach',
+  'warmup',
+  'kidplay',
+  'golf',
+]);
+/** 有人看的场（各处 faces 的并集） */
+export function watchedPlaces(idx: PlaceIndex): PlaceId[] {
+  const out = new Set<PlaceId>();
+  for (const p of idx.list) for (const f of p.faces ?? []) out.add(f);
+  return [...out];
+}
 
 /**
  * 引擎里走路的速度（米 / 游戏分钟）。真人 78 米 / 分钟，但观察的默认档是 2 游戏分钟 / 真实秒：
@@ -353,7 +374,11 @@ function mainBlock(f: Focus, r: Rng, p: CastPerson, budget: number): Intent[] {
   const sporty = p.traits.includes('sporty');
   if (injured(p) && (f === 'tennis' || f === 'clay' || f === 'pickle')) {
     // 场边坐着看（喜欢红土的去红土场边），喝一杯，再坐一会儿；不换衣服、不上场
-    return [intent.watch(r, 40, 70), intent.lounge(r), intent.rest(r, 15, 30)];
+    return [
+      intent.watch(r, 40, 70),
+      intent.lounge(r),
+      chance(r, 0.5) ? I('rest', int(r, 25, 40), { kinds: K('gym', 'seat') }) : intent.rest(r, 15, 30),
+    ];
   }
   switch (f) {
     case 'clay':
@@ -511,6 +536,8 @@ interface Ctx {
   namedZh: Set<string>;
   /** 今天轮休的餐车（摊主的岗位） */
   closed: Set<PlaceId>;
+  /** 夏天只开傍晚的餐车（中午没人吃，16:15 才来开窗） */
+  evening: Set<PlaceId>;
   /** 每节青训课报了几个孩子（第几节 → 人数） */
   lessonKids: Map<number, number>;
 }
@@ -587,6 +614,8 @@ function pickEntry(c: Ctx, p: CastPerson, how: 'car' | 'drop' | 'walk' | 'staff'
   const h = hashOf(c.cfg.seed, 'entry', p.id);
   // 孩子、少年（来当球童的也一样）不开车：大人在落客点放下
   if (p.look.body !== 'adult' || p.role === 'kid') how = 'drop';
+  // 坐公交来的（Mateo："放学坐一小时公交来"）：车道东头的公交站走进来
+  if (ridesBus(p)) how = 'walk';
   if (how === 'drop' && drop.length) return drop[h % drop.length].id;
   if (how === 'walk' && walk.length) return walk[h % walk.length].id;
   if (how === 'staff') {
@@ -596,6 +625,9 @@ function pickEntry(c: Ctx, p: CastPerson, how: 'car' | 'drop' | 'walk' | 'staff'
   const pool = lots.length ? lots : es;
   return pool[h % pool.length].id;
 }
+
+/** 坐公交来的（people.md 里写着坐公交） */
+export const ridesBus = (p: CastPerson) => /公交/.test(p.bio) || p.likes.some((l) => /公交/.test(l));
 
 const entryTag = (e: Place) => `${e.id} ${e.name}`;
 export const isDropEntry = (e: Place) => /drop|落客|valet|代客/i.test(entryTag(e));
@@ -619,7 +651,8 @@ function howCome(r: Rng, p: CastPerson, kids: boolean): 'car' | 'drop' | 'walk' 
   if (kids) return chance(r, 0.6) ? 'drop' : 'car';
   if (p.traits.includes('vip')) return 'drop';
   if (p.traits.includes('local') && chance(r, 0.35)) return 'walk';
-  return chance(r, 0.12) ? 'drop' : chance(r, 0.1) ? 'walk' : 'car';
+  // 客人（不是会员）三成多叫车来（Palm Springs 的游客、住酒店的）；会员多半自己开（停车场 28 个车位，满了交代客）
+  return chance(r, p.role === 'guest' ? 0.35 : 0.15) ? 'drop' : chance(r, 0.1) ? 'walk' : 'car';
 }
 
 function newAgent(c: Ctx, p: CastPerson, arrive: Minute, leaveBy: Minute, entry: PlaceId, plan: Intent[]): Agent {
@@ -695,6 +728,35 @@ function shiftsFor(info: SlotInfo, p: CastPerson, c: Ctx, post: Place): Shift[] 
   else if (/服务员/.test(t)) out = [S(H(7), H(15)), S(H(15), H(22, 30))];
   else if (/高尔夫/.test(t)) out = [S(H(7), H(16))];
   else out = [S(H(8), H(17))];
+  // 夏天（中午 42 度）：室外的班早上 11 点前下、傍晚再来；店中午关；只开傍晚的餐车 16:45 来（中午不排一屋子人守空店；
+  // 傍晚的人 17:30 以后才来，晚班的员工也别赶在 16 点就到齐）
+  let fixed = false;
+  if (c.cal.season === 'summer') {
+    const set = (l: Shift[]) => {
+      out = l;
+      fixed = true;
+    };
+    if (/门童/.test(t)) set([S(H(6), H(11)), S(H(17, 15), H(22, 30))]);
+    else if (/球拍店|纪念品|穿线/.test(t)) set([S(H(7, 30), H(12)), S(H(17), H(20))]);
+    else if (/饮料车/.test(t) || c.evening.has(post.id)) set([S(H(16, 45), H(21))]);
+    else if (/高尔夫/.test(t)) set([S(H(6), H(11))]);
+    else if (/红土场裁判/.test(t)) set([S(H(6, 30), H(10, 30))]);
+    else if (/体能教练|团课/.test(t)) set([S(H(6), H(12))]);
+    else if (/理疗/.test(t)) set([S(H(7), H(13))]);
+    // 二楼酒吧、后厨、服务员傍晚才开（中午的简餐在咖啡吧）；小卖部中午关
+    else if (/酒保|会所厨师/.test(t)) set([S(H(16, 30), H(22, 30))]);
+    else if (/服务员/.test(t)) set([S(H(17), H(22, 30))]);
+    else if (/小卖部/.test(t)) set([S(H(7), H(12)), S(H(17), H(21))]);
+  }
+  // 下雨、风沙：泳池、广场的饮料车（露天）整天不开，救生员、摊主不来
+  if (
+    (c.w.rain || c.w.wind) &&
+    c.idx.list.some(
+      (x) => x.needs === post.id && (x.kind === 'pool' || (x.scene === 'clubplaza' && x.kind === 'stall')),
+    )
+  )
+    return [];
+  if (fixed) return out;
   // 给客人开的地方（摊位、咖啡吧、酒吧、店、泳池）要这个岗有人才开：班次照着它的营业时间排，一个人太长就两班交接
   const served = c.idx.list.filter((x) => x.needs === post.id && x.kind !== 'lesson' && x.kind !== 'gym');
   if (served.length && out.length) {
@@ -804,6 +866,24 @@ function staffAgent(c: Ctx, person: CastPerson, post: Place, plan: Intent[], sta
   c.agents[person.id] = newAgent(c, person, start - lead, end + 25, entry, plan);
 }
 
+/** 每天早上扫一遍中心球场的台阶（Dale，people.md："关门十年没走，每天早上扫中心球场的台阶，没人付钱"） */
+export const sweepsSteps = (p: CastPerson) => /扫.*中心球场的台阶/.test(p.bio);
+
+/** 扫看台：南、东、北三面看台一面一面扫（钟点定死：t0 开始，每面 10–13 分钟） */
+function sweepPlan(c: Ctx, r: Rng, t0: Minute): Intent[] {
+  const stands = kindsOf(c.idx, 'stand')
+    .filter((p) => p.scene === 'clubstadium')
+    .sort((a, b) => b.z - a.z);
+  const out: Intent[] = [];
+  let t = t0;
+  for (const p of stands) {
+    const m = int(r, 10, 13);
+    out.push(I('work', m, { at: p.id, after: t, must: true }));
+    t += m + 1;
+  }
+  return out;
+}
+
 function addStaff(c: Ctx, p: CastPerson, post: Place, shifts: Shift[], tag: string, info: SlotInfo): void {
   const breaks: [Minute, Minute][] = [];
   shifts.forEach((s, k) => {
@@ -818,6 +898,13 @@ function addStaff(c: Ctx, p: CastPerson, post: Place, shifts: Shift[], tag: stri
     const plan = shiftPlan(post.id, s, person.role === 'vendor', r$(c, 'shift', person.id, tag));
     for (const it of plan)
       if (it.doing === 'break' && it.after !== undefined) breaks.push([it.after, it.after + it.minutes]);
+    // 上班前先去扫中心球场的台阶（开班前三刻钟）
+    if (k === 0 && sweepsSteps(person) && s.start >= H(6, 30)) {
+      const sw = sweepPlan(c, r$(c, 'sweep', person.id), s.start - 45);
+      const t0 = sw[0]?.after ?? s.start;
+      staffAgent(c, person, post, [...sw, ...plan], t0, s.end, tag);
+      return;
+    }
     staffAgent(c, person, post, plan, s.start, s.end, tag);
   });
   // 泳池：救生员歇班的时候有个泳池助理顶上（池子营业时间里不关）：歇班前二十分钟到，收躺椅毛巾、擦池边，顶完班再收拾一会儿走
@@ -855,32 +942,65 @@ function addStaff(c: Ctx, p: CastPerson, post: Place, shifts: Shift[], tag: stri
 /** 职业球员：上午练球、健身，下午再练，有表演赛的晚上打表演赛 */
 function proPlan(c: Ctx, court: PlaceId, r: Rng): { arrive: Minute; leave: Minute; plan: Intent[] } {
   const summer = c.cal.season === 'summer';
-  const m0 = summer ? H(6, 30) : H(8);
+  const ex = c.cal.exhibition;
+  // 理疗床躺一会儿（拉伸、放松）
+  const physio = I('rest', int(r, 25, 40), { kinds: K('gym', 'seat') });
+  if (summer && ex) {
+    // 夏天有表演赛：下午晚点来，健身、理疗，傍晚练一会儿，打表演赛
+    const plan = [
+      intent.change(r),
+      intent.gym(r),
+      physio,
+      I('tennis', 60, { at: court, after: H(17), must: true }),
+      intent.drink(r),
+      I('tennis', 95, { at: court, after: H(18, 30), must: true }),
+      intent.change(r),
+    ];
+    return { arrive: H(15, 15) + int(r, 0, 20), leave: H(20, 45), plan };
+  }
+  if (summer) {
+    // 夏天：天一亮练，健身、理疗、吃了午饭回家（下午 42 度不练）
+    const plan = [
+      intent.change(r),
+      I('tennis', 150, { at: court, after: H(6, 30), must: true }),
+      intent.gym(r),
+      physio,
+      intent.eat(r),
+      intent.change(r),
+    ];
+    return { arrive: H(6, 30) - int(r, 20, 35), leave: H(13, 30) + int(r, 0, 20), plan };
+  }
+  // 上午练、健身、理疗、吃午饭、歇一会儿，下午再练；有表演赛的晚上打表演赛
   const plan: Intent[] = [
     intent.change(r),
-    I('tennis', 150, { at: court, after: m0, must: true }),
+    I('tennis', 150, { at: court, after: H(8), must: true }),
     intent.gym(r),
+    physio,
+    intent.eat(r),
     intent.lounge(r),
-    I('tennis', 120, { at: court, after: summer ? H(17) : H(15, 30), must: true }),
+    I('tennis', 120, { at: court, after: H(15, 30), must: true }),
   ];
-  let leave = summer ? H(19, 30) : H(18, 15);
-  if (c.cal.exhibition) {
+  let leave = H(18, 15);
+  if (ex) {
     plan.push(intent.drink(r), I('tennis', 95, { at: court, after: H(18, 30), must: true }));
     leave = H(20, 45);
   }
   plan.push(intent.change(r));
-  return { arrive: m0 - int(r, 20, 35), leave, plan };
+  return { arrive: H(8) - int(r, 20, 35), leave, plan };
 }
 
 /** 今天轮休的餐车（摊主的岗位）：平日、下雨只开四五家（正餐车至少两家），周末全开 */
 function closedTrucks(c: Ctx): Set<PlaceId> {
   const out = new Set<PlaceId>();
-  if (c.cal.weekend && !c.w.rain) return out;
+  const summer = c.cal.season === 'summer';
+  const bad = c.w.rain || c.w.wind;
+  if (c.cal.weekend && !bad && !summer) return out;
   const posts = new Map<PlaceId, boolean>();
   for (const p of c.idx.list)
     if (p.scene === 'clubfood' && p.kind === 'stall' && p.needs) posts.set(p.needs, servesMeal(p));
   const r = r$(c, 'trucks');
-  const open = c.w.rain ? 3 : int(r, 4, 5);
+  // 下雨、风沙、夏天平日只开三家；夏天周末五家
+  const open = bad || (summer && !c.cal.weekend) ? 3 : summer ? 5 : int(r, 4, 5);
   const meals = [...posts.keys()].filter((k) => posts.get(k)).sort();
   const others = [...posts.keys()].filter((k) => !posts.get(k)).sort();
   const shuffle = (l: PlaceId[]) => {
@@ -896,6 +1016,21 @@ function closedTrucks(c: Ctx): Set<PlaceId> {
   return out;
 }
 
+/** 夏天：开着的餐车里只留一家正餐车、一家卖冰的中午开，别的 16:45 才来（中午 42 度没人在院子里吃） */
+function eveningTrucks(c: Ctx): Set<PlaceId> {
+  const out = new Set<PlaceId>();
+  if (c.cal.season !== 'summer') return out;
+  const posts: Place[] = [];
+  for (const p of c.idx.list)
+    if (p.scene === 'clubfood' && p.kind === 'stall' && p.needs && !c.closed.has(p.needs) && !posts.includes(p))
+      posts.push(p);
+  posts.sort((a, b) => (a.needs as string).localeCompare(b.needs as string));
+  const meal = posts.find((p) => servesMeal(p));
+  const ice = posts.find((p) => /paleta|冰棍|agua|鲜果/i.test(`${p.id}${p.name}`));
+  for (const p of posts) if (p !== meal && p !== ice) out.add(p.needs as PlaceId);
+  return out;
+}
+
 /** 青训教练的一天：私教课（会员订的，60 分钟，在发球机那块场）+ 青训课；课前到、最后一节课完了走；空档收拾球筐、歇一会儿 */
 function planCoach(c: Ctx, p: CastPerson, post: Place, r: Rng): void {
   const lessons = c.cal.lessons;
@@ -905,7 +1040,7 @@ function planCoach(c: Ctx, p: CastPerson, post: Place, r: Rng): void {
   if (court && !c.w.rain) {
     const summer = c.cal.season === 'summer';
     const cands: Minute[] = summer
-      ? [H(6, 45), H(10, 45), H(17, 30), H(18, 45)]
+      ? [H(6, 45), H(10, 45)]
       : c.cal.weekend
         ? [H(7, 45), H(12), H(13, 45), H(17)]
         : [H(8), H(9, 15), H(10, 30), H(13, 15), H(14, 20), H(17, 45)];
@@ -958,7 +1093,14 @@ function planCoach(c: Ctx, p: CastPerson, post: Place, r: Rng): void {
   }
   plan.push(I('work', int(r, 10, 20), { at: post.id, after: clock, must: true }));
   const entry = pickEntry(c, p, 'staff');
-  c.agents[p.id] = newAgent(c, p, start - int(r, 8, 15), clock + 40, entry, plan);
+  // 上课前先去扫中心球场的台阶（Dale 周日带课的日子也扫）
+  let t0 = start;
+  if (sweepsSteps(p) && start >= H(7)) {
+    const sw = sweepPlan(c, r$(c, 'sweep', p.id), Math.max(H(6, 10), start - 50));
+    plan.unshift(...sw);
+    t0 = sw[0]?.after ?? start;
+  }
+  c.agents[p.id] = newAgent(c, p, t0 - int(r, 8, 15), clock + 40, entry, plan);
 }
 
 /** 订私教课的会员：签到、换衣服，订的钟点上课，下了课喝一口、换衣服回家 */
@@ -1246,6 +1388,7 @@ function addGroup(c: Ctx, g: Visitor[], tag: string): void {
   if (fam) plan = fam.get(lead.p.id) as Intent[];
   else {
     plan = [];
+    if (sweepsSteps(lead.p) && g.length === 1) plan.push(...sweepPlan(c, r$(c, 'sweep', lead.p.id), lead.arrive + 8));
     if (!isFixedRole(lead.p.role)) plan.push(intent.checkin());
     plan.push(...mainBlock(lead.focus, r, lead.p, leaveBy - lead.arrive));
     fillUp(c, plan, r, lead.p, lead.arrive, leaveBy);
@@ -1308,8 +1451,10 @@ export const isKid = (p: CastPerson) => p.role === 'kid' || p.look.body === 'kid
 /** 场地维护的一天：5:30 到，开门前把场一块块拖平、吹干净，开门后在广场、场边、餐车院子转着收拾，中间歇一次 */
 function planGrounds(c: Ctx, p: CastPerson): void {
   const r = r$(c, 'grounds', p.id);
-  const start = H(5, 30) + int(r, -5, 10);
-  const end = H(14) + int(r, 0, 30);
+  // 夏天天一亮就干，11 点前收工（中午太晒，外面的活不干）
+  const summer = c.cal.season === 'summer';
+  const start = (summer ? H(5) : H(5, 30)) + int(r, -5, 10);
+  const end = (summer ? H(11) : H(14)) + int(r, 0, summer ? 15 : 30);
   const plan: Intent[] = [];
   const courts = kindsOf(c.idx, 'court').length + kindsOf(c.idx, 'pickle').length;
   for (let i = 0; i < Math.min(4, courts); i++)
@@ -1363,6 +1508,8 @@ function planRegulars(c: Ctx, assigned: Set<string>): Visitor[] {
     }
     let win = windowOf(p, r);
     if (c.cal.season === 'summer' && focus !== 'swim' && focus !== 'sun') win = summerShift(r, win);
+    // 不上班的日子也一早来扫台阶，扫完在会所、场边待一上午
+    if (sweepsSteps(p)) win = [H(6, 5) + int(r, 0, 10), Math.max(win[1], H(11))];
     // 周一上午维护：红土场 10 点才开，一部分早上的人挪到下午
     if (wd === 0 && p.tier !== 'named' && win[0] < H(10) && chance(r, 0.4)) {
       const len = win[1] - win[0];
@@ -1717,7 +1864,8 @@ function planSpectators(c: Ctx): void {
     else if (chance(r, 0.4)) plan.push(intent.drink(r, 5, 10));
     plan.push(exhibitionWatch(c, r, lead.id, end));
     if (stay) plan.push(kids ? intent.snack(r) : chance(r, 0.5) ? intent.bar(r) : intent.eat(r, 25, 40));
-    const entry = pickEntry(c, lead, chance(r, 0.15) ? 'drop' : 'car');
+    // 看表演赛的四成叫车来（散场不用找车、能喝一杯）
+    const entry = pickEntry(c, lead, chance(r, 0.4) ? 'drop' : 'car');
     for (const p of g) c.agents[p.id] = newAgent(c, p, arrive, leaveBy, entry, plan.slice());
     if (g.length > 1) {
       const pid = `party:${lead.id}`;
@@ -1773,19 +1921,29 @@ function planGuests(c: Ctx): Visitor[][] {
         ['swim', 1 * openAir],
       ],
     },
-    {
-      // 夏天的午后只有冲着泳池来的（上面的客人里有），不另外补
-      n: summer ? 0 : k(16, 24),
-      at: [H(13, 15), H(15, 45)],
-      stay: [70, 130],
-      w: [
-        ['swim', 5 * openAir],
-        ['rest', 4 * (w.rain ? 0.2 : 1)],
-        ['watch', 2 * outW],
-        ['shop', 1.5],
-        ['gym', 1.5],
-      ],
-    },
+    summer
+      ? {
+          // 夏天的午后：冲着泳池来的（躺椅、凉亭、水里）和会所里吹空调健身的（外面的场、店、餐车院子都空着）
+          n: k(16, 22, 1),
+          at: [H(12, 30), H(15, 15)],
+          stay: [100, 170],
+          w: [
+            ['swim', 6 * openAir],
+            ['gym', 1.5],
+          ],
+        }
+      : {
+          n: k(16, 24),
+          at: [H(13, 15), H(15, 45)],
+          stay: [70, 130],
+          w: [
+            ['swim', 5 * openAir],
+            ['rest', 4 * (w.rain ? 0.2 : 1)],
+            ['watch', 2 * outW],
+            ['shop', 1.5],
+            ['gym', 1.5],
+          ],
+        },
     {
       n: k(24, 34),
       at: [H(17), H(19, 30)],
@@ -1883,6 +2041,7 @@ export function planDay(cfg: SimConfig, dayNo: number, weather: Weather): DayPla
     zh: new Set(),
     namedZh: new Set(),
     closed: new Set(),
+    evening: new Set(),
     lessonKids: new Map(),
   };
   // 演员表里的人（有名有姓的、常客）的名字先占上：生成的客人不叫 Carmen、不叫 Héctor
@@ -1892,6 +2051,7 @@ export function planDay(cfg: SimConfig, dayNo: number, weather: Weather): DayPla
     if (p.tier === 'named') c.namedZh.add(p.nameZh);
   }
   c.closed = closedTrucks(c);
+  c.evening = eveningTrucks(c);
   const assigned = new Set<string>();
   planStaff(c, assigned);
   for (const id of Object.keys(c.agents)) assigned.add(id);

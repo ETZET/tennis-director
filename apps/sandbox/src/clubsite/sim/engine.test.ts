@@ -3,15 +3,28 @@
 import { describe, expect, it } from 'vitest';
 import { CAST } from '../cast';
 import { isFixedRole } from '../cast/slots';
-import { personOf, startDay, step, stepMany, view } from './engine';
+import { personOf, startDay, step, stepMany, VALET_PER_HOUR, view } from './engine';
 import { PLACE_BY_ID, PLACES, POST_OF_SLOT } from './places';
-import { CLOSE, calendar, DAY_END, defaultWeather, H, OPEN, travelMin, WALK_M_PER_MIN } from './plan';
-import { buildReport, checkState, runDay } from './report';
-import type { SimConfig, SimState, Weather } from './types';
+import {
+  CLOSE,
+  calendar,
+  DAY_END,
+  defaultWeather,
+  H,
+  isWater,
+  OPEN,
+  rainedOn,
+  travelMin,
+  WALK_M_PER_MIN,
+} from './plan';
+import { buildReport, checkState, findLoops, runDay } from './report';
+import type { Intent, SimConfig, SimState, Weather, Where } from './types';
 
 const cfg: SimConfig = { seed: 1, places: PLACES, cast: CAST, posts: POST_OF_SLOT };
 const FAIR: Weather = { high: 24, rain: false, wind: false };
 const DESK = { director: 'desk.counter' };
+
+const hmOf = (t: number) => `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`;
 
 function runTo(s: SimState, t: number, input = DESK): SimState {
   let x = s;
@@ -395,6 +408,196 @@ describe('第 1 轮 critique 的几条', () => {
   });
 });
 
+describe('第 2 轮 critique 的几条', () => {
+  const SUMMER = runDay(cfg, 200, { weather: { high: 42, rain: false, wind: false } });
+  const RAIN = runDay(cfg, 9, { weather: { high: 21, rain: true, wind: false } });
+  const WIND = runDay(cfg, 10, { weather: { high: 30, rain: false, wind: true } });
+
+  it('人不打转：同一处两小时最多两回（更衣室四小时），零食窗口一小时一回；Amara、Diego 下午不在果昔窗口排十趟', () => {
+    for (const run of [...WEEK, SUMMER, RAIN, WIND]) {
+      const l = findLoops(cfg, run.final);
+      expect([...l.places, ...l.counters], `第 ${run.final.dayNo} 天`).toEqual([]);
+    }
+    for (const run of WEEK)
+      for (const pro of ['amara', 'diego']) {
+        const ts = run.final.log
+          .filter((e) => e.agent === pro && e.kind === 'served' && e.at === 'house.nutri')
+          .map((e) => e.t);
+        expect(ts.length, `${pro} 第 ${run.final.dayNo} 天`).toBeLessThanOrEqual(3);
+        for (let i = 1; i < ts.length; i++) expect(ts[i] - ts[i - 1]).toBeGreaterThanOrEqual(60);
+      }
+  });
+
+  it('看球只看有人在打的场（对着空场的看球分钟 < 3%）；没有 faces 的地方不"看球"', () => {
+    for (const run of [...WEEK, SUMMER, WIND]) {
+      const rep = buildReport(run);
+      expect(rep.watch.empty / Math.max(1, rep.watch.total), `第 ${run.final.dayNo} 天`).toBeLessThan(0.03);
+    }
+    const s = WEEK[0].final;
+    for (const e of s.log)
+      if (e.kind === 'start' && e.doing === 'watch' && e.at) expect(PLACE_BY_ID[e.at].faces, e.at).toBeDefined();
+  });
+
+  it('家长看自己孩子上课：Sofía 上课的时候 Verónica 坐在看得到青训场的长椅上', () => {
+    const run = WEEK.find(
+      (r) => r.final.agents.sofia && r.final.log.some((e) => e.agent === 'sofia' && e.doing === 'lesson'),
+    );
+    expect(run).toBeDefined();
+    const s = (run as (typeof WEEK)[number]).final;
+    const lesson = s.log.find((e) => e.agent === 'sofia' && e.kind === 'start' && e.doing === 'lesson');
+    const watch = s.log.filter(
+      (e) => e.agent === 'veronica' && e.kind === 'start' && e.doing === 'watch' && e.t <= (lesson?.t ?? 0) + 5,
+    );
+    expect(watch.length).toBeGreaterThan(0);
+    const at = PLACE_BY_ID[watch[watch.length - 1].at as string];
+    expect(at.faces).toContain(lesson?.at);
+  });
+
+  it('饮水点有人用：打完一局、一节课渴了在场边接一杯水（1–2 分钟），七处都有人接', () => {
+    for (const run of WEEK) {
+      const rep = buildReport(run);
+      const total = rep.water.reduce((n, x) => n + x.sips, 0);
+      expect(total, `第 ${run.final.dayNo} 天`).toBeGreaterThan(40);
+      expect(rep.water.filter((x) => x.sips > 0).length).toBeGreaterThanOrEqual(5);
+      // 接水很快
+      const s = run.final;
+      for (const e of s.log) {
+        if (e.kind !== 'start' || e.doing !== 'drink' || !e.at || !isWater(PLACE_BY_ID[e.at])) continue;
+        const end = s.log.find((x) => x.agent === e.agent && x.t > e.t && (x.kind === 'start' || x.kind === 'end'));
+        if (end) expect(end.t - e.t, e.agent).toBeLessThanOrEqual(3);
+      }
+    }
+  });
+
+  it('报告的检查说实话：夏天中午员工可以过半但有上限，雨天、风沙天也按写明的要求判', () => {
+    for (const run of [SUMMER, RAIN, WIND]) {
+      const rep = buildReport(run);
+      const c = rep.checks.find((x) => x.name === '员工占比');
+      expect(c?.na).toBeFalsy();
+      expect(c?.detail).toMatch(/要求/);
+      const bad = rep.checks.filter((x) => !x.ok).map((x) => `${x.name}：${x.detail}`);
+      expect(bad, `第 ${run.final.dayNo} 天`).toEqual([]);
+    }
+    // 不适用的检查打"—"不打 ✓
+    expect(buildReport(RAIN).checks.some((x) => x.na)).toBe(true);
+  });
+
+  it('夏天中午：外面的班 11 点前下、店和二楼中午关、只开傍晚的餐车 16:45 才来；泳池、会所有人，员工不超过五成五', () => {
+    const { rec } = SUMMER;
+    const hour = (h: number) => {
+      const is = rec.minutes.map((t, i) => [t, i] as const).filter(([t]) => t >= h * 60 && t < h * 60 + 60);
+      const avg = (xs: number[]) => is.reduce((n, [, i]) => n + xs[i], 0) / is.length;
+      return { all: avg(rec.present), staff: avg(rec.staff), pool: avg(rec.byScene.clubpool) };
+    };
+    for (let h = 11; h < 18; h++) expect(hour(h).staff / hour(h).all, `${h} 点`).toBeLessThanOrEqual(0.55);
+    for (const h of [8, 9, 19, 20]) expect(hour(h).staff / hour(h).all, `${h} 点`).toBeLessThanOrEqual(0.35);
+    for (const h of [13, 14]) {
+      expect(hour(h).all - hour(h).staff, `${h} 点的客人`).toBeGreaterThan(15);
+      expect(hour(h).pool, `${h} 点泳池`).toBeGreaterThan(5);
+    }
+    const spans = rec.shifts;
+    const at14 = (post: string) => (spans.get(post) ?? []).some(([a, b]) => a <= H(14) && b > H(14));
+    expect(at14('post.house.proshop')).toBe(false);
+    expect(at14('post.house.bartender')).toBe(false);
+    expect(at14('post.pool.lifeguard')).toBe(true);
+  });
+
+  it('下雨：伞下、帆下的长椅不算有顶（没人坐），会所、凉亭、凉棚下有人', () => {
+    const s0 = startDay(cfg, 9, { high: 21, rain: true, wind: false });
+    let s = s0;
+    let inside = 0;
+    while (s.minute < H(20)) {
+      s = step(cfg, s, DESK).state;
+      for (const pid of Object.keys(s.occupants)) {
+        const p = PLACE_BY_ID[pid];
+        if (p.kind === 'entry' || p.kind === 'post') continue;
+        const guests = s.occupants[pid].filter((id) => !isFixedRole(s.agents[id].role));
+        if (rainedOn(p)) expect(guests, `${hmOf(s.minute)} ${pid}`).toEqual([]);
+        else inside += guests.length;
+      }
+    }
+    expect(inside).toBeGreaterThan(1000);
+  });
+
+  it('代客台一个钟头最多接十来辆车（VIP 另算），再多的停在外面路边走进来', () => {
+    for (const run of WEEK) {
+      const s = run.final;
+      const byHour = new Map<number, number>();
+      const seen = new Set<string>();
+      for (const e of s.log) {
+        if (e.kind !== 'arrive') continue;
+        const a = s.agents[e.agent];
+        const key = a.party ?? a.id;
+        if (seen.has(key) || a.car !== 'valet') continue;
+        seen.add(key);
+        if (personOf(cfg, s, a.id)?.traits.includes('vip')) continue;
+        const h = Math.floor(e.t / 60);
+        byHour.set(h, (byHour.get(h) ?? 0) + 1);
+      }
+      for (const [h, n] of byHour) expect(n, `第 ${s.dayNo} 天 ${h} 点`).toBeLessThanOrEqual(VALET_PER_HOUR + 1);
+    }
+    const sat = WEEK[5].final;
+    expect(sat.log.some((e) => /路边走进来/.test(e.note ?? ''))).toBe(true);
+  });
+
+  it('球员：练完去理疗床、吃午饭，表演赛准时开打（不因为吃饭迟到）', () => {
+    for (const run of WEEK) {
+      const s = run.final;
+      if (!calendar(s.dayNo).exhibition) continue;
+      for (const pro of ['amara', 'diego']) {
+        if (!s.agents[pro]) continue;
+        const start = s.log.find((e) => e.agent === pro && e.kind === 'start' && e.doing === 'tennis' && e.t >= H(18));
+        expect(start?.t, `${pro} 第 ${s.dayNo} 天`).toBeLessThanOrEqual(H(18, 35));
+      }
+    }
+    const physio = WEEK.reduce((n, r) => n + (r.rec.placeMin.get('house.physio') ?? 0), 0);
+    expect(physio).toBeGreaterThan(200);
+  });
+
+  it('换衣服只在运动、游泳前后（看球、坐着之前不换）；Mateo 坐公交从车道东头走进来；Dale 一早扫中心球场的看台', () => {
+    for (const run of WEEK) {
+      const s = run.final;
+      if (s.agents.mateo && s.log.some((e) => e.agent === 'mateo' && e.kind === 'arrive'))
+        expect(s.agents.mateo.entry).toBe('park.walkin');
+      if (s.log.some((e) => e.agent === 'dale' && e.kind === 'arrive')) {
+        const sweep = s.log.filter(
+          (e) => e.agent === 'dale' && e.doing === 'work' && e.at?.startsWith('stadium.stand') && e.t < H(9),
+        );
+        expect(sweep.length, `第 ${s.dayNo} 天`).toBeGreaterThanOrEqual(3);
+      }
+    }
+    // 坐着歇完、下一件是看球：不去更衣室；下一件是打球：去换
+    const s0 = runTo(startDay(cfg, 1, FAIR), H(10));
+    const id = Object.keys(s0.agents).find((k) => {
+      const a = s0.agents[k];
+      return !a.party && a.where.kind === 'at' && !isFixedRole(a.role) && (a.doing === 'rest' || a.doing === 'drink');
+    }) as string;
+    const goes = (next: Intent): string | undefined => {
+      const a = s0.agents[id];
+      const w = a.where as Extract<Where, { kind: 'at' }>;
+      const s1: SimState = {
+        ...s0,
+        agents: {
+          ...s0.agents,
+          [id]: {
+            ...a,
+            where: { ...w, until: s0.minute + 1 },
+            plan: [
+              a.plan[0] ?? { doing: 'rest', minutes: 5 },
+              { doing: 'change', minutes: 6, kinds: ['locker'] },
+              next,
+            ],
+          },
+        },
+      };
+      const w2 = step(cfg, s1, DESK).state.agents[id].where;
+      return w2.kind === 'travel' ? w2.to : w2.kind === 'at' || w2.kind === 'queue' ? w2.at : undefined;
+    };
+    expect(goes({ doing: 'watch', minutes: 30, kinds: ['stand'] })).not.toBe('house.locker');
+    expect(goes({ doing: 'tennis', minutes: 60, kinds: ['court'] })).toBe('house.locker');
+  });
+});
+
 describe('停车、出入口', () => {
   it('每个排了日程的人都到了（一伙人比出入口大也能下车）', () => {
     for (const run of [...WEEK, runDay(cfg, 3, { weather: defaultWeather(1, 3), check: false })]) {
@@ -431,7 +634,7 @@ describe('停车、出入口', () => {
     }
     for (const a of Object.values(s.agents)) {
       if (a.car === 'valet') valet++;
-      if (isFixedRole(a.role) && a.role !== 'kid') expect(['staff', 'drop', 'walk']).toContain(a.car);
+      if (isFixedRole(a.role)) expect(['staff', 'drop', 'walk']).toContain(a.car);
       if (a.party) expect(a.car, a.id).toBe(s.agents[s.parties[a.party].lead].car);
     }
     const stalls = PLACES.reduce((n, p) => n + (p.stalls ?? 0), 0);
