@@ -1,0 +1,21 @@
+// 打开一个页面，量加载时间、收控制台错误、截一张手机竖屏图：node loadcheck.mjs <url> [out.png]
+import { existsSync, readdirSync } from 'node:fs';
+import { createRequire } from 'node:module';
+import { resolve } from 'node:path';
+const require = createRequire(import.meta.url);
+const root = resolve(import.meta.dirname, '../../../../node_modules');
+const d = readdirSync(`${root}/.pnpm`).find((n) => n.startsWith('playwright-core@'));
+const pw = require(`${root}/.pnpm/${d}/node_modules/playwright-core`);
+const exe = `${process.env.HOME}/Library/Caches/ms-playwright/chromium-1228/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing`;
+const b = await pw.chromium.launch({ executablePath: existsSync(exe) ? exe : undefined, args: ['--use-gl=angle', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
+const p = await b.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1 });
+const errs = [];
+p.on('console', (m) => m.type() === 'error' && errs.push(m.text()));
+p.on('pageerror', (e) => errs.push(`PAGEERROR ${e.message}`));
+const t0 = Date.now();
+await p.goto(process.argv[2], { waitUntil: 'load', timeout: 180000 });
+console.log('load', Date.now() - t0, 'ms');
+await p.waitForTimeout(8000);
+await p.screenshot({ path: process.argv[3] ?? '/tmp/loadcheck.png' });
+console.log(errs.slice(0, 10).join('\n') || 'no errors');
+await b.close();

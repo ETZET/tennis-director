@@ -108,22 +108,23 @@ const tap = (p: V2, yaw: number): PlaceSpots => {
 const line = (head: V2, dir: V2, n: number, step = 0.9): V2[] =>
   Array.from({ length: n }, (_, k) => [r2(head[0] + dir[0] * step * k), r2(head[1] + dir[1] * step * k)] as V2);
 
-// ── 网球场：双打四个位置（网在 c.x、东西向）。先排两个底线（两个人 = 单打对打），再排两个网前 ─────────
+// ── 网球场：双打四个位置（网在 c.x、东西向）──────────────────────────────────────────
+/** 网球场：引擎的约定（engine.ts freeSpot）—— 0、1 是西边一对（底线、网前），2、3 是东边一对；单打站 0 和 2，隔网对打 */
 function tennis(c: Court, eastBack = 12.2): Spot[] {
   return [
     at([c.x - 12.2, c.z + 2.0], E_, 'ready'),
-    at([c.x + eastBack, c.z - 2.0], W_, 'ready'),
     at([c.x - 3.6, c.z - 2.4], E_, 'ready'),
+    at([c.x + eastBack, c.z - 2.0], W_, 'ready'),
     at([c.x + 3.6, c.z + 2.4], W_, 'ready'),
   ];
 }
-/** 匹克球场：四个人都在厨房线上（同 clubpickle 的 RALLY：离网 2.13 + 0.35） */
+/** 匹克球场：四个人都在厨房线上（同 clubpickle 的 RALLY：离网 2.13 + 0.35）；同网球场的约定，0、1 西边，2、3 东边 */
 function pickle(c: Court): Spot[] {
   const k = 2.48;
   return [
     at([c.x - k - 0.1, c.z - 1.45], E_, 'ready'),
-    at([c.x + k, c.z - 1.4], W_, 'ready'),
     at([c.x - k, c.z + 1.45], E_, 'ready'),
+    at([c.x + k, c.z - 1.4], W_, 'ready'),
     at([c.x + k + 0.1, c.z + 1.4], W_, 'ready'),
   ];
 }
