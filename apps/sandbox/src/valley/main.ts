@@ -506,8 +506,10 @@ function mountDebug() {
     () => !!a.sim?.on,
     () => {
       // 总监站到前台柜台后面（朝排队的人：引擎按"总监在前台"跑，看到的是有人守着的那一天），镜头对着前院
-      // （柜台、签到的队、大门、停车场来的人）；从 6:30 开始，2×（一天八分钟，走路看得见）；面板收起，画面留给俱乐部
-      a.sim.enable(true, { at: 6.5 * 60, speed: 2, panel: false, desk: true });
+      // （柜台、签到的队、大门、停车场来的人）；从 6:30 开始，2×（一天八分钟，走路看得见）；面板收起，画面留给俱乐部。
+      // 退出过再进来：接着上回看到的时刻（第 3 轮评审：世界一直在过日子，不从清早重来）；正在观察时点 = 重新从 6:30 看
+      const resume = !a.sim.on && a.sim.minute() !== null;
+      a.sim.enable(true, { at: resume ? undefined : 6.5 * 60, speed: 2, panel: false, desk: true });
       list.hidden = true;
     },
   );

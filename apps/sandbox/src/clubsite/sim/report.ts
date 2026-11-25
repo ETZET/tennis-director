@@ -19,6 +19,7 @@ import {
   ridesBus,
   SEASON_ZH,
   servesMeal,
+  sitsOut,
   WEEKDAY_ZH,
   watchedPlaces,
 } from './plan';
@@ -138,6 +139,8 @@ interface Rec {
   /** 看球：每个有 faces 的地方每分钟有几个人在看；被看的场每分钟有没有人在打 */
   watchers: Map<PlaceId, number[]>;
   live: Map<PlaceId, boolean[]>;
+  /** 匹克球拍架边：有人排着的分钟、其中有一块匹克球场空着（开着、没人在场上、没人正走过去）的分钟、排着 ≥ 2 个人又有空场的分钟 */
+  rack: { min: number; idle: number; idle2: number };
   /** 今天排了班的岗位：岗位 → 排班的时段（开门开多久按它算，夏天的店中午关） */
   shifts: Map<PlaceId, [Minute, Minute][]>;
   violations: string[];
@@ -222,6 +225,7 @@ export function runDay(cfg: SimConfig, dayNo: number, opts: RunOptions = {}): Da
     courtsNoon: 0,
     watchers: new Map(),
     live: new Map(),
+    rack: { min: 0, idle: 0, idle2: 0 },
     shifts: new Map(),
     violations: [],
   };
@@ -230,6 +234,7 @@ export function runDay(cfg: SimConfig, dayNo: number, opts: RunOptions = {}): Da
   rec.shifts = shiftSpans(s);
   const watchPlaces = cfg.places.filter((p) => p.faces?.length);
   const watched = watchedPlaces(idx);
+  const picklePlaces = cfg.places.filter((p) => p.kind === 'pickle');
   for (const p of watchPlaces) rec.watchers.set(p.id, []);
   for (const f of watched) rec.live.set(f, []);
   let ms = 0;
@@ -249,10 +254,12 @@ export function runDay(cfg: SimConfig, dayNo: number, opts: RunOptions = {}): Da
     let outside = 0;
     const scene: Record<string, number> = {};
     const group: Record<string, number> = {};
+    const headingTo = new Set<PlaceId>();
     for (const id of Object.keys(s.agents)) {
       const a = s.agents[id];
       const w = a.where;
       if (w.kind === 'away') continue;
+      if (w.kind === 'travel') headingTo.add(w.to);
       present++;
       if (isStaff(a)) staff++;
       else if (a.role === 'kid') kids++;
@@ -300,6 +307,19 @@ export function runDay(cfg: SimConfig, dayNo: number, opts: RunOptions = {}): Da
       rec.queuePeak.set(pid, Math.max(rec.queuePeak.get(pid) ?? 0, s.queues[pid].length));
       if (t >= H(11, 50) && t <= H(12, 30) && idx.byId.get(pid)?.scene === 'clubfood')
         rec.lunchQueue.set(pid, Math.max(rec.lunchQueue.get(pid) ?? 0, s.queues[pid].length));
+    }
+    // 拍架边排着的人（日程第一项是"排队"、排在匹克球场的队里）；空场 = 开着、场上没人、没人正往那走
+    let racked = 0;
+    let idleCourt = false;
+    for (const p of picklePlaces) {
+      for (const id of s.queues[p.id] ?? []) if (s.agents[id].plan[0]?.doing === 'queue') racked++;
+      const [a, b] = p.open ?? [OPEN, CLOSE];
+      if (t >= a && t < b && !(s.occupants[p.id] ?? []).length && !headingTo.has(p.id)) idleCourt = true;
+    }
+    if (racked) {
+      rec.rack.min++;
+      if (idleCourt) rec.rack.idle++;
+      if (idleCourt && racked >= 2) rec.rack.idle2++;
     }
     for (const p of watchPlaces) {
       let n = 0;
@@ -407,6 +427,11 @@ export function findLoops(cfg: SimConfig, s: SimState): Loops {
       const faces = p.faces ?? [];
       if (faces.includes(vs[i - 1]?.at ?? '') || faces.includes(vs[i + 1]?.at ?? '')) return;
       const prev = idx.byId.get(vs[i - 1]?.at ?? '');
+      const next = idx.byId.get(vs[i + 1]?.at ?? '');
+      // 场边的长椅、草坪（没写 faces 的，比如匹克球的球员草坪）：前后一处是同一片的场，也是两局之间歇着
+      const court = (x: typeof p | undefined) =>
+        !!x && (x.kind === 'court' || x.kind === 'pickle') && x.scene === p.scene;
+      if ((p.kind === 'seat' || p.kind === 'stand') && (court(prev) || court(next))) return;
       if (isWater(p) && prev && (LOOP_EXEMPT.has(prev.kind) || prev.doing === 'tennis')) return;
       let l = by.get(v.at);
       if (!l) by.set(v.at, (l = []));
@@ -537,6 +562,8 @@ export interface DayReport {
   watch: { total: number; empty: number; by: { id: PlaceId; name: string; total: number; empty: number }[] };
   /** 饮水点接了几杯 */
   water: { id: PlaceId; name: string; sips: number }[];
+  /** 匹克球拍架边：有人排着的分钟、其中有空场的、排着 ≥ 2 个人又有空场的 */
+  rack: { min: number; idle: number; idle2: number };
   checks: Check[];
   violations: string[];
   ms: number;
@@ -866,7 +893,11 @@ export function buildReport(run: DayRun, opts: { people?: readonly string[] } = 
     ...new Set(
       s.log
         .filter((e) => e.kind === 'start' && (e.doing === 'tennis' || e.doing === 'pickle'))
-        .filter((e) => !isFixedRole(s.agents[e.agent].role) && personOf(cfg, s, e.agent)?.traits.includes('oldinjury'))
+        .filter((e) => {
+          const p = personOf(cfg, s, e.agent);
+          // 老伤的不上网球场；喜欢匹克球的（膝盖跑不了网球，匹克球刚好）可以打匹克球
+          return !isFixedRole(s.agents[e.agent].role) && !!p && sitsOut(p, e.doing === 'pickle' ? 'pickle' : 'tennis');
+        })
         .map((e) => e.agent),
     ),
   ];
@@ -1013,6 +1044,13 @@ export function buildReport(run: DayRun, opts: { people?: readonly string[] } = 
       detail: `看球 ${ew.total} 人·分钟，对着空场（前 10 后 20 分钟都没人打）${ew.empty}（${((ew.empty / Math.max(1, ew.total)) * 100).toFixed(1)}%）`,
     },
     {
+      // 拍架边排队只在两块场都有人打的时候：有空场、排着的够两个人就上（一个人排着等搭子不算错，但也算进来）
+      name: '拍架边不对着空场排',
+      ok: rec.rack.min < 30 || rec.rack.idle / rec.rack.min < 0.05,
+      na: rec.rack.min < 30,
+      detail: `拍架边有人排着 ${rec.rack.min} 分钟，其中有一块匹克球场空着 ${rec.rack.idle}（${((rec.rack.idle / Math.max(1, rec.rack.min)) * 100).toFixed(1)}%；排着 ≥ 2 人又有空场 ${rec.rack.idle2}）`,
+    },
+    {
       name: '饮水点有人用',
       ok: !busyDay || (sipTotal >= 40 && sipPlaces >= 5),
       na: !busyDay,
@@ -1033,7 +1071,9 @@ export function buildReport(run: DayRun, opts: { people?: readonly string[] } = 
     {
       name: '老伤的不上场',
       ok: hurtPlayed.length === 0,
-      detail: hurtPlayed.length ? `打了球：${hurtPlayed.join('、')}` : '都只在场边看、坐着聊',
+      detail: hurtPlayed.length
+        ? `打了球：${hurtPlayed.join('、')}`
+        : '都只在场边看、坐着聊（喜欢匹克球的老伤只打匹克球）',
     },
     {
       name: '孩子不自己来',
@@ -1101,6 +1141,7 @@ export function buildReport(run: DayRun, opts: { people?: readonly string[] } = 
       })),
     },
     water,
+    rack: { ...rec.rack },
     checks,
     violations: rec.violations,
     ms: run.ms,

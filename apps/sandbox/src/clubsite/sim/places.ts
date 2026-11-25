@@ -207,7 +207,8 @@ export const PLACES: readonly Place[] = [
     x: 57.2,
     z: 8.85,
     cap: 1,
-    queue: 6,
+    // 周六早上一伙伙到：6 个排满了有人没签到就进去（第 3 轮），沿着引导线往大门那头再排两个
+    queue: 8,
     doing: 'checkin',
     director: true,
     stay: [1, 3],
@@ -331,7 +332,8 @@ export const PLACES: readonly Place[] = [
     stay: [20, 60],
     for: KID,
   },
-  standSeat('courts.lesson.parents', 'clubcourts', '青训场边家长长椅', -12, -1.1, 3, {
+  // 一堂课八个孩子：长椅两个座、旁边站着的一个，再加西边围网下站着看的三个（第 3 轮：家长多半坐到别处去了）
+  standSeat('courts.lesson.parents', 'clubcourts', '青训场边家长长椅', -12, -1.1, 6, {
     shade: true,
     faces: ['courts.lesson', 'courts.wall'],
   }),

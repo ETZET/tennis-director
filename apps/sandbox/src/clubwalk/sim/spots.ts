@@ -146,7 +146,16 @@ const LOT_N = [...lotRow(1, [3, 4]), ...lotRow(0)];
 const LOT_S = [...lotRow(2, [3, 4]), ...lotRow(3)];
 
 // ── 前台（clubdesk/layout.ts SPOTS）───────────────────────────────────────────
-const DESK_Q: V2[] = [DS.queue1, DS.queue2, DS.queue3, [58.95, 3.95], [59.3, 2.85], [59.45, 1.75]];
+const DESK_Q: V2[] = [
+  DS.queue1,
+  DS.queue2,
+  DS.queue3,
+  [58.95, 3.95],
+  [59.3, 2.85],
+  [59.45, 1.75],
+  [59.55, 0.65],
+  [59.6, -0.45],
+];
 
 // ── 匹克球（clubpickle/layout.ts：COURTS pickle_1 / pickle_2、QUEUE_IN、QUEUE_DOOR、长椅 A / B 在 x 40.3 / 48.2、z 6.3）──
 const PK1 = court('pickle_1');
@@ -424,9 +433,10 @@ const table: Record<PlaceId, PlaceSpots> = {
   // ═════ 停车场 · 到达 ═════
   'park.lotN': { spots: LOT_N },
   'park.lotS': { spots: LOT_S },
-  // 落客点：车（clubpark SPOTS.dropoff (67.6, −2.0)，车头朝西）两边下车
+  // 落客点：车（clubpark SPOTS.dropoff (67.6, −2.0)，车头朝西）路边那侧下车，站在路沿上（z −3.75，车道外；
+  // 第 3 轮评审问题 3：原来两个位置在两条车道中间，等车的人站在车开的线上）
   'park.valet': {
-    spots: [at([66.9, -0.35], W_), at([68.5, -0.35], W_), at([66.9, -3.75], W_), at([68.5, -3.75], W_)],
+    spots: [at([66.9, -3.75], W_), at([68.5, -3.75], W_), at([70.1, -3.75], W_), at([71.7, -3.75], W_)],
   },
   // 走路来的：车道东头（往东出地图去镇上），两边贴着路沿
   'park.walkin': {
@@ -545,10 +555,18 @@ const table: Record<PlaceId, PlaceSpots> = {
     door: { x: -30.5, z: -2.3 },
   },
   // 家长：伞下长椅（−12.6, −1.2）两个座 + 旁边站着鼓掌的一个（clubcourts SLOTS parent-3）
-  // 青训场北围网外的步道（围网 z −2.3，挡风布当墙）：大一点的孩子对着挡风布打（Tommy 等 Sofía 下课），朝南对着网
-  'courts.wall': { spots: [at([-6.0, -3.25], S_), at([-9.6, -3.25], S_)] },
+  // 青训场北围网外的步道（围网 z −2.3，挡风布当墙）：大一点的孩子对着挡风布打（Tommy 等 Sofía 下课），朝南对着网。
+  // 离网 2.6 米（第 3 轮：贴着网站在 −3.25 时镜头从南往北看，人整个藏在挡风布后面；再往北就出了会员场的区域 z −4.4（+0.6），进了中心球场那一条）
+  'courts.wall': { spots: [at([-6.0, -4.9], S_), at([-9.6, -4.9], S_)] },
   'courts.lesson.parents': {
-    spots: [...bench([-12.6, -1.2], S_), at([-9.9, -0.9], -0.5, 'clap')],
+    // 长椅两个座、东边站着拍手的一个；西边伞外围网下再站三个（朝着孩子打球的点）
+    spots: [
+      ...bench([-12.6, -1.2], S_),
+      at([-9.9, -0.9], -0.5, 'clap'),
+      at([-14.75, -1.25], face([-14.75, -1.25], CS.kidHit as V2)),
+      at([-15.6, -1.1], face([-15.6, -1.1], CS.kidHit as V2)),
+      at([-15.1, -0.2], face([-15.1, -0.2], CS.kidHit as V2)),
+    ],
     door: { x: -30.5, z: -2.3 },
   },
   // 会员场北边帆下两张长椅（等场、看球）

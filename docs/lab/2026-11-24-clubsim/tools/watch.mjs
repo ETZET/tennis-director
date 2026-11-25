@@ -9,6 +9,13 @@
 //   agenda    跟着一个人，展开面板看日程（同一行不重复）
 //   stadium   表演赛散场 20:00–20:40 看着北看台：寻路失败几次、身子几具、看台上消失的人
 //   house     跟着会所里的人：剖面时镜头往下挪
+//   （第 3 轮修画面加的）
+//   rally     8:46 红土 / 9:06 会员场 / 青训东场 / 匹克球：每块场上的人按东西两半分（单打、喂球隔着网）
+//   crowd     前院 7:20、午饭 12:12、匹克球 17:28、散场 20:08：每段 20 帧，画面里两具身子 < 0.35 米的帧数
+//   cars      前院 7:05、9:20、17:40、20:25：车压着人的帧（runover）、车让人让了多久、被开着的车挤开的人、停着的车里站着的人
+//   follow    点"随便跟一个人"挑到谁（还要待多久、面板收起没有）；跟一个正在回家的人，走了以后自动换人；"退出"再进接着上回的时刻
+//   food      午饭 / 傍晚美食广场：场景演出的托盘、沙包、球露出来几个（应该 0），引擎的托盘不跟着看得见的身子的帧（orphanFrames，应该 0）
+//   b1        总监下到负一层（剖面换层）：一楼的人不画在健身房里，负一层的人站在自己的器械边
 // 输出：docs/lab/2026-11-24-clubsim/shots/<label>/<段>/*.png、watch.json
 import { existsSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -31,7 +38,7 @@ const opt = (k, d) => {
   return i >= 0 ? args[i + 1] : d;
 };
 const PORT = opt('port', '5184');
-const only = opt('only', 'path,feet,court,overview,desk,agenda,stadium,house').split(',');
+const only = opt('only', 'path,feet,court,overview,desk,agenda,stadium,house,rally,crowd,cars,follow,food,b1').split(',');
 const out = resolve(import.meta.dirname, `../shots/${label}`);
 mkdirSync(out, { recursive: true });
 const browser = await pw.chromium.launch({
@@ -307,6 +314,204 @@ if (only.includes('house')) {
   const id = await page.evaluate(() => window.__clubsim.followAt('house.cafe'));
   await page.waitForTimeout(4000);
   log.house = { id, shots: await shots(page, 'house', 2, 1200) };
+  await page.close();
+}
+if (only.includes('rally')) {
+  const page = await open();
+  log.rally = {};
+  for (const [name, t, x, z] of [
+    ['clay', 8 * 60 + 46, 17, 31],
+    ['member', 9 * 60 + 6, -18, 26],
+    ['practice', 8 * 60 + 46, 9, 4],
+    ['pickle', 8 * 60 + 46, 41, 0],
+  ]) {
+    await jump(page, t);
+    await page.evaluate(([x, z]) => window.__clubsim.look(x, z), [x, z]);
+    await page.waitForTimeout(3500);
+    mkdirSync(`${out}/rally`, { recursive: true });
+    await page.screenshot({ path: `${out}/rally/${name}.png` });
+    log.rally[name] = await page.evaluate(() => {
+      // 每块场：站在场上打球 / 上课 / 喂球的人，按朝向分两边（朝东 = 西半场）
+      const by = {};
+      for (const q of window.__clubsim.bodies()) {
+        if (!q.at || !/^(clay\.court|courts\.(member|practice)|pickle\.court)/.test(q.at)) continue;
+        if (!['tennis', 'pickle', 'coach', 'lesson'].includes(q.doing)) continue;
+        const k = (by[q.at] ??= { W: 0, E: 0, who: [] });
+        k[Math.sin(q.yaw) >= 0 ? 'W' : 'E']++;
+        k.who.push(`#${q.spot}(${q.x},${q.z})`);
+      }
+      const sameSide = Object.entries(by).filter(([, k]) => k.W + k.E >= 2 && (!k.W || !k.E)).map(([at]) => at);
+      return { by, sameSide, ball: window.__clubsim.fx().ball };
+    });
+  }
+  await page.close();
+}
+/** 画面里两具身子近于 0.35 米的帧（每段 20 帧） */
+async function crowdSeg(page) {
+  let close = 0;
+  const kinds = {};
+  for (let i = 0; i < 20; i++) {
+    const b = await page.evaluate(() => window.__clubsim.bodies());
+    let any = false;
+    for (let p = 0; p < b.length; p++)
+      for (let q = p + 1; q < b.length; q++) {
+        if (Math.hypot(b[p].x - b[q].x, b[p].z - b[q].z) >= 0.35) continue;
+        any = true;
+        const k = `${b[p].moving ? 'walk' : 'stand'}/${b[q].moving ? 'walk' : 'stand'} ${b[p].party && b[p].party === b[q].party ? 'same-party' : 'other'}`;
+        kinds[k] = (kinds[k] ?? 0) + 1;
+      }
+    if (any) close++;
+    await page.waitForTimeout(500);
+  }
+  return { framesWithClose: close, kinds };
+}
+if (only.includes('crowd')) {
+  log.crowd = {};
+  for (const [name, t, x, z] of [
+    ['fore', 7 * 60 + 20, 58, 6],
+    ['lunch', 12 * 60 + 12, -20, -14],
+    ['pickle', 17 * 60 + 28, 45, 6],
+    ['exh', 20 * 60 + 8, 0, -12],
+  ]) {
+    const page = await open();
+    await jump(page, t);
+    await page.evaluate(([x, z]) => window.__clubsim.look(x, z), [x, z]);
+    await page.waitForTimeout(2500);
+    log.crowd[name] = await crowdSeg(page);
+    mkdirSync(`${out}/crowd`, { recursive: true });
+    await page.screenshot({ path: `${out}/crowd/${name}.png` });
+    await page.close();
+  }
+}
+if (only.includes('cars')) {
+  log.cars = {};
+  for (const [t, x, z, secs] of [
+    [7 * 60 + 5, 64, -1, 30],
+    [9 * 60 + 20, 64, -1, 25],
+    [17 * 60 + 40, 70, 4, 30],
+    [20 * 60 + 25, 70, 0, 30],
+  ]) {
+    const page = await open();
+    await jump(page, t);
+    await page.evaluate(([x, z]) => window.__clubsim.look(x, z), [x, z]);
+    await page.waitForTimeout(1500);
+    const c0 = await page.evaluate(() => window.__clubsim.fx().cars);
+    await page.waitForTimeout(secs * 1000);
+    const c1 = await page.evaluate(() => window.__clubsim.fx().cars);
+    mkdirSync(`${out}/cars`, { recursive: true });
+    await page.screenshot({ path: `${out}/cars/${hm(`${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`)}.png` });
+    log.cars[t] = {
+      runoverFrames: c1.runoverFrames - c0.runoverFrames,
+      runoverWho: c1.runoverWho.slice(-4),
+      yieldS: +(c1.yieldS - c0.yieldS).toFixed(1),
+      shoved: c1.shoved - c0.shoved,
+      pedPush: c1.pedPush - c0.pedPush,
+      clipFrames: c1.clipFrames - c0.clipFrames,
+      overlapFrames: c1.overlapFrames - c0.overlapFrames,
+      ghost: c1.ghost,
+    };
+    await page.close();
+  }
+}
+if (only.includes('follow')) {
+  const page = await open();
+  await jump(page, 9 * 60 + 2);
+  await page.waitForTimeout(1500);
+  await page.locator('.sim-bar').click();
+  await page.waitForTimeout(400);
+  await page.locator('.sim-rand').click();
+  await page.waitForTimeout(2500);
+  const pick = await page.evaluate(() => {
+    const st = window.__clubsim.state();
+    const id = window.__clubsim.stats().follow;
+    const a = st.agents[id];
+    return { id, doing: a.doing, staysMin: a.leaveBy - st.minute, panelOpen: !document.querySelector('.sim-more')?.hidden };
+  });
+  mkdirSync(`${out}/follow`, { recursive: true });
+  await page.screenshot({ path: `${out}/follow/1-picked.png` });
+  const leaver = await page.evaluate(() => {
+    const st = window.__clubsim.state();
+    const v = window.__clubsim
+      .view()
+      .find((q) => q.doing === 'leave' && q.where.kind === 'travel' && !/staff|coach/.test(st.agents[q.id].role));
+    if (v) window.__clubsim.follow(v.id);
+    return v?.id ?? null;
+  });
+  let switched = null;
+  for (let i = 0; i < 20 && !switched; i++) {
+    await page.waitForTimeout(700);
+    const f = await page.evaluate(() => window.__clubsim.stats().follow);
+    if (f && f !== leaver) switched = f;
+  }
+  await page.screenshot({ path: `${out}/follow/2-switched.png` });
+  const before = await page.evaluate(() => window.__clubsim.stats().clock);
+  await page.locator('.sim-bar').click();
+  await page.waitForTimeout(300);
+  const gapsVisible = await page.locator('.sim-gaps-h').isVisible();
+  await page.locator('.sim-exit').click();
+  await page.waitForTimeout(1500);
+  await page.getByRole('button', { name: '调试' }).click();
+  await page.waitForTimeout(300);
+  await page.getByRole('button', { name: '观察俱乐部的一天（加速）' }).click();
+  await page.waitForTimeout(2000);
+  const after = await page.evaluate(() => window.__clubsim.stats().clock);
+  await page.screenshot({ path: `${out}/follow/3-reentered.png` });
+  log.follow = { pick, leaver, switched, gapsVisible, exitAt: before, reenterAt: after };
+  await page.close();
+}
+if (only.includes('food')) {
+  const page = await open();
+  log.food = {};
+  for (const t of [12 * 60 + 20, 18 * 60 + 40]) {
+    await jump(page, t);
+    await page.evaluate(() => {
+      window.__clubsim.look(-28, -28);
+      window.__clubsim.speed(15);
+    });
+    let sceneMax = 0;
+    for (let i = 0; i < 16; i++) {
+      const n = await page.evaluate(() => {
+        let k = 0;
+        window.__clubwalk.scene.traverse((o) => {
+          if (!/^food-tray:|^bag-\d$|-life:(ball|cups)/.test(o.name)) return;
+          let v = o.visible;
+          for (let p = o.parent; p && v; p = p.parent) v = p.visible;
+          if (v) k++;
+        });
+        return k;
+      });
+      sceneMax = Math.max(sceneMax, n);
+      await page.waitForTimeout(500);
+    }
+    await page.evaluate(() => window.__clubsim.speed(2));
+    await page.waitForTimeout(1500);
+    mkdirSync(`${out}/food`, { recursive: true });
+    await page.screenshot({ path: `${out}/food/${t}.png` });
+    const f = await page.evaluate(() => window.__clubsim.fx().food);
+    log.food[t] = { sceneProps: sceneMax, orphanFrames: f.orphanFrames, orphanWho: f.orphanWho, eaters: f.eaters };
+  }
+  await page.close();
+}
+if (only.includes('b1')) {
+  const page = await open();
+  await jump(page, 13 * 60 + 45);
+  await page.evaluate(() => {
+    window.__clubsim.speed(1);
+    window.__clubsim.look(-52, -25);
+  });
+  await page.waitForFunction(() => window.__clubwalk.lives.find((l) => l.def.id === 'clubhouse').region, null, {
+    timeout: 60000,
+  });
+  await page.waitForTimeout(1500);
+  await page.evaluate(() => window.__clubwalk.lives.find((l) => l.def.id === 'clubhouse').region.setFloor(-1));
+  await page.waitForTimeout(3000);
+  mkdirSync(`${out}/b1`, { recursive: true });
+  await page.screenshot({ path: `${out}/b1/b1.png` });
+  log.b1 = await page.evaluate(() => {
+    const q = window.__clubsim.bodies().filter((b) => b.x > -64.5 && b.x < -39.5 && b.z > -43 && b.z < -1);
+    return { inHouse: q.length, places: [...new Set(q.map((b) => b.at))] };
+  });
+  await page.evaluate(() => window.__clubwalk.lives.find((l) => l.def.id === 'clubhouse').region.setFloor(1));
   await page.close();
 }
 log.errors = [...new Set(errors)].slice(0, 20);

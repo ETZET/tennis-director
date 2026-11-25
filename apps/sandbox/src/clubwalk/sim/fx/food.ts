@@ -35,6 +35,8 @@ interface Prop {
   kind: number | 'cup';
   /** 这一帧用上了 */
   used: boolean;
+  /** 这一帧拿着 / 摆在面前的是谁的身子（自检：道具只跟着看得见的身子） */
+  owner: THREE.Object3D | null;
   /** 托盘自己的杯子（喝的那一下藏起来） */
   cup: THREE.Object3D | null;
 }
@@ -50,7 +52,9 @@ export function createFood(scene: THREE.Scene): FxPart & { prewarm(k: FxKits, ki
   const free: Prop[] = [];
   const v3 = new THREE.Vector3();
   /** trays / cups = 建了几个；其余是这一帧的数 */
-  const st = { trays: 0, cups: 0, handouts: 0, carriers: 0, eaters: 0 };
+  const st = { trays: 0, cups: 0, handouts: 0, carriers: 0, eaters: 0, orphans: 0, orphanFrames: 0 };
+  /** 自检（第 3 轮用户"食物会飞"）：看得见的托盘 / 杯子都该在一具看得见的身子手里或面前（1.2 米内）；不是的记一笔（应该一直是 0） */
+  const orphanWho: string[] = [];
 
   let made = 0;
   function build(k: FxKits, kind: number | 'cup'): Prop {
@@ -68,9 +72,14 @@ export function createFood(scene: THREE.Scene): FxPart & { prewarm(k: FxKits, ki
     root.add(obj);
     if (kind === 'cup') st.cups++;
     else st.trays++;
-    return { obj, kind, used: false, cup };
+    return { obj, kind, used: false, cup, owner: null };
   }
-  function take(k: FxKits, id: AgentId, kind: number | 'cup'): Prop | null {
+  function take(k: FxKits, id: AgentId, kind: number | 'cup', owner: THREE.Object3D): Prop | null {
+    const p = take0(k, id, kind);
+    if (p) p.owner = owner;
+    return p;
+  }
+  function take0(k: FxKits, id: AgentId, kind: number | 'cup'): Prop | null {
     let p = held.get(id);
     if (p && p.kind !== kind) {
       p.obj.visible = false;
@@ -165,7 +174,7 @@ export function createFood(scene: THREE.Scene): FxPart & { prewarm(k: FxKits, ki
           const fa = hand.ph < 0.5 ? va : ca;
           if (from && fa) {
             const g = givesOf(stall.id);
-            const p = take(k, `hand:${stall.id}`, g);
+            const p = take(k, `hand:${stall.id}`, g, from);
             handsMid(from, v3);
             if (p && g === 'cup') putCup(p, v3.setY(v3.y - 0.02), fa.yaw);
             else if (p) putTray(p, v3.x, v3.y - 0.06, v3.z, fa.yaw);
@@ -186,7 +195,7 @@ export function createFood(scene: THREE.Scene): FxPart & { prewarm(k: FxKits, ki
           if (g === undefined || !isCounter(from)) continue;
           if (!a.moving) continue;
           st.carriers++;
-          const p = take(k, v.id, g);
+          const p = take(k, v.id, g, o);
           if (!p) continue;
           if (g === 'cup') {
             // 杯子在右手：走路的手臂照摆，杯子跟着拳头
@@ -209,7 +218,7 @@ export function createFood(scene: THREE.Scene): FxPart & { prewarm(k: FxKits, ki
           const table = place.kind === 'table';
           const th = tableH(place);
           o.userData.setEat?.({ table: table ? th : null });
-          const p = take(k, v.id, g);
+          const p = take(k, v.id, g, o);
           if (!p) continue;
           const fx = Math.sin(a.yaw);
           const fz = Math.cos(a.yaw);
@@ -230,13 +239,24 @@ export function createFood(scene: THREE.Scene): FxPart & { prewarm(k: FxKits, ki
         else if (a.where.kind === 'at' && a.doing !== 'order' && a.doing !== 'eat' && a.doing !== 'drink')
           bought.delete(id);
       }
-      // 这一帧没用上的收回来
+      // 这一帧没用上的收回来；用上的对一下：拿着它的身子看得见、离它不远（不变式：道具只在看得见的身子手里 / 面前）
+      st.orphans = 0;
       for (const [id, p] of held) {
-        if (p.used) continue;
+        const o = p.owner;
+        const ok =
+          p.used && !!o && o.visible && !!o.parent && p.obj.position.distanceToSquared(o.position) < 1.44 + 1.2;
+        if (p.used && !ok) {
+          st.orphans++;
+          orphanWho.push(`${id}@${p.obj.position.x.toFixed(1)},${p.obj.position.z.toFixed(1)}`);
+          if (orphanWho.length > 8) orphanWho.shift();
+        }
+        if (ok) continue;
         p.obj.visible = false;
+        p.owner = null;
         free.push(p);
         held.delete(id);
       }
+      if (st.orphans) st.orphanFrames++;
     },
     off() {
       for (const p of held.values()) {
@@ -247,7 +267,7 @@ export function createFood(scene: THREE.Scene): FxPart & { prewarm(k: FxKits, ki
       bought.clear();
     },
     stats() {
-      return { ...st, held: held.size, bought: bought.size, free: free.length };
+      return { ...st, orphanWho: [...orphanWho], held: held.size, bought: bought.size, free: free.length };
     },
     /** 预热：先建一个托盘（kind = 变体 0..3）/ 杯子放进池子（午饭一开始几十个人一起端托盘），返回它（给 prewarm 摆到画面里渲染一次） */
     prewarm(k, kind) {
