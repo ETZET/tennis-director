@@ -78,13 +78,16 @@ const FLAT = { cast: false };
 /**
  * 门外铺地用 clubpark 的材质名（lotAsphalt、stallGravel、paver、kerb、lotPaint…），这个场景的调色板里没有：
  * 照 clubpark 的色板建参数，再借这个场景里同一个配色组的名字过方案的 grade（沥青、漆 = court 组，路缘 = wall 组；
- * 连锁砖、碎石不在任何组里 → 只吃全局 grade，直接 ctx.mats.toon），所以两个场景里同一块地颜色一样。
+ * 连锁砖、碎石借步道 = ground 组），所以两个场景里同一块地颜色一样。
  */
 function parkCtx(ctx: AssetCtx): ParkCtx {
   const proxy: Partial<Record<keyof typeof PARK_PAL, Key>> = {
     lotAsphalt: 'asphalt',
     lotPaint: 'line',
     kerb: 'concrete',
+    // 2026-11-25 清透配色：连锁砖、碎石借步道（ground 组），和 clubpark 里同一块地一个颜色（GROUP 里 paver / stallGravel 也归 ground）
+    paver: 'flagstone',
+    stallGravel: 'flagstone',
   };
   const mat = (key: keyof typeof PARK_PAL, extra?: ToonOpts) => {
     if (key in ctx.pal) return ctx.mat(key as Key, extra);

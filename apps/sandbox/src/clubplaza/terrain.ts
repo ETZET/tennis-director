@@ -80,6 +80,9 @@ function parkCtx(ctx: AssetCtx): ParkCtx {
     lotAsphalt: 'asphalt',
     lotPaint: 'line',
     kerb: 'concrete',
+    // 2026-11-25 清透配色：连锁砖、碎石借步道（ground 组），和 clubpark 里同一块地一个颜色
+    paver: 'flagstone',
+    stallGravel: 'flagstone',
   };
   const mat = (key: keyof typeof PARK_PAL, extra?: ToonOpts) => {
     if (key in ctx.pal) return ctx.mat(key as Key, extra);
