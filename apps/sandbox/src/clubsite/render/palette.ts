@@ -297,12 +297,12 @@ export const EL = {
    */
   sand: {
     ...BASE_EL.sand,
-    density: [0, 0.14],
-    patch: 5,
-    mottle: 0.08,
-    pebbles: 0.05,
-    p: [0.02, 0.08, 0, 0],
-    contrast: [0.6, 0.6, 0.35],
+    density: [0.01, 0.24],
+    patch: 4.5,
+    mottle: 0.16,
+    pebbles: 0.09,
+    p: [0.02, 0.1, 0, 0],
+    contrast: [0.9, 0.85, 0.45],
     fur: 0.6,
   },
   /** 踩实的步道：土团放大到 24×14 纹素、不画龟裂、脚印和碎石几乎没有 —— 一条安静的浅色带（参考图的土路） */
@@ -313,18 +313,18 @@ export const EL = {
     density: [0, 0.03],
     patch: 3,
     pebbles: 0.02,
-    contrast: [0.55, 0.6, 0.35],
+    contrast: [0.7, 0.7, 0.4],
     fur: 0.3,
   },
   /**
    * 陶砖铺地（到达小院这类大面）：Voronoi 石块（原 9×6 → 20×12 纹素），一成半有上沿亮边，缝只留三成多（影子里两成）——
    * 远看是一块陶色的面。要"看得出是碎拼"的地方（喷泉外一圈）用 tileShow。
    */
-  tile: { kind: 'stones', size: [20, 12], seam: 0.6, hi: 0.12, contrast: [0.3, 0.25, 0.15], fur: 0.3 },
+  tile: { kind: 'stones', size: [24, 14], seam: 0.6, hi: 0.15, contrast: [0.5, 0.32, 0.16], fur: 0.3 },
   /** 碎拼陶砖，看得出缝：只给焦点边上的一小圈（喷泉外的陶砖圈） */
   tileShow: { kind: 'stones', size: [28, 17], seam: 0.6, hi: 0.2, contrast: [0.4, 0.3, 0.15], fur: 0.3 },
   /** 步道石板：大石板（原 14×8 → 40×24 纹素），一成有上沿亮边，缝只留三成（影子里一成半）：一块浅色的面，近看才是石板 */
-  flagstone: { kind: 'stones', size: [40, 24], seam: 0.6, hi: 0.12, contrast: [0.3, 0.25, 0.12], fur: 0.3 },
+  flagstone: { kind: 'stones', size: [26, 15], seam: 0.6, hi: 0.18, contrast: [0.75, 0.5, 0.22], fur: 0.3 },
   /**
    * 土坯墙（墙，space wall）：借岩层的做法 —— 一层 4～5 行的土坯砖、砖宽 16 纹素左右、缝下一行亮边；
    * 不淌沙（q.y 很大）。矮墙（露出 < 9 行）照规范是实心一条 + 亮唇。

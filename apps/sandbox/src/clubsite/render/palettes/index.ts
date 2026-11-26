@@ -70,7 +70,9 @@ type SceneKey =
   | 'lawn'
   | 'lawnStripe'
   | 'green'
-  | 'seat';
+  | 'seat'
+  // NPC 的草帽（clubsite/people/dress.ts）：和总监那顶分开调，不当替身（redo-fix.md）
+  | 'strawNpc';
 
 /** 每个调色板名字归哪组 */
 const GROUP: Partial<Record<keyof Pal | SceneKey, Group>> = {
@@ -138,6 +140,7 @@ const GROUP: Partial<Record<keyof Pal | SceneKey, Group>> = {
   clothPurple: 'club',
   clothTeal: 'club',
   straw: 'people',
+  strawNpc: 'people',
   flowerYellow: 'accent',
   flowerRed: 'accent',
   flowerPurple: 'accent',
