@@ -1,0 +1,398 @@
+// 像素人物卡（clubsite/hud 的半屏卡；?hud=old 还是 card.ts 的全屏文字卡）。能画就不写：
+//   第一层：像素肖像（从卡顶探出来）、名字、他自己的一句话；好感 5 颗心、心情脸 + 短条；
+//           一天的时间带（太阳 → 月亮，他在的钟点填他的招牌色，现在 = 一根竖线 + 上面他在干什么的小图）；
+//           底下一排互动按钮：图标 + 代价（小时钟 / 金币 + 点阵数字）。不当面时按了先走过去，到了自动做。
+//   第二层（点卡顶的小箭头）：一周 7 格、6 项属性（图标 + 短条）、性子（≤ 3 个词）、牵连（小头像 + 关系小图，点了换成他）。
+// 字：名字 + 一句话，第二层只有性子的几个词。卡片外面点一下 / 往下滑 = 收起。
+import { actionsFor } from '../../clubsite/cast';
+import { TRAITS } from '../../clubsite/cast/traits';
+import type { ActionDef, ActionId, Activity, CastPerson, TieKind } from '../../clubsite/cast/types';
+import {
+  actIcon,
+  bar,
+  createSheet,
+  dayBand,
+  type GlyphId,
+  glyph,
+  hearts,
+  lang,
+  PAPER_DARK,
+  px,
+  type TKey,
+  t,
+  tap,
+  tinyRow,
+  weekPips,
+} from '../../clubsite/hud';
+import type { Card } from './card';
+import type { CastCtx } from './ctx';
+import { accentDarkNum, accentNum, portraitCanvas } from './portrait';
+
+/** 在干什么 → 时间带上"现在"那根线上面的小图 */
+const ACT_GLYPH: Record<Activity, GlyphId> = {
+  play: 'ball',
+  watch: 'eye',
+  rest: 'zzz',
+  eat: 'cup',
+  walk: 'feet',
+  work: 'broom',
+  gym: 'dumbbell',
+  swim: 'drop',
+  wait: 'wait',
+  idle: '…',
+};
+/** 牵连的种类 → 小图 */
+const TIE_GLYPH: Record<TieKind, GlyphId> = {
+  family: 'house',
+  partner: 'racket',
+  friend: 'smile',
+  mentor: 'star',
+  rival: 'bolt',
+  crush: 'heart',
+  colleague: 'badge',
+  history: 'clock',
+};
+const ATTR_ROWS: { k: 'ntrp' | 'fitness' | 'social' | 'patience' | 'spend' | 'loyalty'; g: GlyphId }[] = [
+  { k: 'ntrp', g: 'racket' },
+  { k: 'fitness', g: 'bolt' },
+  { k: 'social', g: 'bubble' },
+  { k: 'patience', g: 'wait' },
+  { k: 'spend', g: 'coin' },
+  { k: 'loyalty', g: 'flag' },
+];
+/** 营业时段（同演员表的时钟 7:00–22:00） */
+const OPEN = 7;
+const CLOSE = 22;
+
+const CSS = `
+.pxs-card { padding-top: calc(var(--s) * 4px); }
+.pxc-top { display: flex; gap: calc(var(--s) * 5px); align-items: flex-start; }
+.pxc-pic { flex: none; margin-top: calc(var(--s) * -16px); box-shadow: 2px 0 0 0 #2c2848, -2px 0 0 0 #2c2848, 0 2px 0 0 #2c2848, 0 -2px 0 0 #2c2848, 0 4px 0 0 #171230; }
+.pxc-id { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: calc(var(--s) * 2px); }
+.pxc-row { display: flex; align-items: center; gap: calc(var(--s) * 3px); min-height: 24px; }
+.pxc-row .pxs-name { flex: 0 1 auto; min-width: 0; }
+.pxc-mood { display: flex; align-items: center; gap: calc(var(--s) * 1px); margin-left: auto; }
+.pxc-band { display: flex; justify-content: center; margin: calc(var(--s) * 4px) 0 calc(var(--s) * 2px); position: relative; }
+.pxc-acts { display: flex; justify-content: space-between; gap: 2px; margin-top: calc(var(--s) * 2px); }
+.pxc-acts .pxs-btn { flex: 1 1 0; min-height: 56px; position: relative; }
+.pxc-fold { position: absolute; left: 50%; top: calc(var(--s) * -11px); transform: translateX(-50%); width: 56px; height: 44px; justify-content: flex-start !important; }
+.pxc-more { display: flex; flex-direction: column; gap: calc(var(--s) * 4px); padding: calc(var(--s) * 2px) 0; }
+.pxc-attrs { display: grid; grid-template-columns: repeat(3, auto); justify-content: space-between; gap: calc(var(--s) * 3px) calc(var(--s) * 4px); }
+.pxc-attr { display: flex; align-items: center; gap: calc(var(--s) * 2px); }
+.pxc-line2 { display: flex; align-items: center; gap: calc(var(--s) * 4px); flex-wrap: wrap; }
+.pxc-ties { display: flex; gap: calc(var(--s) * 3px); flex-wrap: wrap; }
+.pxc-tie { position: relative; }
+.pxc-tie .k { position: absolute; right: -6px; bottom: -6px; }
+`;
+
+function headCrop(id: string, p: CastPerson, size = 22): HTMLCanvasElement {
+  const src = portraitCanvas(id, p.look, p.age);
+  const c = document.createElement('canvas');
+  c.width = size;
+  c.height = size;
+  const g = c.getContext('2d') as CanvasRenderingContext2D;
+  // 头像底：卡纸暗一档（看板上一片浅，不是一墙深色方块）
+  g.fillStyle = hexN(PAPER_DARK);
+  g.fillRect(0, 0, size, size);
+  const y0 = p.look.body === 'kid' ? 1 : 2;
+  g.drawImage(src, (32 - size) / 2, y0, size, size, 0, 0, size, size);
+  return c;
+}
+
+export { headCrop };
+
+const hexN = (n: number) => `#${n.toString(16).padStart(6, '0')}`;
+
+function portrait(id: string, p: CastPerson): HTMLCanvasElement {
+  const src = portraitCanvas(id, p.look, p.age);
+  const c = document.createElement('canvas');
+  c.width = 32;
+  c.height = 32;
+  const g = c.getContext('2d') as CanvasRenderingContext2D;
+  g.fillStyle = hexN(accentDarkNum(p.look));
+  g.fillRect(0, 0, 32, 32);
+  g.drawImage(src, 0, 0);
+  return c;
+}
+
+/** 名字：中文界面用中文叫法（两三个字），英文界面用名 */
+export const shortName = (p: CastPerson) => (lang() === 'zh' && p.nameZh ? p.nameZh : p.name.split(' ')[0]);
+
+export function createPxCard(ctx: CastCtx): Card {
+  if (!document.getElementById('pxc-css')) {
+    const st = document.createElement('style');
+    st.id = 'pxc-css';
+    st.textContent = CSS;
+    document.head.appendChild(st);
+  }
+  const sheet = createSheet('card', () => {
+    id = '';
+    more = false;
+  });
+  const el = sheet.el;
+  let id = '';
+  let list: string[] = [];
+  let near = false;
+  let more = false;
+  /** 最近一次互动的回话（显示在一句话那里），换人清掉 */
+  let said: { id: string; text: string; bad: boolean } | null = null;
+  let favorShown = -1;
+  /** 不当面时按的动作：走过去，到了（卡片重新打开、当面）自动做 */
+  let queued: { id: string; act: ActionId } | null = null;
+  let acting = false;
+
+  function render() {
+    const p = ctx.person(id);
+    if (!p) return;
+    const m = ctx.mem(id);
+    near = ctx.near(id);
+    const n = ctx.nowOf(id);
+    const s = ctx.state();
+    const accent = accentNum(p.look);
+
+    // ── 头：肖像、名字、心、心情、一句话 ──
+    const top = div('pxc-top');
+    top.appendChild(px(portrait(id, p), 1, 'pxc-pic'));
+    const idb = div('pxc-id');
+    const row = div('pxc-row');
+    const nm = div('pxs-name', shortName(p));
+    const hc = px(hearts(m.favor), 1, 'pxc-hearts');
+    const mood = div('pxc-mood');
+    mood.append(
+      px(glyph(m.mood >= 66 ? 'smile' : m.mood >= 33 ? 'meh' : 'sad')),
+      px(bar(m.mood / 100, 14, m.mood >= 66 ? 0x8cc860 : m.mood >= 33 ? 0xe8b860 : 0xc0545a)),
+    );
+    row.append(nm, hc, mood);
+    const lineText = said?.id === id ? said.text : n.thought;
+    const line = div(`pxs-line${said?.id === id && said.bad ? ' bad' : ''}`, lineText ? `「${lineText}」` : '');
+    idb.append(row, line);
+    top.appendChild(idb);
+
+    // ── 一天的时间带 ──
+    const band = div('pxc-band');
+    const wd = (s.day - 1) % 7;
+    const segs: [number, number][] = p.week
+      ? p.week.days.includes(wd)
+        ? [p.week.hours]
+        : []
+      : p.tier === 'crowd'
+        ? []
+        : [[OPEN, CLOSE]];
+    const nowH = s.minute / 60;
+    band.appendChild(
+      px(
+        dayBand({
+          from: OPEN,
+          to: CLOSE,
+          w: 120,
+          segs,
+          color: accent,
+          now: nowH,
+          mark: n.here && ctx.bound(id) && n.activity !== 'idle' ? ACT_GLYPH[n.activity] : null,
+          dim: !n.here,
+        }),
+      ),
+    );
+
+    const parts: HTMLElement[] = [top, band];
+    if (more) parts.push(second(p, m.met, accent, wd));
+    parts.push(acts(p, n));
+    const fold = btn('pxc-fold', more ? t('less') : t('more'));
+    const tabEl = div('pxs-tab');
+    tabEl.appendChild(px(actIcon(more ? 'down' : 'up')));
+    fold.appendChild(tabEl);
+    fold.dataset.more = '1';
+    tap(fold, () => {
+      more = !more;
+      render();
+    });
+    parts.push(fold);
+    el.replaceChildren(...parts, sheet.x);
+    // 好感变了：心那里飘一颗心 + 点阵的 +0.8
+    if (favorShown >= 0 && Math.abs(m.favor - favorShown) > 0.01) floatDelta(hc, m.favor - favorShown);
+    favorShown = m.favor;
+  }
+
+  function second(p: CastPerson, met: boolean, accent: number, wd: number): HTMLElement {
+    const box = div('pxc-more');
+    box.appendChild(div('pxs-rule'));
+    // 一周 7 格 + 性子
+    const l2 = div('pxc-line2');
+    l2.appendChild(px(weekPips(p.week ? p.week.days : p.tier === 'crowd' ? [wd] : null, wd, accent)));
+    if (met)
+      for (const tid of p.traits.slice(0, 3)) {
+        const tr = TRAITS[tid];
+        if (tr) l2.appendChild(div('pxs-chip', tr.name));
+      }
+    box.appendChild(l2);
+    // 属性：图标 + 短条（没见过面 = 一个"聊聊才知道"：对话框 + 问号）
+    if (!met) {
+      const u = div('pxc-line2');
+      u.append(px(glyph('bubble')), px(glyph('?')));
+      box.appendChild(u);
+      return box;
+    }
+    const g = div('pxc-attrs');
+    for (const a of ATTR_ROWS) {
+      const it = div('pxc-attr');
+      it.appendChild(px(glyph(a.g)));
+      const v = a.k === 'ntrp' ? (p.attrs.ntrp - 1) / 6 : p.attrs[a.k] / 100;
+      it.appendChild(px(bar(v, 26, a.k === 'ntrp' ? 0xb8d84a : 0x6aa8d8, 5)));
+      g.appendChild(it);
+    }
+    box.appendChild(g);
+    // 牵连：小头像 + 关系小图，点了换成他
+    if (p.ties.length) {
+      const ties = div('pxc-ties');
+      for (const tie of p.ties.slice(0, 6)) {
+        const o = ctx.person(tie.with);
+        if (!o) continue;
+        const b = btn('pxc-tie', o.nameZh || o.name);
+        b.appendChild(px(headCrop(o.id, o)));
+        b.appendChild(px(glyph(TIE_GLYPH[tie.kind]), 1, 'k'));
+        tap(b, () => {
+          if (!list.includes(o.id)) list = [id, ...p.ties.map((x) => x.with)];
+          show(o.id);
+        });
+        ties.appendChild(b);
+      }
+      box.appendChild(ties);
+    }
+    return box;
+  }
+
+  function acts(p: CastPerson, n: ReturnType<CastCtx['nowOf']>): HTMLElement {
+    const box = div('pxc-acts');
+    const m = ctx.mem(p.id);
+    const s = ctx.state();
+    const defs: ActionDef[] = actionsFor(p, { near, activity: n.activity, scene: n.scene }, m);
+    // 不当面：最前面一个"走过去"（脚印），当面才能做的变淡（按了也是先走过去，到了接着做）
+    const anyFar = defs.some((a) => a.inPerson) && !near;
+    if (anyFar) {
+      const w = btn('pxc-walk', t('walk'));
+      w.appendChild(px(actIcon('walk')));
+      if (!n.here) w.classList.add('off');
+      tap(w, () => {
+        if (n.here) ctx.walkTo(p.id);
+      });
+      box.appendChild(w);
+    }
+    for (const a of defs) {
+      const icon = a.id === 'treat' && p.look.body !== 'adult' ? 'pop' : a.id;
+      const b = btn('', t(`act_${a.id}` as TKey));
+      b.appendChild(px(actIcon(icon)));
+      const cost: string[] = [];
+      if (a.money) cost.push('coin', String(a.money));
+      if (a.minutes) cost.push('clock', String(a.minutes));
+      b.appendChild(px(tinyRow(cost)));
+      const far = a.inPerson && !near;
+      if (far) b.classList.add('off');
+      const cant =
+        a.money > s.money ||
+        (a.id === 'gift' && m.giftDay > 0 && s.day - m.giftDay < 7) ||
+        (far && !n.here) ||
+        (a.id === 'message' && !m.met);
+      if (cant) b.classList.add('off');
+      tap(b, () => {
+        if (cant) return;
+        if (far) {
+          queued = { id: p.id, act: a.id };
+          ctx.walkTo(p.id);
+          return;
+        }
+        run(a.id);
+      });
+      box.appendChild(b);
+    }
+    return box;
+  }
+
+  function run(a: ActionId) {
+    acting = true;
+    const r = ctx.doAct(id, a);
+    acting = false;
+    said = { id, text: r.ok ? r.line || '' : r.line || r.reason || '', bad: !r.ok };
+    render();
+  }
+
+  function floatDelta(anchor: HTMLElement, d: number) {
+    const host = anchor.parentElement;
+    if (!host) return;
+    const f = document.createElement('div');
+    f.className = 'pxs-float';
+    f.style.left = `${anchor.offsetLeft}px`;
+    f.style.top = `${anchor.offsetTop - 18}px`;
+    f.style.display = 'flex';
+    f.style.gap = '2px';
+    f.style.alignItems = 'center';
+    f.append(px(glyph(d >= 0 ? 'heart' : 'heartOff')), px(tinyRow([`${d >= 0 ? '+' : '-'}${Math.abs(d).toFixed(1)}`])));
+    host.style.position = 'relative';
+    host.appendChild(f);
+  }
+
+  function show(nid: string) {
+    if (nid !== id) {
+      said = null;
+      favorShown = -1;
+    }
+    id = nid;
+    sheet.open();
+    render();
+  }
+
+  // 左右滑：换附近的下一个人
+  let sw: { x: number; y: number; id: number } | null = null;
+  el.addEventListener('pointerdown', (e) => {
+    sw = { x: e.clientX, y: e.clientY, id: e.pointerId };
+  });
+  el.addEventListener('pointerup', (e) => {
+    if (!sw || sw.id !== e.pointerId) return;
+    const dx = e.clientX - sw.x;
+    const dy = e.clientY - sw.y;
+    sw = null;
+    if (Math.abs(dx) > 70 && Math.abs(dy) < 40 && list.length > 1) {
+      const i = list.indexOf(id);
+      show(list[(i + (dx < 0 ? 1 : -1) + list.length) % list.length]);
+    }
+  });
+  ctx.onChange(() => {
+    if (sheet.isOpen() && !acting && id) render();
+  });
+
+  return {
+    open(nid, l) {
+      if (l?.includes(nid)) list = l;
+      else if (!list.includes(nid)) list = [nid];
+      show(nid);
+      // 不当面时按的动作：走到了，卡片重新打开 → 接着做
+      if (queued && queued.id === nid && ctx.near(nid)) {
+        const a = queued.act;
+        queued = null;
+        run(a);
+      }
+    },
+    close() {
+      sheet.close();
+    },
+    isOpen: () => sheet.isOpen(),
+    tickNear() {
+      if (!sheet.isOpen() || !id) return;
+      const nn = ctx.near(id);
+      if (nn !== near) render();
+    },
+  };
+}
+
+function div(cls: string, text?: string): HTMLDivElement {
+  const d = document.createElement('div');
+  d.className = cls;
+  if (text !== undefined) d.textContent = text;
+  return d;
+}
+function btn(cls: string, label: string): HTMLButtonElement {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = `pxs-btn ${cls}`.trim();
+  b.setAttribute('aria-label', label);
+  return b;
+}

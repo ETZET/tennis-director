@@ -25,6 +25,22 @@ export function portraitURL(key: string, look: CastLook, age: number): string {
   return u;
 }
 
+const canvases = new Map<string, HTMLCanvasElement>();
+
+/** 同一张肖像的 canvas（32×32，1 纹素 = 1 像素；像素卡片拿它裁头像、按纹素放大） */
+export function portraitCanvas(key: string, look: CastLook, age: number): HTMLCanvasElement {
+  let c = canvases.get(key);
+  if (!c) {
+    c = draw({ look, age });
+    canvases.set(key, c);
+  }
+  return c;
+}
+
+/** 招牌色的中档（0xRRGGBB） */
+export const accentNum = (look: CastLook, i: 0 | 1 | 2 = 1): number => CLOTH[accentOf(look)][i];
+export const accentDarkNum = (look: CastLook, k = 0.55): number => mul(CLOTH[accentOf(look)][2], k);
+
 /** 招牌色（不给 = 衣服色） */
 export const accentOf = (look: CastLook): Cloth => look.accent ?? look.shirt;
 

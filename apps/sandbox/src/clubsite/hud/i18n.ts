@@ -21,6 +21,18 @@ const zh = {
   w_overcast: '阴',
   w_rain: '雨',
   w_dust: '风沙',
+  // 半屏卡（人物卡、名册看板）：图标按钮的读屏名和长按冒的名字
+  act_chat: '聊几句',
+  act_treat: '请喝一杯',
+  act_rally: '打一局',
+  act_ask: '听听意见',
+  act_gift: '送个小礼物',
+  act_message: '发条消息',
+  walk: '走过去',
+  more: '更多',
+  less: '收起',
+  close: '关上',
+  board: '今天的人',
 } as const;
 
 const en: Record<keyof typeof zh, string> = {
@@ -42,6 +54,17 @@ const en: Record<keyof typeof zh, string> = {
   w_overcast: 'OVERCAST',
   w_rain: 'RAIN',
   w_dust: 'DUST',
+  act_chat: 'Chat',
+  act_treat: 'Buy a drink',
+  act_rally: 'Rally',
+  act_ask: 'Ask advice',
+  act_gift: 'Small gift',
+  act_message: 'Message',
+  walk: 'Walk over',
+  more: 'More',
+  less: 'Less',
+  close: 'Close',
+  board: 'Today',
 };
 
 export type TKey = keyof typeof zh;

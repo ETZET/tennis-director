@@ -26,17 +26,18 @@ import { type TKey, t, weekday } from './i18n';
 import { ICONS, type IconId, MOODS, type MoodId, moodSprite, WEATHER_ICONS } from './icons';
 import { createIris, type Iris } from './iris';
 import { moodOf } from './mood';
+import { hudScale } from './scale';
 import { blit, spriteCanvas } from './sprite';
 import { HUD_CSS } from './style';
 
-export { lang, t } from './i18n';
+export type { ActIcon, GlyphId } from './glyphs';
+export { lang, type TKey, t } from './i18n';
 export type { IconId, MoodId } from './icons';
 export type { Iris } from './iris';
 export { createIris } from './iris';
 export { moodOf } from './mood';
-
-/** 界面纹素 → CSS 像素：2（第 4 轮评判：横屏 3 倍比参考重 1.7 倍，统一 2 倍；留成函数，以后按屏幕分档） */
-export const hudScale = () => 2;
+export { hudScale } from './scale';
+export * from './sheet';
 
 export interface HudButton {
   id: string;

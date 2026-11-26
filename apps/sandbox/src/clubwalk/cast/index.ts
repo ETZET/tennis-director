@@ -19,6 +19,8 @@ import { createCard } from './card';
 import { Commute } from './commute';
 import type { CastCtx, NowInfo } from './ctx';
 import { accentMid } from './portrait';
+import { createPxBoard } from './pxboard';
+import { createPxCard } from './pxcard';
 import { createRoster } from './roster';
 import { loadState, saveState } from './save';
 import { injectCastCss } from './style';
@@ -165,8 +167,9 @@ export function mountCast(o: MountCastOpts): CastMount {
     clock: () => clockText(state),
   };
 
-  const roster = createRoster(ctx, ui);
-  const card = createCard(ctx, ui);
+  // 像素界面：半屏的像素人物卡、"今天的人"看板（pxcard / pxboard）；旧界面还是全屏的文字卡、名册表
+  const roster = o.quiet ? createPxBoard(ctx) : createRoster(ctx, ui);
+  const card = o.quiet ? createPxCard(ctx) : createCard(ctx, ui);
   const panelOpen = () => roster.isOpen() || card.isOpen();
 
   openBtn.addEventListener('click', () => roster.open());
