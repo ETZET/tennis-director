@@ -36,6 +36,8 @@ export default defineConfig({
         // 所有做好的场景连成一个大世界（按区域加载，src/clubwalk）
         clubwalk: resolve(import.meta.dirname, 'clubwalk.html'),
         clubgolf: resolve(import.meta.dirname, 'clubgolf.html'),
+        // 俱乐部拆成四张主题小图（《垂钓手记》的地图搭法：边缘密、中间空、层间暗带、主路斜弯；圆形转场，src/clubvista）
+        clubvista: resolve(import.meta.dirname, 'clubvista.html'),
         // 人物一览：clubsite/people 的 Q 版人按 CastLook 换装（src/cast）
         cast: resolve(import.meta.dirname, 'cast.html'),
         // 俱乐部所在的小镇和山谷：平面图（Canvas 2D，src/valley/layout.ts 现读）
