@@ -77,7 +77,8 @@ const SHIRTS: (keyof Pal)[] = ['clothWhite', 'canvas', 'clothBlue', 'clothRed', 
 const SHIRT_W = [5, 5, 4, 0.3, 0.6];
 const SKINS: (keyof Pal)[] = ['skinLight', 'skinTan', 'skinDark'];
 const SKIN_W = [4, 3, 2];
-const HATS: (keyof Pal)[] = ['straw', 'clothWhite'];
+// 第 4 轮：头只留肤色 + 一种发色（草帽 / 白帽在 1.4× 下是一排排亮点）
+const HATS: (keyof Pal)[] = ['hair', 'hair'];
 const SEAT_P = 0.54;
 
 const bx = (w: number, h: number, d: number, x: number, y: number, z: number) =>
@@ -140,7 +141,8 @@ export function buildStand(ctx: AssetCtx, s: StandSpec): THREE.Object3D {
     convex: 0.25,
   });
   const DARK = { noShadowReceive: true, bands: [2, 3] as [number, number] };
-  const treadLit = ctx.mat('concrete', { edge: 0.15, convex: 0.35, noShadowReceive: true });
+  // 第 4 轮：踏面前沿落中灰紫（≈ #8a86a0），不是亮沙色：6 排亮沙 + 藏青立面叠出 12 道高反差横条
+  const treadLit = ctx.mat('treadMid', { edge: 0.1, convex: 0.2, noShadowReceive: true, bands: [-2, 2] });
   const treadShade = ctx.mat('concrete', { ...DARK, edge: 0.15, convex: 0.35 });
   const treadRecv = ctx.mat('concrete', { edge: 0.15, convex: 0.35 });
   const seatOpts = {
@@ -159,7 +161,7 @@ export function buildStand(ctx: AssetCtx, s: StandSpec): THREE.Object3D {
     convex: 0.2,
     elem: { kind: 'planks', p: [1, 0, 0, SEAT_P], seam: 0.6, hi: 0 },
   });
-  const aisleMat = ctx.mat('aisle', { edge: 0.18, convex: 0.25, noShadowReceive: true, bands: [0.1, 0.75] });
+  const aisleMat = ctx.mat('treadMid', { edge: 0.12, convex: 0.2, noShadowReceive: true, bands: [-2, 2] });
   const stucco = ctx.mat('stucco', {
     elem: { kind: 'stones', space: 'wall', size: [34, 7], seam: 0, hi: 0, seed: 4 },
     tones: STUCCO,
@@ -190,6 +192,7 @@ export function buildStand(ctx: AssetCtx, s: StandSpec): THREE.Object3D {
     cap: [],
     board: [],
     paint: [],
+    wallCap: [],
   } as Record<string, THREE.BufferGeometry[]>;
   // 影子袋：上一级立面（R 高）在踏面上的影子长 ≈ R / tan(46°) ≈ 0.97 R
   const pocket = Math.min(D - 0.22, R * 0.97);
@@ -248,7 +251,8 @@ export function buildStand(ctx: AssetCtx, s: StandSpec): THREE.Object3D {
   if (s.wall) {
     const h = s.wall;
     G.board.push(face('pz', x0, x1, 0, h, 0.32));
-    G.cap.push(bx(L, 0.08, 0.32, 0, h + 0.04, 0.16));
+    // 矮墙压顶落中灰紫（第 4 轮：边看台前沿的亮橙压顶是贯穿全屏的两条竖线）
+    G.wallCap.push(bx(L, 0.08, 0.32, 0, h + 0.04, 0.16));
     for (let x = x0 + 1.2; x < x1 - 0.6; x += 2.4) {
       if (inAisle(x, 0.4)) continue;
       G.paint.push(face('pz', x - 0.5, x + 0.5, h * 0.42, h * 0.62, 0.325));
@@ -293,6 +297,7 @@ export function buildStand(ctx: AssetCtx, s: StandSpec): THREE.Object3D {
   root.add(mesh(G.cap, cap, 'cap', false, true));
   if (s.wall) {
     root.add(mesh(G.board, board, 'boards'));
+    root.add(mesh(G.wallCap, ctx.mat('treadMid', { edge: 0.2, convex: 0.3, bands: [-2, 2] }), 'wall-cap'));
     root.add(mesh(G.paint, paint, 'board-paint'));
   }
   for (const c of [...root.children])
@@ -385,7 +390,7 @@ function buildCrowd(
   // 坐着：只露头和肩（腿被前一排的椅背和立面挡住，不建），第 3 轮评判"一排保龄球瓶"
   const body = bx(0.42, 0.34, 0.3, 0, 0.17, 0);
   const head = bx(0.3, 0.28, 0.28, 0, 0.48, 0.01);
-  const hat = mergeGeometries([bx(0.42, 0.04, 0.4, 0, 0.64, 0.03), bx(0.28, 0.08, 0.26, 0, 0.69, 0.01)]);
+  const hat = bx(0.31, 0.08, 0.29, 0, 0.6, 0.0);
   const root = new THREE.Group();
   root.name = 'crowd';
   const meshes: { im: THREE.InstancedMesh; ranks: number[] }[] = [];

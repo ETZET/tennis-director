@@ -47,8 +47,9 @@ const match: Prop[] = [
   // 球员长椅（裁判两边）+ 伞 + 球拍包
   { a: 'player-bench', x: C.x0 + 1.1, z: NET - 2.8, r: PI / 2 },
   { a: 'player-bench', x: C.x0 + 1.1, z: NET + 2.8, r: PI / 2 },
-  { a: 'court-umbrella', x: C.x0 + 1.0, z: NET - 4.4 },
-  { a: 'court-umbrella', x: C.x0 + 1.0, z: NET + 4.4, v: 1 },
+  // 球员伞用本地的米白伞 + 蓝下摆（第 4 轮：main 上共用的场边伞换成了珊瑚红白条，两把并排成了整屏最艳的暖色）
+  { a: 'parasol', x: C.x0 + 1.0, z: NET - 4.4, v: 1, block: 0.2 },
+  { a: 'parasol', x: C.x0 + 1.0, z: NET + 4.4, v: 1, block: 0.2 },
   { a: 'kit-bag', x: C.x0 + 1.2, z: NET - 1.6, r: PI / 2, v: 0 },
   { a: 'kit-bag', x: C.x0 + 1.2, z: NET + 1.6, r: PI / 2, v: 1 },
   // 两个球员：北边发球、南边准备接
@@ -236,13 +237,13 @@ const frame: Prop[] = [
     ],
     { v0: 0 },
   ),
-  // 南边广场：观众进场（进场口排着一小队，手里拿着冰棍）+ 一辆冰棍三轮车 —— 比赛日的样子（第 3 轮：南边是一片空米色）
-  { a: 'cart-paletas', x: 21.6, z: 60.4, r: -0.5, block: 'box' },
-  { a: 'player', x: 20.9, z: 61.8, r: PI * 0.85, pose: 'idle', v: 3 },
-  { a: 'player', x: 14.6, z: 56.2, r: PI, pose: 'walk', v: 1 },
-  { a: 'player', x: 15.2, z: 57.4, r: PI, pose: 'walk', v: 2 },
-  { a: 'kid', x: 16, z: 57.8, r: PI, pose: 'walk', v: 0 },
-  { a: 'coach', x: 15.6, z: 59, r: PI, pose: 'walk', prop: 'none' },
+  // 南边广场：观众沿中轴排成一列进场（伸进进场口）—— 比赛日的样子（第 3 轮：南边一片空米色；
+  // 第 4 轮：冰棍车的粉伞是整屏最艳的暖色、和球场抢焦点，删了；队伍排成一列）
+  { a: 'player', x: 14.1, z: 53.6, r: PI, pose: 'walk', v: 1, block: false },
+  { a: 'player', x: 14, z: 54.7, r: PI, pose: 'idle', v: 2, block: false },
+  { a: 'kid', x: 14.2, z: 55.6, r: PI, pose: 'idle', v: 0, block: false },
+  { a: 'coach', x: 14, z: 56.5, r: PI, pose: 'idle', prop: 'none', block: false },
+  { a: 'player', x: 14.1, z: 57.5, r: PI, pose: 'walk', v: 3, block: false },
   // 东边廊道上的歇脚：长椅 + 水站（看台背后、出东口之前）
   { a: 'bench', x: 29.2, z: 41.6, r: -PI / 2 },
   { a: 'water-station', x: 29.4, z: 43.6, r: -PI / 2 },

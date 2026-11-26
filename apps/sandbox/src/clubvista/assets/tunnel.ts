@@ -25,7 +25,8 @@ export function build(ctx: AssetCtx): THREE.Object3D {
     edge: 0.4,
     convex: 0.3,
   });
-  const top = ctx.mat('stucco', { edge: 0.3, convex: 0.4 });
+  // 门楼顶落中灰紫（和看台踏面同一档）：篷缩短以后露出来的顶不能是全屏最亮的一块浅灰泥（第 1 轮的问题）
+  const top = ctx.mat('treadMid', { edge: 0.2, convex: 0.3, bands: [-2, 2], noShadowReceive: true });
   const cap = ctx.mat('cap', { edge: 0.3, convex: 0.6 });
   const dark = ctx.mat('underside', { noShadowReceive: true, bands: [2, 3], edge: 0.1, convex: 0 });
   const blue = ctx.mat('counter', { ...FACE, edge: 0.4, convex: 0.3 });
@@ -75,9 +76,10 @@ export function build(ctx: AssetCtx): THREE.Object3D {
   const awnC: THREE.BufferGeometry[] = [];
   const n = 8;
   const sw = (W + 0.3) / n;
-  const yb = H + 1.5;
-  const yf = H + 0.95;
-  const z0 = -Dp + 0.3;
+  // 第 4 轮：篷只盖门楼前面 ~3 米（原来从台顶伸到台脚、比记分牌还大），压低：影子只伸出 ~1.5 米
+  const yb = H + 0.95;
+  const yf = H + 0.6;
+  const z0 = -1.6;
   const z1 = 0.25;
   for (let i = 0; i < n; i++) {
     const x = -(W + 0.3) / 2 + sw * (i + 0.5);

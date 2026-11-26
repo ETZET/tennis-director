@@ -193,6 +193,7 @@ function swapTo(id: string, entry: string) {
   cur.root.visible = true;
   setClouds(cur);
   applyZoom();
+  syncLamps();
   const wx = e.at[0] + cur.ox;
   const wz = e.at[1];
   if (play) {
@@ -290,6 +291,26 @@ const pxEl = document.getElementById('pxsel');
 const palEl = document.getElementById('palsel');
 if (palEl) mountPaletteSwitcher(palEl, [vista, ...SCHEMES], scheme?.id ?? 'current');
 const day = mountDaylight({ scene, pipe, sun, uniforms, params, scheme, hud: pxEl, placeSun: aimSun });
+/**
+ * 夜里的灯只认当前这张图的：四张图叠在同一块坐标上，daylight 的 rescan 会把隐藏的图的灯（中心球场的灯杆）也找进来，
+ * 别的图上就平白多出几个灯光圈。隐藏的图把 userData.night 挪到 _night 里藏着，换图时换回来。
+ */
+function syncLamps() {
+  for (const b of built)
+    b.root.traverse((o) => {
+      const u = o.userData;
+      if (b === cur && u._night && !u.night) {
+        u.night = u._night;
+        delete u._night;
+      } else if (b !== cur && u.night) {
+        u.night.setOn?.(false);
+        u._night = u.night;
+        delete u.night;
+      }
+    });
+  day.rescanLamps();
+}
+syncLamps();
 
 // ── 观众（中心球场）：右上角一个按钮切换坐满 / 空场（?crowd=empty 开局空场）；__vista.crowd(f) 同 ──
 function crowd(f?: number) {

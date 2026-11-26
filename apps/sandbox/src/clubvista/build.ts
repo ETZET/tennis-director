@@ -215,7 +215,7 @@ export function buildMap(def: MapDef, ox: number, kit: Kit, params: URLSearchPar
       !p.el || p.el === 'none'
         ? p.top === 'turf'
           ? 'turf'
-          : p.top === 'flagstone' || p.top === 'paving'
+          : p.top === 'flagstone' || p.top === 'paving' || p.top === 'poolStone'
             ? 'flag'
             : 'none'
         : p.el;
