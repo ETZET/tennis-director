@@ -144,20 +144,31 @@ export const CAR_PAINTS = ['carCream', 'carSilver', 'carRed', 'carNavy', 'carCre
 export const EL = {
   ...MAP_EL,
   /** 沥青：大块（30×18 纹素）几乎干净的封层补丁，按 5 米斑块偶尔出现；不加碎石 */
-  lotAsphalt: { kind: 'paint', size: [30, 18], density: [0, 0.05], patch: 5, seed: 41 },
+  // 留白（redo-calm.md）：补丁放大一倍（60×34 纹素）、擦痕更少、深浅收一半
+  lotAsphalt: {
+    kind: 'paint',
+    size: [60, 34],
+    density: [0, 0.02],
+    patch: 6,
+    seed: 41,
+    contrast: [0.4, 0.45, 0.3],
+    fur: 0.3,
+  },
   /** 碎石车位：有机的土团（10×6 纹素）+ 少量碎石，斑块之间疏密变化（同 EL.path，碎石少一半） */
   stallGravel: {
     kind: 'pebbles',
-    size: [10, 6],
-    seam: 0.5,
-    density: [0.01, 0.1],
+    size: [22, 12],
+    seam: 0,
+    density: [0, 0.03],
     patch: 3,
-    pebbles: 0.04,
+    pebbles: 0.015,
+    contrast: [0.5, 0.6, 0.35],
+    fur: 0.3,
     accent: [0xc08070, 0x9a6070, 0x6a4880],
     seed: 45,
   },
   /** 落客区连锁砖：先借 Voronoi 石块（8×5 纹素，一半有上沿亮边）；核心代理以后换成规整的人字砖/错缝砖 */
-  paver: { kind: 'stones', size: [8, 5], seam: 0.6, hi: 0.5, seed: 43 },
+  paver: { kind: 'stones', size: [24, 14], seam: 0.6, hi: 0.15, seed: 43, contrast: [0.35, 0.3, 0.15], fur: 0.3 },
   /** 路缘：长条（14×3 纹素）水泥块 + 接缝 */
   kerb: { kind: 'stones', size: [14, 3], seam: 0.6, hi: 0.6, seed: 47 },
 } as const satisfies Record<string, Elem>;

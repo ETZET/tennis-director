@@ -399,9 +399,8 @@ export const SLOTS: Slot[] = [
     prop: 'racket',
   },
   { id: 'spots-queue', asset: 'drill-kit', x: -8.8, z: 7.05, variant: 2, labelBelow: true },
+  // 留白（redo-calm.md）：孩子们瞄的锥只留北边一组（南边那组和呼啦圈拿掉；life 的 TARGETS 照旧瞄那几个点）
   { id: 'cones-n', asset: 'drill-kit', x: -22.4, z: 2.7, variant: 0 },
-  { id: 'cones-s', asset: 'drill-kit', x: -22.4, z: 9.3, variant: 0 },
-  { id: 'hoop', asset: 'drill-kit', x: -21.0, z: 4.6, variant: 1 },
   { id: 'hopper-kids', asset: 'ball-hopper', x: -9.9, z: 5.0, variant: 1 },
   { id: 'picker', asset: 'tool', x: -23.4, z: 12.7, variant: 1, label: '捡球器（等着捡球）' },
   ...BALLS_W.map(([x, z], i) => ({ id: `ball-w${i}`, asset: 'tennis-ball', x, z, labelBelow: true })),
@@ -431,11 +430,11 @@ export const SLOTS: Slot[] = [
   { id: 'parent-3', asset: 'player', x: -9.9, z: -0.9, rotY: -0.5, variant: 0, pose: ['idle', 0.5], prop: null },
   { id: 'water-pw', asset: 'water-station', x: -20.4, z: -1.6, label: '水站（clubdesk）' },
   { id: 'bag-kids-1', asset: 'kit-bag', x: -14.6, z: -0.8, rotY: 0.15 },
-  { id: 'bag-kids-2', asset: 'kit-bag', x: -7.8, z: -1.5, rotY: -0.2, variant: 1 },
   // ── 会员场：双打（四个人都在网前截击）+ 北边场边的遮阳帆、喷雾、长椅、记分牌 ────────
+  // 留白（redo-calm.md）：帆改成一整块奶白、地上的两个球包拿掉（青训那边也少一个）
   { id: 'court-net-m', asset: 'court-net', x: MEMBER.x, z: MEMBER.z },
-  { id: 'sail-w', asset: 'court-sail', x: -19.4, z: 18.0, variant: 0 },
-  { id: 'sail-e', asset: 'court-sail', x: -14.6, z: 18.0, variant: 1 },
+  // 留白：两块帆并成一块大的（盖住两张长椅），一整块奶白
+  { id: 'sail-w', asset: 'court-sail', x: -17.0, z: 18.0, variant: 0, s: 1.25 },
   { id: 'mist-line', asset: 'mist-line', x: -17.0, z: 19.2 },
   { id: 'bench-m-w', asset: 'bench', x: -19.4, z: 17.55 },
   { id: 'bench-m-e', asset: 'bench', x: -14.6, z: 17.55 },
@@ -472,8 +471,6 @@ export const SLOTS: Slot[] = [
   { id: 'scoreboard', asset: 'scoreboard', x: -11.0, z: 17.25 },
   { id: 'squeegee', asset: 'squeegee', x: -9.6, z: 17.05, labelBelow: true },
   { id: 'water-m', asset: 'water-station', x: -23.3, z: 17.4 },
-  { id: 'bag-m-1', asset: 'kit-bag', x: -21.0, z: 18.6, rotY: 0.1, variant: 2 },
-  { id: 'bag-m-2', asset: 'kit-bag', x: -13.0, z: 18.7, rotY: -0.15, variant: 0 },
   {
     id: 'm-e1',
     asset: 'player',

@@ -32,7 +32,7 @@ const RAIL = 0.18; // 顶杆高 2 纹素
 const RAIL_D = 0.12;
 const BOT = 0.09; // 底杆高 1 纹素（盖住布脚下那一行亮地：阴影贴图在竖直面脚下会漏一行光）
 const BOT_D = 0.16;
-const POST_GAP = 4.0; // 柱距上限
+const POST_GAP = 8.0; // 柱距上限（留白，redo-calm.md：原来 4 米一根 = 挡风布上一格格竖纹，放宽到 8 米）
 const PANEL = 2.65; // 一幅布宽（planks，按世界 x 排）
 const HEM = 0.09; // 包边 1 纹素
 const SWAG = 1.0; // 绑带间距（一兜多宽）
@@ -141,7 +141,16 @@ export function buildFences(ctx: AssetCtx, runs: FenceRun[]): THREE.Object3D {
     side: THREE.DoubleSide,
     lightUp: 0.6,
     bands: [-0.3, 0.45],
-    elem: { kind: 'planks', space: 'local', p: [1, 0, 0, PANEL], q: [1, 0, 0, 0], seam: 1, hi: 1 },
+    // 留白（redo-calm.md）：挡风布读成一条安静的暗带 —— 幅与幅的深浅、接缝、缝后亮条都收到很淡（原来每幅一个深浅 + 亮条 = 一格格竖纹）
+    elem: {
+      kind: 'planks',
+      space: 'local',
+      p: [1, 0, 0, PANEL],
+      q: [1, 0, 0, 0],
+      seam: 1,
+      hi: 1,
+      contrast: [0.35, 0.35],
+    },
     toneW: [0.3, 0.3],
   };
   add(g, cloth, ctx.mat('windscreen', clothOpts), 'windscreen');

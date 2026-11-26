@@ -100,6 +100,7 @@ export function buildTerrain(ctx: AssetCtx): Terrain {
   add(groundGeo([desertS], H.ground), ctx.mat('sand', { elem: EL.sand }), 'top:ground');
 
   // 南边低一级的沙漠：底面 + 朝里的崖壁（北沿 = 停车场南沿，朝镜头 = 暗带）
+  // 留白（redo-calm.md）：墙里墙外一种沙（原来墙里是 sandHigh，一屏两种沙、直线接缝）
   add(topGeo(desertS, H.desertS), ctx.mat('sand', { elem: { ...EL.sand, seed: 9 } }), 'top:desertS');
   add(wallGeo(desertS, H.ground, H.ground - LIP, false), cliffLip, 'lip:desertS');
   add(
@@ -120,12 +121,13 @@ export function buildTerrain(ctx: AssetCtx): Terrain {
   // ── 墙里面（clubdesk 场景的地）：压实的浅沙、长廊、到达小院的陶砖、球员草坪 ──
   add(
     quad({ x0: 30, x1: GATE.x, z0: GROUNDS.z0, z1: GROUNDS.z1 }, 0.004),
-    ctx.mat('sandHigh', { elem: { ...EL.sand, seed: 7 } }),
+    ctx.mat('sand', { elem: { ...EL.sand, seed: 7 } }),
     'flat:grounds',
   );
   for (const [i, p] of PATHS.entries())
     if (p.x1 > 30)
       add(quad({ ...p, x0: Math.max(30, p.x0) }, 0.012), ctx.mat('path', { elem: EL.path }), `flat:path${i}`);
+  // 留白（redo-calm.md）：门里门外并成一种铺地 —— 到达小院、落客区、墙边步道都是安静的大块陶砖（EL.tile）
   add(quad(FORECOURT, 0.014), ctx.mat('tile', { elem: EL.tile }), 'flat:forecourt');
   add(quad(LAWN, 0.012), ctx.mat('lawn'), 'flat:lawn');
 
@@ -218,12 +220,14 @@ export function buildApproach(
   // 车位：碎石（每排连成一块，进出口断开）+ 车位之间的水泥分隔带（1.5 设计纹素宽）+ 车头那头一道水泥沿 + 车轮挡；
   // 车道中线（虚线，一屏幕行高）
   {
-    const gravel: THREE.BufferGeometry[] = [];
     const bands: THREE.BufferGeometry[] = [];
     const stops: THREE.BufferGeometry[] = [];
     const BW = ctx.texel * 1.5;
+    // 留白（redo-calm.md）：只有西边停着车的那四个车位画碎石、分隔带、车轮挡；东边一整片沥青空着（一块安静的面，
+    // 不是一格格空车位）。车（layout 的 PARKED、代客 / 自己停车的池子）都在 0～3 号车位里
+    const PAVED = 4;
     for (const row of ROWS) {
-      const inGap = (i: number) => !!row.gap && i >= row.gap[0] && i <= row.gap[1];
+      const inGap = (i: number) => i >= PAVED || (!!row.gap && i >= row.gap[0] && i <= row.gap[1]);
       // 连续的车位段
       let a = -1;
       for (let i = 0; i <= STALL.n; i++) {
@@ -231,7 +235,6 @@ export function buildApproach(
         if (free && a < 0) a = i;
         if (!free && a >= 0) {
           const r: Rect = { x0: STALL.x0 + STALL.w * a, x1: STALL.x0 + STALL.w * i, z0: row.z0, z1: row.z1 };
-          gravel.push(quad(r, 0.012));
           const hz = row.nose < 0 ? row.z0 : row.z1 - BW;
           bands.push(quad({ x0: r.x0 - BW / 2, x1: r.x1 + BW / 2, z0: hz, z1: hz + BW }, 0.02));
           for (let k = a; k <= i; k++) {
@@ -248,8 +251,8 @@ export function buildApproach(
         stops.push(box(1.7, 0.13, 0.22, cx, 0.012, head));
       }
     }
-    add(merge(gravel), ctx.mat('stallGravel', { elem: EL.stallGravel }), 'flat:stalls');
-    add(merge(bands), ctx.mat('kerb'), 'flat:stallBands');
+    // 留白（redo-calm.md）：车位不铺碎石（沥青上一格格陶色块 = 又一种地面），只留分隔线（车道虚线那种漆）和车轮挡
+    add(merge(bands), paint, 'flat:stallBands');
     add(merge(stops), kerb, 'stops');
     const lines: THREE.BufferGeometry[] = [];
     const DASH = 2.7;
@@ -269,12 +272,13 @@ export function buildApproach(
   }
 
   // ── 落客区（连锁砖，最亮的一块地）+ 墙边石板步道 ──
-  add(topGeo(MOTOR_COURT, 0.016), ctx.mat('paver', { elem: EL.paver }), 'flat:motorcourt');
-  for (const w of WALKS) add(quad(w.r, 0.014), ctx.mat('flagstone', { elem: EL.flagstone }), `flat:${w.id}`);
+  // 留白（redo-calm.md）：落客区的连锁砖、墙边的石板步道并进陶砖（门里门外一种铺地：到达小院也是它）
+  add(topGeo(MOTOR_COURT, 0.016), ctx.mat('tile', { elem: { ...EL.tile, seed: 43 } }), 'flat:motorcourt');
+  for (const w of WALKS) add(quad(w.r, 0.014), ctx.mat('tile', { elem: { ...EL.tile, seed: 47 } }), `flat:${w.id}`);
 
   // ── 花坛：土坯矮墙（0.55，朝镜头一面是暗带）+ 陶砖压顶的亮唇 + 沙顶 ──
   for (const b of berms) {
-    add(topGeo(b.pts, H.berm), ctx.mat('sandHigh', { elem: { ...EL.sand, seed: 11 } }), `top:${b.id}`);
+    add(topGeo(b.pts, H.berm), ctx.mat('sand', { elem: { ...EL.sand, seed: 11 } }), `top:${b.id}`);
     add(wallGeo(b.pts, H.berm, H.berm - LIP * 1.5, true), cap, `lip:${b.id}`);
     add(wallGeo(b.pts, H.berm - LIP * 1.5, -0.2, true, 0, expoOf(H.berm)), adobe, `wall:${b.id}`);
   }
@@ -284,7 +288,7 @@ export function buildApproach(
     add(wallGeo(s.pts, H.kerb, -0.2, true), kerb, `wall:kerb-${s.id}`);
     add(
       topGeo(roundRect(inset(s.r, 0.22), 0.1), H.kerb + 0.004),
-      ctx.mat('sandHigh', { elem: { ...EL.sand, seed: 13 } }),
+      ctx.mat('sand', { elem: { ...EL.sand, seed: 13 } }),
       `top:${s.id}`,
     );
   }

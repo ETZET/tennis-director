@@ -161,11 +161,11 @@ export function placements(rng: (stream: string) => () => number): Place[] {
       out.push({ asset: 'fan-palm', x: x + (z > 0 ? 3 : 0), z, v: ((x / 8) % 3) | 0, s: 0.95 });
   // 喷泉一圈棕榈：4 棵，朝南（朝镜头）开口的马蹄形（同 clubplaza/layout.ts 的 PALMS：角度 0 = 东、90 = 南）——
   // 东西各一棵（15°、165°，叶冠在水面两边）、后面两棵（215°、335°）；南边敞开，默认视角里叶冠不压水面
+  // 2026-11-25 留白（redo-calm.md）：改成西北角一簇三棵（同 clubplaza 的 PALMS）
   for (const [deg, v, s] of [
-    [15, 0, 0.92],
     [165, 2, 1.0],
-    [215, 1, 0.9],
-    [335, 2, 0.95],
+    [212, 1, 1.15],
+    [246, 0, 0.78],
   ]) {
     const a = (deg * Math.PI) / 180;
     out.push({

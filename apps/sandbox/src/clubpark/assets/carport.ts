@@ -29,6 +29,8 @@ const STRIPES: [number, number][] = [
   [3.6, 4.5],
 ];
 const VAL = 0.3; // 南沿垂边
+/** 顶上一整片俱乐部蓝、垂边一整条奶油（false = 原来的蓝白竖条纹） */
+const PLAIN_TOP = true;
 const POST = 0.27; // 钢柱 3 设计纹素见方
 /** 柱子的本地 x、z（play.ts 的导航按这个挡路） */
 export const POST_X = [-5.1, 0, 5.1];
@@ -85,7 +87,8 @@ export function build(ctx: AssetCtx): THREE.Object3D {
       nx: 1,
       nz: 10,
     });
-    top[isStripe(x0, x1) ? 'b' : 'c'].push(geo);
+    // 留白（redo-calm.md）：顶上不画竖条纹（一排蓝白竖条 = 一屏最多的强边缘），一整片俱乐部蓝（大块、安静、彩度不掉），垂边奶油
+    top[PLAIN_TOP || isStripe(x0, x1) ? 'b' : 'c'].push(geo);
   }
 
   // 南沿垂边：从帆布南沿往下 0.3 米，朝镜头（南沿在梁上，没有下兜，是一条直线）
@@ -95,7 +98,7 @@ export function build(ctx: AssetCtx): THREE.Object3D {
     const x1 = cols[i + 1];
     const y = roof.y(x0, D / 2);
     const geo = new THREE.PlaneGeometry(x1 - x0, VAL).translate((x0 + x1) / 2, y - VAL / 2, D / 2 + 0.02);
-    valance[isStripe(x0, x1) ? 'b' : 'c'].push(geo);
+    valance[!PLAIN_TOP && isStripe(x0, x1) ? 'b' : 'c'].push(geo);
   }
 
   const add = (geos: THREE.BufferGeometry[], m: THREE.Material, name: string) => {
