@@ -109,10 +109,11 @@ function build(ctx: KitCtx, st: Style, opts: { phase: number; lean: number; open
     elem: { kind: 'paint', size: [14, 9], density: [0, 0], patch: 4 },
   };
   const mA = ctx.mat('canvas', face);
-  const mB = ctx.mat('canvasStripe', face);
+  // 条纹伞的第二色走 fabricStripe（和帆布同一个奶油色相、只差一点明度）：蓝白条纹是场边最吵的东西（redo-fix.md）
+  const mB = ctx.mat('fabricStripe', face);
   // 垂边：竖直、朝外；朝镜头那几段落暗档（和凉棚垂边一样，是伞面下沿的一道深边）
   const mVA = ctx.mat('canvas', { convex: 0.2 });
-  const mVB = ctx.mat('canvasStripe', { convex: 0.2 });
+  const mVB = ctx.mat('fabricStripe', { convex: 0.2 });
 
   const L = Math.hypot(st.R, st.rise); // 伞骨长（顶点到角点），开合时不变
   const phase0 = -Math.PI / N + opts.phase * (Math.PI / N); // 0：第 0 片正对 +z（镜头）

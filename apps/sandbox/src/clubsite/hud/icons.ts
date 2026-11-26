@@ -241,6 +241,8 @@ export const ICONS = {
   cal: S('rrrrrrr', 'WWWWWWW', 'WsWsWsW', 'WWWWWWW', 'WsWsWWW', 'wwwwwww'),
   /** 互动点头上的小箭头（朝下，奶油色：不和草帽的金抢） */
   arrow: S('WWWWW', '.Www.', '..w..'),
+  /** 人物卡开着时那个人头顶的箭头：草帽色，大一号 */
+  focus: S('XXXXXXX', '.XXXXx.', '..XXx..', '...x...'),
   /** 拿 / 放（手里要拿的东西挑不出图标时）：一只纸箱，顶上一条胶带 */
   box: S(
     '...XXXXXXXXXX...',

@@ -67,9 +67,11 @@ export function buildGate(ctx: KitCtx): THREE.Object3D {
     elem: { kind: 'stones', size: [14, 9], seam: 0, hi: 1, seed: 11 },
     toneW: [0.55, 0.12],
   });
-  const ballM = ctx.mat('ball', { lightUp: 0.45 });
+  // 柱顶的网球雕塑：石色（cap，比柱帽浅一点的土坯色），不比草帽亮（redo-fix.md：L 236 → ≈ 170）
+  const ballM = ctx.mat('cap', { lightUp: 0.25 });
   const seamM = ctx.mat('clothWhite', { edge: 0.2, convex: 0 });
-  const beamM = ctx.mat('timber', { elem: { kind: 'planks', p: [1, 0, 0, 0.4], seam: 1, hi: 1, seed: 5 } });
+  // 横梁：俯视是一条贯穿画面中轴的线 —— 和柱帽一样的土坯褐（cap，低彩），不再是一条橙色木梁（redo-fix.md）
+  const beamM = ctx.mat('cap', { elem: { kind: 'planks', p: [1, 0, 0, 0.4], seam: 1, hi: 1, seed: 5 } });
   const iron = ctx.mat('ironwork');
   const board = ctx.mat('signBoard', FACING);
   const paint = ctx.mat('signPaint', FACING);

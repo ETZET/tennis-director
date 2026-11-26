@@ -502,6 +502,44 @@ export const SLOTS: Slot[] = [
   },
   { id: 'east-gate', asset: 'east-gate', x: GATE.x, z: 0, label: '大门（clubdesk）' },
   { id: 'palm-drive-n', asset: 'fan-palm', x: 66, z: -5.4, s: 0.95, variant: 2, noLabel: true },
+  // ── 边上成簇（redo-fix.md）：上一轮留白把东西删了，四周也空 —— 参考是"边缘密、中间空"。
+  // 东北角（墙里沙地、北墙和东墙的拐角）：三棵蒲葵三个尺寸 + 脆灌木 + 龙舌兰 + 石头，一大簇
+  { id: 'palm-ne-1', asset: 'fan-palm', x: 58.2, z: -39.2, variant: 1, s: 1.3, noLabel: true },
+  { id: 'palm-ne-2', asset: 'fan-palm', x: 55.9, z: -41.0, variant: 0, s: 0.95, noLabel: true },
+  { id: 'palm-ne-3', asset: 'fan-palm', x: 59.0, z: -35.4, variant: 2, s: 0.72, noLabel: true },
+  { id: 'brittle-ne', asset: 'brittlebush', x: 56.9, z: -37.0, variant: 0, noLabel: true },
+  { id: 'agave-ne', asset: 'agave', x: 58.7, z: -32.9, s: 0.85, noLabel: true },
+  { id: 'rocks-ne', asset: 'rocks', x: 56.2, z: -38.6, variant: 1, noLabel: true },
+  { id: 'creosote-ne', asset: 'creosote', x: 59.1, z: -30.6, variant: 0, s: 0.8, noLabel: true },
+  // 北墙根中段：一棵大烟树 + 一丛石炭酸 + 两块石头（一小簇，不排成行）
+  { id: 'smoke-n', asset: 'smoke-tree', x: 47.0, z: -40.6, variant: 1, s: 1.2, noLabel: true },
+  { id: 'creosote-n', asset: 'creosote', x: 49.3, z: -41.2, variant: 1, s: 0.9, noLabel: true },
+  { id: 'rocks-n', asset: 'rocks', x: 45.2, z: -41.4, variant: 2, noLabel: true },
+  // 东墙根（广场和大门之间那条沙）：门边那两棵蒲葵往北接一簇矮的 —— 小蒲葵 + 龙舌兰 + 石头，贴墙
+  { id: 'palm-ew-1', asset: 'fan-palm', x: 59.2, z: -16.4, variant: 0, s: 0.78, noLabel: true },
+  { id: 'agave-ew', asset: 'agave', x: 58.2, z: -18.6, s: 0.8, noLabel: true },
+  { id: 'brittle-ew', asset: 'brittlebush', x: 59.3, z: -20.4, variant: 1, s: 0.9, noLabel: true },
+  { id: 'rocks-ew', asset: 'rocks', x: 58.6, z: -14.3, variant: 0, noLabel: true },
+  // 挡土墙前的绿带（长廊北边那条沙，clubwalk 开局草帽正上方）：台阶西边一簇、东边长椅旁一簇，沙读成花坛
+  { id: 'brittle-strip-w1', asset: 'brittlebush', x: 46.6, z: -10.6, variant: 0, noLabel: true },
+  { id: 'brittle-strip-w2', asset: 'brittlebush', x: 47.9, z: -10.2, variant: 1, s: 0.75, noLabel: true },
+  { id: 'agave-strip-w', asset: 'agave', x: 45.4, z: -10.9, s: 0.75, noLabel: true },
+  { id: 'rocks-strip-w', asset: 'rocks', x: 47.6, z: -11.4, variant: 2, noLabel: true },
+  { id: 'agave-strip-e', asset: 'agave', x: 51.3, z: -10.4, s: 0.7, noLabel: true },
+  { id: 'creosote-strip-e', asset: 'creosote', x: 54.6, z: -11.0, variant: 1, s: 0.8, noLabel: true },
+  { id: 'rocks-strip-e', asset: 'rocks', x: 52.8, z: -11.2, variant: 1, noLabel: true },
+  { id: 'paloverde-ew', asset: 'palo-verde', x: 58.4, z: -25.6, variant: 1, s: 1.1, noLabel: true },
+  { id: 'creosote-ew', asset: 'creosote', x: 57.2, z: -23.2, variant: 0, s: 0.85, noLabel: true },
+  { id: 'brittle-ew2', asset: 'brittlebush', x: 59.2, z: -28.2, variant: 0, s: 0.8, noLabel: true },
+  { id: 'agave-ew2', asset: 'agave', x: 57.4, z: -27.6, s: 0.7, noLabel: true },
+  // 横屏右上（墙外北边的沙，这个页面才看得到；clubwalk 里归停车场）：一片蒲葵林边 —— 四棵三个尺寸 + 灌木 + 石头
+  { id: 'palm-out-ne1', asset: 'fan-palm', x: 66.5, z: -38.0, variant: 1, s: 1.3, noLabel: true },
+  { id: 'palm-out-ne2', asset: 'fan-palm', x: 69.8, z: -40.6, variant: 0, s: 1.0, noLabel: true },
+  { id: 'palm-out-ne3', asset: 'fan-palm', x: 64.2, z: -41.4, variant: 2, s: 0.8, noLabel: true },
+  { id: 'palm-out-ne4', asset: 'fan-palm', x: 72.6, z: -36.8, variant: 2, s: 0.72, noLabel: true },
+  { id: 'brittle-out-ne', asset: 'brittlebush', x: 68.0, z: -35.4, variant: 1, noLabel: true },
+  { id: 'rocks-out-ne', asset: 'rocks', x: 70.8, z: -34.6, variant: 0, noLabel: true },
+  { id: 'creosote-out-ne', asset: 'creosote', x: 63.4, z: -36.2, variant: 0, noLabel: true },
 ];
 
 /** 区域标签（白模评审用，?labels=0 不显示）：文字、位置 (x, y, z)；kind area = 区域名，propose = 共享坐标的建议 */

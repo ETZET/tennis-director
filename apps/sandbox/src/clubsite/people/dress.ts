@@ -222,7 +222,10 @@ export function createDresser(o: { mats: Mats; scheme: Scheme | null }): Dresser
   /** 眼镜框：浅灰（眼睛外面一圈亮一点的边，中间透出深色的眼睛；和一整条深色的太阳镜分得开） */
   const frameMat = () => toon('frame', CLOTH.gray, { ...SHADES_O, edge: 0.2, convex: 0.6 }, 'clothWhite');
   const hatMat = (h: Hat) =>
-    h.kind === 'straw' ? toon(`straw:${h.color}`, CLOTH[h.color], STRAW_O, 'straw') : clothMat(h.color, HAT_O, 'hat');
+    // NPC 的草帽走 strawNpc（配色方案里收成本色草编）：总监那顶（rig/director.ts 的 straw）是一屏唯一的高饱和暖色（redo-fix.md）
+    h.kind === 'straw'
+      ? toon(`straw:${h.color}`, CLOTH[h.color], STRAW_O, 'strawNpc' as keyof Pal)
+      : clothMat(h.color, HAT_O, 'hat');
   const bandMat = () => toon('band', HAIR.darkBrown, HAIR_O, 'hair');
 
   /** 自己的网格：第一次要的时候建（挂到 parent），之后复用；每次 dress 先全藏起来 */

@@ -83,6 +83,7 @@ export const HUD_CSS = `
 /* 互动点头上的小箭头（像素图，两格一跳） */
 .pxh-mark { position: absolute; left: 0; top: 0; }
 .pxh-mark .pxh-px { animation: pxh-bob 0.9s steps(2, end) infinite; }
+.pxh-focus { z-index: 21; }
 
 /* 旧的文字界面：藏起来（调试时放出来一部分） */
 body.pxh-on .play-mark, body.pxh-on .play-bar, body.pxh-on .play-hint, body.pxh-on .play-bubbles, body.pxh-on .play-toast, body.pxh-on .play-buttons,

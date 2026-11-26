@@ -18,7 +18,8 @@ import type { Mats } from '../render/toon';
 import type { NetCtx } from './nets/kit';
 
 /** 网球的三档 [亮, 中, 暗]（本地色，建议核心代理提成调色板的 `tennisBall`）：L 200 / 157 / 109 */
-export const BALL_RAMP: [number, number, number] = [0xa4ee2c, 0x80c432, 0x4a804a];
+// redo-fix.md：原来 #a4ee2c（过了全局亮档彩度 × 1.1 以后 #bced12，L 210、饱和 0.92）比总监的草帽还亮还艳 —— 收成橄榄黄绿，在蓝场上照样看得见
+export const BALL_RAMP: [number, number, number] = [0xb4c64a, 0x8ea040, 0x56704a];
 /** 球的半径（米，放大过的） */
 export const BALL_R = 0.1;
 type Pt = [number, number] | [number, number, number];

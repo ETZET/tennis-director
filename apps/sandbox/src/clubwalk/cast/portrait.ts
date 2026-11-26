@@ -11,6 +11,8 @@ const LINE = 0x1a1224;
 interface Spec {
   look: CastLook;
   age: number;
+  /** 不画底色（透明）：像素卡片的小头像自己铺底 */
+  clear?: boolean;
 }
 
 const cache = new Map<string, string>();
@@ -24,6 +26,23 @@ export function portraitURL(key: string, look: CastLook, age: number): string {
   }
   return u;
 }
+
+const canvases = new Map<string, HTMLCanvasElement>();
+
+/** 同一张肖像的 canvas（32×32，1 纹素 = 1 像素；像素卡片拿它裁头像、按纹素放大）。clear = 底色透明 */
+export function portraitCanvas(key: string, look: CastLook, age: number, clear = false): HTMLCanvasElement {
+  const k = `${key}|${clear}`;
+  let c = canvases.get(k);
+  if (!c) {
+    c = draw({ look, age, clear });
+    canvases.set(k, c);
+  }
+  return c;
+}
+
+/** 招牌色的中档（0xRRGGBB） */
+export const accentNum = (look: CastLook, i: 0 | 1 | 2 = 1): number => CLOTH[accentOf(look)][i];
+export const accentDarkNum = (look: CastLook, k = 0.55): number => mul(CLOTH[accentOf(look)][2], k);
 
 /** 招牌色（不给 = 衣服色） */
 export const accentOf = (look: CastLook): Cloth => look.accent ?? look.shirt;
@@ -259,6 +278,7 @@ function draw(sp: Spec): HTMLCanvasElement {
   for (let y = 0; y < N; y++)
     for (let x = 0; x < N; x++) {
       let v = out[y * N + x];
+      if (v === -1 && sp.clear) continue;
       if (v === -1) v = x + y < 22 || (x + y < 26 && (x + y) % 2 === 0) ? bgL : bgD;
       const i = (y * N + x) * 4;
       img.data[i] = (v >> 16) & 255;

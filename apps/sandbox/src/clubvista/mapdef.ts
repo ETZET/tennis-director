@@ -4,7 +4,7 @@
 import type { Pal } from './palette';
 
 export type V2 = [number, number];
-export type ElKey = 'floor' | 'mesa' | 'wash' | 'bluff' | 'path' | 'trail' | 'water' | 'none';
+export type ElKey = 'floor' | 'mesa' | 'wash' | 'bluff' | 'path' | 'trail' | 'water' | 'turf' | 'flag' | 'none';
 
 /**
  * 一块台面：轮廓内的地面在高度 h。后画的盖住先画的（groundAt 取最后一个包住这点的）。
@@ -96,6 +96,14 @@ export interface Prop {
   pose?: string;
   /** 人：手里拿的 */
   prop?: string;
+  /** 人：坐的座面高、脚踏高（setSeat；裁判椅 1.77 / 1.54，司线员椅 0.49 / 0） */
+  seat?: [number, number];
+  /** 人：头转过去看这一点（本图坐标 x, y, z） */
+  look?: [number, number, number];
+  /** 人：手里端一件资产（hold；例如服务员端托盘） */
+  carry?: string;
+  /** 不投影（高处的细东西：记分牌的腿和点阵、旗杆 —— 影子落在场上是一串虚线） */
+  noCast?: boolean;
 }
 
 /** 出口：总监走进这个圆 → 圆形遮罩转场 → 到 to 图的 arrive 点 */
@@ -134,6 +142,11 @@ export interface MapDef {
   clouds: [number, number, number, number][];
   /** 镜头范围（不出图；默认 0…W × 0…D） */
   view?: { x0: number; x1: number; z0: number; z1: number };
+  /**
+   * 竖屏的镜头比例（每纹素多少米 ÷ 默认的 0.045）：1 = 默认 1×；1.4 = 拉远到一屏 ≈ 24.5 米宽（真尺寸球场 + 两边一截看台）。
+   * 横屏不变。URL ?pz= 覆盖。
+   */
+  portraitZoom?: number;
 }
 
 // ── 画轮廓的小工具 ──
@@ -197,3 +210,15 @@ export function cluster(
     block: o.block,
   }));
 }
+
+/** 主路（深一档的红土路） */
+export const trail = (id: string, pts: V2[], w = 2): Strip => ({ id, pts, w, mat: 'trail', el: 'trail', main: true });
+/** 支路：一块块灰石踏脚石 */
+export const stones = (id: string, pts: V2[]): Strip => ({
+  id,
+  pts,
+  w: 1.3,
+  mat: 'stepStone',
+  el: 'none',
+  kind: 'stones',
+});

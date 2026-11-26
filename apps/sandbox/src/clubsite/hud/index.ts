@@ -26,17 +26,18 @@ import { type TKey, t, weekday } from './i18n';
 import { ICONS, type IconId, MOODS, type MoodId, moodSprite, WEATHER_ICONS } from './icons';
 import { createIris, type Iris } from './iris';
 import { moodOf } from './mood';
+import { hudScale } from './scale';
 import { blit, spriteCanvas } from './sprite';
 import { HUD_CSS } from './style';
 
-export { lang, t } from './i18n';
+export type { ActIcon, GlyphId } from './glyphs';
+export { lang, type TKey, t } from './i18n';
 export type { IconId, MoodId } from './icons';
 export type { Iris } from './iris';
 export { createIris } from './iris';
 export { moodOf } from './mood';
-
-/** 界面纹素 → CSS 像素：2（第 4 轮评判：横屏 3 倍比参考重 1.7 倍，统一 2 倍；留成函数，以后按屏幕分档） */
-export const hudScale = () => 2;
+export { hudScale } from './scale';
+export * from './sheet';
 
 export interface HudButton {
   id: string;
@@ -91,6 +92,8 @@ export interface PixelHud {
   /** 地点名（进一个区域时上方淡出） */
   place(name: string): void;
   setDebug(on: boolean): void;
+  /** 人物卡开着：这个人头顶一个草帽色的小箭头（卡讲的是画面里的谁）；null = 收起 */
+  focus(anchor: Anchor | null, dy?: number): void;
   readonly root: HTMLElement;
 }
 
@@ -491,6 +494,13 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
   markEl.hidden = true;
   markEl.appendChild(view(spriteCanvas(ICONS.arrow, 'arrow')));
   root.appendChild(markEl);
+  // 人物卡开着时那个人头顶的箭头：草帽色（这一屏唯一的暖色），比互动点的奶油小箭头大一号
+  const focusEl = document.createElement('div');
+  focusEl.className = 'pxh-mark pxh-focus';
+  focusEl.hidden = true;
+  focusEl.appendChild(view(spriteCanvas(ICONS.focus, 'focus', true, CREAM), 2));
+  root.appendChild(focusEl);
+  let focusV: { a: Anchor; dy: number } | null = null;
   const moodsEl = document.createElement('div');
   moodsEl.className = 'pxh-moods';
   root.appendChild(moodsEl);
@@ -612,6 +622,10 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
     pop,
     place,
     setDebug,
+    focus(a, dy = 2.2) {
+      focusV = a ? { a, dy } : null;
+      if (!a) focusEl.hidden = true;
+    },
     peek(p) {
       const now = performance.now();
       // 同一个人、那行字还在：第二次点他 = 开卡片
@@ -621,8 +635,15 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
         p.onTap();
         return;
       }
-      peekV = p ? { ...p, until: now + (p.sec ?? 2.6) * 1000 } : null;
-      if (p) pop(p.line, null, p.sec ?? 2.6, p.who ?? { name: p.title, hair: INK, skin: CREAM, shirt: INK });
+      // 收起（开了人物卡：卡上已经有这句话了）
+      if (!p) {
+        peekV = null;
+        toastEl.classList.add('gone');
+        toastEl.classList.remove('tap');
+        return;
+      }
+      peekV = { ...p, until: now + (p.sec ?? 2.6) * 1000 };
+      pop(p.line, null, p.sec ?? 2.6, p.who ?? { name: p.title, hair: INK, skin: CREAM, shirt: INK });
     },
     frame() {
       // 转屏 / 改窗口：纹素倍数变了就重设所有像素图的大小、重画字
@@ -739,6 +760,13 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
         const p = play.project(ui.mark, w, h);
         const aw = markEl.offsetWidth;
         markEl.style.transform = `translate(${Math.round(p.x - aw / 2)}px, ${Math.round(p.y - markEl.offsetHeight)}px)`;
+      }
+      // 人物卡的那个人
+      const fp = focusV ? anchorAt(focusV.a, focusV.dy) : null;
+      focusEl.hidden = !fp;
+      if (fp) {
+        const p = play.project(fp, w, h);
+        focusEl.style.transform = `translate(${Math.round(p.x - focusEl.offsetWidth / 2)}px, ${Math.round(p.y - focusEl.offsetHeight)}px)`;
       }
       // 提示 → 上方一行字（挑得出东西就弹一个图标）
       if (ui.toast && ui.toast.id !== lastToast) {
