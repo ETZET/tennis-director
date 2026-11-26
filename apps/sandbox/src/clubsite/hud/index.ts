@@ -20,7 +20,7 @@ import type { Daylight } from '../daylight';
 import { dayLook, type Weather } from '../daylight/sky';
 import type { Anchor, Play } from '../play';
 import { drawClock } from './clock';
-import { CREAM, GOLD, hex, INK } from './colors';
+import { CREAM, hex, INK } from './colors';
 import { textCanvas } from './font';
 import { type TKey, t, weekday } from './i18n';
 import { ICONS, type IconId, MOODS, type MoodId, moodSprite, WEATHER_ICONS } from './icons';
@@ -133,7 +133,7 @@ function headSprite(w: Who) {
   };
 }
 
-/** 动作键外面的细环：直径 d 纹素，外 1 纹素墨、里 1 纹素奶油（按住干活时金），中间透明 */
+/** 动作键的底：直径 d 纹素的实心圆，墨 55%（场景隐约透过来但不脏），外面一圈 1 纹素的奶油细环（按住干活时变白） */
 function ringCanvas(d: number, color: number): HTMLCanvasElement {
   const c = document.createElement('canvas');
   c.width = d;
@@ -143,25 +143,70 @@ function ringCanvas(d: number, color: number): HTMLCanvasElement {
   for (let y = 0; y < d; y++)
     for (let x = 0; x < d; x++) {
       const q = Math.hypot(x + 0.5 - r, y + 0.5 - r);
-      if (q > r || q <= r - 2) continue;
-      g.fillStyle = hex(q > r - 1 ? INK : color);
+      if (q > r) continue;
+      g.fillStyle = q > r - 1 ? hex(color) : 'rgba(44, 40, 72, 0.55)';
       g.fillRect(x, y, 1, 1);
     }
   return c;
 }
 
-/** 动作键右下角的小角标：墨色小方块 + 奶油点阵字（计数 "1/4"） */
+/** 角标用的 3×5 小点阵（数字和斜杠） */
+const G3: Record<string, string> = {
+  '0': '###|#.#|#.#|#.#|###',
+  '1': '.#.|##.|.#.|.#.|###',
+  '2': '##.|..#|.#.|#..|###',
+  '3': '##.|..#|.#.|..#|##.',
+  '4': '#.#|#.#|###|..#|..#',
+  '5': '###|#..|##.|..#|##.',
+  '6': '.##|#..|###|#.#|###',
+  '7': '###|..#|.#.|.#.|.#.',
+  '8': '###|#.#|###|#.#|###',
+  '9': '###|#.#|###|..#|##.',
+  '/': '..#|..#|.#.|#..|#..',
+};
+
+/** 动作键右下角的小角标（同参考的快捷键小键帽）：奶油底、1 纹素墨边、3×5 墨色点阵（计数 "1/4"），≤ 13×9 纹素 */
 function keyCanvas(text: string): HTMLCanvasElement {
-  const tx = textCanvas(text, { color: CREAM, outline: null });
+  const glyphs = [...text].map((ch) => G3[ch]).filter(Boolean);
+  const w = glyphs.length * 4 - 1 + 4;
+  const h = 9;
   const c = document.createElement('canvas');
-  c.width = tx.width + 4;
-  c.height = tx.height + 4;
+  c.width = w;
+  c.height = h;
   const g = c.getContext('2d') as CanvasRenderingContext2D;
-  g.fillStyle = hex(CREAM);
-  g.fillRect(0, 0, c.width, c.height);
   g.fillStyle = hex(INK);
-  g.fillRect(1, 1, c.width - 2, c.height - 2);
-  g.drawImage(tx, 2, 2);
+  g.fillRect(0, 0, w, h);
+  g.fillStyle = hex(CREAM);
+  g.fillRect(1, 1, w - 2, h - 2);
+  g.fillStyle = hex(INK);
+  glyphs.forEach((gl, k) => {
+    gl.split('|').forEach((row, y) => {
+      for (let x = 0; x < 3; x++) if (row[x] === '#') g.fillRect(2 + k * 4 + x, 2 + y, 1, 1);
+    });
+  });
+  return c;
+}
+
+/** 心情泡：11×11 的奶油圆角小方块（78% 不透明），只描下沿和右沿 1 纹素墨，字形墨色单色（不是 App 图标那种整圈框） */
+function moodCanvas(id: MoodId): HTMLCanvasElement {
+  const n = 11;
+  const c = document.createElement('canvas');
+  c.width = n;
+  c.height = n;
+  const g = c.getContext('2d') as CanvasRenderingContext2D;
+  for (let y = 0; y < n; y++)
+    for (let x = 0; x < n; x++) {
+      const corner = (x === 0 || x === n - 1) && (y === 0 || y === n - 1);
+      if (corner) continue;
+      const edge = x === n - 1 || y === n - 1;
+      g.fillStyle = edge ? hex(INK) : 'rgba(255, 240, 196, 0.78)';
+      g.fillRect(x, y, 1, 1);
+    }
+  g.fillStyle = hex(INK);
+  MOODS[id].rows.forEach((row, y) => {
+    // 字形里的描边（d）和高光（W）不画：单色时只留形状本身
+    for (let x = 0; x < row.length; x++) if (!'.dW'.includes(row[x])) g.fillRect(x + 1, y + 1, 1, 1);
+  });
   return c;
 }
 
@@ -255,10 +300,7 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
       return;
     }
     const dayN = Math.floor(day.total / 24) + 1;
-    tip.replaceChildren(
-      view(spriteCanvas(WEATHER_ICONS[day.current], `w-${day.current}`)),
-      label(weekday(dayN), INK, 'ink'),
-    );
+    tip.replaceChildren(view(spriteCanvas(WEATHER_ICONS[day.current], `w-${day.current}`)), label(weekday(dayN)));
     tip.classList.remove('gone');
     clearTimeout(tipTimer);
     tipTimer = window.setTimeout(() => tip.classList.add('gone'), 1800);
@@ -463,7 +505,7 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
   const read = new Set<string>();
   const moodEls: MoodEl[] = [];
   /** 同屏最多几个心情泡（离总监近的先） */
-  const MOOD_MAX = 2;
+  const MOOD_MAX = 1;
   /** 正在上方那行字里说话的人（点人）：再点他一次 / 点这行字 = 开他的卡片 */
   let peekV: (Peek & { until: number }) | null = null;
 
@@ -554,7 +596,8 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
     a.b.classList.toggle('empty', !text);
     a.b.setAttribute('aria-label', text);
     a.id = text ? id : '';
-    if (text) put(a.ic, icon(id));
+    // 动作键在墨色小盘上：图标不要奶油贴纸边（只有墨描边），四周留出空，不碰环
+    if (text) put(a.ic, spriteCanvas(ICONS[id], id));
     const n = /(\d+\s*\/\s*\d+)/.exec(text)?.[1]?.replace(/\s/g, '');
     a.key.hidden = !n;
     if (n) put(a.key, keyCanvas(n));
@@ -615,7 +658,7 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
       if (ui.usingNow !== wasOn) {
         wasOn = ui.usingNow;
         use.b.classList.toggle('on', ui.usingNow);
-        put(use.ring, ringCanvas(26, ui.usingNow ? GOLD : CREAM));
+        put(use.ring, ringCanvas(26, ui.usingNow ? 0xffffff : CREAM));
       }
       if (ui.pick !== wasPick) {
         wasPick = ui.pick;
@@ -664,7 +707,7 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
         if (p.x > 8 && p.x < w - 8 && p.y > 24 && p.y < h - 8) cands.push({ b, p, d });
       }
       cands.sort((a, b) => a.d - b.d);
-      const pad = 9;
+      const pad = 11;
       moodEls.forEach((me, i) => {
         const c = cands[i];
         me.el.hidden = !c;
@@ -675,7 +718,11 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
           me.who = o.who?.(c.b.anchor) ?? null;
           me.el.classList.remove('read');
           const id = moodOf(c.b.text);
-          put(me.cv, spriteCanvas(moodSprite(id), `mood-${id}`));
+          put(me.cv, moodCanvas(id));
+          // 新的一句：重新亮起来，3.5 秒后再淡到一半
+          me.el.style.animation = 'none';
+          void me.el.offsetWidth;
+          me.el.style.animation = '';
           me.el.classList.remove('pop');
           void me.el.offsetWidth;
           me.el.classList.add('pop');

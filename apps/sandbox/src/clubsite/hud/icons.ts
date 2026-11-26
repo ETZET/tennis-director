@@ -2,6 +2,7 @@
 // 只画里面的形状：1 纹素靛黑描边和下面 1 纹素的深影由 sprite.ts 自动加。光从左上来：左上亮、右下暗（同场景的太阳在后上方）。
 // 大图标（按钮）里面 ≤ 18×18，加描边 20×20、投影 21 高，放大 2 倍 = 40×42 CSS 像素，按钮框再留边到 ≥ 48。
 // 心情泡（场景里人头上）的字形 7×7，放进 13×12 的气泡里。
+import { COIN_KEYS } from './colors';
 import type { Sprite } from './sprite';
 
 const S = (...rows: string[]): Sprite => ({ rows });
@@ -60,24 +61,21 @@ export const ICONS = {
     '....wWw...........',
     '...ww.............',
   ),
-  /** 推球包车：铁丝筐里装满网球，两个轮子 */
+  /** 推球车（侧面）：铁丝筐、上面一排网球团、右边把手、两个轮子 */
   cart: S(
-    '..................',
-    '...XXxXXxXXx......',
-    '..XXxXXxXXxXX.....',
-    '.SXxXXxXXxXXxS....',
+    '...............SS.',
+    '..............Ss..',
+    '...gg.gg.gg..Ss...',
+    '..gGGgGGgGGgSs....',
+    '.SSSSSSSSSSSSS....',
     '.SsSsSsSsSsSsS....',
-    '.SXXxXXxXXxXXS....',
     '.SsSsSsSsSsSsS....',
-    '.SxXXxXXxXXxXS....',
-    '.SsSsSsSsSsSsS.SS.',
-    '..SsssssssssssSsS.',
-    '...s.........sS...',
-    '...s.........s....',
-    '..ddd.......ddd...',
-    '.dSSSd.....dSSSd..',
-    '.dSdSd.....dSdSd..',
-    '..ddd.......ddd...',
+    '.SSSSSSSSSSSSS....',
+    '...s.......s......',
+    '..ddd.....ddd.....',
+    '.dSSSd...dSSSd....',
+    '.dSdSd...dSdSd....',
+    '..ddd.....ddd.....',
   ),
   /** 扫帚：斜着的木柄 + 草扎的头 */
   broom: S(
@@ -223,17 +221,20 @@ export const ICONS = {
     '....bbbbbbbb....',
   ),
   /** 金币（右上的钱） */
-  coin: S(
-    '..YYYYY..',
-    '.YWWYYYy.',
-    'YWYyyyYYy',
-    'YWyYYYWyy',
-    'YYyYYYWyy',
-    'YYyYYYWyy',
-    'YYYWWWYyy',
-    '.yYYYYyy.',
-    '..yyyyy..',
-  ),
+  coin: {
+    ...S(
+      '..YYYYY..',
+      '.YWWYYYy.',
+      'YWYyyyYYy',
+      'YWyYYYWyy',
+      'YYyYYYWyy',
+      'YYyYYYWyy',
+      'YYYWWWYyy',
+      '.yYYYYyy.',
+      '..yyyyy..',
+    ),
+    keys: COIN_KEYS,
+  },
   /** 调试（左下角的小点） */
   dots: S('S.S.S'),
   /** 日期前面的小日历（7×6） */
@@ -432,15 +433,15 @@ export function moodSprite(id: MoodId): Sprite {
 /** 天气小图标（11×9）：点日钟冒出来的小牌子里用 */
 export const WEATHER_ICONS = {
   clear: S(
-    '...........',
-    '....yyy....',
-    '...yWWyy...',
-    '..yWWyyyy..',
-    '..yWyyyyy..',
-    '..yyyyyyo..',
-    '...yyyyo...',
-    '....ooo....',
-    '...........',
+    '.....w.....',
+    '.....w.....',
+    '..w.www.w..',
+    '...wWWww...',
+    '.wwwWwwwww.',
+    '...wwwww...',
+    '..w.www.w..',
+    '.....w.....',
+    '.....w.....',
   ),
   cloudy: S(
     '...Y.......',

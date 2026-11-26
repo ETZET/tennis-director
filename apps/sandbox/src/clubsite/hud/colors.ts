@@ -11,6 +11,12 @@ export const INK_SHADOW = 0x171230;
 /** 奶油（招牌漆）：字、纸、气泡 */
 export const CREAM = r('signPaint', 0); // #fff0c4
 export const GOLD = r('flowerYellow', 0); // #ffd23c
+/**
+ * 界面上的暖色都比草帽（画面唯一的焦点色，≈ #ffcd81）淡（第 5 轮评判：#ffd23c 的金比草帽艳，抢焦点）：
+ * 太阳 = 干草亮档，金币 = 干草地的亮 / 中档。
+ */
+export const PALE_SUN = r('dryTuft', 0); // #f8e494
+export const COIN_KEYS = { Y: r('dryGrass', 0), y: r('dryGrass', 1) }; // #f6dc84 / #c48c58
 
 /** 像素格子的字符表 */
 export const KEYS: Record<string, number> = {

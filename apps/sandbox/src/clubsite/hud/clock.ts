@@ -4,7 +4,7 @@
 // 圆下面一行很短的日期。数据从 clubsite/daylight 读（look = 这一刻的光、total = 时钟）。
 // 画在 1 倍小 canvas 上（38×39 纹素），CSS 整数倍放大。
 import type { DayLook, Weather } from '../daylight/sky';
-import { INK, KEYS } from './colors';
+import { INK, KEYS, PALE_SUN } from './colors';
 
 export interface ClockData {
   /** 时刻（0..24） */
@@ -17,12 +17,15 @@ export interface ClockData {
 export const OPEN = 6;
 export const CLOSE = 22;
 
+/** 太阳：干草的亮档（淡黄） */
+const SUN = PALE_SUN;
+
 const N = 38;
 const C = N / 2;
-/** 天一直贴到外环（参考：整个钟是一块亮的天，只有最外一圈墨线） */
-const R_SKY = 13.5;
-/** 外环 3 纹素（参考：粗的进度环，没有黑外框） */
-const R_RING = 16.5;
+/** 天（圆）的半径；外面空 1 纹素，再一圈 1 纹素的进度细环（参考：细线环、和表盘隔一圈空隙，显得轻） */
+const R_SKY = 14;
+const R_GAP = 15;
+const R_RING = 16;
 
 type RGB = [number, number, number];
 const rgb = (h: number): RGB => [(h >> 16) & 255, (h >> 8) & 255, h & 255];
@@ -71,14 +74,15 @@ export function drawClock(d: ClockData): { w: number; h: number; px: Uint8Clampe
 
   // ── 太阳 / 月亮 / 星星 ──
   const hr = d.hour;
-  if (!night && hr > 5.6 && hr < 18.9) {
+  if (!night && !wet && hr > 5.6 && hr < 18.9) {
     const k = Math.min(1, Math.max(0, (hr - 6) / 12.5));
     const th = Math.PI * k;
     const sx = Math.round(C - 0.5 - 8.5 * Math.cos(th));
     const sy = Math.round(C + 2 - 10 * Math.sin(th));
     const low = Math.sin(th) < 0.35;
-    const body = rgb(low ? KEYS.R : KEYS.Y);
-    const core = rgb(low ? KEYS.Y : KEYS.W);
+    // 淡黄的太阳（干草的亮档），比草帽淡：界面不抢画面的焦点色
+    const body = rgb(low ? KEYS.R : SUN);
+    const core = rgb(KEYS.W);
     for (let y = -3; y <= 3; y++)
       for (let x = -3; x <= 3; x++) {
         const r = Math.hypot(x, y);
@@ -88,7 +92,8 @@ export function drawClock(d: ClockData): { w: number; h: number; px: Uint8Clampe
         if (!inSky(X, Y)) continue;
         put(X, Y, r < 1.6 && x <= 0 && y <= 0 ? core : body);
       }
-  } else {
+  } else if (!wet) {
+    // 阴雨天不画太阳也不画月亮（云压着）
     // 三颗星（十字小星）
     if (look.stars > 0.2)
       for (const [x, y, big] of [
@@ -118,7 +123,8 @@ export function drawClock(d: ClockData): { w: number; h: number; px: Uint8Clampe
   const tint = wet && !night ? [1, 1, 1] : lit;
   // 晴天的云：纯白顶 + 冷灰淡紫的底（不是米黄：米黄的云和沙地连成一片）
   const cloudLit = mul(rgb(wet ? KEYS.S : KEYS.Z), tint);
-  const cloudShade = mul(rgb(wet ? KEYS.s : KEYS.z), tint);
+  // 云底：白往天色走三分之一（冷灰蓝），不是淡紫
+  const cloudShade = wet ? mul(rgb(KEYS.s), tint) : mix(cloudLit, top2, 0.35);
   const puffs: [number, number, number][] = [];
   const amount = d.weather === 'clear' || d.weather === 'dust' ? 0 : d.weather === 'cloudy' ? 1 : 2;
   // 一条起伏的云堤：几团高低不一，顶边是一个个鼓包
@@ -164,13 +170,13 @@ export function drawClock(d: ClockData): { w: number; h: number; px: Uint8Clampe
       put(x, y, y + 0.5 > C + 7.5 || (best > -1.1 && byCenter > 1.5) ? cloudShade : cloudLit);
     }
   // 雨丝 / 风沙
-  // 雨：三条斜线（不撒点）
+  // 雨：四条 1 纹素的斜线（白蓝），不撒点
   if (d.weather === 'rain')
-    for (const x0 of [C - 6, C, C + 6])
-      for (let k = 0; k < 5; k++) {
+    for (const x0 of [C - 7, C - 2, C + 3, C + 8])
+      for (let k = 0; k < 4; k++) {
         const x = x0 - Math.floor(k / 2);
-        const y = C + 3 + k;
-        if (inSky(x, y)) put(x, y, rgb(KEYS.c));
+        const y = C + 2 + k + (x0 % 2);
+        if (inSky(x, y)) put(x, y, rgb(KEYS.A));
       }
   if (d.weather === 'dust')
     for (let y = 0; y < N; y++)
@@ -180,32 +186,22 @@ export function drawClock(d: ClockData): { w: number; h: number; px: Uint8Clampe
   // 营业时段一圈：OPEN 点在正上方，CLOSE 点回到正上方；关门以后满圈、开门以前空圈
   const h24 = ((hr % 24) + 24) % 24;
   const prog = h24 < OPEN ? 0 : Math.min(1, (h24 - OPEN) / (CLOSE - OPEN));
-  // 外环 3 纹素：没走过的 = 半透明墨（任何地面上都看得清），走过的 = 金（外侧一纹素深一档）；没有黑外框
-  const track: RGB = rgb(INK);
-  const gold = rgb(KEYS.Y);
-  const goldDark = rgb(KEYS.y);
+  // 进度细环 1 纹素：没走过的 = 墨 35%，走过的 = 淡奶油（不用金：界面不和草帽抢）
   for (let y = 0; y < N; y++)
     for (let x = 0; x < N; x++) {
       const r = Math.hypot(x + 0.5 - C, y + 0.5 - C);
-      if (r <= R_SKY || r > R_RING) continue;
+      if (r <= R_GAP || r > R_RING) continue;
       // 角度：正上方 0，顺时针
       let a = Math.atan2(x + 0.5 - C, -(y + 0.5 - C)) / (Math.PI * 2);
       if (a < 0) a += 1;
-      if (a <= prog) put(x, y, r > R_RING - 1 ? goldDark : gold);
-      else put(x, y, track, 120);
+      if (a <= prog) put(x, y, rgb(KEYS.W));
+      else put(x, y, rgb(INK), 90);
     }
-  // "现在"：进度弧的端头一个 3×3 的奶油点，1 纹素墨边（可以出环 1 纹素）
+  // "现在"：一道 1×3 的奶油短刻度，从天的边沿压到环上（不出外轮廓）
   if (prog > 0 && prog < 1) {
     const a = prog * Math.PI * 2;
-    const rr = (R_SKY + R_RING) / 2;
-    const cx = Math.round(C + Math.sin(a) * rr - 0.5);
-    const cy = Math.round(C - Math.cos(a) * rr - 0.5);
-    for (let dy = -2; dy <= 2; dy++)
-      for (let dx = -2; dx <= 2; dx++) {
-        const edge = Math.abs(dx) === 2 || Math.abs(dy) === 2;
-        if (edge && Math.abs(dx) === 2 && Math.abs(dy) === 2) continue;
-        put(cx + dx, cy + dy, edge ? rgb(INK) : rgb(KEYS.W));
-      }
+    for (const rr of [R_SKY - 0.5, R_SKY + 0.5, R_GAP + 0.5])
+      put(Math.floor(C + Math.sin(a) * rr), Math.floor(C - Math.cos(a) * rr), rgb(0xffffff));
   }
   return { w, h, px };
 }
