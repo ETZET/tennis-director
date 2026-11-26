@@ -59,24 +59,26 @@ const G5: Record<string, string> = {
 /**
  * 两种密度：
  * - lo（默认）：汉字 11 px、点阵字 1 倍，整段按界面纹素（2 倍）放大 —— 只适合点阵字（数字、英文）；汉字 11 px 切出来太碎。
- * - hi：汉字 12 px、点阵字画成 2 倍粗，整段按 1 倍显示（描边 1 像素）—— 汉字清楚，点阵字和 lo 的 2 倍一样大。
+ * - sys（TextOpts.px 给了字号）：所有字（中文、英文、数字、标点）都用同一个系统字体在 1 倍画布上画、按透明度阈值切成实心，
+ *   按 1 倍显示 —— 一套字，中文和数字一样高、基线齐；描边 px ≥ 16 时 2 像素。界面上的字都走这个。
  */
 interface Dens {
   cjk: number;
   line: number;
   k: number;
   top: number;
+  sys: boolean;
 }
-const LO: Dens = { cjk: 11, line: 11, k: 1, top: 2 };
-const HI: Dens = { cjk: 12, line: 14, k: 2, top: 0 };
+const LO: Dens = { cjk: 11, line: 11, k: 1, top: 2, sys: false };
 let D: Dens = LO;
 let LINE = LO.line;
+const FONT = '"PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei", sans-serif';
 
 const glyphCache = new Map<string, { w: number; a: Uint8Array }>();
 let scratch: CanvasRenderingContext2D | null = null;
 
 function glyph(ch: string): { w: number; a: Uint8Array } {
-  const ck = `${D.k}|${ch}`;
+  const ck = `${D.sys ? `s${D.cjk}` : D.k}|${ch}`;
   const hit = glyphCache.get(ck);
   if (hit) return hit;
   const CJK = D.cjk;
@@ -85,7 +87,9 @@ function glyph(ch: string): { w: number; a: Uint8Array } {
   let out: { w: number; a: Uint8Array };
   const up = ch.length === 1 && /[a-z]/.test(ch) ? ch.toUpperCase() : ch;
   const g5 = G5[up];
-  if (ch === ' ') {
+  if (D.sys) {
+    out = sysGlyph(ch);
+  } else if (ch === ' ') {
     out = { w: 3 * K, a: new Uint8Array(3 * K * LINE) };
   } else if (g5) {
     const rows = g5.split('|');
@@ -122,6 +126,37 @@ function glyph(ch: string): { w: number; a: Uint8Array } {
   return out;
 }
 
+/** 系统字体的一个字：画在 1 倍画布上，阈值切实心（中点"·"缩成 2×2 的方点） */
+function sysGlyph(ch: string): { w: number; a: Uint8Array } {
+  const size = D.cjk;
+  const S = Math.ceil(size * 2);
+  if (!scratch || scratch.canvas.width < S) {
+    const c = document.createElement('canvas');
+    c.width = S;
+    c.height = S;
+    scratch = c.getContext('2d', { willReadFrequently: true }) as CanvasRenderingContext2D;
+  }
+  const g = scratch;
+  g.clearRect(0, 0, g.canvas.width, g.canvas.height);
+  g.font = `500 ${size}px ${FONT}`;
+  g.textBaseline = 'alphabetic';
+  g.fillStyle = '#fff';
+  const asc = Math.round(size * 0.92);
+  const mw = Math.max(1, Math.round(g.measureText(ch).width));
+  const a = new Uint8Array(mw * LINE);
+  if (ch === '·' || ch === '・') {
+    const k = Math.max(2, Math.round(size / 8));
+    const x0 = Math.floor((mw - k) / 2);
+    const y0 = Math.round(asc - size * 0.42);
+    for (let y = 0; y < k; y++) for (let x = 0; x < k; x++) a[(y0 + y) * mw + x0 + x] = 1;
+    return { w: mw, a };
+  }
+  g.fillText(ch, 0, asc);
+  const d = g.getImageData(0, 0, mw, LINE).data;
+  for (let i = 0; i < mw * LINE; i++) a[i] = d[i * 4 + 3] >= 120 ? 1 : 0;
+  return { w: mw, a };
+}
+
 export interface TextOpts {
   color?: number;
   /** 描边颜色；null = 不描边 */
@@ -133,15 +168,17 @@ export interface TextOpts {
   gap?: number;
   /** 'left' | 'center' */
   align?: 'left' | 'center';
-  /** 高密度（汉字 12 px、点阵字 2 倍粗；按 1 倍显示） */
-  hi?: boolean;
+  /** 系统字体的字号（像素）：给了就整段用同一套系统字（按 1 倍显示）；不给 = 点阵字 */
+  px?: number;
 }
 
 /** 一段字 → 1 倍 canvas（纹素 = 像素），带描边、投影 */
 export function textCanvas(text: string, o: TextOpts = {}): HTMLCanvasElement {
-  D = o.hi ? HI : LO;
+  D = o.px ? { cjk: o.px, line: Math.round(o.px * 1.2), k: 1, top: 0, sys: true } : LO;
   LINE = D.line;
-  const sp = D.k;
+  const sp = D.sys ? 0 : D.k;
+  /** 描边粗细（像素） */
+  const ow = D.sys && D.cjk >= 16 ? 2 : 1;
   const color = o.color ?? CREAM;
   const outline = o.outline === undefined ? INK : o.outline;
   const shadow = o.shadow ?? outline !== null;
@@ -163,10 +200,10 @@ export function textCanvas(text: string, o: TextOpts = {}): HTMLCanvasElement {
     lines.push(cur);
     cur = { chars: [], w: 0 };
   }
-  const pad = outline !== null ? 1 : 0;
+  const pad = outline !== null ? ow : 0;
   const tw = Math.max(1, ...lines.map((l) => l.w));
   const w = tw + pad * 2;
-  const h = lines.length * LINE + (lines.length - 1) * gap + pad * 2 + (shadow ? 1 : 0);
+  const h = lines.length * LINE + (lines.length - 1) * gap + pad * 2 + (shadow ? ow : 0);
   const solid = new Uint8Array(w * h);
   lines.forEach((l, li) => {
     let x = pad + (o.align === 'center' ? Math.floor((tw - l.w) / 2) : 0);
@@ -197,8 +234,8 @@ export function textCanvas(text: string, o: TextOpts = {}): HTMLCanvasElement {
         if (solid[y * w + x]) continue;
         // 四邻域 + 斜角：字的描边用八邻域，粗细一致
         let n = false;
-        for (let dy = -1; dy <= 1 && !n; dy++)
-          for (let dx = -1; dx <= 1; dx++) {
+        for (let dy = -ow; dy <= ow && !n; dy++)
+          for (let dx = -ow; dx <= ow; dx++) {
             const xx = x + dx;
             const yy = y + dy;
             if (xx >= 0 && yy >= 0 && xx < w && yy < h && solid[yy * w + xx]) {
@@ -217,8 +254,13 @@ export function textCanvas(text: string, o: TextOpts = {}): HTMLCanvasElement {
       for (let x = 0; x < w; x++) {
         const i = y * w + x;
         if (solid[i] || edge[i]) continue;
-        const up = (y - 1) * w + x;
-        if (solid[up] || edge[up]) put(i, INK_SHADOW);
+        for (let k = 1; k <= ow && y - k >= 0; k++) {
+          const up = (y - k) * w + x;
+          if (solid[up] || edge[up]) {
+            put(i, INK_SHADOW);
+            break;
+          }
+        }
       }
   g.putImageData(img, 0, 0);
   return trimRows(c);

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { KEYS } from './colors';
 import { DICT } from './i18n';
-import { BUBBLE, ICONS, MOODS, type MoodId, moodSprite } from './icons';
+import { BUBBLE, ICONS, MOODS, type MoodId, moodSprite, WEATHER_ICONS } from './icons';
 import { moodOf } from './mood';
 
 describe('moodOf', () => {
@@ -30,11 +30,18 @@ describe('像素图标', () => {
       for (const r of s.rows) expect(r.length, id).toBeLessThanOrEqual(18);
     }
   });
-  it('心情字形 7×7，叠进气泡以后还是 13 宽', () => {
+  it('心情字形 9×9，叠进气泡以后还是 15 宽', () => {
     for (const [id, s] of Object.entries(MOODS)) {
-      expect(s.rows.length, id).toBe(7);
-      for (const r of s.rows) expect(r.length, id).toBe(7);
-      for (const r of moodSprite(id as MoodId).rows) expect(r.length).toBe(13);
+      expect(s.rows.length, id).toBe(9);
+      for (const r of s.rows) expect(r.length, id).toBe(9);
+      for (const r of moodSprite(id as MoodId).rows) expect(r.length).toBe(15);
+    }
+  });
+  it('天气小图标 11×9', () => {
+    for (const [id, s] of Object.entries(WEATHER_ICONS)) {
+      expect(s.rows.length, id).toBe(9);
+      for (const r of s.rows) expect(r.length, id).toBe(11);
+      for (const r of s.rows) for (const ch of r) if (ch !== '.') expect(KEYS[ch], `${id} ${ch}`).toBeDefined();
     }
   });
 });

@@ -1,8 +1,8 @@
 // 界面的截图和量图（clubsite/hud，docs/lab/2026-11-07-3d-pixel/redo-ui.md）：
 //   node hudshots.mjs <输出目录> <url> <宽> <高> [前缀] [动作…]
 // 动作（默认 all）：
-//   ui     截一张带界面的 + 一张把界面全藏掉的（同一帧：url 里带 pause=1），逐像素比 → 界面占画面多少像素、
-//          画面中间 60% 区域里有多少（目标 0）；写 <前缀>-ui.json
+//   ui     截一张带界面的（full）+ 一张把界面全藏掉的（bare，量场景用），再量界面像素（measure）→ <前缀>-ui.json
+//   live   同 ui，但不暂停（url 里的 pause=1 拿掉），量真玩时的一帧 → <前缀>-live.json
 //   peek   点离画面中心最近的一个人（演员表里的） → 头上的名字 + 一句话
 //   mood   点一个心情泡 → 整句
 //   clock  点日钟 → 时刻和天气面板
@@ -24,7 +24,7 @@ try {
 }
 const exe = `${process.env.HOME}/Library/Caches/ms-playwright/chromium-1228/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing`;
 const [out, url, w = '390', h = '844', pre = 'shot', ...acts0] = process.argv.slice(2);
-const acts = acts0.length ? acts0 : ['ui', 'peek', 'mood', 'clock', 'iris', 'debug'];
+const acts = acts0.length ? acts0 : ['ui', 'live', 'peek', 'mood', 'clock', 'iris', 'debug'];
 const WAIT = Number(process.env.WAIT ?? 11000);
 mkdirSync(out, { recursive: true });
 const browser = await pw.chromium.launch({
@@ -43,54 +43,68 @@ async function open(u) {
 const P = (n) => `${out}/${pre}-${n}.png`;
 const withQ = (u, q) => u + (u.includes('?') ? '&' : '?') + q;
 
-if (acts.includes('ui')) {
-  const page = await open(url);
-  await page.screenshot({ path: P('full') });
-  await page.addStyleTag({
-    content: 'body > *:not(canvas#c) { visibility: hidden !important; } .pxh-root, .pxh-root * { visibility: hidden !important; }',
-  });
-  await page.waitForTimeout(400);
-  await page.screenshot({ path: P('bare') });
-  // 逐像素比（浏览器里算）
-  const r = await page.evaluate(
-    async ([a, b, W, H]) => {
-      const load = async (src) => {
+// 界面像素：把场景的 canvas 藏掉、底色换成品红，数不是品红的像素（只数界面）；中间 60% 区域再数一遍，
+// 再把心情泡和互动点的黄箭头也藏掉数一遍（= 中间的"字和框"）。ui = 暂停的同一帧；live = 不暂停跑一会儿（真玩的帧）。
+async function measure(page) {
+  const count = async (extra) => {
+    const st = await page.addStyleTag({
+      content: `canvas#c, canvas#c2 { visibility: hidden !important; } html, body { background: #ff00ff !important; } ${extra}`,
+    });
+    await page.waitForTimeout(250);
+    const buf = await page.screenshot();
+    if (!extra) writeFileSync(P('mask'), buf);
+    await st.evaluate((e) => e.remove());
+    return page.evaluate(
+      async ([src, W, H]) => {
         const img = new Image();
         img.src = src;
         await img.decode();
-        const c = new OffscreenCanvas(img.width, img.height);
+        const c = new OffscreenCanvas(W, H);
         const g = c.getContext('2d');
         g.drawImage(img, 0, 0);
-        return g.getImageData(0, 0, img.width, img.height).data;
-      };
-      const A = await load(a);
-      const B = await load(b);
-      let all = 0;
-      let mid = 0;
-      const x0 = W * 0.2;
-      const x1 = W * 0.8;
-      const y0 = H * 0.2;
-      const y1 = H * 0.8;
-      for (let y = 0; y < H; y++)
-        for (let x = 0; x < W; x++) {
-          const i = (y * W + x) * 4;
-          const d = Math.abs(A[i] - B[i]) + Math.abs(A[i + 1] - B[i + 1]) + Math.abs(A[i + 2] - B[i + 2]);
-          if (d > 12) {
-            all++;
-            if (x >= x0 && x < x1 && y >= y0 && y < y1) mid++;
+        const d = g.getImageData(0, 0, W, H).data;
+        let all = 0;
+        let mid = 0;
+        for (let y = 0; y < H; y++)
+          for (let x = 0; x < W; x++) {
+            const i = (y * W + x) * 4;
+            const m = Math.abs(d[i] - 255) + d[i + 1] + Math.abs(d[i + 2] - 255);
+            if (m > 40) {
+              all++;
+              if (x >= W * 0.2 && x < W * 0.8 && y >= H * 0.2 && y < H * 0.8) mid++;
+            }
           }
-        }
-      return { uiPx: all, uiPct: +((all / (W * H)) * 100).toFixed(2), midPx: mid, midPct: +((mid / (W * H * 0.36)) * 100).toFixed(2) };
-    },
-    [
-      `data:image/png;base64,${(await import('node:fs')).readFileSync(P('full')).toString('base64')}`,
-      `data:image/png;base64,${(await import('node:fs')).readFileSync(P('bare')).toString('base64')}`,
-      +w,
-      +h,
-    ],
-  );
-  writeFileSync(`${out}/${pre}-ui.json`, JSON.stringify(r, null, 1));
-  console.log(pre, 'ui', JSON.stringify(r));
+        return { all, mid };
+      },
+      [`data:image/png;base64,${buf.toString('base64')}`, +w, +h],
+    );
+  };
+  const a = await count('');
+  const b = await count('.pxh-moods, .play-mark, .play-bubbles { visibility: hidden !important; }');
+  return {
+    uiPx: a.all,
+    uiPct: +((a.all / (+w * +h)) * 100).toFixed(2),
+    midPx: a.mid,
+    midTextPx: b.mid,
+  };
+}
+
+for (const act of ['ui', 'live']) {
+  if (!acts.includes(act)) continue;
+  const page = await open(act === 'live' ? url.replace(/[&?]pause=1/, '') : url);
+  await page.screenshot({ path: P(act === 'live' ? 'live' : 'full') });
+  if (act === 'ui') {
+    const st = await page.addStyleTag({
+      content:
+        'body > *:not(canvas#c) { visibility: hidden !important; } .pxh-root, .pxh-root * { visibility: hidden !important; }',
+    });
+    await page.waitForTimeout(300);
+    await page.screenshot({ path: P('bare') });
+    await st.evaluate((e) => e.remove());
+  }
+  const r = await measure(page);
+  writeFileSync(`${out}/${pre}-${act}.json`, JSON.stringify(r, null, 1));
+  console.log(pre, act, JSON.stringify(r));
   await page.close();
 }
 
@@ -182,9 +196,33 @@ if (acts.includes('iris')) {
   await page.close();
 }
 
+// 真的走进会所（泳池北门 → 会所里）：转场开始以后连拍
+if (acts.includes('house')) {
+  const page = await open(withQ(url, 'at=-47.6,-3&prebuild=1'));
+  await page.evaluate(() => window.__walk.play.tapWorld(-47.6, -14));
+  let n = 0;
+  for (let i = 0; i < 200 && n < 10; i++) {
+    const busy = await page.evaluate(() => window.__hud?.iris.busy());
+    if (busy) await page.screenshot({ path: P(`house-${n++}`) });
+    else if (n) break;
+    else await page.waitForTimeout(60);
+  }
+  await page.waitForTimeout(800);
+  await page.screenshot({ path: P('house-after') });
+  console.log(pre, 'house', n, '帧');
+  await page.close();
+}
+
 if (acts.includes('debug')) {
   const page = await open(withQ(url, 'debug=1'));
   await page.screenshot({ path: P('debug') });
+  // 调试里点日钟 = 调时间面板
+  const bb = await (await page.$('.pxh-clock'))?.boundingBox();
+  if (bb) {
+    await page.touchscreen.tap(bb.x + bb.width / 2, bb.y + bb.height / 3);
+    await page.waitForTimeout(400);
+    await page.screenshot({ path: P('debug-panel') });
+  }
   await page.close();
 }
 

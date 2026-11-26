@@ -14,6 +14,11 @@ const zh = {
   talk: '说话',
   clock: '时间和天气',
   money: '钱',
+  w_clear: '晴',
+  w_cloudy: '多云',
+  w_overcast: '阴',
+  w_rain: '雨',
+  w_dust: '风沙',
 } as const;
 
 const en: Record<keyof typeof zh, string> = {
@@ -28,6 +33,11 @@ const en: Record<keyof typeof zh, string> = {
   talk: 'Talk',
   clock: 'Time & weather',
   money: 'Money',
+  w_clear: 'SUNNY',
+  w_cloudy: 'CLOUDY',
+  w_overcast: 'OVERCAST',
+  w_rain: 'RAIN',
+  w_dust: 'DUST',
 };
 
 export type TKey = keyof typeof zh;

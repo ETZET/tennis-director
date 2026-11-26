@@ -377,12 +377,12 @@ export function mountCast(o: MountCastOpts): CastMount {
     const p = CAST.get(id);
     if (!p || !o.peek) return;
     const now = nowOf(id);
-    const met = memOf(state, id, p).met;
+    // 一句他自己的话（thoughts：按性子、现在在干什么挑的台词），不是"在哪 · 干什么"的状态
     o.peek({
       anchor: b.obj,
       dy: headHeight(b.kind) + 0.3,
       title: p.name.split(' ')[0],
-      line: met ? now.thought || now.text : now.text,
+      line: now.thought || '……',
       sec: 6,
       onTap: () => card.open(id, nearList()),
     });
