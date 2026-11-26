@@ -25,7 +25,8 @@ export function build(ctx: AssetCtx): THREE.Object3D {
     edge: 0.4,
     convex: 0.3,
   });
-  const top = ctx.mat('stucco', { edge: 0.3, convex: 0.4 });
+  // 门楼顶落中灰紫（和看台踏面同一档）：篷缩短以后露出来的顶不能是全屏最亮的一块浅灰泥（第 1 轮的问题）
+  const top = ctx.mat('treadMid', { edge: 0.2, convex: 0.3, bands: [-2, 2], noShadowReceive: true });
   const cap = ctx.mat('cap', { edge: 0.3, convex: 0.6 });
   const dark = ctx.mat('underside', { noShadowReceive: true, bands: [2, 3], edge: 0.1, convex: 0 });
   const blue = ctx.mat('counter', { ...FACE, edge: 0.4, convex: 0.3 });
@@ -75,9 +76,10 @@ export function build(ctx: AssetCtx): THREE.Object3D {
   const awnC: THREE.BufferGeometry[] = [];
   const n = 8;
   const sw = (W + 0.3) / n;
-  const yb = H + 1.5;
-  const yf = H + 0.95;
-  const z0 = -Dp + 0.3;
+  // 第 4 轮：篷只盖门楼前面 ~3 米（原来从台顶伸到台脚、比记分牌还大），压低：影子只伸出 ~1.5 米
+  const yb = H + 0.95;
+  const yf = H + 0.6;
+  const z0 = -1.6;
   const z1 = 0.25;
   for (let i = 0; i < n; i++) {
     const x = -(W + 0.3) / 2 + sw * (i + 0.5);
@@ -86,42 +88,29 @@ export function build(ctx: AssetCtx): THREE.Object3D {
     );
     pg.translate(x, (yb + yf) / 2, (z0 + z1) / 2);
     pg.deleteAttribute('uv');
-    (i % 2 ? awnC : awnB).push(pg);
-    // 前沿垂边
+    // 第 3 轮：整块俱乐部蓝（蓝米竖条比记分牌还抢眼），正中一枚米色的网球徽记
+    awnB.push(pg);
     const fr = new THREE.PlaneGeometry(sw, 0.22).translate(x, yf - 0.11, z1);
     fr.deleteAttribute('uv');
-    (i % 2 ? awnB : awnC).push(fr);
+    awnB.push(fr);
   }
-  const awnOpts = {
-    lightUp: 0.35,
-    bands: [-0.3, 0.45] as [number, number],
-    noShadowReceive: true,
-    edge: 0.4,
-    convex: 0.2,
-  };
+  const awnOpts = { lightUp: 0, bands: [-2, 2] as [number, number], noShadowReceive: true, edge: 0.4, convex: 0 };
   // 单面的篷布投影要 shadowSide 双面，否则影子是一串断开的点（第 2 轮：场上北底线外的一排"字"就是它）
   const mB = ctx.mat('counter', awnOpts);
   const mC = ctx.mat('canvas', awnOpts);
   mB.shadowSide = THREE.DoubleSide;
   mC.shadowSide = THREE.DoubleSide;
   add(awnB, mB, 'awning-blue', true);
-  add(awnC, mC, 'awning-cream', true);
+  // 徽记：篷面正中一块米色小圆（八边形片，贴在篷面上 2 厘米）
+  const tiltA = -Math.PI / 2 + Math.atan2(yb - yf, z1 - z0);
+  const em = new THREE.CircleGeometry(0.42, 8).rotateX(tiltA);
+  const nrm = new THREE.Vector3(0, 0, 1).applyAxisAngle(new THREE.Vector3(1, 0, 0), tiltA);
+  em.translate(nrm.x * 0.03, (yb + yf) / 2 + nrm.y * 0.03, (z0 + z1) / 2 + nrm.z * 0.03);
+  em.deleteAttribute('uv');
+  awnC.push(em);
+  add(awnC, mC, 'awning-emblem');
   const poles: THREE.BufferGeometry[] = [];
   for (const x of [-W / 2 + 0.15, W / 2 - 0.15]) poles.push(bx(0.1, yf - H, 0.1, x, H + (yf - H) / 2, z1 - 0.05));
   add(poles, ctx.mat('metal', { edge: 0.3, convex: 0.3 }), 'awning-poles');
-  // 包厢里三个人（坐着的头和肩在篷下露出来）
-  for (const [x, k] of [
-    [-0.9, 'clothWhite'],
-    [0, 'canvas'],
-    [0.9, 'clothBlue'],
-  ] as const) {
-    add([bx(0.34, 0.44, 0.22, x, H + 0.66, -0.9)], ctx.mat(k, { ...FACE, edge: 0.35, convex: 0.3 }), `vip-${k}`);
-    add(
-      [bx(0.3, 0.3, 0.28, x, H + 1.03, -0.88)],
-      ctx.mat('skinTan', { ...FACE, edge: 0.35, convex: 0.3 }),
-      `vip-h-${k}`,
-    );
-  }
-  add([bx(W - 0.2, 0.44, 0.3, 0, H + 0.22, -1.2)], ctx.mat('seat', { edge: 0.3, convex: 0.3 }), 'vip-seats');
   return g;
 }

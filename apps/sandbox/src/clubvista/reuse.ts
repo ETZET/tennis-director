@@ -6,12 +6,14 @@ import { build as ballMachine } from '../clubcourts/assets/ball-machine';
 import { build as pot } from '../clubdesk/assets/pot';
 import { build as towelCart } from '../clubdesk/assets/towel-cart';
 import { build as waterStation } from '../clubdesk/assets/water-station';
+import { build as cartPaletas } from '../clubfood/assets/cart-paletas';
 import { build as festoon } from '../clubfood/assets/festoon';
 import { build as foodTray } from '../clubfood/assets/food-tray';
 import { build as longTable } from '../clubfood/assets/long-table';
 import { build as patioUmbrella } from '../clubfood/assets/patio-umbrella';
 import { build as pergola } from '../clubfood/assets/pergola';
 import { build as picnicTable } from '../clubfood/assets/picnic-table';
+import { build as supplyStack } from '../clubfood/assets/supply-stack';
 import { build as truckCoffee } from '../clubfood/assets/truck-coffee';
 import { build as archWindow } from '../clubhouse/assets/arch-window';
 import { build as bougainvillea } from '../clubhouse/assets/bougainvillea';
@@ -75,7 +77,9 @@ export const REUSED: Record<string, AssetBuild> = {
   'patio-umbrella': as(upUmbrella),
   'deck-lounger': as(upLounger),
   festoon: as(festoon),
+  'cart-paletas': as(cartPaletas),
   'food-tray': as(foodTray),
+  'supply-stack': as(supplyStack),
   'long-table': as(longTable),
   pergola: as(pergola),
 };

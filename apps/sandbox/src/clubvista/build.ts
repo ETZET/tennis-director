@@ -215,7 +215,7 @@ export function buildMap(def: MapDef, ox: number, kit: Kit, params: URLSearchPar
       !p.el || p.el === 'none'
         ? p.top === 'turf'
           ? 'turf'
-          : p.top === 'flagstone' || p.top === 'paving'
+          : p.top === 'flagstone' || p.top === 'paving' || p.top === 'poolStone'
             ? 'flag'
             : 'none'
         : p.el;
@@ -267,9 +267,14 @@ export function buildMap(def: MapDef, ox: number, kit: Kit, params: URLSearchPar
   });
 
   // ── 球场 ──
+  // 中心球场平涂（第 3 轮评判：场面的斑像脏水）；练习场的场面带磨损的斑（用旧了的场，也和中心球场拉开）
   for (const c of def.courts)
     paintCourt(c, (g, key) =>
-      addMesh(g, ctx.mat(key, key === 'line' ? {} : { elem: EL.courtPaint }), `court:${c.id}:${key}`),
+      addMesh(
+        g,
+        ctx.mat(key, c.look === 'practice' && key !== 'line' ? { elem: EL.courtWear } : {}),
+        `court:${c.id}:${key}`,
+      ),
     );
 
   // ── 带子（步道、马路线）──
