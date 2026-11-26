@@ -3,4 +3,4 @@
 import '../clubsite/render/colors';
 import { mountWalk } from './walk';
 
-mountWalk();
+mountWalk({ pixelHud: true });

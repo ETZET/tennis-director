@@ -17,10 +17,11 @@ import type { SharedUniforms } from '../render/ctx';
 import type { Scheme } from '../render/palettes';
 import type { PixelPipeline } from '../render/pipeline';
 import { createDayUniforms, LAMP_N } from '../render/toon';
-import { mountDayHud } from './hud';
+import { type DayPanel, mountDayHud } from './hud';
 import { type DayLook, WEATHERS, type Weather, wrapHour } from './sky';
 import { autoWeather, lookAt } from './weather';
 
+export type { DayPanel } from './hud';
 export type { DayLook, Weather } from './sky';
 export { clockText, periodName, WEATHER_NAME, WEATHERS } from './sky';
 
@@ -39,12 +40,16 @@ export interface DaylightOpts {
   sunDist?: number;
   /** 时间面板挂在哪（左上角像素级别那一栏）；null = 不要面板 */
   hud?: HTMLElement | null;
+  /** true = 只要面板、不要左上角的"12:00 晴"牌子（clubsite/hud 的日钟点开它；api.panel） */
+  panelOnly?: boolean;
 }
 
 export interface Daylight {
   /** 从第 0 天 0 点起的小时数（时钟）；时刻 = wrapHour(total) */
   total: number;
   weather: Weather | 'auto';
+  /** 现在实际的天气（自动时是抽到的那种） */
+  readonly current: Weather;
   /** 游戏秒 / 真实秒 */
   speed: number;
   readonly look: DayLook;
@@ -59,6 +64,8 @@ export interface Daylight {
   setWeather(w: Weather | 'auto'): void;
   /** 场景里加了 / 删了灯（userData.night），马上重新找（默认每 2 秒找一次） */
   rescanLamps(): void;
+  /** 时间面板（hud 或 panelOnly 给了才有） */
+  readonly panel: DayPanel | null;
   /**
    * 固定的光照（给了就一直用它，不按时刻、天气算；null = 恢复）：室内（valley 的店里）不要日夜和天气。时钟照样走
    */
@@ -221,23 +228,32 @@ export function mountDaylight(o: DaylightOpts): Daylight {
   rescanLamps();
   apply();
 
-  const hud = o.hud
-    ? mountDayHud(o.hud, {
-        get: () => ({
-          total: st.total,
-          weather: st.weather,
-          speed: st.speed,
-          current: st.weather === 'auto' ? autoWeather(st.total, seed).to : st.weather,
-        }),
-        setHour: (h) => api.setHour(h),
-        setWeather: (w) => api.setWeather(w),
-        setSpeed: (s) => {
-          st.speed = s;
-        },
-      })
-    : null;
+  const hud =
+    o.hud || o.panelOnly
+      ? mountDayHud(
+          o.hud ?? null,
+          {
+            get: () => ({
+              total: st.total,
+              weather: st.weather,
+              speed: st.speed,
+              current: st.weather === 'auto' ? autoWeather(st.total, seed).to : st.weather,
+            }),
+            setHour: (h) => api.setHour(h),
+            setWeather: (w) => api.setWeather(w),
+            setSpeed: (s) => {
+              st.speed = s;
+            },
+          },
+          { chip: !o.panelOnly },
+        )
+      : null;
 
   const api: Daylight = {
+    panel: hud,
+    get current() {
+      return st.weather === 'auto' ? autoWeather(st.total, seed).to : st.weather;
+    },
     get override() {
       return override;
     },

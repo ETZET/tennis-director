@@ -8,8 +8,10 @@
 // 调试：window.__cast（state、open(id)、roster()、nextDay()、bound()…）。
 import * as THREE from 'three';
 import { act, activityOf, CAST, CLOSE, clockText, initState, memOf, OPEN, thought, tick } from '../../clubsite/cast';
+import { CLOTH, HAIR, SKIN } from '../../clubsite/cast/colors';
 import type { ActionId, ActResult, CastPerson, CastState } from '../../clubsite/cast/types';
 import { SCENE_NAME } from '../../clubsite/cast/types';
+import type { Peek, Who } from '../../clubsite/hud';
 import { createDresser } from '../../clubsite/people/dress';
 import type { Play } from '../../clubsite/play';
 import { Binder, type Bound, headHeight, type LiveLike } from './bind';
@@ -38,6 +40,12 @@ export interface MountCastOpts {
   scheme: DresserOpts['scheme'] | undefined;
   /** 建一个通勤的替身（commute.ts）：不给 = 不管人从哪儿出现 */
   makePerson?: (kind: 'adult' | 'kid') => THREE.Object3D;
+  /**
+   * 像素界面（clubsite/hud）：不画名字小牌和"名册"牌子（名册由界面右下的图标开）；点人 = 头上一个小框（名字 + 一句话，peek），
+   * 总监照样走过去，到了不自动开卡片，点小框才开。
+   */
+  quiet?: boolean;
+  peek?: (p: Peek | null) => void;
 }
 
 export interface CastMount {
@@ -52,6 +60,12 @@ export interface CastMount {
   adopt(root: THREE.Object3D, scene: string): void;
   /** 打开某个人的卡片 */
   open(id: string): void;
+  /** 打开名册 */
+  openRoster(): void;
+  /** 钱（演员表的状态里的） */
+  money(): number;
+  /** 场景里这个人（Object3D）是谁：名字 + 发色、肤色、衣服色（界面上方那行字前面的小人头）；不是演员表里的人 = null */
+  whoOf(anchor: unknown): Who | null;
 }
 
 /** 互动点：总监多近才给人注册（米） */
@@ -108,7 +122,8 @@ export function mountCast(o: MountCastOpts): CastMount {
   openBtn.type = 'button';
   openBtn.className = 'cast-open cast-pbtn';
   openBtn.innerHTML = `<b>${TXT.rosterBtn}</b><small></small>`;
-  ui.appendChild(openBtn);
+  if (!o.quiet) ui.appendChild(openBtn);
+  if (o.quiet) tagsEl.hidden = true;
   const clockEl = openBtn.querySelector('small') as HTMLElement;
 
   const listeners = new Set<() => void>();
@@ -257,11 +272,12 @@ export function mountCast(o: MountCastOpts): CastMount {
 
   // ── 走过去（卡片里"走过去"；到了自动打开卡片，当面） ──
   /** far = 他在还没建好的区域里：先往那个区域走，看得见他了再走到他跟前 */
-  let pending: { id: string; tries: number; t: number; tx: number; tz: number; far: boolean } | null = null;
-  function walkTo(id: string): boolean {
+  let pending: { id: string; tries: number; t: number; tx: number; tz: number; far: boolean; tap: boolean } | null =
+    null;
+  function walkTo(id: string, tap = false): boolean {
     const b = binder.objOf(id);
     if (b && flatDist(b) <= NEAR) {
-      openNear(id, b);
+      openNear(id, b, tap);
       return true;
     }
     card.close();
@@ -272,7 +288,7 @@ export function mountCast(o: MountCastOpts): CastMount {
       return false;
     }
     if (b) b.obj.getWorldPosition(tv);
-    pending = { id, tries: 0, t: 0, tx: b ? tv.x : 0, tz: b ? tv.z : 0, far: !b };
+    pending = { id, tries: 0, t: 0, tx: b ? tv.x : 0, tz: b ? tv.z : 0, far: !b, tap };
     return true;
   }
   function planNear(b: Bound): boolean {
@@ -323,9 +339,10 @@ export function mountCast(o: MountCastOpts): CastMount {
     const d = flatDist(b);
     if (d <= NEAR - 0.4 || (d <= NEAR && !play.pathLeft())) {
       const id = pending.id;
+      const tap = pending.tap;
       pending = null;
       if (play.pathLeft()) play.walkTo(dirPos().x, dirPos().z); // 停下
-      openNear(id, b);
+      openNear(id, b, tap);
       return;
     }
     // 玩家自己拿摇杆走了：不跟他抢
@@ -347,11 +364,34 @@ export function mountCast(o: MountCastOpts): CastMount {
       pending.t = 0;
     }
   }
-  function openNear(id: string, b: Bound) {
+  function openNear(id: string, b: Bound, viaTap = false) {
     b.obj.getWorldPosition(tv);
     if (!play.isBusy()) play.busy({ name: 'cast-face', dur: 0.25, pose: 'idle', face: [tv.x, tv.z] });
     lookAtDirector(b);
+    // 像素界面：点人走过去的，到了只转过来看总监（点的时候那句话已经在上方那行字里了；再点他一次才开卡片）；
+    // 按动作键"说话"的照常开
+    if (viaTap && o.peek) return;
     card.open(id, nearList());
+  }
+  function whoOfPerson(p: CastPerson): Who {
+    const lk = p.look;
+    return { name: p.name.split(' ')[0], hair: HAIR[lk.hair][1], skin: SKIN[lk.skin][0], shirt: CLOTH[lk.shirt][0] };
+  }
+  /** 点人：画面上方一行字（名字 + 他自己的一句话）；那行字还在的时候再点他一次（或点那行字）= 开卡片 */
+  function peekAt(id: string, b: Bound) {
+    const p = CAST.get(id);
+    if (!p || !o.peek) return;
+    const now = nowOf(id);
+    // 一句他自己的话（thoughts：按性子、现在在干什么挑的台词），不是"在哪 · 干什么"的状态
+    o.peek({
+      who: whoOfPerson(p),
+      anchor: b.obj,
+      dy: headHeight(b.kind) + 0.3,
+      title: p.name.split(' ')[0],
+      line: now.thought || '……',
+      sec: 6,
+      onTap: () => card.open(id, nearList()),
+    });
   }
   /** 从场景里点开时，◀ ▶ 在附近的人里切换（按远近） */
   function nearList(): string[] {
@@ -426,7 +466,11 @@ export function mountCast(o: MountCastOpts): CastMount {
           best = iid.slice(5);
         }
       }
-      if (best && walkTo(best)) return;
+      if (best) {
+        const bb = binder.objOf(best);
+        if (bb && o.peek) peekAt(best, bb);
+        if (walkTo(best, true)) return;
+      }
     }
     origTap(x, y, W, H);
   };
@@ -531,6 +575,15 @@ export function mountCast(o: MountCastOpts): CastMount {
     open(id) {
       card.open(id);
     },
+    openRoster() {
+      roster.open();
+    },
+    money: () => state.money,
+    whoOf(anchor) {
+      const b = binder.bound.find((x) => x.obj === anchor);
+      const p = b ? CAST.get(b.id) : null;
+      return p ? whoOfPerson(p) : null;
+    },
     step(dt) {
       binder.step(dt, state.day);
       commute?.step(dt);
@@ -560,7 +613,7 @@ export function mountCast(o: MountCastOpts): CastMount {
       }
     },
     frame() {
-      drawTags();
+      if (!o.quiet) drawTags();
       const ct = clockText(state);
       if (ct !== lastClock) {
         lastClock = ct;
