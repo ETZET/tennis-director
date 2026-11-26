@@ -14,6 +14,11 @@ export const HUD_CSS = `
 .pxh-root { --s: 2; position: fixed; inset: 0; z-index: 7; pointer-events: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
 .pxh-root [hidden] { display: none !important; }
 .pxh-px { display: block; image-rendering: pixelated; image-rendering: crisp-edges; flex: none; }
+/* 浮动的话：平滑的系统字 + 1 px 墨色细描边 + 下面 1 px 深影（同参考的浮动中文），不做阈值伪像素 */
+.pxh-txt { font: 600 calc(var(--s) * 6px + 1px)/1.25 "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", system-ui, sans-serif; letter-spacing: 0.5px; white-space: nowrap;
+  text-shadow: 1px 0 0 ${ink}, -1px 0 0 ${ink}, 0 1px 0 ${ink}, 0 -1px 0 ${ink}, 1px 1px 0 ${ink}, -1px 1px 0 ${ink}, 1px -1px 0 ${ink}, -1px -1px 0 ${ink}, 0 2px 0 ${shadow}; }
+.pxh-txt.ink { text-shadow: none; font-weight: 600; }
+.pxh-date { display: flex; align-items: center; gap: calc(var(--s) * 1px); }
 .pxh-root button { border: 0; margin: 0; padding: 0; background: none; cursor: pointer; pointer-events: auto; touch-action: none; -webkit-tap-highlight-color: transparent; }
 .pxh-root button:focus-visible { outline: 2px solid ${cream}; outline-offset: 2px; }
 
@@ -39,6 +44,7 @@ export const HUD_CSS = `
 /* 没活的槽位不占地方：有活的靠右排（动作键永远最右） */
 .pxh-act.empty { display: none; }
 .pxh-act .pxh-icon { position: relative; }
+.pxh-mood.read { visibility: hidden; transition: visibility 0s 0.32s; }
 .pxh-use.on .pxh-icon { animation: pxh-bob 0.36s steps(2, end) infinite; }
 @keyframes pxh-bob { 50% { transform: translateY(calc(var(--s) * -1px)); } }
 /* 按钮正上方的小奶油牌子（长按 / 第一次出现），右对齐，不飘到场景中间 */
@@ -54,7 +60,8 @@ export const HUD_CSS = `
 .pxh-toast { position: absolute; left: 50%; top: max(12%, calc(env(safe-area-inset-top) + 100px)); transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 6px; transition: opacity 0.4s steps(3, end); }
 .pxh-toast.gone { opacity: 0; }
 .pxh-toast.tap { pointer-events: auto; cursor: pointer; }
-.pxh-line { display: flex; align-items: flex-start; gap: 2px; max-width: calc(100vw - 40px); }
+.pxh-line { display: flex; align-items: center; gap: 4px; max-width: calc(100vw - 24px); padding: 2px 8px; background: rgba(23, 18, 48, 0.42); }
+.pxh-line .pxh-txt { white-space: normal; }
 .pxh-toast .pxh-item { animation: pxh-item 0.5s steps(5, end); }
 @keyframes pxh-item { 0% { transform: scale(0.2) translateY(30px); } 60% { transform: scale(1.15) translateY(-4px); } 100% { transform: scale(1); } }
 .pxh-place { position: absolute; left: 50%; top: max(12%, calc(env(safe-area-inset-top) + 100px)); transform: translateX(-50%); opacity: 0; }

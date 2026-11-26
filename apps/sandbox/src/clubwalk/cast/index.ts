@@ -8,9 +8,10 @@
 // 调试：window.__cast（state、open(id)、roster()、nextDay()、bound()…）。
 import * as THREE from 'three';
 import { act, activityOf, CAST, CLOSE, clockText, initState, memOf, OPEN, thought, tick } from '../../clubsite/cast';
+import { CLOTH, HAIR, SKIN } from '../../clubsite/cast/colors';
 import type { ActionId, ActResult, CastPerson, CastState } from '../../clubsite/cast/types';
 import { SCENE_NAME } from '../../clubsite/cast/types';
-import type { Peek } from '../../clubsite/hud';
+import type { Peek, Who } from '../../clubsite/hud';
 import { createDresser } from '../../clubsite/people/dress';
 import type { Play } from '../../clubsite/play';
 import { Binder, type Bound, headHeight, type LiveLike } from './bind';
@@ -63,6 +64,8 @@ export interface CastMount {
   openRoster(): void;
   /** 钱（演员表的状态里的） */
   money(): number;
+  /** 场景里这个人（Object3D）是谁：名字 + 发色、肤色、衣服色（界面上方那行字前面的小人头）；不是演员表里的人 = null */
+  whoOf(anchor: unknown): Who | null;
 }
 
 /** 互动点：总监多近才给人注册（米） */
@@ -370,6 +373,10 @@ export function mountCast(o: MountCastOpts): CastMount {
     if (viaTap && o.peek) return;
     card.open(id, nearList());
   }
+  function whoOfPerson(p: CastPerson): Who {
+    const lk = p.look;
+    return { name: p.name.split(' ')[0], hair: HAIR[lk.hair][1], skin: SKIN[lk.skin][0], shirt: CLOTH[lk.shirt][0] };
+  }
   /** 点人：画面上方一行字（名字 + 他自己的一句话）；那行字还在的时候再点他一次（或点那行字）= 开卡片 */
   function peekAt(id: string, b: Bound) {
     const p = CAST.get(id);
@@ -377,6 +384,7 @@ export function mountCast(o: MountCastOpts): CastMount {
     const now = nowOf(id);
     // 一句他自己的话（thoughts：按性子、现在在干什么挑的台词），不是"在哪 · 干什么"的状态
     o.peek({
+      who: whoOfPerson(p),
       anchor: b.obj,
       dy: headHeight(b.kind) + 0.3,
       title: p.name.split(' ')[0],
@@ -571,6 +579,11 @@ export function mountCast(o: MountCastOpts): CastMount {
       roster.open();
     },
     money: () => state.money,
+    whoOf(anchor) {
+      const b = binder.bound.find((x) => x.obj === anchor);
+      const p = b ? CAST.get(b.id) : null;
+      return p ? whoOfPerson(p) : null;
+    },
     step(dt) {
       binder.step(dt, state.day);
       commute?.step(dt);

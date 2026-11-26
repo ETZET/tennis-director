@@ -55,6 +55,8 @@ export interface PixelHudOpts {
   money?: () => number | null;
   /** 右下常驻的图标按钮（从右往左排） */
   buttons?: HudButton[];
+  /** 场景里说话的是谁（点心情泡时，上方那行字前面带名字和小人头）；不给 = 只有那句话 */
+  who?: (anchor: Anchor) => Who | null;
   params?: URLSearchParams;
 }
 
@@ -67,6 +69,16 @@ export interface Peek {
   /** 点气泡 */
   onTap?(): void;
   sec?: number;
+  /** 说话的人的颜色（上方那行字前面的小人头） */
+  who?: Who | null;
+}
+
+/** 说话的人：发色、肤色、衣服色（0xRRGGBB） */
+export interface Who {
+  name: string;
+  hair: number;
+  skin: number;
+  shirt: number;
 }
 
 export interface PixelHud {
@@ -75,7 +87,7 @@ export interface PixelHud {
   /** 点人：头上一个奶油色小框，名字 + 一句话 */
   peek(p: Peek | null): void;
   /** 反馈：弹出来的东西（可选）+ 一行字 */
-  pop(text: string, icon?: IconId | null, sec?: number): void;
+  pop(text: string, icon?: IconId | null, sec?: number, who?: Who | null): void;
   /** 地点名（进一个区域时上方淡出） */
   place(name: string): void;
   setDebug(on: boolean): void;
@@ -103,22 +115,22 @@ export function pickIcon(label: string): IconId {
 
 const LONG_MS = 420;
 
-/** 动作键的小盘：直径 d 纹素，半透明墨色的底（场景透得过来）+ 1 纹素奶油（或金）细环 + 外面 1 纹素墨色描边 */
-function disc(d: number, fill: string, ring: number): HTMLCanvasElement {
-  const n = d + 2;
-  const c = document.createElement('canvas');
-  c.width = n;
-  c.height = n;
-  const g = c.getContext('2d') as CanvasRenderingContext2D;
-  const cx = n / 2;
-  for (let y = 0; y < n; y++)
-    for (let x = 0; x < n; x++) {
-      const q = Math.hypot(x + 0.5 - cx, y + 0.5 - cx);
-      if (q > cx) continue;
-      g.fillStyle = q > cx - 1 ? hex(INK) : q > cx - 2 ? hex(ring) : fill;
-      g.fillRect(x, y, 1, 1);
-    }
-  return c;
+/** 说话的人的小人头（9×9）：头发、脸、两只眼、脖子、衣服 */
+function headSprite(w: Who) {
+  return {
+    rows: [
+      '..HHHHH..',
+      '.HHHHHHH.',
+      '.HFFFFFH.',
+      '.FFKFKFF.',
+      '.FFFFFFF.',
+      '..FFFFF..',
+      '...FFF...',
+      '.CCCCCCC.',
+      'CCCCCCCCC',
+    ],
+    keys: { H: w.hair, F: w.skin, C: w.shirt },
+  };
 }
 
 export function mountPixelHud(o: PixelHudOpts): PixelHud {
@@ -136,10 +148,19 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
   document.body.appendChild(root);
   let S = hudScale();
   root.style.setProperty('--s', String(S));
-  const icon = (id: IconId) => spriteCanvas(ICONS[id], id);
-  /** 字：系统字体切实心，字号 6 × 纹素，按 1 倍显示 */
-  const txt = (s: string, color = CREAM, maxW?: number, outline: number | null = INK) =>
-    textCanvas(s, { color, px: 6 * S, maxW, outline });
+  /** 图标：墨色描边外面再 1 纹素奶油贴纸边（任何背景上都分得开，不用底板） */
+  const icon = (id: IconId, ring = CREAM) => spriteCanvas(ICONS[id], id, true, ring);
+  /**
+   * 字：两种，不混中间态（第 3 轮评判）。固定的数字（钱、第几天）= 5×7 点阵字，和图标同一个纹素网格；
+   * 浮动的话（上方一行、小牌子、地点名、提示）= 平滑的系统字 + 1 px 墨色细描边（同参考的浮动中文），不假装像素。
+   */
+  const label = (s: string, color = CREAM, cls = '') => {
+    const e = document.createElement('span');
+    e.className = `pxh-txt ${cls}`.trim();
+    e.style.color = hex(color);
+    e.textContent = s;
+    return e;
+  };
 
   /** 像素图 → 页面上的 canvas。k = 放大倍数相对纹素（图标 1 = S 倍；字 0 = 1 倍）。换了纹素（转屏）时 rescale() 重设大小 */
   const view = (src: HTMLCanvasElement, k: 0 | 1 | 2 = 1, cls = '') => {
@@ -169,10 +190,14 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
   const clockCv = document.createElement('canvas');
   clockCv.className = 'pxh-px';
   clockCv.dataset.k = '1';
+  // 日期：一个 7×7 的小日历 + 点阵数字（第几天），不用汉字
+  const dateEl = document.createElement('div');
+  dateEl.className = 'pxh-date';
   const dateCv = document.createElement('canvas');
   dateCv.className = 'pxh-px';
-  dateCv.dataset.k = '0';
-  clockBtn.append(clockCv, dateCv);
+  dateCv.dataset.k = '1';
+  dateEl.append(view(icon('cal')), dateCv);
+  clockBtn.append(clockCv, dateEl);
   root.appendChild(clockBtn);
   // 点日钟：小牌子（星期几 + 天气图标），1.8 秒；调试里 = 调时间面板
   const tip = document.createElement('div');
@@ -197,13 +222,10 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
       placePanel();
       return;
     }
-    const hour = ((day.total % 24) + 24) % 24;
     const dayN = Math.floor(day.total / 24) + 1;
-    const hh = Math.floor(hour);
-    const mm = Math.floor((hour - hh) * 60);
     tip.replaceChildren(
       view(spriteCanvas(WEATHER_ICONS[day.current], `w-${day.current}`)),
-      view(txt(`${weekday(dayN)} ${hh}:${String(mm).padStart(2, '0')}`, INK, undefined, null), 0),
+      label(weekday(dayN), INK, 'ink'),
     );
     tip.classList.remove('gone');
     clearTimeout(tipTimer);
@@ -235,7 +257,8 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
     const ds = `${t('date', { wd: weekday(dayN), d: dayN })}|${S}`;
     if (ds !== dateKey) {
       dateKey = ds;
-      put(dateCv, txt(t('date', { wd: weekday(dayN), d: dayN })));
+      put(dateCv, textCanvas(String(dayN)));
+      clockBtn.setAttribute('aria-label', `${t('clock')} · ${t('date', { d: dayN })}`);
     }
   }
 
@@ -268,7 +291,7 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
   const showSign = (s: string, ms = 0) => {
     if (s !== signText) {
       signText = s;
-      sign.replaceChildren(view(txt(s, INK, undefined, null), 0));
+      sign.replaceChildren(label(s, INK, 'ink'));
     }
     sign.classList.remove('gone');
     clearTimeout(signTimer);
@@ -311,22 +334,20 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
     fixRow.prepend(b);
   }
 
-  // 动作键（按住干活）、拿 / 放：22 纹素的墨色半透明小盘 + 1 纹素奶油细环 + 图标。有活的靠右排：
-  // 动作键永远在最右（最顺手），拿 / 放在它左边；只有一个活时它就在最右格。按着干活时细环变金
-  const plate = { idle: disc(22, 'rgba(44, 40, 72, 0.5)', CREAM), on: disc(22, 'rgba(44, 40, 72, 0.62)', GOLD) };
+  // 动作键（按住干活）、拿 / 放：和名册、地图一样只有图标 + 奶油贴纸边，不要底板。有活的靠右排：
+  // 动作键永远在最右（最顺手），拿 / 放在它左边；只有一个活时它就在最右格。按着干活时贴纸边变金、图标两格一跳
   const mkAct = (cls: string) => {
     const b = document.createElement('button');
     b.type = 'button';
     b.className = `pxh-btn pxh-act ${cls} empty`;
-    const pl = view(plate.idle, 1, 'pxh-plate');
     const ic = document.createElement('canvas');
     ic.className = 'pxh-px pxh-icon';
     ic.dataset.k = '1';
     // 空的 canvas 默认 300×150：先给个 1×1，免得没活时把槽位撑大
     ic.width = 1;
     ic.height = 1;
-    b.append(pl, ic);
-    return { b, pl, ic };
+    b.append(ic);
+    return { b, ic, id: '' as IconId | '' };
   };
   const use = mkAct('pxh-use');
   const pick = mkAct('pxh-pick');
@@ -396,7 +417,10 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
     cv: HTMLCanvasElement;
     key: string;
     text: string;
+    who: Who | null;
   }
+  /** 点过的泡（key|台词）：这句话没换之前不再出 */
+  const read = new Set<string>();
   const moodEls: MoodEl[] = [];
   /** 同屏最多几个心情泡（离总监近的先） */
   const MOOD_MAX = 2;
@@ -408,16 +432,20 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
   toastEl.className = 'pxh-toast gone';
   root.appendChild(toastEl);
   let toastTimer = 0;
-  function pop(text: string, ic: IconId | null = null, sec = 1.8, who: string | null = null) {
+  function pop(text: string, ic: IconId | null = null, sec = 1.8, who: Who | null = null) {
     toastEl.replaceChildren();
     if (ic) toastEl.appendChild(view(icon(ic), 2, 'pxh-item'));
     const row = document.createElement('div');
     row.className = 'pxh-line';
-    if (who) row.appendChild(view(txt(who, GOLD), 0));
-    row.appendChild(view(txt(text, CREAM, Math.min(innerWidth - 60, 520)), 0));
+    // 别人说的话：小人头 + 名字（金）+ 一句话，一眼知道是谁说的
+    if (who) {
+      row.appendChild(view(spriteCanvas(headSprite(who), `head-${who.name}-${who.shirt}`), 1, 'pxh-head'));
+      row.appendChild(label(`${who.name}${t('colon')}`, GOLD));
+    }
+    row.appendChild(label(text, CREAM));
     toastEl.appendChild(row);
     toastEl.classList.remove('gone');
-    toastEl.classList.toggle('tap', !!peekV?.onTap && who !== null);
+    toastEl.classList.toggle('tap', !!peekV?.onTap && !!who && peekV.title === who.name);
     clearTimeout(toastTimer);
     toastTimer = window.setTimeout(() => {
       toastEl.classList.add('gone');
@@ -439,7 +467,7 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
   placeEl.className = 'pxh-place';
   root.appendChild(placeEl);
   function place(name: string) {
-    placeEl.replaceChildren(view(txt(name), 0));
+    placeEl.replaceChildren(label(name));
     placeEl.classList.remove('show');
     void placeEl.offsetWidth;
     placeEl.classList.add('show');
@@ -448,7 +476,7 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
   // ── 开局的操作提示：5 秒，或者第一次碰画面就淡掉 ──
   const hintEl = document.createElement('div');
   hintEl.className = 'pxh-hint';
-  hintEl.appendChild(view(txt(t('hint')), 0));
+  hintEl.appendChild(label(t('hint')));
   root.appendChild(hintEl);
   const hideHint = () => hintEl.classList.add('gone');
   const hintTimer = window.setTimeout(hideHint, 5000);
@@ -482,13 +510,14 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
   let wasUse = '';
   let wasPick = '';
   let wasOn = false;
-  const setAct = (a: { b: HTMLButtonElement; ic: HTMLCanvasElement }, label: string, id: IconId) => {
-    a.b.classList.toggle('empty', !label);
-    a.b.setAttribute('aria-label', label);
-    if (label) put(a.ic, icon(id));
-    if (label && !seen.has(label)) {
-      seen.add(label);
-      showSign(label, 1500);
+  const setAct = (a: { b: HTMLButtonElement; ic: HTMLCanvasElement; id: IconId | '' }, text: string, id: IconId) => {
+    a.b.classList.toggle('empty', !text);
+    a.b.setAttribute('aria-label', text);
+    a.id = text ? id : '';
+    if (text) put(a.ic, icon(id, a === use && wasOn ? GOLD : CREAM));
+    if (text && !seen.has(text)) {
+      seen.add(text);
+      showSign(text, 1500);
     }
   };
   const hud: PixelHud = {
@@ -507,7 +536,7 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
         return;
       }
       peekV = p ? { ...p, until: now + (p.sec ?? 2.6) * 1000 } : null;
-      if (p) pop(p.line, null, p.sec ?? 2.6, `${p.title}${t('colon')}`);
+      if (p) pop(p.line, null, p.sec ?? 2.6, p.who ?? { name: p.title, hair: INK, skin: CREAM, shirt: INK });
     },
     frame() {
       // 转屏 / 改窗口：纹素倍数变了就重设所有像素图的大小、重画字
@@ -543,7 +572,7 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
       if (ui.usingNow !== wasOn) {
         wasOn = ui.usingNow;
         use.b.classList.toggle('on', ui.usingNow);
-        put(use.pl, ui.usingNow ? plate.on : plate.idle);
+        if (use.id) put(use.ic, icon(use.id, ui.usingNow ? GOLD : CREAM));
       }
       if (ui.pick !== wasPick) {
         wasPick = ui.pick;
@@ -566,14 +595,16 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
         cv.className = 'pxh-px';
         cv.dataset.k = '1';
         el.appendChild(cv);
-        const me: MoodEl = { el, cv, key: '', text: '' };
+        const me: MoodEl = { el, cv, key: '', text: '', who: null };
         el.addEventListener('pointerdown', (e) => {
           e.stopPropagation();
           peekV = null;
-          pop(me.text, null, 2.4);
+          pop(me.text, null, 2.4, me.who);
+          // 点过的泡：弹一下就收起（"已读"），这句话没换之前不再出
+          read.add(`${me.key}|${me.text}`);
           me.el.classList.remove('pop');
           void me.el.offsetWidth;
-          me.el.classList.add('pop');
+          me.el.classList.add('pop', 'read');
         });
         moodsEl.appendChild(el);
         moodEls.push(me);
@@ -582,7 +613,7 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
       play.director.getWorldPosition(dirV);
       const cands: { b: (typeof ui.bubbles)[number]; p: { x: number; y: number }; d: number }[] = [];
       for (const b of ui.bubbles) {
-        if (moodOf(b.text) === '…') continue;
+        if (moodOf(b.text) === '…' || read.has(`${b.key}|${b.text}`)) continue;
         const wp = anchorAt(b.anchor, b.dy);
         if (!wp) continue;
         const d = Math.hypot(wp.x - dirV.x, wp.z - dirV.z);
@@ -598,6 +629,8 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
         if (me.text !== c.b.text || me.key !== c.b.key) {
           me.text = c.b.text;
           me.key = c.b.key;
+          me.who = o.who?.(c.b.anchor) ?? null;
+          me.el.classList.remove('read');
           const id = moodOf(c.b.text);
           put(me.cv, spriteCanvas(moodSprite(id), `mood-${id}`));
           me.el.classList.remove('pop');

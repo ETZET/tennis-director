@@ -1125,6 +1125,7 @@ export function mountWalk(hooks: WalkHooks = {}) {
       day,
       params,
       money: cast ? () => cast.money() : undefined,
+      who: cast ? (a) => cast.whoOf(a) : undefined,
       buttons: [
         {
           id: 'map',

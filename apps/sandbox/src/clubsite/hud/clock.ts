@@ -4,8 +4,8 @@
 // 圆下面一行很短的日期。数据从 clubsite/daylight 读（look = 这一刻的光、total = 时钟）。
 // 画在 1 倍小 canvas 上（38×39 纹素），CSS 整数倍放大。
 import type { DayLook, Weather } from '../daylight/sky';
+import { PAL } from '../render/palette';
 import { INK, INK_SHADOW, KEYS } from './colors';
-import { rasterize } from './sprite';
 
 export interface ClockData {
   /** 时刻（0..24） */
@@ -20,8 +20,8 @@ export const CLOSE = 22;
 
 const N = 38;
 const C = N / 2;
-const R_SKY = 12.5;
-const R_RIM = 13.5;
+/** 天一直贴到外环（参考：整个钟是一块亮的天，只有最外一圈墨线） */
+const R_SKY = 13.5;
 const R_RING = 15.5;
 const R_OUT = 16.5;
 
@@ -33,15 +33,6 @@ const mix = (a: RGB, b: RGB, k: number): RGB => [
   a[2] + (b[2] - a[2]) * k,
 ];
 const mul = (a: RGB, m: readonly number[]): RGB => [a[0] * m[0], a[1] * m[1], a[2] * m[2]];
-
-/** 网球（进度弧的头）：7×7 + 描边 */
-let badge: { w: number; h: number; px: Uint8ClampedArray<ArrayBuffer> } | null = null;
-function ballBadge() {
-  if (badge) return badge;
-  const rows = ['.GGG.', 'GWGgg', 'GGWgg', 'GgWgh', '.ghh.'];
-  badge = rasterize({ rows }, true, false);
-  return badge;
-}
 
 /** 画一帧日钟 → 1 倍 RGBA（N × N+1） */
 export function drawClock(d: ClockData): { w: number; h: number; px: Uint8ClampedArray<ArrayBuffer> } {
@@ -124,8 +115,10 @@ export function drawClock(d: ClockData): { w: number; h: number; px: Uint8Clampe
   }
 
   // ── 云：下半圈一团一团（天气越阴越多），颜色乘这一刻的亮档（傍晚变橙、夜里变靛） ──
-  const cloudLit = mul(rgb(KEYS.W), lit);
-  const cloudShade = mul(rgb(wet ? KEYS.s : KEYS.w), lit);
+  // 云跟着时刻染色（傍晚橙、夜里靛）；阴雨天的云是扁平的灰蓝，不吃暮色（不然像火山），只在夜里压暗
+  const tint = wet && !night ? [1, 1, 1] : lit;
+  const cloudLit = mul(rgb(wet ? KEYS.S : KEYS.W), tint);
+  const cloudShade = mul(rgb(wet ? KEYS.s : KEYS.w), tint);
   const puffs: [number, number, number][] = [];
   const amount = d.weather === 'clear' || d.weather === 'dust' ? 0 : d.weather === 'cloudy' ? 1 : 2;
   // 一条起伏的云堤：几团高低不一，顶边是一个个鼓包
@@ -138,7 +131,16 @@ export function drawClock(d: ClockData): { w: number; h: number; px: Uint8Clampe
     [C, C + 11, 5],
   );
   if (amount >= 1) puffs.push([C - 9, C + 4, 2.6], [C + 5, C + 4, 3.0], [C - 2, C + 5, 3.4]);
-  if (amount >= 2) puffs.push([C - 6, C - 1, 3.2], [C + 1, C - 2, 3.8], [C + 8, C, 2.8], [C - 2, C - 6, 3.0]);
+  // 阴、雨：一条平的云带压在上半（不往上堆成尖）
+  if (amount >= 2)
+    puffs.push(
+      [C - 8, C + 1, 3.0],
+      [C - 3, C, 3.2],
+      [C + 2, C + 1, 3.0],
+      [C + 7, C, 3.0],
+      [C - 5, C - 3, 2.6],
+      [C + 4, C - 3, 2.6],
+    );
   // 晴天右上一条细云
   if (amount === 0 && !night)
     for (let x = 0; x < 5; x++) {
@@ -178,19 +180,15 @@ export function drawClock(d: ClockData): { w: number; h: number; px: Uint8Clampe
   // 营业时段一圈：OPEN 点在正上方，CLOSE 点回到正上方；关门以后满圈、开门以前空圈
   const h24 = ((hr % 24) + 24) % 24;
   const prog = h24 < OPEN ? 0 : Math.min(1, (h24 - OPEN) / (CLOSE - OPEN));
-  // 外环两纹素：没走过的深墨，走过的金色（外侧一纹素深一档）
-  const track: RGB = rgb(0x4a4670);
-  const trackDark: RGB = rgb(INK);
+  // 外环两纹素：没走过的浅奶油（柜台石面的亮档），走过的金色；外侧一纹素各深一档
+  const track: RGB = rgb(PAL.counterTop.ramp[0]);
+  const trackDark: RGB = rgb(PAL.signPaint.ramp[1]);
   const gold = rgb(KEYS.Y);
   const goldDark = rgb(KEYS.y);
   for (let y = 0; y < N; y++)
     for (let x = 0; x < N; x++) {
       const r = Math.hypot(x + 0.5 - C, y + 0.5 - C);
       if (r <= R_SKY) continue;
-      if (r <= R_RIM) {
-        put(x, y, rgb(INK));
-        continue;
-      }
       if (r <= R_RING) {
         // 角度：正上方 0，顺时针
         let a = Math.atan2(x + 0.5 - C, -(y + 0.5 - C)) / (Math.PI * 2);
@@ -202,19 +200,19 @@ export function drawClock(d: ClockData): { w: number; h: number; px: Uint8Clampe
       }
       if (r <= R_OUT) put(x, y, rgb(INK));
     }
-  // 网球：进度弧的头（"现在"），跟着时刻沿环走
-  {
-    const b = ballBadge();
+  // "现在"：金弧的端头一个 2×2 的白点（在环里，不出钟的外轮廓）
+  if (prog > 0 && prog < 1) {
     const a = prog * Math.PI * 2;
-    // 骑在环的外沿上（球心在环外侧一点），不进天空窗
-    const rr = R_RING - 0.5;
-    const ox = Math.round(C + Math.sin(a) * rr - b.w / 2);
-    const oy = Math.round(C - Math.cos(a) * rr - b.h / 2);
-    for (let y = 0; y < b.h; y++)
-      for (let x = 0; x < b.w; x++) {
-        const i = (y * b.w + x) * 4;
-        if (b.px[i + 3]) put(ox + x, oy + y, [b.px[i], b.px[i + 1], b.px[i + 2]]);
-      }
+    const rr = R_SKY + 1;
+    const cx = Math.round(C + Math.sin(a) * rr - 1);
+    const cy = Math.round(C - Math.cos(a) * rr - 1);
+    for (const [dx, dy] of [
+      [0, 0],
+      [1, 0],
+      [0, 1],
+      [1, 1],
+    ])
+      put(cx + dx, cy + dy, rgb(0xffffff));
   }
   // 投影：往下 1 纹素
   for (let y = h - 1; y > 0; y--)

@@ -8,39 +8,39 @@ const S = (...rows: string[]): Sprite => ({ rows });
 
 /** 按钮图标 */
 export const ICONS = {
-  /** 名册：两个人（会员和员工），胸口一个小牌 */
+  /** 名册：一张工牌（挂绳、蓝色抬头、照片、两行字）—— 场景里的实物，低饱和 */
   roster: S(
-    '..uuuu....tttt..',
-    '.uuFFuu..ttFFtt.',
-    '.uFFFFu..tFFFFt.',
-    '.FFFFFf..FFFFFf.',
-    '.FFFFFf..FFFFFf.',
-    '.fFFFff..fFFFff.',
-    '..ffff....ffff..',
-    '...ff......ff...',
-    '..RRRR....BBBB..',
-    '.RRRRRr..BBBBBb.',
-    'RRRRRRrrBBBBBBbb',
-    'RRRRRRrrBBBBBBbb',
-    'RRRRRRrrBBBBBBbb',
-    'RRWRRRrrBBWBBBbb',
-    'rrrrrrrrbbbbbbbb',
+    '..nn......nn..',
+    '...nn....nn...',
+    '....nn..nn....',
+    '.....nSSn.....',
+    '..bbbbSSbbbb..',
+    '..bbbbbbbbbb..',
+    '..WWWWWWWWWw..',
+    '..WvvvWWWWWw..',
+    '..WvdvWsssWw..',
+    '..WdddWWWWWw..',
+    '..WdddWsssWw..',
+    '..WWWWWWWWWw..',
+    '..WssssssWWw..',
+    '..WWWWWWWWWw..',
+    '..wwwwwwwwww..',
   ),
-  /** 地图：三折的纸，中间一折在影子里；绿地、蓝水、红色虚线路线、红针 */
+  /** 地图：三折的米色纸，中间一折在影子里；低饱和的绿地、水，红色虚线路线 + 一个小红点 */
   map: S(
     'WWWWWW......WWWWWW',
     'WWWWWWwwwwwwWWWWWW',
-    'WPPWWWwwwwwwWWWAAw',
-    'WPPPWWwwwwwwWWAAAw',
-    'WWPWRWwwwwwwWWWAAw',
-    'WWWWWRwwwwwwWWWWWw',
+    'WppWWWwwwwwwWWWaaw',
+    'WpppWWwwwwwwWWaaaw',
+    'WWpWrWwwwwwwWWWaaw',
+    'WWWWWrwwwwwwWWWWWw',
     'WWWWWWrwwwwwWWWWWw',
-    'WWWWWWwwrwwwWWRRWw',
-    'WWWWWWwwwwrwWRRWRw',
-    'WWAAWWwwwwwwrRRRRw',
-    'WAAAWWwwwPpwWRRRRw',
-    'WWAAWWwwPPpwWWRRWw',
-    'WWWWWWwwwppwWWWRWw',
+    'WWWWWWwwrwwwWWWWWw',
+    'WWWWWWwwwwrwWWWWWw',
+    'WWaaWWwwwwwwrWRRWw',
+    'WaaaWWwwwwwwWWRRWw',
+    'WWaaWWwwwppwWWWWWw',
+    'WWWWWWwwpppwWWWWWw',
     'wwwwwwwwwwwwwwwwww',
     '......vvvvvv......',
   ),
@@ -63,13 +63,13 @@ export const ICONS = {
   /** 推球包车：铁丝筐里装满网球，两个轮子 */
   cart: S(
     '..................',
-    '...GGgGGgGGg......',
-    '..GGgGGgGGgGG.....',
-    '.SGgGGgGGgGGgS....',
+    '...gghgghggh......',
+    '..gghgghgghgg.....',
+    '.SghgghgghgghS....',
     '.SsSsSsSsSsSsS....',
-    '.SGGgGGgGGgGGS....',
+    '.SgghgghgghggS....',
     '.SsSsSsSsSsSsS....',
-    '.SgGGgGGgGGgGS....',
+    '.ShgghgghgghgS....',
     '.SsSsSsSsSsSsS.SS.',
     '..SsssssssssssSsS.',
     '...s.........sS...',
@@ -236,8 +236,10 @@ export const ICONS = {
   ),
   /** 调试（左下角的小点） */
   dots: S('S.S.S'),
+  /** 日期前面的小日历（7×6） */
+  cal: S('rrrrrrr', 'WWWWWWW', 'WsWsWsW', 'WWWWWWW', 'WsWsWWW', 'wwwwwww'),
   /** 互动点头上的小箭头（朝下，金色） */
-  arrow: S('YYYYYYY', 'YWWYYYy', '.YYYYy.', '..YYy..', '...y...'),
+  arrow: S('YYYYY', 'YWYYy', '.YYy.', '..y..'),
   /** 拿 / 放（手里要拿的东西挑不出图标时）：一只纸箱，顶上一条胶带 */
   box: S(
     '...XXXXXXXXXX...',
@@ -433,13 +435,13 @@ export function moodSprite(id: MoodId): Sprite {
 export const WEATHER_ICONS = {
   clear: S(
     '.....Y.....',
-    '..Y..Y..Y..',
-    '...YYYYY...',
-    '..YYWWYYy..',
-    'YYYYWYYYyYY',
-    '..YYYYYyy..',
-    '...yyyyy...',
-    '..y..y..y..',
+    '...........',
+    '....YYY....',
+    '...YWYYy...',
+    'Y..YYYYy..Y',
+    '...YYYyy...',
+    '....yyy....',
+    '...........',
     '.....y.....',
   ),
   cloudy: S(
