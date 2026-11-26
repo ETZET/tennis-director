@@ -60,7 +60,7 @@ export const SHEET_CSS = `
 .pxs-name { font: 700 17px/1.15 "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", system-ui, sans-serif; letter-spacing: 0.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pxs-line { font: 500 14px/1.35 "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", system-ui, sans-serif; color: ${ink}; opacity: 0.86; }
 .pxs-line.bad { color: #8a3a4e; opacity: 1; }
-.pxs-chip { font: 600 12px/1 "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", system-ui, sans-serif; padding: calc(var(--s) * 2px) calc(var(--s) * 3px); background: ${paperDark}; color: ${ink}; white-space: nowrap; }
+.pxs-chip { font: 600 12px/1 "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", system-ui, sans-serif; padding: calc(var(--s) * 2px) calc(var(--s) * 3px); background: ${paperDark}; color: ${ink}; white-space: nowrap; box-shadow: 2px 0 0 0 ${ink}, -2px 0 0 0 ${ink}, 0 2px 0 0 ${ink}, 0 -2px 0 0 ${ink}, 0 4px 0 0 ${shadow}; margin: 2px; }
 /* 分隔：一纹素的暗纸色虚线 */
 .pxs-rule { height: calc(var(--s) * 1px); margin: calc(var(--s) * 3px) 0; background: repeating-linear-gradient(90deg, ${paperDark} 0 calc(var(--s) * 2px), transparent calc(var(--s) * 2px) calc(var(--s) * 4px)); }
 /* 往上飘的心（好感变了） */

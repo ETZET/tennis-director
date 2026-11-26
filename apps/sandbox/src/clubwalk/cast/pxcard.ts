@@ -78,7 +78,7 @@ const CSS = `
 .pxc-acts { display: flex; justify-content: space-between; gap: calc(var(--s) * 3px); margin-top: calc(var(--s) * 3px); padding: 0 2px; }
 .pxc-acts .pxs-btn, .pxc-slot { flex: 1 1 0; min-width: 0; min-height: 60px; position: relative; margin: 0 0 4px; }
 /* 空槽：凹下去的一块（暗纸色，里面一圈淡墨） */
-.pxc-slot { background: #f0d8a8; box-shadow: inset 2px 2px 0 0 rgba(44, 40, 72, 0.35); }
+.pxc-slot { background: #f0d8a8; box-shadow: inset 2px 2px 0 0 rgba(44, 40, 72, 0.45), 2px 0 0 0 #2c2848, -2px 0 0 0 #2c2848, 0 2px 0 0 #2c2848, 0 -2px 0 0 #2c2848; }
 .pxc-acts.far { gap: calc(var(--s) * 4px); }
 .pxc-acts.one { justify-content: center; }
 .pxc-acts.one .pxs-big { flex: 0 0 160px; }
@@ -88,7 +88,7 @@ const CSS = `
 .pxc-attrs { display: flex; flex-direction: column; gap: calc(var(--s) * 2px); }
 .pxc-attr { display: flex; align-items: center; gap: calc(var(--s) * 2px); }
 .pxc-line2 { display: flex; align-items: center; gap: calc(var(--s) * 4px); flex-wrap: wrap; }
-.pxc-ties { display: flex; gap: calc(var(--s) * 3px); flex-wrap: wrap; }
+.pxc-ties { display: flex; gap: calc(var(--s) * 3px); flex-wrap: wrap; margin-bottom: calc(var(--s) * 4px); }
 .pxc-tie { position: relative; }
 .pxc-tie .k { position: absolute; right: -6px; bottom: -6px; }
 `;
@@ -215,6 +215,7 @@ export function createPxCard(ctx: CastCtx, onShow?: (id: string | null) => void)
     fold.dataset.more = '1';
     tap(fold, () => {
       more = !more;
+      sheet.el.querySelector('.pxs-say')?.classList.add('gone');
       render();
     });
     parts.push(fold);
