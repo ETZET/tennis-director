@@ -7,6 +7,7 @@
 
 import { GROUP_AS as COURTS_AS, PAL as COURTS_PAL } from '../clubcourts/palette';
 import { PAL as FOOD_PAL, PROXY as FOOD_PROXY } from '../clubfood/palette';
+import { PAL as HOUSE_PAL, PROXY as HOUSE_PROXY } from '../clubhouse/palette';
 import { PAL as POOL_PAL, PROXY as POOL_PROXY, SUN_SKIP as POOL_SUN_SKIP } from '../clubpool/palette';
 import type { Swatch } from '../clubsite/render/palette';
 import type { Elem, Tones } from '../clubsite/render/toon';
@@ -179,17 +180,47 @@ const VISTA = {
   ),
   /** 崖顶一纹素的亮唇 */
   bluffLip: s([0xf8d49a, 0xd8a088, 0x7a74a6], 0.3, 0.6),
+  /**
+   * 铺地（廊道、广场、池边、露台）：flagstone 压暗 ~15 级、彩度不降（第 2 轮评判：两大片浅米色是最大的平面、暖色超标），
+   * 暗档同 flagstone 的冷紫。块大、缝浅（EL.flag）。
+   */
+  paving: s(
+    [0xe4c496, 0xc0988a, 0x7c5e98],
+    0.1,
+    0.05,
+    tn(
+      [0xe4c496, 0xeacea2, 0xdab88a], // L 202 / 211 / 192
+      [0xc0988a, 0xc8a292, 0xb48c80], // L 163 / 172 / 154
+      [0x7c5e98, 0x84669e, 0x72568e], // L 104 / 112 / 96
+      [0xd2b088, 0xa88478, 0x624a84],
+      [0xf2d8b0, 0xd4b0a0, 0x9478ae],
+    ),
+  ),
+  /** 会所屋顶：陶土褐（红瓦降彩度，第 2 轮评判：一整条通栏最饱和的暖色） */
+  roofClay: s(
+    [0xc4866c, 0x8e5a60, 0x4e3a5e],
+    0.4,
+    0.3,
+    tn(
+      [0xc4866c, 0xcc9074, 0xb87c64], // L 146
+      [0x8e5a60, 0x966268, 0x845258], // L 104
+      [0x4e3a5e, 0x564266, 0x463456], // L 66
+      [0xa86c5c, 0x784a54, 0x3e2e50],
+      [0xdca084, 0xac7270, 0x6a5478],
+    ),
+  ),
   /** 白模：占位体块（冷灰，按高度一档档） */
   box: s([0xd8d6e4, 0xa8a4c0, 0x6a6690], 0.6, 0.5),
   /** 白模：占位体块的主角色（每张图一个最鲜艳的暖色：入口的车、前台的帆、泳池的伞……） */
   boxHot: s([0xff8a5c, 0xd85a5a, 0x7a3a6a], 0.6, 0.5),
 } as const satisfies Record<string, Swatch>;
 
-export const PAL = { ...FOOD_PAL, ...POOL_PAL, ...COURTS_PAL, ...STADIUM_PAL, ...VISTA } as const;
+export const PAL = { ...HOUSE_PAL, ...FOOD_PAL, ...POOL_PAL, ...COURTS_PAL, ...STADIUM_PAL, ...VISTA } as const;
 export type Pal = typeof PAL;
 
 /** 新材质借哪个名字过配色方案的分组（同 clubpool / clubfood 的 PROXY 做法；方案的 GROUP 表不归这里改） */
 export const GRADE_AS: Partial<Record<keyof Pal, keyof Pal>> = {
+  ...(HOUSE_PROXY as Partial<Record<keyof Pal, keyof Pal>>),
   ...(FOOD_PROXY as Partial<Record<keyof Pal, keyof Pal>>),
   ...(POOL_PROXY as Partial<Record<keyof Pal, keyof Pal>>),
   ...(STADIUM_PROXY as Partial<Record<keyof Pal, keyof Pal>>),
@@ -203,6 +234,8 @@ export const GRADE_AS: Partial<Record<keyof Pal, keyof Pal>> = {
   practiceIn: 'court',
   practiceOut: 'court',
   turf: 'lawn',
+  paving: 'flagstone',
+  roofClay: 'roofTile',
   seatRow: 'seat',
   lagoon: 'water',
   trail: 'path',
@@ -231,8 +264,8 @@ export const SUN_SKIP: Partial<Record<keyof Pal, number>> = {
 /** 大面的元素预设（材质规范 v2）：一开始就照"大块安静"画——块大、缝浅、撒的细节少 */
 export const EL = {
   /** 沙漠地面：几乎纯色，只有低频的深浅斑（比 EL.sand 的沙纹少一个数量级） */
-  floor: { kind: 'ripples', size: [14, 4], density: [0.008, 0.1], patch: 4, mottle: 0, pebbles: 0.01 },
-  mesa: { kind: 'ripples', size: [16, 5], density: [0.002, 0.03], patch: 6, mottle: 0, pebbles: 0.004, seed: 5 },
+  floor: { kind: 'ripples', size: [14, 4], density: [0.03, 0.2], patch: 4, mottle: 0.25, pebbles: 0.03 },
+  mesa: { kind: 'ripples', size: [16, 5], density: [0.02, 0.14], patch: 6, mottle: 0.2, pebbles: 0.02, seed: 5 },
   /** 干河床：大块鹅卵石，缝浅 */
   wash: { kind: 'stones', size: [26, 14], seam: 0.4, hi: 0.25 },
   /** 崖壁：岩层（墙 uv） */
@@ -242,4 +275,10 @@ export const EL = {
   /** 主路：土团大、缝浅，几乎不撒 */
   trail: { kind: 'pebbles', size: [16, 8], seam: 0.4, density: [0.005, 0.04], patch: 4, pebbles: 0.02 },
   water: { kind: 'water', attr: true },
+  /** 草坪：草叶（亮边色的 1 × 2～4 竖划），3 米斑块 3% → 12%，阴影里照画（同 valley 的 townLawn）——第二轮：平涂的草让平静纹素到 85%+ */
+  turf: { kind: 'blades', density: [0.05, 0.18], patch: 3, pebbles: 0.08 },
+  /** 硬地场面（外场、内场）：低频的刷漆斑（球场是最大的安静面，但不是平涂：第 2 轮，平静纹素 78%） */
+  courtPaint: { kind: 'paint', size: [8, 5], density: [0.02, 0.06], patch: 2.5 },
+  /** 石板铺地：大块石板、缝浅（廊道、广场、池边、露台） */
+  flag: { kind: 'stones', size: [40, 24], seam: 0.3, hi: 0.12, contrast: [0.3, 0.25, 0.12] },
 } as const satisfies Record<string, Elem>;

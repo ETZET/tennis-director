@@ -20,8 +20,8 @@ mkdirSync(out, { recursive: true });
 /** 每张图的取景点（本图坐标）：横屏看全图中间，竖屏对准"入口 → 目的地"那一段 */
 const SHOTS = [
   { id: 'arrive', land: '14,28', port: '14,26' },
-  { id: 'court', land: '14,26', port: '10,32' },
-  { id: 'oasis', land: '14,26', port: '9,29' },
+  { id: 'court', land: '14,24', port: '14,34' },
+  { id: 'oasis', land: '14,22', port: '13,24' },
   { id: 'practice', land: '14,26', port: '15,28' },
 ];
 const only = process.env.ONLY?.split(',');
