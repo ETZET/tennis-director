@@ -118,6 +118,8 @@ const nearest = (page) =>
     let best = null;
     for (const b of cast.bound()) {
       if (b.d > 14) continue;
+      // 站着不动的人（走路的追不上，截不到"当面"）
+      if (!['rest', 'watch', 'eat', 'wait', 'work'].includes(cast.ctx.nowOf(b.id).activity)) continue;
       const o = cast.binder.objOf(b.id)?.obj;
       if (!o || !o.visible) continue;
       const v = o.getWorldPosition(new o.position.constructor());
@@ -153,8 +155,22 @@ const nearest = (page) =>
   if (pt) {
     await page.touchscreen.tap(pt.x, pt.y);
     await shot(page, 'peek');
-    await page.evaluate((id) => window.__cast.open(id), pt.id);
+    // 走到他跟前（到了卡片自己打开），保证"当面"
+    await page.evaluate((id) => window.__cast.walkTo(id), pt.id);
+    await page.waitForTimeout(5000);
+    await page.evaluate((id) => {
+      if (!document.querySelector('.pxs-card') || document.querySelector('.pxs-card').closest('[hidden]')) window.__cast.open(id);
+    }, pt.id);
     await shot(page, 'card');
+    // 当面时按第一个互动（聊几句）：卡顶浮一行动作名、一句回话、心往上飘
+    const act = await page.$('.pxc-acts:not(.far) > button');
+    if (act) {
+      const bb = await act.boundingBox();
+      await page.touchscreen.tap(bb.x + bb.width / 2, bb.y + bb.height / 2);
+      await page.waitForTimeout(150);
+      await page.screenshot({ path: P('card-act') });
+      await measure(page, 'card-act');
+    }
     // 第二层：点"更多"（新的），旧的把卡片滚到底
     const more = await page.$('[data-panel] [data-more]');
     if (more) {

@@ -320,7 +320,14 @@ export function createPxCard(ctx: CastCtx, onShow?: (id: string | null) => void)
     if (cant) b.classList.add('off');
     tap(b, () => {
       sheet.say(label);
-      if (!cant) run(a.id);
+      if (cant) return;
+      // 卡开着的时候他走开了：先走过去，到了接着做
+      if (a.inPerson && !ctx.near(p.id)) {
+        queued = { id: p.id, act: a.id };
+        ctx.walkTo(p.id);
+        return;
+      }
+      run(a.id);
     });
     return b;
   }

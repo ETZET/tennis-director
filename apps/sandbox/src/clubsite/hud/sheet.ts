@@ -35,7 +35,7 @@ export const SHEET_CSS = `
 }
 @keyframes pxs-rise-r { from { transform: translateY(60%); } to { transform: none; } }
 /* 卡顶上浮的一行字（同参考：一行白字黑边，过一会儿消失）：按了哪个按钮、得了什么 */
-.pxs-say { position: absolute; left: 0; right: 0; bottom: calc(100% + var(--s) * 14px); display: flex; justify-content: center; pointer-events: none; transition: opacity 0.4s steps(3, end); }
+.pxs-say { position: absolute; left: 0; right: 0; bottom: calc(100% + var(--s) * 28px); display: flex; justify-content: center; pointer-events: none; transition: opacity 0.4s steps(3, end); }
 .pxs-say.gone { opacity: 0; }
 .pxs-say span { font: 600 15px/1.25 "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", system-ui, sans-serif; color: ${cream}; letter-spacing: 0.5px; white-space: nowrap;
   text-shadow: 1px 0 0 ${ink}, -1px 0 0 ${ink}, 0 1px 0 ${ink}, 0 -1px 0 ${ink}, 1px 1px 0 ${ink}, -1px 1px 0 ${ink}, 1px -1px 0 ${ink}, -1px -1px 0 ${ink}, 0 2px 0 ${shadow}; }
