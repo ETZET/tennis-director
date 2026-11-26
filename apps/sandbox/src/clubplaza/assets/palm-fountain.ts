@@ -17,6 +17,8 @@ import { BOWL1, BOWL2, CURTAINS, F, LANDINGS, WALL } from './fountain/spec';
 
 /** 这个资产专用的 elem 种子（材质缓存独占，patch 才不会改到别人的材质） */
 const SEED = 9100;
+/** 水面的涟漪圈、闪光：淡青（不是泡沫的纯白 —— 白圈曾是广场一屏最亮的像素，就在草帽旁边，redo-fix.md） */
+const RIPPLE: [number, number, number] = [0x8fd3cf, 0x6fbcc4, 0x4a86b0];
 
 export function build(ctx: AssetCtx): THREE.Object3D {
   const g = new THREE.Group();
@@ -50,7 +52,7 @@ export function build(ctx: AssetCtx): THREE.Object3D {
     });
   const water = patchToon(
     ctx.mat('fountainWater', {
-      elem: { kind: 'water', attr: true, seed: SEED + 20, accent: ctx.pal.foam.ramp },
+      elem: { kind: 'water', attr: true, seed: SEED + 20, accent: RIPPLE },
     }),
     {
       tag: 'ftn-water',

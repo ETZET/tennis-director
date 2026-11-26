@@ -13,14 +13,14 @@ import type { BandGrade, PartialGrade } from './grade';
 import type { Scheme } from './types';
 
 /** 地面、墙、木头这些"人造 / 土"的影子：冷灰紫（C 0.042～0.048：再低量图就成了灰） */
-const COOL_DARK: BandGrade = { hue: 286, hueK: 1, c: 1, cMin: 0.042, cMax: 0.048, lAdd: 6 };
+const COOL_DARK: BandGrade = { hue: 286, hueK: 1, c: 1, cMin: 0.044, cMax: 0.05, lAdd: 6 };
 /**
  * 中档（云影、侧面；阴天整屏都落在中档）：跟着这个材质亮档的色相走、往冷挪一点、留彩度 ——
  * 不是一个固定的淡紫（第 3 轮试过：阴天整屏成了薰衣草色，傍晚发紫发脏），也不往灰里拉。
  */
-const COOL_MID: BandGrade = { follow: 1, shift: 0, hue: 255, hueK: 0.3, c: 0.6 };
+const COOL_MID: BandGrade = { follow: 1, shift: 0, hue: 255, hueK: 0.25, c: 0.85 };
 /** 沙上的影子：略偏红的冷灰紫（≈ #67647c），和铺地上的分得开、看得出下面是沙 */
-const SAND_DARK: BandGrade = { hue: 294, hueK: 1, c: 1, cMin: 0.038, cMax: 0.042, lAdd: -8 };
+const SAND_DARK: BandGrade = { hue: 292, hueK: 1, c: 1, cMin: 0.042, cMax: 0.046, lAdd: -8 };
 
 /** 亮面一种色相：hue 定死（hueK 1），彩度夹在一个窄带里，亮度 L' = L × lMul + lAdd */
 const lit1 = (hue: number, cMin: number, cMax: number, lMul = 1, lAdd = 0): BandGrade => ({
@@ -39,7 +39,7 @@ const lit1 = (hue: number, cMin: number, cMax: number, lMul = 1, lAdd = 0): Band
  * 暖材质色相收在一条窄带里，用明度、彩度分开：铺地最淡、沙最饱和、陶砖最深。
  */
 const PAVING: PartialGrade = {
-  lit: lit1(84, 0.036, 0.04, 0.91),
+  lit: lit1(82, 0.063, 0.067, 0.93),
   mid: COOL_MID,
   dark: { ...COOL_DARK, cMin: 0.04, cMax: 0.044 },
 };
@@ -48,7 +48,7 @@ const PAVING: PartialGrade = {
  * 留白代理把大门口的大块铺地合进了 tile，所以彩度收一档、靠明度和沙分开。影子偏紫红的灰（≈ #6c5870）。
  */
 const TILE: PartialGrade = {
-  lit: lit1(52, 0.072, 0.078, 0.84),
+  lit: lit1(50, 0.09, 0.096, 0.82),
   mid: COOL_MID,
   dark: { hue: 318, hueK: 1, c: 1, cMin: 0.048, cMax: 0.052 },
 };
@@ -70,6 +70,8 @@ const CLAY: PartialGrade = {
   mid: { c: 0.8 },
   dark: { hue: 300, hueK: 1, c: 1, cMin: 0.042, cMax: 0.05 },
 };
+/** 布的中档（斜着的帆、伞的背光面）：还是同一个奶油色相、彩度不掉到灰（第 4 轮：匹克球场的帆发灰 #b7a894） */
+const CLOTH_MID: BandGrade = { hue: 72, hueK: 1, c: 1, cMin: 0.045, cMax: 0.05 };
 /** 不当焦点的彩色东西（车漆、条纹）：收彩度 */
 const quiet = (c: number, lMul = 1): PartialGrade => ({ lit: { c, lMul }, mid: { c } });
 
@@ -78,20 +80,20 @@ export const scheme: Scheme = {
   name: '清透',
   hint: '亮而单一的地、冷灰紫影、青绿草影、一个焦点',
   grade: {
-    lit: { hue: 80, hueK: 0.1, c: 1, lAdd: 2 },
+    lit: { hue: 80, hueK: 0.1, c: 1.1, lAdd: 2 },
     mid: COOL_MID,
     dark: COOL_DARK,
   },
   groups: {
     /** 沙：浅杏，唯一饱和的暖色大面；本色 L ≈ 191（定死的区间里），≈ #ecb87d */
-    ground: { lit: lit1(70, 0.085, 0.092, 1, -2), mid: COOL_MID, dark: SAND_DARK },
+    ground: { lit: lit1(68, 0.114, 0.12, 1, -5), mid: COOL_MID, dark: SAND_DARK },
     terracotta: TILE,
     /** 墙、花池沿：混凝土米灰（≈ #d6cec0），不再是一圈和沙同色的橙边 */
     wall: { lit: lit1(85, 0.016, 0.02, 0.97), mid: COOL_MID },
     rock: { lit: { c: 0.55 }, mid: COOL_MID, dark: { hue: 278, hueK: 1, c: 1, cMin: 0.045, cMax: 0.052 } },
     /** 一族绿（参考：亮 #aade60、中 #8cc453、草上的影 #388d74） */
     plants: {
-      lit: { hue: 126, hueK: 1, c: 1, cMin: 0.15, cMax: 0.165, lAdd: 10 },
+      lit: { hue: 126, hueK: 1, c: 1, cMin: 0.15, cMax: 0.165, lAdd: -2 },
       mid: { hue: 130, hueK: 1, c: 1, cMin: 0.14, cMax: 0.155, lAdd: 26 },
       dark: { hue: 172, hueK: 1, c: 1, cMin: 0.08, cMax: 0.09, lAdd: 18 },
     },
@@ -118,10 +120,11 @@ export const scheme: Scheme = {
   },
   keys: {
     // ── 地 ──
-    path: PAVING,
+    /** 步道（长廊、小路）：比铺地暗一档、暖一点（≈ #d0aa7c，L ≈ 175），和铺地、浅沙拉开（第 1 轮评判：亮度差不到 5） */
+    path: { lit: lit1(66, 0.075, 0.08, 0.78), mid: COOL_MID, dark: { ...COOL_DARK, cMin: 0.04, cMax: 0.044 } },
     flagstone: PAVING,
     stair: PAVING,
-    granite: PAVING,
+    granite: { lit: lit1(66, 0.075, 0.08, 0.8), mid: COOL_MID, dark: { ...COOL_DARK, cMin: 0.04, cMax: 0.044 } },
     paver: PAVING,
     yardGranite: PAVING,
     stallGravel: PAVING,
@@ -146,8 +149,9 @@ export const scheme: Scheme = {
       dark: { hue: 280, hueK: 1, c: 1, cMin: 0.042, cMax: 0.046, lMul: 0.76 },
     },
     // ── 草、植物 ──
-    lawn: lawn(28, 34),
-    lawnStripe: lawn(18, 30),
+    /** 草坪亮档 ≈ #aade60（L ≈ 202，锁定的一族绿）：原来 lAdd 28 到了 L 216，比草帽亮 */
+    lawn: lawn(14, 34),
+    lawnStripe: lawn(6, 30),
     green: lawn(0, 20),
     /** 龙舌兰、烟树这种银绿的：同一族绿里偏蓝、彩度低一点（≈ #93cfa0），不是荧光薄荷也不是结霜的白 */
     silverBlue: {
@@ -182,7 +186,8 @@ export const scheme: Scheme = {
     straw: { lit: { hue: 88, hueK: 0.6, c: 1, cMin: 0.15, lAdd: -4 }, mid: { hue: 88, hueK: 0.6, c: 1.1, cMin: 0.12 } },
     // ── 不当焦点的彩色东西 ──
     carGold: { lit: { hue: 85, hueK: 0.6, c: 0.3, lAdd: 10 }, mid: { c: 0.5 } },
-    carCream: { lit: { c: 0.5 } },
+    /** 奶白车漆：压一档（≈ #b9b2a6 方向，原来 L 227 比草帽亮） */
+    carCream: { lit: { c: 0.5, lMul: 0.74 } },
     /** 红车 → 灰蓝（≈ #8197b0；第 3 轮的灰玫瑰读成了泥色），不和草帽抢 */
     carRed: {
       lit: { hue: 255, hueK: 1, c: 1, cMin: 0.045, cMax: 0.05, lMul: 1.25 },
@@ -190,14 +195,32 @@ export const scheme: Scheme = {
     },
     carNavy: quiet(0.6),
     carMint: quiet(0.55),
-    canvas: { lit: { c: 0.6 }, mid: COOL_MID },
+    /** 帆布（前台凉棚、遮阳帆）：压一档（原来 L 226 是整屏最亮的一大块，就在草帽旁边） */
+    canvas: { lit: lit1(74, 0.05, 0.055, 0.77), mid: CLOTH_MID },
     /** 条纹 / 车棚的蓝：浅灰蓝（≈ #a9b6bf），和奶油的明度差缩小 */
-    canvasStripe: { lit: { c: 0.35, lAdd: 22 }, mid: { c: 0.45 } },
-    fabricStripe: quiet(0.55),
-    fabric: { lit: { c: 0.7 }, mid: COOL_MID },
-    ball: quiet(0.55),
+    canvasStripe: { lit: { c: 0.35, lMul: 0.9, lAdd: 6 }, mid: { c: 0.45 } },
+    /** 条纹布：和素布同一个奶油色相、只靠明度差（条纹几乎读不出来；伞、帆不再是一屏最吵的东西） */
+    fabricStripe: { lit: lit1(74, 0.05, 0.055, 0.8), mid: CLOTH_MID },
+    /** 布（遮阳帆、伞）：压一档（L 203 → ≈ 180），不和草帽比亮 */
+    fabric: { lit: lit1(74, 0.05, 0.055, 0.8), mid: CLOTH_MID },
+    /** 网球（场上的球、门柱顶的网球雕塑）：压一档亮度（≈ #c9cd94，L ≈ 200），不比草帽亮（门柱顶两个球原来 L 236，整屏最亮） */
+    ball: { lit: { c: 0.5, lMul: 0.86 }, mid: { c: 0.55, lMul: 0.92 } },
+    /** 地上的黄花 → 沙马鞭草的淡紫（≈ #b8a2c8）：黄的、高彩的只留总监的草帽一顶 */
+    flowerYellow: {
+      lit: { hue: 310, hueK: 1, c: 1, cMin: 0.07, cMax: 0.08, lMul: 0.86 },
+      mid: { hue: 305, hueK: 1, c: 1, cMin: 0.06, cMax: 0.07 },
+    },
+    /** NPC 的草帽：本色草编（≈ #c8b48a），不当总监的替身 */
+    strawNpc: { lit: lit1(82, 0.05, 0.055, 0.88), mid: { hue: 78, hueK: 1, c: 1, cMin: 0.04, cMax: 0.045 } },
     flowerRed: quiet(0.6),
-    toolOrange: quiet(0.7),
+    toolOrange: quiet(0.5, 0.85),
+    /** 银车、白车：压暗成灰蓝（L ≈ 165），不是全屏最亮的大块 */
+    carSilver: {
+      lit: { hue: 250, hueK: 1, c: 1, cMin: 0.025, cMax: 0.03, lMul: 0.76 },
+      mid: { hue: 255, hueK: 1, c: 0.6 },
+    },
+    /** 水花、涟漪圈：淡青（≈ #8fd3cf 方向），不是纯白 —— 喷泉边的白圈曾是广场最亮的像素 */
+    foam: { lit: { hue: 195, hueK: 0.8, c: 1, cMin: 0.06, cMax: 0.07, lMul: 0.84 } },
     /** 暖色衣服（和白衣服借一个名字）收一点 */
     clothWhite: quiet(0.75),
     clothRed: quiet(0.75),

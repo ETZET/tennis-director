@@ -389,6 +389,22 @@ export const SLOTS: Slot[] = [
     prop: null,
   },
   { id: 'bench-lawn', asset: 'bench', x: 52.4, z: 18.4, y: H.lawn },
+  // 边上成簇（redo-fix.md）：草坪西南角一组歇脚（长椅 + 三丛灌木 + 两块石头），东沿两棵蒲葵一大一小 + 龙舌兰 ——
+  // 草坪中间空着（上一轮整片草坪成了一屏最大的静面，比球场还大）
+  { id: 'bench-lawn-sw', asset: 'bench', x: 39.2, z: 31.4, y: H.lawn },
+  { id: 'brittle-lawn-sw1', asset: 'brittlebush', x: 37.6, z: 30.2, y: H.lawn, variant: 0 },
+  { id: 'brittle-lawn-sw2', asset: 'brittlebush', x: 41.2, z: 32.6, y: H.lawn, variant: 1, s: 0.8 },
+  { id: 'creosote-lawn-sw', asset: 'creosote', x: 37.4, z: 32.6, y: H.lawn, variant: 1, s: 0.9 },
+  { id: 'rocks-lawn-sw1', asset: 'rocks', x: 40.2, z: 33.2, y: H.lawn, variant: 1 },
+  { id: 'rocks-lawn-sw2', asset: 'rocks', x: 37.0, z: 28.4, y: H.lawn, variant: 2 },
+  { id: 'palm-lawn-e1', asset: 'fan-palm', x: 51.6, z: 30.6, y: H.lawn, variant: 1, s: 1.1 },
+  { id: 'palm-lawn-e2', asset: 'fan-palm', x: 50.0, z: 32.8, y: H.lawn, variant: 0, s: 0.72 },
+  { id: 'agave-lawn-e', asset: 'agave', x: 52.6, z: 28.6, y: H.lawn, s: 0.8 },
+  // 前台南边那条沙（工具架两边）：一丛灌木 + 石头 + 小龙舌兰，沙条读成花坛，不是剩下的空地
+  { id: 'brittle-desk-s', asset: 'brittlebush', x: 54.0, z: 13.4, variant: 0 },
+  { id: 'creosote-desk-s', asset: 'creosote', x: 55.6, z: 15.4, variant: 0, s: 0.85 },
+  { id: 'agave-desk-s', asset: 'agave', x: 53.2, z: 15.8, s: 0.7 },
+  { id: 'rocks-desk-s', asset: 'rocks', x: 56.4, z: 13.0, variant: 2 },
   // ── 横屏才看得到的两侧 ────────────────────────────────────
   { id: 'smoke-w', asset: 'smoke-tree', x: 32.0, z: -10.4, variant: 0 },
   { id: 'paloverde-w', asset: 'palo-verde', x: 27.6, z: -14.6, variant: 1 },

@@ -528,6 +528,13 @@ export const SLOTS: Slot[] = [
   { id: 'paloverde-se', asset: 'palo-verde', x: -8.4, z: 40.4, s: 1.1, variant: 1, label: 'palo-verde（右下框）' },
   { id: 'creosote-s', asset: 'creosote', x: -16.6, z: 38.6, variant: 0 },
   { id: 'brittle-s', asset: 'brittlebush', x: -13.2, z: 41.2, variant: 1 },
+  // 边上成簇（redo-fix.md）：工具架西南一簇蒲葵（两个尺寸）+ 龙舌兰 + 石头；右下假紫荆脚下补石头和龙舌兰
+  { id: 'palm-sw1', asset: 'fan-palm', x: -23.0, z: 39.4, variant: 1, s: 1.1 },
+  { id: 'palm-sw2', asset: 'fan-palm', x: -20.4, z: 41.4, variant: 0, s: 0.72 },
+  { id: 'agave-sw', asset: 'agave', x: -24.2, z: 41.6, s: 0.8 },
+  { id: 'rocks-sw', asset: 'rocks', x: -21.6, z: 38.2, variant: 1 },
+  { id: 'rocks-se', asset: 'rocks', x: -10.4, z: 39.2, variant: 2 },
+  { id: 'agave-se', asset: 'agave', x: -6.8, z: 38.6, s: 0.75 },
   // 横屏才看得到的
   { id: 'smoke-sw', asset: 'smoke-tree', x: -29.5, z: 39.0, variant: 0 },
   { id: 'creosote-sw', asset: 'creosote', x: -36.5, z: 37.2, variant: 1 },

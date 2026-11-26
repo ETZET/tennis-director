@@ -293,6 +293,38 @@ export const SLOTS: Slot[] = [
   { id: 'creosote-s1', asset: 'creosote', x: 70.0, z: 31.0, y: H.desertS, variant: 0 },
   { id: 'cholla-s1', asset: 'cholla', x: 78.0, z: 30.6, y: H.desertS },
   // 留白（redo-calm.md）：南花坛上的俱乐部立牌（一块写字的牌子）、墙里面 clubdesk 的灰盒示意拿掉
+  // 墙里面（这个页面竖屏的左半屏；clubwalk 里归广场、前台，这几样在那儿是藏着的）：上一轮删空了，左半屏一大块平沙 ——
+  // 贴墙两簇（redo-fix.md，"边缘密、中间空"）：北簇三棵蒲葵三个尺寸 + 脆灌木 + 龙舌兰 + 石头；南簇一棵大假紫荆 + 一棵蒲葵 + 石炭酸
+  { id: 'palm-in-n1', asset: 'fan-palm', x: 57.6, z: -14.2, variant: 1, s: 1.25 },
+  { id: 'palm-in-n2', asset: 'fan-palm', x: 55.6, z: -16.4, variant: 2, s: 0.85 },
+  { id: 'palm-in-n3', asset: 'fan-palm', x: 58.9, z: -18.4, variant: 0, s: 0.7 },
+  { id: 'brittle-in-n', asset: 'brittlebush', x: 56.4, z: -12.6, variant: 0 },
+  { id: 'agave-in-n', asset: 'agave', x: 58.9, z: -11.8, s: 0.85 },
+  { id: 'rocks-in-n', asset: 'rocks', x: 55.2, z: -13.6, variant: 1 },
+  { id: 'paloverde-in-s', asset: 'palo-verde', x: 56.8, z: 14.6, variant: 0, s: 1.2 },
+  { id: 'palm-in-s', asset: 'fan-palm', x: 59.0, z: 12.2, variant: 2, s: 0.9 },
+  { id: 'creosote-in-s', asset: 'creosote', x: 55.4, z: 12.4, variant: 1 },
+  { id: 'rocks-in-s', asset: 'rocks', x: 58.6, z: 16.6, variant: 2 },
+  { id: 'palm-in-nn1', asset: 'fan-palm', x: 54.2, z: -21.6, variant: 0, s: 1.15 },
+  { id: 'palm-in-nn2', asset: 'fan-palm', x: 57.8, z: -23.4, variant: 2, s: 0.8 },
+  { id: 'smoke-in-nn', asset: 'smoke-tree', x: 52.4, z: -18.8, variant: 1 },
+  { id: 'paloverde-in-ss', asset: 'palo-verde', x: 53.6, z: 20.6, variant: 1, s: 1.1 },
+  { id: 'palm-in-ss', asset: 'fan-palm', x: 58.2, z: 21.8, variant: 1, s: 1.05 },
+  { id: 'brittle-in-ss', asset: 'brittlebush', x: 56.0, z: 19.0, variant: 1 },
+  { id: 'palm-in-w1', asset: 'fan-palm', x: 52.8, z: 2.6, variant: 2, s: 1.2 },
+  { id: 'agave-in-w', asset: 'agave', x: 54.6, z: 4.4, s: 0.8 },
+  { id: 'rocks-in-w', asset: 'rocks', x: 53.4, z: -0.8, variant: 0 },
+  { id: 'palm-in-f1', asset: 'fan-palm', x: 37.5, z: -21.2, variant: 1, s: 1.25 },
+  { id: 'palm-in-f2', asset: 'fan-palm', x: 39.9, z: -23.2, variant: 0, s: 0.8 },
+  { id: 'rocks-in-f1', asset: 'rocks', x: 39.0, z: -19.4, variant: 1 },
+  { id: 'rocks-in-f2', asset: 'rocks', x: 36.2, z: -19.8, variant: 2 },
+  { id: 'creosote-in-m1', asset: 'creosote', x: 44.0, z: 1.0, variant: 0 },
+  { id: 'creosote-in-m2', asset: 'creosote', x: 46.2, z: 2.6, variant: 1, s: 0.8 },
+  { id: 'creosote-in-m3', asset: 'creosote', x: 45.2, z: -0.4, variant: 1, s: 1.1 },
+  { id: 'agave-in-m', asset: 'agave', x: 47.2, z: 1.2, s: 0.8 },
+  { id: 'rocks-in-m', asset: 'rocks', x: 43.4, z: 2.8, variant: 0 },
+  { id: 'palm-in-sw', asset: 'fan-palm', x: 36.1, z: 11.9, variant: 2, s: 1.0 },
+  { id: 'brittle-in-sw', asset: 'brittlebush', x: 37.9, z: 12.8, variant: 0 },
   ...PARKED.map(([r, i, asset, v]): Slot => {
     const row = ROWS[r];
     const [x, z] = stallCenter(row, i);

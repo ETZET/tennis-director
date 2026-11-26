@@ -151,7 +151,7 @@ export const EL = {
     density: [0, 0.02],
     patch: 6,
     seed: 41,
-    contrast: [0.4, 0.45, 0.3],
+    contrast: [0.6, 0.55, 0.35],
     fur: 0.3,
   },
   /** 碎石车位：有机的土团（10×6 纹素）+ 少量碎石，斑块之间疏密变化（同 EL.path，碎石少一半） */
@@ -168,7 +168,7 @@ export const EL = {
     seed: 45,
   },
   /** 落客区连锁砖：先借 Voronoi 石块（8×5 纹素，一半有上沿亮边）；核心代理以后换成规整的人字砖/错缝砖 */
-  paver: { kind: 'stones', size: [24, 14], seam: 0.6, hi: 0.15, seed: 43, contrast: [0.35, 0.3, 0.15], fur: 0.3 },
+  paver: { kind: 'stones', size: [24, 14], seam: 0.6, hi: 0.15, seed: 43, contrast: [0.4, 0.3, 0.15], fur: 0.3 },
   /** 路缘：长条（14×3 纹素）水泥块 + 接缝 */
   kerb: { kind: 'stones', size: [14, 3], seam: 0.6, hi: 0.6, seed: 47 },
 } as const satisfies Record<string, Elem>;

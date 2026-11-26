@@ -229,7 +229,8 @@ export function build(ctx: AssetCtx): THREE.Object3D {
     },
   };
   const cream = new THREE.Mesh(canopy(0), ctx.mat('fabric', fab));
-  const stripe = new THREE.Mesh(canopy(1), ctx.mat('fabricStripe', fab));
+  // 伞单色（redo-fix.md：条纹伞是广场一屏最亮、最吵的东西）
+  const stripe = new THREE.Mesh(canopy(1), ctx.mat('fabric', fab));
   const furled = new THREE.Mesh(
     merge([cyl(0.07, 0.12, 0.9, 8, UMB.x, UMB.apex - 0.95, UMB.z)]),
     ctx.mat('fabricStripe', { lightUp: 0.3 }),

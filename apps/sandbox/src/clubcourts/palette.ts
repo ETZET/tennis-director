@@ -64,7 +64,7 @@ export const EL = {
   ...DESK_EL,
   /** 硬地漆面（内场、外场）：大块低频深浅 + 很少的擦痕（俱乐部的场是新漆的，不是 desert3d-v2 那片晒旧的） */
   // 留白（redo-calm.md）：场面是一屏最大的安静面，深浅块收一半多（contrast）
-  hard: { kind: 'paint', size: [26, 14], density: [0, 0.02], patch: 5, fur: 0.3, contrast: [0.3, 0.4, 0.3] },
+  hard: { kind: 'paint', size: [26, 14], density: [0, 0.02], patch: 5, fur: 0.3, contrast: [0.5, 0.45, 0.3] },
   /** 水洼：深浅不匀 + 少量更深的点 */
   wet: { kind: 'paint', size: [12, 7], density: [0, 0.08], patch: 2 },
   /** 场上积的沙：波纹（窄长的浅条）+ 少量碎粒 */

@@ -10,6 +10,7 @@ import type { Mats, ToonOpts } from '../../render/toon';
 export type CourtKey =
   | 'canvas'
   | 'canvasStripe'
+  | 'fabricStripe'
   | 'metal'
   | 'concrete'
   | 'slate'
