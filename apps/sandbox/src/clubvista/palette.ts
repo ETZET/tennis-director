@@ -82,12 +82,12 @@ const VISTA = {
    * 不用 surround 的绿（绿不算冷，也和沙地的暖抢）。暗档靛（L 66）。
    */
   courtOut: s(
-    [0x4e9a66, 0x3c7c5a, 0x2c5458],
+    [0x46a05c, 0x348054, 0x2c5458],
     0.05,
     0,
     tn(
-      [0x4e9a66, 0x56a26e, 0x46905e], // L 129 / 137 / 121（美网那种绿外场，S 0.49：和内场的蓝靠色相分开、和影子靠彩度分开，第 6 轮）
-      [0x3c7c5a, 0x428462, 0x367252], // L 104 / 111 / 96
+      [0x46a05c, 0x4ea864, 0x3e9654], // L 130（美网那种绿外场；第二轮第 3 轮 S 0.49 → 0.56：整屏饱和度差 0.01）
+      [0x348054, 0x3a885c, 0x2e764c], // L 104
       [0x2c5458, 0x305c60, 0x284c50], // L 75 / 82 / 69
       [0x46905e, 0x367252, 0x284c50],
       [0x6ab07e, 0x52966e, 0x3c6a68],
@@ -185,12 +185,12 @@ const VISTA = {
    * 暗档同 flagstone 的冷紫。块大、缝浅（EL.flag）。
    */
   paving: s(
-    [0xe4c496, 0xc0988a, 0x7c5e98],
+    [0xd8a470, 0xb47c6c, 0x7c5e98],
     0.1,
     0.05,
     tn(
-      [0xe4c496, 0xeacea2, 0xdab88a], // L 202 / 211 / 192
-      [0xc0988a, 0xc8a292, 0xb48c80], // L 163 / 172 / 154
+      [0xd8a470, 0xdeae7a, 0xcc9a66], // L 178（第 3 轮：再压一档、往陶土沙色走，和米白伞拉开；彩度 0.48）
+      [0xb47c6c, 0xbc8674, 0xa87264], // L 143
       [0x7c5e98, 0x84669e, 0x72568e], // L 104 / 112 / 96
       [0xd2b088, 0xa88478, 0x624a84],
       [0xf2d8b0, 0xd4b0a0, 0x9478ae],
@@ -209,6 +209,12 @@ const VISTA = {
       [0xdca084, 0xac7270, 0x6a5478],
     ),
   ),
+  /** 边看台的遮阳篷：灰蓝（第 3 轮评判：俱乐部蓝和场面的蓝连成一片） */
+  awning: s([0x6a88c4, 0x546ca6, 0x42528a], 0.3, 0),
+  /** 看台座椅：低反差的冷灰紫（空场时安静，不抢球场） */
+  seatCalm: s([0x8478dc, 0x6458c0, 0x463a98], 0.15, 0.2),
+  /** 露台的伞：接近纯白（和铺地拉开），暗档冷灰紫 */
+  parasolWhite: s([0xf3ede2, 0xcdc2cc, 0x8a80a2], 0.4, 0.35),
   /** 白模：占位体块（冷灰，按高度一档档） */
   box: s([0xd8d6e4, 0xa8a4c0, 0x6a6690], 0.6, 0.5),
   /** 白模：占位体块的主角色（每张图一个最鲜艳的暖色：入口的车、前台的帆、泳池的伞……） */
@@ -264,7 +270,7 @@ export const SUN_SKIP: Partial<Record<keyof Pal, number>> = {
 /** 大面的元素预设（材质规范 v2）：一开始就照"大块安静"画——块大、缝浅、撒的细节少 */
 export const EL = {
   /** 沙漠地面：几乎纯色，只有低频的深浅斑（比 EL.sand 的沙纹少一个数量级） */
-  floor: { kind: 'ripples', size: [14, 4], density: [0.03, 0.2], patch: 4, mottle: 0.25, pebbles: 0.03 },
+  floor: { kind: 'ripples', size: [12, 4], density: [0.05, 0.3], patch: 4, mottle: 0.45, pebbles: 0.04 },
   mesa: { kind: 'ripples', size: [16, 5], density: [0.02, 0.14], patch: 6, mottle: 0.2, pebbles: 0.02, seed: 5 },
   /** 干河床：大块鹅卵石，缝浅 */
   wash: { kind: 'stones', size: [26, 14], seam: 0.4, hi: 0.25 },
@@ -276,9 +282,9 @@ export const EL = {
   trail: { kind: 'pebbles', size: [16, 8], seam: 0.4, density: [0.005, 0.04], patch: 4, pebbles: 0.02 },
   water: { kind: 'water', attr: true },
   /** 草坪：草叶（亮边色的 1 × 2～4 竖划），3 米斑块 3% → 12%，阴影里照画（同 valley 的 townLawn）——第二轮：平涂的草让平静纹素到 85%+ */
-  turf: { kind: 'blades', density: [0.05, 0.18], patch: 3, pebbles: 0.08 },
-  /** 硬地场面（外场、内场）：低频的刷漆斑（球场是最大的安静面，但不是平涂：第 2 轮，平静纹素 78%） */
-  courtPaint: { kind: 'paint', size: [8, 5], density: [0.02, 0.06], patch: 2.5 },
+  turf: { kind: 'blades', density: [0.02, 0.12], patch: 3, pebbles: 0.06 },
+  /** 练习场的场面：用旧了的刷漆斑（中心球场平涂） */
+  courtWear: { kind: 'paint', size: [8, 5], density: [0.01, 0.035], patch: 2.5 },
   /** 石板铺地：大块石板、缝浅（廊道、广场、池边、露台） */
-  flag: { kind: 'stones', size: [40, 24], seam: 0.3, hi: 0.12, contrast: [0.3, 0.25, 0.12] },
+  flag: { kind: 'stones', size: [28, 16], seam: 0.5, hi: 0.3, contrast: [0.45, 0.4, 0.2] },
 } as const satisfies Record<string, Elem>;

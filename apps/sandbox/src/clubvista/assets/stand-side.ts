@@ -11,7 +11,8 @@ export function build(ctx: AssetCtx) {
     n: 3,
     aisles: [-8.2, 8.2],
     wall: 1,
-    awning: 2,
+    awning: 1,
+    dense: true,
     seed: `side${ctx.variant}`,
   });
 }

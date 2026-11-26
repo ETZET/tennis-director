@@ -53,9 +53,9 @@ const house: Prop[] = [
 
 const cafe: Prop[] = [
   // 咖啡车（露台西头，服务窗朝镜头）+ 窗口排队的人
-  { a: 'kiosk', x: 5.4, z: 11.2, block: 'box' },
-  { a: 'player', x: 5.1, z: 13.4, r: PI, pose: 'idle', v: 2 },
-  { a: 'player', x: 6, z: 14.6, r: PI * 0.9, pose: 'idle', v: 1, prop: 'racket' },
+  { a: 'kiosk', x: 6.4, z: 11.4, block: 'box' },
+  { a: 'player', x: 6.1, z: 13.6, r: PI, pose: 'idle', v: 2 },
+  { a: 'player', x: 7, z: 14.8, r: PI * 0.9, pose: 'idle', v: 1, prop: 'racket' },
   // 两张一组（大伞 + 小伞）
   { a: 'patio-table', x: 11.6, z: 11, block: 'box' },
   { a: 'parasol', x: 11.6, z: 11, v: 0, block: false },
@@ -73,9 +73,9 @@ const cafe: Prop[] = [
   // （托盘直接摆在胸前 1.15 米高：人物的 hold 是给工具的握法，托盘端不平）
   { a: 'umpire', x: 17.8, z: 15.2, r: 0.25, pose: 'idle', v: 0 },
   { a: 'food-tray', x: 17.9, z: 15.62, y: 1.12, r: 0.25, v: 2, block: false },
-  // 露台两边各一棵大树（青绿的树影盖住一角铺地）
-  { a: 'palo-verde', x: 0.6, z: 15.4, s: 1.35, v: 0 },
-  { a: 'smoke-tree', x: 25.4, z: 16.4, s: 1.2 },
+  // 露台北边两个角各一棵大树（太阳在北边偏东：树影往南落在露台上，盖住约四分之一的铺地）
+  { a: 'smoke-tree', x: 2.6, z: 9.6, s: 1.25 },
+  { a: 'smoke-tree', x: 24, z: 9.4, s: 1.15 },
 ];
 
 const pool: Prop[] = [
@@ -92,18 +92,13 @@ const pool: Prop[] = [
 ];
 
 const shade: Prop[] = [
-  // 左下：树荫长椅 —— 打完球的两个人坐着喝水，球拍包靠在脚边，饮水桶
-  { a: 'palo-verde', x: 5.6, z: 35, s: 1.3, v: 1 },
+  // 左下：树荫长椅 —— 打完球的两个人坐着喝水，球拍包斜靠在长椅西头，饮水桶贴着东头的椅脚；树在长椅东北（影子落在长椅上，树冠不挡人）
+  { a: 'smoke-tree', x: 8.4, z: 34.6, s: 1.1 },
   { a: 'bench', x: 5.4, z: 37.6 },
   { a: 'player', x: 4.8, z: 37.7, pose: 'sip', prop: 'cup', v: 2, block: false },
   { a: 'player', x: 6, z: 37.7, pose: 'sit', prop: 'racket', v: 0, block: false },
-  { a: 'kit-bag', x: 7.5, z: 38.5, r: 0.3, v: 1 },
-  { a: 'kit-bag', x: 3.2, z: 38.4, r: -0.2, v: 0 },
-  { a: 'water-station', x: 8.8, z: 37.2 },
-  // 右下：一条长椅一个人（树荫下）
-  { a: 'smoke-tree', x: 22.6, z: 33, s: 1.15 },
-  { a: 'bench', x: 22.4, z: 35.4 },
-  { a: 'player', x: 22.8, z: 35.5, pose: 'sit', v: 3, block: false },
+  { a: 'kit-bag', x: 3.75, z: 37.75, r: PI / 2 - 0.25, v: 1 },
+  { a: 'water-station', x: 7.25, z: 37.45, s: 0.85 },
 ];
 
 const frame: Prop[] = [
@@ -254,11 +249,11 @@ export const rest: MapDef = {
     {
       id: 'pool-deck',
       pts: [
-        [2.2, 19.6],
-        [17.2, 19.6],
-        [17.2, 27],
-        [15.6, 29.8],
-        [2.2, 29.8],
+        [2.6, 20],
+        [16.6, 20],
+        [16.6, 26.4],
+        [14.2, 29.2],
+        [2.6, 29.2],
       ],
       h: 0.02,
       top: 'paving',
@@ -357,5 +352,5 @@ export const rest: MapDef = {
   exits: [{ to: 'court', entry: 'fromOasis', at: [-12, 41.8], r: 2 }],
   entries: { fromCourt: { at: [-8, 42], yaw: PI / 2 } },
   start: { at: [-8, 42], yaw: PI / 2 },
-  clouds: [[40, 36, 5, 3]],
+  clouds: [],
 };

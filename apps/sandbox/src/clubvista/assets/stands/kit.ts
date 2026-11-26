@@ -18,7 +18,7 @@ const tn = (lit: C3, mid: C3, dark: C3, seam: C3, hi: C3) => ({ bands: [lit, mid
 const RISER = tn(
   [0xe8c69e, 0xf0d0aa, 0xdcba94],
   [0xc89a8e, 0xd0a496, 0xbc9088],
-  [0x6e5a92, 0x786498, 0x645288],
+  [0x6a52a0, 0x745ca8, 0x604896],
   [0xc8a688, 0xa47c7a, 0x524478],
   [0xfae0bc, 0xdcb2a2, 0x86729e],
 );
@@ -60,6 +60,8 @@ export interface StandSpec {
   ends?: boolean;
   /** 观众的种子（同一件的不同摆放坐法不同） */
   seed?: string;
+  /** 坐得密（边看台：人侧对镜头、俯视里很窄，要坐密了才读得出"满"，簇间只空 0～1 座） */
+  dense?: boolean;
   /** 上面几排盖一条遮阳篷（俱乐部蓝、固定中档：冷的一条安静的带，压住一半观众；第 2 轮评判：边看台的观众是整屏最吵的花条纹） */
   awning?: number;
 }
@@ -72,7 +74,7 @@ const PERSON = {
   convex: 0.3,
 };
 const SHIRTS: (keyof Pal)[] = ['clothWhite', 'canvas', 'clothBlue', 'clothRed', 'flowerYellow'];
-const SHIRT_W = [7, 6, 3, 0.3, 0.3];
+const SHIRT_W = [5, 5, 4, 0.3, 0.6];
 const SKINS: (keyof Pal)[] = ['skinLight', 'skinTan', 'skinDark'];
 const SKIN_W = [4, 3, 2];
 const HATS: (keyof Pal)[] = ['straw', 'clothWhite'];
@@ -148,8 +150,15 @@ export function buildStand(ctx: AssetCtx, s: StandSpec): THREE.Object3D {
     edge: 0.3,
     convex: 0.35,
   };
-  // 座面朝天落亮档（空场时一排排亮的青绿座面 + 冷的立面，不是一整块藏青：第 2 轮评判"像机柜"）；不接投影（座面上的影子毛边是麻点）
-  const seatMat = ctx.mat('seat', { ...seatOpts, noShadowReceive: true });
+  // 座椅（第 3 轮）：低反差的冷灰紫一个调子（不用饱和的青绿：簇和簇之间露出的绿 / 藏青条纹很吵、空场像百叶格栅），
+  // 没有板缝；不接投影（座面上的影子毛边是麻点）
+  void seatOpts;
+  const seatMat = ctx.mat('seatCalm', {
+    noShadowReceive: true,
+    edge: 0.15,
+    convex: 0.2,
+    elem: { kind: 'planks', p: [1, 0, 0, SEAT_P], seam: 0.6, hi: 0 },
+  });
   const aisleMat = ctx.mat('aisle', { edge: 0.18, convex: 0.25, noShadowReceive: true, bands: [0.1, 0.75] });
   const stucco = ctx.mat('stucco', {
     elem: { kind: 'stones', space: 'wall', size: [34, 7], seam: 0, hi: 0, seed: 4 },
@@ -251,32 +260,29 @@ export function buildStand(ctx: AssetCtx, s: StandSpec): THREE.Object3D {
   root.add(mesh(G.shade, treadShade, 'treads-shade'));
   root.add(mesh(G.recv, treadRecv, 'treads', false, true));
   root.add(mesh(G.seat, seatMat, 'seats'));
-  // 遮阳篷：盖住最上面 awning 排，后沿 1.5 米高、前沿 1.15 米（往前低一点），后面一排细柱
+  // 遮阳篷（第 3 轮）：只盖最上面 awning 排（≈ 4 成进深），连续的一整条灰蓝篷布（固定一档，没有斜高光），
+  // 前沿一条下摆每 2 米一个浅弧（垂边长短两档 = 波浪）；后面一排细柱。第 2 轮盖了两排、一块块深浅相间，像两堵蓝墙 / 太阳能板。
   if (s.awning) {
-    const za = -(n - s.awning) * D + 0.15;
-    const yb = n * R + 1.6;
-    const yf = n * R + 1.2 - (s.awning - 1) * R;
+    const za = -(n - s.awning) * D + 0.1;
+    const yb = n * R + 1.7;
+    const yf = n * R + 1.45;
     const len = Math.hypot(za - zBack, yb - yf);
-    // 一块块篷布（柱子之间 5.4 米一块，块和块之间 0.12 米的缝），每块两道深浅相间的宽条（沿长边）：不是一整条平涂的蓝
-    const A: THREE.BufferGeometry[] = [];
-    const B: THREE.BufferGeometry[] = [];
     const tilt = -Math.PI / 2 + Math.atan2(yb - yf, za - zBack);
-    let k = 0;
-    for (let xa = x0 - 0.1; xa < x1 + 0.1 - 0.3; xa += 2.7, k++) {
-      const xb = Math.min(x1 + 0.1, xa + 2.7) - (k % 2 ? 0.12 : 0);
-      const pg = new THREE.PlaneGeometry(xb - xa, len).rotateX(tilt);
-      pg.translate((xa + xb) / 2, (yb + yf) / 2, (za + zBack) / 2);
-      const fr = new THREE.PlaneGeometry(xb - xa, 0.2).translate((xa + xb) / 2, yf - 0.1, za);
-      (k % 2 ? B : A).push(pg, fr);
+    const top = new THREE.PlaneGeometry(L + 0.2, len).rotateX(tilt);
+    top.translate(0, (yb + yf) / 2, (za + zBack) / 2);
+    const hem: THREE.BufferGeometry[] = [];
+    for (let xa = x0 - 0.1; xa < x1 + 0.1 - 1e-3; xa += 1) {
+      const w = Math.min(1, x1 + 0.1 - xa);
+      const h = Math.round((xa - x0) / 1) % 2 ? 0.14 : 0.24;
+      hem.push(new THREE.PlaneGeometry(w, h).translate(xa + w / 2, yf - h / 2, za));
     }
-    const awnOpts = { noShadowReceive: true, lightUp: 0, edge: 0.4, convex: 0.2 };
-    const mA = ctx.mat('counter', { ...awnOpts, bands: [-2, 2] as [number, number] });
-    const mB = ctx.mat('counter', { ...awnOpts, bands: [-2, -1.5] as [number, number] });
+    const awnOpts = { noShadowReceive: true, lightUp: 0, edge: 0.3, convex: 0, bands: [-2, 2] as [number, number] };
+    const mTop = ctx.mat('awning', awnOpts);
+    const mHem = ctx.mat('awning', { ...awnOpts, bands: [2, 3] as [number, number] });
     // 单面篷布投影要双面，否则影子断成一串点
-    mA.shadowSide = THREE.DoubleSide;
-    mB.shadowSide = THREE.DoubleSide;
-    root.add(mesh(A, mA, 'awning-a', true));
-    root.add(mesh(B, mB, 'awning-b', true));
+    mTop.shadowSide = THREE.DoubleSide;
+    root.add(mesh([top], mTop, 'awning', true));
+    root.add(mesh(hem, mHem, 'awning-hem'));
     const posts: THREE.BufferGeometry[] = [];
     for (let x = x0 + 0.3; x <= x1 - 0.2; x += 5.4)
       posts.push(bx(0.14, yb - yTop, 0.14, x, yTop + (yb - yTop) / 2, zBack + 0.1));
@@ -367,18 +373,19 @@ function buildCrowd(
           jit: rnd(),
         });
       }
-      // 组后面空 2～3 个座（簇和簇之间留空：第 2 轮评判）
-      i += rnd() < 0.5 ? 2 : 3;
+      // 组后面空 1～2 个座（簇和簇之间留空：第 2 轮评判；第 3 轮 2～3 个空太稀，坐满读不出"满"）
+      i += s.dense ? (rnd() < 0.5 ? 0 : 1) : rnd() < 0.6 ? 1 : 2;
     }
   }
   people.sort((a, b) => a.rank - b.rank);
   // 满座时最多坐到名次 0.86（一成五空着，成片的空位在两头）
-  const FULL = 0.9;
+  const FULL = 0.94;
 
   // ── 几何（本地：原点 = 座面中心，人朝 +z）：身子 + 大腿 + 头 + 帽子（宽檐 + 帽顶）──
-  const body = mergeGeometries([bx(0.34, 0.44, 0.22, 0, 0.22, 0), bx(0.3, 0.12, 0.3, 0, 0.06, 0.22)]);
-  const head = bx(0.3, 0.3, 0.28, 0, 0.6, 0.01);
-  const hat = mergeGeometries([bx(0.44, 0.04, 0.42, 0, 0.76, 0.03), bx(0.28, 0.1, 0.26, 0, 0.82, 0.01)]);
+  // 坐着：只露头和肩（腿被前一排的椅背和立面挡住，不建），第 3 轮评判"一排保龄球瓶"
+  const body = bx(0.42, 0.34, 0.3, 0, 0.17, 0);
+  const head = bx(0.3, 0.28, 0.28, 0, 0.48, 0.01);
+  const hat = mergeGeometries([bx(0.42, 0.04, 0.4, 0, 0.64, 0.03), bx(0.28, 0.08, 0.26, 0, 0.69, 0.01)]);
   const root = new THREE.Group();
   root.name = 'crowd';
   const meshes: { im: THREE.InstancedMesh; ranks: number[] }[] = [];
@@ -393,7 +400,8 @@ function buildCrowd(
     who.forEach((p, k) => {
       pos.set(p.seat.x + (p.jit - 0.5) * 0.06, p.seat.y, p.seat.z);
       q.setFromEuler(e.set(0, (p.jit - 0.5) * 0.3, 0));
-      mtx.compose(pos, q, scl.setScalar(0.94 + p.jit * 0.12));
+      // 两种高度（大人 / 矮一截的）
+      mtx.compose(pos, q, scl.set(1, p.jit < 0.35 ? 0.82 : 1, 1));
       im.setMatrixAt(k, mtx);
     });
     im.instanceMatrix.needsUpdate = true;
