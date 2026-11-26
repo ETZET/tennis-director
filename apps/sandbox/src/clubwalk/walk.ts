@@ -937,6 +937,7 @@ export function mountWalk(hooks: WalkHooks = {}) {
           params,
           quiet: PIXEL_HUD,
           peek: PIXEL_HUD ? (p) => hud?.peek(p) : undefined,
+          focus: PIXEL_HUD ? (a, dy) => hud?.focus(a, dy) : undefined,
           mats: dirKit.mats,
           scheme,
           // 通勤的替身：同一套 Q 版人（材质用总监那套），换装成要替的那个人
