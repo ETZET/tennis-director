@@ -27,7 +27,7 @@ export interface Scheme {
   grade: Grade;
   groups?: Partial<Record<Group, PartialGrade>>;
   /** 单个材质：覆盖调法，或者 'keep' = 原样（调试色、占位、主角色） */
-  keys?: Partial<Record<keyof Pal, PartialGrade | 'keep'>>;
+  keys?: Partial<Record<keyof Pal | (string & {}), PartialGrade | 'keep'>>;
   /** 天空上下两色（main.ts 量化成 4 条色带） */
   sky: { top: number; horizon: number };
   /** 太阳色：shader 里亮档乘 mix(1, 太阳色 / 最大分量, 0.35) */
@@ -36,4 +36,10 @@ export interface Scheme {
   edgeTint: [number, number, number];
   /** 描边强度（不填 = main.ts 默认） */
   edges?: { depthStrength?: number; normalStrength?: number; topStrength?: number };
+  /**
+   * 时间系统（clubsite/daylight）给中档、暗档的颜色乘子，白天和傍晚留多少彩度（0..1，不填 = 1 原样）。
+   * 乘子是照 golden 的玫瑰褐影子定的：日落暗档乘 (0.6, 0.5, 0.74)，乘在已经是冷灰紫的影子上会变成饱和的紫（清透方案 2026-11-25）。
+   * 只收白天和傍晚：夜里（亮档乘子很暗）的靛蓝照旧。
+   */
+  dayTint?: { mid?: number; dark?: number };
 }

@@ -1,10 +1,12 @@
-// 配色（palette-lab，2026-11-08）：?pal=<id> 换一套配色。默认是用户选定的 6 午后金光（golden）；?pal=current 是原来的沙漠配色。
+// 配色（palette-lab，2026-11-08）：?pal=<id> 换一套配色。默认是 8 清透（crisp，2026-11-25 照《垂钓手记》重做的冷暖分组，
+// docs/lab/2026-11-07-3d-pixel/redo-color.md）；6 午后金光（golden）是之前的默认，?pal=golden；?pal=current 是原来的沙漠配色。
 // 方案是"覆盖层"：palette.ts 的原值不动，main.ts 建材质时把颜色过一遍这里的 grade（按材质组 / 单个材质覆盖）。
 // 复用的 desert3d-v2 资产里写死的颜色（灌木叶、龙舌兰……）也走同一个 grade（ctx.mat 的 extra、ctx.mats.toon 都包了），
 // 所以整个画面一起换，不只是沙。各方案的意图、关键色、量出来的数：docs/lab/2026-11-07-3d-pixel/palette-lab.md。
 
 import type { Pal } from '../palette';
 import type { Mats, ToonOpts } from '../toon';
+import { scheme as crisp } from './crisp';
 import { scheme as golden } from './golden';
 import { type Grade, gradeOpts, IDENTITY, mergeGrade } from './grade';
 import { scheme as natural } from './natural';
@@ -28,12 +30,12 @@ export const current: Scheme = {
   edgeTint: [0.5, 0.55, 0.78],
 };
 
-export const SCHEMES: Scheme[] = [current, natural, teal, pastel, noon, wells, golden, resort];
+export const SCHEMES: Scheme[] = [current, natural, teal, pastel, noon, wells, golden, resort, crisp];
 
-/** 定下来的默认配色（2026-11-08 用户选了 6 午后金光）：不带 ?pal 就用它 */
-export const DEFAULT_SCHEME_ID = 'golden';
+/** 默认配色：不带 ?pal 就用它（2026-11-08 用户选了 6 午后金光 golden；2026-11-25 换成 8 清透 crisp：受光暖、背光冷、一屏一个焦点） */
+export const DEFAULT_SCHEME_ID = 'crisp';
 
-/** URL 的 pal → 方案；不带 pal = 默认（午后）；pal=current → null（走原来的路径，一个字节都不变）；不认识的 → 默认 */
+/** URL 的 pal → 方案；不带 pal = 默认（清透）；pal=current → null（走原来的路径，一个字节都不变）；不认识的 → 默认 */
 export function schemeById(id: string | null): Scheme | null {
   if (id === 'current') return null;
   return (
@@ -49,6 +51,8 @@ type SceneKey =
   | 'lotAsphalt'
   | 'lotPaint'
   | 'kerb'
+  | 'paver'
+  | 'stallGravel'
   | 'glass'
   | 'steel'
   | 'carCream'
@@ -148,6 +152,9 @@ const GROUP: Partial<Record<keyof Pal | SceneKey, Group>> = {
   /** 沥青和它上面的漆跟球场外圈的 asphalt 一组：午后亮档只染 10%（原值就是想要的暖灰），暗档是冷石板灰 */
   lotAsphalt: 'court',
   lotPaint: 'court',
+  /** 连锁砖、碎石 = 步道一家（2026-11-25，原来只吃全局 grade；clubdesk 门外那块借 flagstone，两个场景一个颜色） */
+  paver: 'ground',
+  stallGravel: 'ground',
   /** 路缘 = 水泥 */
   kerb: 'wall',
   /** 车窗、岗亭窗：暗档留靛蓝（阴影里的玻璃还像玻璃，不变成褐色） */

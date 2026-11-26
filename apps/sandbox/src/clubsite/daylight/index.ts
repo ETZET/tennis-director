@@ -165,6 +165,17 @@ export function mountDaylight(o: DaylightOpts): Daylight {
       arr[i].set(pools[i][0], pools[i][1], pools[i][2], pools[i][3]);
   }
 
+  /**
+   * 配色方案的 dayTint：乘子的彩度只留 k（往它自己的灰拉）；按亮档乘子的亮度淡出 —— 白天、傍晚收，夜里（亮档 ≤ 0.45）不收。
+   */
+  function tame(c: [number, number, number], lit: [number, number, number], k?: number): [number, number, number] {
+    if (k === undefined || k >= 1) return c;
+    const day = THREE.MathUtils.clamp((0.2126 * lit[0] + 0.7152 * lit[1] + 0.0722 * lit[2] - 0.45) / 0.25, 0, 1);
+    const kk = 1 - (1 - k) * day;
+    const l = 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+    return [l + (c[0] - l) * kk, l + (c[1] - l) * kk, l + (c[2] - l) * kk];
+  }
+
   /** 固定的光照（api.override）：室内用 */
   let override: DayLook | null = null;
   function apply() {
@@ -182,8 +193,8 @@ export function mountDaylight(o: DaylightOpts): Daylight {
     if (look.moon) sun.color.setRGB(1, 1, 1);
     else sun.color.copy(baseSun);
     day.uDayLit.value.set(...look.lit);
-    day.uDayMid.value.set(...look.mid);
-    day.uDayDark.value.set(...look.dark);
+    day.uDayMid.value.set(...tame(look.mid, look.lit, o.scheme?.dayTint?.mid));
+    day.uDayDark.value.set(...tame(look.dark, look.lit, o.scheme?.dayTint?.dark));
     day.uSunK.value = look.sunK;
     // 着色抬光：让着色的有效仰角 = shadeEl（tan e' · cos e − sin e）
     const e = el;
