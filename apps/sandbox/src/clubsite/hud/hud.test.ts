@@ -30,11 +30,11 @@ describe('像素图标', () => {
       for (const r of s.rows) expect(r.length, id).toBeLessThanOrEqual(18);
     }
   });
-  it('心情字形 9×9，叠进气泡以后还是 15 宽', () => {
+  it('心情字形 9×9，叠进气泡以后还是 11 宽', () => {
     for (const [id, s] of Object.entries(MOODS)) {
       expect(s.rows.length, id).toBe(9);
       for (const r of s.rows) expect(r.length, id).toBe(9);
-      for (const r of moodSprite(id as MoodId).rows) expect(r.length).toBe(15);
+      for (const r of moodSprite(id as MoodId).rows) expect(r.length).toBe(11);
     }
   });
   it('天气小图标 11×9', () => {

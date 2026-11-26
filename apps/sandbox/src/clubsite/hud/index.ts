@@ -20,7 +20,7 @@ import type { Daylight } from '../daylight';
 import { dayLook, type Weather } from '../daylight/sky';
 import type { Anchor, Play } from '../play';
 import { drawClock } from './clock';
-import { CREAM, INK } from './colors';
+import { CREAM, GOLD, hex, INK } from './colors';
 import { textCanvas } from './font';
 import { type TKey, t, weekday } from './i18n';
 import { ICONS, type IconId, MOODS, type MoodId, moodSprite, WEATHER_ICONS } from './icons';
@@ -103,20 +103,22 @@ export function pickIcon(label: string): IconId {
 
 const LONG_MS = 420;
 
-/** 圆底板（动作键）：直径 d 纹素，fill 本色、下沿一圈深一档 */
-function plateRows(d: number, fill: string, low: string): string[] {
-  const rows: string[] = [];
-  const c = d / 2;
-  for (let y = 0; y < d; y++) {
-    let r = '';
-    for (let x = 0; x < d; x++) {
-      const q = Math.hypot(x + 0.5 - c, y + 0.5 - c);
-      // 下半圈靠边的两纹素：深一档（立体）
-      r += q > c - 0.3 ? '.' : q > c - 2.2 && y + 0.5 > c + 2 ? low : fill;
+/** 动作键的小盘：直径 d 纹素，半透明墨色的底（场景透得过来）+ 1 纹素奶油（或金）细环 + 外面 1 纹素墨色描边 */
+function disc(d: number, fill: string, ring: number): HTMLCanvasElement {
+  const n = d + 2;
+  const c = document.createElement('canvas');
+  c.width = n;
+  c.height = n;
+  const g = c.getContext('2d') as CanvasRenderingContext2D;
+  const cx = n / 2;
+  for (let y = 0; y < n; y++)
+    for (let x = 0; x < n; x++) {
+      const q = Math.hypot(x + 0.5 - cx, y + 0.5 - cx);
+      if (q > cx) continue;
+      g.fillStyle = q > cx - 1 ? hex(INK) : q > cx - 2 ? hex(ring) : fill;
+      g.fillRect(x, y, 1, 1);
     }
-    rows.push(r);
-  }
-  return rows;
+  return c;
 }
 
 export function mountPixelHud(o: PixelHudOpts): PixelHud {
@@ -179,7 +181,17 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
   let tipTimer = 0;
   const panel = day.panel;
   let debug = false;
+  // 调试的入口：3 秒内连点日钟 5 下（玩家看不见、碰不到），或者 ?debug=1
+  let taps: number[] = [];
   clockBtn.addEventListener('click', () => {
+    const now = performance.now();
+    taps = [...taps.filter((x) => now - x < 3000), now];
+    if (taps.length >= 5) {
+      taps = [];
+      setDebug(!debug);
+      tip.classList.add('gone');
+      return;
+    }
     if (debug && panel) {
       panel.toggle();
       placePanel();
@@ -191,15 +203,7 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
     const mm = Math.floor((hour - hh) * 60);
     tip.replaceChildren(
       view(spriteCanvas(WEATHER_ICONS[day.current], `w-${day.current}`)),
-      view(
-        txt(
-          `${weekday(dayN)} ${hh}:${String(mm).padStart(2, '0')} ${t(`w_${day.current}` as TKey)}`,
-          INK,
-          undefined,
-          null,
-        ),
-        0,
-      ),
+      view(txt(`${weekday(dayN)} ${hh}:${String(mm).padStart(2, '0')}`, INK, undefined, null), 0),
     );
     tip.classList.remove('gone');
     clearTimeout(tipTimer);
@@ -270,11 +274,6 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
     clearTimeout(signTimer);
     if (ms > 0) signTimer = window.setTimeout(() => sign.classList.add('gone'), ms);
   };
-  const hideSign = () => {
-    clearTimeout(signTimer);
-    sign.classList.add('gone');
-  };
-
   /** 常驻按钮：轻点 = 做，按住 = 看名字 */
   for (const bd of o.buttons ?? []) {
     const b = document.createElement('button');
@@ -312,12 +311,9 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
     fixRow.prepend(b);
   }
 
-  // 动作键（按住干活）、拿 / 放：奶油色圆底板 + 图标；槽位固定，没活时空着（visibility）
-  const PLATE = 26;
-  const plate = {
-    idle: spriteCanvas({ rows: plateRows(PLATE, 'W', 'w') }, 'plate-idle'),
-    on: spriteCanvas({ rows: plateRows(PLATE, 'Y', 'y') }, 'plate-on'),
-  };
+  // 动作键（按住干活）、拿 / 放：22 纹素的墨色半透明小盘 + 1 纹素奶油细环 + 图标。有活的靠右排：
+  // 动作键永远在最右（最顺手），拿 / 放在它左边；只有一个活时它就在最右格。按着干活时细环变金
+  const plate = { idle: disc(22, 'rgba(44, 40, 72, 0.5)', CREAM), on: disc(22, 'rgba(44, 40, 72, 0.62)', GOLD) };
   const mkAct = (cls: string) => {
     const b = document.createElement('button');
     b.type = 'button';
@@ -377,22 +373,21 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
   /** 见过的活：第一次出现时字亮 1.5 秒，之后只在长按时 */
   const seen = new Set<string>();
 
-  // ── 左下：调试小点 ──
-  const dbgBtn = document.createElement('button');
-  dbgBtn.type = 'button';
-  dbgBtn.className = 'pxh-dbg';
-  dbgBtn.setAttribute('aria-label', t('debug'));
-  dbgBtn.appendChild(view(icon('dots')));
-  root.appendChild(dbgBtn);
-  const setDebug = (on: boolean) => {
+  // ── 调试：?debug=1，或者连点日钟 5 下（见上）；玩家看不见入口 ──
+  function setDebug(on: boolean) {
     debug = on;
     document.body.classList.toggle('pxh-debug', on);
     if (!on) panel?.toggle(false);
-  };
-  dbgBtn.addEventListener('click', () => setDebug(!debug));
+  }
   if (params.get('debug') === '1') setDebug(true);
 
   // ── 场景里：心情泡、点开的一句话、点人 ──
+  // 互动点头上的小箭头（代替 clubsite/play 的 CSS 三角）
+  const markEl = document.createElement('div');
+  markEl.className = 'pxh-mark';
+  markEl.hidden = true;
+  markEl.appendChild(view(icon('arrow')));
+  root.appendChild(markEl);
   const moodsEl = document.createElement('div');
   moodsEl.className = 'pxh-moods';
   root.appendChild(moodsEl);
@@ -403,43 +398,41 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
     text: string;
   }
   const moodEls: MoodEl[] = [];
-  const balloon = document.createElement('div');
-  balloon.className = 'pxh-balloon';
-  balloon.hidden = true;
-  moodsEl.appendChild(balloon);
-  /** 点开的：哪个泡（按 key）/ 点的人 */
-  let open: { key: string; until: number } | null = null;
+  /** 同屏最多几个心情泡（离总监近的先） */
+  const MOOD_MAX = 2;
+  /** 正在上方那行字里说话的人（点人）：再点他一次 / 点这行字 = 开他的卡片 */
   let peekV: (Peek & { until: number }) | null = null;
-  let balloonKey = '';
-  function fillBalloon(key: string, title: string | null, line: string) {
-    if (key === balloonKey) return;
-    balloonKey = key;
-    balloon.replaceChildren();
-    if (title) balloon.appendChild(view(txt(title, INK, undefined, null), 0, 'pxh-name'));
-    balloon.appendChild(view(txt(line, INK, 100 * S, null), 0));
-  }
-  balloon.addEventListener('pointerdown', (e) => {
-    e.stopPropagation();
-    const f = peekV?.onTap;
-    open = null;
-    peekV = null;
-    balloon.hidden = true;
-    f?.();
-  });
 
   // ── 上方一行字 + 弹出来的东西 ──
   const toastEl = document.createElement('div');
   toastEl.className = 'pxh-toast gone';
   root.appendChild(toastEl);
   let toastTimer = 0;
-  function pop(text: string, ic: IconId | null = null, sec = 1.8) {
+  function pop(text: string, ic: IconId | null = null, sec = 1.8, who: string | null = null) {
     toastEl.replaceChildren();
     if (ic) toastEl.appendChild(view(icon(ic), 2, 'pxh-item'));
-    toastEl.appendChild(view(txt(text, CREAM, Math.min(innerWidth - 40, 520)), 0));
+    const row = document.createElement('div');
+    row.className = 'pxh-line';
+    if (who) row.appendChild(view(txt(who, GOLD), 0));
+    row.appendChild(view(txt(text, CREAM, Math.min(innerWidth - 60, 520)), 0));
+    toastEl.appendChild(row);
     toastEl.classList.remove('gone');
+    toastEl.classList.toggle('tap', !!peekV?.onTap && who !== null);
     clearTimeout(toastTimer);
-    toastTimer = window.setTimeout(() => toastEl.classList.add('gone'), sec * 1000);
+    toastTimer = window.setTimeout(() => {
+      toastEl.classList.add('gone');
+      toastEl.classList.remove('tap');
+    }, sec * 1000);
   }
+  toastEl.addEventListener('pointerdown', (e) => {
+    if (!toastEl.classList.contains('tap')) return;
+    e.stopPropagation();
+    const f = peekV?.onTap;
+    peekV = null;
+    toastEl.classList.add('gone');
+    toastEl.classList.remove('tap');
+    f?.();
+  });
 
   // ── 地点名 ──
   const placeEl = document.createElement('div');
@@ -462,8 +455,6 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
   canvas.addEventListener('pointerdown', () => {
     clearTimeout(hintTimer);
     window.setTimeout(hideHint, 600);
-    // 点画面别的地方：收起点开的一句话
-    open = null;
   });
 
   // ── 转场 ──
@@ -507,9 +498,16 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
     place,
     setDebug,
     peek(p) {
-      peekV = p ? { ...p, until: performance.now() + (p.sec ?? 5) * 1000 } : null;
-      open = null;
-      if (p) balloonKey = '';
+      const now = performance.now();
+      // 同一个人、那行字还在：第二次点他 = 开卡片
+      if (p && peekV && peekV.title === p.title && peekV.until > now && p.onTap) {
+        peekV = null;
+        toastEl.classList.add('gone');
+        p.onTap();
+        return;
+      }
+      peekV = p ? { ...p, until: now + (p.sec ?? 2.6) * 1000 } : null;
+      if (p) pop(p.line, null, p.sec ?? 2.6, `${p.title}${t('colon')}`);
     },
     frame() {
       // 转屏 / 改窗口：纹素倍数变了就重设所有像素图的大小、重画字
@@ -520,7 +518,6 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
         rescale();
         moneyKey = '';
         signText = '';
-        balloonKey = '';
       }
       drawClockNow();
       placePanel();
@@ -530,7 +527,7 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
       if (mk !== moneyKey) {
         moneyKey = mk;
         moneyEl.hidden = m === null;
-        if (m !== null) put(moneyCv, txt(m.toLocaleString('en-US')));
+        if (m !== null) put(moneyCv, textCanvas(m.toLocaleString('en-US'), { px: 7 * S }));
       }
       const ui = play.ui();
       // 动作键
@@ -557,13 +554,14 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
         const bd = o.buttons?.find((x) => x.id === b.dataset.id);
         b.classList.toggle('on', !!bd?.pressed?.());
       }
-      // 心情泡：画面里的才画（画面外不贴边：中间和边上都不放字）
+      // 心情泡：分得出类的台词才出泡（"…"不出），画面里的、离总监近的最多 MOOD_MAX 个；点泡 = 那句话上方一行字
       const w = canvas.clientWidth;
       const h = canvas.clientHeight;
-      while (moodEls.length < ui.bubbles.length) {
+      while (moodEls.length < MOOD_MAX) {
         const el = document.createElement('button');
         el.type = 'button';
         el.className = 'pxh-mood';
+        el.hidden = true;
         const cv = document.createElement('canvas');
         cv.className = 'pxh-px';
         cv.dataset.k = '1';
@@ -572,60 +570,50 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
         el.addEventListener('pointerdown', (e) => {
           e.stopPropagation();
           peekV = null;
-          open = { key: me.key, until: performance.now() + 3500 };
-          balloonKey = '';
+          pop(me.text, null, 2.4);
+          me.el.classList.remove('pop');
+          void me.el.offsetWidth;
+          me.el.classList.add('pop');
         });
-        moodsEl.insertBefore(el, balloon);
+        moodsEl.appendChild(el);
         moodEls.push(me);
       }
-      const now = performance.now();
-      if (open && open.until < now) open = null;
-      if (peekV && peekV.until < now) peekV = null;
-      let balloonAt: { x: number; y: number } | null = null;
-      const pad = 7;
+      if (peekV && peekV.until < performance.now()) peekV = null;
+      play.director.getWorldPosition(dirV);
+      const cands: { b: (typeof ui.bubbles)[number]; p: { x: number; y: number }; d: number }[] = [];
+      for (const b of ui.bubbles) {
+        if (moodOf(b.text) === '…') continue;
+        const wp = anchorAt(b.anchor, b.dy);
+        if (!wp) continue;
+        const d = Math.hypot(wp.x - dirV.x, wp.z - dirV.z);
+        const p = play.project(wp, w, h);
+        if (p.x > 8 && p.x < w - 8 && p.y > 24 && p.y < h - 8) cands.push({ b, p, d });
+      }
+      cands.sort((a, b) => a.d - b.d);
+      const pad = 9;
       moodEls.forEach((me, i) => {
-        const b = ui.bubbles[i];
-        const wp = b ? anchorAt(b.anchor, b.dy) : null;
-        const p = wp ? play.project(wp, w, h) : null;
-        const on = !!p && p.x > 8 && p.x < w - 8 && p.y > 24 && p.y < h - 8;
-        me.el.hidden = !on;
-        if (!b || !p || !on) return;
-        if (me.text !== b.text) {
-          me.text = b.text;
-          const id = moodOf(b.text);
+        const c = cands[i];
+        me.el.hidden = !c;
+        if (!c) return;
+        if (me.text !== c.b.text || me.key !== c.b.key) {
+          me.text = c.b.text;
+          me.key = c.b.key;
+          const id = moodOf(c.b.text);
           put(me.cv, spriteCanvas(moodSprite(id), `mood-${id}`));
           me.el.classList.remove('pop');
           void me.el.offsetWidth;
           me.el.classList.add('pop');
         }
-        me.key = b.key;
         // 泡的尾巴尖（左下）对着头顶
         const ch = me.cv.height * S;
-        me.el.style.transform = `translate(${Math.round(p.x - pad - 3 * S)}px, ${Math.round(p.y - pad - ch)}px)`;
-        if (open && open.key === b.key) {
-          fillBalloon(`m:${b.key}:${b.text}`, null, b.text);
-          balloonAt = { x: p.x, y: p.y - ch - 2 };
-        }
+        me.el.style.transform = `translate(${Math.round(c.p.x - pad - 2 * S)}px, ${Math.round(c.p.y - pad - ch)}px)`;
       });
-      if (open && !balloonAt) open = null;
-      if (peekV) {
-        const wp = anchorAt(peekV.anchor, peekV.dy ?? 2.1);
-        const p = wp ? play.project(wp, w, h) : null;
-        if (p) {
-          fillBalloon(`p:${peekV.title}:${peekV.line}`, peekV.title, peekV.line);
-          balloonAt = p;
-        } else peekV = null;
-      }
-      balloon.hidden = !balloonAt;
-      if (balloonAt) {
-        const bw = balloon.offsetWidth;
-        const bh = balloon.offsetHeight;
-        const at = balloonAt as { x: number; y: number };
-        // 尾巴（左边 10 px 处）对着锚点；贴边时整块挪，尾巴跟着挪
-        const x = Math.round(Math.min(Math.max(at.x - 13, 8), w - bw - 8));
-        const y = Math.round(Math.max(at.y - bh - 10, 8));
-        balloon.style.transform = `translate(${x}px, ${y}px)`;
-        balloon.style.setProperty('--tail', `${Math.round(Math.min(Math.max(at.x - x - 3, 6), bw - 14))}px`);
+      // 小箭头
+      markEl.hidden = !ui.mark;
+      if (ui.mark) {
+        const p = play.project(ui.mark, w, h);
+        const aw = markEl.offsetWidth;
+        markEl.style.transform = `translate(${Math.round(p.x - aw / 2)}px, ${Math.round(p.y - markEl.offsetHeight)}px)`;
       }
       // 提示 → 上方一行字（挑得出东西就弹一个图标）
       if (ui.toast && ui.toast.id !== lastToast) {

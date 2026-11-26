@@ -8,25 +8,23 @@ const S = (...rows: string[]): Sprite => ({ rows });
 
 /** 按钮图标 */
 export const ICONS = {
-  /** 名册：夹板 + 名单（三个人三种颜色的小方块） */
+  /** 名册：两个人（会员和员工），胸口一个小牌 */
   roster: S(
-    '......SSSS......',
-    '.....SddddS.....',
-    '.TTTTSSSSSSTTTT.',
-    '.TWWWWWWWWWWWWt.',
-    '.TWnnnnnnnnWWvt.',
-    '.TWWWWWWWWWWWvt.',
-    '.TWRWvvvvvvvWvt.',
-    '.TWWWWWWWWWWWvt.',
-    '.TWBWvvvvvvWWvt.',
-    '.TWWWWWWWWWWWvt.',
-    '.TWGWvvvvvvvWvt.',
-    '.TWWWWWWWWWWWvt.',
-    '.TWRWvvvvvWWWvt.',
-    '.TWWWWWWWWWWWvt.',
-    '.Twwwwwwwwwwwwt.',
-    '.tttttttttttttt.',
-    '..uuuuuuuuuuuu..',
+    '..uuuu....tttt..',
+    '.uuFFuu..ttFFtt.',
+    '.uFFFFu..tFFFFt.',
+    '.FFFFFf..FFFFFf.',
+    '.FFFFFf..FFFFFf.',
+    '.fFFFff..fFFFff.',
+    '..ffff....ffff..',
+    '...ff......ff...',
+    '..RRRR....BBBB..',
+    '.RRRRRr..BBBBBb.',
+    'RRRRRRrrBBBBBBbb',
+    'RRRRRRrrBBBBBBbb',
+    'RRRRRRrrBBBBBBbb',
+    'RRWRRRrrBBWBBBbb',
+    'rrrrrrrrbbbbbbbb',
   ),
   /** 地图：三折的纸，中间一折在影子里；绿地、蓝水、红色虚线路线、红针 */
   map: S(
@@ -238,6 +236,8 @@ export const ICONS = {
   ),
   /** 调试（左下角的小点） */
   dots: S('S.S.S'),
+  /** 互动点头上的小箭头（朝下，金色） */
+  arrow: S('YYYYYYY', 'YWWYYYy', '.YYYYy.', '..YYy..', '...y...'),
   /** 拿 / 放（手里要拿的东西挑不出图标时）：一只纸箱，顶上一条胶带 */
   box: S(
     '...XXXXXXXXXX...',
@@ -292,17 +292,17 @@ export const MOODS = {
     'rr.rr.rr.',
     '.........',
   ),
-  /** 坏了要修：锤子（小尺寸下比扳手好认；钢头深一档描边，木柄） */
+  /** 坏了要修：扳手（开口在右上，深一档描边在奶油泡底上读得出形） */
   wrench: S(
-    '.dddddd..',
-    'dSSSSSsd.',
-    'dsssssdd.',
-    '.dddtd...',
-    '...dTd...',
-    '...dTd...',
-    '...dTd...',
-    '...dtd...',
-    '....d....',
+    '....dddd.',
+    '...dSWSSd',
+    '...dSd.dd',
+    '...dSSd..',
+    '..dSSdd..',
+    '.dSSd....',
+    'dSSd.....',
+    'dSd......',
+    '.d.......',
   ),
   ball: S(
     '...GGG...',
@@ -398,34 +398,32 @@ export const MOODS = {
 
 export type MoodId = keyof typeof MOODS;
 
-/** 心情泡：奶油色圆角框 + 左下的小尾巴（字形 9×9 放在 (3,2)） */
+/** 心情泡：奶油色圆角框（11×11，字形 9×9 放在 (1,1)）+ 左下的小尾巴；加描边 13 宽 */
 export const BUBBLE = S(
-  '..WWWWWWWWWWW..',
-  '.WWWWWWWWWWWWW.',
-  'WWWWWWWWWWWWWWW',
-  'WWWWWWWWWWWWWWW',
-  'WWWWWWWWWWWWWWW',
-  'WWWWWWWWWWWWWWW',
-  'WWWWWWWWWWWWWWW',
-  'WWWWWWWWWWWWWWW',
-  'WWWWWWWWWWWWWWW',
-  'WWWWWWWWWWWWWWW',
-  'WWWWWWWWWWWWWWw',
-  '.wWWWWWWWWWWWw.',
-  '..wwWWwwwwwww..',
-  '...wWw.........',
-  '..ww...........',
+  '.WWWWWWWWW.',
+  'WWWWWWWWWWW',
+  'WWWWWWWWWWW',
+  'WWWWWWWWWWW',
+  'WWWWWWWWWWW',
+  'WWWWWWWWWWW',
+  'WWWWWWWWWWW',
+  'WWWWWWWWWWW',
+  'WWWWWWWWWWW',
+  'WWWWWWWWWWw',
+  '.wwWWwwwww.',
+  '..wWw......',
+  '.ww........',
 );
 
 /** 把字形（9×9）叠进心情泡的格子里 */
 export function moodSprite(id: MoodId): Sprite {
   const g = MOODS[id].rows;
   const rows = BUBBLE.rows.map((r, y) => {
-    const gy = y - 2;
+    const gy = y - 1;
     if (gy < 0 || gy >= g.length) return r;
     const chars = [...r];
     const gr = g[gy];
-    for (let x = 0; x < gr.length; x++) if (gr[x] !== '.') chars[3 + x] = gr[x];
+    for (let x = 0; x < gr.length; x++) if (gr[x] !== '.') chars[1 + x] = gr[x];
     return chars.join('');
   });
   return { rows };

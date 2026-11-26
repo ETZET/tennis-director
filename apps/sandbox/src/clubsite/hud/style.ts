@@ -29,16 +29,16 @@ export const HUD_CSS = `
 
 /* 右下（拇指区）：上面一排 = 能干的活（拿 / 放、动作键），下面一排 = 常驻（名册、地图）；槽位固定 */
 .pxh-dock { position: absolute; right: max(6px, env(safe-area-inset-right)); bottom: max(6px, env(safe-area-inset-bottom)); display: flex; flex-direction: column; align-items: flex-end; gap: calc(var(--s) * 2px); }
-.pxh-row { display: flex; align-items: center; gap: calc(var(--s) * 2px); }
+.pxh-row { display: flex; align-items: flex-end; gap: calc(var(--s) * 4px); }
 .pxh-btn { position: relative; min-width: 48px; min-height: 48px; display: grid; place-items: center; }
 .pxh-btn > * { grid-area: 1 / 1; }
 .pxh-btn.down .pxh-px, .pxh-btn.on .pxh-px { transform: translateY(calc(var(--s) * 1px)); }
 /* 图标底下一纹素的硬投影：亮地面上也分得开 */
 .pxh-fixed .pxh-px, .pxh-money .pxh-px:first-child { filter: drop-shadow(0 calc(var(--s) * 1px) 0 rgba(23, 18, 48, 0.55)); }
-.pxh-act { width: calc(var(--s) * 28px); height: calc(var(--s) * 28px); }
-.pxh-act.empty { visibility: hidden; pointer-events: none; }
-.pxh-act.empty .pxh-icon { display: none; }
-.pxh-act .pxh-icon { position: relative; top: calc(var(--s) * -1px); }
+.pxh-act { width: calc(var(--s) * 24px); height: calc(var(--s) * 24px); }
+/* 没活的槽位不占地方：有活的靠右排（动作键永远最右） */
+.pxh-act.empty { display: none; }
+.pxh-act .pxh-icon { position: relative; }
 .pxh-use.on .pxh-icon { animation: pxh-bob 0.36s steps(2, end) infinite; }
 @keyframes pxh-bob { 50% { transform: translateY(calc(var(--s) * -1px)); } }
 /* 按钮正上方的小奶油牌子（长按 / 第一次出现），右对齐，不飘到场景中间 */
@@ -47,16 +47,14 @@ export const HUD_CSS = `
 
 /* 场景里人头上的心情泡、点开以后的一句话 */
 .pxh-moods { position: absolute; inset: 0; overflow: hidden; }
-.pxh-mood { position: absolute; left: 0; top: 0; padding: 7px; pointer-events: auto; }
+.pxh-mood { position: absolute; left: 0; top: 0; padding: 9px; pointer-events: auto; }
 .pxh-mood.pop .pxh-px { animation: pxh-pop 0.3s steps(3, end); transform-origin: 20% 100%; }
 @keyframes pxh-pop { 0% { transform: scale(0.4); } 60% { transform: scale(1.2); } 100% { transform: scale(1); } }
-.pxh-balloon { --tail: 10px; position: absolute; left: 0; top: 0; padding: 5px 8px; ${SIGN} pointer-events: auto; display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
-.pxh-balloon::after { content: ""; position: absolute; left: var(--tail); bottom: -8px; width: 6px; height: 6px; background: ${cream}; box-shadow: 2px 0 0 0 ${ink}, -2px 0 0 0 ${ink}, 0 2px 0 0 ${ink}; }
-.pxh-balloon .pxh-name { padding-bottom: 3px; border-bottom: 2px solid rgba(44, 40, 72, 0.25); }
-
 /* 浮动的一行字（同参考：画面上方一行白字黑边，过一会儿消失）+ 弹出来的东西 */
 .pxh-toast { position: absolute; left: 50%; top: max(12%, calc(env(safe-area-inset-top) + 100px)); transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 6px; transition: opacity 0.4s steps(3, end); }
 .pxh-toast.gone { opacity: 0; }
+.pxh-toast.tap { pointer-events: auto; cursor: pointer; }
+.pxh-line { display: flex; align-items: flex-start; gap: 2px; max-width: calc(100vw - 40px); }
 .pxh-toast .pxh-item { animation: pxh-item 0.5s steps(5, end); }
 @keyframes pxh-item { 0% { transform: scale(0.2) translateY(30px); } 60% { transform: scale(1.15) translateY(-4px); } 100% { transform: scale(1); } }
 .pxh-place { position: absolute; left: 50%; top: max(12%, calc(env(safe-area-inset-top) + 100px)); transform: translateX(-50%); opacity: 0; }
@@ -67,14 +65,14 @@ export const HUD_CSS = `
 .pxh-hint { position: absolute; left: max(12px, env(safe-area-inset-left)); bottom: max(16px, calc(env(safe-area-inset-bottom) + 8px)); transition: opacity 0.8s steps(4, end); }
 .pxh-hint.gone { opacity: 0; }
 
-/* 左下角的调试小点：点了出来调试牌 */
-.pxh-dbg { position: absolute; left: max(0px, env(safe-area-inset-left)); bottom: max(0px, env(safe-area-inset-bottom)); width: 44px; height: 44px; display: grid; place-items: center; opacity: 0.4; }
-body.pxh-debug .pxh-dbg { opacity: 1; }
+/* 互动点头上的小箭头（像素图，两格一跳） */
+.pxh-mark { position: absolute; left: 0; top: 0; }
+.pxh-mark .pxh-px { animation: pxh-bob 0.9s steps(2, end) infinite; }
 
 /* 旧的文字界面：藏起来（调试时放出来一部分） */
-body.pxh-on .play-bar, body.pxh-on .play-hint, body.pxh-on .play-bubbles, body.pxh-on .play-toast, body.pxh-on .play-buttons,
+body.pxh-on .play-mark, body.pxh-on .play-bar, body.pxh-on .play-hint, body.pxh-on .play-bubbles, body.pxh-on .play-toast, body.pxh-on .play-buttons,
 body.pxh-on #pxsel, body.pxh-on #place, body.pxh-on #minimap, body.pxh-on .cast-open, body.pxh-on .cast-tags { display: none !important; }
-body.pxh-on.pxh-debug #pxsel { display: flex !important; left: 52px; bottom: 8px; top: auto; flex-direction: column-reverse; }
+body.pxh-on.pxh-debug #pxsel { display: flex !important; left: 12px; bottom: 8px; top: auto; flex-direction: column-reverse; }
 body.pxh-on.pxh-debug .play-bar { display: flex !important; top: auto !important; bottom: max(70px, calc(env(safe-area-inset-bottom) + 62px)); left: 12px; transform: none; flex-wrap: wrap; max-width: calc(100vw - 150px); white-space: normal; }
 body.pxh-on.pxh-map #minimap { display: block !important; left: 50%; right: auto; top: max(20%, 120px); transform: translateX(-50%); width: min(376px, calc(100vw - 16px)); height: auto; box-shadow: 2px 0 0 0 ${ink}, -2px 0 0 0 ${ink}, 0 2px 0 0 ${ink}, 0 -2px 0 0 ${ink}, 0 4px 0 0 ${shadow}; pointer-events: auto; z-index: 8; }
 `;

@@ -365,14 +365,12 @@ export function mountCast(o: MountCastOpts): CastMount {
     b.obj.getWorldPosition(tv);
     if (!play.isBusy()) play.busy({ name: 'cast-face', dur: 0.25, pose: 'idle', face: [tv.x, tv.z] });
     lookAtDirector(b);
-    // 像素界面：点人走过去的，到了只把小框留着（点小框才开卡片）；按动作键"说话"的照常开
-    if (viaTap && o.peek) {
-      peekAt(id, b);
-      return;
-    }
+    // 像素界面：点人走过去的，到了只转过来看总监（点的时候那句话已经在上方那行字里了；再点他一次才开卡片）；
+    // 按动作键"说话"的照常开
+    if (viaTap && o.peek) return;
     card.open(id, nearList());
   }
-  /** 点人：头上一个小框，名字 + 一句话（在想什么；没有就是在哪儿干什么）；点小框 = 开卡片 */
+  /** 点人：画面上方一行字（名字 + 他自己的一句话）；那行字还在的时候再点他一次（或点那行字）= 开卡片 */
   function peekAt(id: string, b: Bound) {
     const p = CAST.get(id);
     if (!p || !o.peek) return;

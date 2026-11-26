@@ -1,5 +1,6 @@
 // 日钟（左上）：一个像素画的圆，里面是这一刻的天（天色四条色带、太阳沿着弧从左升到右落、傍晚橙、夜里月亮和星星、
-// 云按天气多少、雨丝、风沙），外圈是一天的进度（细的奶油色环，金色弧从正上方 0 点顺时针走，网球是"现在"那一头）；
+// 云按天气多少、雨丝、风沙），外圈是营业时段的进度（OPEN 点从正上方起顺时针走到 CLOSE 点一圈；已过的金色、没过的深墨，
+// 一颗小网球骑在环上是"现在"，不进天空窗）；
 // 圆下面一行很短的日期。数据从 clubsite/daylight 读（look = 这一刻的光、total = 时钟）。
 // 画在 1 倍小 canvas 上（38×39 纹素），CSS 整数倍放大。
 import type { DayLook, Weather } from '../daylight/sky';
@@ -12,6 +13,10 @@ export interface ClockData {
   look: DayLook;
   weather: Weather;
 }
+
+/** 营业时段（日钟外圈一圈）：6 点开门、22 点关门 */
+export const OPEN = 6;
+export const CLOSE = 22;
 
 const N = 38;
 const C = N / 2;
@@ -33,7 +38,7 @@ const mul = (a: RGB, m: readonly number[]): RGB => [a[0] * m[0], a[1] * m[1], a[
 let badge: { w: number; h: number; px: Uint8ClampedArray<ArrayBuffer> } | null = null;
 function ballBadge() {
   if (badge) return badge;
-  const rows = ['..GGG..', '.GGWGg.', 'GGWGGgg', 'GGWGggg', 'GGGWggg', '.gggWg.', '..ghh..'];
+  const rows = ['.GGG.', 'GWGgg', 'GGWgg', 'GgWgh', '.ghh.'];
   badge = rasterize({ rows }, true, false);
   return badge;
 }
@@ -170,10 +175,12 @@ export function drawClock(d: ClockData): { w: number; h: number; px: Uint8Clampe
       for (let x = 0; x < N; x++) if (inSky(x, y) && y > C + 2 && (x * 3 + y) % 5 < 2) put(x, y, mul(rgb(KEYS.X), lit));
 
   // ── 内圈描边、外圈的一天进度、外描边 ──
-  const prog = (((hr % 24) + 24) % 24) / 24;
-  // 细环：奶油色的底，走过的一段是金色（外侧一纹素深一档）
-  const track: RGB = rgb(KEYS.W);
-  const trackDark: RGB = rgb(KEYS.w);
+  // 营业时段一圈：OPEN 点在正上方，CLOSE 点回到正上方；关门以后满圈、开门以前空圈
+  const h24 = ((hr % 24) + 24) % 24;
+  const prog = h24 < OPEN ? 0 : Math.min(1, (h24 - OPEN) / (CLOSE - OPEN));
+  // 外环两纹素：没走过的深墨，走过的金色（外侧一纹素深一档）
+  const track: RGB = rgb(0x4a4670);
+  const trackDark: RGB = rgb(INK);
   const gold = rgb(KEYS.Y);
   const goldDark = rgb(KEYS.y);
   for (let y = 0; y < N; y++)
@@ -199,7 +206,8 @@ export function drawClock(d: ClockData): { w: number; h: number; px: Uint8Clampe
   {
     const b = ballBadge();
     const a = prog * Math.PI * 2;
-    const rr = (R_RIM + R_RING) / 2;
+    // 骑在环的外沿上（球心在环外侧一点），不进天空窗
+    const rr = R_RING - 0.5;
     const ox = Math.round(C + Math.sin(a) * rr - b.w / 2);
     const oy = Math.round(C - Math.cos(a) * rr - b.h / 2);
     for (let y = 0; y < b.h; y++)

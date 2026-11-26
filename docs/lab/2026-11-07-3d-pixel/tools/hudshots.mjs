@@ -80,7 +80,7 @@ async function measure(page) {
     );
   };
   const a = await count('');
-  const b = await count('.pxh-moods, .play-mark, .play-bubbles { visibility: hidden !important; }');
+  const b = await count('.pxh-moods, .pxh-mark, .play-mark, .play-bubbles { visibility: hidden !important; }');
   return {
     uiPx: a.all,
     uiPct: +((a.all / (+w * +h)) * 100).toFixed(2),
