@@ -33,6 +33,10 @@ export interface RegionHost {
   play: boolean;
   /** 大世界：唯一的总监（clubsite/people 的 director，已经在 scene 里）；区域不建自己的 */
   director?: THREE.Object3D;
+  /**
+   * 换场景的转场（大世界的像素界面：圆形遮罩收拢 → 黑的那一刻调 fn → 展开）。坐电梯换层用；不给 = 直接换
+   */
+  transition?(fn: () => void): void;
   /** 看图模式的白模标签（独立页面）；不给 = 不贴 */
   label?(text: string, p: THREE.Vector3, kind: string, below?: boolean): void;
 }

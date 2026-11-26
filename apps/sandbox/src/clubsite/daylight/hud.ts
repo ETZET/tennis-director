@@ -24,7 +24,21 @@ const CSS = `
 .day-slider .knob { position: absolute; top: 8px; width: 14px; height: 28px; margin-left: -7px; background: #fff3d6; box-shadow: 0 0 0 2px #171230, 0 3px 0 2px #171230; }
 `;
 
-export function mountDayHud(host: HTMLElement, h: DayHudHost): { sync(): void } {
+export interface DayPanel {
+  /** 每帧：牌子的字、面板里的状态 */
+  sync(): void;
+  /** 展开 / 收起面板（没给 = 切换） */
+  toggle(open?: boolean): void;
+  isOpen(): boolean;
+  readonly panel: HTMLElement;
+}
+
+/**
+ * host = 左上角像素级别那一栏（牌子摆在它右边）。chip=false：不要牌子，面板由别人开（clubsite/hud 的日钟点开它），
+ * 面板的位置由开它的人摆（panel.style.top）。
+ */
+export function mountDayHud(host: HTMLElement | null, h: DayHudHost, opts: { chip?: boolean } = {}): DayPanel {
+  const withChip = opts.chip !== false;
   if (!document.getElementById('day-hud-css')) {
     const st = document.createElement('style');
     st.id = 'day-hud-css';
@@ -39,10 +53,11 @@ export function mountDayHud(host: HTMLElement, h: DayHudHost): { sync(): void } 
   const panel = document.createElement('div');
   panel.className = 'day-panel';
   panel.hidden = true;
-  chip.addEventListener('click', () => {
-    panel.hidden = !panel.hidden;
+  const toggle = (open?: boolean) => {
+    panel.hidden = !(open ?? panel.hidden);
     chip.setAttribute('aria-expanded', String(!panel.hidden));
-  });
+  };
+  chip.addEventListener('click', () => toggle());
 
   // 滑条：0..24 点，15 分钟一格
   const title = document.createElement('div');
@@ -135,11 +150,13 @@ export function mountDayHud(host: HTMLElement, h: DayHudHost): { sync(): void } 
   // 自己一个容器（同 .pxsel 的样子），摆在像素级别牌子的右边：竖着排会压到玩法 HUD 顶上的状态条
   const box = document.createElement('div');
   box.className = 'pxsel daysel';
-  box.append(chip, panel);
+  if (withChip) box.append(chip);
+  box.append(panel);
   document.body.appendChild(box);
-  const anchor = host.firstElementChild as HTMLElement | null;
+  const anchor = (withChip ? host?.firstElementChild : null) as HTMLElement | null;
   let anchorRight = -1;
   const place = () => {
+    if (!withChip) return;
     // 面板：从屏幕左边、牌子下面展开（不跟着牌子往右挤出屏幕）
     if (!panel.hidden) panel.style.top = `${Math.round(chip.getBoundingClientRect().bottom) + 12}px`;
     const r = anchor?.getBoundingClientRect();
@@ -158,6 +175,9 @@ export function mountDayHud(host: HTMLElement, h: DayHudHost): { sync(): void } 
 
   let last = '';
   return {
+    panel,
+    toggle,
+    isOpen: () => !panel.hidden,
     sync() {
       place();
       const s = h.get();
