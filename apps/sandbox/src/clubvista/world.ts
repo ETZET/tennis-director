@@ -183,6 +183,7 @@ async function go(id: string, entry: string) {
   await iris.run(() => swapTo(id, entry));
   moving = false;
   play?.toast(cur.def.name, 2.2);
+  crowdLabel();
 }
 function swapTo(id: string, entry: string) {
   const to = byId(id);
@@ -191,6 +192,7 @@ function swapTo(id: string, entry: string) {
   cur = to;
   cur.root.visible = true;
   setClouds(cur);
+  applyZoom();
   const wx = e.at[0] + cur.ox;
   const wz = e.at[1];
   if (play) {
@@ -270,8 +272,16 @@ if (params.get('audit') === '1' && play) {
   }
 }
 
+/** 竖屏按图拉远（MapDef.portraitZoom，?pz= 覆盖）：中心球场竖屏要放得下真尺寸的场 + 两边一截看台；横屏一律 1× */
+function applyZoom() {
+  const portrait = canvas.clientWidth < canvas.clientHeight;
+  const k = portrait ? num('pz', cur.def.portraitZoom ?? 1) : 1;
+  pipe.rig.metersPerTexel = zoom * k;
+  play?.setView(viewOf(cur));
+}
 function resize() {
   pipe.resize(canvas.clientWidth, canvas.clientHeight, Math.min(devicePixelRatio, 3));
+  applyZoom();
 }
 addEventListener('resize', resize);
 resize();
@@ -280,6 +290,53 @@ const pxEl = document.getElementById('pxsel');
 const palEl = document.getElementById('palsel');
 if (palEl) mountPaletteSwitcher(palEl, [vista, ...SCHEMES], scheme?.id ?? 'current');
 const day = mountDaylight({ scene, pipe, sun, uniforms, params, scheme, hud: pxEl, placeSun: aimSun });
+
+// ── 观众（中心球场）：右上角一个按钮切换坐满 / 空场（?crowd=empty 开局空场）；__vista.crowd(f) 同 ──
+function crowd(f?: number) {
+  const st: { setFill: (f: number) => void; crowd: { fill: number } }[] = [];
+  cur.root.traverse((o) => {
+    if (o.userData.setFill) st.push(o.userData as never);
+  });
+  if (!st.length) return null;
+  const next = f ?? (st[0].crowd.fill > 0.5 ? 0 : 1);
+  for (const s of st) s.setFill(next);
+  return next;
+}
+const crowdBtn = document.createElement('button');
+crowdBtn.className = 'crowd-btn';
+Object.assign(crowdBtn.style, {
+  position: 'fixed',
+  right: '12px',
+  bottom: 'max(84px, calc(env(safe-area-inset-bottom) + 76px))',
+  minWidth: '44px',
+  minHeight: '44px',
+  padding: '0 12px',
+  font: '600 13px system-ui, sans-serif',
+  color: '#fff6e6',
+  background: '#2c2848',
+  border: '2px solid #fff6e6',
+  borderRadius: '8px',
+  zIndex: '20',
+});
+const crowdLabel = () => {
+  let full = false;
+  let any = false;
+  cur.root.traverse((o) => {
+    if (o.userData.setFill) {
+      any = true;
+      full = o.userData.crowd.fill > 0.5;
+    }
+  });
+  crowdBtn.style.display = any && params.get('ui') !== '0' ? '' : 'none';
+  crowdBtn.textContent = full ? '观众 满' : '观众 空';
+};
+crowdBtn.addEventListener('pointerdown', (e) => {
+  e.stopPropagation();
+  crowd();
+  crowdLabel();
+});
+document.body.appendChild(crowdBtn);
+crowdLabel();
 
 const DT = 1 / 60;
 let simT = 0;
@@ -341,6 +398,7 @@ Object.assign(window, {
     go,
     step,
     cur: () => cur.def.id,
+    crowd,
     state: () => (play ? { ...play.state(), map: cur.def.id, lx: play.state().x - cur.ox } : null),
   },
 });

@@ -13,7 +13,8 @@ import { vista } from './grade';
 import type { Pal } from './palette';
 import { SPECS } from './placeholders';
 
-const params = new URLSearchParams(location.search);
+// window.location：单文件打包只换 world.ts 的那个 URLSearchParams(location.search)（默认查询串）
+const params = new URLSearchParams(window.location.search);
 const num = (k: string, d: number) => (params.has(k) ? Number(params.get(k)) : d);
 const deg = Math.PI / 180;
 const id = params.get('asset') ?? '';

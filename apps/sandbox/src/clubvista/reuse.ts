@@ -6,15 +6,31 @@ import { build as ballMachine } from '../clubcourts/assets/ball-machine';
 import { build as pot } from '../clubdesk/assets/pot';
 import { build as towelCart } from '../clubdesk/assets/towel-cart';
 import { build as waterStation } from '../clubdesk/assets/water-station';
+import { build as festoon } from '../clubfood/assets/festoon';
+import { build as foodTray } from '../clubfood/assets/food-tray';
+import { build as longTable } from '../clubfood/assets/long-table';
 import { build as patioUmbrella } from '../clubfood/assets/patio-umbrella';
+import { build as pergola } from '../clubfood/assets/pergola';
 import { build as picnicTable } from '../clubfood/assets/picnic-table';
 import { build as truckCoffee } from '../clubfood/assets/truck-coffee';
+import { build as archWindow } from '../clubhouse/assets/arch-window';
+import { build as bougainvillea } from '../clubhouse/assets/bougainvillea';
+import { build as houseCafeTable } from '../clubhouse/assets/cafe-table';
+import { build as mainDoor } from '../clubhouse/assets/main-door';
+import { build as treePlanter } from '../clubhouse/assets/tree-planter';
+import { build as upLounger } from '../clubhouse/assets/up-lounger';
+import { build as upUmbrella } from '../clubhouse/assets/up-umbrella';
+import { build as wallFountain } from '../clubhouse/assets/wall-fountain';
 import { build as ballCart } from '../clubsite/assets/ball-cart';
+import { build as courtLight } from '../clubsite/assets/court-light';
 import { build as courtNet } from '../clubsite/assets/court-net';
-import { buildPickle as sideUmbrella } from '../clubsite/assets/umbrella';
+import { build as kitBag } from '../clubsite/assets/kit-bag';
+import { buildClay as courtUmbrella, buildPickle as sideUmbrella } from '../clubsite/assets/umbrella';
 import * as people from '../clubsite/people';
 import { REUSED as SITE_REUSED } from '../clubsite/reuse';
 import { build as playerBench } from '../clubstadium/assets/player-bench';
+import { build as stadiumFlag } from '../clubstadium/assets/stadium-flag';
+import { build as scoreboard } from '../clubstadium/assets/stadium-scoreboard';
 import { build as umpireChair } from '../clubstadium/assets/umpire-chair-cc';
 import type { AssetBuild } from './ctx';
 
@@ -40,4 +56,26 @@ export const REUSED: Record<string, AssetBuild> = {
   // 咖啡台地：野餐桌（变体 2 = 收起的薄荷伞那套的桌）、咖啡车当咖啡亭
   'cafe-table': as(picnicTable),
   kiosk: as(truckCoffee),
+  // 中心球场（第二轮）：裁判 / 司线员 / 球童（clubsite/people）、记分牌和旗（clubstadium）、场边的伞和球拍包
+  umpire: as(people.umpire),
+  kid: as(people.kid),
+  'ball-kid': as(people.ballKid),
+  scoreboard: as(scoreboard),
+  flag: as(stadiumFlag),
+  'court-umbrella': as(courtUmbrella),
+  'kit-bag': as(kitBag),
+  'court-light': as(courtLight),
+  // 歇脚景（第二轮）：会所后门、拱窗、三角梅、壁泉、树池、露台的桌伞躺椅（clubhouse）；灯串、托盘、长桌、凉棚架（clubfood）
+  'back-door': as(mainDoor),
+  'arch-window': as(archWindow),
+  bougainvillea: as(bougainvillea),
+  'wall-fountain': as(wallFountain),
+  'tree-planter': as(treePlanter),
+  'patio-table': as(houseCafeTable),
+  'patio-umbrella': as(upUmbrella),
+  'deck-lounger': as(upLounger),
+  festoon: as(festoon),
+  'food-tray': as(foodTray),
+  'long-table': as(longTable),
+  pergola: as(pergola),
 };

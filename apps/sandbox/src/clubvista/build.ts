@@ -210,7 +210,16 @@ export function buildMap(def: MapDef, ox: number, kit: Kit, params: URLSearchPar
       .map((q) => q.sp);
     const floor = p.inner ?? p.sp;
     const top = p.el === 'water' ? waterGeo(floor, p.h) : topGeo(floor, p.h, holes);
-    addMesh(top, ctx.mat(p.top, elOf(p.el)), `top:${p.id}`, { cast: p.cast ?? p.h > base + 0.4 });
+    // 草坪、石板没给元素时用默认的（草叶 / 大块石板）：第二轮，平涂的大面让平静纹素超过 85%
+    const el =
+      !p.el || p.el === 'none'
+        ? p.top === 'turf'
+          ? 'turf'
+          : p.top === 'flagstone' || p.top === 'paving'
+            ? 'flag'
+            : 'none'
+        : p.el;
+    addMesh(top, ctx.mat(p.top, elOf(el)), `top:${p.id}`, { cast: p.cast ?? p.h > base + 0.4 });
     // 水面贴着岸一圈 1 纹素的白水线（参考图的池岸都有）
     if (p.el === 'water')
       addMesh(topGeo(p.sp, p.h + 0.006, [ringInside(p.sp, ctx.texel * 1.1)]), ctx.mat('foam'), `foam:${p.id}`);
@@ -258,7 +267,10 @@ export function buildMap(def: MapDef, ox: number, kit: Kit, params: URLSearchPar
   });
 
   // ── 球场 ──
-  for (const c of def.courts) paintCourt(c, (g, key) => addMesh(g, ctx.mat(key), `court:${c.id}:${key}`));
+  for (const c of def.courts)
+    paintCourt(c, (g, key) =>
+      addMesh(g, ctx.mat(key, key === 'line' ? {} : { elem: EL.courtPaint }), `court:${c.id}:${key}`),
+    );
 
   // ── 带子（步道、马路线）──
   for (const s of def.strips)
@@ -309,7 +321,19 @@ export function buildMap(def: MapDef, ox: number, kit: Kit, params: URLSearchPar
     obj.scale.setScalar(pr.s ?? 1);
     obj.name = `prop:${pr.a}`;
     if (pr.prop !== undefined) obj.userData.setProp?.(pr.prop);
-    if (pr.pose) obj.userData.pose?.(pr.pose, 0.3);
+    if (pr.seat) obj.userData.setSeat?.(pr.seat[0], pr.seat[1]);
+    if (pr.pose) obj.userData.pose?.(pr.pose, ...(pr.pose === 'sit' || pr.pose === 'sip' ? [] : [0.3]));
+    if (pr.look) obj.userData.lookAt?.(new THREE.Vector3(pr.look[0] + ox, pr.look[1], pr.look[2]));
+    if (pr.carry) {
+      const held = kit.makeAsset(pr.carry, 0).obj;
+      obj.userData.hold?.(held, held.userData.grip ?? { at: [0, 0, 0], axis: [0, 0, 1], up: [0, 1, 0] }, pr.carry);
+    }
+    if (pr.noCast) {
+      // 记分牌的点阵数字是 update 里翻出来的新网格：每帧再关一遍（物件小，便宜）
+      const off = () => obj.traverse((c) => (c.castShadow = false));
+      off();
+      updaters.push(off);
+    }
     root.add(obj);
     obj.updateMatrixWorld(true);
     obj.traverse((c) => {
