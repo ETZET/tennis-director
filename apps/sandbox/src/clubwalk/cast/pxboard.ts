@@ -3,7 +3,7 @@
 // 后面是这儿的人的像素头像，多的收成 "+N"（点了这一簇展开）。离总监近的簇在前、簇里近的在前。
 // 没有页签、搜索、字；点一个头像 = 开他的人物卡（卡上能走过去、能互动）。左上探出来一张工牌（同 HUD 的名册图标）。
 import type { CastPerson, SceneId } from '../../clubsite/cast/types';
-import { costChip, createSheet, type GlyphId, glyph, px, t, tap } from '../../clubsite/hud';
+import { actIcon, costChip, createSheet, type GlyphId, glyph, px, t, tap } from '../../clubsite/hud';
 import { ICONS } from '../../clubsite/hud/icons';
 import { spriteCanvas } from '../../clubsite/hud/sprite';
 import type { CastCtx } from './ctx';
@@ -22,6 +22,9 @@ const CSS = `
 .pxb-tile { position: relative; min-width: 48px; min-height: 50px; }
 .pxb-tile .face { box-shadow: 2px 0 0 0 #2c2848, -2px 0 0 0 #2c2848, 0 2px 0 0 #2c2848, 0 -2px 0 0 #2c2848, 0 4px 0 0 #171230; }
 .pxb-more { min-width: 48px; min-height: 50px; }
+/* 还能往下滑：底边正中一个小纸条箭头（滑到底就收起） */
+.pxb-down { position: absolute; left: 50%; bottom: calc(var(--s) * -3px); transform: translateX(-50%); pointer-events: none; transition: opacity 0.2s steps(2, end); }
+.pxb-down.gone { opacity: 0; }
 @media (orientation: landscape) { .pxb-list { max-height: min(62vh, 420px); } }
 `;
 
@@ -137,7 +140,13 @@ export function createPxBoard(ctx: CastCtx): Roster {
       }
       list.appendChild(row);
     }
-    sheet.body.replaceChildren(head, list);
+    const down = document.createElement('div');
+    down.className = 'pxb-down pxs-tab gone';
+    down.appendChild(px(actIcon('down')));
+    const upd = () => down.classList.toggle('gone', list.scrollTop + list.clientHeight >= list.scrollHeight - 4);
+    list.addEventListener('scroll', upd, { passive: true });
+    sheet.body.replaceChildren(head, list, down);
+    requestAnimationFrame(upd);
   }
 
   ctx.onChange(() => {

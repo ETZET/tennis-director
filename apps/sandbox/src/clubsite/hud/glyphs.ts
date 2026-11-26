@@ -213,7 +213,7 @@ export const GLYPH = {
     '...Tt.Gg.',
     '...tt....',
   ),
-  fountain: S('....A....', '...AWA...', '..A.A.A..', '.A..A..A.', '...SSS...', 'SAAAAAAAS', 'SSSSSSSSd', '.ddddddd.'),
+  fountain: S('..A.A.A..', '.A.AWA.A.', 'A..AWA..A', 'A...A...A', 'SSSSSSSSS', 'SAAAAAAAd', 'SaaaaaaAd', '.ddddddd.'),
   trophy: S('XXXXXXXXX', 'XWXXXXXXx', '.XXXXXXx.', '..XXXXx..', '...XXx...', '....X....', '...XXx...', '..xxxxx..'),
   clay: {
     ...S(
@@ -229,6 +229,8 @@ export const GLYPH = {
     ),
     keys: { G: KEYS.R, g: KEYS.r, h: KEYS.m },
   },
+  /** 消费力：一只购物袋（不用金币，免得和"花钱"撞） */
+  bag: S('..T...T..', '..T...T..', '.TRRRRRT.', '.RRWRRRRr', '.RWRRRRRr', '.RRRRRRRr', '.RRRRRRrr', '.rrrrrrr.'),
   /** 好感：一颗心（满 / 半 / 空） */
   heart: S('.RR.RR.', 'RWRRRRr', 'RRRRRRr', '.RRRRr.', '..RRr..', '...r...'),
   heartHalf: S('.RR.vv.', 'RWRRvvv', 'RRRRvvv', '.RRRvv.', '..Rvv..', '...v...'),

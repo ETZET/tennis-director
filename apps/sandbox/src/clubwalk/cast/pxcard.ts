@@ -45,20 +45,20 @@ const ACT_GLYPH: Record<Activity, GlyphId> = {
 /** 牵连的种类 → 小图 */
 const TIE_GLYPH: Record<TieKind, GlyphId> = {
   family: 'house',
-  partner: 'racket',
+  partner: 'smile',
   friend: 'smile',
-  mentor: 'star',
+  mentor: 'smile',
   rival: 'bolt',
   crush: 'heart',
-  colleague: 'badge',
-  history: 'note',
+  colleague: 'smile',
+  history: 'smile',
 };
 const ATTR_ROWS: { k: 'ntrp' | 'fitness' | 'social' | 'patience' | 'spend' | 'loyalty'; g: GlyphId }[] = [
   { k: 'ntrp', g: 'racket' },
   { k: 'fitness', g: 'bolt' },
   { k: 'social', g: 'bubble' },
   { k: 'patience', g: 'wait' },
-  { k: 'spend', g: 'coin' },
+  { k: 'spend', g: 'bag' },
   { k: 'loyalty', g: 'flag' },
 ];
 /** 营业时段（同演员表的时钟 7:00–22:00） */
@@ -77,9 +77,10 @@ const CSS = `
 .pxc-acts { display: flex; justify-content: space-between; gap: 2px; margin-top: calc(var(--s) * 2px); }
 .pxc-acts .pxs-btn { flex: 1 1 0; min-height: 60px; position: relative; }
 .pxc-acts.far { gap: calc(var(--s) * 4px); }
-.pxc-acts .pxc-big { min-height: 56px; background: rgba(240, 216, 168, 0.9); }
+.pxc-acts.one { justify-content: center; }
+.pxc-acts.one .pxs-big { flex: 0 0 160px; }
 .pxc-unmet { display: flex; align-items: center; justify-content: center; gap: calc(var(--s) * 4px); padding: calc(var(--s) * 2px) 0; }
-.pxc-fold { position: absolute; left: 50%; top: calc(var(--s) * -11px); transform: translateX(-50%); width: 56px; height: 44px; justify-content: flex-start !important; }
+.pxc-fold { position: absolute; left: 50%; top: calc(var(--s) * -22px); transform: translateX(-50%); width: 56px; height: 44px; justify-content: flex-start !important; }
 .pxc-more { display: flex; flex-direction: column; gap: calc(var(--s) * 4px); padding: calc(var(--s) * 2px) 0; }
 .pxc-attrs { display: flex; flex-direction: column; gap: calc(var(--s) * 2px); }
 .pxc-attr { display: flex; align-items: center; gap: calc(var(--s) * 2px); }
@@ -122,7 +123,7 @@ function portrait(id: string, p: CastPerson): HTMLCanvasElement {
 /** 名字：中文界面用中文叫法（两三个字），英文界面用名 */
 export const shortName = (p: CastPerson) => (lang() === 'zh' && p.nameZh ? p.nameZh : p.name.split(' ')[0]);
 
-export function createPxCard(ctx: CastCtx, onOpen?: () => void): Card {
+export function createPxCard(ctx: CastCtx, onShow?: (id: string | null) => void): Card {
   if (!document.getElementById('pxc-css')) {
     const st = document.createElement('style');
     st.id = 'pxc-css';
@@ -132,6 +133,7 @@ export function createPxCard(ctx: CastCtx, onOpen?: () => void): Card {
   const sheet = createSheet('card', () => {
     id = '';
     more = false;
+    onShow?.(null);
   });
   const el = sheet.el;
   let id = '';
@@ -164,7 +166,7 @@ export function createPxCard(ctx: CastCtx, onOpen?: () => void): Card {
     const mood = div('pxc-mood');
     mood.append(
       px(glyph(m.mood >= 66 ? 'smile' : m.mood >= 33 ? 'meh' : 'sad')),
-      px(bar(m.mood / 100, 14, m.mood >= 66 ? 0x8cc860 : m.mood >= 33 ? 0xe8b860 : 0xc0545a)),
+      px(bar(m.mood / 100, 20, m.mood >= 66 ? 0x6aa848 : m.mood >= 33 ? 0xc8902c : 0xc0545a)),
     );
     row.append(nm, hc, mood);
     const lineText = said?.id === id ? said.text : n.thought;
@@ -229,7 +231,8 @@ export function createPxCard(ctx: CastCtx, onOpen?: () => void): Card {
     }
     // 一周 7 个小太阳（来的那几天亮）+ 性子（≤ 3 个词）
     const l2 = div('pxc-line2');
-    if (p.week || p.tier !== 'crowd') l2.appendChild(px(weekSuns(p.week ? p.week.days : null, wd)));
+    // 每天都在的（员工）不画：7 个一样的太阳什么也没说
+    if (p.week && p.week.days.length < 7) l2.appendChild(px(weekSuns(p.week.days, wd)));
     for (const tid of p.traits.slice(0, 3)) {
       const tr = TRAITS[tid];
       if (tr) l2.appendChild(div('pxs-chip', tr.name));
@@ -278,8 +281,8 @@ export function createPxCard(ctx: CastCtx, onOpen?: () => void): Card {
     // 不当面：只有两个大按钮 —— 走过去（脚印）、发条消息（信封，见过面才有）；当面的动作走到跟前再出现
     if (!near) {
       box.classList.add('far');
-      const w = btn('pxc-big', t('walk'));
-      w.appendChild(px(actIcon('walk')));
+      const w = btn('pxs-big', t('walk'));
+      w.appendChild(px(actIcon('walk'), 2));
       if (!n.here) w.classList.add('off');
       tap(w, () => {
         if (!n.here) return;
@@ -288,7 +291,8 @@ export function createPxCard(ctx: CastCtx, onOpen?: () => void): Card {
       });
       box.appendChild(w);
       const msg = defs.find((a) => a.id === 'message');
-      if (msg) box.appendChild(actBtn(p, msg, m, s, 'pxc-big'));
+      if (msg) box.appendChild(actBtn(p, msg, m, s, 'pxs-big', 2));
+      else box.classList.add('one');
       return box;
     }
     for (const a of defs) box.appendChild(actBtn(p, a, m, s));
@@ -301,11 +305,12 @@ export function createPxCard(ctx: CastCtx, onOpen?: () => void): Card {
     m: ReturnType<CastCtx['mem']>,
     s: ReturnType<CastCtx['state']>,
     cls = '',
+    k = 1,
   ): HTMLButtonElement {
     const icon = a.id === 'treat' && p.look.body !== 'adult' ? 'pop' : a.id;
     const label = t(`act_${a.id}` as TKey);
     const b = btn(cls, label);
-    b.appendChild(px(actIcon(icon)));
+    b.appendChild(px(actIcon(icon), k));
     // 代价只写一种：花钱的写钱（HUD 那枚金币），不花钱的写时间（小钟）
     b.appendChild(px(a.money ? costChip('coin', a.money) : costChip('clock', a.minutes)));
     const cant =
@@ -350,6 +355,7 @@ export function createPxCard(ctx: CastCtx, onOpen?: () => void): Card {
     }
     id = nid;
     sheet.open();
+    onShow?.(nid);
     render();
   }
 
@@ -374,7 +380,6 @@ export function createPxCard(ctx: CastCtx, onOpen?: () => void): Card {
 
   return {
     open(nid, l) {
-      onOpen?.();
       if (l?.includes(nid)) list = l;
       else if (!list.includes(nid)) list = [nid];
       show(nid);

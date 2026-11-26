@@ -20,7 +20,7 @@ import { Commute } from './commute';
 import type { CastCtx, NowInfo } from './ctx';
 import { accentMid } from './portrait';
 import { createPxBoard } from './pxboard';
-import { createPxCard } from './pxcard';
+import { createPxCard, shortName } from './pxcard';
 import { createRoster } from './roster';
 import { loadState, saveState } from './save';
 import { injectCastCss } from './style';
@@ -48,6 +48,8 @@ export interface MountCastOpts {
    */
   quiet?: boolean;
   peek?: (p: Peek | null) => void;
+  /** 人物卡开着：标出画面里的这个人（null = 收起） */
+  focus?: (anchor: THREE.Object3D | null, dy: number) => void;
 }
 
 export interface CastMount {
@@ -169,7 +171,14 @@ export function mountCast(o: MountCastOpts): CastMount {
 
   // 像素界面：半屏的像素人物卡、"今天的人"看板（pxcard / pxboard）；旧界面还是全屏的文字卡、名册表
   const roster = o.quiet ? createPxBoard(ctx) : createRoster(ctx, ui);
-  const card = o.quiet ? createPxCard(ctx, () => o.peek?.(null)) : createCard(ctx, ui);
+  const card = o.quiet
+    ? createPxCard(ctx, (id) => {
+        // 开着卡：上方那行字收起（卡上有这句话），这个人头顶一个箭头
+        if (id) o.peek?.(null);
+        const b = id ? binder.objOf(id) : undefined;
+        o.focus?.(b ? b.obj : null, b ? headHeight(b.kind) + 0.35 : 0);
+      })
+    : createCard(ctx, ui);
   const panelOpen = () => roster.isOpen() || card.isOpen();
 
   openBtn.addEventListener('click', () => roster.open());
@@ -378,7 +387,7 @@ export function mountCast(o: MountCastOpts): CastMount {
   }
   function whoOfPerson(p: CastPerson): Who {
     const lk = p.look;
-    return { name: p.name.split(' ')[0], hair: HAIR[lk.hair][1], skin: SKIN[lk.skin][0], shirt: CLOTH[lk.shirt][0] };
+    return { name: shortName(p), hair: HAIR[lk.hair][1], skin: SKIN[lk.skin][0], shirt: CLOTH[lk.shirt][0] };
   }
   /** 点人：画面上方一行字（名字 + 他自己的一句话）；那行字还在的时候再点他一次（或点那行字）= 开卡片 */
   function peekAt(id: string, b: Bound) {
@@ -390,7 +399,7 @@ export function mountCast(o: MountCastOpts): CastMount {
       who: whoOfPerson(p),
       anchor: b.obj,
       dy: headHeight(b.kind) + 0.3,
-      title: p.name.split(' ')[0],
+      title: shortName(p),
       line: now.thought || '……',
       sec: 6,
       onTap: () => card.open(id, nearList()),

@@ -19,14 +19,14 @@ export const PAPER_DARK = KEYS.w;
 const paperDark = hex(PAPER_DARK);
 
 /** 1 纹素墨边 + 下面 1 纹素深影（同 hud 的奶油牌子），按纹素 --s 走 */
-const FRAME = (s: string) =>
-  `box-shadow: ${s} 0 0 0 ${ink}, -${s} 0 0 0 ${ink}, 0 ${s} 0 0 ${ink}, 0 -${s} 0 0 ${ink}, 0 calc(${s} * 2) 0 0 ${shadow}, ${s} ${s} 0 0 ${shadow}, -${s} ${s} 0 0 ${shadow};`;
+const FRAME = (s: number) =>
+  `box-shadow: ${s}px 0 0 0 ${ink}, -${s}px 0 0 0 ${ink}, 0 ${s}px 0 0 ${ink}, 0 -${s}px 0 0 ${ink}, 0 ${s * 2}px 0 0 ${shadow}, ${s}px ${s}px 0 0 ${shadow}, -${s}px ${s}px 0 0 ${shadow};`;
 
 export const SHEET_CSS = `
 .pxs-shade { --s: 2; position: fixed; inset: 0; z-index: 20; pointer-events: auto; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
 .pxs-shade[hidden] { display: none !important; }
 .pxs-sheet { position: absolute; left: 50%; bottom: max(calc(var(--s) * 3px), env(safe-area-inset-bottom)); width: calc(100vw - var(--s) * 6px); max-width: 420px;
-  transform: translateX(-50%); background: ${cream}; ${FRAME('calc(var(--s) * 1px)')} color: ${ink};
+  transform: translateX(-50%); background: ${cream}; ${FRAME(hudScale())} color: ${ink};
   padding: calc(var(--s) * 5px) calc(var(--s) * 5px) calc(var(--s) * 5px); box-sizing: border-box; animation: pxs-rise 0.24s steps(4, end); }
 @keyframes pxs-rise { from { transform: translate(-50%, 60%); } to { transform: translate(-50%, 0); } }
 /* 横屏：贴右下角一张窄卡（不压画面中间；总监在正中） */
@@ -48,7 +48,10 @@ export const SHEET_CSS = `
 /* 卡顶探出来的小纸条（右上的关、正中的展开）：和卡片同一张纸，三边描边 */
 .pxs-tab { background: ${cream}; padding: calc(var(--s) * 2px) calc(var(--s) * 3px); box-shadow: calc(var(--s) * 1px) 0 0 0 ${ink}, calc(var(--s) * -1px) 0 0 0 ${ink}, 0 calc(var(--s) * -1px) 0 0 ${ink}; }
 .pxs-x { position: absolute; right: calc(var(--s) * 3px); top: calc(var(--s) * -14px); width: 52px; height: 52px; justify-content: flex-start !important; }
-.pxs-tab { padding: calc(var(--s) * 3px) calc(var(--s) * 5px) calc(var(--s) * 3px) !important; }
+.pxs-tab { box-sizing: border-box; height: calc(var(--s) * 22px); display: flex; align-items: center; justify-content: center; padding: 0 calc(var(--s) * 6px) !important; }
+.pxs-x { top: calc(var(--s) * -22px); }
+/* 大按钮（不当面时的走过去、发消息）：同一张纸凸起来一块，墨边 + 底下一纹素深影 */
+.pxs-big { background: ${cream}; ${FRAME(hudScale())} min-height: 60px; margin: 0 2px 4px; }
 /* 名字和一句话：卡片上仅有的两种字（平滑系统字，墨色） */
 .pxs-name { font: 700 17px/1.15 "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", system-ui, sans-serif; letter-spacing: 0.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pxs-line { font: 500 14px/1.35 "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", system-ui, sans-serif; color: ${ink}; opacity: 0.86; }
@@ -254,10 +257,10 @@ export function dayBand(o: {
   if (o.now !== null && o.now >= o.from && o.now <= o.to) {
     const xn = X(o.now);
     g.fillStyle = hex(INK);
-    g.fillRect(xn - 1, bandY - 1, 3, 9);
-    // "现在"：一根草帽色的针（这张卡上唯一的暖色）
+    g.fillRect(xn - 2, bandY - 2, 5, 11);
+    // "现在"：一根 3 纹素宽、墨边的草帽色针（这张卡上唯一的暖色）
     g.fillStyle = hex(KEYS.X);
-    g.fillRect(xn, bandY, 1, 7);
+    g.fillRect(xn - 1, bandY - 1, 3, 9);
     if (mark) g.drawImage(mark, Math.max(0, Math.min(W - mark.width, xn - Math.floor(mark.width / 2))), 0);
   }
   return c;
@@ -293,10 +296,16 @@ export function weekSuns(days: readonly number[] | null, today: number): HTMLCan
   og.fillRect(0, 0, on.width, on.height);
   for (let d = 0; d < 7; d++) {
     const x = d * (sw + 1);
-    g.drawImage(!days || days.includes(d) ? on : off, x, 0);
     if (d === today) {
-      g.fillStyle = hex(INK);
-      g.fillRect(x + 1, on.height + 1, sw - 2, 1);
+      // 今天：草帽色的底座
+      g.fillStyle = hex(KEYS.X);
+      g.fillRect(x, on.height, sw, 2);
+    }
+    if (!days || days.includes(d)) g.drawImage(on, x, 0);
+    else {
+      // 不来的日子：一个暗纸色的空圈
+      g.drawImage(off, x, 0);
+      g.clearRect(x + 3, 3, sw - 6, on.height - 7);
     }
   }
   return c;
