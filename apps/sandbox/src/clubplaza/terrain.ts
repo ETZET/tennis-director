@@ -61,7 +61,8 @@ class Bucket {
   }
   build(ctx: AssetCtx, root: THREE.Object3D) {
     for (const [id, e] of this.m) {
-      const mesh = new THREE.Mesh(mergeGeometries(e.geos), ctx.mat(e.key, e.extra));
+      // fur 0.3（留白，redo-calm.md）：平涂的场地、外场、铺面上的投影边干净，不是一圈毛边
+      const mesh = new THREE.Mesh(mergeGeometries(e.geos), ctx.mat(e.key, { fur: 0.3, ...e.extra }));
       mesh.name = `plaza:${id}`;
       mesh.castShadow = e.cast;
       mesh.receiveShadow = true;
@@ -173,7 +174,8 @@ export function buildTerrain(ctx: AssetCtx, opts: { water: boolean }): Terrain {
     [GROUNDS.x0, GROUNDS.z1],
   ];
   add(groundGeo([grounds], H.ground), ctx.mat('sand', { elem: EL.sand }), 'top:ground', { cast: false });
-  add(topGeo(grounds, H.ground + 0.004), ctx.mat('sandHigh', { elem: { ...EL.sand, seed: 7 } }), 'top:grounds', {
+  // 留白（redo-calm.md）：墙里墙外一种沙（原来墙里是 sandHigh，一屏两种沙、直线接缝）
+  add(topGeo(grounds, H.ground + 0.004), ctx.mat('sand', { elem: { ...EL.sand, seed: 7 } }), 'top:grounds', {
     cast: false,
   });
 
@@ -228,6 +230,7 @@ export function buildTerrain(ctx: AssetCtx, opts: { water: boolean }): Terrain {
   });
 
   // ── 到达小院（陶砖）、长廊和步道（碎花岗岩，到小院西沿为止；同 clubdesk）──
+  // 留白（redo-calm.md）：门里门外并成一种铺地 —— 到达小院、落客区、墙边步道都是安静的大块陶砖（EL.tile）
   add(quad(FORECOURT, H.ground + 0.014), ctx.mat('tile', { elem: EL.tile }), 'tile:forecourt', { cast: false });
   const granite = ctx.mat('granite', { elem: EL.granite });
   let i = 0;
@@ -251,7 +254,7 @@ export function buildTerrain(ctx: AssetCtx, opts: { water: boolean }): Terrain {
     const apron = circle(FOUNTAIN.x, FOUNTAIN.z, FOUNTAIN.r);
     const border = circle(FOUNTAIN.x, FOUNTAIN.z, FOUNTAIN.r - 0.36);
     add(topGeo(apron, y + 0.012, [border]), ctx.mat('cap'), 'top:apron-border', { cast: false });
-    add(topGeo(border, y + 0.014), ctx.mat('tile', { elem: { ...EL.tile, seed: 11 } }), 'top:apron', {
+    add(topGeo(border, y + 0.014), ctx.mat('tile', { elem: { ...EL.tileShow, seed: 11 } }), 'top:apron', {
       cast: false,
     });
     // 西边步道（地图 PATHS 的 x 34…37 在广场上的一段，碎花岗岩；下去就是 clubdesk 的西台阶），绕开陶砖圈

@@ -355,24 +355,19 @@ export const SLOTS: Slot[] = [
     prop: 'racket',
   },
   { id: 'tool-rack', asset: 'tool-rack', x: 58.3, z: 13.4 },
-  // ── 大门（内侧）：和 clubpark 共用的门柱、横梁；门里一个陶罐 ─────────
+  // ── 大门（内侧）：和 clubpark 共用的门柱、横梁。留白（redo-calm.md）：门里的陶罐、门外两棵龙舌兰拿掉（门口只留岗亭那一簇） ──
   { id: 'east-gate', asset: 'east-gate', x: GATE.x, z: 0 },
-  { id: 'pot-gate', asset: 'pot', x: 58.4, z: -7.3 },
-  { id: 'agave-pot', asset: 'agave', x: 58.4, z: -7.3, y: 0.85, s: 0.55 },
-  { id: 'agave-out-n', asset: 'agave', x: 62, z: -8 },
-  { id: 'agave-out-s', asset: 'agave', x: 62, z: 8.5 },
   // 门外车道两边的蒲葵（地图 scatter 的位置；只有横屏看得到）
   { id: 'palm-drive-n', asset: 'fan-palm', x: 66, z: -5.4, s: 0.95, variant: 2 },
   { id: 'palm-drive-s', asset: 'fan-palm', x: 69, z: 5.4, s: 0.95, variant: 0 },
   // ── 框：上面两棵蒲葵（广场挡土墙前的绿带）、左下假紫荆、右下蒲葵 ──────
-  { id: 'palm-nw', asset: 'fan-palm', x: 47.2, z: -10.4, variant: 0 },
-  { id: 'palm-gate', asset: 'fan-palm', x: 58, z: -10.5, variant: 2 },
+  // 留白（redo-calm.md）：绿带上原来八样东西等距排开 → 东头一簇（大蒲葵 + 小蒲葵 + 龙舌兰 + 脆灌木 + 长椅）、西头一簇（烟树 + 石炭酸），中间空着
+  { id: 'palm-nw', asset: 'fan-palm', x: 55.4, z: -10.6, s: 0.82, variant: 0 },
+  { id: 'palm-gate', asset: 'fan-palm', x: 58, z: -10.5, s: 1.15, variant: 2 },
   { id: 'paloverde-lawn', asset: 'palo-verde', x: 45.4, z: 24.4, y: H.lawn, s: 1.3, variant: 0 },
   { id: 'palm-se', asset: 'fan-palm', x: 58.6, z: 25.2, variant: 1 },
   // 绿带里的灌木（少）
-  { id: 'agave-strip', asset: 'agave', x: 55.0, z: -10.1, s: 0.9 },
   { id: 'brittle-strip', asset: 'brittlebush', x: 52.2, z: -10.7, variant: 1 },
-  { id: 'creosote-strip', asset: 'creosote', x: 43.0, z: -10.3, variant: 1 },
   { id: 'bench-prom', asset: 'bench', x: 53.4, z: -9.4 },
   // ── 匹克球：东半场两个人（横屏再多两个） ──────────────────────
   { id: 'pickle-a', asset: 'player', x: 48.8, z: 1.2, rotY: W, variant: 1, pose: ['idle', 0.1], prop: 'racket' },
@@ -380,7 +375,8 @@ export const SLOTS: Slot[] = [
   { id: 'pickle-c', asset: 'player', x: 39.4, z: 2.0, rotY: E, variant: 2, pose: ['idle', 0.3], prop: 'racket' },
   { id: 'pickle-d', asset: 'player', x: 40.2, z: 9.6, rotY: E, variant: 1, pose: ['idle', 0.8], prop: 'racket' },
   // ── 草坪：遮阳帆 + 一个在拉伸的人 + 长椅 ─────────────────────
-  { id: 'sail-lawn', asset: 'shade-sail', x: 39.8, z: 21.0, y: H.lawn, s: 1.2 },
+  // variant 10 = 素色（留白，redo-calm.md：红白条纹的帆是一屏里最吵的东西之一）
+  { id: 'sail-lawn', asset: 'shade-sail', x: 39.8, z: 21.0, y: H.lawn, s: 1.2, variant: 10 },
   {
     id: 'lawn-player',
     asset: 'player',
@@ -396,7 +392,7 @@ export const SLOTS: Slot[] = [
   // ── 横屏才看得到的两侧 ────────────────────────────────────
   { id: 'smoke-w', asset: 'smoke-tree', x: 32.0, z: -10.4, variant: 0 },
   { id: 'paloverde-w', asset: 'palo-verde', x: 27.6, z: -14.6, variant: 1 },
-  { id: 'creosote-w', asset: 'creosote', x: 38.6, z: -10.6, variant: 0 },
+  { id: 'creosote-w', asset: 'creosote', x: 33.9, z: -10.5, variant: 0 },
   { id: 'court-player', asset: 'player', x: 30.4, z: 3.4, rotY: W, variant: 0, pose: ['idle', 0.6], prop: 'racket' },
 ];
 

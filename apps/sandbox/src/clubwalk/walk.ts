@@ -18,7 +18,7 @@ import type { HouseRegion } from '../clubhouse/scene';
 import { buildMap } from '../clubmap2/build';
 import { PAL as MAP_PAL, type Pal as MapPal } from '../clubmap2/palette';
 import { placements } from '../clubmap2/scatter';
-import { CLOUDS as PARK_CLOUDS, SPOTS as PARK_SPOTS } from '../clubpark/layout';
+import { SPOTS as PARK_SPOTS } from '../clubpark/layout';
 import { createParkKit } from '../clubpark/scene';
 import { CLOUDS as PLAZA_CLOUDS } from '../clubplaza/layout';
 import { mountDaylight } from '../clubsite/daylight';
@@ -138,16 +138,8 @@ export function mountWalk(hooks: WalkHooks = {}) {
   const mapEl = document.getElementById('minimap') as HTMLCanvasElement;
 
   // ── 共用的 uniform：云影挑各场景手摆的几团（同一条带里的不要两团） ──
-  const CLOUDS = [
-    PARK_CLOUDS[0],
-    PARK_CLOUDS[2],
-    DESK_CLOUDS[0],
-    DESK_CLOUDS[4],
-    DESK_CLOUDS[6],
-    CLAY_CLOUDS[0],
-    PLAZA_CLOUDS[0],
-    PLAZA_CLOUDS[3],
-  ];
+  // 留白（redo-calm.md）：停车场通道里那两团（和车棚脱开、像飘着的暗块）不要了
+  const CLOUDS = [DESK_CLOUDS[0], DESK_CLOUDS[4], DESK_CLOUDS[6], CLAY_CLOUDS[0], PLAZA_CLOUDS[0], PLAZA_CLOUDS[3]];
   const uniforms: SharedUniforms = {
     uTime: { value: 0 },
     uWind: { value: new THREE.Vector2(0.8, 0.35).normalize().multiplyScalar(num('wind', 0.4)) },

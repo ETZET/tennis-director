@@ -112,7 +112,8 @@ const [c2North] = posts(COURT2);
 export const SPOTS = {
   netCrank1: [c1South[0] - 0.45, c1South[1] + 0.5] as V2,
   netCrank2: [c2North[0] - 0.45, c2North[1] - 0.5] as V2,
-  basket: [42.5, 5.45] as V2,
+  // 留白（redo-calm.md）：捡球篮从中线挪到东头那簇旁边（原 42.5）
+  basket: [45.4, 5.45] as V2,
   gearBox: [51.55, 6.4] as V2,
   water: [49.85, 6.3] as V2,
   rackDrop: [37.45, 6.2] as V2,
@@ -373,22 +374,18 @@ const SEAT_Z = -0.05;
  */
 const WINCH1: [number, number, number] = [COURT1.x, 0.5, COURT1.z + PK.W / 2 + PK.postOut + 0.135 + 0.126];
 
-/** 1 号场散落的球（停用的场上没人捡；总监的第二个活）：手摆，团一点、往网和东北角多一点 */
+/**
+ * 1 号场散落的球（停用的场上没人捡；总监的第二个活）：手摆。留白（redo-calm.md）：14 个撒满半场 → 7 个团在网边一小堆
+ * （一眼看出"球没人捡"，场面其余是干净的）
+ */
 const SCATTER: V2[] = [
-  [39.2, -0.4],
-  [40.6, 0.9],
-  [41.4, 0.2],
   [42.9, 2.6],
   [43.3, 1.1],
+  [44.6, -1.0],
   [45.1, 3.2],
   [45.5, 0.4],
   [46.4, 2.1],
-  [47.9, -0.9],
-  [48.6, 1.3],
-  [49.4, 3.9],
-  [50.2, -0.2],
-  [38.6, 3.4],
-  [44.6, -1.0],
+  [43.8, 3.6],
 ];
 
 /** 2 号场：双打，四个人都压在厨房线上（离网 2.13 米）轻吊（dink）—— 匹克球最有辨识度的一幕 */
@@ -470,32 +467,7 @@ export const SLOTS: Slot[] = [
     prop: null,
     label: '等场（拍子插在架上）',
   },
-  { id: 'umbrella-a', asset: 'shade-umbrella', x: 40.3, z: 5.25 },
-  { id: 'bench-a', asset: 'bench', x: 40.3, z: 6.3, noLabel: true },
-  // 伞下长椅上的观众：坐着（setSeat 0.52），一个鼓掌、一个坐着看，头都转向 2 号场网上的球
-  {
-    id: 'fan-a1',
-    asset: 'player',
-    x: 40.3 - SEAT_X,
-    z: 6.3 + SEAT_Z,
-    variant: 0,
-    pose: ['clap', 0.1],
-    prop: null,
-    seat: [0.52],
-    look: RALLY.ball,
-    label: '观众',
-  },
-  {
-    id: 'fan-a2',
-    asset: 'player',
-    x: 40.3 + SEAT_X,
-    z: 6.3 + SEAT_Z,
-    variant: 3,
-    pose: ['sit', 0.55],
-    prop: null,
-    seat: [0.52],
-    look: RALLY.ball,
-  },
+  // 留白（redo-calm.md）：西边那把伞、长椅和两个观众拿掉 —— 两场之间的绿带只留两簇：西头拍架 + 等场的人，东头伞 + 长椅 + 水站 + 器材箱
   { id: 'basket', asset: 'ball-hopper', x: SPOTS.basket[0], z: SPOTS.basket[1], variant: 1, label: '捡球篮' },
   {
     id: 'director',
@@ -509,7 +481,8 @@ export const SLOTS: Slot[] = [
     crankNet: 'net-1',
     label: '总监（摇绞盘绷网）',
   },
-  { id: 'scoreboard', asset: 'flip-scoreboard', x: 45.8, z: 6.4 },
+  // 留白：记分牌从中线挪到东头那簇（伞、长椅、水站、器材箱）旁边，中线只剩捡球篮
+  { id: 'scoreboard', asset: 'flip-scoreboard', x: 46.75, z: 6.4 },
   { id: 'umbrella-b', asset: 'shade-umbrella', x: 48.2, z: 5.25, variant: 1, noLabel: true },
   { id: 'bench-b', asset: 'bench', x: 48.2, z: 6.3, noLabel: true },
   {
@@ -527,7 +500,7 @@ export const SLOTS: Slot[] = [
   { id: 'gear-box', asset: 'gear-box', x: 51.55, z: 5.6 },
 
   // ── 1 号场（停用）：散落的球 —— 一个 pickleball v2（InstancedMesh）+ setBalls(SCATTER)，约六分之一橙 ──
-  { id: 'balls-court1', asset: 'pickleball', variant: 2, x: 0, z: 0, y: 0, balls: SCATTER, label: '#6 散落的球 ×14' },
+  { id: 'balls-court1', asset: 'pickleball', variant: 2, x: 0, z: 0, y: 0, balls: SCATTER, label: '#6 散落的球 ×7' },
 
   // ── 围场外：走路的人 ──
   {

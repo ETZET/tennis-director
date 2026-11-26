@@ -24,6 +24,8 @@ const FRONT_H = 2.6;
 const POST_R = 0.09;
 /** 前梁中心高 */
 const BEAM_Y = 2.5;
+/** 帆面一整块奶白（不画俱乐部蓝条） */
+const SOLID = true;
 
 export function build(ctx: AssetCtx): THREE.Object3D {
   const v = ctx.variant % 2;
@@ -58,7 +60,11 @@ export function build(ctx: AssetCtx): THREE.Object3D {
     },
   };
   const mCream = new THREE.Mesh(cream, ctx.mat('canvas', { ...sailOpts, noShadowReceive: true }));
-  const mStripe = new THREE.Mesh(stripe, ctx.mat('canvasStripe', { ...sailOpts, noShadowReceive: true }));
+  // 留白（redo-calm.md）：两块帆并排的蓝白宽条是场边最吵的东西 → 一整块奶白（条纹那组三角形也用奶白；SOLID = false 恢复条纹）
+  const mStripe = new THREE.Mesh(
+    stripe,
+    ctx.mat(SOLID ? 'canvas' : 'canvasStripe', { ...sailOpts, noShadowReceive: true }),
+  );
   mCream.name = 'court-sail:canvas';
   mStripe.name = 'court-sail:stripe';
   root.add(mCream, mStripe);

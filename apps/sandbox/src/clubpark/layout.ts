@@ -23,7 +23,7 @@
 // 原则：主角 = 大门 + 岗亭 + 落客区（竖屏中间偏上，画面左边）；车道是从右边画外引到大门的一条横线，
 // 尽头是最亮的连锁砖落客区；北花坛的矮墙、遮阳棚的投影、两头的台地崖壁是暗带；南停车场近排基本空着（安静）。
 // 高的蒲葵只放在不会把投影甩到落客区的地方（墙边步道、南花坛东段、北花坛东段），落客区附近的花坛只种矮的。
-import { DESK, DRIVE, GATE, LOT_N, LOT_S } from '../clubsite/world';
+import { DRIVE, GATE, LOT_N, LOT_S } from '../clubsite/world';
 
 export type V2 = [number, number];
 export interface Rect {
@@ -114,24 +114,29 @@ export const BERMS: { id: string; r: Rect }[] = [
   { id: 'berm-ne', r: { x0: ENTRY.x1 + 0.1, x1: LOT_N.x1 + 1.2, z0: -6.9, z1: DRIVE.z0 - 0.45 } },
   { id: 'berm-sw', r: { x0: 65.2, x1: ENTRY.x0 - 0.1, z0: DRIVE.z1 + 0.45, z1: 6.9 } },
   { id: 'berm-se', r: { x0: ENTRY.x1 + 0.1, x1: LOT_S.x1 + 1.2, z0: DRIVE.z1 + 0.45, z1: 6.9 } },
+  // 留白（redo-calm.md）：两片停车场东半边不再画空车位，远排那头各一个种树的岛（一棵大假紫荆 + 两丛矮的 = 一簇），
+  // 其余是一整片沥青
+  { id: 'berm-lotn', r: { x0: 79.4, x1: 86.4, z0: LOT_N.z0 + 0.9, z1: LOT_N.z0 + 5.4 } },
+  { id: 'berm-lots', r: { x0: 79.4, x1: 86.4, z0: LOT_S.z1 - 5.4, z1: LOT_S.z1 - 0.9 } },
 ];
 
-/** 墙边的步道（石板，从两片停车场的通道走到落客区） */
+/**
+ * 墙边的步道（从两片停车场的通道走到落客区）。留白（redo-calm.md）：种植带拿掉以后步道一直铺到停车场边（x 64），
+ * 墙和停车场之间是一整条陶砖，不是"步道 + 一个个空的路缘框"
+ */
 export const WALKS: { id: string; r: Rect }[] = [
-  { id: 'walk-n', r: { x0: 60.8, x1: 62.3, z0: LOT_N.z0 + 0.4, z1: -9.9 } },
-  { id: 'walk-s', r: { x0: 60.8, x1: 62.3, z0: 9.9, z1: LOT_S.z1 - 0.4 } },
+  { id: 'walk-n', r: { x0: 60.8, x1: LOT_N.x0, z0: LOT_N.z0 + 0.4, z1: -9.9 } },
+  { id: 'walk-s', r: { x0: 60.8, x1: LOT_S.x0, z0: 9.9, z1: LOT_S.z1 - 0.4 } },
   // 通道西头接到步道的那一小段
   { id: 'walk-nx', r: { x0: 62.3, x1: LOT_N.x0, z0: ROWS[0].z1 + 0.4, z1: ROWS[1].z0 - 0.4 } },
   { id: 'walk-sx', r: { x0: 62.3, x1: LOT_S.x0, z0: ROWS[2].z1 + 0.4, z1: ROWS[3].z0 - 0.4 } },
 ];
 
-/** 步道和停车场之间的种植带（路缘围起来的沙，种龙舌兰、桶形仙人掌；比地面高一道路缘） */
-export const STRIPS: { id: string; r: Rect }[] = [
-  { id: 'strip-n1', r: { x0: 62.5, x1: LOT_N.x0 - 0.1, z0: LOT_N.z0 + 0.4, z1: ROWS[0].z1 + 0.2 } },
-  { id: 'strip-n2', r: { x0: 62.5, x1: LOT_N.x0 - 0.1, z0: ROWS[1].z0 - 0.2, z1: -10.1 } },
-  { id: 'strip-s1', r: { x0: 62.5, x1: LOT_S.x0 - 0.1, z0: 10.1, z1: ROWS[2].z1 + 0.2 } },
-  { id: 'strip-s2', r: { x0: 62.5, x1: LOT_S.x0 - 0.1, z0: ROWS[3].z0 - 0.2, z1: LOT_S.z1 - 0.4 } },
-];
+/**
+ * 步道和停车场之间的种植带（路缘围起来的沙；比地面高一道路缘）。留白（redo-calm.md）：上面的植物拿掉以后只剩四个空的路缘框，
+ * 一起拿掉（步道铺到停车场边）。原来的四条：strip-n1 / n2 / s1 / s2，x 62.5…63.9
+ */
+export const STRIPS: { id: string; r: Rect }[] = [];
 
 /** 北边高一级的沙漠台地（+1.2）：南沿弯弯的岩壁朝镜头 = 暗带；东边、北边是一圈矮崖（地图边的沙漠里，离山还远） */
 export const DESERT_N: V2[] = [
@@ -208,24 +213,19 @@ export const SPOTS: Record<string, V2> = {
   edgeOut: [CAR_EDGE_X, 2.0],
 };
 
-/** 停着的车：[行, 车位, 车款, 车漆 variant]（clubwalk 的通勤：人从这些车边上下车） */
+/**
+ * 停着的车：[行, 车位, 车款, 车漆 variant]（clubwalk 的通勤：人从这些车边上下车）。
+ * 留白（2026-11-25，redo-calm.md）：16 辆 → 7 辆，都挤在进出口西边的那几个车位里（一簇），东半边两片沥青空着 = 安静的面；
+ * 车漆只用奶油 / 银 / 藏青（一屏只有一个最鲜的暖色：落客那辆）。池子里的四个车位（n-far 1、n-near 2、s-near 2、s-far 2）照旧有车。
+ */
 export const PARKED: [number, number, 'car' | 'suv', number][] = [
-  [0, 0, 'car', 0],
+  [0, 0, 'car', 3],
   [0, 1, 'suv', 1],
-  [0, 3, 'car', 3],
-  [0, 4, 'car', 4],
-  [0, 6, 'suv', 5],
-  [1, 0, 'car', 2],
+  [1, 0, 'car', 1],
   [1, 2, 'suv', 0],
-  [1, 5, 'car', 6],
-  [1, 6, 'car', 1],
-  [1, 7, 'suv', 3],
   [2, 2, 'car', 1],
-  [2, 6, 'car', 5],
-  [3, 0, 'suv', 4],
+  [3, 0, 'suv', 3],
   [3, 2, 'car', 0],
-  [3, 5, 'car', 2],
-  [3, 7, 'suv', 6],
 ];
 
 export const SLOTS: Slot[] = [
@@ -236,8 +236,6 @@ export const SLOTS: Slot[] = [
   { id: 'valet-podium', asset: 'valet-podium', x: SPOTS.podium[0], z: SPOTS.podium[1] },
   // 球包车的家：北门柱东边（z −5.0；原来 −6.4 时 0.7 米的挡路圆把墙和岗亭之间的走廊堵死了）
   { id: 'bag-trolley', asset: 'bag-trolley', x: 61.5, z: -5.0, rotY: 0.2 },
-  { id: 'valet-sign', asset: 'valet-sign', x: 64.3, z: -3.75 },
-  { id: 'club-monument', asset: 'club-monument', x: 69.0, z: 5.75 },
   // 落客的车（车门开着）+ 刚下车的会员 + 迎上去的代客；门童在南门柱外
   { id: 'car-dropoff', asset: 'car', x: SPOTS.dropoff[0], z: SPOTS.dropoff[1], rotY: WEST, variant: 8 },
   { id: 'member-driver', asset: 'player', x: 68.4, z: -0.25, rotY: 0.4, variant: 2, pose: ['idle', 0.2] },
@@ -254,32 +252,30 @@ export const SLOTS: Slot[] = [
   { id: 'car-search', asset: 'suv', x: 71.8, z: AISLE_Z.n - 0.3, rotY: WEST, variant: 2 },
   { id: 'car-leave', asset: 'car', x: 80.5, z: 2.0, rotY: EAST, variant: 5 },
   // ── 遮阳棚：两片停车场的远排（顶是俱乐部的奶油帆布 + 蓝条纹，投影落在通道上 = 暗带）──
+  // 留白：东边两个（b、d）拿掉，只留西边停着车的那两个
   { id: 'carport-a', asset: 'carport', x: STALL.x0 + STALL.w * 2, z: (ROWS[0].z0 + ROWS[0].z1) / 2 },
-  { id: 'carport-b', asset: 'carport', x: STALL.x0 + STALL.w * 6, z: (ROWS[0].z0 + ROWS[0].z1) / 2 },
   { id: 'carport-c', asset: 'carport', x: STALL.x0 + STALL.w * 2, z: (ROWS[3].z0 + ROWS[3].z1) / 2 },
-  { id: 'carport-d', asset: 'carport', x: STALL.x0 + STALL.w * 6, z: (ROWS[3].z0 + ROWS[3].z1) / 2 },
-  // ── 框：蒲葵（墙边步道两头、北花坛东段、南花坛东段）──
-  // 墙边两棵种在种植带上（strip-n1 南头、strip-s2 北头）：原来 z −19.0 / 15.6 落在通道接步道的石板上，悬空一道路缘高、挡在走道中间
-  { id: 'palm-nw', asset: 'fan-palm', x: 63.2, z: -20.6, y: H.kerb, variant: 0 },
-  { id: 'palm-sw', asset: 'fan-palm', x: 63.2, z: 20.6, y: H.kerb, variant: 1, s: 1.05 },
-  { id: 'palm-ne', asset: 'fan-palm', x: 82.6, z: -5.6, y: H.berm, variant: 2 },
-  { id: 'palm-se', asset: 'fan-palm', x: 82.1, z: 5.6, y: H.berm, variant: 0, s: 0.95 },
-  { id: 'palm-se2', asset: 'fan-palm', x: 88.4, z: 5.8, y: H.berm, variant: 1 },
-  // 落客区附近的花坛只种矮的（投影不上落客区）
-  { id: 'agave-bnw', asset: 'agave', x: 66.6, z: -5.6, y: H.berm, s: 0.85 },
-  { id: 'brittle-bnw', asset: 'brittlebush', x: 69.2, z: -5.7, y: H.berm, variant: 1 },
-  { id: 'barrel-bnw', asset: 'barrel-cactus', x: 71.4, z: -5.5, y: H.berm, s: 0.9 },
-  { id: 'agave-bnw2', asset: 'agave', x: 72.6, z: -5.8, y: H.berm, s: 0.7 },
-  { id: 'brittle-bsw', asset: 'brittlebush', x: 66.6, z: 5.7, y: H.berm, variant: 0 },
-  { id: 'barrel-bsw', asset: 'barrel-cactus', x: 71.6, z: 5.5, y: H.berm, s: 0.8 },
-  { id: 'agave-bsw', asset: 'agave', x: 72.7, z: 5.9, y: H.berm, s: 0.7 },
-  // 种植带
-  { id: 'agave-sn2', asset: 'agave', x: 63.25, z: -11.4, y: H.kerb, s: 0.7 },
-  { id: 'barrel-sn1', asset: 'barrel-cactus', x: 63.2, z: -23.6, y: H.kerb, s: 0.8 },
-  { id: 'agave-ss1', asset: 'agave', x: 63.25, z: 11.3, y: H.kerb, s: 0.7 },
-  { id: 'barrel-ss2', asset: 'barrel-cactus', x: 63.2, z: 22.6, y: H.kerb, s: 0.85 },
+  // ── 框：蒲葵 —— 留白（redo-calm.md）：墙边步道两头、北花坛东段那几棵单独的拿掉，只留南花坛东段一大一小一簇 ──
+  { id: 'palm-se', asset: 'fan-palm', x: 82.1, z: 5.6, y: H.berm, variant: 0, s: 1.25 },
+  { id: 'palm-se2', asset: 'fan-palm', x: 88.4, z: 5.8, y: H.berm, variant: 1, s: 0.8 },
+  // 落客区附近的花坛只种矮的（投影不上落客区）。留白（redo-calm.md）：原来一个花坛四棵均匀排开，
+  // 改成每个花坛一簇（大小不一的三棵挤在一头），另一头空着
+  // 北花坛那簇放在进出口那头（东头），岗亭、代客台旁边空出来（门口只留岗亭 + 伞 + 行李车一团）
+  { id: 'agave-bnw', asset: 'agave', x: 72.15, z: -5.7, y: H.berm, s: 0.95 },
+  { id: 'barrel-bnw', asset: 'barrel-cactus', x: 71.2, z: -5.35, y: H.berm, s: 0.9 },
+  { id: 'brittle-bnw', asset: 'brittlebush', x: 70.4, z: -5.95, y: H.berm, variant: 1 },
+  { id: 'brittle-bsw', asset: 'brittlebush', x: 71.0, z: 5.75, y: H.berm, variant: 0 },
+  { id: 'barrel-bsw', asset: 'barrel-cactus', x: 71.95, z: 5.45, y: H.berm, s: 0.8 },
+  { id: 'agave-bsw', asset: 'agave', x: 72.55, z: 6.05, y: H.berm, s: 0.75 },
+  // 停车场东半边的两个树岛（BERMS 的 berm-lotn / berm-lots）
+  { id: 'paloverde-lotn', asset: 'palo-verde', x: 82.6, z: -23.0, y: H.berm, s: 1.25, variant: 0 },
+  { id: 'creosote-lotn', asset: 'creosote', x: 85.1, z: -22.1, y: H.berm, variant: 1 },
+  { id: 'brittle-lotn', asset: 'brittlebush', x: 80.5, z: -21.9, y: H.berm, variant: 0 },
+  { id: 'paloverde-lots', asset: 'palo-verde', x: 83.4, z: 22.9, y: H.berm, s: 1.15, variant: 1 },
+  { id: 'brittle-lots', asset: 'brittlebush', x: 81.0, z: 22.0, y: H.berm, variant: 1 },
+  { id: 'agave-lots', asset: 'agave', x: 85.4, z: 22.0, y: H.berm, s: 0.8 },
+  // 种植带：留白（redo-calm.md）—— 墙边步道两头那两棵单独的蒲葵和脚下的仙人掌、中间的龙舌兰都拿掉，种植带是一条安静的沙
   // 墙边落客区南头：长椅（等车的地方）
-  { id: 'bench-wait', asset: 'bench', x: 62.9, z: 8.6, rotY: 0 },
   // ── 停车场外的沙漠（东边，横屏才看得到）──
   { id: 'creosote-e1', asset: 'creosote', x: 92.6, z: -14.0, variant: 0 },
   { id: 'ocotillo-e1', asset: 'ocotillo', x: 95.4, z: -19.5 },
@@ -296,8 +292,7 @@ export const SLOTS: Slot[] = [
   { id: 'rocks-n1', asset: 'rocks', x: 89.0, z: -30.0, y: H.desertN, variant: 0 },
   { id: 'creosote-s1', asset: 'creosote', x: 70.0, z: 31.0, y: H.desertS, variant: 0 },
   { id: 'cholla-s1', asset: 'cholla', x: 78.0, z: 30.6, y: H.desertS },
-  // ── 墙里面（clubdesk 场景的地方，这里只放一个灰盒示意）──
-  { id: 'clubdesk', asset: 'clubdesk-stub', x: DESK.x, z: DESK.z },
+  // 留白（redo-calm.md）：南花坛上的俱乐部立牌（一块写字的牌子）、墙里面 clubdesk 的灰盒示意拿掉
   ...PARKED.map(([r, i, asset, v]): Slot => {
     const row = ROWS[r];
     const [x, z] = stallCenter(row, i);
@@ -355,7 +350,7 @@ export const WALKABLE: Rect[] = [
   { x0: WALL_OUT, x1: 64.9, z0: -9.9, z1: 9.9 }, // 落客区靠墙的院子（连锁砖从墙外皮铺起，人能贴着墙走）
   // 落客区 + 车道（沥青画到 DRIVE.x1；导航只到 parkNav 的 bounds x 92 为止）
   { x0: 64.9, x1: DRIVE.x1, z0: DRIVE.z0 - 0.4, z1: DRIVE.z1 + 0.4 },
-  { x0: 60.8, x1: 62.3, z0: LOT_N.z0 + 0.4, z1: LOT_S.z1 - 0.4 }, // 墙边步道
+  { x0: 60.8, x1: LOT_N.x0, z0: LOT_N.z0 + 0.4, z1: LOT_S.z1 - 0.4 }, // 墙边步道（铺到停车场边）
   { x0: 62.3, x1: LOT_N.x1, z0: ROWS[0].z1, z1: ROWS[1].z0 }, // 北通道
   { x0: 62.3, x1: LOT_S.x1, z0: ROWS[2].z1, z1: ROWS[3].z0 }, // 南通道
   { x0: ENTRY.x0, x1: ENTRY.x1, z0: ROWS[1].z0, z1: ROWS[2].z1 }, // 两个进出口
@@ -372,12 +367,9 @@ export const BLOCKED: Rect[] = [{ x0: 62.2, x1: 64.8, z0: -9.7, z1: -7.3 }];
 // ── 云影（手摆，硬边）：只走两片停车场的通道那两条带，不上落客区 ──
 /** 云的 x 在 shader 里按 ±48 绕回（CLOUD_W 96）：世界 x 换成绕回后的 */
 const wrapX = (x: number) => ((((x + 48) % 96) + 96) % 96) - 48;
+// 留白（redo-calm.md）：通道里那几团（和车棚脱开、像沥青上飘着的暗块）拿掉，只留东边画外沙漠上的两团
 export const CLOUDS: [number, number, number, number][] = [
-  [wrapX(70.5), AISLE_Z.n + 0.4, 3.6, 1.6],
-  [wrapX(73.6), AISLE_Z.n - 0.2, 2.2, 1.1],
-  [wrapX(70.5), AISLE_Z.s + 0.8, 4.0, 1.7],
-  [wrapX(84), AISLE_Z.s + 0.6, 4.2, 1.8],
-  [wrapX(87.6), AISLE_Z.s + 0.1, 2.4, 1.2],
+  [wrapX(96), AISLE_Z.s + 0.6, 4.2, 1.8],
   [wrapX(110), AISLE_Z.n, 3.8, 1.5],
 ];
 export const CLOUD_VEL = 0.12;

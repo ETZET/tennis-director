@@ -68,7 +68,8 @@ class Bucket {
   }
   build(ctx: AssetCtx, root: THREE.Object3D) {
     for (const [id, e] of this.m) {
-      const mesh = new THREE.Mesh(mergeGeometries(e.geos), ctx.mat(e.key, e.extra));
+      // fur 0.3（留白，redo-calm.md）：平涂的场地、外场、铺面上的投影边干净，不是一圈毛边
+      const mesh = new THREE.Mesh(mergeGeometries(e.geos), ctx.mat(e.key, { fur: 0.3, ...e.extra }));
       mesh.name = `pickle:${id}`;
       mesh.castShadow = e.cast;
       mesh.receiveShadow = true;
@@ -183,14 +184,9 @@ export function buildTerrain(ctx: AssetCtx): Terrain {
     [GROUNDS.x0, GROUNDS.z1],
   ];
   add(groundGeo([grounds], H.ground), ctx.mat('sand', { elem: EL.sand }), 'top:ground', { cast: false });
-  add(
-    topGeo(grounds, H.ground + 0.004, [lawn]),
-    ctx.mat('sandHigh', { elem: { ...EL.sand, seed: 7 } }),
-    'top:grounds',
-    {
-      cast: false,
-    },
-  );
+  add(topGeo(grounds, H.ground + 0.004, [lawn]), ctx.mat('sand', { elem: { ...EL.sand, seed: 7 } }), 'top:grounds', {
+    cast: false,
+  });
 
   // ── 东墙：土坯 + 压顶 + 壁柱（同 clubmap2 的算法：每段 floor(长/12) 等分）；大门的两根门柱是资产（east-gate） ──
   {
@@ -225,6 +221,7 @@ export function buildTerrain(ctx: AssetCtx): Terrain {
   });
 
   // ── 到达小院（陶砖）、步道（碎花岗岩） ──
+  // 留白（redo-calm.md）：门里门外并成一种铺地 —— 到达小院、落客区、墙边步道都是安静的大块陶砖（EL.tile）
   add(quad(FORECOURT, H.ground + 0.014), ctx.mat('tile', { elem: EL.tile }), 'tile:forecourt', { cast: false });
   const granite = ctx.mat('granite', { elem: EL.granite });
   const walks: Rect[] = [];
@@ -239,8 +236,8 @@ export function buildTerrain(ctx: AssetCtx): Terrain {
   }
   for (const [i, r] of walks.entries()) add(quad(r, H.ground + 0.012), granite, `path:${i}`, { cast: false });
   // 门里的 Y 字路口（压在陶砖上面）：石板引导道 门洞 → 柜台转角 → 小路（主）；碎花岗岩 门洞 → 长廊（次）
-  const flag = ctx.mat('flagstone', { elem: EL.flagstone });
-  add(topGeo(strip(smoothLine(RUNNER.pts, 0.4), RUNNER.w), H.ground + 0.02), flag, 'path:runner', { cast: false });
+  // 留白（redo-calm.md）：主引导道也用碎花岗岩（门里只有陶砖 + 碎花岗岩两种地面，不再多一种石板）
+  add(topGeo(strip(smoothLine(RUNNER.pts, 0.4), RUNNER.w), H.ground + 0.02), granite, 'path:runner', { cast: false });
   add(topGeo(strip(smoothLine(RUNNER2.pts, 0.4), RUNNER2.w), H.ground + 0.018), granite, 'path:runner2', {
     cast: false,
   });

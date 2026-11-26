@@ -162,7 +162,8 @@ export function buildMap(ctx: MapCtx): THREE.Group {
   root.add(buildMountains((c, o) => ctx.mats.toon(c, o)));
 
   // 围墙里面：压实的浅沙（和外面的沙漠分开）
-  B.add('sandHigh', quad(GROUNDS, 0.004), { ...FLAT, extra: { elem: { ...EL.sand, seed: 7 } } });
+  // 2026-11-25 留白（redo-calm.md）：墙里墙外一种沙（同各小景）
+  B.add('sand', quad(GROUNDS, 0.004), { ...FLAT, extra: { elem: { ...EL.sand, seed: 7 } } });
 
   // ── 沙丘：围墙外几座压扁的沙包 ──
   {

@@ -63,11 +63,12 @@ export const GROUP_AS: Partial<Record<keyof Pal, keyof Pal>> = { courtWet: 'cour
 export const EL = {
   ...DESK_EL,
   /** 硬地漆面（内场、外场）：大块低频深浅 + 很少的擦痕（俱乐部的场是新漆的，不是 desert3d-v2 那片晒旧的） */
-  hard: { kind: 'paint', size: [26, 14], density: [0, 0.02], patch: 5 },
+  // 留白（redo-calm.md）：场面是一屏最大的安静面，深浅块收一半多（contrast）
+  hard: { kind: 'paint', size: [26, 14], density: [0, 0.02], patch: 5, fur: 0.3, contrast: [0.3, 0.4, 0.3] },
   /** 水洼：深浅不匀 + 少量更深的点 */
   wet: { kind: 'paint', size: [12, 7], density: [0, 0.08], patch: 2 },
   /** 场上积的沙：波纹（窄长的浅条）+ 少量碎粒 */
   drift: { kind: 'pebbles', size: [9, 3], seam: 0.25, density: [0.02, 0.1], patch: 2, pebbles: 0.02 },
   /** 红土（地图那个，横屏右下露出 outer_2 的西半）：同 clubclay 的 EL.clay */
-  clay: { kind: 'paint', size: [22, 13], density: [0, 0.04], patch: 4 },
+  clay: { kind: 'paint', size: [22, 13], density: [0, 0.04], patch: 4, fur: 0.3 },
 } as const satisfies Record<string, Elem>;

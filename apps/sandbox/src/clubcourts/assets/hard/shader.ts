@@ -248,7 +248,8 @@ export function dataTex(data: Uint8Array, w: number, h: number, linear: boolean)
  */
 export function hardMaterial(ctx: HardCtx, courtKey: string, u: HardUniforms): THREE.MeshToonMaterial {
   const base = (ctx.mat as unknown as LooseMat)(courtKey, {
-    elem: { kind: 'paint', size: [26, 14], density: [0, 0.02], patch: 5 },
+    // fur 0.3（留白，redo-calm.md）：围网、人在场面上的投影边干净，不是一圈毛边
+    elem: { kind: 'paint', size: [26, 14], density: [0, 0.02], patch: 5, fur: 0.3, contrast: [0.3, 0.4, 0.3] },
   });
   const m = new THREE.MeshToonMaterial({ color: 0xffffff, gradientMap: base.gradientMap });
   const md = m as THREE.MeshToonMaterial & { defines?: Record<string, string> };

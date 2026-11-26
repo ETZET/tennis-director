@@ -70,6 +70,17 @@ export interface Elem {
   /** 几何体带 aElem（vec4）顶点属性：墙 = [露出的高度（米）]，水 = [到北岸的距离, 到岸的距离]（米） */
   attr?: boolean;
   seed?: number;
+  /**
+   * 元素对比（留白，redo-calm.md）：[深浅变体留多少, 缝和亮边留多少, 投影（暗档）里缝和亮边留多少]，0..1，
+   * 按档往本色收（只动对比，不动色相）。第三个不给 = 第二个。不给 = 原样。
+   * 大面积的地面（沙、铺地、停车场）用它把"每块都有纹理"压成"大块安静、近看才有"；影子里的缝最显眼，单独再收。
+   */
+  contrast?: [number, number] | [number, number, number];
+  /**
+   * 投影毛边的倍数（乘全局 uFur），不给 = 1。铺地、沥青这类硬地面的影子边该是干净的（参考：马路上的车影），
+   * 沙、草地上留一点毛边。
+   */
+  fur?: number;
 }
 
 export interface ToonOpts {
@@ -103,6 +114,8 @@ export interface ToonOpts {
   sphereNormals?: boolean | [number, number, number];
   /** 不接收投影（很薄的东西、浮在空中的东西） */
   noShadowReceive?: boolean;
+  /** 投影毛边的倍数（乘全局 uFur，再乘 elem.fur），不给 = 1。平涂的硬地面（匹克球场、看台）用它让影子边干净 */
+  fur?: number;
   /** 材质规范 v2：元素图案（不给 = 以前的三档平涂） */
   elem?: Elem;
   /** 元素调色板；不给就从 ramp 推（autoTones）。只在有 elem 时起作用 */
@@ -145,6 +158,18 @@ export function autoTones(ramp: [Hex, Hex, Hex]): Tones {
     ],
     seam: [mix(cold, L, 0.3), mix(cold, M, 0.15), cold.getHex()],
     hi: [mix(L, white, 0.25), mix(M, L, 0.55), mix(D, M, 0.55)],
+  };
+}
+
+/** Elem.contrast：每档的高/低一级往本色收到 k[0]，缝、亮边收到 k[1]（暗档收到 k[2]）（色相不变，只是差变小） */
+function calmTones(t: Tones, k: [number, number] | [number, number, number]): Tones {
+  const mix = (a: Hex, b: Hex, f: number) => new THREE.Color(a).lerp(new THREE.Color(b), f).getHex();
+  const ks = (i: number) => (i === 2 ? (k[2] ?? k[1]) : k[1]);
+  const bands = t.bands.map((b) => [b[0], mix(b[0], b[1], k[0]), mix(b[0], b[2], k[0])]) as Tones['bands'];
+  return {
+    bands,
+    seam: t.seam.map((c, i) => mix(t.bands[i][0], c, ks(i))) as C3,
+    hi: t.hi.map((c, i) => mix(t.bands[i][0], c, ks(i))) as C3,
   };
 }
 
@@ -292,6 +317,7 @@ uniform float uNoise;
 uniform float uLightUp;
 uniform float uTexel;
 uniform float uFur;
+uniform float uFurK;
 uniform float uShadowHard;
 uniform float uNoiseK;
 uniform float uLightModel;
@@ -385,6 +411,7 @@ uniform vec4 uElP;
 uniform vec4 uElQ;
 uniform float uElPeb;
 uniform float uElSeed;
+uniform float uElFur;
 varying vec3 vElemP;
 varying vec3 vElemL;
 varying vec2 vElemUv;
@@ -577,7 +604,9 @@ vec3 elemShade(int b, vec3 Nw) {
     }
     // 投影里（暗档）沙纹段的密度 20% → 50%（亮档 1.5% → 42%）：大块紫影里没有丘顶亮边、深浅斑也弱，
     // 只靠沙纹撑纹理；斑块之间照样 2.5 倍疏密（第二轮审查：大片紫影是平的）
-    c = eRipples(b, p, b == 0 ? mix(0.2, max(uElB.y + 0.08, 0.2), pd) : dens, c);
+    // p.xy > 0：投影里的密度自己给（留白：影子里也几乎是平的，redo-calm.md）
+    float shD = uElP.y > 0.0 ? mix(uElP.x, uElP.y, pd) : mix(0.2, max(uElB.y + 0.08, 0.2), pd);
+    c = eRipples(b, p, b == 0 ? shD : dens, c);
 
   #elif defined(ELEM_PEBBLES)
     // 踩实的土路：有机形状的深浅土团（fbm 两道阈值，块约 size 纹素）、只在少数地方有龟裂（Voronoi 缝，seam 纹素）、
@@ -712,7 +741,10 @@ const RAMP_OUT = /* glsl */ `
       DirectionalLightShadow s0 = directionalLightShadows[0];
       float v = getShadow(directionalShadowMap[0], s0.shadowMapSize, 1.0, s0.shadowBias, s0.shadowRadius, vDirectionalShadowCoord[0]);
       float fur = rhash12(vec2(floor(vWorldP.x / uTexel), floor(vWorldP.z / uTexel / 2.0)) + 5.0) - 0.5;
-      sh = uShadowHard > 0.5 ? step(0.5 + fur * uFur, v) : v;
+      #ifdef ELEM
+        fur *= uElFur;
+      #endif
+      sh = uShadowHard > 0.5 ? step(0.5 + fur * uFur * uFurK, v) : v;
     }
   #endif
   // 投影：直射光弱的时候（太阳换月亮、阴雨天）按有序抖动稀掉，uSunK = 1 和以前一样
@@ -825,8 +857,9 @@ function elemSetup(
         const c = new THREE.Color(color);
         return [c, c.clone().multiplyScalar(0.8), c.clone().multiplyScalar(0.6)];
       })();
-  const t = o.tones ?? autoTones(r);
+  const t0 = o.tones ?? autoTones(r);
   const col = (h: Hex) => new THREE.Color(h);
+  const t: Tones = e.contrast ? calmTones(t0, e.contrast) : t0;
   const byBand = <T>(a: [T, T, T]) => [a[2], a[1], a[0]];
   const defines: Record<string, string> = { ELEM: '', [`ELEM_${e.kind.toUpperCase()}`]: '' };
   const space = e.space ?? 'screen';
@@ -850,6 +883,7 @@ function elemSetup(
       uElQ: { value: new THREE.Vector4(...(e.q ?? [0, 0, 0, 0])) },
       uElPeb: { value: e.pebbles ?? 0 },
       uElSeed: { value: e.seed ?? 0 },
+      uElFur: { value: e.fur ?? 1 },
     },
   };
 }
@@ -909,6 +943,7 @@ export function createMats(u: SharedUniforms, texelMeters: () => number): Mats {
             opts.lightUp,
             sphere,
             opts.noShadowReceive,
+            opts.fur,
             elemKey(opts),
           ]);
     if (key && cache.has(key)) return cache.get(key)!;
@@ -947,6 +982,7 @@ export function createMats(u: SharedUniforms, texelMeters: () => number): Mats {
         uLightUp: { value: opts.lightUp ?? 0 },
         uTexel,
         uNoRecv: { value: opts.noShadowReceive ? 1 : 0 },
+        uFurK: { value: opts.fur ?? 1 },
         ...globals,
       });
       if (el) Object.assign(shader.uniforms, el.uniforms);
