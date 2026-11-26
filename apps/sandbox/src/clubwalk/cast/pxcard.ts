@@ -22,7 +22,6 @@ import {
   type TKey,
   t,
   tap,
-  tinyRow,
   weekSuns,
 } from '../../clubsite/hud';
 import type { Card } from './card';
