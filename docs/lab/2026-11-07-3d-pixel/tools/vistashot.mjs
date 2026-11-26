@@ -19,10 +19,10 @@ const [out, port = '5343', extra = '', suffix = ''] = process.argv.slice(2);
 mkdirSync(out, { recursive: true });
 /** 每张图的取景点（本图坐标）：横屏看全图中间，竖屏对准"入口 → 目的地"那一段 */
 const SHOTS = [
-  { id: 'arrive', land: '14,32', port: '15,30' },
-  { id: 'court', land: '14,24', port: '26,32' },
+  { id: 'arrive', land: '14,28', port: '14,26' },
+  { id: 'court', land: '14,26', port: '10,32' },
   { id: 'oasis', land: '14,26', port: '9,29' },
-  { id: 'practice', land: '14,24', port: '25,26' },
+  { id: 'practice', land: '14,26', port: '15,28' },
 ];
 const only = process.env.ONLY?.split(',');
 const browser = await pw.chromium.launch({

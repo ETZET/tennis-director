@@ -58,6 +58,8 @@ export interface Stair {
   axis: 'x' | 'z';
   h0: number;
   h1: number;
+  /** 踏面的材质（默认台地的 mesa；下到场里的台阶用 stepStone 灰石） */
+  tread?: keyof Pal;
   /** stairs = 一级级的台阶；bridge = 平的木桥（带两侧栏杆的矮边） */
   kind: 'stairs' | 'bridge';
 }

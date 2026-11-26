@@ -233,9 +233,19 @@ export function buildMap(def: MapDef, ox: number, kit: Kit, params: URLSearchPar
       });
     } else if (p.inner) {
       // 斜坡坑：坑口到坑底一圈 45° 的坡（朝镜头的那面是暗带，东西两面按太阳分亮暗 —— 下沉读得出来）
-      addMesh(bankGeo(p.sp, base, p.inner, p.h), ctx.mat(wallKey, { edge: 0.15, convex: 0.2 }), `wall:${p.id}`, {
-        recv: true,
-      });
+      // 四面的坡一律落暗档（档位阈值抬到够不着）：一圈统一的冷暗带 = 下沉（评判：东西两面一亮一暗抢了球场）
+      // 坑口一纹素的亮唇；石坡带大块石头的元素（缝浅），草坡平涂
+      addMesh(topGeo(p.sp, base + 0.01, [ringInside(p.sp, LIP)]), lipMat, `lip:${p.id}`, { recv: false });
+      const bankEl: ToonOpts =
+        wallKey === 'bluff' ? { elem: { kind: 'stones', size: [20, 9], seam: 0.5, hi: 0.4 } } : {};
+      addMesh(
+        bankGeo(p.sp, base, p.inner, p.h),
+        ctx.mat(wallKey, { edge: 0.15, convex: 0.2, bands: [3, 4], ...bankEl }),
+        `wall:${p.id}`,
+        {
+          recv: true,
+        },
+      );
     } else {
       addMesh(wallGeo(p.sp, base, base - LIP, false), lipMat, `lip:${p.id}`, { recv: false });
       addMesh(
@@ -260,12 +270,16 @@ export function buildMap(def: MapDef, ox: number, kit: Kit, params: URLSearchPar
 
   // ── 台阶、小桥 ──
   for (const st of def.stairs) {
-    if (st.kind === 'stairs')
-      addMesh(stairGeo(st), ctx.mat('mesa', { edge: 0.3, convex: 0.35 }), `stairs:${st.id}`, {
+    if (st.kind === 'stairs') {
+      // 石阶：块是崖的石头（朝镜头的立面落暗档 = 冷暗条），踏面贴一层台地的地面色
+      addMesh(stairGeo(st), ctx.mat('bluff', { edge: 0.3, convex: 0.2 }), `stairs:${st.id}`, {
         cast: true,
         recv: false,
       });
-    else {
+      addMesh(stairGeo(st, true), ctx.mat(st.tread ?? 'mesa', { edge: 0.05, convex: 0 }), `treads:${st.id}`, {
+        recv: true,
+      });
+    } else {
       const { deck, rails } = bridgeGeo(st);
       addMesh(deck, ctx.mat('woodWeathered'), `bridge:${st.id}`, { cast: true });
       addMesh(rails, ctx.mat('wood'), `rails:${st.id}`, { cast: true, recv: false });
@@ -438,14 +452,14 @@ function stonesGeo(s: Strip, groundAt: (x: number, z: number) => number, rnd: ()
     const [x1, z1] = c[i];
     const l = Math.hypot(x1 - x0, z1 - z0);
     acc += l;
-    if (acc < 1.05) continue;
+    if (acc < 1.9) continue;
     acc = 0;
     const nx = -(z1 - z0) / (l || 1);
     const nz = (x1 - x0) / (l || 1);
     const off = (k++ % 2 ? 1 : -1) * s.w * 0.16;
     const x = x1 + nx * off;
     const z = z1 + nz * off;
-    const r = s.w * (0.3 + rnd() * 0.08);
+    const r = s.w * [0.3, 0.38, 0.46][k % 3] * (0.95 + rnd() * 0.1);
     const pts: V2[] = [];
     for (let j = 0; j < 9; j++) {
       const a = (j / 9) * Math.PI * 2;
@@ -483,22 +497,34 @@ function fixWinding(g: THREE.BufferGeometry): THREE.BufferGeometry {
 }
 
 /** 台阶：一级级的方块（顶在 h，底埋到低的那头以下）；朝镜头的立面是暗条 */
-function stairGeo(s: Stair): THREE.BufferGeometry {
+function stairGeo(s: Stair, treads = false): THREE.BufferGeometry {
   const dh = Math.abs(s.h1 - s.h0);
-  const n = Math.max(2, Math.round(dh / 0.26));
+  // 级少而高（0.4～0.5 米一级）：评判说 9 级的细条纹像斑马线，参考的台阶是 3～4 级
+  const n = Math.max(2, Math.round(dh / 0.45));
   const lo = Math.min(s.h0, s.h1) - 0.3;
   const geos: THREE.BufferGeometry[] = [];
   const len = s.axis === 'z' ? s.z1 - s.z0 : s.x1 - s.x0;
   const run = len / n;
   for (let k = 0; k < n; k++) {
     const t = s.h0 + ((s.h1 - s.h0) * (k + (s.h1 > s.h0 ? 1 : 0))) / n;
-    const h = t - lo;
+    const h = treads ? 0.04 : t - lo;
+    const y0 = treads ? t : lo;
     if (s.axis === 'z') {
       const z = s.z0 + run * (k + 0.5);
-      geos.push(new THREE.BoxGeometry(s.x1 - s.x0, h, run).translate((s.x0 + s.x1) / 2, lo + h / 2, z));
+      const d = treads ? run - 0.12 : run;
+      geos.push(
+        new THREE.BoxGeometry(s.x1 - s.x0 - (treads ? 0.12 : 0), h, d).translate(
+          (s.x0 + s.x1) / 2,
+          y0 + h / 2,
+          z - (treads ? 0.06 : 0),
+        ),
+      );
     } else {
       const x = s.x0 + run * (k + 0.5);
-      geos.push(new THREE.BoxGeometry(run, h, s.z1 - s.z0).translate(x, lo + h / 2, (s.z0 + s.z1) / 2));
+      const w = treads ? run - 0.12 : run;
+      geos.push(
+        new THREE.BoxGeometry(w, h, s.z1 - s.z0 - (treads ? 0.12 : 0)).translate(x, y0 + h / 2, (s.z0 + s.z1) / 2),
+      );
     }
   }
   return merge(geos);

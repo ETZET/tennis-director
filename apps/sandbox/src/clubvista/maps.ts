@@ -54,8 +54,8 @@ const arrive: MapDef = {
   id: 'arrive',
   name: '到达',
   W: 28,
-  D: 56,
-  view: VIEW(56),
+  D: 51,
+  view: VIEW(51),
   plates: [
     { id: 'ground', pts: rect(-30, -16, 60, 76), h: 0, top: 'floor', el: 'floor', wall: 'none', smooth: 0 },
     {
@@ -67,8 +67,8 @@ const arrive: MapDef = {
         [5, 20],
         [3.8, 30],
         [5, 39],
-        [2.4, 45],
-        [-30, 45],
+        [2.4, 40.4],
+        [-30, 40.4],
       ],
       h: 1.2,
       top: 'mesa',
@@ -154,25 +154,22 @@ const arrive: MapDef = {
       wall: 'none',
       smooth: 0.8,
     },
-    { id: 'sidewalk', pts: rect(-30, 48.5, 60, 50), h: 0.12, top: 'curb', el: 'none', wall: 'curb', smooth: 0 },
-    { id: 'road', pts: rect(-30, 50, 60, 56.6), h: 0.02, top: 'road', el: 'none', wall: 'none', smooth: 0 },
+    { id: 'sidewalk', pts: rect(-30, 43.5, 60, 45), h: 0.12, top: 'curb', el: 'none', wall: 'curb', smooth: 0 },
+    { id: 'road', pts: rect(-30, 45, 60, 51.6), h: 0.02, top: 'road', el: 'none', wall: 'none', smooth: 0 },
   ],
   strips: [
+    // 第 6 轮：桥和台阶挪到竖条中线偏右（x ≈ 16），竖屏一屏从公交站斜着看到桥、台阶、前台
     trail('main1', [
-      [6.8, 48.4],
-      [8.6, 44],
-      [11.6, 39.6],
-      [16.4, 36],
-      [22.1, 35],
-    ]),
-    trail('main2', [
-      [22.1, 26.8],
-      [22.1, 25],
+      [10.8, 43.4],
+      [13.6, 39.4],
+      [15.2, 34.4],
+      [13.4, 29.6],
+      [13.1, 27.6],
     ]),
     trail('main3', [
-      [22.1, 21.2],
-      [21.6, 18.4],
-      [20.8, 16],
+      [13.1, 13.4],
+      [14.4, 12.4],
+      [15.8, 11.8],
     ]),
     trail('exit', [
       [22.4, 7.6],
@@ -185,20 +182,21 @@ const arrive: MapDef = {
       [13.6, 9.6],
       [12.6, 8.8],
     ]),
-    ...dashes('dash', -30, 60, 53.3, 2.4, 5),
+    ...dashes('dash', -30, 60, 48.3, 2.4, 5),
   ],
   stairs: [
-    { id: 'bridge', x0: 21, x1: 23.2, z0: 26.6, z1: 34.8, axis: 'z', h0: 0.15, h1: 0.15, kind: 'bridge' },
-    { id: 'steps', x0: 20.6, x1: 23.6, z0: 20, z1: 25.2, axis: 'z', h0: 1.8, h1: 0, kind: 'stairs' },
+    { id: 'bridge', x0: 12, x1: 14.2, z0: 17.4, z1: 27.6, axis: 'z', h0: 0.15, h1: 0.15, kind: 'bridge' },
+    { id: 'steps', x0: 11.6, x1: 14.6, z0: 13, z1: 17.4, axis: 'z', h0: 1.8, h1: 0.15, kind: 'stairs' },
   ],
   courts: [],
   props: [
     // 入口：公交站（刚下车的人 + 行李）+ 停着的接驳车
-    { a: 'bus-shelter', x: 4.4, z: 46.6 },
-    { a: 'stop-pole', x: 9.4, z: 47.9 },
-    { a: 'suitcase', x: 7.4, z: 48.1, r: 0.3 },
-    { a: 'player', x: 6.4, z: 47.5, r: PI * 0.85, pose: 'idle' },
-    { a: 'shuttle', x: 15.6, z: 53.2 },
+    { a: 'bus-shelter', x: 8.4, z: 41.6 },
+    { a: 'stop-pole', x: 13.4, z: 42.9 },
+    { a: 'suitcase', x: 11.4, z: 43.1, r: 0.3 },
+    { a: 'player', x: 10.4, z: 42.5, r: PI * 0.85, pose: 'idle' },
+    { a: 'player', x: 6.6, z: 41.4, pose: 'sit', v: 3 },
+    { a: 'shuttle', x: 20.6, z: 48.2 },
     // 目的地：露天前台（台地上一块石板小广场）
     { a: 'front-desk', x: 20, z: 10.2 },
     { a: 'water-station', x: 24.8, z: 9.6, r: -0.4 },
@@ -297,7 +295,7 @@ const arrive: MapDef = {
       { v0: 1 },
     ),
     { a: 'rocks', x: 3, z: 7.6, v: 0 },
-    { a: 'rocks', x: 2.2, z: 42.8, v: 2 },
+    { a: 'rocks', x: 2.6, z: 38.2, v: 2 },
     // 干河床：床里两块石头
     { a: 'rocks', x: 6.6, z: 14.4, v: 2, s: 0.7, y: -1.3 },
     { a: 'rocks', x: 30.4, z: 36.8, v: 0, s: 0.7, y: -1.3 },
@@ -339,85 +337,64 @@ const arrive: MapDef = {
       [1.6, 0.8, 0.8],
       [3.4, -0.4, 0.7],
     ]),
-    ...cluster('cholla', 22.6, 41, [
-      [0, 0],
-      [2.4, 1.6, 0.85],
-      [0.6, 3.6, 0.75],
+    // 南岸到马路：两簇（一大一小），贴着河岸和马路，不撒开（第 5 轮：原来十几个一样大的小东西均匀铺开）
+    ...cluster('rocks', 21.8, 39.6, [
+      [0, 0, 1.4],
+      [1.8, 1.8, 0.9],
+      [-1.4, 2.2, 0.7],
     ]),
-    ...cluster('barrel-cactus', 27.4, 43.6, [
+    ...cluster('cholla', 24, 41.4, [
       [0, 0],
-      [1.8, 1.8],
+      [1.6, -1, 0.8],
+      [2.6, 0.8, 0.65],
     ]),
-    { a: 'ocotillo', x: 30.6, z: 44.4 },
+    ...cluster('barrel-cactus', 31.6, 40.6, [
+      [0, 0, 1.2],
+      [1.8, 1.4, 0.8],
+    ]),
+    { a: 'ocotillo', x: 33.4, z: 42.8 },
+    { a: 'smoke-tree', x: 36.4, z: 33.2, s: 1.1 },
     ...cluster(
       'rocks',
-      25.6,
-      46.4,
+      17.6,
+      41.6,
       [
-        [0, 0, 1.2],
-        [8, -0.6, 0.9],
+        [0, 0, 1.1],
+        [1.6, 1, 0.7],
       ],
       { v0: 2 },
     ),
-    ...cluster(
-      'brittlebush',
-      20.6,
-      45.2,
-      [
-        [0, 0],
-        [1.2, 2, 0.8],
-      ],
-      { v0: 1 },
-    ),
-    { a: 'smoke-tree', x: 34.6, z: 41.6 },
-    // 竖屏的右框：主路下段东边一团石头 + 仙人掌（中间那块沙地仍然空着）
-    ...cluster(
-      'rocks',
-      18.6,
-      42.6,
-      [
-        [0, 0, 1.3],
-        [1.8, 2.2, 0.8],
-      ],
-      { v0: 0 },
-    ),
-    ...cluster('barrel-cactus', 20.4, 44.6, [
-      [0, 0],
-      [-1.2, 1.4],
-    ]),
-    { a: 'creosote', x: 17, z: 46.2, s: 0.8 },
     // 马路对面：矮的石炭酸灌木、脆灌木（画面下沿）
-    ...cluster('creosote', -4, 59, [
+    ...cluster('creosote', -4, 54, [
       [0, 0],
       [3, 1.2, 0.8],
     ]),
-    ...cluster('brittlebush', 10, 58.8, [
+    ...cluster('brittlebush', 10, 53.8, [
       [0, 0],
       [2.2, 1.2],
     ]),
-    ...cluster('creosote', 24, 59.6, [
+    ...cluster('creosote', 26, 54.6, [
       [0, 0],
       [3, 1.5, 0.85],
       [6, 0.4, 0.7],
     ]),
   ],
   noWalk: [
-    rect(-30, 50, 60, 76),
+    rect(-30, 45, 60, 76),
     [
-      [21.4, 38.6],
-      [60, 37.6],
-      [60, 50],
-      [19.8, 50],
-      [19.6, 43],
+      [20.6, 37.6],
+      [60, 36.6],
+      [60, 45],
+      [19.8, 45],
     ],
     rect(28.6, 4, 60, 31),
   ],
   exits: [{ to: 'court', entry: 'fromArrive', at: [23.5, -3.6], r: 2 }],
   entries: {
-    start: { at: [7, 47.2], yaw: PI },
+    start: { at: [11, 42.2], yaw: PI },
     fromCourt: { at: [23, 2.4], yaw: 0.1 },
   },
-  start: { at: [7, 47.2], yaw: PI },
+  start: { at: [11, 42.2], yaw: PI },
   clouds: [[38, 14, 5, 3]],
 };
 
@@ -439,12 +416,12 @@ const court: MapDef = {
     {
       id: 'lawn',
       pts: [
-        [-6, 1],
+        [-8, 1],
         [33, 1],
         [34, 20],
         [33.4, 56.8],
-        [-5.6, 56.8],
-        [-6.4, 30],
+        [-7.6, 56.8],
+        [-8.4, 30],
       ],
       h: 0.02,
       top: 'turf',
@@ -457,11 +434,11 @@ const court: MapDef = {
       id: 'west-rocks',
       pts: [
         [-30, 4],
-        [-8.6, 4],
-        [-7.2, 12],
-        [-8.4, 24],
-        [-7.2, 36],
-        [-8.8, 50],
+        [-10.2, 4],
+        [-8.8, 12],
+        [-10, 24],
+        [-8.8, 36],
+        [-10.4, 50],
         [-30, 50],
       ],
       h: 1.6,
@@ -470,10 +447,10 @@ const court: MapDef = {
       wall: 'bluff',
       smooth: 1.2,
     },
-    // 下沉的球场：坑口 x −1.4…21.4，四面 45° 的草坡（东西两面按太阳分亮暗，下沉读得出来），坑底整块是外场的蓝紫
+    // 下沉的球场：坑口 x −3.4…23.4，四面 45° 的草坡（东西两面按太阳分亮暗，下沉读得出来），坑底整块是外场的蓝紫
     {
       id: 'bowl',
-      pts: rect(-1.4, 8.4, 21.4, 53),
+      pts: rect(-3.4, 8.4, 23.4, 53),
       h: -1.6,
       top: 'courtOut',
       el: 'none',
@@ -481,31 +458,11 @@ const court: MapDef = {
       smooth: 0,
       slope: 1,
     },
-    // 北边看台：坑里两级（朝镜头两条暗带）+ 坑口上两级（高出草坪）
-    {
-      id: 'tier1',
-      pts: rect(0.2, 10, 19.8, 14),
-      h: -1.07,
-      base: -1.6,
-      top: 'seatRow',
-      el: 'none',
-      wall: 'adobe',
-      smooth: 0,
-    },
-    {
-      id: 'tier2',
-      pts: rect(0.2, 10, 19.8, 12),
-      h: -0.53,
-      base: -1.07,
-      top: 'stair',
-      el: 'none',
-      wall: 'adobe',
-      smooth: 0,
-    },
-    { id: 'stand-n1', pts: rect(-1.4, 2.2, 21.4, 6.6), h: 0.6, top: 'seatRow', el: 'none', wall: 'adobe', smooth: 0 },
+    // 北边看台：坑口上两级（高出草坪）；坑里不放看台，北壁整条露出来 = 朝镜头的冷暗带
+    { id: 'stand-n1', pts: rect(-3.4, 2.2, 23.4, 6.6), h: 0.6, top: 'seatRow', el: 'none', wall: 'adobe', smooth: 0 },
     {
       id: 'stand-n2',
-      pts: rect(-1.4, 2.2, 21.4, 4.4),
+      pts: rect(-3.4, 2.2, 23.4, 4.4),
       h: 1.2,
       base: 0.6,
       top: 'stair',
@@ -523,10 +480,10 @@ const court: MapDef = {
         [32, 3.4],
         [24, 2.6],
         [8, 2.6],
-        [-1.8, 2.8],
-        [-2, 0.8],
-        [-6, 0.8],
-        [-9, 4],
+        [-3.8, 2.8],
+        [-4, 0.8],
+        [-8, 0.8],
+        [-11, 4],
         [-30, 4],
       ],
       h: 3.6,
@@ -537,13 +494,18 @@ const court: MapDef = {
     },
   ],
   strips: [
-    // 主路：西南进来，斜着穿过球场南边，在东边草坪上弯两道（S 形）上到东口
+    // 主路：从南边正中进来，直接下石阶进场（竖屏一屏 = 入口 → 球场 → 北看台）
     trail('main', [
-      [2, 66],
-      [3.4, 59],
-      [10, 55.8],
-      [19, 55.6],
-      [25, 52.6],
+      [10, 70],
+      [10.2, 61],
+      [10, 55.4],
+    ]),
+    // 去东口（→ 泳池）：沿球场南沿往东，在东边草坪上弯两道（S 形）
+    trail('east', [
+      [10.8, 57.6],
+      [16, 56.8],
+      [22.4, 55.6],
+      [27.4, 51.4],
       [29.6, 46],
       [26.4, 39.6],
       [25.6, 32.6],
@@ -554,19 +516,19 @@ const court: MapDef = {
     ]),
     // 支路：西边踏脚石去北崖石阶
     stones('west', [
-      [3.4, 58.8],
-      [-3, 54.4],
-      [-4.2, 44],
-      [-4, 32],
-      [-4.4, 20],
-      [-4.2, 10.4],
+      [9, 58],
+      [-3, 55.4],
+      [-5.8, 46],
+      [-6, 32],
+      [-6.2, 20],
+      [-6, 9.4],
     ]),
     trail(
       'top',
       [
-        [-4, 1.4],
-        [-4.1, -3],
-        [-4, -16],
+        [-6, 1.4],
+        [-6.1, -3],
+        [-6, -16],
       ],
       1.6,
     ),
@@ -578,8 +540,19 @@ const court: MapDef = {
     ]),
   ],
   stairs: [
-    { id: 'nw-steps', x0: -5.8, x1: -2.4, z0: 0, z1: 9.2, axis: 'z', h0: 3.6, h1: 0, kind: 'stairs' },
-    { id: 'court-steps', x0: 8.4, x1: 11.6, z0: 50.6, z1: 55, axis: 'z', h0: -1.6, h1: 0, kind: 'stairs' },
+    { id: 'nw-steps', x0: -7.6, x1: -4.4, z0: 0, z1: 8.6, axis: 'z', h0: 3.6, h1: 0, kind: 'stairs' },
+    {
+      id: 'court-steps',
+      x0: 8.4,
+      x1: 11.6,
+      z0: 50.6,
+      z1: 55,
+      axis: 'z',
+      h0: -1.6,
+      h1: 0,
+      kind: 'stairs',
+      tread: 'stepStone',
+    },
   ],
   courts: [{ id: 'center', x0: 0.85, x1: 19.15, z0: 14.2, z1: 50.8, h: -1.6, axis: 'z', look: 'center' }],
   props: [
@@ -591,9 +564,9 @@ const court: MapDef = {
     { a: 'player', x: 10.4, z: 19.6, pose: 'ready', prop: 'racket' },
     { a: 'player', x: 9, z: 45.6, r: PI, pose: 'ready', prop: 'racket', v: 1 },
     // 看台上几团人
-    { a: 'player', x: 3, z: 11, y: -0.53, pose: 'sit', v: 2 },
-    { a: 'player', x: 4.2, z: 11, y: -0.53, pose: 'sit', v: 3 },
-    { a: 'player', x: 15.4, z: 13.2, y: -1.07, pose: 'sit', v: 4 },
+    { a: 'player', x: 6.4, z: 5.6, y: 0.6, pose: 'sit', v: 2 },
+    { a: 'player', x: 7.6, z: 5.6, y: 0.6, pose: 'sit', v: 3 },
+    { a: 'player', x: 14, z: 3.4, y: 1.2, pose: 'sit', v: 4 },
     { a: 'player', x: 1, z: 5.6, y: 0.6, pose: 'sit', v: 5 },
     { a: 'player', x: 2.2, z: 5.6, y: 0.6, pose: 'sit', v: 6 },
     { a: 'player', x: 16.6, z: 3.4, y: 1.2, pose: 'sit', v: 1 },
@@ -601,17 +574,14 @@ const court: MapDef = {
     { a: 'ramada', x: 31.8, z: 37.4, r: -PI / 2 },
     { a: 'bench', x: 31, z: 37.4, r: -PI / 2 },
     { a: 'water-station', x: 32, z: 40.8, r: -PI / 2 },
+    { a: 'ball-cart', x: 32.6, z: 34.6, r: 0.5 },
+    // 场西边的缓冲区：球车 + 水站 + 一个捡球的孩子（竖屏左边也有东西）
+    { a: 'ball-cart', x: -0.6, z: 24.4, y: -1.6 },
+    { a: 'water-station', x: -0.6, z: 40.6, r: PI / 2, y: -1.6 },
+    { a: 'player', x: -0.4, z: 28, r: PI / 2, pose: 'idle', v: 6, y: -1.6 },
+    { a: 'player', x: 31.2, z: 38.4, r: -PI / 2, pose: 'sit', v: 5 },
     // 东边草坪：主路两个弯里各一簇树（竖屏走在路上时左右都有东西）
-    ...cluster(
-      'palo-verde',
-      23.6,
-      44,
-      [
-        [0, 0],
-        [-0.6, 3, 0.8],
-      ],
-      { v0: 1 },
-    ),
+    { a: 'palo-verde', x: 25.4, z: 44.6, v: 1 },
     ...cluster(
       'fan-palm',
       30.4,
@@ -756,7 +726,7 @@ const court: MapDef = {
       [2.4, 1.6, 0.8],
     ]),
     // 南边（近处）：矮的石头、龙舌兰、仙人掌
-    ...cluster('agave', 8, 58.6, [
+    ...cluster('agave', 3.6, 58.6, [
       [0, 0],
       [1.8, 1.2, 0.8],
     ]),
@@ -798,30 +768,29 @@ const court: MapDef = {
       [34.4, 30],
     ],
     [
-      [6, 57.6],
+      [13, 57.6],
       [32.4, 57.6],
       [32.4, 80],
-      [6, 80],
-      [5.2, 64],
+      [13, 80],
     ],
     [
       [-30, 57],
-      [0.4, 57],
-      [0.6, 80],
+      [7, 57],
+      [7, 80],
       [-30, 80],
     ],
   ],
   exits: [
-    { to: 'arrive', entry: 'fromCourt', at: [2.6, 61], r: 2 },
-    { to: 'practice', entry: 'fromCourt', at: [-4, -3.4], r: 2 },
+    { to: 'arrive', entry: 'fromCourt', at: [10.2, 61.4], r: 2 },
+    { to: 'practice', entry: 'fromCourt', at: [-6, -3.4], r: 2 },
     { to: 'oasis', entry: 'fromCourt', at: [40, 22.8], r: 2.2 },
   ],
   entries: {
-    fromArrive: { at: [3.6, 57.4], yaw: PI },
-    fromPractice: { at: [-4.1, 0], yaw: 0 },
+    fromArrive: { at: [10, 57.8], yaw: PI },
+    fromPractice: { at: [-6.1, 0], yaw: 0 },
     fromOasis: { at: [35.4, 23.2], yaw: -PI / 2 },
   },
-  start: { at: [3.6, 57.4], yaw: PI },
+  start: { at: [10, 57.8], yaw: PI },
   clouds: [[44, 14, 5, 3]],
 };
 
@@ -985,7 +954,8 @@ const oasis: MapDef = {
     { a: 'fan-palm', x: 7.4, z: 5, v: 1 },
     { a: 'fan-palm', x: 17, z: 5.8, v: 2, s: 0.9 },
     // 目的地：池子南沿两组躺椅（伞 + 小桌）；暖色焦点 = 西边那把伞
-    { a: 'lounger', x: 5.4, z: 43.2, block: 'box' },
+    { a: 'lounger', x: 3.4, z: 43.2, block: 'box' },
+    { a: 'lounger', x: 5.6, z: 43.2, block: 'box' },
     { a: 'lounger', x: 7.8, z: 43.2, block: 'box' },
     { a: 'umbrella-hot', x: 10.4, z: 42.8 },
     { a: 'side-table', x: 10.4, z: 44.6 },
@@ -1003,7 +973,7 @@ const oasis: MapDef = {
       [
         [0, 0, 0.85],
         [-1.6, 2.8, 0.65],
-        [1.4, 3.6, 0.55],
+        [-1.6, -1.2, 0.55],
       ],
       { v0: 1 },
     ),
@@ -1018,11 +988,14 @@ const oasis: MapDef = {
       { v0: 2 },
     ),
     // 歇脚：东台地上的咖啡座
-    { a: 'kiosk', x: 41, z: 10.4 },
-    { a: 'cafe-table', x: 34.4, z: 13.4 },
-    { a: 'cafe-table', x: 39, z: 18, v: 1 },
-    { a: 'cafe-table', x: 34.8, z: 22, v: 2 },
-    { a: 'player', x: 33.6, z: 14, pose: 'sit', r: 1.2, v: 3 },
+    { a: 'kiosk', x: 37.6, z: 9 },
+    { a: 'cafe-table', x: 34.2, z: 15.2 },
+    { a: 'umbrella', x: 34.2, z: 15.2 },
+    { a: 'cafe-table', x: 37.6, z: 16.8, v: 1 },
+    { a: 'fan-palm', x: 41.4, z: 17.6, s: 0.8, v: 2 },
+    { a: 'smoke-tree', x: 31.6, z: 20.4, s: 0.8 },
+    { a: 'player', x: 33.4, z: 16, pose: 'sit', r: 1.2, v: 3 },
+    { a: 'player', x: 38.6, z: 17.6, pose: 'sit', r: -1.6, v: 4 },
     { a: 'pot', x: 30.8, z: 25.2, v: 1 },
     // 北崖顶
     ...cluster(
@@ -1291,7 +1264,18 @@ const practice: MapDef = {
   ],
   stairs: [
     { id: 'shelf-steps', x0: 23.3, x1: 26.3, z0: 7.6, z1: 13, axis: 'z', h0: 1.5, h1: 0, kind: 'stairs' },
-    { id: 'court-steps', x0: 21.2, x1: 25.4, z0: 40, z1: 42.8, axis: 'x', h0: -1.6, h1: 0, kind: 'stairs' },
+    {
+      id: 'court-steps',
+      x0: 21.2,
+      x1: 25.4,
+      z0: 40,
+      z1: 42.8,
+      axis: 'x',
+      h0: -1.6,
+      h1: 0,
+      kind: 'stairs',
+      tread: 'stepStone',
+    },
   ],
   courts: [{ id: 'p1', x0: 2.85, x1: 21.15, z0: 14.2, z1: 50.8, h: -1.6, axis: 'z', look: 'practice' }],
   props: [
