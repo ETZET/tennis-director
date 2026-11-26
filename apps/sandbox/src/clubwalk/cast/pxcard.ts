@@ -10,6 +10,7 @@ import type { ActionDef, ActionId, Activity, CastPerson, TieKind } from '../../c
 import {
   actIcon,
   bar,
+  costChip,
   createSheet,
   dayBand,
   type GlyphId,
@@ -22,7 +23,7 @@ import {
   t,
   tap,
   tinyRow,
-  weekPips,
+  weekSuns,
 } from '../../clubsite/hud';
 import type { Card } from './card';
 import type { CastCtx } from './ctx';
@@ -50,7 +51,7 @@ const TIE_GLYPH: Record<TieKind, GlyphId> = {
   rival: 'bolt',
   crush: 'heart',
   colleague: 'badge',
-  history: 'clock',
+  history: 'note',
 };
 const ATTR_ROWS: { k: 'ntrp' | 'fitness' | 'social' | 'patience' | 'spend' | 'loyalty'; g: GlyphId }[] = [
   { k: 'ntrp', g: 'racket' },
@@ -74,10 +75,13 @@ const CSS = `
 .pxc-mood { display: flex; align-items: center; gap: calc(var(--s) * 1px); margin-left: auto; }
 .pxc-band { display: flex; justify-content: center; margin: calc(var(--s) * 4px) 0 calc(var(--s) * 2px); position: relative; }
 .pxc-acts { display: flex; justify-content: space-between; gap: 2px; margin-top: calc(var(--s) * 2px); }
-.pxc-acts .pxs-btn { flex: 1 1 0; min-height: 56px; position: relative; }
+.pxc-acts .pxs-btn { flex: 1 1 0; min-height: 60px; position: relative; }
+.pxc-acts.far { gap: calc(var(--s) * 4px); }
+.pxc-acts .pxc-big { min-height: 56px; background: rgba(240, 216, 168, 0.9); }
+.pxc-unmet { display: flex; align-items: center; justify-content: center; gap: calc(var(--s) * 4px); padding: calc(var(--s) * 2px) 0; }
 .pxc-fold { position: absolute; left: 50%; top: calc(var(--s) * -11px); transform: translateX(-50%); width: 56px; height: 44px; justify-content: flex-start !important; }
 .pxc-more { display: flex; flex-direction: column; gap: calc(var(--s) * 4px); padding: calc(var(--s) * 2px) 0; }
-.pxc-attrs { display: grid; grid-template-columns: repeat(3, auto); justify-content: space-between; gap: calc(var(--s) * 3px) calc(var(--s) * 4px); }
+.pxc-attrs { display: flex; flex-direction: column; gap: calc(var(--s) * 2px); }
 .pxc-attr { display: flex; align-items: center; gap: calc(var(--s) * 2px); }
 .pxc-line2 { display: flex; align-items: center; gap: calc(var(--s) * 4px); flex-wrap: wrap; }
 .pxc-ties { display: flex; gap: calc(var(--s) * 3px); flex-wrap: wrap; }
@@ -86,7 +90,7 @@ const CSS = `
 `;
 
 function headCrop(id: string, p: CastPerson, size = 22): HTMLCanvasElement {
-  const src = portraitCanvas(id, p.look, p.age);
+  const src = portraitCanvas(id, p.look, p.age, true);
   const c = document.createElement('canvas');
   c.width = size;
   c.height = size;
@@ -118,7 +122,7 @@ function portrait(id: string, p: CastPerson): HTMLCanvasElement {
 /** 名字：中文界面用中文叫法（两三个字），英文界面用名 */
 export const shortName = (p: CastPerson) => (lang() === 'zh' && p.nameZh ? p.nameZh : p.name.split(' ')[0]);
 
-export function createPxCard(ctx: CastCtx): Card {
+export function createPxCard(ctx: CastCtx, onOpen?: () => void): Card {
   if (!document.getElementById('pxc-css')) {
     const st = document.createElement('style');
     st.id = 'pxc-css';
@@ -195,7 +199,7 @@ export function createPxCard(ctx: CastCtx): Card {
     );
 
     const parts: HTMLElement[] = [top, band];
-    if (more) parts.push(second(p, m.met, accent, wd));
+    if (more) parts.push(second(p, m.met, wd));
     parts.push(acts(p, n));
     const fold = btn('pxc-fold', more ? t('less') : t('more'));
     const tabEl = div('pxs-tab');
@@ -207,37 +211,42 @@ export function createPxCard(ctx: CastCtx): Card {
       render();
     });
     parts.push(fold);
-    el.replaceChildren(...parts, sheet.x);
+    sheet.body.replaceChildren(...parts);
     // 好感变了：心那里飘一颗心 + 点阵的 +0.8
     if (favorShown >= 0 && Math.abs(m.favor - favorShown) > 0.01) floatDelta(hc, m.favor - favorShown);
     favorShown = m.favor;
   }
 
-  function second(p: CastPerson, met: boolean, accent: number, wd: number): HTMLElement {
+  function second(p: CastPerson, met: boolean, wd: number): HTMLElement {
     const box = div('pxc-more');
     box.appendChild(div('pxs-rule'));
-    // 一周 7 格 + 性子
-    const l2 = div('pxc-line2');
-    l2.appendChild(px(weekPips(p.week ? p.week.days : p.tier === 'crowd' ? [wd] : null, wd, accent)));
-    if (met)
-      for (const tid of p.traits.slice(0, 3)) {
-        const tr = TRAITS[tid];
-        if (tr) l2.appendChild(div('pxs-chip', tr.name));
-      }
-    box.appendChild(l2);
-    // 属性：图标 + 短条（没见过面 = 一个"聊聊才知道"：对话框 + 问号）
+    // 没说过话：一个大问号 + 一句"聊聊才知道"，别的都不画
     if (!met) {
-      const u = div('pxc-line2');
-      u.append(px(glyph('bubble')), px(glyph('?')));
+      const u = div('pxc-unmet');
+      u.append(px(glyph('?'), 2), div('pxs-line', t('unknown')));
       box.appendChild(u);
       return box;
     }
+    // 一周 7 个小太阳（来的那几天亮）+ 性子（≤ 3 个词）
+    const l2 = div('pxc-line2');
+    if (p.week || p.tier !== 'crowd') l2.appendChild(px(weekSuns(p.week ? p.week.days : null, wd)));
+    for (const tid of p.traits.slice(0, 3)) {
+      const tr = TRAITS[tid];
+      if (tr) l2.appendChild(div('pxs-chip', tr.name));
+    }
+    box.appendChild(l2);
+    // 属性：只留最突出的 3 项（离一般最远的），长条，高绿 / 中黄 / 低红
+    const vals = ATTR_ROWS.map((a) => ({
+      ...a,
+      v: a.k === 'ntrp' ? (p.attrs.ntrp - 1) / 6 : p.attrs[a.k] / 100,
+    }));
+    const top3 = [...vals].sort((a, b) => Math.abs(b.v - 0.5) - Math.abs(a.v - 0.5)).slice(0, 3);
     const g = div('pxc-attrs');
-    for (const a of ATTR_ROWS) {
+    for (const a of vals) {
+      if (!top3.includes(a)) continue;
       const it = div('pxc-attr');
       it.appendChild(px(glyph(a.g)));
-      const v = a.k === 'ntrp' ? (p.attrs.ntrp - 1) / 6 : p.attrs[a.k] / 100;
-      it.appendChild(px(bar(v, 26, a.k === 'ntrp' ? 0xb8d84a : 0x6aa8d8, 5)));
+      it.appendChild(px(bar(a.v, 40, a.v >= 0.66 ? 0x8cc860 : a.v >= 0.34 ? 0xe8c070 : 0xc0545a, 8)));
       g.appendChild(it);
     }
     box.appendChild(g);
@@ -266,45 +275,49 @@ export function createPxCard(ctx: CastCtx): Card {
     const m = ctx.mem(p.id);
     const s = ctx.state();
     const defs: ActionDef[] = actionsFor(p, { near, activity: n.activity, scene: n.scene }, m);
-    // 不当面：最前面一个"走过去"（脚印），当面才能做的变淡（按了也是先走过去，到了接着做）
-    const anyFar = defs.some((a) => a.inPerson) && !near;
-    if (anyFar) {
-      const w = btn('pxc-walk', t('walk'));
+    // 不当面：只有两个大按钮 —— 走过去（脚印）、发条消息（信封，见过面才有）；当面的动作走到跟前再出现
+    if (!near) {
+      box.classList.add('far');
+      const w = btn('pxc-big', t('walk'));
       w.appendChild(px(actIcon('walk')));
       if (!n.here) w.classList.add('off');
       tap(w, () => {
-        if (n.here) ctx.walkTo(p.id);
+        if (!n.here) return;
+        sheet.say(t('walk'));
+        ctx.walkTo(p.id);
       });
       box.appendChild(w);
+      const msg = defs.find((a) => a.id === 'message');
+      if (msg) box.appendChild(actBtn(p, msg, m, s, 'pxc-big'));
+      return box;
     }
-    for (const a of defs) {
-      const icon = a.id === 'treat' && p.look.body !== 'adult' ? 'pop' : a.id;
-      const b = btn('', t(`act_${a.id}` as TKey));
-      b.appendChild(px(actIcon(icon)));
-      const cost: string[] = [];
-      if (a.money) cost.push('coin', String(a.money));
-      if (a.minutes) cost.push('clock', String(a.minutes));
-      b.appendChild(px(tinyRow(cost)));
-      const far = a.inPerson && !near;
-      if (far) b.classList.add('off');
-      const cant =
-        a.money > s.money ||
-        (a.id === 'gift' && m.giftDay > 0 && s.day - m.giftDay < 7) ||
-        (far && !n.here) ||
-        (a.id === 'message' && !m.met);
-      if (cant) b.classList.add('off');
-      tap(b, () => {
-        if (cant) return;
-        if (far) {
-          queued = { id: p.id, act: a.id };
-          ctx.walkTo(p.id);
-          return;
-        }
-        run(a.id);
-      });
-      box.appendChild(b);
-    }
+    for (const a of defs) box.appendChild(actBtn(p, a, m, s));
     return box;
+  }
+
+  function actBtn(
+    p: CastPerson,
+    a: ActionDef,
+    m: ReturnType<CastCtx['mem']>,
+    s: ReturnType<CastCtx['state']>,
+    cls = '',
+  ): HTMLButtonElement {
+    const icon = a.id === 'treat' && p.look.body !== 'adult' ? 'pop' : a.id;
+    const label = t(`act_${a.id}` as TKey);
+    const b = btn(cls, label);
+    b.appendChild(px(actIcon(icon)));
+    // 代价只写一种：花钱的写钱（HUD 那枚金币），不花钱的写时间（小钟）
+    b.appendChild(px(a.money ? costChip('coin', a.money) : costChip('clock', a.minutes)));
+    const cant =
+      a.money > s.money ||
+      (a.id === 'gift' && m.giftDay > 0 && s.day - m.giftDay < 7) ||
+      (a.id === 'message' && !m.met);
+    if (cant) b.classList.add('off');
+    tap(b, () => {
+      sheet.say(label);
+      if (!cant) run(a.id);
+    });
+    return b;
   }
 
   function run(a: ActionId) {
@@ -361,6 +374,7 @@ export function createPxCard(ctx: CastCtx): Card {
 
   return {
     open(nid, l) {
+      onOpen?.();
       if (l?.includes(nid)) list = l;
       else if (!list.includes(nid)) list = [nid];
       show(nid);

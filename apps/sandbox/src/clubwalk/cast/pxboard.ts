@@ -1,9 +1,9 @@
 // 名册的像素版：一块"今天的人"看板（clubsite/hud 的半屏卡；?hud=old 还是 roster.ts 的全屏表格）。
-// 不是表：今天来俱乐部的人一人一个像素头像，看得见的（就在附近）排最前、头像右上一个绿点；没说过话的头像暗一点。
-// 没有页签、搜索、字；点一个头像 = 开他的人物卡（卡上能走过去、能互动）。
-// 左上探出来一张工牌（同 HUD 的名册图标），旁边点阵数字 = 今天来了几个人 / 就在附近几个。
-import type { CastPerson } from '../../clubsite/cast/types';
-import { createSheet, glyph, px, t, tap, tinyRow } from '../../clubsite/hud';
+// 不是表：今天来俱乐部的人按地点分簇，每簇一行 —— 打头一个地点小图（车 = 停车场、铃 = 前台、喷泉 = 广场……），
+// 后面是这儿的人的像素头像，多的收成 "+N"（点了这一簇展开）。离总监近的簇在前、簇里近的在前。
+// 没有页签、搜索、字；点一个头像 = 开他的人物卡（卡上能走过去、能互动）。左上探出来一张工牌（同 HUD 的名册图标）。
+import type { CastPerson, SceneId } from '../../clubsite/cast/types';
+import { costChip, createSheet, type GlyphId, glyph, px, t, tap } from '../../clubsite/hud';
 import { ICONS } from '../../clubsite/hud/icons';
 import { spriteCanvas } from '../../clubsite/hud/sprite';
 import type { CastCtx } from './ctx';
@@ -12,23 +12,35 @@ import type { Roster } from './roster';
 
 const CSS = `
 .pxs-board { padding-top: calc(var(--s) * 4px); }
-.pxb-head { display: flex; align-items: flex-end; gap: calc(var(--s) * 4px); height: 30px; padding-left: 4px; }
-.pxb-badge { margin-top: calc(var(--s) * -14px); }
-.pxb-count { display: flex; align-items: center; gap: calc(var(--s) * 2px); margin-bottom: 4px; }
-.pxb-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(52px, 1fr)); gap: calc(var(--s) * 2px); max-height: min(46vh, 330px); overflow-y: auto; overscroll-behavior: contain;
-  padding: calc(var(--s) * 3px) calc(var(--s) * 2px) calc(var(--s) * 2px); margin-top: calc(var(--s) * 3px); touch-action: pan-y; scrollbar-width: none; }
-.pxb-grid::-webkit-scrollbar { display: none; }
-.pxb-tile { position: relative; min-height: 52px; }
-.pxb-tile .face { background: #f0d8a8; box-shadow: 2px 0 0 0 #2c2848, -2px 0 0 0 #2c2848, 0 2px 0 0 #2c2848, 0 -2px 0 0 #2c2848, 0 4px 0 0 #171230; }
-.pxb-tile.unmet .face { filter: brightness(0.62) saturate(0.6); }
-.pxb-tile .dot { position: absolute; right: 2px; top: 0; }
-@media (orientation: landscape) { .pxb-grid { max-height: min(52vh, 330px); } }
+.pxb-head { display: flex; align-items: flex-end; height: 22px; padding-left: 4px; }
+.pxb-badge { margin-top: calc(var(--s) * -16px); }
+.pxb-list { max-height: min(38vh, 330px); overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; scrollbar-width: none;
+  display: flex; flex-direction: column; gap: calc(var(--s) * 3px); padding: calc(var(--s) * 2px) calc(var(--s) * 1px) calc(var(--s) * 3px); }
+.pxb-list::-webkit-scrollbar { display: none; }
+.pxb-row { display: flex; align-items: center; gap: calc(var(--s) * 2px); flex-wrap: wrap; }
+.pxb-row .where { width: 30px; display: flex; justify-content: center; flex: none; }
+.pxb-tile { position: relative; min-width: 48px; min-height: 50px; }
+.pxb-tile .face { box-shadow: 2px 0 0 0 #2c2848, -2px 0 0 0 #2c2848, 0 2px 0 0 #2c2848, 0 -2px 0 0 #2c2848, 0 4px 0 0 #171230; }
+.pxb-more { min-width: 48px; min-height: 50px; }
+@media (orientation: landscape) { .pxb-list { max-height: min(62vh, 420px); } }
 `;
 
-/** 绿点（就在附近）：5×5 */
-function dotCanvas(): HTMLCanvasElement {
-  return spriteCanvas({ rows: ['.PP.', 'PPPp', 'PPpp', '.pp.'] }, 'pxb-dot');
-}
+/** 地点 → 打头的小图 */
+const SCENE_GLYPH: Record<SceneId, GlyphId> = {
+  clubpark: 'car',
+  clubdesk: 'bell',
+  clubpickle: 'paddle',
+  clubplaza: 'fountain',
+  clubstadium: 'trophy',
+  clubcourts: 'racket',
+  clubclay: 'clay',
+  clubhouse: 'house',
+  clubpool: 'drop',
+  clubgolf: 'flag',
+  clubfood: 'cup',
+};
+/** 每簇一行最多几个头像，多的收成 "+N"（点了这一簇展开） */
+const PER_ROW = 5;
 
 export function createPxBoard(ctx: CastCtx): Roster {
   if (!document.getElementById('pxb-css')) {
@@ -37,69 +49,103 @@ export function createPxBoard(ctx: CastCtx): Roster {
     st.textContent = CSS;
     document.head.appendChild(st);
   }
-  const sheet = createSheet('board');
+  const sheet = createSheet('board', () => open.clear());
   const el = sheet.el;
   el.setAttribute('aria-label', t('board'));
+  /** 展开了的簇 */
+  const open = new Set<SceneId>();
 
-  const people = (): CastPerson[] => {
+  /** 今天的人按地点分簇：看得见的在他所在的区域，没看见的在他今天排班的第一个地方；离总监近的簇在前 */
+  const clusters = (): { scene: SceneId; people: CastPerson[]; d: number }[] => {
     const s = ctx.state();
-    const out: CastPerson[] = [];
+    const by = new Map<SceneId, { people: CastPerson[]; d: number }>();
+    const add = (p: CastPerson, scene: SceneId, d: number) => {
+      let c = by.get(scene);
+      if (!c) {
+        c = { people: [], d: Number.POSITIVE_INFINITY };
+        by.set(scene, c);
+      }
+      c.people.push(p);
+      c.d = Math.min(c.d, d);
+    };
     const seen = new Set<string>();
     for (const p of ctx.cast.roster()) {
-      if (ctx.bound(p.id) || ctx.cast.where(p.id, s.day).length) {
-        out.push(p);
-        seen.add(p.id);
-      }
-    }
-    // 场景里看得见的路人（演员表里的生成人物）也算今天的人
-    for (const id of Object.keys(s.people)) {
-      if (seen.has(id) || !ctx.bound(id)) continue;
-      const p = ctx.person(id);
-      if (p) out.push(p);
-    }
-    const rank = (p: CastPerson) => {
       const b = ctx.bound(p.id);
-      return b ? b.d2 / 1e6 : 1;
-    };
-    return out.sort((a, b) => rank(a) - rank(b));
+      const homes = ctx.cast.where(p.id, s.day);
+      if (b) add(p, b.scene, b.d2);
+      else if (homes.length) add(p, homes[0].scene, 1e9);
+      else continue;
+      seen.add(p.id);
+    }
+    // 场景里看得见的路人（演员表里生成的人）也算今天的人
+    for (const id of Object.keys(s.people)) {
+      if (seen.has(id)) continue;
+      const b = ctx.bound(id);
+      const p = ctx.person(id);
+      if (b && p) add(p, b.scene, b.d2);
+    }
+    const out = [...by.entries()].map(([scene, c]) => {
+      const d2 = (p: CastPerson) => ctx.bound(p.id)?.d2 ?? 1e9;
+      c.people.sort((a, b) => d2(a) - d2(b));
+      return { scene, people: c.people, d: c.d };
+    });
+    return out.sort((a, b) => a.d - b.d);
   };
 
   function render() {
-    const list = people();
-    const ids = list.map((p) => p.id);
-    const nearN = list.filter((p) => ctx.bound(p.id)).length;
+    const cs = clusters();
+    const ids = cs.flatMap((c) => c.people.map((p) => p.id));
     const head = document.createElement('div');
     head.className = 'pxb-head';
     head.appendChild(px(spriteCanvas(ICONS.roster, 'roster', true, 0xfff0c4), 1, 'pxb-badge'));
-    const cnt = document.createElement('div');
-    cnt.className = 'pxb-count';
-    cnt.append(px(tinyRow([String(list.length)]), 2), px(glyph('eye')), px(tinyRow([String(nearN)]), 2));
-    head.appendChild(cnt);
-    const grid = document.createElement('div');
-    grid.className = 'pxb-grid';
-    for (const p of list) {
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.className = `pxs-btn pxb-tile${ctx.mem(p.id).met ? '' : ' unmet'}`;
-      b.dataset.id = p.id;
-      b.setAttribute('aria-label', shortName(p));
-      b.appendChild(px(headCrop(p.id, p), 1, 'face'));
-      if (ctx.bound(p.id)) b.appendChild(px(dotCanvas(), 1, 'dot'));
-      tap(b, () => {
-        sheet.close();
-        ctx.openCard(p.id, ids);
-      });
-      grid.appendChild(b);
+    const list = document.createElement('div');
+    list.className = 'pxb-list';
+    for (const c of cs) {
+      const row = document.createElement('div');
+      row.className = 'pxb-row';
+      const wh = document.createElement('div');
+      wh.className = 'where';
+      wh.appendChild(px(glyph(SCENE_GLYPH[c.scene])));
+      row.appendChild(wh);
+      const all = open.has(c.scene);
+      const shown = all ? c.people : c.people.slice(0, c.people.length > PER_ROW ? PER_ROW - 1 : PER_ROW);
+      for (const p of shown) {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'pxs-btn pxb-tile';
+        b.dataset.id = p.id;
+        b.setAttribute('aria-label', shortName(p));
+        b.appendChild(px(headCrop(p.id, p), 1, 'face'));
+        tap(b, () => {
+          sheet.close();
+          ctx.openCard(p.id, ids);
+        });
+        row.appendChild(b);
+      }
+      const rest = c.people.length - shown.length;
+      if (rest > 0) {
+        const m = document.createElement('button');
+        m.type = 'button';
+        m.className = 'pxs-btn pxb-more';
+        m.setAttribute('aria-label', t('more'));
+        m.appendChild(px(costChip(null, `+${rest}`)));
+        tap(m, () => {
+          open.add(c.scene);
+          render();
+        });
+        row.appendChild(m);
+      }
+      list.appendChild(row);
     }
-    el.replaceChildren(head, grid, sheet.x);
+    sheet.body.replaceChildren(head, list);
   }
 
   ctx.onChange(() => {
     if (!sheet.isOpen()) return;
-    const g = el.querySelector('.pxb-grid');
+    const g = el.querySelector('.pxb-list');
     const top = g?.scrollTop ?? 0;
     render();
-    const g2 = el.querySelector('.pxb-grid');
+    const g2 = el.querySelector('.pxb-list');
     if (g2) g2.scrollTop = top;
   });
 

@@ -4,7 +4,7 @@
 // - GLYPH：9×9 的小字形 —— 在干什么、属性、牵连、心情脸
 // - TINY：5×5 不描边的墨色小图（代价那一行：时钟、金币）+ 3×5 点阵数字（DIGITS）
 // 暖色不比草帽（≈ #ffcd81）艳：灯泡、闪电、星用草帽色 X / x，金币用干草色。
-import { COIN_KEYS, PALE_SUN } from './colors';
+import { COIN_KEYS, KEYS, PALE_SUN } from './colors';
 import { MOODS } from './icons';
 import type { Sprite } from './sprite';
 
@@ -199,6 +199,36 @@ export const GLYPH = {
   ),
   sun: { ...S('...L...', '.L.L.L.', '..LLL..', 'LLLLLLL', '..LLL..', '.L.L.L.', '...L...'), keys: { L: PALE_SUN } },
   moon: S('..WWW..', '.WWw...', 'WWw....', 'WWw....', 'WWw....', '.WWw...', '..WWW..'),
+  // ── 地点（名册看板按地点分簇的打头小图） ──
+  car: S('..BBBBB..', '.BAAbAAB.', 'BBBBBBBBn', 'BWBBBBWBn', 'nnnnnnnnn', '.dd...dd.'),
+  bell: S('....X....', '...XXx...', '..XXXXx..', '..XWXXx..', '.XWXXXXx.', '.XXXXXXx.', 'XXXXXXXXx', 'ttttttttt'),
+  paddle: S(
+    '.SSSS....',
+    'SBBBBS...',
+    'SBWBBS...',
+    'SBBBBS...',
+    'SBBBbS...',
+    '.SSSS....',
+    '...TT.GG.',
+    '...Tt.Gg.',
+    '...tt....',
+  ),
+  fountain: S('....A....', '...AWA...', '..A.A.A..', '.A..A..A.', '...SSS...', 'SAAAAAAAS', 'SSSSSSSSd', '.ddddddd.'),
+  trophy: S('XXXXXXXXX', 'XWXXXXXXx', '.XXXXXXx.', '..XXXXx..', '...XXx...', '....X....', '...XXx...', '..xxxxx..'),
+  clay: {
+    ...S(
+      '...GGG...',
+      '.WGGGGGW.',
+      '.GWGGGWg.',
+      'GGGWGWggg',
+      'GGGWGWggg',
+      'GGGWgWggg',
+      '.gWgggWh.',
+      '.Wgggghh.',
+      '...hhh...',
+    ),
+    keys: { G: KEYS.R, g: KEYS.r, h: KEYS.m },
+  },
   /** 好感：一颗心（满 / 半 / 空） */
   heart: S('.RR.RR.', 'RWRRRRr', 'RRRRRRr', '.RRRRr.', '..RRr..', '...r...'),
   heartHalf: S('.RR.vv.', 'RWRRvvv', 'RRRRvvv', '.RRRvv.', '..Rvv..', '...v...'),

@@ -622,8 +622,15 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
         p.onTap();
         return;
       }
-      peekV = p ? { ...p, until: now + (p.sec ?? 2.6) * 1000 } : null;
-      if (p) pop(p.line, null, p.sec ?? 2.6, p.who ?? { name: p.title, hair: INK, skin: CREAM, shirt: INK });
+      // 收起（开了人物卡：卡上已经有这句话了）
+      if (!p) {
+        peekV = null;
+        toastEl.classList.add('gone');
+        toastEl.classList.remove('tap');
+        return;
+      }
+      peekV = { ...p, until: now + (p.sec ?? 2.6) * 1000 };
+      pop(p.line, null, p.sec ?? 2.6, p.who ?? { name: p.title, hair: INK, skin: CREAM, shirt: INK });
     },
     frame() {
       // 转屏 / 改窗口：纹素倍数变了就重设所有像素图的大小、重画字

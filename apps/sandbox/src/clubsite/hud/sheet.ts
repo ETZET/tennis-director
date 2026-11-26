@@ -5,7 +5,9 @@
 // 打开卡片的那一下（界面按钮的 pointerup）之后，手机会再补一个 click 落在新卡片上（"幽灵点击"）：卡片里的点按只认
 // 在卡片里按下、又在同一个东西上抬起的（tap()），不认裸 click。
 import { CREAM, hex, INK, INK_SHADOW, KEYS } from './colors';
+import { textCanvas } from './font';
 import { ACT, type ActIcon, DIGITS, GLYPH, type GlyphId, TINY } from './glyphs';
+import { ICONS } from './icons';
 import { hudScale } from './scale';
 import { type Sprite, spriteCanvas } from './sprite';
 
@@ -26,8 +28,17 @@ export const SHEET_CSS = `
 .pxs-sheet { position: absolute; left: 50%; bottom: max(calc(var(--s) * 3px), env(safe-area-inset-bottom)); width: calc(100vw - var(--s) * 6px); max-width: 420px;
   transform: translateX(-50%); background: ${cream}; ${FRAME('calc(var(--s) * 1px)')} color: ${ink};
   padding: calc(var(--s) * 5px) calc(var(--s) * 5px) calc(var(--s) * 5px); box-sizing: border-box; animation: pxs-rise 0.24s steps(4, end); }
-@media (orientation: landscape) { .pxs-sheet { max-width: 440px; } }
 @keyframes pxs-rise { from { transform: translate(-50%, 60%); } to { transform: translate(-50%, 0); } }
+/* 横屏：贴右下角一张窄卡（不压画面中间；总监在正中） */
+@media (orientation: landscape) {
+  .pxs-sheet { left: auto; right: max(calc(var(--s) * 4px), env(safe-area-inset-right)); width: 360px; max-width: 360px; transform: none; animation-name: pxs-rise-r; }
+}
+@keyframes pxs-rise-r { from { transform: translateY(60%); } to { transform: none; } }
+/* 卡顶上浮的一行字（同参考：一行白字黑边，过一会儿消失）：按了哪个按钮、得了什么 */
+.pxs-say { position: absolute; left: 0; right: 0; bottom: calc(100% + var(--s) * 14px); display: flex; justify-content: center; pointer-events: none; transition: opacity 0.4s steps(3, end); }
+.pxs-say.gone { opacity: 0; }
+.pxs-say span { font: 600 15px/1.25 "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", system-ui, sans-serif; color: ${cream}; letter-spacing: 0.5px; white-space: nowrap;
+  text-shadow: 1px 0 0 ${ink}, -1px 0 0 ${ink}, 0 1px 0 ${ink}, 0 -1px 0 ${ink}, 1px 1px 0 ${ink}, -1px 1px 0 ${ink}, 1px -1px 0 ${ink}, -1px -1px 0 ${ink}, 0 2px 0 ${shadow}; }
 .pxs-sheet .pxh-px, .pxs-px { display: block; image-rendering: pixelated; image-rendering: crisp-edges; flex: none; }
 .pxs-sheet button { border: 0; margin: 0; padding: 0; background: none; color: inherit; font: inherit; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 .pxs-sheet button:focus-visible { outline: 2px solid ${ink}; outline-offset: 1px; }
@@ -36,7 +47,8 @@ export const SHEET_CSS = `
 .pxs-btn:disabled, .pxs-btn.off { opacity: 0.38; }
 /* 卡顶探出来的小纸条（右上的关、正中的展开）：和卡片同一张纸，三边描边 */
 .pxs-tab { background: ${cream}; padding: calc(var(--s) * 2px) calc(var(--s) * 3px); box-shadow: calc(var(--s) * 1px) 0 0 0 ${ink}, calc(var(--s) * -1px) 0 0 0 ${ink}, 0 calc(var(--s) * -1px) 0 0 ${ink}; }
-.pxs-x { position: absolute; right: calc(var(--s) * 3px); top: calc(var(--s) * -11px); width: 48px; height: 44px; justify-content: flex-start !important; }
+.pxs-x { position: absolute; right: calc(var(--s) * 3px); top: calc(var(--s) * -14px); width: 52px; height: 52px; justify-content: flex-start !important; }
+.pxs-tab { padding: calc(var(--s) * 3px) calc(var(--s) * 5px) calc(var(--s) * 3px) !important; }
 /* 名字和一句话：卡片上仅有的两种字（平滑系统字，墨色） */
 .pxs-name { font: 700 17px/1.15 "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", system-ui, sans-serif; letter-spacing: 0.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pxs-line { font: 500 14px/1.35 "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", system-ui, sans-serif; color: ${ink}; opacity: 0.86; }
@@ -140,6 +152,24 @@ export function tinyRow(parts: string[], color = INK): HTMLCanvasElement {
   return c;
 }
 
+/**
+ * 代价 / 数量：一个图标（金币 = HUD 右上那枚；时间 = 小钟）+ 5×7 点阵数字（同 HUD 的钱），墨色。
+ * dataset.chars = 数字个数。
+ */
+export function costChip(kind: 'coin' | 'clock' | null, n: number | string, color = INK): HTMLCanvasElement {
+  const ic = kind === 'coin' ? spriteCanvas(ICONS.coin, 'coin') : kind === 'clock' ? glyph('clock') : null;
+  const txt = String(n);
+  const tc = textCanvas(txt, { color, outline: null });
+  const gap = ic ? 1 : 0;
+  const w = (ic ? ic.width : 0) + gap + tc.width;
+  const h = Math.max(ic ? ic.height : 0, tc.height);
+  const [c, g] = cv(w, h);
+  if (ic) g.drawImage(ic, 0, Math.floor((h - ic.height) / 2));
+  g.drawImage(tc, (ic ? ic.width : 0) + gap, Math.floor((h - tc.height) / 2));
+  c.dataset.chars = String(txt.replace(/\s/g, '').length);
+  return c;
+}
+
 /** 好感 0..10 → 5 颗心（满 / 半 / 空），心之间 1 纹素 */
 export function hearts(f: number): HTMLCanvasElement {
   const ids: GlyphId[] = [];
@@ -225,7 +255,8 @@ export function dayBand(o: {
     const xn = X(o.now);
     g.fillStyle = hex(INK);
     g.fillRect(xn - 1, bandY - 1, 3, 9);
-    g.fillStyle = hex(CREAM);
+    // "现在"：一根草帽色的针（这张卡上唯一的暖色）
+    g.fillStyle = hex(KEYS.X);
     g.fillRect(xn, bandY, 1, 7);
     if (mark) g.drawImage(mark, Math.max(0, Math.min(W - mark.width, xn - Math.floor(mark.width / 2))), 0);
   }
@@ -244,6 +275,28 @@ export function weekPips(days: readonly number[] | null, today: number, color: n
     if (d === today) {
       g.fillStyle = hex(INK);
       g.fillRect(x + 2, 7, 2, 2);
+    }
+  }
+  return c;
+}
+
+/** 一周 7 个小太阳（周一起）：来的日子亮，不来的是暗纸色的剪影；今天下面一道墨 */
+export function weekSuns(days: readonly number[] | null, today: number): HTMLCanvasElement {
+  const on = glyph('sun');
+  const sw = on.width;
+  const [c, g] = cv(7 * (sw + 1) - 1, on.height + 2);
+  // 暗的：把亮的那张按形状涂成暗纸色
+  const [off, og] = cv(on.width, on.height);
+  og.drawImage(on, 0, 0);
+  og.globalCompositeOperation = 'source-in';
+  og.fillStyle = hex(PAPER_DARK);
+  og.fillRect(0, 0, on.width, on.height);
+  for (let d = 0; d < 7; d++) {
+    const x = d * (sw + 1);
+    g.drawImage(!days || days.includes(d) ? on : off, x, 0);
+    if (d === today) {
+      g.fillStyle = hex(INK);
+      g.fillRect(x + 1, on.height + 1, sw - 2, 1);
     }
   }
   return c;
@@ -284,8 +337,10 @@ export interface Sheet {
   shade: HTMLElement;
   /** 卡片本身 */
   el: HTMLElement;
-  /** 右上角的关（卡片重画内容时记得放回去：el.replaceChildren(...内容, sheet.x)） */
-  x: HTMLElement;
+  /** 卡片内容放这里（重画 = body.replaceChildren(...)；右上的关、上浮的字在外面不受影响） */
+  body: HTMLElement;
+  /** 卡顶上浮一行字（1.6 秒） */
+  say(text: string, sec?: number): void;
   open(): void;
   close(): void;
   isOpen(): boolean;
@@ -331,16 +386,31 @@ export function createSheet(panel: string, onClose?: () => void): Sheet {
     if (dy > 70 && Math.abs(dx) < 50) api.close();
   });
   tap(x, () => api.close());
+  const sayEl = document.createElement('div');
+  sayEl.className = 'pxs-say gone';
+  let sayT = 0;
+  const body = document.createElement('div');
+  body.className = 'pxs-body';
+  el.append(body, x, sayEl);
   const api: Sheet = {
     shade,
     el,
-    x,
+    body,
+    say(text, sec = 1.6) {
+      sayEl.replaceChildren();
+      const sp = document.createElement('span');
+      sp.textContent = text;
+      sayEl.appendChild(sp);
+      sayEl.classList.remove('gone');
+      clearTimeout(sayT);
+      sayT = window.setTimeout(() => sayEl.classList.add('gone'), sec * 1000);
+    },
     open() {
-      if (!el.contains(x)) el.appendChild(x);
       shade.hidden = false;
     },
     close() {
       if (shade.hidden) return;
+      sayEl.classList.add('gone');
       shade.hidden = true;
       onClose?.();
     },

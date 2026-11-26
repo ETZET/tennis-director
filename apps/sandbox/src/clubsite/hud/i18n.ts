@@ -33,6 +33,7 @@ const zh = {
   less: '收起',
   close: '关上',
   board: '今天的人',
+  unknown: '聊聊才知道',
 } as const;
 
 const en: Record<keyof typeof zh, string> = {
@@ -65,6 +66,7 @@ const en: Record<keyof typeof zh, string> = {
   less: 'Less',
   close: 'Close',
   board: 'Today',
+  unknown: 'Talk to find out',
 };
 
 export type TKey = keyof typeof zh;

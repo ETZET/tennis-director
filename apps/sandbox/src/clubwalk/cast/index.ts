@@ -169,7 +169,7 @@ export function mountCast(o: MountCastOpts): CastMount {
 
   // 像素界面：半屏的像素人物卡、"今天的人"看板（pxcard / pxboard）；旧界面还是全屏的文字卡、名册表
   const roster = o.quiet ? createPxBoard(ctx) : createRoster(ctx, ui);
-  const card = o.quiet ? createPxCard(ctx) : createCard(ctx, ui);
+  const card = o.quiet ? createPxCard(ctx, () => o.peek?.(null)) : createCard(ctx, ui);
   const panelOpen = () => roster.isOpen() || card.isOpen();
 
   openBtn.addEventListener('click', () => roster.open());
