@@ -5,6 +5,7 @@ export type Lang = 'zh' | 'en';
 const zh = {
   weekdays: '周一,周二,周三,周四,周五,周六,周日',
   date: '第{d}天',
+  dayN: 'DAY {d}',
   colon: '：',
   roster: '名册',
   map: '地图',
@@ -25,6 +26,7 @@ const zh = {
 const en: Record<keyof typeof zh, string> = {
   weekdays: 'MON,TUE,WED,THU,FRI,SAT,SUN',
   date: 'DAY {d}',
+  dayN: 'DAY {d}',
   colon: ': ',
   roster: 'Roster',
   map: 'Map',

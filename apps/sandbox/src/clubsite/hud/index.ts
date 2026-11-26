@@ -35,8 +35,8 @@ export type { Iris } from './iris';
 export { createIris } from './iris';
 export { moodOf } from './mood';
 
-/** 界面纹素 → CSS 像素：手机 2；短边 ≥ 600（平板、桌面横屏）3 */
-export const hudScale = () => (Math.min(innerWidth, innerHeight) >= 600 ? 3 : 2);
+/** 界面纹素 → CSS 像素：2（第 4 轮评判：横屏 3 倍比参考重 1.7 倍，统一 2 倍；留成函数，以后按屏幕分档） */
+export const hudScale = () => 2;
 
 export interface HudButton {
   id: string;
@@ -133,6 +133,38 @@ function headSprite(w: Who) {
   };
 }
 
+/** 动作键外面的细环：直径 d 纹素，外 1 纹素墨、里 1 纹素奶油（按住干活时金），中间透明 */
+function ringCanvas(d: number, color: number): HTMLCanvasElement {
+  const c = document.createElement('canvas');
+  c.width = d;
+  c.height = d;
+  const g = c.getContext('2d') as CanvasRenderingContext2D;
+  const r = d / 2;
+  for (let y = 0; y < d; y++)
+    for (let x = 0; x < d; x++) {
+      const q = Math.hypot(x + 0.5 - r, y + 0.5 - r);
+      if (q > r || q <= r - 2) continue;
+      g.fillStyle = hex(q > r - 1 ? INK : color);
+      g.fillRect(x, y, 1, 1);
+    }
+  return c;
+}
+
+/** 动作键右下角的小角标：墨色小方块 + 奶油点阵字（计数 "1/4"） */
+function keyCanvas(text: string): HTMLCanvasElement {
+  const tx = textCanvas(text, { color: CREAM, outline: null });
+  const c = document.createElement('canvas');
+  c.width = tx.width + 4;
+  c.height = tx.height + 4;
+  const g = c.getContext('2d') as CanvasRenderingContext2D;
+  g.fillStyle = hex(CREAM);
+  g.fillRect(0, 0, c.width, c.height);
+  g.fillStyle = hex(INK);
+  g.fillRect(1, 1, c.width - 2, c.height - 2);
+  g.drawImage(tx, 2, 2);
+  return c;
+}
+
 export function mountPixelHud(o: PixelHudOpts): PixelHud {
   if (!document.getElementById('pxh-css')) {
     const st = document.createElement('style');
@@ -196,7 +228,7 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
   const dateCv = document.createElement('canvas');
   dateCv.className = 'pxh-px';
   dateCv.dataset.k = '1';
-  dateEl.append(view(icon('cal')), dateCv);
+  dateEl.append(dateCv);
   clockBtn.append(clockCv, dateEl);
   root.appendChild(clockBtn);
   // 点日钟：小牌子（星期几 + 天气图标），1.8 秒；调试里 = 调时间面板
@@ -257,7 +289,7 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
     const ds = `${t('date', { wd: weekday(dayN), d: dayN })}|${S}`;
     if (ds !== dateKey) {
       dateKey = ds;
-      put(dateCv, textCanvas(String(dayN)));
+      put(dateCv, textCanvas(t('dayN', { d: dayN })));
       clockBtn.setAttribute('aria-label', `${t('clock')} · ${t('date', { d: dayN })}`);
     }
   }
@@ -279,7 +311,7 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
   const sign = document.createElement('div');
   sign.className = 'pxh-sign gone';
   const actRow = document.createElement('div');
-  actRow.className = 'pxh-row';
+  actRow.className = 'pxh-row pxh-acts';
   const fixRow = document.createElement('div');
   fixRow.className = 'pxh-row';
   dock.append(sign, actRow, fixRow);
@@ -346,8 +378,16 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
     // 空的 canvas 默认 300×150：先给个 1×1，免得没活时把槽位撑大
     ic.width = 1;
     ic.height = 1;
-    b.append(ic);
-    return { b, ic, id: '' as IconId | '' };
+    // 动作键：外面一圈 26 纹素的细环（墨 + 奶油，里面透明，不是底板）—— 一眼看出"这是按的"，也比常驻图标大一号；
+    // 右下角一个小角标（同参考的快捷键角标）：活的名字里有"1/4"这种计数就写计数
+    const ring = view(ringCanvas(26, CREAM), 1, 'pxh-ring');
+    const key = document.createElement('canvas');
+    key.className = 'pxh-px pxh-key';
+    key.dataset.k = '1';
+    key.width = 1;
+    key.height = 1;
+    b.append(ring, ic, key);
+    return { b, ic, ring, key, id: '' as IconId | '' };
   };
   const use = mkAct('pxh-use');
   const pick = mkAct('pxh-pick');
@@ -407,7 +447,7 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
   const markEl = document.createElement('div');
   markEl.className = 'pxh-mark';
   markEl.hidden = true;
-  markEl.appendChild(view(icon('arrow')));
+  markEl.appendChild(view(spriteCanvas(ICONS.arrow, 'arrow')));
   root.appendChild(markEl);
   const moodsEl = document.createElement('div');
   moodsEl.className = 'pxh-moods';
@@ -440,7 +480,7 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
     // 别人说的话：小人头 + 名字（金）+ 一句话，一眼知道是谁说的
     if (who) {
       row.appendChild(view(spriteCanvas(headSprite(who), `head-${who.name}-${who.shirt}`), 1, 'pxh-head'));
-      row.appendChild(label(`${who.name}${t('colon')}`, GOLD));
+      row.appendChild(label(`${who.name}${t('colon')}`, CREAM, 'name'));
     }
     row.appendChild(label(text, CREAM));
     toastEl.appendChild(row);
@@ -510,11 +550,14 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
   let wasUse = '';
   let wasPick = '';
   let wasOn = false;
-  const setAct = (a: { b: HTMLButtonElement; ic: HTMLCanvasElement; id: IconId | '' }, text: string, id: IconId) => {
+  const setAct = (a: ReturnType<typeof mkAct>, text: string, id: IconId) => {
     a.b.classList.toggle('empty', !text);
     a.b.setAttribute('aria-label', text);
     a.id = text ? id : '';
-    if (text) put(a.ic, icon(id, a === use && wasOn ? GOLD : CREAM));
+    if (text) put(a.ic, icon(id));
+    const n = /(\d+\s*\/\s*\d+)/.exec(text)?.[1]?.replace(/\s/g, '');
+    a.key.hidden = !n;
+    if (n) put(a.key, keyCanvas(n));
     if (text && !seen.has(text)) {
       seen.add(text);
       showSign(text, 1500);
@@ -572,7 +615,7 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
       if (ui.usingNow !== wasOn) {
         wasOn = ui.usingNow;
         use.b.classList.toggle('on', ui.usingNow);
-        if (use.id) put(use.ic, icon(use.id, ui.usingNow ? GOLD : CREAM));
+        put(use.ring, ringCanvas(26, ui.usingNow ? GOLD : CREAM));
       }
       if (ui.pick !== wasPick) {
         wasPick = ui.pick;
@@ -639,10 +682,12 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
         }
         // 泡的尾巴尖（左下）对着头顶
         const ch = me.cv.height * S;
-        me.el.style.transform = `translate(${Math.round(c.p.x - pad - 2 * S)}px, ${Math.round(c.p.y - pad - ch)}px)`;
+        const cw = me.cv.width * S;
+        me.el.style.transform = `translate(${Math.round(c.p.x - pad - cw / 2)}px, ${Math.round(c.p.y - pad - ch)}px)`;
       });
       // 小箭头
-      markEl.hidden = !ui.mark;
+      // 小箭头只给"还够不着"的东西：动作键已经亮了（总监站到能干活的地方）就不画，不和动作键说同一件事
+      markEl.hidden = !ui.mark || !!ui.use || !!ui.pick;
       if (ui.mark) {
         const p = play.project(ui.mark, w, h);
         const aw = markEl.offsetWidth;

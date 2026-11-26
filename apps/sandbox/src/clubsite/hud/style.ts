@@ -17,7 +17,8 @@ export const HUD_CSS = `
 /* 浮动的话：平滑的系统字 + 1 px 墨色细描边 + 下面 1 px 深影（同参考的浮动中文），不做阈值伪像素 */
 .pxh-txt { font: 600 calc(var(--s) * 6px + 1px)/1.25 "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", system-ui, sans-serif; letter-spacing: 0.5px; white-space: nowrap;
   text-shadow: 1px 0 0 ${ink}, -1px 0 0 ${ink}, 0 1px 0 ${ink}, 0 -1px 0 ${ink}, 1px 1px 0 ${ink}, -1px 1px 0 ${ink}, 1px -1px 0 ${ink}, -1px -1px 0 ${ink}, 0 2px 0 ${shadow}; }
-.pxh-txt.ink { text-shadow: none; font-weight: 600; }
+.pxh-txt.ink { text-shadow: none; font-weight: 700; color: ${ink} !important; }
+.pxh-txt.name { opacity: 0.92; }
 .pxh-date { display: flex; align-items: center; gap: calc(var(--s) * 1px); }
 .pxh-root button { border: 0; margin: 0; padding: 0; background: none; cursor: pointer; pointer-events: auto; touch-action: none; -webkit-tap-highlight-color: transparent; }
 .pxh-root button:focus-visible { outline: 2px solid ${cream}; outline-offset: 2px; }
@@ -26,7 +27,7 @@ export const HUD_CSS = `
 .pxh-clock { position: absolute; left: max(6px, env(safe-area-inset-left)); top: max(6px, env(safe-area-inset-top)); display: flex; flex-direction: column; align-items: center; gap: calc(var(--s) * 1px); min-width: 48px; min-height: 48px; }
 .pxh-clock:active .pxh-px:first-child { transform: translateY(2px); }
 /* 点日钟冒出来的小牌子（星期几 + 天气图标），一两秒消失 */
-.pxh-tip { position: absolute; left: max(12px, calc(env(safe-area-inset-left) + 6px)); top: calc(max(6px, env(safe-area-inset-top)) + var(--s) * 52px); display: flex; align-items: center; gap: 6px; padding: 3px 7px 3px 5px; ${SIGN} transition: opacity 0.3s steps(3, end); }
+.pxh-tip { position: absolute; left: max(6px, env(safe-area-inset-left)); top: calc(max(6px, env(safe-area-inset-top)) + var(--s) * 50px); display: flex; align-items: center; gap: 6px; padding: 3px 7px 3px 5px; ${SIGN} transition: opacity 0.3s steps(3, end); }
 .pxh-tip.gone { opacity: 0; }
 
 /* 右上：钱 */
@@ -40,7 +41,13 @@ export const HUD_CSS = `
 .pxh-btn.down .pxh-px, .pxh-btn.on .pxh-px { transform: translateY(calc(var(--s) * 1px)); }
 /* 图标底下一纹素的硬投影：亮地面上也分得开 */
 .pxh-fixed .pxh-px, .pxh-money .pxh-px:first-child { filter: drop-shadow(0 calc(var(--s) * 1px) 0 rgba(23, 18, 48, 0.55)); }
-.pxh-act { width: calc(var(--s) * 24px); height: calc(var(--s) * 24px); }
+.pxh-act { width: calc(var(--s) * 26px); height: calc(var(--s) * 26px); }
+.pxh-act .pxh-ring { position: absolute; inset: 0; margin: auto; }
+.pxh-act .pxh-key { position: absolute; right: calc(var(--s) * -2px); bottom: calc(var(--s) * -1px); }
+/* 名册、地图：同一个 22 纹素的格子，底边对齐 */
+.pxh-fixed { width: calc(var(--s) * 22px); height: calc(var(--s) * 22px); align-items: end; }
+/* 能干的活那一排往左挪一点，落在右手拇指自然的落点上，不贴右边缘 */
+.pxh-acts { margin-right: calc(var(--s) * 6px); }
 /* 没活的槽位不占地方：有活的靠右排（动作键永远最右） */
 .pxh-act.empty { display: none; }
 .pxh-act .pxh-icon { position: relative; }

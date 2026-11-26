@@ -10,21 +10,21 @@ const S = (...rows: string[]): Sprite => ({ rows });
 export const ICONS = {
   /** 名册：一张工牌（挂绳、蓝色抬头、照片、两行字）—— 场景里的实物，低饱和 */
   roster: S(
-    '..nn......nn..',
-    '...nn....nn...',
-    '....nn..nn....',
-    '.....nSSn.....',
-    '..bbbbSSbbbb..',
-    '..bbbbbbbbbb..',
-    '..WWWWWWWWWw..',
-    '..WvvvWWWWWw..',
-    '..WvdvWsssWw..',
-    '..WdddWWWWWw..',
-    '..WdddWsssWw..',
-    '..WWWWWWWWWw..',
-    '..WssssssWWw..',
-    '..WWWWWWWWWw..',
-    '..wwwwwwwwww..',
+    '...nn......nn...',
+    '....nn....nn....',
+    '.....nn..nn.....',
+    '......nSSn......',
+    '..bbbbbSSbbbbb..',
+    '..bbbbbbbbbbbb..',
+    '..WWWWWWWWWWWw..',
+    '..WvvvvWWWWWWw..',
+    '..WvddvWssssWw..',
+    '..WddddWWWWWWw..',
+    '..WddddWsssWWw..',
+    '..WWWWWWWWWWWw..',
+    '..WsssssssWWWw..',
+    '..WWWWWWWWWWWw..',
+    '..wwwwwwwwwwww..',
   ),
   /** 地图：三折的米色纸，中间一折在影子里；低饱和的绿地、水，红色虚线路线 + 一个小红点 */
   map: S(
@@ -63,13 +63,13 @@ export const ICONS = {
   /** 推球包车：铁丝筐里装满网球，两个轮子 */
   cart: S(
     '..................',
-    '...gghgghggh......',
-    '..gghgghgghgg.....',
-    '.SghgghgghgghS....',
+    '...XXxXXxXXx......',
+    '..XXxXXxXXxXX.....',
+    '.SXxXXxXXxXXxS....',
     '.SsSsSsSsSsSsS....',
-    '.SgghgghgghggS....',
+    '.SXXxXXxXXxXXS....',
     '.SsSsSsSsSsSsS....',
-    '.ShgghgghgghgS....',
+    '.SxXXxXXxXXxXS....',
     '.SsSsSsSsSsSsS.SS.',
     '..SsssssssssssSsS.',
     '...s.........sS...',
@@ -238,8 +238,8 @@ export const ICONS = {
   dots: S('S.S.S'),
   /** 日期前面的小日历（7×6） */
   cal: S('rrrrrrr', 'WWWWWWW', 'WsWsWsW', 'WWWWWWW', 'WsWsWWW', 'wwwwwww'),
-  /** 互动点头上的小箭头（朝下，金色） */
-  arrow: S('YYYYY', 'YWYYy', '.YYy.', '..y..'),
+  /** 互动点头上的小箭头（朝下，奶油色：不和草帽的金抢） */
+  arrow: S('WWWWW', '.Www.', '..w..'),
   /** 拿 / 放（手里要拿的东西挑不出图标时）：一只纸箱，顶上一条胶带 */
   box: S(
     '...XXXXXXXXXX...',
@@ -400,7 +400,7 @@ export const MOODS = {
 
 export type MoodId = keyof typeof MOODS;
 
-/** 心情泡：奶油色圆角框（11×11，字形 9×9 放在 (1,1)）+ 左下的小尾巴；加描边 13 宽 */
+/** 心情泡：奶油色圆角小方块（11×11，字形 9×9 放在 (1,1)），不要尾巴；加描边 13×13，正放在头顶 */
 export const BUBBLE = S(
   '.WWWWWWWWW.',
   'WWWWWWWWWWW',
@@ -411,10 +411,8 @@ export const BUBBLE = S(
   'WWWWWWWWWWW',
   'WWWWWWWWWWW',
   'WWWWWWWWWWW',
-  'WWWWWWWWWWw',
-  '.wwWWwwwww.',
-  '..wWw......',
-  '.ww........',
+  'WWWWWWWWWWW',
+  '.wwwwwwwww.',
 );
 
 /** 把字形（9×9）叠进心情泡的格子里 */
@@ -434,15 +432,15 @@ export function moodSprite(id: MoodId): Sprite {
 /** 天气小图标（11×9）：点日钟冒出来的小牌子里用 */
 export const WEATHER_ICONS = {
   clear: S(
-    '.....Y.....',
     '...........',
-    '....YYY....',
-    '...YWYYy...',
-    'Y..YYYYy..Y',
-    '...YYYyy...',
     '....yyy....',
+    '...yWWyy...',
+    '..yWWyyyy..',
+    '..yWyyyyy..',
+    '..yyyyyyo..',
+    '...yyyyo...',
+    '....ooo....',
     '...........',
-    '.....y.....',
   ),
   cloudy: S(
     '...Y.......',

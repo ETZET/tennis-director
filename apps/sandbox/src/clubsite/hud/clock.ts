@@ -4,8 +4,7 @@
 // 圆下面一行很短的日期。数据从 clubsite/daylight 读（look = 这一刻的光、total = 时钟）。
 // 画在 1 倍小 canvas 上（38×39 纹素），CSS 整数倍放大。
 import type { DayLook, Weather } from '../daylight/sky';
-import { PAL } from '../render/palette';
-import { INK, INK_SHADOW, KEYS } from './colors';
+import { INK, KEYS } from './colors';
 
 export interface ClockData {
   /** 时刻（0..24） */
@@ -22,8 +21,8 @@ const N = 38;
 const C = N / 2;
 /** 天一直贴到外环（参考：整个钟是一块亮的天，只有最外一圈墨线） */
 const R_SKY = 13.5;
-const R_RING = 15.5;
-const R_OUT = 16.5;
+/** 外环 3 纹素（参考：粗的进度环，没有黑外框） */
+const R_RING = 16.5;
 
 type RGB = [number, number, number];
 const rgb = (h: number): RGB => [(h >> 16) & 255, (h >> 8) & 255, h & 255];
@@ -40,14 +39,14 @@ export function drawClock(d: ClockData): { w: number; h: number; px: Uint8Clampe
   const h = N + 1;
   const px = new Uint8ClampedArray(w * h * 4);
   const solid = new Uint8Array(w * h);
-  const put = (x: number, y: number, c: RGB) => {
+  const put = (x: number, y: number, c: RGB, a = 255) => {
     if (x < 0 || y < 0 || x >= w || y >= h) return;
     const i = (y * w + x) * 4;
     px[i] = c[0];
     px[i + 1] = c[1];
     px[i + 2] = c[2];
-    px[i + 3] = 255;
-    solid[y * w + x] = 1;
+    px[i + 3] = a;
+    solid[y * w + x] = a === 255 ? 1 : 0;
   };
   const look = d.look;
   const top = rgb(look.skyTop);
@@ -65,7 +64,7 @@ export function drawClock(d: ClockData): { w: number; h: number; px: Uint8Clampe
     const t = Math.min(1, Math.max(0, (y + 0.5 - (C - R_SKY)) / (2 * R_SKY)));
     const band = Math.min(3, Math.floor(t * 4));
     // 只往地平线色走一半：天在小圆里要够蓝，白云才读得出来
-    return mix(top2, hor2, band / 6);
+    return mix(top2, hor2, band / 8);
   };
   const inSky = (x: number, y: number) => Math.hypot(x + 0.5 - C, y + 0.5 - C) <= R_SKY;
   for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) if (inSky(x, y)) put(x, y, skyAt(y));
@@ -117,8 +116,9 @@ export function drawClock(d: ClockData): { w: number; h: number; px: Uint8Clampe
   // ── 云：下半圈一团一团（天气越阴越多），颜色乘这一刻的亮档（傍晚变橙、夜里变靛） ──
   // 云跟着时刻染色（傍晚橙、夜里靛）；阴雨天的云是扁平的灰蓝，不吃暮色（不然像火山），只在夜里压暗
   const tint = wet && !night ? [1, 1, 1] : lit;
-  const cloudLit = mul(rgb(wet ? KEYS.S : KEYS.W), tint);
-  const cloudShade = mul(rgb(wet ? KEYS.s : KEYS.w), tint);
+  // 晴天的云：纯白顶 + 冷灰淡紫的底（不是米黄：米黄的云和沙地连成一片）
+  const cloudLit = mul(rgb(wet ? KEYS.S : KEYS.Z), tint);
+  const cloudShade = mul(rgb(wet ? KEYS.s : KEYS.z), tint);
   const puffs: [number, number, number][] = [];
   const amount = d.weather === 'clear' || d.weather === 'dust' ? 0 : d.weather === 'cloudy' ? 1 : 2;
   // 一条起伏的云堤：几团高低不一，顶边是一个个鼓包
@@ -180,42 +180,32 @@ export function drawClock(d: ClockData): { w: number; h: number; px: Uint8Clampe
   // 营业时段一圈：OPEN 点在正上方，CLOSE 点回到正上方；关门以后满圈、开门以前空圈
   const h24 = ((hr % 24) + 24) % 24;
   const prog = h24 < OPEN ? 0 : Math.min(1, (h24 - OPEN) / (CLOSE - OPEN));
-  // 外环两纹素：没走过的浅奶油（柜台石面的亮档），走过的金色；外侧一纹素各深一档
-  const track: RGB = rgb(PAL.counterTop.ramp[0]);
-  const trackDark: RGB = rgb(PAL.signPaint.ramp[1]);
+  // 外环 3 纹素：没走过的 = 半透明墨（任何地面上都看得清），走过的 = 金（外侧一纹素深一档）；没有黑外框
+  const track: RGB = rgb(INK);
   const gold = rgb(KEYS.Y);
   const goldDark = rgb(KEYS.y);
   for (let y = 0; y < N; y++)
     for (let x = 0; x < N; x++) {
       const r = Math.hypot(x + 0.5 - C, y + 0.5 - C);
-      if (r <= R_SKY) continue;
-      if (r <= R_RING) {
-        // 角度：正上方 0，顺时针
-        let a = Math.atan2(x + 0.5 - C, -(y + 0.5 - C)) / (Math.PI * 2);
-        if (a < 0) a += 1;
-        const outer = r > R_RING - 1;
-        if (a <= prog) put(x, y, outer ? goldDark : gold);
-        else put(x, y, outer ? trackDark : track);
-        continue;
-      }
-      if (r <= R_OUT) put(x, y, rgb(INK));
+      if (r <= R_SKY || r > R_RING) continue;
+      // 角度：正上方 0，顺时针
+      let a = Math.atan2(x + 0.5 - C, -(y + 0.5 - C)) / (Math.PI * 2);
+      if (a < 0) a += 1;
+      if (a <= prog) put(x, y, r > R_RING - 1 ? goldDark : gold);
+      else put(x, y, track, 120);
     }
-  // "现在"：金弧的端头一个 2×2 的白点（在环里，不出钟的外轮廓）
+  // "现在"：进度弧的端头一个 3×3 的奶油点，1 纹素墨边（可以出环 1 纹素）
   if (prog > 0 && prog < 1) {
     const a = prog * Math.PI * 2;
-    const rr = R_SKY + 1;
-    const cx = Math.round(C + Math.sin(a) * rr - 1);
-    const cy = Math.round(C - Math.cos(a) * rr - 1);
-    for (const [dx, dy] of [
-      [0, 0],
-      [1, 0],
-      [0, 1],
-      [1, 1],
-    ])
-      put(cx + dx, cy + dy, rgb(0xffffff));
+    const rr = (R_SKY + R_RING) / 2;
+    const cx = Math.round(C + Math.sin(a) * rr - 0.5);
+    const cy = Math.round(C - Math.cos(a) * rr - 0.5);
+    for (let dy = -2; dy <= 2; dy++)
+      for (let dx = -2; dx <= 2; dx++) {
+        const edge = Math.abs(dx) === 2 || Math.abs(dy) === 2;
+        if (edge && Math.abs(dx) === 2 && Math.abs(dy) === 2) continue;
+        put(cx + dx, cy + dy, edge ? rgb(INK) : rgb(KEYS.W));
+      }
   }
-  // 投影：往下 1 纹素
-  for (let y = h - 1; y > 0; y--)
-    for (let x = 0; x < w; x++) if (!solid[y * w + x] && solid[(y - 1) * w + x]) put(x, y, rgb(INK_SHADOW));
   return { w, h, px };
 }
