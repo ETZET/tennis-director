@@ -229,6 +229,8 @@ export const GLYPH = {
     ),
     keys: { G: KEYS.R, g: KEYS.r, h: KEYS.m },
   },
+  /** 牵连（朋友、同事、旧事）：两个扣在一起的环 */
+  link: S('.AAA.....', 'A...A....', 'A..cccc..', 'A..cA..c.', '.AAAA..c.', '...c...c.', '....ccc..'),
   /** 消费力：一只购物袋（不用金币，免得和"花钱"撞） */
   bag: S('..T...T..', '..T...T..', '.TRRRRRT.', '.RRWRRRRr', '.RWRRRRRr', '.RRRRRRRr', '.RRRRRRrr', '.rrrrrrr.'),
   /** 好感：一颗心（满 / 半 / 空） */

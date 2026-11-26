@@ -37,6 +37,10 @@ export const SHEET_CSS = `
 /* 卡顶上浮的一行字（同参考：一行白字黑边，过一会儿消失）：按了哪个按钮、得了什么 */
 .pxs-say { position: absolute; left: 0; right: 0; bottom: calc(100% + var(--s) * 28px); display: flex; justify-content: center; pointer-events: none; transition: opacity 0.4s steps(3, end); }
 .pxs-say.gone { opacity: 0; }
+.pxs-say:not(.gone) { transition: none; }
+/* 好感变了：心旁边一颗心闪三下 */
+.pxs-blink { position: absolute; pointer-events: none; animation: pxs-blink 1.2s steps(1, end) forwards; }
+@keyframes pxs-blink { 0%, 33%, 66% { opacity: 1; } 16%, 50%, 83% { opacity: 0; } 100% { opacity: 0; } }
 .pxs-say span { font: 600 15px/1.25 "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", system-ui, sans-serif; color: ${cream}; letter-spacing: 0.5px; white-space: nowrap;
   text-shadow: 1px 0 0 ${ink}, -1px 0 0 ${ink}, 0 1px 0 ${ink}, 0 -1px 0 ${ink}, 1px 1px 0 ${ink}, -1px 1px 0 ${ink}, 1px -1px 0 ${ink}, -1px -1px 0 ${ink}, 0 2px 0 ${shadow}; }
 .pxs-sheet .pxh-px, .pxs-px { display: block; image-rendering: pixelated; image-rendering: crisp-edges; flex: none; }
@@ -196,7 +200,7 @@ export function bar(v: number, w: number, fill: number, notch = 0): HTMLCanvasEl
   const [c, g] = cv(w + 2, 5);
   g.fillStyle = hex(INK);
   g.fillRect(0, 0, w + 2, 5);
-  g.fillStyle = hex(PAPER_DARK);
+  g.fillStyle = hex(KEYS.v);
   g.fillRect(1, 1, w, 3);
   const n = Math.round(Math.max(0, Math.min(1, v)) * w);
   g.fillStyle = hex(fill);
@@ -283,30 +287,30 @@ export function weekPips(days: readonly number[] | null, today: number, color: n
   return c;
 }
 
-/** 一周 7 个小太阳（周一起）：来的日子亮，不来的是暗纸色的剪影；今天下面一道墨 */
+/** 一周 7 个小太阳（周一起）：来的日子亮，不来的只剩一圈墨边（空心）；今天下面一条 3 纹素高的草帽色底座 */
 export function weekSuns(days: readonly number[] | null, today: number): HTMLCanvasElement {
   const on = glyph('sun');
   const sw = on.width;
-  const [c, g] = cv(7 * (sw + 1) - 1, on.height + 2);
-  // 暗的：把亮的那张按形状涂成暗纸色
+  const [c, g] = cv(7 * (sw + 1) - 1, on.height + 4);
+  // 空心：同一张图只留墨色描边
   const [off, og] = cv(on.width, on.height);
   og.drawImage(on, 0, 0);
-  og.globalCompositeOperation = 'source-in';
-  og.fillStyle = hex(PAPER_DARK);
-  og.fillRect(0, 0, on.width, on.height);
+  const im = og.getImageData(0, 0, on.width, on.height);
+  const ir = (INK >> 16) & 255;
+  const ig = (INK >> 8) & 255;
+  const ib = INK & 255;
+  for (let i = 0; i < im.data.length; i += 4)
+    if (!(im.data[i] === ir && im.data[i + 1] === ig && im.data[i + 2] === ib)) im.data[i + 3] = 0;
+  og.putImageData(im, 0, 0);
   for (let d = 0; d < 7; d++) {
     const x = d * (sw + 1);
     if (d === today) {
-      // 今天：草帽色的底座
+      g.fillStyle = hex(INK);
+      g.fillRect(x, on.height, sw, 4);
       g.fillStyle = hex(KEYS.X);
-      g.fillRect(x, on.height, sw, 2);
+      g.fillRect(x + 1, on.height, sw - 2, 3);
     }
-    if (!days || days.includes(d)) g.drawImage(on, x, 0);
-    else {
-      // 不来的日子：一个暗纸色的空圈
-      g.drawImage(off, x, 0);
-      g.clearRect(x + 3, 3, sw - 6, on.height - 7);
-    }
+    g.drawImage(!days || days.includes(d) ? on : off, x, 0);
   }
   return c;
 }

@@ -18,12 +18,13 @@ const CSS = `
   display: flex; flex-direction: column; gap: calc(var(--s) * 3px); padding: calc(var(--s) * 2px) calc(var(--s) * 1px) calc(var(--s) * 3px); }
 .pxb-list::-webkit-scrollbar { display: none; }
 .pxb-row { display: flex; align-items: center; gap: calc(var(--s) * 2px); flex-wrap: wrap; }
-.pxb-row .where { width: 30px; display: flex; justify-content: center; flex: none; }
+.pxb-row .where { width: 46px; display: flex; justify-content: center; flex: none; }
 .pxb-tile { position: relative; min-width: 48px; min-height: 50px; }
+.pxb-tile.low::after { content: ''; position: absolute; left: 6px; right: 6px; bottom: 0; height: 4px; background: #c0545a; box-shadow: 0 0 0 2px #2c2848; }
 .pxb-tile .face { box-shadow: 2px 0 0 0 #2c2848, -2px 0 0 0 #2c2848, 0 2px 0 0 #2c2848, 0 -2px 0 0 #2c2848, 0 4px 0 0 #171230; }
 .pxb-more { min-width: 48px; min-height: 50px; }
 /* 还能往下滑：底边正中一个小纸条箭头（滑到底就收起） */
-.pxb-down { position: absolute; left: 50%; bottom: calc(var(--s) * -3px); transform: translateX(-50%); pointer-events: none; transition: opacity 0.2s steps(2, end); }
+.pxb-down { position: absolute; right: calc(var(--s) * 5px); bottom: calc(var(--s) * 5px); min-height: 0 !important; margin: 0 !important; padding: calc(var(--s) * 2px) calc(var(--s) * 3px); pointer-events: none; transition: opacity 0.2s steps(2, end); }
 .pxb-down.gone { opacity: 0; }
 @media (orientation: landscape) { .pxb-list { max-height: min(62vh, 420px); } }
 `;
@@ -108,14 +109,15 @@ export function createPxBoard(ctx: CastCtx): Roster {
       row.className = 'pxb-row';
       const wh = document.createElement('div');
       wh.className = 'where';
-      wh.appendChild(px(glyph(SCENE_GLYPH[c.scene])));
+      wh.appendChild(px(glyph(SCENE_GLYPH[c.scene]), 2));
       row.appendChild(wh);
       const all = open.has(c.scene);
       const shown = all ? c.people : c.people.slice(0, c.people.length > PER_ROW ? PER_ROW - 1 : PER_ROW);
       for (const p of shown) {
         const b = document.createElement('button');
         b.type = 'button';
-        b.className = 'pxs-btn pxb-tile';
+        // 心情很差的人：头像底下一道红线（该去看看谁）
+        b.className = `pxs-btn pxb-tile${ctx.mem(p.id).mood < 33 ? ' low' : ''}`;
         b.dataset.id = p.id;
         b.setAttribute('aria-label', shortName(p));
         b.appendChild(px(headCrop(p.id, p), 1, 'face'));
@@ -141,7 +143,7 @@ export function createPxBoard(ctx: CastCtx): Roster {
       list.appendChild(row);
     }
     const down = document.createElement('div');
-    down.className = 'pxb-down pxs-tab gone';
+    down.className = 'pxb-down pxs-big gone';
     down.appendChild(px(actIcon('down')));
     const upd = () => down.classList.toggle('gone', list.scrollTop + list.clientHeight >= list.scrollHeight - 4);
     list.addEventListener('scroll', upd, { passive: true });

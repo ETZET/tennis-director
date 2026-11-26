@@ -498,7 +498,7 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
   const focusEl = document.createElement('div');
   focusEl.className = 'pxh-mark pxh-focus';
   focusEl.hidden = true;
-  focusEl.appendChild(view(spriteCanvas(ICONS.focus, 'focus')));
+  focusEl.appendChild(view(spriteCanvas(ICONS.focus, 'focus', true, CREAM), 2));
   root.appendChild(focusEl);
   let focusV: { a: Anchor; dy: number } | null = null;
   const moodsEl = document.createElement('div');

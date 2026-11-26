@@ -45,13 +45,13 @@ const ACT_GLYPH: Record<Activity, GlyphId> = {
 /** 牵连的种类 → 小图 */
 const TIE_GLYPH: Record<TieKind, GlyphId> = {
   family: 'house',
-  partner: 'smile',
-  friend: 'smile',
-  mentor: 'smile',
+  partner: 'racket',
+  friend: 'link',
+  mentor: 'star',
   rival: 'bolt',
   crush: 'heart',
-  colleague: 'smile',
-  history: 'smile',
+  colleague: 'link',
+  history: 'link',
 };
 const ATTR_ROWS: { k: 'ntrp' | 'fitness' | 'social' | 'patience' | 'spend' | 'loyalty'; g: GlyphId }[] = [
   { k: 'ntrp', g: 'racket' },
@@ -61,6 +61,8 @@ const ATTR_ROWS: { k: 'ntrp' | 'fitness' | 'social' | 'patience' | 'spend' | 'lo
   { k: 'spend', g: 'bag' },
   { k: 'loyalty', g: 'flag' },
 ];
+/** 互动按钮的固定槽位（同 clubsite/cast/actions.ts 的顺序） */
+const SLOTS: ActionId[] = ['chat', 'treat', 'rally', 'ask', 'gift', 'message'];
 /** 营业时段（同演员表的时钟 7:00–22:00） */
 const OPEN = 7;
 const CLOSE = 22;
@@ -74,14 +76,16 @@ const CSS = `
 .pxc-row .pxs-name { flex: 0 1 auto; min-width: 0; }
 .pxc-mood { display: flex; align-items: center; gap: calc(var(--s) * 1px); margin-left: auto; }
 .pxc-band { display: flex; justify-content: center; margin: calc(var(--s) * 4px) 0 calc(var(--s) * 2px); position: relative; }
-.pxc-acts { display: flex; justify-content: space-between; gap: 2px; margin-top: calc(var(--s) * 2px); }
-.pxc-acts .pxs-btn { flex: 1 1 0; min-height: 60px; position: relative; }
+.pxc-acts { display: flex; justify-content: space-between; gap: calc(var(--s) * 3px); margin-top: calc(var(--s) * 3px); padding: 0 2px; }
+.pxc-acts .pxs-btn, .pxc-slot { flex: 1 1 0; min-width: 0; min-height: 60px; position: relative; margin: 0 0 4px; }
+/* 空槽：凹下去的一块（暗纸色，里面一圈淡墨） */
+.pxc-slot { background: #f0d8a8; box-shadow: inset 2px 2px 0 0 rgba(44, 40, 72, 0.35); }
 .pxc-acts.far { gap: calc(var(--s) * 4px); }
 .pxc-acts.one { justify-content: center; }
 .pxc-acts.one .pxs-big { flex: 0 0 160px; }
 .pxc-unmet { display: flex; align-items: center; justify-content: center; gap: calc(var(--s) * 4px); padding: calc(var(--s) * 2px) 0; }
 .pxc-fold { position: absolute; left: 50%; top: calc(var(--s) * -22px); transform: translateX(-50%); width: 56px; height: 44px; justify-content: flex-start !important; }
-.pxc-more { display: flex; flex-direction: column; gap: calc(var(--s) * 4px); padding: calc(var(--s) * 2px) 0; }
+.pxc-more { display: flex; flex-direction: column; gap: calc(var(--s) * 3px); padding: 0; }
 .pxc-attrs { display: flex; flex-direction: column; gap: calc(var(--s) * 2px); }
 .pxc-attr { display: flex; align-items: center; gap: calc(var(--s) * 2px); }
 .pxc-line2 { display: flex; align-items: center; gap: calc(var(--s) * 4px); flex-wrap: wrap; }
@@ -185,6 +189,8 @@ export function createPxCard(ctx: CastCtx, onShow?: (id: string | null) => void)
         ? []
         : [[OPEN, CLOSE]];
     const nowH = s.minute / 60;
+    // 他就在场：现在这一段一定是他的颜色（不在常来的钟点也来了），针不落在空槽里
+    if (ctx.bound(id) && !segs.some(([a, b]) => nowH >= a && nowH <= b)) segs.push([nowH - 0.5, nowH + 1]);
     band.appendChild(
       px(
         dayBand({
@@ -249,7 +255,7 @@ export function createPxCard(ctx: CastCtx, onShow?: (id: string | null) => void)
       if (!top3.includes(a)) continue;
       const it = div('pxc-attr');
       it.appendChild(px(glyph(a.g)));
-      it.appendChild(px(bar(a.v, 40, a.v >= 0.66 ? 0x8cc860 : a.v >= 0.34 ? 0xe8c070 : 0xc0545a, 8)));
+      it.appendChild(px(bar(a.v, 40, a.v >= 0.66 ? 0x6aa848 : a.v >= 0.34 ? 0xd89a30 : 0xc0545a, 8)));
       g.appendChild(it);
     }
     box.appendChild(g);
@@ -295,7 +301,12 @@ export function createPxCard(ctx: CastCtx, onShow?: (id: string | null) => void)
       else box.classList.add('one');
       return box;
     }
-    for (const a of defs) box.appendChild(actBtn(p, a, m, s));
+    // 当面：固定 6 个槽，位置永远不动；这个人做不了的（不打球的没有"打一局"、没见过面的没有"发消息"）留一个空凹槽
+    for (const slot of SLOTS) {
+      const a = defs.find((d) => d.id === slot);
+      if (a) box.appendChild(actBtn(p, a, m, s, 'pxs-big'));
+      else box.appendChild(div('pxc-slot'));
+    }
     return box;
   }
 
@@ -343,14 +354,12 @@ export function createPxCard(ctx: CastCtx, onShow?: (id: string | null) => void)
   function floatDelta(anchor: HTMLElement, d: number) {
     const host = anchor.parentElement;
     if (!host) return;
+    // 好感变了：心旁边一颗心闪三下（涨 = 红心，掉 = 空心），不写小数
     const f = document.createElement('div');
-    f.className = 'pxs-float';
-    f.style.left = `${anchor.offsetLeft}px`;
-    f.style.top = `${anchor.offsetTop - 18}px`;
-    f.style.display = 'flex';
-    f.style.gap = '2px';
-    f.style.alignItems = 'center';
-    f.append(px(glyph(d >= 0 ? 'heart' : 'heartOff')), px(tinyRow([`${d >= 0 ? '+' : '-'}${Math.abs(d).toFixed(1)}`])));
+    f.className = 'pxs-blink';
+    f.style.left = `${anchor.offsetLeft + anchor.offsetWidth + 4}px`;
+    f.style.top = `${anchor.offsetTop}px`;
+    f.appendChild(px(glyph(d >= 0 ? 'heart' : 'heartOff')));
     host.style.position = 'relative';
     host.appendChild(f);
   }

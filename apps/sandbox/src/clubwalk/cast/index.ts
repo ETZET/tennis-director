@@ -176,7 +176,7 @@ export function mountCast(o: MountCastOpts): CastMount {
         // 开着卡：上方那行字收起（卡上有这句话），这个人头顶一个箭头
         if (id) o.peek?.(null);
         const b = id ? binder.objOf(id) : undefined;
-        o.focus?.(b ? b.obj : null, b ? headHeight(b.kind) + 0.35 : 0);
+        o.focus?.(b ? b.obj : null, b ? headHeight(b.kind) + 0.6 : 0);
       })
     : createCard(ctx, ui);
   const panelOpen = () => roster.isOpen() || card.isOpen();
