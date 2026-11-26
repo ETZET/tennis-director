@@ -21,7 +21,9 @@ function bar(a: THREE.Vector3, b: THREE.Vector3, t: number) {
 const PROP = { lightUp: 0.5, bands: [-0.45, 0.5] as [number, number] };
 
 export function build(ctx: AssetCtx): THREE.Object3D {
-  const rnd = ctx.rng(`shade-sail:${ctx.variant}`);
+  // variant ≥ 10 = 素色（条纹那组也用奶白 fabric；留白，redo-calm.md），形状跟 variant % 10 一样
+  const plain = ctx.variant >= 10;
+  const rnd = ctx.rng(`shade-sail:${ctx.variant % 10}`);
   const g = new THREE.Group();
   const v = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
 
@@ -101,7 +103,9 @@ export function build(ctx: AssetCtx): THREE.Object3D {
   );
   const stripe = new THREE.Mesh(
     mkGeo(idxStripe),
-    ctx.mat('fabricStripe', { ...PROP, ...side, elem: paint([13, 7], [0.01, 0.1], 6), tones: STRIPE_TONES }),
+    plain
+      ? ctx.mat('fabric', { ...PROP, ...side, elem: paint([13, 7], [0.01, 0.1], 5), tones: FABRIC_TONES })
+      : ctx.mat('fabricStripe', { ...PROP, ...side, elem: paint([13, 7], [0.01, 0.1], 6), tones: STRIPE_TONES }),
   );
   g.add(cream, stripe);
 

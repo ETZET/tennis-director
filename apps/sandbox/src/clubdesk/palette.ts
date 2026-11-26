@@ -78,13 +78,16 @@ export const SKY = MAP_SKY;
 export const EL = {
   ...MAP_EL,
   /** 碎花岗岩：比土路细的颗粒团（7×4 纹素）+ 很少的碎石，几乎没有龟裂；脚印只在长廊中段那几块斑 */
+  // 留白（redo-calm.md）：颗粒团 7×4 → 22×12 纹素、不画龟裂、脚印 / 碎石少到只剩零星，深浅团收一半
   granite: {
     kind: 'pebbles',
-    size: [7, 4],
-    seam: 0.5,
-    density: [0.01, 0.1],
+    size: [22, 12],
+    seam: 0,
+    density: [0, 0.02],
     patch: 3,
-    pebbles: 0.06,
+    pebbles: 0.015,
+    contrast: [0.35, 0.4, 0.25],
+    fur: 0.3,
     accent: [0xb49a94, 0x8e7680, 0x5c4c72],
   },
 } as const satisfies Record<string, Elem>;

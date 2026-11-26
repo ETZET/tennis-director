@@ -90,10 +90,11 @@ const polar = (deg: number, r: number): V2 => {
  * 一共还是 6 棵。
  */
 export const PALMS: { id: string; at: V2; v: number; s: number }[] = [
-  { id: 'palm-e', at: polar(15, FOUNTAIN.palms), v: 0, s: 0.92 },
+  // 留白（2026-11-25，redo-calm.md）：四棵一样大、等距一圈 → 西北角一簇三棵、大中小（东边、东北那两棵拿掉）。
+  // 水面东半边和广场东半边空出来；叶冠仍然不压水面（都在 165°～245°）
   { id: 'palm-w', at: polar(165, FOUNTAIN.palms), v: 2, s: 1.0 },
-  { id: 'palm-nw', at: polar(215, FOUNTAIN.palms), v: 1, s: 0.9 },
-  { id: 'palm-ne', at: polar(335, FOUNTAIN.palms), v: 2, s: 0.95 },
+  { id: 'palm-nw', at: polar(212, FOUNTAIN.palms), v: 1, s: 1.15 },
+  { id: 'palm-nw2', at: polar(246, FOUNTAIN.palms + 0.8), v: 0, s: 0.78 },
 ];
 
 /** 广场里的西边步道（地图 PATHS 的 x 34…37 那条在广场上的一段；clubdesk 的西边台阶就是它下去的地方）：碎花岗岩，压在石板上 */
@@ -419,15 +420,14 @@ export const SLOTS: Slot[] = [
     { id: `pot-agave-${i}`, asset: 'agave', x, z, y: H.plaza + 0.85, s: 0.55, noLabel: true },
   ]),
   // ── 绿带（照抄 clubdesk 的 SLOTS：同一个世界）──────────────────
-  { id: 'palm-strip', asset: 'fan-palm', x: 47.2, z: -10.4, variant: 0, noLabel: true },
-  { id: 'palm-gate', asset: 'fan-palm', x: 58, z: -10.5, variant: 2, noLabel: true },
-  { id: 'agave-strip', asset: 'agave', x: 55.0, z: -10.1, s: 0.9 },
+  // 留白（redo-calm.md）：绿带上原来八样东西等距排开 → 东头一簇（大蒲葵 + 小蒲葵 + 龙舌兰 + 脆灌木 + 长椅）、西头一簇（烟树 + 石炭酸），中间空着
+  { id: 'palm-strip', asset: 'fan-palm', x: 55.4, z: -10.6, s: 0.82, variant: 0, noLabel: true },
+  { id: 'palm-gate', asset: 'fan-palm', x: 58, z: -10.5, s: 1.15, variant: 2, noLabel: true },
   { id: 'brittle-strip', asset: 'brittlebush', x: 52.2, z: -10.7, variant: 1 },
-  { id: 'creosote-strip', asset: 'creosote', x: 43.0, z: -10.3, variant: 1 },
   { id: 'bench-prom', asset: 'bench', x: 53.4, z: -9.4 },
   { id: 'smoke-w', asset: 'smoke-tree', x: 32.0, z: -10.4, variant: 0 },
   { id: 'paloverde-w', asset: 'palo-verde', x: 27.6, z: -14.6, variant: 1 },
-  { id: 'creosote-w', asset: 'creosote', x: 38.6, z: -10.6, variant: 0 },
+  { id: 'creosote-w', asset: 'creosote', x: 33.9, z: -10.5, variant: 0 },
   // 长廊上一个往西走的会员
   {
     id: 'member-prom',
@@ -467,16 +467,15 @@ export const SLOTS: Slot[] = [
   { id: 'palm-out-1', asset: 'fan-palm', x: 37.5, z: -47.2, variant: 1, s: 1.1, noLabel: true },
   { id: 'palm-out-2', asset: 'fan-palm', x: 45.5, z: -48.4, variant: 0, s: 1.2, noLabel: true },
   { id: 'palm-out-3', asset: 'fan-palm', x: 53.0, z: -47.0, variant: 2, s: 1.05, noLabel: true },
-  { id: 'creosote-n', asset: 'creosote', x: 41.0, z: -39.6, variant: 0, noLabel: true },
   // 饮水点（新）：西边步道上台阶的地方，长椅旁边；比台阶顶的花盆（37.9）往东让开 0.7 米，不叠在一起（打完球的人在这里喝水；总监以后要通堵、擦）
   { id: 'drink-fountain', asset: 'drink-fountain', x: 38.6, z: -14.4, rotY: W },
-  // 横屏左边那片沙地：手摆几簇（不撒满），和中心球场看台之间的小路两边
-  { id: 'smoke-west', asset: 'smoke-tree', x: 26.4, z: -32.4, variant: 1, noLabel: true },
-  { id: 'creosote-west', asset: 'creosote', x: 28.6, z: -19.6, variant: 1, noLabel: true },
-  { id: 'brittle-west', asset: 'brittlebush', x: 25.0, z: -27.4, variant: 0, noLabel: true },
-  { id: 'agave-west', asset: 'agave', x: 30.4, z: -27.2, s: 0.9, noLabel: true },
+  // 横屏左边那片沙地：留白（redo-calm.md）—— 原来五样东西等距撒开，改成贴着西沿一簇（大烟树 + 中脆灌木 + 小龙舌兰），
+  // 中间那片沙空着；去看台的小路边那把长椅留着（歇脚），石炭酸灌木挪到长椅旁边和它成一组
+  { id: 'smoke-west', asset: 'smoke-tree', x: 25.6, z: -30.6, variant: 1, s: 1.15, noLabel: true },
+  { id: 'brittle-west', asset: 'brittlebush', x: 27.3, z: -29.2, variant: 0, noLabel: true },
+  { id: 'agave-west', asset: 'agave', x: 25.2, z: -28.3, s: 0.75, noLabel: true },
   { id: 'bench-link', asset: 'bench', x: 26.0, z: -21.8, rotY: 0, noLabel: true },
-  { id: 'brittle-n', asset: 'brittlebush', x: 50.5, z: -40.2, variant: 0, noLabel: true },
+  { id: 'creosote-west', asset: 'creosote', x: 24.4, z: -22.4, variant: 1, s: 0.9, noLabel: true },
   // ── 横屏才看得到的两侧：中心球场东看台上的观众、东墙、大门（clubdesk 的 east-gate）──
   {
     id: 'spectator-1',
@@ -503,7 +502,6 @@ export const SLOTS: Slot[] = [
   },
   { id: 'east-gate', asset: 'east-gate', x: GATE.x, z: 0, label: '大门（clubdesk）' },
   { id: 'palm-drive-n', asset: 'fan-palm', x: 66, z: -5.4, s: 0.95, variant: 2, noLabel: true },
-  { id: 'agave-out-n', asset: 'agave', x: 62, z: -8, noLabel: true },
 ];
 
 /** 区域标签（白模评审用，?labels=0 不显示）：文字、位置 (x, y, z)；kind area = 区域名，propose = 共享坐标的建议 */

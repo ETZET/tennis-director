@@ -18,10 +18,11 @@ import type { HouseRegion } from '../clubhouse/scene';
 import { buildMap } from '../clubmap2/build';
 import { PAL as MAP_PAL, type Pal as MapPal } from '../clubmap2/palette';
 import { placements } from '../clubmap2/scatter';
-import { CLOUDS as PARK_CLOUDS, SPOTS as PARK_SPOTS } from '../clubpark/layout';
+import { SPOTS as PARK_SPOTS } from '../clubpark/layout';
 import { createParkKit } from '../clubpark/scene';
 import { CLOUDS as PLAZA_CLOUDS } from '../clubplaza/layout';
 import { mountDaylight } from '../clubsite/daylight';
+import { mountPixelHud, type PixelHud } from '../clubsite/hud';
 import {
   ballKid as clubBallKid,
   director as clubDirector,
@@ -104,6 +105,11 @@ export interface WalkHooks {
   step?(dt: number, t: number): void;
   /** 每帧（渲染之前） */
   frame?(dt: number): void;
+  /**
+   * 像素界面（clubsite/hud）：日钟、钱、右下图标按钮、心情泡、圆形转场；旧的文字界面（像素级别牌子、顶栏、小地图、名字小牌）
+   * 收进调试（?debug=1 或左下角的小点）。clubwalk 开；山谷（valley）还是旧的。?hud=old 关掉（对照用）
+   */
+  pixelHud?: boolean;
 }
 export interface WalkApi {
   scene: THREE.Scene;
@@ -132,22 +138,22 @@ export function mountWalk(hooks: WalkHooks = {}) {
   const deg = Math.PI / 180;
   const scheme = schemeById(params.get('pal'));
   const LIFE = params.get('life') !== '0';
+  const PIXEL_HUD = !!hooks.pixelHud && params.get('hud') !== 'old';
+  /** 像素界面（时间系统建好以后才建，见 mountDaylight 之后）；区域、演员表里先按引用拿 */
+  let hud: PixelHud | null = null;
+  /** 换场景（进出会所、坐电梯）：像素界面的圆形转场；没有就直接换 */
+  const transition = (fn: () => void) => {
+    if (hud) void hud.iris.run(fn);
+    else fn();
+  };
   const canvas = document.getElementById('c') as HTMLCanvasElement;
   const placeEl = document.getElementById('place') as HTMLDivElement;
   const perfEl = document.getElementById('perf') as HTMLDivElement;
   const mapEl = document.getElementById('minimap') as HTMLCanvasElement;
 
   // ── 共用的 uniform：云影挑各场景手摆的几团（同一条带里的不要两团） ──
-  const CLOUDS = [
-    PARK_CLOUDS[0],
-    PARK_CLOUDS[2],
-    DESK_CLOUDS[0],
-    DESK_CLOUDS[4],
-    DESK_CLOUDS[6],
-    CLAY_CLOUDS[0],
-    PLAZA_CLOUDS[0],
-    PLAZA_CLOUDS[3],
-  ];
+  // 留白（redo-calm.md）：停车场通道里那两团（和车棚脱开、像飘着的暗块）不要了
+  const CLOUDS = [DESK_CLOUDS[0], DESK_CLOUDS[4], DESK_CLOUDS[6], CLAY_CLOUDS[0], PLAZA_CLOUDS[0], PLAZA_CLOUDS[3]];
   const uniforms: SharedUniforms = {
     uTime: { value: 0 },
     uWind: { value: new THREE.Vector2(0.8, 0.35).normalize().multiplyScalar(num('wind', 0.4)) },
@@ -460,6 +466,7 @@ export function mountWalk(hooks: WalkHooks = {}) {
       life: LIFE,
       play: true,
       director,
+      transition: PIXEL_HUD ? transition : undefined,
     });
     L.region = r;
     const rects = L.def.rects;
@@ -928,6 +935,8 @@ export function mountWalk(hooks: WalkHooks = {}) {
           play,
           director,
           params,
+          quiet: PIXEL_HUD,
+          peek: PIXEL_HUD ? (p) => hud?.peek(p) : undefined,
           mats: dirKit.mats,
           scheme,
           // 通勤的替身：同一套 Q 版人（材质用总监那套），换装成要替的那个人
@@ -993,6 +1002,10 @@ export function mountWalk(hooks: WalkHooks = {}) {
     for (const l of lives) l.scoped?.setCurrent(l === L);
     if (name !== placeName) {
       placeName = name;
+      if (hud) {
+        hud.place(name);
+        return;
+      }
       placeEl.textContent = name;
       placeEl.classList.remove('show');
       void placeEl.offsetWidth;
@@ -1085,10 +1098,47 @@ export function mountWalk(hooks: WalkHooks = {}) {
   }
 
   // ── 时间和天气（clubsite/daylight）：太阳绕着走、影子跟着转，夜里月亮 + 球场灯；面板在像素级别下面 ──
-  const day = mountDaylight({ scene, pipe, sun, uniforms, params, scheme, placeSun: aimSun, hud: pxEl });
+  const day = mountDaylight({
+    scene,
+    pipe,
+    sun,
+    uniforms,
+    params,
+    scheme,
+    placeSun: aimSun,
+    hud: PIXEL_HUD ? null : pxEl,
+    panelOnly: PIXEL_HUD,
+  });
+  // ── 像素界面（clubsite/hud）：左上日钟、右上钱、右下名册 / 地图、心情泡、转场 ──
+  if (PIXEL_HUD) {
+    hud = mountPixelHud({
+      play,
+      canvas,
+      day,
+      params,
+      money: cast ? () => cast.money() : undefined,
+      who: cast ? (a) => cast.whoOf(a) : undefined,
+      buttons: [
+        {
+          id: 'map',
+          icon: 'map',
+          label: 'map',
+          onTap: () => document.body.classList.toggle('pxh-map'),
+          pressed: () => document.body.classList.contains('pxh-map'),
+        },
+        ...(cast
+          ? [{ id: 'roster', icon: 'roster' as const, label: 'roster' as const, onTap: () => cast.openRoster() }]
+          : []),
+      ],
+    });
+    mapEl.addEventListener('click', () => document.body.classList.remove('pxh-map'));
+  }
 
   /** 会所现在是剖面（一楼看得见；总监在里面，或者观察模式的镜头看进会所） */
   let houseInside = false;
+  /** 像素界面的转场：画面上按"在会所里"画的（转场黑屏那一刻才跟上 houseNow） */
+  let houseShown = false;
+  let houseNow = false;
   /** 会所区域的范围（总监在会所里时只画这一块） */
   const CLUBHOUSE_RECTS = lives.find((l) => l.def.id === 'clubhouse')?.def.rects ?? [CLUBHOUSE];
   sim = mountSim({
@@ -1158,7 +1208,15 @@ export function mountWalk(hooks: WalkHooks = {}) {
         const p = director.position;
         // 会所的脚印（L 形，不含东边 clubfood 的拱廊前小院）；楼上、地下（脚下离地 > 1 米）在会所那一片里都算里面
         const nearHouse = p.x > -64.5 && p.x < -39.5 && p.z > -43 && p.z < -1;
-        const inHouse = nearHouse && (Math.abs(p.y) > 1 || !outsideHouse(p.x, p.z, 1, -0.2));
+        const inHouseNow = nearHouse && (Math.abs(p.y) > 1 || !outsideHouse(p.x, p.z, 1, -0.2));
+        // 像素界面：进出门换剖面走圆形转场（收拢 → 黑的那一刻换 → 展开）；转场里先按原样画
+        if (hud && hr && inHouseNow !== houseShown && !hud.iris.busy()) {
+          void hud.iris.run(() => {
+            houseShown = houseNow;
+          });
+        }
+        houseNow = inHouseNow;
+        const inHouse = hud && hr ? houseShown : inHouseNow;
         // 观察模式：镜头看进会所（跟着的人进了会所、look 到会所里）→ 剖面看一楼，外面照常画（不沉浸）
         const f = sim?.focus();
         const camIn =
@@ -1171,7 +1229,7 @@ export function mountWalk(hooks: WalkHooks = {}) {
         if (hr && inHouse !== immersive) setImmersive(inHouse);
         // 楼梯上换层：脚下高度过了阈值（floorFor 带滞回）→ 剖面和导航换成那一层（onFloor 的回调重建网格，见 buildRegion）。
         // 两个平台、半跑在相邻两层的导航里都有，换过去的那一刻脚下站得住
-        if (hr && inHouse) {
+        if (hr && inHouseNow) {
           const next = floorFor(hr.floor(), p.y);
           if (next !== hr.floor()) hr.setFloor(next);
         }
@@ -1234,6 +1292,7 @@ export function mountWalk(hooks: WalkHooks = {}) {
     pipe.render(scene);
     play?.hud.frame();
     cast?.frame();
+    hud?.frame();
     lerp.end();
     mapT -= real;
     if (mapT <= 0) {

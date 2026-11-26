@@ -210,8 +210,13 @@ export function createHouseRegion(host: RegionHost): HouseRegion {
         label: () => `坐电梯 → ${FLOOR_NAME[liftNext(floor)]}`,
         canUse: (s) => inside && Math.abs(s.y - FLOOR_Y[floor]) < 0.5,
         onUse: (p) => {
-          setFloor(liftNext(floor));
-          p.teleport(LIFT.door[0], LIFT.door[1]);
+          const go = () => {
+            setFloor(liftNext(floor));
+            p.teleport(LIFT.door[0], LIFT.door[1]);
+          };
+          // 大世界的像素界面：圆形转场，黑的那一刻换层
+          if (host.transition) host.transition(go);
+          else go();
         },
       });
       play.add({
@@ -222,8 +227,12 @@ export function createHouseRegion(host: RegionHost): HouseRegion {
         label: () => `坐货梯 → ${FLOOR_NAME[liftNext(floor)]}`,
         canUse: (s) => inside && Math.abs(s.y - FLOOR_Y[floor]) < 0.5,
         onUse: (p) => {
-          setFloor(liftNext(floor));
-          p.teleport(GOODS_LIFT.door[0], GOODS_LIFT.door[1]);
+          const go = () => {
+            setFloor(liftNext(floor));
+            p.teleport(GOODS_LIFT.door[0], GOODS_LIFT.door[1]);
+          };
+          if (host.transition) host.transition(go);
+          else go();
         },
       });
       return life ? life.attach(play) : null;

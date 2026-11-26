@@ -274,7 +274,7 @@ export function build(ctx: AssetCtx): THREE.Object3D {
       //（注：现在法线 pass 的 alpha 被 three 的 OPAQUE 定成 1，材质的 edge/convex 都当 1 用，这一行要等 toon.ts 修了才起作用）
       convex: 0.1,
       // 叶痕环：每 0.42 米一道（屏幕上约 3.3 行），环缝 1 行（竖直 1 纹素 = 0.707 行 → 1.42），缝下一纹素亮条（断续）
-      elem: { kind: 'planks', p: [0, 1, 0, 0.42], seam: 1.42, hi: 1 },
+      elem: { kind: 'planks', p: [0, 1, 0, 0.42], seam: 1.42, hi: 1, contrast: [0.6, 0.5] },
       tones: TRUNK_TONES,
     }),
   );
@@ -286,10 +286,11 @@ export function build(ctx: AssetCtx): THREE.Object3D {
       noShadowReceive: true,
       // 裙子在冠下：亮档只留肩上一圈，腰身中档，下摆和背光面暗档
       bands: [-0.15, 0.42],
-      noise: 0.3,
+      noise: 0.15,
       lightUp: 0.65,
-      // 枯叶须：竖向 1 × 2～4 的浅草秆划，按斑块疏密
-      elem: { kind: 'blades', density: [0.22, 0.5], patch: 1.6 },
+      // 枯叶须：竖向 1 × 2～4 的浅草秆划，按斑块疏密。留白（2026-11-25，redo-calm.md）：须少到三分之一、颜色收一半 ——
+      // 裙子读成一整团，不是一片竖纹
+      elem: { kind: 'blades', density: [0.06, 0.16], patch: 1.6, contrast: [0.6, 0.5] },
       tones: SKIRT_TONES,
     }),
   );
@@ -299,8 +300,9 @@ export function build(ctx: AssetCtx): THREE.Object3D {
       ...sway,
       noShadowReceive: true,
       bands: [-0.2, 0.2],
-      noise: 0.32,
-      elem: { kind: 'leaves', size: [2.4, 2.4], hi: 0.15 },
+      // 留白（redo-calm.md）：叶团 2.4 → 4.5 纹素、档位噪声 0.32 → 0.2：冠读成几大团（亮顶、暗底），不是满冠碎叶
+      noise: 0.2,
+      elem: { kind: 'leaves', size: [4.5, 4.5], hi: 0.1, contrast: [0.7, 0.7] },
       tones: PALM_TONES,
       toneW: [0.22, 0.2],
     }),

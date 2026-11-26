@@ -17,10 +17,11 @@ import type { SharedUniforms } from '../render/ctx';
 import type { Scheme } from '../render/palettes';
 import type { PixelPipeline } from '../render/pipeline';
 import { createDayUniforms, LAMP_N } from '../render/toon';
-import { mountDayHud } from './hud';
+import { type DayPanel, mountDayHud } from './hud';
 import { type DayLook, WEATHERS, type Weather, wrapHour } from './sky';
 import { autoWeather, lookAt } from './weather';
 
+export type { DayPanel } from './hud';
 export type { DayLook, Weather } from './sky';
 export { clockText, periodName, WEATHER_NAME, WEATHERS } from './sky';
 
@@ -39,12 +40,16 @@ export interface DaylightOpts {
   sunDist?: number;
   /** 时间面板挂在哪（左上角像素级别那一栏）；null = 不要面板 */
   hud?: HTMLElement | null;
+  /** true = 只要面板、不要左上角的"12:00 晴"牌子（clubsite/hud 的日钟点开它；api.panel） */
+  panelOnly?: boolean;
 }
 
 export interface Daylight {
   /** 从第 0 天 0 点起的小时数（时钟）；时刻 = wrapHour(total) */
   total: number;
   weather: Weather | 'auto';
+  /** 现在实际的天气（自动时是抽到的那种） */
+  readonly current: Weather;
   /** 游戏秒 / 真实秒 */
   speed: number;
   readonly look: DayLook;
@@ -59,6 +64,8 @@ export interface Daylight {
   setWeather(w: Weather | 'auto'): void;
   /** 场景里加了 / 删了灯（userData.night），马上重新找（默认每 2 秒找一次） */
   rescanLamps(): void;
+  /** 时间面板（hud 或 panelOnly 给了才有） */
+  readonly panel: DayPanel | null;
   /**
    * 固定的光照（给了就一直用它，不按时刻、天气算；null = 恢复）：室内（valley 的店里）不要日夜和天气。时钟照样走
    */
@@ -165,6 +172,17 @@ export function mountDaylight(o: DaylightOpts): Daylight {
       arr[i].set(pools[i][0], pools[i][1], pools[i][2], pools[i][3]);
   }
 
+  /**
+   * 配色方案的 dayTint：乘子的彩度只留 k（往它自己的灰拉）；按亮档乘子的亮度淡出 —— 白天、傍晚收，夜里（亮档 ≤ 0.45）不收。
+   */
+  function tame(c: [number, number, number], lit: [number, number, number], k?: number): [number, number, number] {
+    if (k === undefined || k >= 1) return c;
+    const day = THREE.MathUtils.clamp((0.2126 * lit[0] + 0.7152 * lit[1] + 0.0722 * lit[2] - 0.45) / 0.25, 0, 1);
+    const kk = 1 - (1 - k) * day;
+    const l = 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+    return [l + (c[0] - l) * kk, l + (c[1] - l) * kk, l + (c[2] - l) * kk];
+  }
+
   /** 固定的光照（api.override）：室内用 */
   let override: DayLook | null = null;
   function apply() {
@@ -182,8 +200,8 @@ export function mountDaylight(o: DaylightOpts): Daylight {
     if (look.moon) sun.color.setRGB(1, 1, 1);
     else sun.color.copy(baseSun);
     day.uDayLit.value.set(...look.lit);
-    day.uDayMid.value.set(...look.mid);
-    day.uDayDark.value.set(...look.dark);
+    day.uDayMid.value.set(...tame(look.mid, look.lit, o.scheme?.dayTint?.mid));
+    day.uDayDark.value.set(...tame(look.dark, look.lit, o.scheme?.dayTint?.dark));
     day.uSunK.value = look.sunK;
     // 着色抬光：让着色的有效仰角 = shadeEl（tan e' · cos e − sin e）
     const e = el;
@@ -210,23 +228,32 @@ export function mountDaylight(o: DaylightOpts): Daylight {
   rescanLamps();
   apply();
 
-  const hud = o.hud
-    ? mountDayHud(o.hud, {
-        get: () => ({
-          total: st.total,
-          weather: st.weather,
-          speed: st.speed,
-          current: st.weather === 'auto' ? autoWeather(st.total, seed).to : st.weather,
-        }),
-        setHour: (h) => api.setHour(h),
-        setWeather: (w) => api.setWeather(w),
-        setSpeed: (s) => {
-          st.speed = s;
-        },
-      })
-    : null;
+  const hud =
+    o.hud || o.panelOnly
+      ? mountDayHud(
+          o.hud ?? null,
+          {
+            get: () => ({
+              total: st.total,
+              weather: st.weather,
+              speed: st.speed,
+              current: st.weather === 'auto' ? autoWeather(st.total, seed).to : st.weather,
+            }),
+            setHour: (h) => api.setHour(h),
+            setWeather: (w) => api.setWeather(w),
+            setSpeed: (s) => {
+              st.speed = s;
+            },
+          },
+          { chip: !o.panelOnly },
+        )
+      : null;
 
   const api: Daylight = {
+    panel: hud,
+    get current() {
+      return st.weather === 'auto' ? autoWeather(st.total, seed).to : st.weather;
+    },
     get override() {
       return override;
     },

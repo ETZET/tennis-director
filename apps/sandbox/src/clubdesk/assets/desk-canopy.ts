@@ -95,6 +95,9 @@ const inStripe = (z: number) => STRIPES.some(([c, w]) => Math.abs(z - c) < w / 2
 /** 扇形垂边的深度（u = 沿边的距离） */
 const valDepth = (u: number) => VAL_BAND + (VAL_DEPTH - VAL_BAND) * Math.abs(Math.sin((Math.PI * u) / VAL_W));
 
+/** 顶上一整片奶油（false = 原来的蓝条纹） */
+const SOLID = true;
+
 export function build(ctx: AssetCtx): THREE.Object3D {
   const root = new THREE.Group();
   root.name = 'desk-canopy';
@@ -129,7 +132,10 @@ export function build(ctx: AssetCtx): THREE.Object3D {
 
   const paint = { kind: 'paint' as const, size: [12, 8] as [number, number], density: [0, 0.02] as [number, number] };
   const mCanvas = ctx.mat('canvas', { elem: { ...paint, seed: 3 }, toneW: [0.2, 0.16] });
-  const mStripe = ctx.mat('canvasStripe', { elem: { ...paint, seed: 5 }, toneW: [0.2, 0.16] });
+  // 留白（redo-calm.md）：顶上的蓝条纹不画（一整片奶油），俱乐部蓝只留在包边
+  const mStripe = SOLID
+    ? ctx.mat('canvas', { elem: { ...paint, seed: 3 }, toneW: [0.2, 0.16] })
+    : ctx.mat('canvasStripe', { elem: { ...paint, seed: 5 }, toneW: [0.2, 0.16] });
   root.add(meshOf(canvasTop, mCanvas, 'canvas'));
   root.add(meshOf(stripeTop, mStripe, 'stripes'));
   root.add(meshOf(canvasRest, ctx.mat('canvas'), 'canvas-shell'));

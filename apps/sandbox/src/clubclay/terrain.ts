@@ -50,7 +50,8 @@ class Bucket {
   }
   build(ctx: AssetCtx, root: THREE.Object3D) {
     for (const [id, e] of this.m) {
-      const mesh = new THREE.Mesh(mergeGeometries(e.geos), ctx.mat(e.key, e.extra));
+      // fur 0.3（留白，redo-calm.md）：平涂的场地、外场、铺面上的投影边干净，不是一圈毛边
+      const mesh = new THREE.Mesh(mergeGeometries(e.geos), ctx.mat(e.key, { fur: 0.3, ...e.extra }));
       mesh.name = `clay:${id}`;
       mesh.castShadow = e.cast;
       mesh.receiveShadow = true;
@@ -124,14 +125,9 @@ export function buildTerrain(ctx: AssetCtx): Terrain {
     [GROUNDS.x0, GROUNDS.z1],
   ];
   add(groundGeo([grounds], H.ground), ctx.mat('sand', { elem: EL.sand }), 'top:ground', { cast: false });
-  add(
-    topGeo(grounds, H.ground + 0.004, [lawn]),
-    ctx.mat('sandHigh', { elem: { ...EL.sand, seed: 7 } }),
-    'top:grounds',
-    {
-      cast: false,
-    },
-  );
+  add(topGeo(grounds, H.ground + 0.004, [lawn]), ctx.mat('sand', { elem: { ...EL.sand, seed: 7 } }), 'top:grounds', {
+    cast: false,
+  });
 
   // ── 南墙（z 52）：土坯 + 压顶 + 壁柱（同 clubmap2 的算法：整段 floor(长/12) 等分）。朝镜头的南面 = 画面下方的暗带 ──
   {

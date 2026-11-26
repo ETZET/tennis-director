@@ -44,7 +44,7 @@ const drift = ctx.mat('sandDrift', { elem: { ...EL.sand, seed: 2 } });
 
 ### `elem` 的 kind 和参数
 
-公共参数：`space`（`screen` 默认 / `wall` / `local`）、`size`（纹素 [宽, 高]）、`seam`（缝宽，纹素）、`hi`（亮边比例 0..1）、`density`（撒的细节，斑块之间 [疏, 密]）、`patch`（斑块尺度，米，默认 3）、`mottle`（低频深浅斑 0..1）、`pebbles`（叠加碎石：每 7×5 纹素格的概率）、`accent`（强调色 [亮, 中, 暗]）、`p`/`q`（kind 自己的 vec4）、`attr`（几何体带 `aElem` vec4 顶点属性）、`seed`。
+公共参数：`space`（`screen` 默认 / `wall` / `local`）、`size`（纹素 [宽, 高]）、`seam`（缝宽，纹素）、`hi`（亮边比例 0..1）、`density`（撒的细节，斑块之间 [疏, 密]）、`patch`（斑块尺度，米，默认 3）、`mottle`（低频深浅斑 0..1）、`pebbles`（叠加碎石：每 7×5 纹素格的概率）、`accent`（强调色 [亮, 中, 暗]）、`p`/`q`（kind 自己的 vec4）、`attr`（几何体带 `aElem` vec4 顶点属性）、`seed`、`contrast`（[深浅变体留多少, 缝和亮边留多少]，0..1，往本色收，只动对比不动色相；大面积地面用它留白，见 `docs/lab/2026-11-07-3d-pixel/redo-calm.md`）。
 
 | kind | 用在 | 参数 | 已经用了的地方 |
 |---|---|---|---|
@@ -53,7 +53,7 @@ const drift = ctx.mat('sandDrift', { elem: { ...EL.sand, seed: 2 } });
 | `planks` | 木板、长椅、工具架、门、箱子 | `p` = [本地轴 x, y, z, 每块板宽（米）]，`q.x` = 物件缩放；`seam` 缝宽（纹素），`hi` > 0 时缝后一纹素亮条 | （phase B） |
 | `leaves` | 树冠、灌木团 | `size.x` 叶团格子（纹素，2.1～2.6）；`hi` 有亮顶的团比例（≈0.15）；还要 `noise` > 0（档位交界跟着叶团走） | （phase B） |
 | `blades` | 草、干草、仙人掌的刺（竖向 1 × 2～4 的亮划） | `density`、`patch` | （phase B） |
-| `ripples` | 沙地 | `size` = [分段长, 每几行一行沙纹]；`density` 沙纹段的比例；`mottle` 深浅沙斑（深斑上沿 = 丘顶亮边）；`pebbles` + `accent` 碎石 | 所有台面、地上的沙斑（`EL.sand`） |
+| `ripples` | 沙地 | `size` = [分段长, 每几行一行沙纹]；`density` 沙纹段的比例；`mottle` 深浅沙斑（深斑上沿 = 丘顶亮边）；`pebbles` + `accent` 碎石；`p.xy` > 0 时 = 投影里沙纹的 [疏, 密]（不给是 0.2 → 0.5） | 所有台面、地上的沙斑（`EL.sand`） |
 | `pebbles` | 踩实的土路 | `size` 土团（纹素）；`seam` 龟裂（只在少数斑块）；`density` 脚印；`pebbles` + `accent` 嵌着的碎石 | 步道（`EL.path`） |
 | `paint` | 漆面（球场、帆布、漆过的金属） | `size` 深浅块（纹素，有机形状）；`density` 擦痕 | 内场、外场、晒白块（`court.ts`） |
 | `treads` | 台阶 | `p` = [顶端 x, z, 朝下方向 x / 每级长, z / 每级长]，`q` = [级数, 顶面高, 每级高, -]，`size` = 石条长 [最短, 最长] | 台阶（`terrain.ts`） |

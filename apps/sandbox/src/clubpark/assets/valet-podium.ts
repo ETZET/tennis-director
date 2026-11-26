@@ -98,7 +98,8 @@ export function build(ctx: AssetCtx): THREE.Object3D {
   const canvasOpts = { side: THREE.DoubleSide };
   const open = [
     add(merge(panels[0]), ctx.mat('canvas', canvasOpts), 'umbrella-cream'),
-    add(merge(panels[1]), ctx.mat('canvasStripe', canvasOpts), 'umbrella-blue'),
+    // 留白（redo-calm.md）：伞面不画蓝白相间（一整把奶油）
+    add(merge(panels[1]), ctx.mat('canvas', canvasOpts), 'umbrella-blue'),
   ];
   // 收起的伞：一根布卷（奶油，扎一道蓝带）
   const furled = add(
@@ -125,6 +126,8 @@ export function build(ctx: AssetCtx): THREE.Object3D {
     furled.visible = !o;
     tie.visible = !o;
   };
+  // 留白（redo-calm.md）：开局伞收着（岗亭的顶就是遮阳；门口那一团里少一个大圆盘）
+  g.userData.setUmbrella(false);
   void hw;
   return g;
 }

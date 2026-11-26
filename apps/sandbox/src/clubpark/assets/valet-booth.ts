@@ -248,9 +248,10 @@ export function build(ctx: AssetCtx): THREE.Object3D {
   // 垂边：落中档（朝镜头的面 lightUp + 低 bands）
   const valOpts = { lightUp: 0.6, bands: [-0.9, 0.9] as [number, number] };
   add(merge(tops[0]), ctx.mat('canvas', topOpts), 'awning-cream');
-  add(merge(tops[1]), ctx.mat('canvasStripe', topOpts), 'awning-blue');
+  // 留白（redo-calm.md）：雨篷不画蓝白条（一整片奶油）
+  add(merge(tops[1]), ctx.mat('canvas', topOpts), 'awning-blue');
   add(merge(vals[0]), ctx.mat('canvas', valOpts), 'valance-cream');
-  add(merge(vals[1]), ctx.mat('canvasStripe', valOpts), 'valance-blue');
+  add(merge(vals[1]), ctx.mat('canvas', valOpts), 'valance-blue');
 
   // ── 铁件：雨篷两头的撑杆、壁灯的托架和灯帽 ───────────────
   const braces = [aw0 + 0.05, aw1 - 0.05].map((x) =>

@@ -59,7 +59,8 @@ class Bucket {
   }
   build(ctx: AssetCtx, root: THREE.Object3D) {
     for (const [id, e] of this.m) {
-      const mesh = new THREE.Mesh(mergeGeometries(e.geos), ctx.mat(e.key, e.extra));
+      // fur 0.3（留白，redo-calm.md）：平涂的场地、外场、铺面上的投影边干净，不是一圈毛边
+      const mesh = new THREE.Mesh(mergeGeometries(e.geos), ctx.mat(e.key, { fur: 0.3, ...e.extra }));
       mesh.name = `golf:${id}`;
       mesh.castShadow = e.cast;
       mesh.receiveShadow = true;

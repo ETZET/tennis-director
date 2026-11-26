@@ -49,7 +49,8 @@ class Bucket {
   }
   build(ctx: AssetCtx, root: THREE.Object3D) {
     for (const [id, e] of this.m) {
-      const mesh = new THREE.Mesh(mergeGeometries(e.geos), ctx.mat(e.key, e.extra));
+      // fur 0.3（留白，redo-calm.md）：平涂的场地、外场、铺面上的投影边干净，不是一圈毛边
+      const mesh = new THREE.Mesh(mergeGeometries(e.geos), ctx.mat(e.key, { fur: 0.3, ...e.extra }));
       mesh.name = `courts:${id}`;
       mesh.castShadow = e.cast;
       mesh.receiveShadow = true;
@@ -111,7 +112,8 @@ export function buildTerrain(ctx: AssetCtx): Terrain {
     [GROUNDS.x0, GROUNDS.z1],
   ];
   add(groundGeo([grounds], H.ground), ctx.mat('sand', { elem: EL.sand }), 'top:ground', { cast: false });
-  add(topGeo(grounds, H.ground + 0.004), ctx.mat('sandHigh', { elem: { ...EL.sand, seed: 7 } }), 'top:grounds', {
+  // 留白（redo-calm.md）：墙里墙外一种沙（原来墙里是 sandHigh，一屏两种沙、直线接缝）
+  add(topGeo(grounds, H.ground + 0.004), ctx.mat('sand', { elem: { ...EL.sand, seed: 7 } }), 'top:grounds', {
     cast: false,
   });
 
