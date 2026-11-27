@@ -84,7 +84,7 @@ export function build(ctx: NetCtx): THREE.Object3D {
   g.userData.aim = (rad: number) => {
     head.rotation.y = rad;
   };
-  // 灯光斑（第三轮）：灯头朝向前方 8.5 米为圆心、半径 13.5 米 —— 一片场四盏灯的光斑大半叠在一起，加起来把整片场地升到亮档
+  // 灯光斑（第三轮）：灯头朝向前方 11.5 米为圆心、半径 14 米（场心离每盏灯的圆心约 11 米，四盏加起来 ≈ 1.6，稳稳在圈心；杆后的看台只吃一盏的边 ≈ 0.3，是外圈） —— 一片场四盏灯的光斑大半叠在一起，加起来把整片场地升到亮档
   // （原来 6.5 / 6.5：四个硬边的圆落在场地四角，场心反而暗）；往场外按有序抖动淡到中档再到夜色。照到灯头那么高
   const poolC = new THREE.Vector3();
   g.userData.night = {
@@ -92,8 +92,8 @@ export function build(ctx: NetCtx): THREE.Object3D {
     color: LAMP_WARM,
     pool: (): [number, number, number, number] => {
       head.updateWorldMatrix(true, false);
-      poolC.set(0, 0, 8.5).applyMatrix4(head.matrixWorld);
-      return [poolC.x, poolC.z, 13.5, H + 0.6];
+      poolC.set(0, 0, 11.5).applyMatrix4(head.matrixWorld);
+      return [poolC.x, poolC.z, 14, H + 0.6];
     },
   };
   return g;

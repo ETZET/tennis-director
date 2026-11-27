@@ -877,7 +877,7 @@ const RAMP_OUT = /* glsl */ `
     if (lf.a > 0.0) {
       float dth = (bayer4(scrT) - 0.5) * 0.2;
       if (lf.a > 0.7 + dth) { band = (sh < 0.5 || bandN < 0.5) ? 1.0 : 2.0; lampIn = 2.0; }
-      else if (lf.a > 0.1 + dth) { band = 1.0; lampIn = 1.0; }
+      else if (lf.a > 0.2 + dth) lampIn = 1.0;
       if (lampIn > 0.5) lampCol = lf.rgb / lf.a;
     }
   }
@@ -921,17 +921,20 @@ const RAMP_OUT = /* glsl */ `
   // 时间：三档各乘各的（自发光的东西 —— 开着的灯面、机器的指示灯 —— 不跟着变暗）；灯光圈里换灯光色
   vec3 dayM = band > 1.5 ? uDayLit : (band > 0.5 ? uDayMid : uDayDark);
   // 圈心（亮档）整个换灯色；外圈（中档）只往灯色混 55%：夜色还在、只是暖一点亮一点（全换成灯色，草地外圈是一圈黄绿）
-  // lampIn 2 = 圈心（亮面亮档、背光面中档，都整个换灯色），1 = 外圈（一律中档，往灯色混 55%）
-  if (lampIn > 1.5) dayM = mix(dayM, lampCol * (band > 1.5 ? 1.0 : 0.66), uLampK);
-  else if (lampIn > 0.5) dayM = mix(dayM, lampCol * 0.66, uLampK * 0.55);
+  // lampIn 2 = 圈心（亮面亮档、背光面中档，都整个换灯色），1 = 外圈（档位不动，夜色往灯色混 40%：夜里的冷色提亮一点、
+  // 偏中性，不经过褐色 —— 第 1 轮评判：琥珀 × 0.66 混在草和沙上是一圈脏褐）
+  // 圈心留两成夜色（草上全换琥珀 = 一块艳黄绿，第 2 轮主代理 / 评判）
+  if (lampIn > 1.5) dayM = mix(dayM, lampCol * (band > 1.5 ? 1.0 : 0.66), uLampK * 0.8);
+  else if (lampIn > 0.5) dayM = mix(dayM, lampCol * (band > 1.5 ? 1.0 : 0.8), uLampK * 0.4);
   // 焦点（草帽）：乘子往"中性、提亮一截"收 —— 夜里、阴雨天还是原来的色相，只暗一点
   if (uFocus > 0.0) {
     float dl = dot(dayM, vec3(0.2126, 0.7152, 0.0722));
-    dayM = mix(dayM, vec3(mix(dl, 1.0, 0.45)) * mix(vec3(1.0), dayM / max(dl, 1e-3), 0.25), uFocus);
+    // 中性、至少 0.72（夜里乘子 ≈ 0.45 时草帽还是暖黄，不被染成蓝灰）
+    dayM = mix(dayM, vec3(max(mix(dl, 1.0, 0.45), 0.72)) * mix(vec3(1.0), dayM / max(dl, 1e-3), 0.12), uFocus);
   }
   float glow = step(1e-3, dot(totalEmissiveRadiance, vec3(1.0)));
   col *= mix(dayM, vec3(1.0), glow);
-  float sat = mix(uDaySat, 1.0, max(max(glow, min(lampIn, 1.0) * uLampK * 0.8), uFocus));
+  float sat = mix(uDaySat, 1.0, max(max(glow, min(lampIn, 1.0) * uLampK * 0.35), uFocus));
   if (sat != 1.0) col = mix(vec3(dot(col, vec3(0.2126, 0.7152, 0.0722))), col, sat);
   // 水洼：往天色混 35%（湿地面映一点天），北沿一纹素混 65%（反光的边）
   if (wetK > 0.5) col = mix(col, lampIn > 0.5 ? mix(uWetCol, lampCol, 0.6 * uLampK) : uWetCol, wetK > 1.5 ? 0.65 : 0.35);

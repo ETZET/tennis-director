@@ -182,7 +182,8 @@ void main() {
     float si = floor(yy / seg);
     float ph = yy - si * seg;
     float len = 3.0 + floor(fh(vec2(x, si)) * 3.0);
-    if (ph < len && fh(vec2(x, si) + 4.0) < 0.3 * uRain) col = mix(col, vec3(0.8, 0.86, 0.98), ph < 1.0 ? 0.3 : 0.45);
+    // 第三轮：雨丝减半（满屏的白点太碎、平静纹素掉到 50% 多），也淡一点
+    if (ph < len && fh(vec2(x, si) + 4.0) < 0.15 * uRain) col = mix(col, vec3(0.8, 0.86, 0.98), ph < 1.0 ? 0.25 : 0.38);
     // 地上溅起的亮点：一纹素，每 0.12 秒换一批
     if (fg > 0.5 && fh(g + floor(uFxTime * 8.0) * 13.1) < 0.0015 * uRain) col = mix(col, vec3(0.86, 0.9, 1.0), 0.7);
   }

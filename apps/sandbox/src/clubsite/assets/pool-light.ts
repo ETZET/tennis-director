@@ -24,7 +24,7 @@ export function build(ctx: NetCtx): THREE.Object3D {
       r: gap * 0.95,
       h: 0.86,
       c: LAMP_AQUA,
-      k: 1.1,
+      k: 0.75,
     })),
   });
   return g;
