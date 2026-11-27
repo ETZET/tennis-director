@@ -89,7 +89,8 @@ export function build(ctx: NetCtx): THREE.Object3D {
   const poolC = new THREE.Vector3();
   g.userData.night = {
     setOn: g.userData.setOn,
-    color: LAMP_WARM,
+    // 泛光灯比路灯亮、偏暖白：场面是夜里全屏最亮的一块（第 3 轮评判：蓝灰、读不出场灯）
+    color: [LAMP_WARM[0] * 1.22, LAMP_WARM[1] * 1.26, LAMP_WARM[2] * 1.3],
     pool: (): [number, number, number, number] => {
       head.updateWorldMatrix(true, false);
       poolC.set(0, 0, 11.5).applyMatrix4(head.matrixWorld);
