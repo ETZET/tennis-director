@@ -233,9 +233,9 @@ const VISTA = {
   /** 果岭（golf 图）：领草（fringe），果岭外一圈，比果岭暖、浅一档，比周围的草冷 */
   puttFringe: s([0x88cf78, 0x60ad6c, 0x387e70], 0.05, 0),
   /** 练习场（practice 图）的半片场、发球机道：比 practiceOut 亮一档的浅青（色相 ≈ 174°，L 170；中心球场是 200°+ 的蓝） */
-  drillIn: s([0x66cab8, 0x48a2a0, 0x2e6e7e], 0.05, 0),
+  drillIn: s([0x52ceae, 0x36a698, 0x22707a], 0.05, 0),
   /** 练习场（practice 图）坑里的外圈：中一档的青（色相 ≈ 184°，L 138） */
-  drillOut: s([0x40a6aa, 0x327e8c, 0x255a74], 0.05, 0),
+  drillOut: s([0x2aaca6, 0x20828a, 0x175c72], 0.05, 0),
   /** 到达（arrive）停车场车棚的帆布：米白（比前台的奶油杏帆淡、彩度低，不抢焦点），暗档冷灰紫；不接投影（薄布） */
   arriveSail: { ...s([0xf0e4cc, 0xc8b4b0, 0x7e7698], 0.4, 0.2), opts: { noShadowReceive: true } },
   /** 车棚帆布的条：浅暖灰（和米白只差一点，远看是一整块） */

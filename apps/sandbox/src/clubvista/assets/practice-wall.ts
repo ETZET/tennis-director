@@ -1,10 +1,10 @@
-// 练习墙（practice 图自己的；从 hit-wall 复制改）：一段 9 × 2.4 × 0.6 米的混凝土墙，正面朝南（+z，朝镜头）。
-// 第 2 轮评判："像一块粉色广告牌" → 要读成有厚度的墙：
-//   - 墙身冷灰石色（stepStone），朝镜头的立面落暗档的偏上一点（太阳在后面：正面是背光面，比顶面暗一大截）；
-//   - 顶上一条 0.6 米深的浅色压顶（俯视 45° 能看到 ≈ 5 纹素宽的亮顶 = 墙的厚度），两头的端面中档；
+// 练习墙（practice 图自己的；从 hit-wall 复制改）：一段 9 × 2.9 × 0.5 米的灰泥墙，正面朝南（+z，朝镜头）。
+// 第 2 轮评判："像一块粉色广告牌"；第 3 轮："顶上一条细深灰带 + 白框，看不出厚墙" → 一面浅色的立墙：
+//   - 墙身米白浅灰的灰泥（poolStone），朝镜头的立面 lightUp 抬到中档（读成一大块浅色的墙面，不是暗带）；
+//   - 顶上一条 0.5 米深的浅色压顶（墙的厚度）+ 墙脚一行暗的勒脚 → 读得出是立着的厚墙；
 //   - 一条网高的白线（0.91 米）、线上正中一个白边靶框；靶框里外几个深色的球印；
 //   - 墙脚一排滚到墙根的球（12 个，成两三撮）。
-// 比 hit-wall 矮 0.6 米：影子只盖到墙前 ≈ 1 米。本地原点 = 墙脚中心的地面。
+// 比 hit-wall 矮 0.1 米；场地离墙脚留 0.8 米的外圈，墙影落在外圈上。本地原点 = 墙脚中心的地面。
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { AssetCtx } from '../ctx';
@@ -13,7 +13,7 @@ const T = 0.09;
 const VROW = T / Math.SQRT1_2;
 
 /** 朝镜头的立面：背光，落中档偏暗（不是一块黑） */
-const FACE = { lightUp: 0.25, bands: [-0.35, 0.45] as [number, number] };
+const FACE = { lightUp: 0.65, bands: [-0.6, 0.2] as [number, number] };
 
 function box(w: number, h: number, d: number, x: number, y: number, z: number) {
   return new THREE.BoxGeometry(w, h, d).translate(x, y, z);
@@ -23,8 +23,8 @@ export function build(ctx: AssetCtx): THREE.Object3D {
   const g = new THREE.Group();
   g.name = 'practice-wall';
   const W = 9;
-  const H = 2.4;
-  const D = 0.6;
+  const H = 2.9;
+  const D = 0.5;
   const capH = VROW;
   const wallH = H - capH;
 
@@ -36,7 +36,7 @@ export function build(ctx: AssetCtx): THREE.Object3D {
   g.add(
     new THREE.Mesh(
       mergeGeometries(wall),
-      ctx.mat('stepStone', {
+      ctx.mat('poolStone', {
         ...FACE,
         noShadowReceive: true,
         elem: { kind: 'stones', size: [30, 12], seam: 0, hi: 0, seed: 11 },
@@ -48,11 +48,19 @@ export function build(ctx: AssetCtx): THREE.Object3D {
   g.add(
     new THREE.Mesh(
       box(W - 0.02, wallH, D - 0.14, 0, wallH / 2, -0.07),
-      ctx.mat('bluff', { ...FACE, noShadowReceive: true, edge: 0.05, convex: 0 }),
+      ctx.mat('stepStone', { ...FACE, noShadowReceive: true, edge: 0.05, convex: 0 }),
     ),
   );
   // ── 压顶：每边宽出半纹素，顶面是亮唇（墙的厚度就靠它读出来）──
   g.add(new THREE.Mesh(box(W + 0.09, capH, D + 0.09, 0, wallH + capH / 2, 0), ctx.mat('curb', { lightUp: 0.3 })));
+
+  // ── 墙脚一行暗的勒脚（比墙面每边宽出半纹素）：墙"立"在地上，不是贴在地上的一块板 ──
+  g.add(
+    new THREE.Mesh(
+      box(W + 0.09, VROW, D + 0.09, 0, VROW / 2, 0),
+      ctx.mat('stepStone', { lightUp: 0.3, bands: [-0.3, 0.4], noShadowReceive: true, edge: 0.05, convex: 0 }),
+    ),
+  );
 
   // ── 网高白线 + 靶框白边 ──
   const zf = D / 2 + 0.02;
@@ -90,7 +98,10 @@ export function build(ctx: AssetCtx): THREE.Object3D {
     marks.push(box(2 * T, VROW, 0.02, x, y, zf + 0.004));
   }
   g.add(
-    new THREE.Mesh(mergeGeometries(marks), ctx.mat('bluff', { ...FACE, noShadowReceive: true, edge: 0, convex: 0 })),
+    new THREE.Mesh(
+      mergeGeometries(marks),
+      ctx.mat('stepStone', { lightUp: 0.2, bands: [-0.1, 0.6], noShadowReceive: true, edge: 0, convex: 0 }),
+    ),
   );
 
   // ── 墙脚一排球：三撮，滚到墙根 ──
