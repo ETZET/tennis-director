@@ -27,6 +27,15 @@ export interface ChoreCtx {
   clock(): { day: number; minute: number };
   /** 干完一件活：钱、上方一行字、原地冒数 */
   reward(text: LifeTextKey, money: number, at: THREE.Vector3, minutes?: number): void;
+  /** 叫这张图上一个闲着的人过来，在 (x, z) 朝 yaw 摆 pose 待 sec 秒（补完发球机：有人来对着练）；没人闲着 = false */
+  callOver?(
+    b: BuiltMap,
+    x: number,
+    z: number,
+    yaw: number,
+    sec: number,
+    pose: { pose: string; prop?: string | null },
+  ): boolean;
 }
 
 interface Due {
@@ -64,6 +73,8 @@ export function mountChores(o: ChoreCtx): { step(dt: number): void; debug(): unk
       pose: string;
       hold?: number;
       prop?: string;
+      /** 画面上看得出活和进度（网松着 → 越摇越紧，沙子越扫越少）：每步调，due = 有这件活，k = 干到几成（0..1） */
+      show?(due: boolean, k: number): void;
     },
   ) {
     const at = new THREE.Vector3(sp.at[0] + b.ox, b.groundAt(sp.at[0], sp.at[1]) + 0.9, sp.at[1]);
@@ -117,12 +128,75 @@ export function mountChores(o: ChoreCtx): { step(dt: number): void; debug(): unk
           }),
     });
     let shown = false;
+    let lastKey: string | null = null;
     steppers.push(() => {
-      const on = o.cur() === b && !!key();
+      const k0 = key();
+      // 新的一轮：进度清零（上一轮干到一半没干完的不带过来）
+      if (k0 !== lastKey) progress = 0;
+      lastKey = k0;
+      if (o.cur() === b) c.show?.(!!k0, c.hold ? Math.min(1, progress / c.hold) : 0);
+      const on = o.cur() === b && !!k0;
       if (on && !shown) play.bubble(`chore:${c.id}`, bubbleAt, lt(c.ask), 0);
       if (!on && shown) play.bubble(`chore:${c.id}`, null);
       shown = on;
     });
+  }
+
+  /** 网：离站位最近的那张网（摆件 'net'）。有活 = 松着垂下来，摇的时候一点点绷紧（clubsite/assets/nets 的 setTension / setCrank） */
+  function netShow(b: BuiltMap, sp: Spot): ((due: boolean, k: number) => void) | undefined {
+    let best: THREE.Object3D | null = null;
+    let bd = 12;
+    for (const pl of b.placed) {
+      if (pl.prop.a !== 'net') continue;
+      const d = Math.hypot(pl.prop.x - sp.at[0], pl.prop.z - sp.at[1]);
+      if (d < bd) {
+        bd = d;
+        best = pl.obj;
+      }
+    }
+    type NetUd = { setTension?(t: number): void; setCrank?(r: number): void };
+    const found: NetUd[] = [];
+    (best as THREE.Object3D | null)?.traverse((x) => {
+      if (x.userData.setTension) found.push(x.userData as NetUd);
+    });
+    const n = found[0];
+    if (!n) return undefined;
+    let last = -1;
+    return (due, k) => {
+      const t = due ? 0.25 + 0.75 * k : 1;
+      if (Math.abs(t - last) < 0.01) return;
+      last = t;
+      n.setTension?.(t);
+      n.setCrank?.(k * 9);
+    };
+  }
+  /** 扫场：站位前面一摊沙（场地上一块沙色的圆），越扫越小；没活的时候没有 */
+  function sandShow(b: BuiltMap, sp: Spot): (due: boolean, k: number) => void {
+    const g = new THREE.Group();
+    g.name = 'chore-sand';
+    const mat = o.kit.ctxFor(0).mat('floor');
+    const yaw = sp.yaw ?? 0;
+    // 站位朝向前方 1.6 米、沿着底线摊开的三块
+    const cx = sp.at[0] + Math.sin(yaw) * 1.6;
+    const cz = sp.at[1] + Math.cos(yaw) * 1.6;
+    for (const [dx, dz, r] of [
+      [0, 0, 1.1],
+      [1.3, 0.2, 0.75],
+      [-1.2, -0.15, 0.6],
+    ]) {
+      const m = new THREE.Mesh(new THREE.CircleGeometry(r, 10), mat);
+      m.rotation.x = -Math.PI / 2;
+      m.position.set(dx, 0, dz);
+      m.receiveShadow = true;
+      g.add(m);
+    }
+    g.position.set(cx, b.groundAt(cx, cz) + 0.03, cz);
+    g.visible = false;
+    b.root.add(g);
+    return (due, k) => {
+      g.visible = due;
+      g.scale.setScalar(Math.max(0.05, 1 - k * 0.95));
+    };
   }
 
   for (const b of o.built) {
@@ -156,6 +230,7 @@ export function mountChores(o: ChoreCtx): { step(dt: number): void; debug(): unk
             : every(180, 7 * 60 + lag),
           ask: 'netAsk',
           label: 'netLabel',
+          show: netShow(b, sp),
           done: 'netDone',
           money: 3,
           minutes: 6,
@@ -175,6 +250,7 @@ export function mountChores(o: ChoreCtx): { step(dt: number): void; debug(): unk
           },
           ask: 'sweepAsk',
           label: 'sweepLabel',
+          show: sandShow(b, sp),
           done: 'sweepDone',
           money: 4,
           minutes: 12,
@@ -221,11 +297,13 @@ export function mountChores(o: ChoreCtx): { step(dt: number): void; debug(): unk
       const piles = zs.map((z, i) => {
         const ball = buildBalls(ballCtx);
         const r = mulberry32(hashOf(CAST.seed, 'balls', id, i));
-        const pts: [number, number][] = Array.from({ length: 5 + Math.floor(r() * 4) }, () => [
-          (r() - 0.5) * 1.6,
-          (r() - 0.5) * 1.2,
+        // 一簇挤在一起（手机上要读成"一堆球"，不是几个散点）：球放大 1.8 倍
+        const pts: [number, number][] = Array.from({ length: 7 + Math.floor(r() * 4) }, () => [
+          (r() - 0.5) * 0.55,
+          (r() - 0.5) * 0.45,
         ]);
         ball.userData.setBalls?.(pts);
+        ball.scale.setScalar(1.8);
         ball.position.set(xs[i], b.groundAt(xs[i], z), z);
         ball.visible = false;
         b.root.add(ball);
@@ -285,6 +363,17 @@ export function mountChores(o: ChoreCtx): { step(dt: number): void; debug(): unk
               carried = 0;
               count.machine = (count.machine ?? 0) + 1;
               o.reward('machineDone', 2 + n, mAt, 5);
+              // 补完球：有人拿着拍子过来，站在发球机对面 7 米处对着练一会儿
+              const dir = Math.sign(far - machine.z) || 1;
+              const px = machine.x;
+              const pz = machine.z + dir * 7;
+              if (
+                o.callOver?.(b, px, pz, Math.atan2(machine.x - px, machine.z - pz), 40, {
+                  pose: 'ready',
+                  prop: 'racket',
+                })
+              )
+                count.practice = (count.practice ?? 0) + 1;
             },
           }),
       });

@@ -20,6 +20,7 @@ import {
   guessRole,
   isFixedRole,
   type MapSlot,
+  matchScore,
   matchWindows,
   memOf,
   type PersonKind,
@@ -174,7 +175,7 @@ export function prepareLife(built: readonly BuiltMap[], kit: Kit): Prepared[] {
       } else if (pr.a === 'patio-table') tables.push([pr.x, pr.z]);
       else if (pr.a === 'shuttle') {
         // 接驳车停在路上：人从人行道上车门那一侧上下
-        shuttle = { id: 'shuttle', x: pr.x - 3.2, z: pr.z - 4, weight: 3 };
+        shuttle = { id: 'shuttle', x: pr.x - 3.2, z: pr.z - 4.6, weight: 3 };
         gates.push(shuttle);
       } else if (pr.a === 'back-door') gates.push({ id: `door${i}`, x: pr.x, z: pr.z + 1, staff: true });
       else if (pr.a === 'tunnel') gates.push({ id: `tunnel${i}`, x: pr.x, z: pr.z + 2.2, staff: true });
@@ -464,7 +465,8 @@ export function mountVistaLife(o: VistaLifeOpts): VistaLife {
         carrySpeed: 2.2,
         grip: { at: [0, 0.89, -0.12], cart: true },
       });
-      item.place(a.x + b.ox + 0.55, a.z + 0.15, 0.3);
+      // 箱子放在客人靠里（北）的一侧：不贴着马路沿（离马路太近的地方总监站不住）
+      item.place(a.x + b.ox + 0.5, a.z - 0.35, 0.3);
       a.hold = true;
       a.obj.userData.pose?.('call');
       play.bubble('luggage', a.obj, lt('luggageAsk'));
@@ -643,6 +645,18 @@ export function mountVistaLife(o: VistaLifeOpts): VistaLife {
     cur: o.cur,
     clock: o.clock,
     reward,
+    callOver(b, x, z, yaw, sec, pose) {
+      const L = lives.get(b.def.id);
+      if (!L) return false;
+      // 闲着的：在场、待着（坐着 / 站着），不是员工；离得最近的那个
+      const free = L.actors
+        .filter((a) => a.state === 'stay' && !a.hold && !a.person.staff)
+        .sort((a, c) => Math.hypot(a.x - x, a.z - z) - Math.hypot(c.x - x, c.z - z));
+      const a = free[0];
+      if (!a) return false;
+      L.send(a, x, z, sec, yaw, pose);
+      return true;
+    },
   });
 
   // ── 看台：比赛前半小时开始进人、比赛时坐满、散场以后慢慢走空（只看时钟，换图回来也对） ──
@@ -654,6 +668,34 @@ export function mountVistaLife(o: VistaLifeOpts): VistaLife {
       if (f) list.push(f);
     });
     if (list.length) fills.set(p.map, list);
+  }
+  // 记分牌（中心球场的大记分牌：userData.setScore + score）：比赛时照比分翻，两场之间空着
+  const boards = new Map<
+    BuiltMap,
+    ((sets: [number, number][], pts: [number | string, number | string], serve: 0 | 1) => void)[]
+  >();
+  for (const p of o.prepared) {
+    const list: ((sets: [number, number][], pts: [number | string, number | string], serve: 0 | 1) => void)[] = [];
+    p.map.root.traverse((x) => {
+      if (x.userData.setScore && x.userData.score && 'sets' in x.userData.score) list.push(x.userData.setScore);
+    });
+    if (list.length) boards.set(p.map, list);
+  }
+  let lastBoard = '';
+  function stepBoard() {
+    const list = boards.get(o.cur());
+    if (!list) return;
+    const t = o.clock();
+    const ws = matchWindows(CAST.seed, t.day);
+    const k = ws.findIndex((w) => t.minute >= w[0] && t.minute < w[1]);
+    const sc =
+      k >= 0
+        ? matchScore(CAST.seed, t.day, k, (t.minute - ws[k][0]) / (ws[k][1] - ws[k][0]))
+        : { sets: [] as [number, number][], points: ['', ''] as [string, string], serve: 0 as const };
+    const key = JSON.stringify(sc);
+    if (key === lastBoard) return;
+    lastBoard = key;
+    for (const f of list) f(sc.sets, sc.points, sc.serve);
   }
   let lastFill = -1;
   let lastFillMap: BuiltMap | null = null;
@@ -683,6 +725,7 @@ export function mountVistaLife(o: VistaLifeOpts): VistaLife {
     step(dt) {
       chores.step(dt);
       stepCrowd();
+      stepBoard();
       const id = o.cur().def.id;
       lives.get(id)?.step(dt);
       for (const f of steppers.get(id) ?? []) f(dt);
@@ -695,6 +738,7 @@ export function mountVistaLife(o: VistaLifeOpts): VistaLife {
     enter() {
       curLife()?.settle();
       lastFill = -1;
+      lastBoard = '';
       stepCrowd();
     },
     of: (id) => lives.get(id),

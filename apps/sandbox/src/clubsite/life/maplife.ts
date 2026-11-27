@@ -161,8 +161,15 @@ export interface MapLife {
   present(): LifeActor[];
   /** 在场的人的挡路圆（总监绕着走） */
   circles(): { x: number; z: number; r: number }[];
-  /** 让一个待着的人马上去别处：走到 (x, z) 站 sec 秒，然后接着原来的打算 */
-  send(a: LifeActor, x: number, z: number, sec: number, yaw?: number): void;
+  /** 让一个待着的人马上去别处：走到 (x, z) 待 sec 秒（给了 pose = 摆这个姿势，例如对着发球机练），然后接着原来的打算 */
+  send(
+    a: LifeActor,
+    x: number,
+    z: number,
+    sec: number,
+    yaw?: number,
+    pose?: { pose: string; prop?: string | null },
+  ): void;
   /** 让他现在就离开（走到出口） */
   dismiss(a: LifeActor): void;
   debug(): {
@@ -801,7 +808,7 @@ export function createMapLife(o: MapLifeOpts): MapLife {
     stats,
     present: () => actors.filter((a) => a.state !== 'away'),
     circles: () => actors.filter((a) => a.state !== 'away').map((a) => ({ x: a.x, z: a.z, r: 0.3 })),
-    send(actor, x, z, sec, yaw) {
+    send(actor, x, z, sec, yaw, pose) {
       const a = actor as Act;
       const back: Step[] = [];
       if (a.state === 'stay' && a.until >= 0) back.push({ t: 'stay', until: a.until });
@@ -814,20 +821,18 @@ export function createMapLife(o: MapLifeOpts): MapLife {
               { t: 'sit', spot: home, home: true },
             ]
           : [];
-      a.plan = [
-        { t: 'go', x, z },
-        {
-          t: 'call',
-          fn: (b) => {
-            if (yaw !== undefined) (b as Act).yaw = yaw;
-            place(b as Act);
-          },
-        },
-        { t: 'stay', sec },
-        ...ret,
-        ...back,
-        ...a.plan,
-      ];
+      const there: Step[] = pose
+        ? [{ t: 'sit', spot: { x, z, yaw: yaw ?? a.yaw, pose: pose.pose, prop: pose.prop, seat: null } }]
+        : [
+            {
+              t: 'call',
+              fn: (b) => {
+                if (yaw !== undefined) (b as Act).yaw = yaw;
+                place(b as Act);
+              },
+            },
+          ];
+      a.plan = [{ t: 'go', x, z }, ...there, { t: 'stay', sec }, ...ret, ...back, ...a.plan];
       a.hold = false;
       a.until = -1;
       a.sec = 0;

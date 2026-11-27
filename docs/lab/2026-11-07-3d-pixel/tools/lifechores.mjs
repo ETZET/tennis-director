@@ -65,7 +65,7 @@ const popText = (page) =>
       const p = window.__vista.play;
       const it = p.item('luggage-0');
       const w = it.obj.getWorldPosition(it.obj.position.clone());
-      p.teleport(w.x + 0.9, w.z - 0.3);
+      p.teleport(w.x + 0.9, w.z - 0.6);
     });
     await page.waitForTimeout(400);
     await page.screenshot({ path: `${out}/arrive-luggage.png` });
@@ -179,6 +179,10 @@ async function doChore(page, iid, holdSec, name, shotName) {
   const { page, errors } = await open('map=practice&hour=9&tspeed=300');
   await doChore(page, 'balls:practice:0', 0.2, '练习场：捡球', 'practice-balls');
   await doChore(page, 'machine:practice', 0.2, '练习场：补发球机', 'practice-machine');
+  const came = await until(page, () => (window.__vista.life.debug().chores.count.practice ?? 0) >= 1, 4);
+  check('练习场：补完球有人过来对着发球机练', came);
+  await page.waitForTimeout(6000);
+  await page.screenshot({ path: `${out}/practice-after.png` });
   check('练习场：页面没有报错', errors.length === 0, errors.slice(0, 3).join(' / '));
   await page.close();
 }

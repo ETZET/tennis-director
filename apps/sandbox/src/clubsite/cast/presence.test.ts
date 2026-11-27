@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { CAST } from './index';
 import { absMinute, alignClock, reconcileClock, setClock } from './clock';
+import { CAST } from './index';
 import {
   declareMap,
   earn,
   expireSeeks,
   headcount,
+  matchScore,
   matchWindows,
   presenceOf,
   resolveSeek,
@@ -31,7 +32,10 @@ describe('一个时钟', () => {
     expect(r.state).toBe(s);
   });
   it('过夜：今天说话的次数清零', () => {
-    const s = { ...s0(), people: { a: { favor: 5, mood: 90, met: true, talksToday: 3, giftDay: 0, rallies: 0, memory: [] } } };
+    const s = {
+      ...s0(),
+      people: { a: { favor: 5, mood: 90, met: true, talksToday: 3, giftDay: 0, rallies: 0, memory: [] } },
+    };
     const r = reconcileClock(s, 24 + 7);
     expect(r.state.day).toBe(2);
     expect(r.state.people.a.talksToday).toBe(0);
@@ -114,5 +118,16 @@ describe('在哪张图、找总监', () => {
     const s = earn(earn(s0(), 5), 2);
     expect(s.money).toBe(127);
     expect(s.chores).toEqual({ day: 1, n: 2, money: 7 });
+  });
+});
+
+describe('记分牌的比分', () => {
+  it('开场 0:0，越打局数越多，盘数不超过 3', () => {
+    expect(matchScore(CAST.seed, 1, 0, 0).sets).toEqual([[0, 0]]);
+    const late = matchScore(CAST.seed, 1, 0, 0.95);
+    expect(late.sets.length).toBeLessThanOrEqual(3);
+    const games = (x: { sets: [number, number][] }) => x.sets.reduce((n, [a, b]) => n + a + b, 0);
+    expect(games(late)).toBeGreaterThan(games(matchScore(CAST.seed, 1, 0, 0.3)));
+    for (const [a, b] of late.sets) expect(Math.max(a, b)).toBeLessThanOrEqual(7);
   });
 });

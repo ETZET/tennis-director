@@ -65,6 +65,39 @@ export function matchAt(seed: number, day: number, minute: number): number {
   return 0;
 }
 
+/**
+ * 第 k 场比赛打到 p（0..1）时的比分（记分牌照着翻）：每局谁赢按种子哈希，一盘先到 6 局且领先 2 局（7 局封顶），打满 2 盘或 3 盘。
+ * 返回各盘局分（最后一盘 = 正在打的）、本局分、谁发球。纯函数。
+ */
+export function matchScore(
+  seed: number,
+  day: number,
+  k: number,
+  p: number,
+): { sets: [number, number][]; points: [number | string, number | string]; serve: 0 | 1 } {
+  const r = mulberry32(hashOf(seed, 'score', day, k));
+  // 一场大约 20 局；打到 p 已经打完几局
+  const total = Math.floor(Math.max(0, Math.min(0.999, p)) * 20);
+  const edge = r() < 0.5 ? 0.6 : 0.4;
+  const sets: [number, number][] = [[0, 0]];
+  let won = [0, 0];
+  for (let g = 0; g < total; g++) {
+    const cur = sets[sets.length - 1];
+    cur[r() < edge ? 0 : 1]++;
+    const [a, b] = cur;
+    if ((Math.max(a, b) >= 6 && Math.abs(a - b) >= 2) || Math.max(a, b) === 7) {
+      won = a > b ? [won[0] + 1, won[1]] : [won[0], won[1] + 1];
+      if (won[0] === 2 || won[1] === 2 || sets.length === 3) break;
+      sets.push([0, 0]);
+    }
+  }
+  const PTS = [0, 15, 30, 40];
+  const f = (Math.max(0, Math.min(0.999, p)) * 20) % 1;
+  const pa = PTS[Math.min(3, Math.floor(f * 4 + r() * 1.2))];
+  const pb = PTS[Math.min(3, Math.floor(f * 3 + r() * 1.5))];
+  return { sets: sets.map((x) => [x[0], x[1]] as [number, number]), points: [pa, pb], serve: (total % 2) as 0 | 1 };
+}
+
 // ── 在场的时段 ───────────────────────────────────────────────────────────────────
 
 /** 什么时候人多（每小时的权重，6..21 点）：球场早晚两头，泳池中午到下午，别处平一点 */
