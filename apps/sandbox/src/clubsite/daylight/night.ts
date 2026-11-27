@@ -29,7 +29,7 @@ export interface NightLight {
 }
 
 /** 常用的灯色（乘子）：暖白（球场泛光灯）、暖黄（灯串、门廊、窗里透出来的）、水下灯的青 */
-export const LAMP_WARM: [number, number, number] = [0.68, 0.64, 0.5];
+export const LAMP_WARM: [number, number, number] = [0.74, 0.65, 0.46];
 export const LAMP_AMBER: [number, number, number] = [0.8, 0.68, 0.5];
 export const LAMP_AQUA: [number, number, number] = [0.42, 0.78, 0.84];
 /** 冷白（候车亭的灯管） */

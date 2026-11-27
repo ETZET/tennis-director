@@ -879,6 +879,9 @@ const RAMP_OUT = /* glsl */ `
       if (lf.a > 0.7 + dth) { band = (sh < 0.5 || bandN < 0.5) ? 1.0 : 2.0; lampIn = 2.0; }
       else if (lf.a > 0.2 + dth) lampIn = 1.0;
       if (lampIn > 0.5) lampCol = lf.rgb / lf.a;
+      // 光场的结构（第 2 轮评判：整片一样亮，读不出灯在哪）：两盏以上叠起来的地方（灯塔脚下、场心）是满的，
+      // 只吃一盏的地方暗 12%，交界按有序抖动
+      if (lampIn > 1.5 && lf.a < 1.25 + dth * 2.0) lampCol *= 0.88;
     }
   }
   vec3 col = band > 1.5 ? lit : (band > 0.5 ? mid : dark);
@@ -931,6 +934,8 @@ const RAMP_OUT = /* glsl */ `
     float dl = dot(dayM, vec3(0.2126, 0.7152, 0.0722));
     // 中性、至少 0.72（夜里乘子 ≈ 0.45 时草帽还是暖黄，不被染成蓝灰）
     dayM = mix(dayM, vec3(max(mix(dl, 1.0, 0.45), 0.72)) * mix(vec3(1.0), dayM / max(dl, 1e-3), 0.12), uFocus);
+    // 夜里（灯开着）焦点再往暖偏一点：草帽在靛蓝的夜里还是暖黄（第 2 轮评判：夜里饱和 0.28 太弱）
+    dayM *= mix(vec3(1.0), vec3(1.1, 1.0, 0.8), uFocus * uLampK);
   }
   float glow = step(1e-3, dot(totalEmissiveRadiance, vec3(1.0)));
   col *= mix(dayM, vec3(1.0), glow);

@@ -3,9 +3,6 @@
 // 地图数据归 world 代理（map-*.ts）；灯放这里，两边改不撞。新图要灯：在这里按 id 加几行，或直接写进自己的 props。
 import type { Prop } from './mapdef';
 
-/** 灯杆朝向场心 */
-const aim = (x: number, z: number, cx: number, cz: number) => Math.atan2(cx - x, cz - z);
-
 export const NIGHT_PROPS: Record<string, Prop[]> = {
   // 歇脚：露台两条灯串（北边贴着会所、南边沿露台边）、小路边三盏路灯、池底两盏水下灯
   oasis: [
@@ -22,11 +19,10 @@ export const NIGHT_PROPS: Record<string, Prop[]> = {
     { a: 'path-lamp', x: 16.6, z: 31.2, block: 0.25 },
     { a: 'path-lamp', x: 15.8, z: 15.4, block: 0.25 },
   ],
-  // 练习场：四根灯杆（同中心球场，站在下沉场地的外沿）
-  practice: [
-    { a: 'court-light', x: 1.2, z: 15.4, r: aim(1.2, 15.4, 12, 32.5), block: 0.3 },
-    { a: 'court-light', x: 22.8, z: 15.4, r: aim(22.8, 15.4, 12, 32.5), block: 0.3 },
-    { a: 'court-light', x: 1.2, z: 50, r: aim(1.2, 50, 12, 32.5), block: 0.3 },
-    { a: 'court-light', x: 22.8, z: 50, r: aim(22.8, 50, 12, 32.5), block: 0.3 },
+  // 果岭：长椅边、凉棚边各一盏路灯（凉棚自己有棚下的光）
+  golf: [
+    { a: 'path-lamp', x: 12.2, z: 26.6, block: 0.25 },
+    { a: 'path-lamp', x: 17.6, z: 38.4, block: 0.25 },
   ],
+  // 练习场：world 第 2 轮的新练习场自己摆了两根灯杆（墙坑、发球机道），这里不再加
 };

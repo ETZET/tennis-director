@@ -156,7 +156,7 @@ const KEYS: Key[] = [
   // 第三轮：影子的紫降彩（[0.6, 0.5, 0.74] 读成薰衣草）、亮面的橙收一点（沙地满饱和）
   {
     h: 18.1,
-    lit: [1.07, 0.8, 0.63],
+    lit: [1.04, 0.82, 0.68],
     mid: [0.82, 0.7, 0.76],
     dark: [0.58, 0.53, 0.68],
     sky: [0x4a5aa2, 0xf29462],
@@ -362,7 +362,8 @@ export function dayLook(hour: number, weather: Weather, base: SkyBase): DayLook 
     wind: w.wind,
     lamps: Math.min(1, Math.max(smooth(0.3, 0.6, night), w.lamps * (0.5 + 0.5 * night))),
     dustColor: [0.86, 0.68, 0.46],
-    sat: w.sat * (1 - 0.22 * night),
+    // 第三轮：夜里 0.78 → 0.72（浅灰紫的大面 × 夜里的靛蓝乘子 = 一整块饱和蓝，停车场）
+    sat: w.sat * (1 - 0.28 * night),
   };
 }
 

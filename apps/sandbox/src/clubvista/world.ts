@@ -17,7 +17,9 @@ const INDOOR: DayLook = {
   el: 72,
   az: 10,
   shadeEl: 72,
-  lit: [1.03, 1.0, 0.95],
+  lit: [1.0, 0.98, 0.95],
+  // 室内的大面（陶土地板）不要那么艳：草帽站在上面要找得到
+  sat: 0.86,
   cloudCut: 0.01,
   rain: 0,
   dust: 0,
