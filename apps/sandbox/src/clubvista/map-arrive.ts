@@ -198,6 +198,26 @@ export const arrive: MapDef = {
       wall: 'bluff',
       smooth: 1.1,
     },
+    // 山口的谷底（第 4 版）：台地的草只铺到前台北边，往北是沙色的谷底 —— 原来两道崖夹着一条越往上越尖的绿漏斗
+    {
+      id: 'pass',
+      pts: [
+        [19, 4.6],
+        [21, 2],
+        [21, -34],
+        [27.8, -34],
+        [27.8, 1],
+        [29, 3.6],
+        [27, 6],
+        [21, 6.4],
+      ],
+      h: 1.21,
+      base: 1.2,
+      top: 'mesa',
+      el: 'mesa',
+      wall: 'none',
+      smooth: 1.2,
+    },
     {
       id: 'bluff-e',
       pts: [
@@ -227,8 +247,25 @@ export const arrive: MapDef = {
       smooth: 0.8,
     },
     // 停车场：冷灰柏油（小一块），东南角开口接马路
-    { id: 'lot', pts: rect(LOT.x0, LOT.z0, LOT.x1, LOT.z1), h: 0.03, top: 'road', el: 'none', wall: 'none', smooth: 0 },
-    { id: 'drive', pts: rect(25, 37.8, 29.4, ROAD_Z + 0.2), h: 0.03, top: 'road', el: 'none', wall: 'none', smooth: 0 },
+    // 第 4 版：换 clubpark 的晒旧沥青（暖灰亮档、石板蓝影子）+ 大块封层补丁（原来是马路的平涂蓝紫）
+    {
+      id: 'lot',
+      pts: rect(LOT.x0, LOT.z0, LOT.x1, LOT.z1),
+      h: 0.03,
+      top: 'lotAsphalt',
+      el: 'lot',
+      wall: 'none',
+      smooth: 0,
+    },
+    {
+      id: 'drive',
+      pts: rect(25, 37.8, 29.4, ROAD_Z + 0.2),
+      h: 0.03,
+      top: 'lotAsphalt',
+      el: 'lot',
+      wall: 'none',
+      smooth: 0,
+    },
     { id: 'sidewalk-w', pts: rect(-30, 38, 25, ROAD_Z), h: 0.12, top: 'curb', el: 'none', wall: 'curb', smooth: 0 },
     { id: 'sidewalk-e', pts: rect(29.4, 38, 60, ROAD_Z), h: 0.12, top: 'curb', el: 'none', wall: 'curb', smooth: 0 },
     { id: 'road', pts: rect(-30, ROAD_Z, 60, 47), h: 0.02, top: 'road', el: 'none', wall: 'none', smooth: 0 },
@@ -297,6 +334,88 @@ export const arrive: MapDef = {
     // 歇脚：前台西边、北崖脚下的树荫（崖的影子落在这里）+ 长椅
     { a: 'palo-verde', x: 12.2, z: 6, s: 1.15, v: 1 },
     { a: 'bench', x: 12.8, z: 7.9 },
+    // 第三轮第 4 版（评判：上 35% 的屏是空沙 + 三棵孤立的棕榈，山口读成两道墙夹出来的尖绿漏斗）：
+    // 北崖顶往上沿填成一道密边（树、石头、灌木成簇、贴着上沿），山口两侧的崖顶各一簇龙舌兰 + 石头、口里两棵烟树，读成一条峡谷小路
+    ...cluster('creosote', 4.4, -1.6, [
+      [0, 0, 1],
+      [2.2, 0.8, 0.75],
+      [-1.6, 1.4, 0.6],
+    ]),
+    ...cluster(
+      'rocks',
+      16.6,
+      -0.6,
+      [
+        [0, 0, 1.1],
+        [-1.4, 0.9, 0.7],
+      ],
+      { v0: 2 },
+    ),
+    ...cluster('palo-verde', 2, -9, [
+      [0, 0, 1.1],
+      [3.6, 1.4, 0.8],
+      [-3.4, 2.2, 0.9],
+    ]),
+    ...cluster(
+      'rocks',
+      7.6,
+      -5.6,
+      [
+        [0, 0, 1.3],
+        [1.8, 1.2, 0.8],
+        [-1.2, 1.6, 0.6],
+      ],
+      { v0: 1 },
+    ),
+    ...cluster('creosote', 15, -8.4, [
+      [0, 0, 1],
+      [2.4, 1.6, 0.8],
+      [-2, 2.4, 0.7],
+    ]),
+    ...cluster('smoke-tree', -4, -10, [
+      [0, 0, 1.1],
+      [3.4, 2.6, 0.85],
+    ]),
+    ...cluster('agave', 18.2, -2.4, [
+      [0, 0, 0.9],
+      [-1.4, 1, 0.65],
+    ]),
+    ...cluster(
+      'agave',
+      28.6,
+      -3,
+      [
+        [0, 0, 0.8],
+        [1.4, 1.2, 0.6],
+      ],
+      { v0: 1 },
+    ),
+    ...cluster(
+      'rocks',
+      29.4,
+      -7.4,
+      [
+        [0, 0, 1.2],
+        [1.6, 1.4, 0.7],
+      ],
+      { v0: 2 },
+    ),
+    { a: 'smoke-tree', x: 21.4, z: -10, s: 0.9 },
+    { a: 'smoke-tree', x: 25.6, z: -14, s: 0.8 },
+    ...cluster(
+      'palo-verde',
+      35,
+      -9,
+      [
+        [0, 0, 1],
+        [3.2, 2, 0.8],
+      ],
+      { v0: 1 },
+    ),
+    ...cluster('creosote', 36.4, -3.6, [
+      [0, 0, 0.9],
+      [2.2, 1, 0.7],
+    ]),
     // 北崖顶：蒲葵（画面上沿的框），三四簇、大小不一
     ...cluster('fan-palm', -8, -2, [
       [0, 0],

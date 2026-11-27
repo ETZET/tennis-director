@@ -42,10 +42,9 @@ const CELLS = [5.8, 15.7];
 const WALL_Z = 10.8;
 const SERVE_Z = 17.3;
 const BASE_Z = 22.9;
-/** 发球机道：下沉 0.4（竖屏右下）；内场浅青、外圈中青；网在 NET_Z */
+/** 发球机道：下沉 0.4（竖屏右下）；浅米色胶面、灰石外圈；南头一张挡网 */
 const LANE_H = -0.4;
 const LANE = { x0: 13, x1: 19.4, z0: 30.6, z1: 53.4, base: 50.4, serve: 46 };
-const NET_Z = 41.6;
 
 /**
  * 场面用旧了的刷漆斑（palette 的 EL.courtWear，球场 look: 'practice' 用的同一个）：台面的 el 只列了地形的几种，
@@ -80,18 +79,6 @@ const cellLines: Strip[] = CELLS.flatMap((cx, i) => [
 ]);
 
 const laneLines: Strip[] = [
-  line('lane-l', [
-    [LANE.x0 + 0.2, LANE.z0 + 0.6],
-    [LANE.x0 + 0.2, LANE.z1 - 0.6],
-  ]),
-  line('lane-r', [
-    [LANE.x1 - 0.2, LANE.z0 + 0.6],
-    [LANE.x1 - 0.2, LANE.z1 - 0.6],
-  ]),
-  line('lane-base', [
-    [LANE.x0 + 0.2, LANE.base],
-    [LANE.x1 - 0.2, LANE.base],
-  ]),
   line('lane-serve', [
     [LANE.x0 + 0.2, LANE.serve],
     [LANE.x1 - 0.2, LANE.serve],
@@ -115,7 +102,7 @@ const walls: Prop[] = [
 /** 发球机道：北头发球机 + 球筐，南头一个人接；地上散着球；教练在道边看、记数 */
 const lane: Prop[] = [
   // 北头：放大的发球机（朝南喂球），四个大小不一的球筐扎成一簇，机脚一撮球
-  { a: 'ball-machine', x: 16.2, z: 33.2, s: 1.5 },
+  { a: 'ball-machine', x: 16.2, z: 33.4, s: 1.9 },
   ...cluster(
     'practice:hopper',
     18.3,
@@ -129,8 +116,11 @@ const lane: Prop[] = [
     { v0: 1, nv: 1 },
   ),
   { a: 'practice:balls', x: 15.4, z: 35.6, v: 1, s: 0.7, block: false },
-  // 中间一张矮网（匹克球网，柱心距 6.7 米 = 正好横跨这条道）
-  { a: 'practice:net', x: 16.2, z: NET_Z, r: PI / 2 },
+  // 网挪到道的南头当挡网（横在中间读成一块场）；落点区一扇形的散球
+  { a: 'practice:net', x: 16.2, z: LANE.z1 - 0.5, r: PI / 2 },
+  { a: 'practice:balls', x: 17.4, z: 44.2, v: 1, s: 1.2, block: false },
+  { a: 'practice:balls', x: 15, z: 45.4, v: 1, s: 1, block: false },
+  { a: 'practice:balls', x: 18.2, z: 47.4, v: 1, s: 0.9, block: false },
   // 南头一个人接；脚前一大片散球；教练站在道边看、记数
   { a: 'player', x: 15.6, z: 51.2, r: PI, pose: 'forehand', prop: 'racket', v: 3 },
   { a: 'practice:balls', x: 16.4, z: 47.6, v: 1, s: 1.4, block: false },
@@ -189,8 +179,9 @@ export const practice: MapDef = {
       id: 'lane-pit',
       pts: rect(12, 29.8, 20.4, 54.2),
       h: LANE_H,
-      top: 'drillOut',
-      el: WEAR,
+      // 第 4 版（评判：发球机道和上面两格同一种青绿 + 白边线 + 横网，读成第三块球场）：道换浅米色的胶面、外圈灰石，只留一条发球线
+      top: 'stepStone',
+      el: 'none',
       wall: 'bluff',
       smooth: 0,
     },
@@ -199,8 +190,8 @@ export const practice: MapDef = {
       pts: rect(LANE.x0, LANE.z0, LANE.x1, LANE.z1),
       h: LANE_H - 0.02,
       base: LANE_H,
-      top: 'drillIn',
-      el: WEAR,
+      top: 'poolStone',
+      el: 'none',
       wall: 'none',
       smooth: 0,
     },

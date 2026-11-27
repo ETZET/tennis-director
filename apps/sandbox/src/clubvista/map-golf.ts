@@ -515,7 +515,8 @@ export const golf: MapDef = {
   },
   start: { at: [14, 1.5], yaw: 0 },
   clouds: [],
-  shot: { port: [13.5, 24], land: [14, 24] },
+  // 第 4 版：往西收一点，西南的水塘整块进竖屏
+  shot: { port: [11.5, 25], land: [14, 24] },
   walks: [
     { name: '北口 → 果岭（推杆的人旁边）', from: [14, 1.5], to: [12.6, 22.2] },
     { name: '北口 → 打位（第 3 块垫子）', from: [14, 1.5], to: [19.5, 36.6] },

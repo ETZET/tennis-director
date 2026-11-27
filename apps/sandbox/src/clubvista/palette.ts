@@ -10,7 +10,7 @@ import { GROUP_AS as COURTS_AS, PAL as COURTS_PAL } from '../clubcourts/palette'
 import { PAL as FOOD_PAL, PROXY as FOOD_PROXY } from '../clubfood/palette';
 import { PAL as GOLF_PAL, PROXY as GOLF_PROXY } from '../clubgolf/palette';
 import { PAL as HOUSE_PAL, PROXY as HOUSE_PROXY } from '../clubhouse/palette';
-import { PAL as PARK_PAL } from '../clubpark/palette';
+import { EL as PARK_EL, PAL as PARK_PAL } from '../clubpark/palette';
 import { PAL as PICKLE_PAL } from '../clubpickle/palette';
 import { PAL as PLAZA_PAL, PROXY as PLAZA_PROXY } from '../clubplaza/palette';
 import { PAL as POOL_PAL, PROXY as POOL_PROXY, SUN_SKIP as POOL_SUN_SKIP } from '../clubpool/palette';
@@ -347,6 +347,8 @@ export const EL = {
   turf: { kind: 'blades', density: [0.02, 0.12], patch: 3, pebbles: 0.06 },
   /** 练习场的场面：用旧了的刷漆斑（中心球场平涂） */
   courtWear: { kind: 'paint', size: [8, 5], density: [0.01, 0.035], patch: 2.5 },
+  /** 停车场的沥青（到达图）：clubpark 的大块封层补丁（几乎干净；平涂的柏油白天读成浅紫的一块、夜里一整块饱和的蓝） */
+  lot: PARK_EL.lotAsphalt,
   /** 石板铺地：大块石板、缝浅（廊道、广场、池边、露台） */
   flag: { kind: 'stones', size: [28, 16], seam: 0.5, hi: 0.3, contrast: [0.45, 0.4, 0.2] },
 } as const satisfies Record<string, Elem>;
