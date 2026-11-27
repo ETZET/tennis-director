@@ -509,7 +509,7 @@ export function mountVista(hooks: VistaHooks = {}) {
   function crowd(f?: number) {
     const st: { setFill: (f: number) => void; crowd: { fill: number } }[] = [];
     cur.root.traverse((o) => {
-      if (o.userData.setFill) st.push(o.userData as never);
+      if (o.userData.setFill && o.userData.crowd) st.push(o.userData as never);
     });
     if (!st.length) return null;
     const next = f ?? (st[0].crowd.fill > 0.5 ? 0 : 1);
@@ -536,7 +536,7 @@ export function mountVista(hooks: VistaHooks = {}) {
     let full = false;
     let any = false;
     cur.root.traverse((o) => {
-      if (o.userData.setFill) {
+      if (o.userData.setFill && o.userData.crowd) {
         any = true;
         full = o.userData.crowd.fill > 0.5;
       }

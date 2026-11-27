@@ -4,7 +4,18 @@
 import type { Pal } from './palette';
 
 export type V2 = [number, number];
-export type ElKey = 'floor' | 'mesa' | 'wash' | 'bluff' | 'path' | 'trail' | 'water' | 'turf' | 'flag' | 'none';
+export type ElKey =
+  | 'floor'
+  | 'mesa'
+  | 'wash'
+  | 'bluff'
+  | 'path'
+  | 'trail'
+  | 'water'
+  | 'turf'
+  | 'flag'
+  | 'courtWear'
+  | 'none';
 
 /**
  * 一块台面：轮廓内的地面在高度 h。后画的盖住先画的（groundAt 取最后一个包住这点的）。

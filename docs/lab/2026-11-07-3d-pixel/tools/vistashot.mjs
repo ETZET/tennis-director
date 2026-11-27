@@ -60,6 +60,8 @@ for (const s of SHOTS) {
     const url = `http://localhost:${port}/clubvista.html?map=${s.id}&pause=1&look=${s[kind]}${extra ? `&${extra}` : ''}`;
     await page.goto(url);
     await page.waitForFunction(() => window.__vista, null, { timeout: 60000 });
+    // ui=0 时像素界面没挂上，配色切换牌（#palsel）和调试牌会露出来：验收图里藏掉
+    await page.addStyleTag({ content: '#palsel, #info, .pxsel { display: none !important; }' });
     await page.waitForTimeout(2500);
     const file = `${out}/${s.id}-${kind}${suffix}.png`;
     await page.screenshot({ path: file });
