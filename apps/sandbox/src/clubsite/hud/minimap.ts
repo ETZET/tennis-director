@@ -6,7 +6,7 @@
 import { CREAM, hex, INK, INK_SHADOW, KEYS } from './colors';
 import { placeSprite } from './places';
 import { hudScale } from './scale';
-import { createSheet, px, tame } from './sheet';
+import { createSheet, px, tame, tameColor } from './sheet';
 import { rasterize } from './sprite';
 
 export type Dir = 'n' | 's' | 'e' | 'w';
@@ -134,7 +134,7 @@ export function createMiniMap(o: MiniMapOpts): MiniMap {
       // 墨边 + 底下一纹素深影；底色压一档（牌子不比剪影抢）
       fill(INK_SHADOW, x, y + 1, TW, TH);
       fill(INK, x, y, TW, TH);
-      fill(n.fill, x + 1, y + 1, TW - 2, TH - 2);
+      fill(tameColor(n.fill), x + 1, y + 1, TW - 2, TH - 2);
       g.drawImage(silhouette(n.id), x + 3, y + 3);
       if (on) {
         // 你在这：草帽色框（闪）+ 牌子左上一个小人头（草帽）

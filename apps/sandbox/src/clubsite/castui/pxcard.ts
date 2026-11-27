@@ -9,7 +9,6 @@ import { TRAITS } from '../cast/traits';
 import type { ActionDef, ActionId, Activity, CastPerson, TieKind } from '../cast/types';
 import {
   actIcon,
-  bar,
   costChip,
   createSheet,
   dayBand,
@@ -167,10 +166,7 @@ export function createPxCard(ctx: CastCtx, onShow?: (id: string | null) => void)
     const nm = div('pxs-name', shortName(p));
     const hc = named(px(hearts(m.favor), 1, 'pxc-hearts'), 'favor');
     const mood = named(div('pxc-mood'), 'mood');
-    mood.append(
-      px(glyph(m.mood >= 66 ? 'smile' : m.mood >= 33 ? 'meh' : 'sad')),
-      px(bar(m.mood / 100, 20, m.mood >= 66 ? 0x6aa848 : m.mood >= 33 ? 0xc8902c : 0xc0545a)),
-    );
+    mood.append(px(glyph(m.mood >= 66 ? 'smile' : m.mood >= 33 ? 'meh' : 'sad')), px(pips5(m.mood / 100)));
     row.append(nm, hc, mood);
     const lineText = said?.id === id ? said.text : n.thought;
     const line = div(`pxs-line${said?.id === id && said.bad ? ' bad' : ''}`, lineText ? `「${lineText}」` : '');
