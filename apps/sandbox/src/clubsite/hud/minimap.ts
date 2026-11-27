@@ -6,7 +6,7 @@
 import { CREAM, hex, INK, INK_SHADOW, KEYS } from './colors';
 import { placeSprite } from './places';
 import { hudScale } from './scale';
-import { createSheet, px } from './sheet';
+import { createSheet, px, tame } from './sheet';
 import { rasterize } from './sprite';
 
 export type Dir = 'n' | 's' | 'e' | 'w';
@@ -79,7 +79,7 @@ export function createMiniMap(o: MiniMapOpts): MiniMap {
   const silhouette = (id: string) => {
     let c = sil.get(id);
     if (!c) {
-      const { w, h, px: data } = rasterize(placeSprite(id), false, false);
+      const { w, h, px: data } = rasterize(tame(placeSprite(id)), false, false);
       c = document.createElement('canvas');
       c.width = w;
       c.height = h;

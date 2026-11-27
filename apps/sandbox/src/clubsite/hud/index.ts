@@ -192,17 +192,54 @@ function plateCanvas(d: number, hollow = false, rim = CREAM): HTMLCanvasElement 
 const PLATE = 22;
 const PLATE_ACT = 26;
 
-/** 按钮右上角的小点（有人在找你）：5×5，草帽色、墨边 —— 常驻界面上唯一的暖色点 */
+/** 按钮右上角的点（有人在找你）：7×7 —— 墨边、奶油环、3×3 草帽芯（任何底上都看得见，常驻界面上唯一的暖色点） */
 function dotCanvas(): HTMLCanvasElement {
   const c = document.createElement('canvas');
-  c.width = 5;
-  c.height = 5;
+  c.width = 7;
+  c.height = 7;
   const g = c.getContext('2d') as CanvasRenderingContext2D;
   g.fillStyle = hex(INK);
-  g.fillRect(1, 0, 3, 5);
-  g.fillRect(0, 1, 5, 3);
+  g.fillRect(1, 0, 5, 7);
+  g.fillRect(0, 1, 7, 5);
+  g.fillStyle = hex(CREAM);
+  g.fillRect(1, 1, 5, 5);
   g.fillStyle = hex(STRAW);
-  g.fillRect(1, 1, 3, 3);
+  g.fillRect(2, 2, 3, 3);
+  return c;
+}
+
+/**
+ * 场景里"他在找你"：9×9 的奶油小泡（墨边）+ 3×3 草帽金点 + 朝下的尾巴，和"这儿有活"的泡一家（小一号）。
+ * left = 他还会等多久（1 → 0）：泡里面一格草帽色从下往上，剩得越少越矮（null = 不知道：中间一个 3×3 金点）
+ */
+function seekBubble(left: number | null = null): HTMLCanvasElement {
+  const n = 9;
+  const c = document.createElement('canvas');
+  c.width = n;
+  c.height = n + 3;
+  const g = c.getContext('2d') as CanvasRenderingContext2D;
+  for (let y = 0; y < n; y++)
+    for (let x = 0; x < n; x++) {
+      if ((x === 0 || x === n - 1) && (y === 0 || y === n - 1)) continue;
+      g.fillStyle = hex(x === 0 || y === 0 || x === n - 1 || y === n - 1 ? INK : CREAM);
+      g.fillRect(x, y, 1, 1);
+    }
+  g.fillStyle = hex(STRAW);
+  if (left === null) g.fillRect(3, 3, 3, 3);
+  else {
+    // 倒计时：泡里面从下往上一格草帽色，剩得越少越矮（墨边不动：在亮地面上也看得清）
+    const hgt = Math.max(1, Math.round(Math.max(0, Math.min(1, left)) * (n - 4)));
+    g.fillRect(2, n - 2 - hgt, n - 4, hgt);
+  }
+  g.fillStyle = hex(INK);
+  g.fillRect(3, n - 1, 3, 1);
+  g.fillRect(3, n - 1, 1, 2);
+  g.fillRect(5, n - 1, 1, 2);
+  g.fillRect(4, n + 1, 1, 1);
+  g.fillStyle = hex(CREAM);
+  g.fillRect(4, n - 1, 1, 2);
+  g.fillStyle = hex(INK_SHADOW);
+  g.fillRect(4, n + 2, 1, 1);
   return c;
 }
 
@@ -388,11 +425,20 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
   // 日期：一个 7×7 的小日历 + 点阵数字（第几天），不用汉字
   const dateEl = document.createElement('div');
   dateEl.className = 'pxh-date';
-  const dateCv = document.createElement('canvas');
-  dateCv.className = 'pxh-px';
-  dateCv.dataset.k = '1';
-  dateEl.append(dateCv);
+  const dateTx = document.createElement('span');
+  dateTx.className = 'pxh-txt';
+  dateTx.style.color = hex(CREAM);
+  dateEl.append(dateTx);
+  const timeTx = document.createElement('span');
+  timeTx.className = 'pxh-txt pxh-time';
+  timeTx.style.color = hex(CREAM);
+  dateEl.append(timeTx);
   clockBtn.append(clockCv, dateEl);
+  /** 显示的时刻（游戏分钟，一天里）：跟着 day.total 走；一下跳了好几分钟就花 0.6 秒数上去 */
+  let shownMin = -1;
+  let jumpFrom = 0;
+  let jumpTo = 0;
+  let jumpT0 = 0;
   root.appendChild(clockBtn);
   // 点日钟：小牌子（星期几 + 天气图标），1.8 秒；调试里 = 调时间面板
   const tip = document.createElement('div');
@@ -449,8 +495,25 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
     const ds = `${t('date', { wd: weekday(dayN), d: dayN })}|${S}`;
     if (ds !== dateKey) {
       dateKey = ds;
-      put(dateCv, textCanvas(t('dayN', { d: dayN })));
+      dateTx.textContent = t('dayN', { d: dayN });
       clockBtn.setAttribute('aria-label', `${t('clock')} · ${t('date', { d: dayN })}`);
+    }
+    // 几点：整 1 分钟走一格
+    const nowMin = Math.floor((((day.total % 24) + 24) % 24) * 60);
+    const tnow = performance.now();
+    if (shownMin < 0 || nowMin < shownMin - 60) shownMin = nowMin;
+    else if (nowMin - shownMin > 3 && tnow - jumpT0 > 650) {
+      jumpFrom = shownMin;
+      jumpTo = nowMin;
+      jumpT0 = tnow;
+      timeTx.classList.add('jump');
+    }
+    const k = Math.min(1, (tnow - jumpT0) / 600);
+    const show = k < 1 ? Math.round(jumpFrom + (jumpTo - jumpFrom) * k) : nowMin;
+    if (k >= 1) timeTx.classList.remove('jump');
+    if (show !== shownMin || !timeTx.textContent) {
+      shownMin = show;
+      timeTx.textContent = `${Math.floor(show / 60)}:${String(show % 60).padStart(2, '0')}`;
     }
   }
 
@@ -458,20 +521,20 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
   const moneyEl = document.createElement('div');
   moneyEl.className = 'pxh-money';
   moneyEl.setAttribute('aria-label', t('money'));
-  const moneyCv = document.createElement('canvas');
-  moneyCv.className = 'pxh-px';
-  moneyCv.dataset.k = '0';
-  moneyEl.append(view(icon('coin')), moneyCv);
+  const moneyTx = document.createElement('span');
+  moneyTx.className = 'pxh-txt';
+  moneyTx.style.color = hex(CREAM);
+  moneyEl.append(view(icon('coin')), moneyTx);
   root.appendChild(moneyEl);
   let moneyKey = '';
 
-  /** 进账：金币右上那块正下方，一枚小金币 + 一行字，往上飘一点就消失 */
+  /** 进账：钱的数字正下方一行字（+35），右对齐，往上飘一点就消失（不再画第二枚金币：像充值按钮） */
   const cpopEl = document.createElement('div');
   cpopEl.className = 'pxh-cpop gone';
   root.appendChild(cpopEl);
   let cpopT = 0;
   function coinPop(text: string) {
-    cpopEl.replaceChildren(view(icon('coin')), label(text));
+    cpopEl.replaceChildren(label(text));
     cpopEl.classList.remove('gone', 'up');
     void cpopEl.offsetWidth;
     cpopEl.classList.add('up');
@@ -634,7 +697,7 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
   const focusEl = document.createElement('div');
   focusEl.className = 'pxh-mark pxh-focus';
   focusEl.hidden = true;
-  focusEl.appendChild(view(spriteCanvas(ICONS.focus, 'focus', true, CREAM), 2));
+  focusEl.appendChild(view(spriteCanvas(ICONS.focus, 'focus', true), 1));
   root.appendChild(focusEl);
   let focusV: { a: Anchor; dy: number } | null = null;
   // 点了一个人（上方那行字亮着）：他头顶一个奶油小箭头（不是草帽色：卡还没开），那行字收起就没有
@@ -742,14 +805,16 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
   const seekDot = document.createElement('div');
   seekDot.className = 'pxh-mark pxh-seekdot';
   seekDot.hidden = true;
-  seekDot.appendChild(view(dotCanvas(), 1));
+  const seekCv = view(seekBubble(), 1);
+  seekDot.appendChild(seekCv);
   root.appendChild(seekDot);
+  let seekLeftKey = '';
   let seekAway = false;
   function seekFrame(w: number, h: number) {
     const list = seekersOf(play)?.list() ?? [];
     let away = false;
     let edge: { id: string; who: Who; x: number; y: number } | null = null;
-    let inView: { x: number; y: number } | null = null;
+    let inView: { x: number; y: number; id: string } | null = null;
     play.director.getWorldPosition(edgeV);
     const dx0 = edgeV.x;
     const dz0 = edgeV.z;
@@ -764,7 +829,7 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
       edgeV.y += s.dy;
       const p = play.project(edgeV, w, h);
       if (p.x > 0 && p.x < w && p.y > 0 && p.y < h) {
-        if (!inView) inView = { x: p.x, y: p.y };
+        if (!inView) inView = { x: p.x, y: p.y, id: s.id };
         continue;
       }
       if (d < best) {
@@ -774,6 +839,15 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
     }
     seekAway = away;
     seekDot.hidden = !inView || !!focusV;
+    if (inView) {
+      // 还剩多久：每 1/16 重画一次
+      const left = seekersOf(play)?.left?.(inView.id) ?? null;
+      const lk = left === null ? 'x' : String(Math.round(left * 16));
+      if (lk !== seekLeftKey) {
+        seekLeftKey = lk;
+        put(seekCv, seekBubble(left));
+      }
+    }
     if (inView)
       seekDot.style.transform = `translate(${Math.round(inView.x - seekDot.offsetWidth / 2)}px, ${Math.round(inView.y - seekDot.offsetHeight)}px)`;
     if (!edge) seekEdge.hide();
@@ -791,7 +865,8 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
     }
   }
   /** 这儿有活的泡（演出 / life 的 play.bubble，key 以这些开头）：大一号、实心、带尾巴、慢慢跳；画面外 = 屏幕边的指示 */
-  const isJob = (key: string) => /^(chore:|machine:|seek:|luggage)/.test(key);
+  const isJob = (key: string) => /^(chore:|machine:|luggage)/.test(key);
+  const isSeek = (key: string) => key.startsWith('seek:');
   const JOB_MAX = 3;
   const jobsEl = document.createElement('div');
   jobsEl.className = 'pxh-moods pxh-jobs';
@@ -969,7 +1044,7 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
       if (mk !== moneyKey) {
         moneyKey = mk;
         moneyEl.hidden = m === null;
-        if (m !== null) put(moneyCv, textCanvas(m.toLocaleString('en-US'), { px: 7 * S }));
+        if (m !== null) moneyTx.textContent = m.toLocaleString('en-US');
       }
       const ui = play.ui();
       // 动作键
@@ -1010,7 +1085,7 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
         const inV: { p: { x: number; y: number }; d: number; id: MoodId }[] = [];
         let off: { p: { x: number; y: number }; d: number; id: MoodId; key: string } | null = null;
         for (const b of ui.bubbles) {
-          if (!isJob(b.key)) continue;
+          if (!isJob(b.key) || isSeek(b.key)) continue;
           const wp = anchorAt(b.anchor, b.dy);
           if (!wp) continue;
           const d = Math.hypot(wp.x - dirV.x, wp.z - dirV.z);
@@ -1073,7 +1148,7 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
       play.director.getWorldPosition(dirV);
       const cands: { b: (typeof ui.bubbles)[number]; p: { x: number; y: number }; d: number }[] = [];
       for (const b of ui.bubbles) {
-        if (isJob(b.key) || moodOf(b.text) === '…' || read.has(`${b.key}|${b.text}`)) continue;
+        if (isJob(b.key) || isSeek(b.key) || moodOf(b.text) === '…' || read.has(`${b.key}|${b.text}`)) continue;
         const wp = anchorAt(b.anchor, b.dy);
         if (!wp) continue;
         const d = Math.hypot(wp.x - dirV.x, wp.z - dirV.z);
@@ -1207,10 +1282,12 @@ function showSheet(kind = '1') {
   const key: Record<string, string> = {};
   let n = 0;
   const seen = new Set<Sprite>();
+  // 同一个意思在两处、两种尺寸（右下按钮的大图 / 卡片和泡里的小字形）只摆一次：说话 = 聊几句、扳手 = 修、网球 = 球、金币 = 钱、脚印 = 走
+  const SAME = ['act/chat', 'glyph/wrench', 'glyph/ball', 'glyph/coin', 'glyph/feet'];
   const group = (name: string, set: Record<string, Sprite>, skip: string[] = []) => {
     for (const id of Object.keys(set)) {
       // 别名（同一张图的两个 id）只摆一次
-      if (skip.includes(id) || seen.has(set[id])) continue;
+      if (skip.includes(id) || seen.has(set[id]) || SAME.includes(`${name}/${id}`)) continue;
       seen.add(set[id]);
       n++;
       key[n] = `${name}/${id}`;

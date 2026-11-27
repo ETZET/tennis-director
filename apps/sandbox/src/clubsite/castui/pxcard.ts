@@ -103,8 +103,6 @@ function headCrop(id: string, p: CastPerson, size = 22): HTMLCanvasElement {
   c.height = size;
   const g = c.getContext('2d') as CanvasRenderingContext2D;
   // 头像底：卡纸暗一档（看板上一片浅，不是一墙深色方块）
-  g.fillStyle = hexN(PAPER_DARK);
-  g.fillRect(0, 0, size, size);
   const y0 = p.look.body === 'kid' ? 1 : 2;
   g.drawImage(src, (32 - size) / 2, y0, size, size, 0, 0, size, size);
   return c;
@@ -201,7 +199,7 @@ export function createPxCard(ctx: CastCtx, onShow?: (id: string | null) => void)
           to: CLOSE,
           w: 120,
           segs,
-          color: accent,
+          color: KEYS.s,
           now: nowH,
           mark: n.here && ctx.bound(id) && n.activity !== 'idle' ? ACT_GLYPH[n.activity] : null,
           dim: !n.here,

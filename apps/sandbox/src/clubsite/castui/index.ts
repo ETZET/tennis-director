@@ -202,6 +202,7 @@ export function mountCast(o: MountCastOpts): CastMount {
 
   // ── 有人在找你：演员表状态里的 seeking（life 代理每半秒刷新），?seek=<id>,<id> 是假数据（定画法、截图用） ──
   const fakeSeek = (params.get('seek') ?? '').split(',').filter((x) => CAST.get(x));
+  const fakeLeft = params.has('seekleft') ? Number(params.get('seekleft')) : null;
   function seekIds(): string[] {
     const st = S.state as CastState & { seeking?: string[] };
     return [...new Set([...(st.seeking ?? []), ...fakeSeek])];
@@ -216,6 +217,8 @@ export function mountCast(o: MountCastOpts): CastMount {
           return [{ id, who: whoOfPerson(p), obj: b ? b.obj : null, dy: b ? headHeight(b.kind) + 0.5 : 2 }];
         }),
       go: (id) => walkTo(id, true),
+      // 还会等多久：life 的 seekOf(CAST, state, id) 合进 main 以后换成 (until − minute) / (until − from)；?seekleft=0.6 是假数据
+      left: () => (fakeLeft === null ? null : fakeLeft),
       scenes: () =>
         seekIds().flatMap((id) => {
           const b = binder.objOf(id);

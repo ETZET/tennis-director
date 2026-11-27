@@ -5,6 +5,7 @@ import { DICT } from './i18n';
 import { BUBBLE, ICONS, MOODS, type MoodId, moodSprite, WEATHER_ICONS } from './icons';
 import { moodOf } from './mood';
 import { PLACES } from './places';
+import { CHROMA_MAX, tame } from './sheet';
 import type { Sprite } from './sprite';
 
 describe('moodOf', () => {
@@ -86,6 +87,21 @@ describe('界面不比草帽艳', () => {
           expect(chroma(c), `${id} ${ch} #${c.toString(16)}`).toBeLessThanOrEqual(chroma(hat));
         }
     }
+  });
+});
+
+describe('卡片、名册、小地图的小图压过彩度', () => {
+  it('tame 以后每个颜色的彩度都 ≤ CHROMA_MAX（低于草帽）', () => {
+    const chroma = (c: number) => {
+      const ch = [(c >> 16) & 255, (c >> 8) & 255, c & 255];
+      return Math.max(...ch) - Math.min(...ch);
+    };
+    for (const set of [ACT, GLYPH, PLACES] as Record<string, Sprite>[])
+      for (const [id, s] of Object.entries(set)) {
+        const t = tame(s);
+        for (const v of Object.values(t.keys ?? {})) expect(chroma(v), id).toBeLessThanOrEqual(CHROMA_MAX);
+      }
+    expect(CHROMA_MAX).toBeLessThan(chroma(KEYS.X));
   });
 });
 

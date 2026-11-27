@@ -23,6 +23,8 @@ export interface SeekSource {
   go(id: string): void;
   /** 在找你的人在哪个场景（演员表的 SceneId；小地图换成图） */
   scenes(): string[];
+  /** 他还会等多久：1 = 刚开始找、0 = 要走了；不知道 = null（泡的边框画成倒计时） */
+  left?(id: string): number | null;
 }
 
 const sources = new Map<object, SeekSource>();

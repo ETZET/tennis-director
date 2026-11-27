@@ -2,7 +2,7 @@
 // 所有像素图（canvas）按整数倍放大、最近邻（大小由 index.ts 按纹素倍数 --s 设）。点击目标 ≥ 48 px。
 // body.pxh-on 时把旧的文字界面（clubsite/play 的顶栏、按钮、气泡、提示，像素级别牌子、小地图、地点名、名字小牌）藏起来；
 // body.pxh-debug 再把调试的那几块（像素级别、模拟状态条）放出来。
-import { CREAM, hex, INK, INK_SHADOW } from './colors';
+import { CREAM, hex, INK, INK_SHADOW, KEYS } from './colors';
 import { pxFont, pxOutline } from './pxfont';
 
 const ink = hex(INK);
@@ -19,7 +19,8 @@ export const HUD_CSS = `
 .pxh-txt { font: ${pxFont()}; white-space: nowrap; -webkit-font-smoothing: none; font-smooth: never; ${pxOutline(ink, shadow)} }
 .pxh-txt.ink { text-shadow: none; color: ${ink} !important; }
 .pxh-txt.name { opacity: 0.92; }
-.pxh-date { display: flex; align-items: center; gap: calc(var(--s) * 1px); }
+.pxh-date { display: flex; flex-direction: column; align-items: center; gap: 0; }
+.pxh-time.jump { color: ${hex(KEYS.X)} !important; }
 .pxh-root button { border: 0; margin: 0; padding: 0; background: none; cursor: pointer; pointer-events: auto; touch-action: none; -webkit-tap-highlight-color: transparent; }
 .pxh-root button:focus-visible { outline: 2px solid ${cream}; outline-offset: 2px; }
 
@@ -45,7 +46,7 @@ export const HUD_CSS = `
 .pxh-fixed { width: calc(var(--s) * 24px); height: calc(var(--s) * 25px); }
 .pxh-btn .pxh-icon { position: relative; margin-bottom: calc(var(--s) * 1px); }
 .pxh-btn .pxh-key { position: absolute; right: calc(var(--s) * -1px); top: calc(var(--s) * -3px); }
-.pxh-btn .pxh-dot { position: absolute; right: calc(var(--s) * -1px); top: calc(var(--s) * -1px); animation: pxh-bob 0.9s steps(2, end) infinite; }
+.pxh-btn .pxh-dot { position: absolute; right: calc(var(--s) * -2px); top: calc(var(--s) * -2px); animation: pxh-bob 0.9s steps(2, end) infinite; }
 /* 没活：动作键不画（槽位留着，名册、地图不跳）；拿 / 放整个不出现 */
 .pxh-act.empty { visibility: hidden; pointer-events: none; }
 .pxh-pick.empty { display: none; }
@@ -63,14 +64,14 @@ export const HUD_CSS = `
 .pxh-edge[data-dir='l'] .pxh-earrow { left: calc(var(--s) * -2px); top: 50%; margin-top: calc(var(--s) * -4px); }
 .pxh-edge[data-dir='u'] .pxh-earrow { top: calc(var(--s) * -2px); left: 50%; margin-left: calc(var(--s) * -4px); }
 .pxh-edge[data-dir='d'] .pxh-earrow { bottom: calc(var(--s) * -2px); left: 50%; margin-left: calc(var(--s) * -4px); }
-.pxh-seekdot .pxh-px { animation: pxh-bob 0.9s steps(2, end) infinite; }
+.pxh-seekdot .pxh-px { animation: pxh-bob 0.6s steps(2, end) infinite; }
 
 /* 这儿有活：大一号的实心泡，慢慢上下跳（两格），点不了（点地面照样走过去） */
 .pxh-job { position: absolute; left: 0; top: 0; pointer-events: none; }
 .pxh-job .pxh-px { animation: pxh-bob 1.1s steps(2, end) infinite; }
 .pxh-edge-job { pointer-events: none; }
 /* 进账：金币右上那块下面浮一行（一枚小金币 + 字），往上飘 1 纹素 × 4 就消失 */
-.pxh-cpop { position: absolute; right: max(10px, env(safe-area-inset-right)); top: calc(max(10px, calc(env(safe-area-inset-top) + 4px)) + var(--s) * 13px); display: flex; align-items: center; gap: calc(var(--s) * 2px); transition: opacity 0.3s steps(3, end); }
+.pxh-cpop { position: absolute; right: max(10px, env(safe-area-inset-right)); top: calc(max(10px, calc(env(safe-area-inset-top) + 4px)) + var(--s) * 15px); display: flex; align-items: center; gap: calc(var(--s) * 2px); transition: opacity 0.3s steps(3, end); }
 .pxh-cpop.up { animation: pxh-cup 1.6s steps(4, end) forwards; }
 .pxh-cpop.gone { opacity: 0; }
 @keyframes pxh-cup { from { transform: translateY(calc(var(--s) * 4px)); } to { transform: translateY(0); } }

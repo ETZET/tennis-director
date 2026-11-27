@@ -4,7 +4,7 @@
 // 有人在找你（演员表的 seeking）：他那一簇排最前，他排簇里第一个，头像右上角一个草帽色小点（同 HUD 名册键上的点）。
 // 没有页签、搜索、字；点一个头像 = 开他的人物卡（卡上能走过去、能互动）。
 import type { CastPerson, SceneId } from '../cast/types';
-import { actIcon, costChip, createSheet, named, placeIcon, px, type TKey, t, tap } from '../hud';
+import { actIcon, costChip, createSheet, hudScale, named, placeIcon, px, type TKey, t, tap } from '../hud';
 import { INK, KEYS } from '../hud/colors';
 import type { CastCtx } from './ctx';
 import { headCrop, shortName } from './pxcard';
@@ -14,7 +14,7 @@ const ink = '#2c2848';
 const CSS = `
 .pxs-board { padding-top: calc(var(--s) * 3px); }
 /* 高度：整张卡不超过屏高 35% */
-.pxb-list { max-height: min(calc(35vh - var(--s) * 14px), 300px); overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; scrollbar-width: none;
+.pxb-list { max-height: 260px; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; scrollbar-width: none;
   display: flex; flex-direction: column; gap: calc(var(--s) * 2px); padding: calc(var(--s) * 1px); }
 .pxb-list::-webkit-scrollbar { display: none; }
 /* 一行：地点剪影 + 4 个头像 + 第 5 格 "+N"，列对齐（网格） */
@@ -145,7 +145,17 @@ export function createPxBoard(ctx: CastCtx): Roster {
     const upd = () => down.classList.toggle('gone', list.scrollTop + list.clientHeight >= list.scrollHeight - 4);
     list.addEventListener('scroll', upd, { passive: true });
     sheet.body.replaceChildren(list, down);
-    requestAnimationFrame(upd);
+    // 能放几整行（整张卡不超过屏高 35%）：量第一行的真高度，列表高 = 整数行 + 上下留边，不裁半张脸
+    requestAnimationFrame(() => {
+      const r0 = list.querySelector<HTMLElement>('.pxb-row');
+      if (r0) {
+        const gap = hudScale() * 2;
+        const rh = r0.offsetHeight + gap;
+        const n = Math.max(2, Math.min(5, Math.floor((innerHeight * 0.35 - 30) / rh)));
+        list.style.maxHeight = `${n * rh - gap + hudScale()}px`;
+      }
+      upd();
+    });
   }
 
   ctx.onChange(() => {

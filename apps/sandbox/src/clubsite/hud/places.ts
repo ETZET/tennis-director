@@ -7,22 +7,6 @@ import type { Sprite } from './sprite';
 
 const S = (...rows: string[]): Sprite => ({ rows });
 
-/** 俯视的一片网球场：c = 场地色，s = 场地外一圈；白线，中间一道墨色的网 */
-function court(c: string, s: string): Sprite {
-  const rows = [
-    'sssssssssssss',
-    'sWWWWWWWWWWWs',
-    'sWccWcKcWccWs',
-    'sWccWcKcWccWs',
-    'sWccWWKWWccWs',
-    'sWccWcKcWccWs',
-    'sWccWcKcWccWs',
-    'sWWWWWWWWWWWs',
-    'sssssssssssss',
-  ];
-  return { rows: rows.map((r) => r.split('c').join(c).split('s').join(s)) };
-}
-
 export const PLACES: Record<string, Sprite> = {
   // ── 内场（clubwalk）的十一处 ──
   /** 停车场：路边的蓝色 P 牌 */
@@ -49,16 +33,16 @@ export const PLACES: Record<string, Sprite> = {
     'ttttttttttttt',
     'uuuuuuuuuuuuu',
   ),
-  /** 匹克球：一只实心的板拍 + 一颗带洞的球 */
+  /** 匹克球：一只实心的蓝色板拍 + 一颗带洞的球 */
   clubpickle: S(
-    '..ppppp......',
-    '.pPPPPPp.....',
-    '.pPPPPPp.....',
-    '.pPPPPPp.....',
-    '.pPPPPPp.WWW.',
-    '..pPPPp.WdWdW',
-    '...ttt..WWWWW',
-    '...ttt...WWW.',
+    '..nnnnn......',
+    '.nBBBBBn.....',
+    '.nBWBBBn.....',
+    '.nBBBBBn.....',
+    '.nBBBBbn.ggg.',
+    '..nBBbn.gdgdg',
+    '...ttt..ggggg',
+    '...ttt...ggg.',
     '...ttt.......',
   ),
   /** 喷泉广场：两层的喷泉 */
@@ -73,7 +57,7 @@ export const PLACES: Record<string, Sprite> = {
     'SAaAAAaAAAaAS',
     '.SSSSSSSSSSS.',
   ),
-  /** 中心球场：正面看的一圈高看台，顶上插着旗 */
+  /** 中心球场：一圈高看台，顶上插着旗，前面是场地 */
   clubstadium: S(
     '..r...r...r..',
     '..d...d...d..',
@@ -81,9 +65,9 @@ export const PLACES: Record<string, Sprite> = {
     'SsSsSsSsSsSsS',
     'SSSSSSSSSSSSS',
     'SsSsSsSsSsSsS',
-    'SSSSSdddSSSSS',
-    'SSSSdddddSSSS',
-    'SSSSdddddSSSS',
+    'bbbbbbbbbbbbb',
+    'bWWWWWKWWWWWb',
+    'bbbbbbbbbbbbb',
   ),
   /** 会员场：一排三片小场地 */
   clubcourts: S(
@@ -97,8 +81,18 @@ export const PLACES: Record<string, Sprite> = {
     'pbbbpbbbpbbbp',
     'ppppppppppppp',
   ),
-  /** 红土场：橙红的土 */
-  clubclay: court('r', 'm'),
+  /** 红土场：一片红土，白色底线，一把拖场的大刷子 */
+  clubclay: S(
+    '.........t...',
+    '........t....',
+    '.......t.....',
+    '..TTTTTTTTT..',
+    '..ttttttttt..',
+    'rrrrrrrrrrrrr',
+    'rWWWWWWWWWWWr',
+    'rrrrrrrrrrrrr',
+    'mmmmmmmmmmmmm',
+  ),
   /** 会所：两层的房子，平屋顶，一排窗，中间一扇门 */
   clubhouse: S(
     '.RRRRRRRRRRR.',
@@ -111,17 +105,17 @@ export const PLACES: Record<string, Sprite> = {
     '.wwwwTtwwwww.',
     'sssssssssssss',
   ),
-  /** 泳池：一池水、泳道线、池边的扶梯和躺椅 */
+  /** 泳池：一池深一点的水、白色泳道线、池边的扶梯 */
   clubpool: S(
     'WWWWWWWWWWWWW',
-    'WAAAAAAAAAAAW',
-    'WAAWAAAWAAAAS',
-    'WAAAAAAAAAAAS',
-    'WAWAAAWAAAWAW',
-    'WAAAAAAAAAAAW',
-    'WAAAWAAAWAAAW',
+    'WaaaaaaaaaaaW',
     'WWWWWWWWWWWWW',
-    'w.RR..RR..RRw',
+    'WaaaaaaaaaaaS',
+    'WWWWWWWWWWWWS',
+    'WaaaaaaaaaaaS',
+    'WWWWWWWWWWWWW',
+    'WaaaaaaaaaaaW',
+    'WWWWWWWWWWWWW',
   ),
   /** 高尔夫：一片果岭、一个洞、一面旗、一处沙坑 */
   clubgolf: S(
@@ -148,17 +142,17 @@ export const PLACES: Record<string, Sprite> = {
     '..dd.....dd..',
   ),
   // ── 分图（clubvista）和整座内场 ──
-  /** 到达：马路边的候车亭和站牌 */
+  /** 到达：一辆公交车（侧面）停在站牌边 */
   arrive: S(
-    '.dddddddd....',
-    'ddddddddddBB.',
-    '.s......s.BB.',
-    '.s......s..S.',
-    '.sTTTTTTs..S.',
-    '.s.t..t.s..S.',
-    'sssssssssssss',
+    '..........nnn',
+    '..........nWn',
+    'SSSSSSSSS.nnn',
+    'SAASAASAS..d.',
+    'SAASAASAS..d.',
+    'SSSSSSSSS..d.',
+    'SSSSSSSSS..d.',
+    '.dd...dd...d.',
     'ddddddddddddd',
-    'dWWdWWdWWdWWd',
   ),
   /** 歇脚：一汪水、一棵棕榈、一把伞 */
   oasis: S(
@@ -172,16 +166,16 @@ export const PLACES: Record<string, Sprite> = {
     'XXXXXXAAAAAXX',
     '.XXXXXXXXXXX.',
   ),
-  /** 练习场：一面练习墙，球弹回来 */
+  /** 练习场：一台发球机（顶上一斗球、侧面出球口），前面一颗球 */
   practice: S(
-    'SSSSSSS......',
-    'SdSdSdS......',
-    'SSSSSSS..gg..',
-    'SdSdSdS.gggg.',
-    'SSSSSSS..gg..',
-    'SdSdSdS......',
-    'SSSSSSS.W.W..',
-    'bbbbbbbbbbbbb',
+    '.............',
+    '...SSSSSSS...',
+    '...SgggggS...',
+    '...SSSSSSS.g.',
+    '...SdddddS...',
+    '...SdddddSSSg',
+    '...SSSSSSS...',
+    '....d...d....',
     'bbbbbbbbbbbbb',
   ),
   /** 内场：大门的拱 + 门里两片球场 */

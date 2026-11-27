@@ -179,7 +179,6 @@ export const GLYPH = {
   smile: S('..XXXXX..', '.XXXXXXx.', 'XXKXXKXXx', 'XXKXXKXXx', 'XXXXXXXXx', 'XKXXXXKXx', '.XKKKKXx.', '..xxxxx..'),
   meh: S('..XXXXX..', '.XXXXXXx.', 'XXKXXKXXx', 'XXKXXKXXx', 'XXXXXXXXx', 'XXKKKKXXx', '.XXXXXXx.', '..xxxxx..'),
   sad: S('..XXXXX..', '.XXXXXXx.', 'XXKXXKXXx', 'XXKXXKXXx', 'XXXXXXXXx', 'XXKKKKXXx', '.XKXXXKx.', '..xxxxx..'),
-  star: S('....X....', '...XXx...', 'XXXXXXXXx', '.XXXXXXx.', '..XXXXx..', '..XXxXx..', '.XXx.xXx.', '.Xx...xx.'),
   badge: S('...nn....', '.BBBBBBB.', '.WWWWWWw.', '.WvvWWWw.', '.WddWssw.', '.WddWWWw.', '.WWWssWw.', '.wwwwwww.'),
   clock: S('..WWWWW..', '.WWWKWWWw', 'WWWWKWWWw', 'WWWWKWWWw', 'WWWWKKKWw', 'WWWWWWWWw', '.WWWWWWw.', '..wwwww..'),
   sun: { ...S('...L...', '.L.L.L.', '..LLL..', 'LLLLLLL', '..LLL..', '.L.L.L.', '...L...'), keys: { L: PALE_SUN } },

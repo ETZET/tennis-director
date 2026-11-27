@@ -38,7 +38,7 @@ export const SHEET_CSS = `
 }
 @keyframes pxs-rise-r { from { transform: translateY(60%); } to { transform: none; } }
 /* 总监站在画面下沿、卡会盖住他：卡改从上面落下来（日钟、金币那一排下面） */
-.pxs-shade.top .pxs-sheet { bottom: auto; top: calc(max(6px, env(safe-area-inset-top)) + var(--s) * 52px); animation-name: pxs-drop; }
+.pxs-shade.top .pxs-sheet { bottom: auto; top: calc(max(6px, env(safe-area-inset-top)) + var(--s) * 78px); animation-name: pxs-drop; }
 @keyframes pxs-drop { from { transform: translate(-50%, -60%); } to { transform: translate(-50%, 0); } }
 .pxs-shade.top .pxs-x { top: auto; bottom: calc(var(--s) * -22px); }
 .pxs-shade.top .pxs-x .pxs-tab { box-shadow: calc(var(--s) * 1px) 0 0 0 ${ink}, calc(var(--s) * -1px) 0 0 0 ${ink}, 0 calc(var(--s) * 1px) 0 0 ${ink}; }
@@ -104,10 +104,36 @@ export function px(src: HTMLCanvasElement, k = 1, cls = ''): HTMLCanvasElement {
   return c;
 }
 
-export const glyph = (id: GlyphId) => spriteCanvas(GLYPH[id], `g-${id}`);
-export const actIcon = (id: ActIcon) => spriteCanvas(ACT[id], `a-${id}`);
+export const glyph = (id: GlyphId) => spriteCanvas(tame(GLYPH[id]), `g-${id}`);
+export const actIcon = (id: ActIcon) => spriteCanvas(tame(ACT[id]), `a-${id}`);
 /** 地方的缩小剪影（places.ts）；ring = 外面再一圈的颜色 */
-export const placeIcon = (id: string, ring?: number) => spriteCanvas(placeSprite(id), `pl-${id}`, true, ring);
+export const placeIcon = (id: string, ring?: number) => spriteCanvas(tame(placeSprite(id)), `pl-${id}`, true, ring);
+
+/** 彩度上限（max − min）：草帽亮档的彩度（≈ 124）再低一点 —— 卡片、名册、小地图上的小图都不比草帽艳 */
+export const CHROMA_MAX = 110;
+/** 一个颜色的彩度压到 CHROMA_MAX 以下（往它自己的灰收，亮度不变） */
+export function tameColor(c: number): number {
+  const ch = [(c >> 16) & 255, (c >> 8) & 255, c & 255];
+  const hi = Math.max(...ch);
+  const lo = Math.min(...ch);
+  if (hi - lo <= CHROMA_MAX) return c;
+  const mean = (ch[0] + ch[1] + ch[2]) / 3;
+  const k = CHROMA_MAX / (hi - lo);
+  const [r, g, b] = ch.map((v) => Math.round(mean + (v - mean) * k));
+  return (r << 16) | (g << 8) | b;
+}
+const tamed = new WeakMap<Sprite, Sprite>();
+/** 精灵的每个颜色都压彩度（缓存） */
+export function tame(s: Sprite): Sprite {
+  const hit = tamed.get(s);
+  if (hit) return hit;
+  const keys: Record<string, number> = {};
+  for (const r of s.rows)
+    for (const ch of r) if (ch !== '.' && keys[ch] === undefined) keys[ch] = tameColor(s.keys?.[ch] ?? KEYS[ch]);
+  const out = { rows: s.rows, keys };
+  tamed.set(s, out);
+  return out;
+}
 /** 给一个图标起名字：点它（或长按它所在的按钮）卡顶上浮两三个字。每个图标只有一个意思，名字是兜底 */
 export function named<T extends HTMLElement>(el: T, key: TKey | null, text?: string): T {
   const s = text ?? (key ? t(key) : '');
@@ -469,7 +495,7 @@ export function createSheet(panel: string, onClose?: () => void): Sheet {
     if (y === null || y === undefined) return;
     // 布局里的位置（不算升起来的动画）
     const top = el.offsetTop;
-    if (y > top - hudScale() * 8 && y < innerHeight) shade.classList.add('top');
+    if (y > top - hudScale() * (22 + 10) && y < innerHeight) shade.classList.add('top');
   }
   const api: Sheet = {
     shade,
