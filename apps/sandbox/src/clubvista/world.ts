@@ -9,6 +9,22 @@ import '../clubsite/render/colors';
 import * as THREE from 'three';
 import { type CastStore, mountCast } from '../clubsite/castui';
 import { mountDaylight } from '../clubsite/daylight';
+import { type DayLook, dayLook } from '../clubsite/daylight/sky';
+
+/** 室内的固定光（lobby 等 interior 图）：正午的颜色，太阳拉高（影子短）、亮面偏暖一点，没有天气 */
+const INDOOR: DayLook = {
+  ...dayLook(12, 'clear', { sky: { top: 0x000000, horizon: 0x000000 } }),
+  el: 72,
+  az: 10,
+  shadeEl: 72,
+  lit: [1.03, 1.0, 0.95],
+  cloudCut: 0.01,
+  rain: 0,
+  dust: 0,
+  stars: 0,
+  lamps: 0,
+};
+
 import { createWaySigns, mountPixelHud, type PixelHud, type WaySign } from '../clubsite/hud';
 import { type Hud, mountPlay, type Play, type Shape } from '../clubsite/play';
 import { snapDelta, ViewLerp } from '../clubsite/play/smooth';
@@ -439,6 +455,8 @@ export function mountVista(hooks: VistaHooks = {}) {
   const voidBackdrop = new THREE.Color(0x0b0a12);
   function applyBackdrop() {
     scene.background = cur.def.interior ? voidBackdrop : skyBackdrop;
+    // 室内图（light 代理）：不跟着时刻和天气走 —— 固定的室内光（正午偏高、偏暖一点，影子短；没有雨、沙、星星、云影）
+    day.override = cur.def.interior ? INDOOR : null;
   }
   applyBackdrop();
   /**

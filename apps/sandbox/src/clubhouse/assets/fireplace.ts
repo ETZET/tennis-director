@@ -10,6 +10,7 @@
 // 三角形：v0 216，v1 218（见文件末尾）。userData.update(dt, t)（v0）。
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { nightLight } from '../../clubsite/daylight/night';
 import type { AssetCtx } from '../ctx';
 
 const box = (w: number, h: number, d: number, x: number, y: number, z: number) =>
@@ -177,6 +178,8 @@ export function build(ctx: AssetCtx): THREE.Object3D {
       edge: 0,
       convex: 0,
       noShadowReceive: true,
+      // 第三轮（light）：火自己发光，夜里、阴天不跟着变暗
+      emissive: 0x0c0602,
     };
     const red = ctx.mat('flowerRed', { ...glow, ramp: [0xe04a34, 0xc03a34, 0x6a2a5a] });
     const orange = ctx.mat('toolOrange', { ...glow, ramp: [0xf88830, 0xd8603a, 0x7a3456] });
@@ -203,6 +206,8 @@ export function build(ctx: AssetCtx): THREE.Object3D {
     };
     flick(0);
     g.userData.update = (_dt: number, t: number) => flick(t);
+    // 夜里（clubsite/daylight）：炉前地上一片暖光
+    g.userData.night = nightLight(g, { spots: [{ at: [0, 0, 1.2], r: 2.6, h: 1.6, k: 0.9 }] });
   } else {
     // ── 灰：一堆冷灰（顶面亮、正面中档），压在炭头前 ──
     add(
