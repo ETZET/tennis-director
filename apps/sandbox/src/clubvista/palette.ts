@@ -226,6 +226,8 @@ const VISTA = {
   poolStone: s([0xeadcc4, 0xc8b8b8, 0x7a7896], 0.1, 0.05),
   /** 歇脚的小路：浅一档的灰沙（第 4 轮：露台、池边、小路是同一种陶土橙，糊成一团） */
   gravel: s([0xdcc6a2, 0xb4a49c, 0x6e6a8a], 0.08, 0),
+  /** 果岭（golf 图）：推杆果岭的短草，比周围的草冷一档（色相 ≈ 140°，L 171），平涂、不撒草叶 —— 这张图最大的安静面 */
+  puttGreen: s([0x6cc488, 0x4ea37c, 0x2f7472], 0.05, 0),
   /** 白模：占位体块（冷灰，按高度一档档） */
   box: s([0xd8d6e4, 0xa8a4c0, 0x6a6690], 0.6, 0.5),
   /** 白模：占位体块的主角色（每张图一个最鲜艳的暖色：入口的车、前台的帆、泳池的伞……） */
@@ -258,6 +260,8 @@ export const GRADE_AS: Partial<Record<keyof Pal, keyof Pal>> = {
   ...(POOL_PROXY as Partial<Record<keyof Pal, keyof Pal>>),
   ...(STADIUM_PROXY as Partial<Record<keyof Pal, keyof Pal>>),
   ...(COURTS_AS as Partial<Record<keyof Pal, keyof Pal>>),
+  // 匹克球场（第三轮，球场街）：场面、厨房借球场的组（不然过配色方案以后厨房发灰）
+  kitchen: 'court',
   floor: 'sand',
   mesa: 'sandHigh',
   washBed: 'water',
@@ -277,6 +281,8 @@ export const GRADE_AS: Partial<Record<keyof Pal, keyof Pal>> = {
   roadPaint: 'line',
   bluff: 'cliff',
   bluffLip: 'cliffLip',
+  /** 果岭（golf 图） */
+  puttGreen: 'lawn',
   box: 'placeholder',
   boxHot: 'placeholder',
 };
