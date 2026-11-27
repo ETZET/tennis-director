@@ -7,7 +7,9 @@
 import { CREAM, hex, INK, INK_SHADOW, KEYS } from './colors';
 import { textCanvas } from './font';
 import { ACT, type ActIcon, DIGITS, GLYPH, type GlyphId, TINY } from './glyphs';
+import { type TKey, t } from './i18n';
 import { ICONS } from './icons';
+import { placeSprite } from './places';
 import { hudScale } from './scale';
 import { type Sprite, spriteCanvas } from './sprite';
 
@@ -96,6 +98,14 @@ export function px(src: HTMLCanvasElement, k = 1, cls = ''): HTMLCanvasElement {
 
 export const glyph = (id: GlyphId) => spriteCanvas(GLYPH[id], `g-${id}`);
 export const actIcon = (id: ActIcon) => spriteCanvas(ACT[id], `a-${id}`);
+/** 地方的缩小剪影（places.ts）；ring = 外面再一圈的颜色 */
+export const placeIcon = (id: string, ring?: number) => spriteCanvas(placeSprite(id), `pl-${id}`, true, ring);
+/** 给一个图标起名字：点它（或长按它所在的按钮）卡顶上浮两三个字。每个图标只有一个意思，名字是兜底 */
+export function named<T extends HTMLElement>(el: T, key: TKey | null, text?: string): T {
+  const s = text ?? (key ? t(key) : '');
+  if (s) el.dataset.tip = s;
+  return el;
+}
 
 function cv(w: number, h: number): [HTMLCanvasElement, CanvasRenderingContext2D] {
   const c = document.createElement('canvas');
@@ -195,6 +205,19 @@ export function hearts(f: number): HTMLCanvasElement {
   return c;
 }
 
+const lumOf = (c: number) => 0.3 * ((c >> 16) & 255) + 0.59 * ((c >> 8) & 255) + 0.11 * (c & 255);
+/** 填在纸上的颜色太淡（淡紫、米白：在时间带上像"空着"）→ 一步步压暗到和纸分得开 */
+export function onPaper(c: number): number {
+  let k = c;
+  for (let i = 0; i < 8 && lumOf(PAPER_DARK) - lumOf(k) < 78; i++) {
+    const r = Math.round(((k >> 16) & 255) * 0.84);
+    const g = Math.round(((k >> 8) & 255) * 0.84);
+    const b = Math.round((k & 255) * 0.84);
+    k = (r << 16) | (g << 8) | b;
+  }
+  return k;
+}
+
 /** 短进度条：w 纹素宽、3 纹素高的槽 + 1 纹素墨边；v 0..1；notch = 每几格一个刻度 */
 export function bar(v: number, w: number, fill: number, notch = 0): HTMLCanvasElement {
   const [c, g] = cv(w + 2, 5);
@@ -249,7 +272,7 @@ export function dayBand(o: {
   for (const [a, b] of o.segs) {
     const xa = X(Math.max(o.from, a));
     const xb = X(Math.min(o.to, b));
-    g.fillStyle = hex(o.color);
+    g.fillStyle = hex(onPaper(o.color));
     g.fillRect(xa, bandY + 1, Math.max(1, xb - xa), 5);
     g.fillStyle = 'rgba(255,255,255,0.3)';
     g.fillRect(xa, bandY + 1, Math.max(1, xb - xa), 1);
@@ -398,6 +421,18 @@ export function createSheet(panel: string, onClose?: () => void): Sheet {
     sy = null;
     if (dy > 70 && Math.abs(dx) < 50) api.close();
   });
+  // 图标的名字：点一个有名字的图标（named()）→ 卡顶上浮两三个字；按钮里的图标 = 长按按钮
+  let tipT = 0;
+  el.addEventListener('pointerdown', (e) => {
+    clearTimeout(tipT);
+    const hit = (e.target as HTMLElement | null)?.closest?.('[data-tip]') as HTMLElement | null;
+    if (!hit || !el.contains(hit)) return;
+    const inBtn = hit.closest('button');
+    if (!inBtn) api.say(hit.dataset.tip ?? '', 1.2);
+    else tipT = window.setTimeout(() => api.say(hit.dataset.tip ?? '', 1.2), 420);
+  });
+  for (const ev of ['pointerup', 'pointercancel', 'pointerleave'] as const)
+    el.addEventListener(ev, () => clearTimeout(tipT));
   tap(x, () => api.close());
   const sayEl = document.createElement('div');
   sayEl.className = 'pxs-say gone';

@@ -33,29 +33,27 @@ export const HUD_CSS = `
 /* 右上：钱 */
 .pxh-money { position: absolute; right: max(10px, env(safe-area-inset-right)); top: max(10px, calc(env(safe-area-inset-top) + 4px)); display: flex; align-items: center; gap: calc(var(--s) * 2px); }
 
-/* 右下（拇指区）：上面一排 = 能干的活（拿 / 放、动作键），下面一排 = 常驻（名册、地图）；槽位固定 */
-.pxh-dock { position: absolute; right: max(6px, env(safe-area-inset-right)); bottom: max(6px, env(safe-area-inset-bottom)); display: flex; flex-direction: column; align-items: flex-end; gap: calc(var(--s) * 5px); }
-.pxh-row { display: flex; align-items: flex-end; gap: calc(var(--s) * 4px); }
+/* 右下（拇指区）：一行 [名册][地图][动作键]，动作键在最右下角；拿 / 放叠在动作键上面。三个按钮同一种墨色底板（index.ts 的 plateCanvas） */
+.pxh-dock { position: absolute; right: max(6px, env(safe-area-inset-right)); bottom: max(8px, env(safe-area-inset-bottom)); display: flex; flex-direction: column; align-items: flex-end; gap: calc(var(--s) * 3px); }
+.pxh-row { display: flex; align-items: flex-end; gap: calc(var(--s) * 3px); }
 .pxh-btn { position: relative; min-width: 48px; min-height: 48px; display: grid; place-items: center; }
 .pxh-btn > * { grid-area: 1 / 1; }
-.pxh-btn.down .pxh-px, .pxh-btn.on .pxh-px { transform: translateY(calc(var(--s) * 1px)); }
-/* 图标底下一纹素的硬投影：亮地面上也分得开 */
-.pxh-fixed .pxh-px, .pxh-money .pxh-px:first-child { filter: drop-shadow(0 calc(var(--s) * 1px) 0 rgba(23, 18, 48, 0.55)); }
-.pxh-act { width: calc(var(--s) * 26px); height: calc(var(--s) * 26px); }
-.pxh-act .pxh-ring { position: absolute; inset: 0; margin: auto; }
-.pxh-act .pxh-key { position: absolute; right: calc(var(--s) * -2px); bottom: calc(var(--s) * -1px); }
-/* 名册、地图：同一个 22 纹素的格子，底边对齐 */
-.pxh-fixed { width: calc(var(--s) * 22px); height: calc(var(--s) * 22px); align-items: end; }
-/* 能干的活那一排往左挪一点，落在右手拇指自然的落点上，不贴右边缘 */
-.pxh-acts { margin-right: calc(var(--s) * 6px); }
-/* 没活的槽位不占地方：有活的靠右排（动作键永远最右） */
-.pxh-act.empty { display: none; }
-.pxh-act .pxh-icon { position: relative; }
+.pxh-btn.down > .pxh-px, .pxh-btn.on > .pxh-px { transform: translateY(calc(var(--s) * 1px)); }
+.pxh-money .pxh-px:first-child { filter: drop-shadow(0 calc(var(--s) * 1px) 0 rgba(23, 18, 48, 0.55)); }
+.pxh-act { width: calc(var(--s) * 28px); height: calc(var(--s) * 29px); }
+.pxh-pick { width: calc(var(--s) * 24px); height: calc(var(--s) * 25px); margin-right: calc(var(--s) * 2px); }
+.pxh-fixed { width: calc(var(--s) * 24px); height: calc(var(--s) * 25px); }
+.pxh-btn .pxh-icon { position: relative; margin-bottom: calc(var(--s) * 1px); }
+.pxh-btn .pxh-key { position: absolute; right: calc(var(--s) * -1px); top: calc(var(--s) * -3px); }
+.pxh-btn .pxh-dot { position: absolute; right: calc(var(--s) * -1px); top: calc(var(--s) * -1px); animation: pxh-bob 0.9s steps(2, end) infinite; }
+/* 没活：动作键只剩一圈细边（槽位不动）；拿 / 放整个不出现 */
+.pxh-act.empty { pointer-events: none; }
+.pxh-pick.empty { display: none; }
 .pxh-mood.read { visibility: hidden; transition: visibility 0s 0.32s; }
 .pxh-use.on .pxh-icon { animation: pxh-bob 0.36s steps(2, end) infinite; }
 @keyframes pxh-bob { 50% { transform: translateY(calc(var(--s) * -1px)); } }
-/* 按钮正上方的小奶油牌子（长按 / 第一次出现），右对齐，不飘到场景中间 */
-.pxh-sign { padding: 3px 7px; ${SIGN} margin-bottom: 2px; transition: opacity 0.3s steps(3, end); }
+/* 按钮名的小奶油牌子（长按 / 第一次出现）：在这一行按钮的上面、右对齐，隔开 4 纹素，不压按钮 */
+.pxh-sign { padding: 3px 7px; ${SIGN} margin-bottom: calc(var(--s) * 2px); transition: opacity 0.3s steps(3, end); }
 .pxh-sign.gone { opacity: 0; }
 
 /* 场景里人头上的心情泡、点开以后的一句话 */

@@ -16,7 +16,9 @@ import {
   type GlyphId,
   glyph,
   hearts,
+  hudScale,
   lang,
+  named,
   PAPER_DARK,
   px,
   type TKey,
@@ -29,36 +31,36 @@ import type { CastCtx } from './ctx';
 import { accentDarkNum, accentNum, portraitCanvas } from './portrait';
 
 /** 在干什么 → 时间带上"现在"那根线上面的小图 */
-const ACT_GLYPH: Record<Activity, GlyphId> = {
+export const ACT_GLYPH: Record<Activity, GlyphId> = {
   play: 'ball',
   watch: 'eye',
   rest: 'zzz',
-  eat: 'cup',
+  eat: 'fork',
   walk: 'feet',
-  work: 'broom',
+  work: 'clip',
   gym: 'dumbbell',
-  swim: 'drop',
+  swim: 'swim',
   wait: 'wait',
   idle: '…',
 };
 /** 牵连的种类 → 小图 */
-const TIE_GLYPH: Record<TieKind, GlyphId> = {
+export const TIE_GLYPH: Record<TieKind, GlyphId> = {
   family: 'house',
-  partner: 'racket',
+  partner: 'rackets',
   friend: 'link',
   mentor: 'star',
-  rival: 'bolt',
+  rival: 'swords',
   crush: 'heart',
-  colleague: 'link',
-  history: 'link',
+  colleague: 'badge',
+  history: 'book',
 };
-const ATTR_ROWS: { k: 'ntrp' | 'fitness' | 'social' | 'patience' | 'spend' | 'loyalty'; g: GlyphId }[] = [
+export const ATTR_ROWS: { k: 'ntrp' | 'fitness' | 'social' | 'patience' | 'spend' | 'loyalty'; g: GlyphId }[] = [
   { k: 'ntrp', g: 'racket' },
   { k: 'fitness', g: 'bolt' },
-  { k: 'social', g: 'bubble' },
-  { k: 'patience', g: 'wait' },
-  { k: 'spend', g: 'bag' },
-  { k: 'loyalty', g: 'flag' },
+  { k: 'social', g: 'pair' },
+  { k: 'patience', g: 'turtle' },
+  { k: 'spend', g: 'wallet' },
+  { k: 'loyalty', g: 'anchor' },
 ];
 /** 互动按钮的固定槽位（同 clubsite/cast/actions.ts 的顺序） */
 const SLOTS: ActionId[] = ['chat', 'treat', 'rally', 'ask', 'gift', 'message'];
@@ -165,8 +167,8 @@ export function createPxCard(ctx: CastCtx, onShow?: (id: string | null) => void)
     const idb = div('pxc-id');
     const row = div('pxc-row');
     const nm = div('pxs-name', shortName(p));
-    const hc = px(hearts(m.favor), 1, 'pxc-hearts');
-    const mood = div('pxc-mood');
+    const hc = named(px(hearts(m.favor), 1, 'pxc-hearts'), 'favor');
+    const mood = named(div('pxc-mood'), 'mood');
     mood.append(
       px(glyph(m.mood >= 66 ? 'smile' : m.mood >= 33 ? 'meh' : 'sad')),
       px(bar(m.mood / 100, 20, m.mood >= 66 ? 0x6aa848 : m.mood >= 33 ? 0xc8902c : 0xc0545a)),
@@ -190,6 +192,7 @@ export function createPxCard(ctx: CastCtx, onShow?: (id: string | null) => void)
     const nowH = s.minute / 60;
     // 他就在场：现在这一段一定是他的颜色（不在常来的钟点也来了），针不落在空槽里
     if (ctx.bound(id) && !segs.some(([a, b]) => nowH >= a && nowH <= b)) segs.push([nowH - 0.5, nowH + 1]);
+    named(band, n.here && ctx.bound(id) && n.activity !== 'idle' ? (`do_${n.activity}` as TKey) : 'hours');
     band.appendChild(
       px(
         dayBand({
@@ -235,10 +238,9 @@ export function createPxCard(ctx: CastCtx, onShow?: (id: string | null) => void)
       box.appendChild(u);
       return box;
     }
-    // 一周 7 个小太阳（来的那几天亮）+ 性子（≤ 3 个词）
+    // 一周 7 个小太阳（来的那几天亮）+ 性子（≤ 3 个词）。每个人都画（每天都在的人 = 7 个都亮）：第二层的排版人人一样
     const l2 = div('pxc-line2');
-    // 每天都在的（员工）不画：7 个一样的太阳什么也没说
-    if (p.week && p.week.days.length < 7) l2.appendChild(px(weekSuns(p.week.days, wd)));
+    l2.appendChild(named(px(weekSuns(p.week ? p.week.days : null, wd)), 'week'));
     for (const tid of p.traits.slice(0, 3)) {
       const tr = TRAITS[tid];
       if (tr) l2.appendChild(div('pxs-chip', tr.name));
@@ -251,11 +253,13 @@ export function createPxCard(ctx: CastCtx, onShow?: (id: string | null) => void)
     }));
     const top3 = [...vals].sort((a, b) => Math.abs(b.v - 0.5) - Math.abs(a.v - 0.5)).slice(0, 3);
     const g = div('pxc-attrs');
+    // 条拉满卡宽（卡宽 − 图标 − 留边，纹素）
+    const bw = Math.max(40, Math.floor((sheet.el.clientWidth || 360) / hudScale()) - 28);
     for (const a of vals) {
       if (!top3.includes(a)) continue;
-      const it = div('pxc-attr');
+      const it = named(div('pxc-attr'), `attr_${a.k}` as TKey);
       it.appendChild(px(glyph(a.g)));
-      it.appendChild(px(bar(a.v, 40, a.v >= 0.66 ? 0x6aa848 : a.v >= 0.34 ? 0xd89a30 : 0xc0545a, 8)));
+      it.appendChild(px(bar(a.v, bw, a.v >= 0.66 ? 0x6aa848 : a.v >= 0.34 ? 0xd89a30 : 0xc0545a, Math.round(bw / 5))));
       g.appendChild(it);
     }
     box.appendChild(g);
@@ -267,7 +271,7 @@ export function createPxCard(ctx: CastCtx, onShow?: (id: string | null) => void)
         if (!o) continue;
         const b = btn('pxc-tie', o.nameZh || o.name);
         b.appendChild(px(headCrop(o.id, o)));
-        b.appendChild(px(glyph(TIE_GLYPH[tie.kind]), 1, 'k'));
+        b.appendChild(named(px(glyph(TIE_GLYPH[tie.kind]), 1, 'k'), `tie_${tie.kind}` as TKey));
         tap(b, () => {
           if (!list.includes(o.id)) list = [id, ...p.ties.map((x) => x.with)];
           show(o.id);

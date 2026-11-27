@@ -20,14 +20,16 @@ import type { Daylight } from '../daylight';
 import { dayLook, type Weather } from '../daylight/sky';
 import type { Anchor, Play } from '../play';
 import { drawClock } from './clock';
-import { CREAM, hex, INK } from './colors';
+import { CREAM, hex, INK, INK_SHADOW, KEYS } from './colors';
 import { textCanvas } from './font';
+import { ACT, GLYPH } from './glyphs';
 import { type TKey, t, weekday } from './i18n';
-import { ICONS, type IconId, MOODS, type MoodId, moodSprite, WEATHER_ICONS } from './icons';
+import { ICONS, type IconId, MOODS, type MoodId, WEATHER_ICONS } from './icons';
 import { createIris, type Iris } from './iris';
 import { moodOf } from './mood';
+import { PLACES } from './places';
 import { hudScale } from './scale';
-import { blit, spriteCanvas } from './sprite';
+import { blit, type Sprite, spriteCanvas } from './sprite';
 import { HUD_CSS } from './style';
 
 export type { ActIcon, GlyphId } from './glyphs';
@@ -47,6 +49,8 @@ export interface HudButton {
   onTap(): void;
   /** 按下的样子（开着的东西：地图开着时地图键按下去） */
   pressed?(): boolean;
+  /** 右上角的小点（有人在找你）：不吵的常驻提示 */
+  dot?(): boolean;
 }
 
 export interface PixelHudOpts {
@@ -100,26 +104,28 @@ export interface PixelHud {
   readonly root: HTMLElement;
 }
 
-/** 活的名字 → 图标（场景的互动点只给中文名字；挑不出来就是球拍） */
+/** 活的名字 → 图标（场景的互动点只给中文名字；挑不出来就是一只手 = 动手） */
 export function actionIcon(label: string): IconId {
   if (/说话|聊|签到/.test(label)) return 'talk';
   if (/电梯|货梯/.test(label)) return 'lift';
   if (/钥匙|代客|接车|停车|交车/.test(label)) return 'key';
   if (/扫|落叶|吹沙|刮水|捞|垃圾/.test(label)) return 'broom';
   if (/推|球车|球包车/.test(label)) return 'cart';
-  if (/水|浇|喷雾/.test(label)) return 'drop';
+  if (/水|浇|喷雾/.test(label)) return 'can';
   if (/网|摇|修|伞/.test(label)) return 'wrench';
   if (/球/.test(label)) return 'ball';
-  return 'racket';
+  return 'hand';
 }
 
 /** 拿 / 放的图标：要拿的东西（扫帚、水壶……），挑不出来就是纸箱 */
 export function pickIcon(label: string): IconId {
   const a = actionIcon(label);
-  return a === 'racket' || a === 'talk' || a === 'lift' ? 'box' : a;
+  return a === 'hand' || a === 'talk' || a === 'lift' ? 'box' : a;
 }
 
 const LONG_MS = 420;
+/** 草帽色（画面的焦点色）：界面上只给"现在 / 这个人 / 在找你" */
+const STRAW = KEYS.X;
 
 /** 说话的人的小人头（9×9）：头发、脸、两只眼、脖子、衣服 */
 function headSprite(w: Who) {
@@ -139,20 +145,59 @@ function headSprite(w: Who) {
   };
 }
 
-/** 动作键的底：直径 d 纹素的实心圆，墨 55%（场景隐约透过来但不脏），外面一圈 1 纹素的奶油细环（按住干活时变白） */
-function ringCanvas(d: number, color: number): HTMLCanvasElement {
+/**
+ * 按钮的底板（第三轮定死，三个按钮同一种）：d×d 纹素的圆角方块，实心墨色（不透明：不和地面混出调色板外的脏色），
+ * 外面一圈 1 纹素奶油细边（暗地面上分得开），再往下 1 纹素深影。亮的东西（白色公交车）上靠墨底，暗的东西上靠奶油边。
+ * hollow = 空槽（这里现在没有活）：只剩那圈细边，里面透明。rim = 细边的颜色（按着干活时变白）。
+ */
+function plateCanvas(d: number, hollow = false, rim = CREAM): HTMLCanvasElement {
+  const n = d + 2;
   const c = document.createElement('canvas');
-  c.width = d;
-  c.height = d;
+  c.width = n;
+  c.height = n + 1;
   const g = c.getContext('2d') as CanvasRenderingContext2D;
-  const r = d / 2;
-  for (let y = 0; y < d; y++)
-    for (let x = 0; x < d; x++) {
-      const q = Math.hypot(x + 0.5 - r, y + 0.5 - r);
-      if (q > r) continue;
-      g.fillStyle = q > r - 1 ? hex(color) : 'rgba(44, 40, 72, 0.55)';
+  /** 圆角：四个角各切掉 cut 纹素的台阶 */
+  const inside = (x: number, y: number, m: number, cut: number) => {
+    const lo = m;
+    const hi = n - 1 - m;
+    if (x < lo || y < lo || x > hi || y > hi) return false;
+    const dx = Math.min(x - lo, hi - x);
+    const dy = Math.min(y - lo, hi - y);
+    return dx + dy >= cut;
+  };
+  for (let y = 0; y < n; y++)
+    for (let x = 0; x < n; x++) {
+      if (!inside(x, y, 0, 3)) continue;
+      const body = inside(x, y, 1, 2);
+      if (!body) g.fillStyle = hex(rim);
+      else if (hollow) {
+        if (inside(x, y, 2, 2)) continue;
+        g.fillStyle = hex(INK);
+      } else g.fillStyle = hex(INK);
       g.fillRect(x, y, 1, 1);
     }
+  // 深影：最下面一排往下 1 纹素
+  g.fillStyle = hex(INK_SHADOW);
+  for (let x = 0; x < n; x++) if (inside(x, n - 1, 0, 3)) g.fillRect(x, n, 1, 1);
+  for (const x of [1, 2, n - 2, n - 3])
+    if (inside(x, n - 2, 0, 3) && !inside(x, n - 1, 0, 3)) g.fillRect(x, n - 1, 1, 1);
+  return c;
+}
+/** 常驻按钮（名册、地图）的底板边长；动作键大一号、占最右下角 */
+const PLATE = 22;
+const PLATE_ACT = 26;
+
+/** 按钮右上角的小点（有人在找你）：5×5，草帽色、墨边 —— 常驻界面上唯一的暖色点 */
+function dotCanvas(): HTMLCanvasElement {
+  const c = document.createElement('canvas');
+  c.width = 5;
+  c.height = 5;
+  const g = c.getContext('2d') as CanvasRenderingContext2D;
+  g.fillStyle = hex(INK);
+  g.fillRect(1, 0, 3, 5);
+  g.fillRect(0, 1, 5, 3);
+  g.fillStyle = hex(STRAW);
+  g.fillRect(1, 1, 3, 3);
   return c;
 }
 
@@ -231,8 +276,10 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
   document.body.appendChild(root);
   let S = hudScale();
   root.style.setProperty('--s', String(S));
-  /** 图标：墨色描边外面再 1 纹素奶油贴纸边（任何背景上都分得开，不用底板） */
+  /** 不在底板上的图标（金币、弹出来的东西）：墨色描边外面再 1 纹素奶油贴纸边 */
   const icon = (id: IconId, ring = CREAM) => spriteCanvas(ICONS[id], id, true, ring);
+  /** 底板上的图标：墨底就是它的描边，不再加边 */
+  const bare = (id: IconId) => spriteCanvas(ICONS[id], id, false);
   /**
    * 字：两种，不混中间态（第 3 轮评判）。固定的数字（钱、第几天）= 5×7 点阵字，和图标同一个纹素网格；
    * 浮动的话（上方一行、小牌子、地点名、提示）= 平滑的系统字 + 1 px 墨色细描边（同参考的浮动中文），不假装像素。
@@ -358,11 +405,12 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
   dock.className = 'pxh-dock';
   const sign = document.createElement('div');
   sign.className = 'pxh-sign gone';
-  const actRow = document.createElement('div');
-  actRow.className = 'pxh-row pxh-acts';
+  // 一行：[名册][地图][动作键]，动作键在最右下角（最常按）；拿 / 放叠在动作键正上方（有东西可拿才出现，别的按钮不跳）
+  const pickRow = document.createElement('div');
+  pickRow.className = 'pxh-row pxh-picks';
   const fixRow = document.createElement('div');
   fixRow.className = 'pxh-row';
-  dock.append(sign, actRow, fixRow);
+  dock.append(sign, pickRow, fixRow);
   root.appendChild(dock);
 
   /** 按钮正上方的小奶油牌子：长按 / 第一次出现时亮一下 */
@@ -384,7 +432,12 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
     b.className = 'pxh-btn pxh-fixed';
     b.dataset.id = bd.id;
     b.setAttribute('aria-label', t(bd.label));
-    b.appendChild(view(icon(bd.icon)));
+    b.appendChild(view(plateCanvas(PLATE), 1, 'pxh-plate'));
+    b.appendChild(view(bare(bd.icon), 1, 'pxh-icon'));
+    // 小红点：有人在找你（bd.dot）
+    const dot = view(dotCanvas(), 1, 'pxh-dot');
+    dot.hidden = true;
+    b.appendChild(dot);
     let t0 = 0;
     let timer = 0;
     b.addEventListener('pointerdown', (e) => {
@@ -428,7 +481,7 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
     ic.height = 1;
     // 动作键：外面一圈 26 纹素的细环（墨 + 奶油，里面透明，不是底板）—— 一眼看出"这是按的"，也比常驻图标大一号；
     // 右下角一个小角标（同参考的快捷键角标）：活的名字里有"1/4"这种计数就写计数
-    const ring = view(ringCanvas(26, CREAM), 1, 'pxh-ring');
+    const ring = view(plateCanvas(cls === 'pxh-use' ? PLATE_ACT : PLATE, true), 1, 'pxh-plate');
     const key = document.createElement('canvas');
     key.className = 'pxh-px pxh-key';
     key.dataset.k = '1';
@@ -439,7 +492,8 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
   };
   const use = mkAct('pxh-use');
   const pick = mkAct('pxh-pick');
-  actRow.append(pick.b, use.b);
+  pickRow.append(pick.b);
+  fixRow.append(use.b);
   const press = (b: HTMLButtonElement, down: () => void, upFn?: () => void) => {
     b.addEventListener('pointerdown', (e) => {
       e.preventDefault();
@@ -608,10 +662,12 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
   let wasOn = false;
   const setAct = (a: ReturnType<typeof mkAct>, text: string, id: IconId) => {
     a.b.classList.toggle('empty', !text);
+    put(a.ring, plateCanvas(a === use ? PLATE_ACT : PLATE, !text));
     a.b.setAttribute('aria-label', text);
     a.id = text ? id : '';
-    // 动作键在墨色小盘上：图标不要奶油贴纸边（只有墨描边），四周留出空，不碰环
-    if (text) put(a.ic, spriteCanvas(ICONS[id], id));
+    // 底板上的图标不加边
+    if (text) put(a.ic, bare(id));
+    a.ic.hidden = !text;
     const n = /(\d+\s*\/\s*\d+)/.exec(text)?.[1]?.replace(/\s/g, '');
     a.key.hidden = !n;
     if (n) put(a.key, keyCanvas(n));
@@ -683,16 +739,18 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
       if (ui.usingNow !== wasOn) {
         wasOn = ui.usingNow;
         use.b.classList.toggle('on', ui.usingNow);
-        put(use.ring, ringCanvas(26, ui.usingNow ? 0xffffff : CREAM));
+        put(use.ring, plateCanvas(PLATE_ACT, !ui.use, ui.usingNow ? 0xffffff : CREAM));
       }
       if (ui.pick !== wasPick) {
         wasPick = ui.pick;
         pickLabel = ui.pick;
         setAct(pick, pickLabel, pickIcon(pickLabel));
       }
-      for (const b of fixRow.querySelectorAll<HTMLElement>('.pxh-btn')) {
+      for (const b of fixRow.querySelectorAll<HTMLElement>('.pxh-fixed')) {
         const bd = o.buttons?.find((x) => x.id === b.dataset.id);
         b.classList.toggle('on', !!bd?.pressed?.());
+        const dot = b.querySelector<HTMLElement>('.pxh-dot');
+        if (dot) dot.hidden = !bd?.dot?.();
       }
       // 心情泡：分得出类的台词才出泡（"…"不出），画面里的、离总监近的最多 MOOD_MAX 个；点泡 = 那句话上方一行字
       const w = canvas.clientWidth;
@@ -776,57 +834,92 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
       if (ui.toast && ui.toast.id !== lastToast) {
         lastToast = ui.toast.id;
         const ic = actionIcon(ui.toast.text);
-        pop(ui.toast.text, ic === 'racket' ? null : ic);
+        pop(ui.toast.text, ic === 'hand' ? null : ic);
       }
     },
   };
   (window as unknown as Record<string, unknown>).__hud = hud;
-  if (params.get('hudsheet') === '1') showSheet();
+  if (params.has('hudsheet')) showSheet(params.get('hudsheet') ?? '1');
   return hud;
 }
 
-/** ?hudsheet=1：所有图标、心情泡、几个时刻的日钟摆成一张（3 倍），看素材用 */
-function showSheet() {
+/**
+ * ?hudsheet=1：所有图标编上号摆成一张（4 倍，奶油纸底），不带名字 —— 给"猜图标"的评判用（每个图标只有一个意思，第一次看能猜对七八成）。
+ * ?hudsheet=clock：几个时刻的日钟摆在亮沙地 / 暗沥青 / 白车三种底上。对照表在 window.__hudsheet（编号 → 组 / id）。
+ */
+function showSheet(kind = '1') {
   const box = document.createElement('div');
   Object.assign(box.style, {
     position: 'fixed',
     inset: '0',
     zIndex: '50',
-    background: '#8a7fa8',
+    background: kind === 'clock' ? '#f2b869' : hex(CREAM),
     display: 'flex',
     flexWrap: 'wrap',
     alignContent: 'flex-start',
-    gap: '12px',
-    padding: '12px',
+    gap: '6px 4px',
+    padding: '8px',
+    overflow: 'auto',
   });
-  const add = (src: HTMLCanvasElement, k = 3) => {
+  const add = (src: HTMLCanvasElement, k = 4, num = '', bg = '') => {
+    const cell = document.createElement('div');
+    Object.assign(cell.style, {
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      gap: '2px',
+      width: `${Math.max(56, src.width * k + 8)}px`,
+      background: bg,
+      padding: bg ? '6px' : '0',
+    });
     const c = document.createElement('canvas');
     c.className = 'pxh-px';
     blit(c, src, k);
     c.style.imageRendering = 'pixelated';
-    box.appendChild(c);
+    cell.appendChild(c);
+    if (num) {
+      const n = document.createElement('div');
+      n.textContent = num;
+      Object.assign(n.style, { font: '600 11px/1 system-ui, sans-serif', color: hex(INK) });
+      cell.appendChild(n);
+    }
+    box.appendChild(cell);
   };
-  for (const id of Object.keys(ICONS) as IconId[]) add(spriteCanvas(ICONS[id], id));
-  for (const id of Object.keys(MOODS) as MoodId[]) add(spriteCanvas(moodSprite(id), `mood-${id}`));
-  for (const id of Object.keys(WEATHER_ICONS) as Weather[]) add(spriteCanvas(WEATHER_ICONS[id], `w-${id}`));
-  const base = { sky: { top: 0x58a8e6, horizon: 0xbfe2f2 } };
-  for (const [hour, weather] of [
-    [7.5, 'clear'],
-    [12, 'clear'],
-    [12, 'cloudy'],
-    [18.1, 'clear'],
-    [18.1, 'rain'],
-    [22, 'clear'],
-  ] as [number, Weather][]) {
-    const { w, h, px } = drawClock({ hour, weather, look: dayLook(hour, weather, base) });
-    const c = document.createElement('canvas');
-    c.width = w;
-    c.height = h;
-    (c.getContext('2d') as CanvasRenderingContext2D).putImageData(new ImageData(px, w, h), 0, 0);
-    add(c);
+  if (kind === 'clock') {
+    const base = { sky: { top: 0x58a8e6, horizon: 0xbfe2f2 } };
+    for (const bg of ['#f2b869', '#4a4a6a', '#f4ead8'])
+      for (const [hour, weather] of [
+        [7.5, 'clear'],
+        [12, 'clear'],
+        [15, 'cloudy'],
+        [18.1, 'clear'],
+        [18.1, 'rain'],
+        [22.5, 'clear'],
+      ] as [number, Weather][]) {
+        const { w, h, px } = drawClock({ hour, weather, look: dayLook(hour, weather, base) });
+        const c = document.createElement('canvas');
+        c.width = w;
+        c.height = h;
+        (c.getContext('2d') as CanvasRenderingContext2D).putImageData(new ImageData(px, w, h), 0, 0);
+        add(c, 2, '', bg);
+      }
+    document.body.appendChild(box);
+    return;
   }
-  add(textCanvas('周三 第3天 · 12,480', { px: 12 }), 2);
-  add(textCanvas('WED DAY 3 · 12,480', { px: 12 }), 2);
-  add(textCanvas('和 Harper 说话', { px: 18 }), 1);
+  const key: Record<string, string> = {};
+  let n = 0;
+  const group = (name: string, set: Record<string, Sprite>, skip: string[] = []) => {
+    for (const id of Object.keys(set)) {
+      if (skip.includes(id)) continue;
+      n++;
+      key[n] = `${name}/${id}`;
+      add(spriteCanvas(set[id], `sheet-${name}-${id}`), 4, String(n));
+    }
+  };
+  group('hud', ICONS, ['dots', 'cal', 'arrow', 'focus']);
+  group('act', ACT, ['close', 'up', 'down']);
+  group('glyph', GLYPH, ['heartHalf', 'heartOff', '…']);
+  group('place', PLACES);
+  (window as unknown as Record<string, unknown>).__hudsheet = key;
   document.body.appendChild(box);
 }

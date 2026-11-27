@@ -3,7 +3,7 @@
 // 后面是这儿的人的像素头像，多的收成 "+N"（点了这一簇展开）。离总监近的簇在前、簇里近的在前。
 // 没有页签、搜索、字；点一个头像 = 开他的人物卡（卡上能走过去、能互动）。左上探出来一张工牌（同 HUD 的名册图标）。
 import type { CastPerson, SceneId } from '../cast/types';
-import { actIcon, costChip, createSheet, type GlyphId, glyph, px, t, tap } from '../hud';
+import { actIcon, costChip, createSheet, named, placeIcon, px, type TKey, t, tap } from '../hud';
 import { ICONS } from '../hud/icons';
 import { spriteCanvas } from '../hud/sprite';
 import type { CastCtx } from './ctx';
@@ -18,7 +18,7 @@ const CSS = `
   display: flex; flex-direction: column; gap: calc(var(--s) * 3px); padding: calc(var(--s) * 2px) calc(var(--s) * 1px) calc(var(--s) * 3px); }
 .pxb-list::-webkit-scrollbar { display: none; }
 .pxb-row { display: flex; align-items: center; gap: calc(var(--s) * 2px); flex-wrap: wrap; }
-.pxb-row .where { width: 46px; display: flex; justify-content: center; flex: none; }
+.pxb-row .where { width: 62px; display: flex; justify-content: center; flex: none; }
 .pxb-tile { position: relative; min-width: 48px; min-height: 50px; }
 .pxb-tile.low::after { content: ''; position: absolute; left: 6px; right: 6px; bottom: 0; height: 4px; background: #c0545a; box-shadow: 0 0 0 2px #2c2848; }
 .pxb-tile .face { box-shadow: 2px 0 0 0 #2c2848, -2px 0 0 0 #2c2848, 0 2px 0 0 #2c2848, 0 -2px 0 0 #2c2848, 0 4px 0 0 #171230; }
@@ -29,20 +29,6 @@ const CSS = `
 @media (orientation: landscape) { .pxb-list { max-height: min(62vh, 420px); } }
 `;
 
-/** 地点 → 打头的小图 */
-const SCENE_GLYPH: Record<SceneId, GlyphId> = {
-  clubpark: 'car',
-  clubdesk: 'bell',
-  clubpickle: 'paddle',
-  clubplaza: 'fountain',
-  clubstadium: 'trophy',
-  clubcourts: 'racket',
-  clubclay: 'clay',
-  clubhouse: 'house',
-  clubpool: 'drop',
-  clubgolf: 'flag',
-  clubfood: 'cup',
-};
 /** 每簇一行最多几个头像，多的收成 "+N"（点了这一簇展开） */
 const PER_ROW = 5;
 
@@ -109,7 +95,7 @@ export function createPxBoard(ctx: CastCtx): Roster {
       row.className = 'pxb-row';
       const wh = document.createElement('div');
       wh.className = 'where';
-      wh.appendChild(px(glyph(SCENE_GLYPH[c.scene]), 2));
+      wh.appendChild(named(px(placeIcon(c.scene), 2), `pl_${c.scene}` as TKey));
       row.appendChild(wh);
       const all = open.has(c.scene);
       const shown = all ? c.people : c.people.slice(0, c.people.length > PER_ROW ? PER_ROW - 1 : PER_ROW);

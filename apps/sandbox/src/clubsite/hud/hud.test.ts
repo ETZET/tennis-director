@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { KEYS } from './colors';
+import { ACT, GLYPH } from './glyphs';
 import { DICT } from './i18n';
 import { BUBBLE, ICONS, MOODS, type MoodId, moodSprite, WEATHER_ICONS } from './icons';
 import { moodOf } from './mood';
+import { PLACES } from './places';
+import type { Sprite } from './sprite';
 
 describe('moodOf', () => {
   it('台词 → 心情泡', () => {
@@ -42,6 +45,46 @@ describe('像素图标', () => {
       expect(s.rows.length, id).toBe(9);
       for (const r of s.rows) expect(r.length, id).toBe(11);
       for (const r of s.rows) for (const ch of r) if (ch !== '.') expect(KEYS[ch], `${id} ${ch}`).toBeDefined();
+    }
+  });
+});
+
+describe('卡片的图标、地点剪影', () => {
+  const sets: Record<string, Record<string, Sprite>> = { ACT, GLYPH, PLACES };
+  for (const [name, set] of Object.entries(sets))
+    it(`${name}：只用调色板里的键，每行一样宽`, () => {
+      for (const [id, s] of Object.entries(set)) {
+        const w = s.rows[0].length;
+        for (const r of s.rows) {
+          expect(r.length, `${name}.${id}`).toBe(w);
+          for (const ch of r) if (ch !== '.') expect(s.keys?.[ch] ?? KEYS[ch], `${name}.${id} ${ch}`).toBeDefined();
+        }
+      }
+    });
+  it('地点剪影都是 13×9', () => {
+    for (const [id, s] of Object.entries(PLACES)) {
+      expect(s.rows.length, id).toBe(9);
+      expect(s.rows[0].length, id).toBe(13);
+    }
+  });
+});
+
+describe('界面不比草帽艳', () => {
+  // 草帽 = 画面唯一的焦点色（straw 亮档）。常驻界面（右下按钮、金币、日钟的太阳）用到的颜色：彩度（max − min）和亮度（max）都不超过它
+  const chroma = (c: number) => {
+    const ch = [(c >> 16) & 255, (c >> 8) & 255, c & 255];
+    return Math.max(...ch) - Math.min(...ch);
+  };
+  const hat = KEYS.X;
+  it('常驻图标（名册、地图、说话、手、箱子、金币）', () => {
+    for (const id of ['roster', 'map', 'talk', 'hand', 'box', 'coin'] as const) {
+      const s: Sprite = ICONS[id];
+      for (const r of s.rows)
+        for (const ch of r) {
+          if (ch === '.') continue;
+          const c = s.keys?.[ch] ?? KEYS[ch];
+          expect(chroma(c), `${id} ${ch} #${c.toString(16)}`).toBeLessThanOrEqual(chroma(hat));
+        }
     }
   });
 });
