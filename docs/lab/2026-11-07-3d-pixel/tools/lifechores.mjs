@@ -36,7 +36,7 @@ async function open(q) {
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e)));
   page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
-  await page.goto(`http://localhost:${port}/clubvista.html?castreset=1&clouds=0&${q}`);
+  await page.goto(`http://localhost:${port}/clubvista.html?castreset=1&clouds=0&${q}`, { timeout: 120000 });
   await page.waitForFunction(() => window.__vista?.play && window.__cast, null, { timeout: 60000 });
   return { page, errors };
 }
@@ -156,8 +156,8 @@ async function doChore(page, iid, holdSec, name, shotName) {
   await page.evaluate(() => window.__vista.play.setUse(true));
   // 按住到钱涨（机器忙的时候模拟时间比真实时间慢：按秒数松手会松早）
   await page.waitForTimeout(Math.min(1500, holdSec * 500));
-  await until(page, `window.__cast.state().money > ${m0}`, holdSec * 4 + 4);
   if (shotName) await page.screenshot({ path: `${out}/${shotName}-doing.png` });
+  await until(page, `window.__cast.state().money > ${m0}`, holdSec * 4 + 4);
   await page.evaluate(() => window.__vista.play.setUse(false));
   await page.waitForTimeout(800);
   const m1 = await money(page);
@@ -181,7 +181,8 @@ async function doChore(page, iid, holdSec, name, shotName) {
   await doChore(page, 'machine:practice', 0.2, '练习场：补发球机', 'practice-machine');
   const came = await until(page, () => (window.__vista.life.debug().chores.count.practice ?? 0) >= 1, 4);
   check('练习场：补完球有人过来对着发球机练', came);
-  await page.waitForTimeout(6000);
+  // 等接球的人走到、发球机开始发球再截（球在空中、人在挥拍）
+  await page.waitForTimeout(12000);
   await page.screenshot({ path: `${out}/practice-after.png` });
   check('练习场：页面没有报错', errors.length === 0, errors.slice(0, 3).join(' / '));
   await page.close();

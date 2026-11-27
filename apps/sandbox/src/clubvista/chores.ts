@@ -15,7 +15,7 @@ import { hashOf, mulberry32 } from '../clubsite/cast/rng';
 import type { Play } from '../clubsite/play';
 import type { BuiltMap, Kit } from './build';
 import { type LifeTextKey, lt } from './life-text';
-import type { Spot } from './mapdef';
+import type { Prop, Spot } from './mapdef';
 import { CAST_SCENE } from './text';
 
 export interface ChoreCtx {
@@ -270,6 +270,17 @@ export function mountChores(o: ChoreCtx): { step(dt: number): void; debug(): unk
           pose: 'pour',
           hold: 2,
         });
+      else if (sp.id.startsWith('hopper'))
+        spotChore(b, sp, {
+          id: cid,
+          due: every(140, 8 * 60 + 20 + lag),
+          ask: 'hopperAsk',
+          label: 'hopperLabel',
+          done: 'hopperDone',
+          money: 2,
+          minutes: 4,
+          pose: 'pickup',
+        });
       else if (sp.id === 'pool-towels')
         spotChore(b, sp, {
           id: cid,
@@ -283,113 +294,205 @@ export function mountChores(o: ChoreCtx): { step(dt: number): void; debug(): unk
         });
     }
 
-    // ── 练习场：捡球、补发球机 ──
+    // ── 练习场：捡球、补发球机、补球筐 ──
     const machine = b.def.props.find((p) => p.a === 'ball-machine');
+    if (machine) practiceChores(b, machine, spots);
+  }
+
+  /**
+   * 练习场的活（有发球机的图）：
+   *   捡球：地上的一撮撮球（world 摆的 'practice:balls'；没有就在场地 courts[0] 上自己撒三簇）隔 35 分钟一撮回来 → 点一撮捡起来
+   *   补发球机：手里有球 → 发球机那儿（站位 '*machine*'，没有就是发球机前面）点一下 → 有人拿拍子过来站到接球的地方（站位 '*hitter*'，
+   *            没有就是发球机正前方 7 米），发球机隔 1.4 秒发一个球，他挥拍打回去，打 40 秒
+   */
+  function practiceChores(b: BuiltMap, machine: Prop, spots: readonly Spot[]) {
+    const id = b.def.id;
+    const ballCtx = o.kit.ctxFor(1) as unknown as Parameters<typeof buildBalls>[0];
+    const mr = machine.r ?? 0;
+    const hitSpot = spots.find((sp) => sp.id.includes('hitter'));
+    const hit: [number, number] = hitSpot
+      ? [hitSpot.at[0] + 1.3, hitSpot.at[1] - 0.6]
+      : [machine.x + Math.sin(mr) * 7, machine.z + Math.cos(mr) * 7];
+    const mSpot = spots.find((sp) => sp.id.includes('machine'));
+    const mAt = new THREE.Vector3(machine.x + b.ox, b.groundAt(machine.x, machine.z) + 0.9, machine.z);
+    const mStand: [number, number] | null = mSpot ? [mSpot.at[0] + b.ox, mSpot.at[1]] : null;
+
+    // 一撮撮球：world 摆好的优先
+    type Pile = { obj: THREE.Object3D; at: THREE.Vector3 };
+    const piles: Pile[] = b.placed
+      .filter((pl) => pl.prop.a === 'practice:balls')
+      .map((pl) => ({
+        obj: pl.obj,
+        at: new THREE.Vector3(pl.prop.x + b.ox, b.groundAt(pl.prop.x, pl.prop.z) + 0.2, pl.prop.z),
+      }));
     const court = b.def.courts[0];
-    if (machine && court) {
-      // 网球（clubsite/assets/tennis-ball，只读引用；和网一样拿这个场景的 ctx 建：调色板是超集）
-      const ballCtx = o.kit.ctxFor(1) as unknown as Parameters<typeof buildBalls>[0];
-      // 球落在发球机对面那半场（学员站的那边）：三处，成簇
+    if (!piles.length && court) {
       const far = Math.abs(machine.z - court.z0) < Math.abs(machine.z - court.z1) ? court.z1 : court.z0;
       const mid = (court.z0 + court.z1) / 2;
-      const zs = [0.25, 0.5, 0.75].map((k) => mid + (far - mid) * k);
-      const xs = [0.3, 0.62, 0.45].map((k) => court.x0 + (court.x1 - court.x0) * k);
-      const piles = zs.map((z, i) => {
+      [0.25, 0.5, 0.75].forEach((k, i) => {
+        const z = mid + (far - mid) * k;
+        const x = court.x0 + (court.x1 - court.x0) * [0.3, 0.62, 0.45][i];
         const ball = buildBalls(ballCtx);
         const r = mulberry32(hashOf(CAST.seed, 'balls', id, i));
-        // 一簇挤在一起（手机上要读成"一堆球"，不是几个散点）：球放大 1.8 倍
-        const pts: [number, number][] = Array.from({ length: 7 + Math.floor(r() * 4) }, () => [
-          (r() - 0.5) * 0.55,
-          (r() - 0.5) * 0.45,
-        ]);
-        ball.userData.setBalls?.(pts);
+        // 一簇挤在一起（手机上要读成"一堆球"）：球放大 1.8 倍
+        ball.userData.setBalls?.(
+          Array.from({ length: 7 + Math.floor(r() * 4) }, () => [(r() - 0.5) * 0.55, (r() - 0.5) * 0.45]),
+        );
         ball.scale.setScalar(1.8);
-        ball.position.set(xs[i], b.groundAt(xs[i], z), z);
-        ball.visible = false;
+        ball.position.set(x, b.groundAt(x, z), z);
         b.root.add(ball);
-        return { obj: ball, x: xs[i], z, at: new THREE.Vector3(xs[i] + b.ox, ball.position.y + 0.2, z) };
+        piles.push({ obj: ball, at: new THREE.Vector3(x + b.ox, ball.position.y + 0.2, z) });
       });
-      /** 第几簇该在场上（隔 35 分钟一簇，捡过的这一轮不再出） */
-      const pileKey = (i: number) => {
-        const t = o.clock();
-        if (t.minute < 7 * 60 + 30 || t.minute >= 21 * 60) return null;
-        const slot = Math.floor((t.minute - 7 * 60) / 35);
-        // 一簇隔一轮才出：三簇错开
-        const k = Math.floor((slot - i) / 3);
-        return slot >= i ? `${t.day}:${k}` : null;
-      };
-      let carried = 0;
-      piles.forEach((p, i) => {
-        play.add({
-          id: `balls:${id}:${i}`,
-          at: () => p.at,
-          radius: 1.6,
-          label: () => (o.cur() === b && p.obj.visible ? lt('ballsLabel') : ''),
-          canUse: () => o.cur() === b && p.obj.visible,
-          autoUse: true,
-          onUse: (pl) =>
-            pl.busy({
-              name: 'balls',
-              dur: 0.8,
-              pose: 'pickup',
-              face: [p.at.x, p.at.z],
-              mid: () => {
-                const k = pileKey(i);
-                if (k) doneKeys.add(`balls:${id}:${i}|${k}`);
-                p.obj.visible = false;
-                carried++;
-                count.balls = (count.balls ?? 0) + 1;
-                o.reward('ballsDone', 1, p.at, 3);
-              },
-            }),
-        });
-      });
-      const mAt = new THREE.Vector3(machine.x + b.ox, b.groundAt(machine.x, machine.z) + 0.9, machine.z);
+    }
+    /** 第 i 撮这一轮该不该在地上（隔 35 分钟一轮，几撮错开；捡过的这一轮不再出） */
+    const pileKey = (i: number) => {
+      const t = o.clock();
+      if (t.minute < 7 * 60 + 30 || t.minute >= 21 * 60) return null;
+      const slot = Math.floor((t.minute - 7 * 60) / 35);
+      const n = Math.max(1, piles.length);
+      return slot >= i % n ? `${t.day}:${Math.floor((slot - (i % n)) / n)}` : null;
+    };
+    let carried = 0;
+    piles.forEach((p, i) => {
       play.add({
-        id: `machine:${id}`,
-        at: () => mAt,
-        radius: 1.9,
-        label: () => (o.cur() === b && carried > 0 ? lt('machineLabel') : ''),
-        canUse: () => o.cur() === b && carried > 0,
+        id: `balls:${id}:${i}`,
+        at: () => p.at,
+        radius: 1.6,
+        label: () => (o.cur() === b && p.obj.visible ? lt('ballsLabel') : ''),
+        canUse: () => o.cur() === b && p.obj.visible,
         autoUse: true,
         onUse: (pl) =>
           pl.busy({
-            name: 'machine',
-            dur: 1.1,
-            pose: 'pour',
-            face: [mAt.x, mAt.z],
+            name: 'balls',
+            dur: 0.8,
+            pose: 'pickup',
+            face: [p.at.x, p.at.z],
             mid: () => {
-              const n = carried;
-              carried = 0;
-              count.machine = (count.machine ?? 0) + 1;
-              o.reward('machineDone', 2 + n, mAt, 5);
-              // 补完球：有人拿着拍子过来，站在发球机对面 7 米处对着练一会儿
-              const dir = Math.sign(far - machine.z) || 1;
-              const px = machine.x;
-              const pz = machine.z + dir * 7;
-              if (
-                o.callOver?.(b, px, pz, Math.atan2(machine.x - px, machine.z - pz), 40, {
-                  pose: 'ready',
-                  prop: 'racket',
-                })
-              )
-                count.practice = (count.practice ?? 0) + 1;
+              const k = pileKey(i);
+              if (k) doneKeys.add(`balls:${id}:${i}|${k}`);
+              p.obj.visible = false;
+              carried++;
+              count.balls = (count.balls ?? 0) + 1;
+              o.reward('ballsDone', 1, p.at, 3);
             },
           }),
       });
-      let ask = false;
-      steppers.push(() => {
-        if (o.cur() !== b) return;
-        piles.forEach((p, i) => {
-          const k = pileKey(i);
-          p.obj.visible = !!k && !doneKeys.has(`balls:${id}:${i}|${k}`);
-        });
-        const want = carried > 0;
-        if (want !== ask)
-          play.bubble(`machine:${id}`, want ? mAt.clone().setY(mAt.y + 0.5) : null, lt('machineAsk'), 0);
-        ask = want;
-      });
+    });
+
+    // 发球机发的那个球（地图坐标；一次只飞一个）
+    const flying = buildBalls(ballCtx);
+    flying.userData.setBalls?.([[0, 0.1, 0]]);
+    flying.scale.setScalar(1.5);
+    flying.visible = false;
+    b.root.add(flying);
+    let rally = 0;
+    let rallyT = 0;
+    const mx = machine.x;
+    const mz = machine.z;
+    const mh = b.groundAt(mx, mz);
+    const hh = b.groundAt(hit[0], hit[1]);
+    play.add({
+      id: `machine:${id}`,
+      at: () => mAt,
+      radius: 2,
+      ...(mStand ? { stand: () => mStand } : {}),
+      label: () => (o.cur() === b && carried > 0 ? lt('machineLabel') : ''),
+      canUse: () => o.cur() === b && carried > 0,
+      autoUse: true,
+      onUse: (pl) =>
+        pl.busy({
+          name: 'machine',
+          dur: 1.1,
+          pose: 'pour',
+          face: [mAt.x, mAt.z],
+          mid: () => {
+            const n = carried;
+            carried = 0;
+            count.machine = (count.machine ?? 0) + 1;
+            o.reward('machineDone', 2 + n, mAt, 5);
+            // 补完球：有人拿着拍子过来站到接球的地方，对着发球机打
+            if (
+              o.callOver?.(b, hit[0], hit[1], Math.atan2(mx - hit[0], mz - hit[1]), 40, {
+                pose: 'ready',
+                prop: 'racket',
+              })
+            )
+              count.practice = (count.practice ?? 0) + 1;
+            rally = 46;
+            rallyT = 0;
+          },
+        }),
+    });
+    /** 接球的人：站在接球点 1.5 米以内拿着拍子的 */
+    function hitter(): THREE.Object3D | null {
+      let best: THREE.Object3D | null = null;
+      let bd = 1.5;
+      for (const c of b.root.children) {
+        const u = c.userData;
+        if (!c.visible || !u.pose || u.prop?.() !== 'racket') continue;
+        const d = Math.hypot(c.position.x - hit[0], c.position.z - hit[1]);
+        if (d < bd) {
+          bd = d;
+          best = c;
+        }
+      }
+      return best;
     }
+    const FEED = 1.4;
+    const OUT = 0.85;
+    let ask = false;
+    steppers.push((dt) => {
+      if (o.cur() !== b) {
+        // 换到别的图：这张图的记号收起来（图都叠在同一块坐标上）
+        if (ask) play.bubble(`machine:${id}`, null);
+        ask = false;
+        return;
+      }
+      piles.forEach((p, i) => {
+        const k = pileKey(i);
+        p.obj.visible = !!k && !doneKeys.has(`balls:${id}:${i}|${k}`);
+      });
+      const want = carried > 0;
+      if (want !== ask) play.bubble(`machine:${id}`, want ? mAt.clone().setY(mAt.y + 0.5) : null, lt('machineAsk'), 0);
+      ask = want;
+      // 对打：人到了才发球；球飞 OUT 秒到他面前，他挥拍，球再飞回去落在发球机那头
+      if (rally <= 0) {
+        flying.visible = false;
+        return;
+      }
+      rally -= dt;
+      const h = hitter();
+      if (!h) {
+        flying.visible = false;
+        return;
+      }
+      rallyT += dt;
+      const t = rallyT % FEED;
+      const set = flying.userData.setBall as ((i: number, x: number, y: number, z: number) => void) | undefined;
+      flying.visible = true;
+      if (t < OUT) {
+        const k = t / OUT;
+        set?.(
+          0,
+          mx + (hit[0] - mx) * k,
+          mh + 0.9 + (hh + 1 - mh - 0.9) * k + Math.sin(Math.PI * k) * 1.4,
+          mz + (hit[1] - mz) * k,
+        );
+      } else {
+        const k = Math.min(1, (t - OUT) / (FEED - OUT));
+        // 打回去：朝发球机那头飞一段，越飞越低
+        set?.(
+          0,
+          hit[0] + (mx - hit[0]) * k * 0.8,
+          hh + 1 + Math.sin(Math.PI * k) * 0.9 - k * 0.9,
+          hit[1] + (mz - hit[1]) * k * 0.8,
+        );
+      }
+      // 挥拍：球到之前 0.25 秒起拍，到了以后 0.25 秒收拍
+      const sw = (t - (OUT - 0.25)) / 0.5;
+      if (sw >= 0 && sw <= 1) h.userData.pose?.('forehand', sw);
+      else if (sw > 1 && sw < 1.2) h.userData.pose?.('ready', 0.3);
+    });
   }
 
   return {

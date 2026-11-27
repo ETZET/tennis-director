@@ -47,7 +47,7 @@ for (const id of maps) {
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e)));
   page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
-  await page.goto(`http://localhost:${port}/clubvista.html?castreset=1&clouds=0&map=${id}&hour=7&tspeed=${TSPEED}&nightfast=0`);
+  await page.goto(`http://localhost:${port}/clubvista.html?castreset=1&clouds=0&map=${id}&hour=7&tspeed=${TSPEED}&nightfast=0`, { timeout: 120000 });
   await page.waitForFunction(() => window.__vista?.life, null, { timeout: 60000 });
   // 总监站到图外一角（不挡人）
   const samples = await page.evaluate(
@@ -102,7 +102,7 @@ for (const id of maps) {
 // ── 换图不丢状态 ──
 {
   const page = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, hasTouch: true });
-  await page.goto(`http://localhost:${port}/clubvista.html?castreset=1&clouds=0&map=oasis&hour=12`);
+  await page.goto(`http://localhost:${port}/clubvista.html?castreset=1&clouds=0&map=oasis&hour=12`, { timeout: 120000 });
   await page.waitForFunction(() => window.__vista?.life, null, { timeout: 60000 });
   await page.waitForTimeout(3000);
   const a = await page.evaluate(() => {

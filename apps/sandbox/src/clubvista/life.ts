@@ -347,6 +347,8 @@ export function mountVistaLife(o: VistaLifeOpts): VistaLife {
   const preps = new Map<string, Prepared>();
   const handlers = new Map<string, ((ev: LifeEvent) => void)[]>();
   const steppers = new Map<string, ((dt: number) => void)[]>();
+  /** 换图那一刻要收拾的（没做完的拎行李：客人自己拖走） */
+  const onEnter: (() => void)[] = [];
   const done: Record<string, number> = {};
 
   for (const p of o.prepared) {
@@ -472,6 +474,14 @@ export function mountVistaLife(o: VistaLifeOpts): VistaLife {
       play.bubble('luggage', a.obj, lt('luggageAsk'));
       job = { a, item, t: 0, taken: false };
     });
+    onEnter.push(() => {
+      if (!job) return;
+      if (job.item.where !== 'held') {
+        job.item.remove();
+        job.a.hold = false;
+        end();
+      }
+    });
     steppers.get(id)?.push((dt) => {
       if (!job) return;
       job.t += dt;
@@ -531,10 +541,17 @@ export function mountVistaLife(o: VistaLifeOpts): VistaLife {
     g.add(body, band);
     return g;
   }
+  /** 每张图上没人收的杯子的记号（四张图叠在同一块坐标上：换图时只留当前这张的） */
+  const cupMarks = new Map<BuiltMap, Map<string, THREE.Vector3>>();
+  function syncCupMarks() {
+    for (const [b, m] of cupMarks)
+      for (const [key, at] of m) play.bubble(`chore:${key}`, b === o.cur() ? at : null, lt('cupAsk'), 0);
+  }
   for (const p of o.prepared) {
     const b = p.map;
     const id = b.def.id;
     const cups = new Map<LifeSpot, { obj: THREE.Object3D; remove: () => void }>();
+    cupMarks.set(b, new Map());
     let serial = 0;
     handlers.get(id)?.push((ev) => {
       if (ev.type !== 'unsit' || !ev.spot || cups.has(ev.spot) || cups.size >= 5) return;
@@ -551,6 +568,8 @@ export function mountVistaLife(o: VistaLifeOpts): VistaLife {
       b.root.add(obj);
       const at = new THREE.Vector3(cx + b.ox, obj.position.y + 0.1, cz);
       const key = `cup:${id}:${serial++}`;
+      // 头上一个活的记号（ui 把 'chore:' 开头的泡画成活的牌子；字里有"喝" → 杯子图标）
+      play.bubble(`chore:${key}`, at.clone().setY(at.y + 0.35), lt('cupAsk'), 0);
       const remove = play.add({
         id: key,
         at: () => at,
@@ -567,12 +586,15 @@ export function mountVistaLife(o: VistaLifeOpts): VistaLife {
             mid: () => {
               obj.removeFromParent();
               remove();
+              play.bubble(`chore:${key}`, null);
               cups.delete(s);
+              cupMarks.get(b)?.delete(key);
               reward('cupDone', 2, at, 2);
             },
           }),
       });
       cups.set(s, { obj, remove });
+      cupMarks.get(b)?.set(key, at.clone().setY(at.y + 0.35));
     });
   }
 
@@ -736,6 +758,8 @@ export function mountVistaLife(o: VistaLifeOpts): VistaLife {
       }
     },
     enter() {
+      syncCupMarks();
+      for (const f of onEnter) f();
       curLife()?.settle();
       lastFill = -1;
       lastBoard = '';
