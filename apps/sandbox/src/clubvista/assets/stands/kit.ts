@@ -309,7 +309,8 @@ export function buildStand(ctx: AssetCtx, s: StandSpec): THREE.Object3D {
   root.userData.setFill = crowd.setFill;
   root.userData.crowd = crowd;
   const f0 = ctx.params.get('crowd');
-  crowd.setFill(f0 === 'empty' || f0 === '0' ? 0 : f0 && Number.isFinite(Number(f0)) ? Number(f0) : 1);
+  // 默认半场（第三轮：坐满的看台一圈几百个一样大的人头，强边缘超标）；?crowd=1 坐满、?crowd=empty 空场
+  crowd.setFill(f0 === 'empty' || f0 === '0' ? 0 : f0 && Number.isFinite(Number(f0)) ? Number(f0) : 0.5);
   return root;
 }
 
@@ -358,12 +359,15 @@ function buildCrowd(
     jit: number;
   }
   const people: P[] = [];
-  for (const row of rows) {
+  for (const [k, row] of rows.entries()) {
     let i = 0;
     while (i < row.length) {
       const n = 3 + Math.floor(rnd() * 3);
-      // 名次：下面几排、中间先坐满（满座 ≈ 0.85）
-      const r = rnd();
+      // 名次：中间、下面几排先坐（第三轮评判：均匀撒开的半场读成一圈噪点）——
+      // 按离看台正中的距离 + 排数排，抖一点：坐到一半时是正中一大块人、两头露出空座
+      const gx = row[Math.min(i + 1, row.length - 1)].x;
+      const r =
+        Math.min(1, Math.abs(Number.isNaN(gx) ? 0 : gx) / (s.L / 2)) * 0.62 + (k / Math.max(1, s.n - 1)) * 0.2 + rnd() * 0.18;
       const groupShirt = pick(SHIRT_W);
       const groupHat = rnd() < 0.5 ? Math.floor(rnd() * 2) : -1;
       for (let j = 0; j < n && i < row.length; j++, i++) {
