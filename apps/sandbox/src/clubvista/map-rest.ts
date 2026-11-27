@@ -1,155 +1,142 @@
 // ════════════════════════════════════════════════════════════════════════════════════════
-// C · 歇脚（第二轮：原来的"绿洲泳池"改成"入口 → 球场 → 歇脚"的终点；id 还叫 oasis，URL 不变）
-//   竖屏一屏（拉远 1.15，≈ 20 米宽、x 3…23）从上到下：
-//   会所后墙（白灰泥、陶土褐瓦檐，一扇拱顶后门 + 四扇拱窗 + 三角梅；屋后一排树冠）= 画面上沿的框，也是"往哪走"的终点；
-//   墙脚一条花池（会所的影子落在这里）；
-//   咖啡露台：西头一辆咖啡车（有人在窗口排队）、桌子 2 + 1、两种尺寸的米白伞；一个白衬衫的服务员端着托盘从后门出来；露台两边各一棵大树；
-//   小泳池（8 × 6 米，下沉 0.9）：一个孩子坐在池边泡脚、一个在水里、一个站在池沿要往下跳，家长坐在躺椅上，一把粉伞（这一屏唯一的暖色焦点）；
-//   左下树荫长椅：打完球的两个人坐着喝水，球拍包靠在脚边、旁边一个饮水桶 —— 从球场走过来第一眼看到的歇脚处；右下一条长椅一个人。
-//   路：西南角进来（← 中心球场东口），土路沿长椅前面往东、绕过泳池东边，往北上到露台和后门。
-//   边框：西东两边 1.2 米的棕榈台（三种尺寸成簇），南边一排灌木 + 棕榈。瀑布拿掉了（1× 下读成白格子）。
-//   层：池水 −0.9 / 地面 0 / 露台 0.15 / 西东棕榈台 1.2 / 会所 3.4。
+// C · 歇脚（泳池）。id 还叫 oasis，URL 不变。
+// 第三轮第 2 版（world 评判：歇脚和喷泉广场的上半屏是同一面会所立面 + 各一辆餐车 + 白伞，走过去像原地打转）：
+//   会所正面只留在广场；这里北边换成泳池的更衣棚（一排矮木屋 + 木平台 + 两张遮阳帆），咖啡车拿掉，泳池放大 1.5 倍放到画面中间。
+//   竖屏一屏（拉远 1.15，≈ 20 米宽）从上到下：
+//   更衣棚（2.6 米高的木板墙、平的木屋顶，中间一扇绿漆的双开玻璃门 → 会所大堂）= 画面上沿的框；屋后一排树冠；
+//   （第 3 版：棚只到 x 19，东头露出棕榈；只留一张素色帆；小桌的伞换米白）
+//   木平台：西头两张小桌（打完球的人喝东西，一个服务员端托盘），门东边毛巾车，两张遮阳帆的影子落在平台上；
+//   泳池（12 × 9 米，下沉 0.9，这张图的焦点）：南沿一个孩子坐着泡脚、水里一个、西沿一个要往下跳；
+//     东边三张蓝垫躺椅 + 一把粉伞（这一屏唯一的暖色焦点），家长躺着看；救生员站在东南角；
+//   下半屏：左边树荫长椅（打完球的两个人坐着喝水）；右边一簇棕榈 + 两张白躺椅，一个人在晒太阳。
+//   路：西南角进来（← 中心球场东口），土路沿长椅前面往北、贴着泳池西边上到木平台和门。
+//   边框：西东两边 1.2 米的棕榈台（三种尺寸成簇），南边一排灌木 + 棕榈。
+//   层：池水 −0.9 / 地面 0 / 池边石、木平台 0.02～0.15 / 西东棕榈台 1.2 / 更衣棚 2.6。
 // ════════════════════════════════════════════════════════════════════════════════════════
 import { cluster, type MapDef, type Prop, rect, trail, type V2 } from './mapdef';
 
 const PI = Math.PI;
 const WALL_Z = 5;
-const PATIO_Z = 8.4;
-/** 泳池（圆角长方形，8 × 6，下沉 0.9） */
+const DECK_Z = 9.6;
+/** 泳池（圆角长方形，12 × 9，下沉 0.9） */
 const POOL: V2[] = [
-  [4.8, 21.4],
-  [11.4, 21.4],
-  [12.2, 22.2],
-  [12.2, 26.8],
-  [11.4, 27.6],
-  [4.8, 27.6],
-  [4, 26.8],
-  [4, 22.2],
+  [9.2, 17.6],
+  [18.8, 17.6],
+  [20, 18.8],
+  [20, 25.4],
+  [18.8, 26.6],
+  [9.2, 26.6],
+  [8, 25.4],
+  [8, 18.8],
 ];
 const POOL_H = -0.9;
 
-const house: Prop[] = [
-  { a: 'back-door', x: 15.4, z: WALL_Z, block: false },
-  { a: 'arch-window', x: 5.4, z: WALL_Z, y: 0.9, block: false },
-  { a: 'arch-window', x: 10, z: WALL_Z, y: 0.9, block: false },
-  { a: 'arch-window', x: 20.8, z: WALL_Z, y: 0.9, block: false },
-  { a: 'arch-window', x: 25.4, z: WALL_Z, y: 0.9, block: false },
-  { a: 'bougainvillea', x: 13.1, z: WALL_Z + 0.15, block: false },
-  { a: 'bougainvillea', x: 17.7, z: WALL_Z + 0.15, block: false },
-  // 墙脚花池：树池 + 小棕榈、陶罐成对
-  { a: 'tree-planter', x: 7.6, z: WALL_Z + 1.6 },
-  { a: 'fan-palm', x: 7.6, z: WALL_Z + 1.6, y: 0.6, s: 0.6, v: 1, block: false },
-  { a: 'tree-planter', x: 23, z: WALL_Z + 1.6 },
-  { a: 'fan-palm', x: 23, z: WALL_Z + 1.6, y: 0.6, s: 0.55, v: 2, block: false },
-  ...cluster('pot', 11.4, WALL_Z + 1.2, [
+const cabana: Prop[] = [
+  // 更衣棚中间的门（绿漆双开玻璃门）→ 会所大堂
+  { a: 'arch-window', x: 14, z: WALL_Z, y: 0.15, v: 1, block: false },
+  // 一张素色遮阳帆（影子落在平台上）。第三轮第 3 版：两张橙红条纹帆 + 两把彩伞排成一排，抢过了泳池 —— 只留一张、换素色
+  { a: 'shade-sail', x: 6.4, z: 7.4, v: 10, block: false },
+  // 更衣棚只到 x 19：东头露出一簇棕榈和树（上沿不再是一整条横贯的墙）
+  ...cluster(
+    'fan-palm',
+    23.4,
+    4.2,
+    [
+      [0, 0, 1.05],
+      [2.8, 1.4, 0.75],
+      [-1.6, 2.6, 0.6],
+    ],
+    { v0: 2 },
+  ),
+  { a: 'smoke-tree', x: 27, z: 1.2, s: 1 },
+  // 门东边：毛巾车 + 陶罐
+  { a: 'towel-cart', x: 17, z: 6.4, r: -0.2 },
+  ...cluster('pot', 11.6, WALL_Z + 0.8, [
     [0, 0, 1],
-    [0.9, 0.4, 0.75],
+    [0.8, 0.3, 0.7],
   ]),
-  ...cluster('pot', 19.2, WALL_Z + 1.2, [
-    [0, 0, 0.8],
-    [0.9, -0.2, 1],
-  ]),
-];
-
-const cafe: Prop[] = [
-  // 咖啡车（露台西头，服务窗朝镜头）+ 窗口排队的人
-  { a: 'kiosk', x: 6.4, z: 11.4, block: 'box' },
-  { a: 'player', x: 6.1, z: 13.6, r: PI, pose: 'idle', v: 2 },
-  { a: 'player', x: 7, z: 14.8, r: PI * 0.9, pose: 'idle', v: 1, prop: 'racket' },
-  // 两张一组（大伞 + 小伞）
-  { a: 'patio-table', x: 11.6, z: 11, block: 'box' },
-  { a: 'parasol', x: 11.6, z: 11, v: 0, block: false },
-  { a: 'player', x: 10.9, z: 11.1, r: PI / 2, pose: 'sip', prop: 'cup', seat: [0.47, 0], v: 3 },
-  { a: 'player', x: 12.3, z: 11.1, r: -PI / 2, pose: 'sit', seat: [0.47, 0], v: 1 },
-  { a: 'patio-table', x: 14.4, z: 14, block: 'box' },
-  { a: 'parasol', x: 14.4, z: 14, v: 1, block: false },
-  { a: 'coach', x: 15.1, z: 14.1, r: -PI / 2, pose: 'sip', prop: 'cup', seat: [0.47, 0] },
-  // 单独一张（东头）
-  { a: 'patio-table', x: 21, z: 12, block: 'box' },
-  { a: 'parasol', x: 21, z: 12, v: 0, block: false },
-  { a: 'player', x: 20.3, z: 12.1, r: PI / 2, pose: 'sit', seat: [0.47, 0], v: 2 },
-  { a: 'player', x: 21.7, z: 12.1, r: -PI / 2, pose: 'sip', prop: 'cup', seat: [0.47, 0], v: 0 },
-  // 服务员：白衬衫、深色长裤，端着托盘从后门出来往桌子走
-  // （托盘直接摆在胸前 1.15 米高：人物的 hold 是给工具的握法，托盘端不平）
-  { a: 'umpire', x: 17.8, z: 15.2, r: 0.25, pose: 'idle', v: 0 },
-  { a: 'food-tray', x: 17.9, z: 15.62, y: 1.12, r: 0.25, v: 2, block: false },
-  // 后门口（第 4 轮）：铺地铺到门槛，门边一摞货箱，一个店员抱着箱子从门里出来往咖啡车走
-  { a: 'supply-stack', x: 13.4, z: 6.4, r: 0.2, block: 'box' },
-  { a: 'player', x: 15.2, z: 7.4, r: -PI * 0.6, pose: 'walk', v: 3, block: false },
-  // 露台北边两个角各一棵大树（太阳在北边偏东：树影往南落在露台上，盖住约四分之一的铺地）
-  { a: 'smoke-tree', x: 2.2, z: 9.4, s: 1.05 },
-  { a: 'smoke-tree', x: 24.4, z: 9.2, s: 0.95 },
+  // 西头两张小桌（蓝白伞，和广场的米白伞分开）
+  { a: 'patio-table', x: 4.4, z: 7.8, block: 'box' },
+  { a: 'parasol', x: 4.4, z: 7.8, v: 1, block: false },
+  { a: 'player', x: 3.7, z: 7.9, r: PI / 2, pose: 'sip', prop: 'cup', seat: [0.47, 0], v: 3 },
+  { a: 'player', x: 5.1, z: 7.9, r: -PI / 2, pose: 'sit', seat: [0.47, 0], v: 1 },
+  { a: 'patio-table', x: 8.4, z: 8.2, block: 'box' },
+  { a: 'coach', x: 9.1, z: 8.3, r: -PI / 2, pose: 'sip', prop: 'cup', seat: [0.47, 0] },
+  // 服务员：白衬衫，端着托盘从门里出来往桌子走
+  { a: 'umpire', x: 11.6, z: 8.4, r: -1.2, pose: 'idle', v: 0 },
+  { a: 'food-tray', x: 11.2, z: 8.55, y: 1.12, r: -1.2, v: 2, block: false },
 ];
 
 const pool: Prop[] = [
-  // 躺椅两张（池东边，头朝北）+ 家长坐着看 + 粉伞（这一屏唯一的暖色焦点）
-  { a: 'deck-lounger', x: 14, z: 24.2, block: 'box' },
-  { a: 'deck-lounger', x: 15.6, z: 24.2, block: 'box' },
-  { a: 'player', x: 14, z: 24.8, r: 0, pose: 'sit', seat: [0.46, 0], v: 1 },
-  { a: 'umbrella-hot', x: 14.8, z: 22 },
-  // 孩子：南边池沿坐着泡脚（脚伸进水里）、水里一个、站在南沿要往下跳
-  { a: 'kid', x: 6.2, z: 28.1, r: PI, pose: 'sit', seat: [0.06, POOL_H + 0.4], v: 0 },
-  { a: 'kid', x: 8.6, z: 24.4, y: POOL_H + 0.15, r: 0.5, pose: 'idle', v: 2, block: false },
-  { a: 'kid', x: 10.6, z: 28.3, r: PI, pose: 'idle', v: 1 },
-  { a: 'towel-cart', x: 2.4, z: 29.2, r: 0.4 },
+  // 东边三张蓝垫躺椅（头朝北）+ 粉伞（这一屏唯一的暖色焦点），家长坐着看
+  { a: 'deck-lounger', x: 21.8, z: 21.4, block: 'box' },
+  { a: 'deck-lounger', x: 23.2, z: 21.4, block: 'box' },
+  { a: 'deck-lounger', x: 24.6, z: 21.6, block: 'box' },
+  { a: 'player', x: 23.2, z: 22, r: 0, pose: 'sit', seat: [0.46, 0], v: 1 },
+  { a: 'umbrella-hot', x: 22.5, z: 18.4 },
+  // 孩子：南沿坐着泡脚、水里一个、西沿站着要往下跳
+  { a: 'kid', x: 11.4, z: 27.1, r: PI, pose: 'sit', seat: [0.06, POOL_H + 0.4], v: 0 },
+  { a: 'kid', x: 14.6, z: 21.6, y: POOL_H + 0.15, r: 0.5, pose: 'idle', v: 2, block: false },
+  { a: 'kid', x: 7.5, z: 21.4, r: PI / 2, pose: 'idle', v: 1 },
+  // 救生员：东南角站着（白衬衫），旁边一只饮水桶
+  { a: 'umpire', x: 21, z: 27.6, r: PI + 0.6, pose: 'idle', v: 1 },
+  { a: 'water-station', x: 22.4, z: 28.2, s: 0.85 },
 ];
 
-const shade: Prop[] = [
-  // 左下：树荫长椅 —— 打完球的两个人坐着喝水，球拍包斜靠在长椅西头，饮水桶贴着东头的椅脚；树在长椅东北（影子落在长椅上，树冠不挡人）
-  // 第 4 轮：长椅挪进树影里、贴着小路；球拍包换俱乐部蓝（红的那只像垃圾）
-  { a: 'smoke-tree', x: 8.6, z: 34.2, s: 1.15 },
-  { a: 'bench', x: 7.8, z: 38.4 },
-  { a: 'player', x: 7.2, z: 38.5, pose: 'sip', prop: 'cup', v: 2, block: false },
-  { a: 'player', x: 8.4, z: 38.5, pose: 'sit', prop: 'racket', v: 0, block: false },
-  { a: 'kit-bag', x: 6.15, z: 38.55, r: PI / 2 - 0.25, v: 0 },
-  { a: 'water-station', x: 9.65, z: 38.25, s: 0.85 },
+const lawn: Prop[] = [
+  // 左下：树荫长椅 —— 打完球的两个人坐着喝水，球拍包斜靠在长椅西头，饮水桶贴着东头的椅脚
+  { a: 'smoke-tree', x: 9, z: 34.4, s: 1.15 },
+  { a: 'bench', x: 8.2, z: 38.6 },
+  { a: 'player', x: 7.6, z: 38.7, pose: 'sip', prop: 'cup', v: 2, block: false },
+  { a: 'player', x: 8.8, z: 38.7, pose: 'sit', prop: 'racket', v: 0, block: false },
+  { a: 'kit-bag', x: 6.55, z: 38.75, r: PI / 2 - 0.25, v: 0 },
+  // 右下：一簇棕榈（大中小）+ 两张白躺椅，一个人在晒太阳
+  ...cluster(
+    'fan-palm',
+    22.6,
+    34.2,
+    [
+      [0, 0, 1.15],
+      [2.4, 1.6, 0.75],
+      [-1.6, 2.6, 0.6],
+    ],
+    { v0: 1 },
+  ),
+  { a: 'lounger', x: 17.6, z: 38.8, block: 'box' },
+  { a: 'lounger', x: 19.2, z: 39, block: 'box' },
+  { a: 'player', x: 19.2, z: 39.4, r: 0, pose: 'sit', seat: [0.45, 0], v: 4 },
+  { a: 'towel-cart', x: 21.4, z: 39.6, r: 0.5 },
 ];
 
 const frame: Prop[] = [
-  // 草地上稀疏的几簇灌木（第 4 轮评判：竖屏下半截大片草地太空，平静纹素 78% → ~75%）
-  ...cluster('brittlebush', 1.6, 33.4, [
+  // 草地上稀疏的几簇灌木
+  ...cluster('brittlebush', 1.6, 31.4, [
     [0, 0, 0.7],
     [1.2, 0.8, 0.5],
     [-0.6, 1.2, 0.45],
   ]),
-  ...cluster(
-    'brittlebush',
-    22.4,
-    41.2,
-    [
-      [0, 0, 0.65],
-      [1.1, -0.6, 0.5],
-    ],
-    { v0: 1 },
-  ),
-  ...cluster('agave', 24.6, 33.6, [
+  ...cluster('agave', 25.4, 29.4, [
     [0, 0, 0.8],
-    [1.2, 0.8, 0.55],
+    [1.1, 0.8, 0.55],
   ]),
-  ...cluster('creosote', 12.2, 44.2, [
+  ...cluster('creosote', 13.4, 44, [
     [0, 0, 0.6],
     [1.4, 0.4, 0.45],
   ]),
-  // 会所后面一排树（屋顶后面冒出来的树冠 = 画面上沿的框）
-  ...cluster(
-    'fan-palm',
-    3,
-    -4,
-    [
-      [0, 0, 1.2],
-      [3, -1, 0.85],
-      [-3.4, 0.4, 1],
-    ],
-    { v0: 0 },
-  ),
-  ...cluster('smoke-tree', 12.6, -5, [
+  // 更衣棚后面一排树（屋顶后面冒出来的树冠）
+  ...cluster('fan-palm', 3, -3.4, [
+    [0, 0, 1.2],
+    [3, -1, 0.85],
+    [-3.4, 0.4, 1],
+  ]),
+  ...cluster('smoke-tree', 12.6, -4.4, [
     [0, 0, 1.1],
     [3.6, 0.6, 0.85],
   ]),
   ...cluster(
     'fan-palm',
     22.6,
-    -4,
+    -3.4,
     [
       [0, 0, 1.15],
       [3.2, -1, 0.75],
@@ -229,7 +216,6 @@ const frame: Prop[] = [
     [-1.8, 1.4, 0.7],
     [4.2, 0.2, 0.9],
   ]),
-  // （第 4 轮评判：这簇棕榈原来在 x 11，树冠盖住长椅那一幕；往东挪、矮一截）
   ...cluster(
     'fan-palm',
     14.6,
@@ -241,14 +227,14 @@ const frame: Prop[] = [
     ],
     { v0: 1 },
   ),
-  ...cluster('agave', 17.4, 46.2, [
+  ...cluster('agave', 18.4, 46.2, [
     [0, 0, 1.1],
     [1.6, 1.4, 0.8],
     [-1.4, 1.6, 0.6],
   ]),
   ...cluster(
     'fan-palm',
-    23.4,
+    24.4,
     47,
     [
       [0, 0, 1.2],
@@ -274,20 +260,20 @@ export const rest: MapDef = {
   portraitZoom: 1.15,
   plates: [
     { id: 'ground', pts: rect(-30, -20, 60, 72), h: 0, top: 'turf', el: 'none', wall: 'none', smooth: 0 },
-    // 池边铺地（只围着池子一圈）
+    // 池边一圈浅米石（东边宽出来放躺椅）
     {
       id: 'pool-deck',
       pts: [
-        [2.6, 19.9],
-        [13.6, 19.9],
-        [13.6, 29.1],
-        [2.6, 29.1],
+        [5.8, 15.4],
+        [25.6, 15.4],
+        [25.6, 29.4],
+        [5.8, 29.4],
       ],
       h: 0.02,
       top: 'poolStone',
       el: 'none',
       wall: 'none',
-      smooth: 0.6,
+      smooth: 0.8,
     },
     {
       id: 'pool',
@@ -301,26 +287,15 @@ export const rest: MapDef = {
       walk: false,
       rim: 0.4,
     },
-    // 咖啡露台：高 0.15 的石板台（一圈压顶的矮边）
+    // 更衣棚前的木平台（高 0.15）
     {
-      id: 'patio',
-      pts: [
-        [1.8, PATIO_Z],
-        [12.4, PATIO_Z],
-        [12.4, WALL_Z],
-        [18.6, WALL_Z],
-        [18.6, PATIO_Z],
-        [24.6, PATIO_Z],
-        [24.6, 16.6],
-        [19, 17.8],
-        [8, 17.6],
-        [1.8, 16.4],
-      ],
+      id: 'boardwalk',
+      pts: rect(1.6, WALL_Z, 20.6, DECK_Z),
       h: 0.15,
-      top: 'paving',
+      top: 'woodWeathered',
       el: 'none',
-      wall: 'cap',
-      smooth: 0.8,
+      wall: 'wood',
+      smooth: 0,
     },
     // 西东两边的棕榈台
     {
@@ -354,31 +329,31 @@ export const rest: MapDef = {
       wall: 'bluff',
       smooth: 1.1,
     },
-    // 会所（北边的框）：3.4 米高的白灰泥墙，顶上陶土褐瓦
+    // 更衣棚（北边的框）：2.6 米高的木板墙，平的木屋顶
     {
-      id: 'clubhouse',
-      pts: rect(-30, 1.6, 60, WALL_Z),
-      h: 2.9,
-      top: 'roofClay',
+      id: 'cabana',
+      pts: rect(-30, 1.6, 19, WALL_Z),
+      h: 2.6,
+      top: 'timber',
       el: 'none',
-      wall: 'stucco',
+      wall: 'timber',
       smooth: 0,
     },
   ],
   strips: [
-    // 小路：浅一档的灰沙、窄一点（第 4 轮：露台、池边、小路同一种陶土橙，糊成一团）
+    // 小路：浅一档的灰沙，贴着泳池西边上到木平台
     {
       ...trail(
         'main',
         [
           [-16, 41.8],
           [-4, 42],
-          [6, 40.8],
-          [14, 39.6],
-          [18.6, 35.6],
-          [18.8, 30],
-          [18.2, 22],
-          [16.2, 18.8],
+          [3.4, 41],
+          [4.4, 34],
+          [3.6, 24],
+          [4.4, 14],
+          [9, 10.6],
+          [13.4, 9.8],
         ],
         1.4,
       ),
@@ -388,10 +363,36 @@ export const rest: MapDef = {
   ],
   stairs: [],
   courts: [],
-  props: [...house, ...cafe, ...pool, ...shade, ...frame],
+  props: [...cabana, ...pool, ...lawn, ...frame],
   noWalk: [rect(-30, 45, 60, 72), rect(-30, 44, -2.4, 45), rect(28, -20, 60, 72)],
-  exits: [{ to: 'court', entry: 'fromOasis', at: [-12, 41.8], r: 2 }],
-  entries: { fromCourt: { at: [-8, 42], yaw: PI / 2 } },
+  exits: [
+    { to: 'court', entry: 'fromOasis', at: [-12, 41.8], r: 2 },
+    // 更衣棚的门 → 会所大堂
+    { to: 'lobby', entry: 'fromOasis', at: [14, 5.7], r: 0.9 },
+  ],
+  entries: { fromCourt: { at: [-8, 42], yaw: PI / 2 }, fromLobby: { at: [14, 8.2], yaw: 0 } },
   start: { at: [-8, 42], yaw: PI / 2 },
   clouds: [],
+  shot: { port: [14, 24], land: [14, 22] },
+  spots: [
+    { id: 'door-west', kind: 'door', at: [-8, 42], yaw: PI / 2, note: '西口（← 中心球场）' },
+    { id: 'door-north', kind: 'door', at: [14, 7.4], yaw: 0, note: '更衣棚的门（→ 会所大堂）' },
+    { id: 'pool-rim-s', kind: 'rest', at: [13.4, 27.4], yaw: PI, seat: 0.06, note: '池南沿坐着泡脚' },
+    { id: 'pool-watch', kind: 'watch', at: [6.8, 23.4], yaw: PI / 2, note: '池西边站着看' },
+    { id: 'lifeguard', kind: 'work', at: [21, 27.6], yaw: PI + 0.6, note: '救生员' },
+    { id: 'lounger-1', kind: 'rest', at: [21.8, 22], yaw: 0, seat: 0.46, note: '池边躺椅' },
+    { id: 'lounger-3', kind: 'rest', at: [24.6, 22.2], yaw: 0, seat: 0.46, note: '池边躺椅' },
+    { id: 'towel-cart', kind: 'work', at: [17, 7.6], yaw: PI, note: '毛巾车（总监补毛巾）' },
+    { id: 'table-w', kind: 'rest', at: [3.7, 7.9], yaw: PI / 2, seat: 0.47, note: '平台西头的小桌' },
+    { id: 'table-2', kind: 'rest', at: [7.7, 8.3], yaw: PI / 2, seat: 0.47, note: '平台的第二张小桌' },
+    { id: 'bench-shade', kind: 'rest', at: [8.2, 38.9], yaw: 0, seat: 0.46, note: '树荫长椅' },
+    { id: 'sun-lounger', kind: 'rest', at: [17.6, 39.2], yaw: 0, seat: 0.45, note: '草地上的白躺椅' },
+  ],
+  walks: [
+    { name: '西口 → 池边', from: [-8, 42], to: [6.8, 23.4] },
+    { name: '西口 → 树荫长椅', from: [-8, 42], to: [7.4, 40] },
+    { name: '西口 → 池东躺椅', from: [-8, 42], to: [22.4, 23.6] },
+    { name: '西口 → 后门（→ 大堂）', from: [-8, 42], to: [14, 5.9], expect: 'lobby' },
+    { name: '后门 → 西口（→ 球场）', from: [14, 8.2], to: [-12.6, 41.8], expect: 'court' },
+  ],
 };

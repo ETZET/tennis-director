@@ -13,6 +13,7 @@ export function build(ctx: AssetCtx) {
     wall: 1,
     awning: 1,
     dense: true,
+    fill0: 0.28,
     seed: `side${ctx.variant}`,
   });
 }

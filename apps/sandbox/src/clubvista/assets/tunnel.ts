@@ -41,16 +41,15 @@ export function build(ctx: AssetCtx): THREE.Object3D {
     g.add(mm);
   };
   // 两边的门墩 + 门洞上面的一截墙（整座是实心的，门洞是凹进去 0.6 米的暗盒）
+  // 第三轮：影子打碎 —— 只有两边的门墩投影（两条窄影夹着球员走出来的那条亮道），门洞上面那截墙和篷不投：
+  // 原来整座门楼 + 篷在北底线外落一整块 4 × 4 米的矩形暗块
   add(
-    [
-      bx(side, H, Dp, -W / 2 + side / 2, H / 2, -Dp / 2),
-      bx(side, H, Dp, W / 2 - side / 2, H / 2, -Dp / 2),
-      bx(OW, H - OH, Dp, 0, OH + (H - OH) / 2, -Dp / 2),
-    ],
+    [bx(side, H, Dp, -W / 2 + side / 2, H / 2, -Dp / 2), bx(side, H, Dp, W / 2 - side / 2, H / 2, -Dp / 2)],
     stucco,
-    'walls',
+    'piers',
     true,
   );
+  add([bx(OW, H - OH, Dp, 0, OH + (H - OH) / 2, -Dp / 2)], stucco, 'walls');
   // 门洞里：暗的地、两壁、顶、尽头（往里 3 米）
   add(
     [
@@ -100,7 +99,7 @@ export function build(ctx: AssetCtx): THREE.Object3D {
   const mC = ctx.mat('canvas', awnOpts);
   mB.shadowSide = THREE.DoubleSide;
   mC.shadowSide = THREE.DoubleSide;
-  add(awnB, mB, 'awning-blue', true);
+  add(awnB, mB, 'awning-blue');
   // 徽记：篷面正中一块米色小圆（八边形片，贴在篷面上 2 厘米）
   const tiltA = -Math.PI / 2 + Math.atan2(yb - yf, z1 - z0);
   const em = new THREE.CircleGeometry(0.42, 8).rotateX(tiltA);
@@ -111,6 +110,6 @@ export function build(ctx: AssetCtx): THREE.Object3D {
   add(awnC, mC, 'awning-emblem');
   const poles: THREE.BufferGeometry[] = [];
   for (const x of [-W / 2 + 0.15, W / 2 - 0.15]) poles.push(bx(0.1, yf - H, 0.1, x, H + (yf - H) / 2, z1 - 0.05));
-  add(poles, ctx.mat('metal', { edge: 0.3, convex: 0.3 }), 'awning-poles');
+  add(poles, ctx.mat('metal', { edge: 0.3, convex: 0.3 }), 'awning-poles', true);
   return g;
 }
