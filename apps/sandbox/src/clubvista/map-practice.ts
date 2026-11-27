@@ -180,7 +180,7 @@ export const practice: MapDef = {
       pts: rect(12, 29.8, 20.4, 54.2),
       h: LANE_H,
       // 第 4 版（评判：发球机道和上面两格同一种青绿 + 白边线 + 横网，读成第三块球场）：道换浅米色的胶面、外圈灰石，只留一条发球线
-      top: 'stepStone',
+      top: 'drillOut',
       el: 'none',
       wall: 'bluff',
       smooth: 0,
