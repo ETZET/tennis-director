@@ -6,6 +6,7 @@ import { build as backCabinet } from '../../clubdesk/assets/back-cabinet';
 import { build as canopy } from '../../clubdesk/assets/desk-canopy';
 import { build as counter } from '../../clubdesk/assets/desk-counter';
 import type { AssetCtx as DeskCtx } from '../../clubdesk/ctx';
+import { nightLight } from '../../clubsite/daylight/night';
 import type { AssetCtx } from '../ctx';
 
 export function build(ctx: AssetCtx): THREE.Object3D {
@@ -19,5 +20,7 @@ export function build(ctx: AssetCtx): THREE.Object3D {
   const b = backCabinet(c);
   b.position.set(-1.6, 0, -0.4);
   g.add(b);
+  // 夜里（light 代理）：凉棚下、柜台前一片暖光
+  g.userData.night = nightLight(g, { spots: [{ at: [0.6, 0, 2.6], r: 5.2, h: 2.6 }] });
   return g;
 }

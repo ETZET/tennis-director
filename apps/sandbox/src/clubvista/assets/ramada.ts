@@ -5,6 +5,7 @@
 // 柱子朝镜头那面 lightUp + 低 bands（太阳在后面，不然一根根黑条）。尺寸全按 0.09 米纹素取整：柱 3.5 纹素、椽 3 纹素宽、空 5 纹素。
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { nightLight } from '../../clubsite/daylight/night';
 import type { AssetCtx } from '../ctx';
 
 const T = 0.09;
@@ -92,5 +93,7 @@ export function build(ctx: AssetCtx): THREE.Object3D {
   g.add(new THREE.Mesh(mergeGeometries(canvas), ctx.mat('canvas', { lightUp: 0.3, bands: [-0.45, 0.45] })));
 
   ctx.mats.prepare(g);
+  // 夜里（light 代理）：棚下一片暖光（棚顶以下）
+  g.userData.night = nightLight(g, { spots: [{ at: [0, 0, 0.4], r: 4, h: 2.3 }] });
   return g;
 }

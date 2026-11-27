@@ -16,6 +16,7 @@
 //   update(dt, t)：热气晃。
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { nightLight } from '../../clubsite/daylight/night';
 import { blobNormals } from '../../clubsite/render/toon';
 import type { AssetCtx } from '../ctx';
 
@@ -424,6 +425,23 @@ export function build(ctx: AssetCtx): THREE.Object3D {
   };
   setStock(Number(ctx.params.get('stock') ?? 1));
 
+  // 夜里（clubsite/daylight）：服务窗里亮灯（窗里那块薄荷换成暖黄）、车头灯亮，窗前排队的地方一片暖光
+  const insideMesh = root.getObjectByName('inside') as THREE.Mesh | undefined;
+  const lampMesh = root.getObjectByName('lamps') as THREE.Mesh | undefined;
+  const insideOn = ctx.mat('accCoffee', {
+    ramp: [0xffd98a, 0xf6c070, 0xd89850],
+    emissive: 0x201404,
+    edge: 0.2,
+    convex: 0.1,
+  });
+  const lampOn = ctx.mat('bulb', { ramp: [0xffe9a8, 0xffe9a8, 0xffe9a8], emissive: 0x241804, noShadowReceive: true });
+  root.userData.night = nightLight(root, {
+    glow: [
+      ...(insideMesh ? [[insideMesh, inside, insideOn] as [THREE.Mesh, THREE.Material, THREE.Material]] : []),
+      ...(lampMesh ? [[lampMesh, lamp, lampOn] as [THREE.Mesh, THREE.Material, THREE.Material]] : []),
+    ],
+    spots: [{ at: [-0.3, 0, 2.1], r: 3, h: 3.2 }],
+  });
   root.userData.spots = { window: [-0.3, 1.9], vendor: [-0.3, 0.65], back: [-0.8, -1.6] };
   root.userData.floor = FLOOR;
   root.userData.sill = [-0.3, SILL.y, 1.2];

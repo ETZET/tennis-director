@@ -9,6 +9,7 @@ import { type Scheme, schemeMats, schemeOpts } from '../clubsite/render/palettes
 import { createMats, type ToonOpts } from '../clubsite/render/toon';
 import type { AssetBuild, AssetCtx, SharedUniforms } from './ctx';
 import type { Court, ElKey, MapDef, Plate, Prop, Stair, Strip, V2 } from './mapdef';
+import { NIGHT_PROPS } from './night-props';
 import { EL, GRADE_AS, PAL, type Pal, SUN_SKIP } from './palette';
 import { placeholder, SPECS } from './placeholders';
 import { REUSED } from './reuse';
@@ -319,7 +320,7 @@ export function buildMap(def: MapDef, ox: number, kit: Kit, params: URLSearchPar
   const blocked: Shape[] = [];
   const showPh = params.get('ph') !== '0';
   root.updateMatrixWorld(true);
-  for (const pr of def.props) {
+  for (const pr of [...def.props, ...(NIGHT_PROPS[def.id] ?? [])]) {
     const { obj, kind } = kit.makeAsset(pr.a, pr.v ?? 0);
     if (kind === 'placeholder' && !showPh) continue;
     counts[kind]++;

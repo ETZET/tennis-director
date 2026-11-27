@@ -60,8 +60,11 @@ export interface DayLook {
 export const SUNRISE = 6;
 export const SUNSET = 18.5;
 const MAX_EL = 46;
-/** 投影用的最低仰角：真太阳贴着地平线时影子能拉满屏，像素画里读不清；压到 12° 起（影子最长 ≈ 4.7 倍高） */
-const MIN_EL = 12;
+/**
+ * 投影用的最低仰角：真太阳贴着地平线时影子能拉满屏，像素画里读不清。
+ * 第三轮：12° → 18°（影子最长 ≈ 3.1 倍高，原来 4.7 倍）：傍晚看台的影子一道道横穿整片球场，场地只剩几条亮缝
+ */
+const MIN_EL = 18;
 const AZ_RISE = 75;
 /** 月亮：固定挂在画面后方偏西，影子短 */
 const MOON = { el: 52, az: -18 };

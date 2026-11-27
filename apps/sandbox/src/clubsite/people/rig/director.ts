@@ -34,7 +34,8 @@ export function build(ctx: AssetCtx): THREE.Object3D {
       hairStyle: 'short',
       trim: m('flowerYellow'),
       straw: {
-        hat: ctx.mat('straw', { lightUp: 0.6, bands: [-0.3, 0.45], noShadowReceive: true }),
+        // focus（第三轮）：阴雨天、清晨傍晚、夜里草帽少吃时间天气的降彩，还是一眼能找到的暖黄
+        hat: ctx.mat('straw', { lightUp: 0.6, bands: [-0.3, 0.45], noShadowReceive: true, focus: 1 }),
         band: ctx.mat('hair', { ...PERSON, edge: 0.25, convex: 0 }),
       },
       hold: { kind: 'broom', wood: m('wood'), head: m('dryGrass') },

@@ -8,6 +8,7 @@
 // 材质：cap（陶砖）、plaster（柱头）、talavera、timber（门）、ironwork、signPaint（黄铜）、counter（盾心）。三角形 ≈ 300。
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { nightLight } from '../../clubsite/daylight/night';
 import type { AssetCtx } from '../ctx';
 
 type G = THREE.BufferGeometry;
@@ -148,10 +149,16 @@ export function build(ctx: AssetCtx): THREE.Object3D {
   g.add(new THREE.Mesh(merge(brassG), brass));
   g.add(new THREE.Mesh(pl(-0.135, SH0 + 0.22, 0.27, 0.26, ZP + 0.004), blue));
 
+  // 门两边各一盏壁灯（2 × 3 纹素的小灯笼）：夜里（clubsite/daylight）亮成暖黄，门前地上一片暖光
+  const lampOff = ctx.mat('plaster', { ...face, ramp: [0xf4ead0, 0xe0d0b8, 0xa890a0], convex: 0.2 });
+  const lampOn = ctx.mat('plaster', { ...face, ramp: [0xffe9a8, 0xffe9a8, 0xffe9a8], emissive: 0x241804 });
+  const lamps = new THREE.Mesh(merge([-1, 1].map((s) => bx(0.2, 0.34, 0.16, s * (R + 0.42), 2.3, ZP + 0.08))), lampOff);
+  g.add(lamps);
   g.traverse((o) => {
     o.castShadow = true;
     o.receiveShadow = true;
   });
   ctx.mats.prepare(g);
+  g.userData.night = nightLight(g, { glow: [[lamps, lampOff, lampOn]], spots: [{ at: [0, 0, 1.9], r: 3.2, h: 3.4 }] });
   return g;
 }
