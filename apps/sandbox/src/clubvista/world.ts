@@ -19,8 +19,8 @@ import { PixelPipeline } from '../clubsite/render/pipeline';
 import { CLOUD_N } from '../clubsite/render/toon';
 import { type BuiltMap, buildMap, createKit } from './build';
 import type { SharedUniforms } from './ctx';
-import { mountVistaLife, prepareLife, type VistaLife } from './life';
 import { vista } from './grade';
+import { mountVistaLife, prepareLife, type VistaLife } from './life';
 import { MAP_GAP, MAPS } from './maps';
 import { SPECS } from './placeholders';
 import { CAST_SCENE, mapName } from './text';
@@ -562,7 +562,8 @@ export function mountVista(hooks: VistaHooks = {}) {
       simT += DT;
       uniforms.uTime.value = simT;
       day.step(DT);
-      if (nightFast && isDeepNight(((day.total % 24) + 24) % 24)) day.total += ((NIGHT_RATE - 1) * DT * day.speed) / 3600;
+      if (nightFast && isDeepNight(((day.total % 24) + 24) % 24))
+        day.total += ((NIGHT_RATE - 1) * DT * day.speed) / 3600;
       syncClock();
       uniforms.uGust.value = 0.5 + 0.35 * Math.sin(simT * 0.7) * Math.sin(simT * 0.23);
       for (const u of cur.updaters) u(DT, simT);

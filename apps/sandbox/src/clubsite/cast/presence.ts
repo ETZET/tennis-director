@@ -198,9 +198,7 @@ export function headcount(cast: Cast, s: Pick<CastState, 'day' | 'minute'>, map:
   let n = 0;
   for (const m of d.slots.values())
     if (
-      visitWindows(cast.seed, d.scene, m.slot, s.day, { kind: m.kind }).some(
-        (w) => s.minute >= w[0] && s.minute < w[1],
-      )
+      visitWindows(cast.seed, d.scene, m.slot, s.day, { kind: m.kind }).some((w) => s.minute >= w[0] && s.minute < w[1])
     )
       n++;
   return n;
@@ -259,7 +257,15 @@ export function seeksOfDay(cast: Cast, day: number): Seek[] {
               ? 'reception'
               : 'booking'
             : (['complaint', 'booking', 'complaint'] as const)[Math.floor(r() * 3)];
-        cands.push({ id: p.id, kind, map: d.map, scene: d.scene, slot: m.slot, from, until: Math.min(w[1] - 5, from + 75) });
+        cands.push({
+          id: p.id,
+          kind,
+          map: d.map,
+          scene: d.scene,
+          slot: m.slot,
+          from,
+          until: Math.min(w[1] - 5, from + 75),
+        });
       }
     }
   }
@@ -295,7 +301,12 @@ function seekMark(s: CastState, k: Seek, done: boolean): CastState {
   const dFavor = done ? SEEK_REWARD[k.kind].favor : -SEEK_MISS;
   const favor = Math.round(Math.min(10, Math.max(0, mem.favor + dFavor)) * 10) / 10;
   const memo = SEEK_MEMO[k.kind][done ? 0 : 1];
-  const entry: MemoryEntry = { day: s.day, minute: s.minute, text: `第 ${s.day} 天 · ${memo}`, favor: favor - mem.favor };
+  const entry: MemoryEntry = {
+    day: s.day,
+    minute: s.minute,
+    text: `第 ${s.day} 天 · ${memo}`,
+    favor: favor - mem.favor,
+  };
   return {
     ...s,
     money: s.money + (done ? SEEK_REWARD[k.kind].money : 0),

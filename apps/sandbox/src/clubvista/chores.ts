@@ -26,7 +26,7 @@ export interface ChoreCtx {
   cur(): BuiltMap;
   clock(): { day: number; minute: number };
   /** 干完一件活：钱、上方一行字、原地冒数 */
-  reward(text: LifeTextKey, money: number, at: THREE.Vector3): void;
+  reward(text: LifeTextKey, money: number, at: THREE.Vector3, minutes?: number): void;
 }
 
 interface Due {
@@ -45,7 +45,8 @@ export function mountChores(o: ChoreCtx): { step(dt: number): void; debug(): unk
   const doneKeys = new Set<string>();
   const steppers: ((dt: number) => void)[] = [];
   const count: Record<string, number> = {};
-  const isMatchCourt = (b: BuiltMap) => b.def.props.some((p) => p.a === 'umpire-chair') && CAST_SCENE[b.def.id] === 'clubstadium';
+  const isMatchCourt = (b: BuiltMap) =>
+    b.def.props.some((p) => p.a === 'umpire-chair') && CAST_SCENE[b.def.id] === 'clubstadium';
 
   /** 一件站位上的活：心情泡 + 互动点（按住 hold 秒，或者点一下） */
   function spotChore(
@@ -58,6 +59,8 @@ export function mountChores(o: ChoreCtx): { step(dt: number): void; debug(): unk
       label: LifeTextKey;
       done: LifeTextKey;
       money: number;
+      /** 花几分钟（游戏时间） */
+      minutes: number;
       pose: string;
       hold?: number;
       prop?: string;
@@ -77,7 +80,7 @@ export function mountChores(o: ChoreCtx): { step(dt: number): void; debug(): unk
       doneKeys.add(`${c.id}|${k}`);
       count[c.id] = (count[c.id] ?? 0) + 1;
       play.bubble(`chore:${c.id}`, null);
-      o.reward(c.done, c.money, at);
+      o.reward(c.done, c.money, at, c.minutes);
     };
     const setTool = (on: boolean) => {
       if (c.prop && !play.held()) o.director.userData.setProp?.(on ? c.prop : null);
@@ -110,8 +113,7 @@ export function mountChores(o: ChoreCtx): { step(dt: number): void; debug(): unk
             },
           }
         : {
-            onUse: (pl: Play) =>
-              pl.busy({ name: c.id, dur: 0.9, pose: c.pose, face: [at.x, at.z], mid: finish }),
+            onUse: (pl: Play) => pl.busy({ name: c.id, dur: 0.9, pose: c.pose, face: [at.x, at.z], mid: finish }),
           }),
     });
     let shown = false;
@@ -125,7 +127,21 @@ export function mountChores(o: ChoreCtx): { step(dt: number): void; debug(): unk
 
   for (const b of o.built) {
     const id = b.def.id;
-    const spots = b.def.spots ?? [];
+    // 摆着的饮水桶（water-station）也算一个换水的站位（附近 2 米没有 world 填的 'water' 站位时）：站在桶前 0.9 米
+    const spots: Spot[] = [...(b.def.spots ?? [])];
+    b.def.props.forEach((pr, i) => {
+      if (pr.a !== 'water-station') return;
+      if (spots.some((sp) => sp.id.startsWith('water') && Math.hypot(sp.at[0] - pr.x, sp.at[1] - pr.z) < 2)) return;
+      const r = pr.r ?? 0;
+      spots.push({
+        id: `water-st${i}`,
+        kind: 'work',
+        at: [pr.x + Math.sin(r) * 0.9, pr.z + Math.cos(r) * 0.9],
+        yaw: r + Math.PI,
+      });
+    });
+    /** 这张图的活错开一点（不然每张图都在整点一起来） */
+    const lag = hashOf(CAST.seed, 'lag', id) % 50;
     const match = isMatchCourt(b);
     for (const sp of spots) {
       const cid = `${id}:${sp.id}`;
@@ -137,11 +153,12 @@ export function mountChores(o: ChoreCtx): { step(dt: number): void; debug(): unk
                 const w = matchWindows(CAST.seed, day).findIndex((x) => m >= x[0] - 50 && m < x[0]);
                 return w >= 0 ? `${day}:${w}` : null;
               }
-            : every(180),
+            : every(180, 7 * 60 + lag),
           ask: 'netAsk',
           label: 'netLabel',
           done: 'netDone',
           money: 3,
+          minutes: 6,
           pose: 'crank',
           hold: 2.4,
         });
@@ -160,6 +177,7 @@ export function mountChores(o: ChoreCtx): { step(dt: number): void; debug(): unk
           label: 'sweepLabel',
           done: 'sweepDone',
           money: 4,
+          minutes: 12,
           pose: 'sweep',
           hold: 4,
           prop: 'broom',
@@ -167,22 +185,24 @@ export function mountChores(o: ChoreCtx): { step(dt: number): void; debug(): unk
       else if (sp.id === 'water' || sp.id.startsWith('water-'))
         spotChore(b, sp, {
           id: cid,
-          due: every(120, 8 * 60),
+          due: every(120, 8 * 60 + lag),
           ask: 'waterAsk',
           label: 'waterLabel',
           done: 'waterDone',
           money: 2,
+          minutes: 5,
           pose: 'pour',
           hold: 2,
         });
       else if (sp.id === 'pool-towels')
         spotChore(b, sp, {
           id: cid,
-          due: every(150, 9 * 60),
+          due: every(150, 9 * 60 + lag),
           ask: 'towelAsk',
           label: 'towelLabel',
           done: 'towelDone',
           money: 2,
+          minutes: 4,
           pose: 'pickup',
         });
     }
@@ -241,7 +261,7 @@ export function mountChores(o: ChoreCtx): { step(dt: number): void; debug(): unk
                 p.obj.visible = false;
                 carried++;
                 count.balls = (count.balls ?? 0) + 1;
-                o.reward('ballsDone', 1, p.at);
+                o.reward('ballsDone', 1, p.at, 3);
               },
             }),
         });
@@ -264,7 +284,7 @@ export function mountChores(o: ChoreCtx): { step(dt: number): void; debug(): unk
               const n = carried;
               carried = 0;
               count.machine = (count.machine ?? 0) + 1;
-              o.reward('machineDone', 2 + n, mAt);
+              o.reward('machineDone', 2 + n, mAt, 5);
             },
           }),
       });
@@ -276,7 +296,8 @@ export function mountChores(o: ChoreCtx): { step(dt: number): void; debug(): unk
           p.obj.visible = !!k && !doneKeys.has(`balls:${id}:${i}|${k}`);
         });
         const want = carried > 0;
-        if (want !== ask) play.bubble(`machine:${id}`, want ? mAt.clone().setY(mAt.y + 0.5) : null, lt('machineAsk'), 0);
+        if (want !== ask)
+          play.bubble(`machine:${id}`, want ? mAt.clone().setY(mAt.y + 0.5) : null, lt('machineAsk'), 0);
         ask = want;
       });
     }

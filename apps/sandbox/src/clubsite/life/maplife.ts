@@ -127,6 +127,13 @@ interface Act extends LifeActor {
   y: number;
   qi: number;
   lost: number;
+  /** 这个人走路快慢（0.85..1.15）：一排人不再一个速度 */
+  pace: number;
+  /** 再走多少米考虑停一下（张望） */
+  lookIn: number;
+  /** 正停着张望的剩余秒数 */
+  pauseT: number;
+  pauseYaw: number;
 }
 
 export interface MapLifeOpts {
@@ -216,8 +223,16 @@ export function createMapLife(o: MapLifeOpts): MapLife {
     yield: 0,
     qi: -1,
     lost: 0,
+    pace: 1,
+    lookIn: 6,
+    pauseT: 0,
+    pauseYaw: 0,
   }));
-  for (const a of actors) a.obj.visible = false;
+  for (const a of actors) {
+    a.obj.visible = false;
+    a.pace = 0.85 + a.rng() * 0.3;
+    a.lookIn = 4 + a.rng() * 10;
+  }
 
   const emit = (type: LifeEventType, actor: Act, extra: Partial<LifeEvent> = {}) => o.on?.({ type, actor, ...extra });
   const ud = (a: Act) => a.obj.userData;
@@ -315,7 +330,10 @@ export function createMapLife(o: MapLifeOpts): MapLife {
     if (rests.length && a.rng() < 0.6) plan.push(...visitPoi(a, rests[Math.floor(a.rng() * rests.length)]));
     if (!plan.length && o.wander?.length) {
       const w = o.wander[Math.floor(a.rng() * o.wander.length)];
-      plan.push({ t: 'go', x: w[0] + (a.rng() - 0.5) * 2, z: w[1] + (a.rng() - 0.5) * 2 }, { t: 'stay', sec: 3 + a.rng() * 5 });
+      plan.push(
+        { t: 'go', x: w[0] + (a.rng() - 0.5) * 2, z: w[1] + (a.rng() - 0.5) * 2 },
+        { t: 'stay', sec: 3 + a.rng() * 5 },
+      );
     }
     plan.push({ t: 'out', gate: pickGate(a, 'out', gate) });
     return plan;
@@ -331,12 +349,12 @@ export function createMapLife(o: MapLifeOpts): MapLife {
   }
   const nextTrip = (a: Act) => 22 + a.rng() * 40;
 
-  function begin(a: Act, w: VisitWindow, day: number) {
+  function begin(a: Act, w: VisitWindow, day: number, forced?: { gate: LifeGate; dx: number; dz: number }) {
     a.used = day * 10000 + w[0];
     a.win = w;
-    const gate = pickGate(a, 'in', null);
+    const gate = forced?.gate ?? pickGate(a, 'in', null);
     a.gateIn = gate;
-    const at = o.nav().nearestFree(gate.x, gate.z, 4) ?? [gate.x, gate.z];
+    const at = o.nav().nearestFree(gate.x + (forced?.dx ?? 0), gate.z + (forced?.dz ?? 0), 4) ?? [gate.x, gate.z];
     a.x = at[0];
     a.z = at[1];
     a.y = groundY(a.x, a.z);
@@ -352,7 +370,8 @@ export function createMapLife(o: MapLifeOpts): MapLife {
     ud(a).setSeat?.(...SEAT0);
     ud(a).lookAt?.(null);
     if (!a.person.home) ud(a).setProp?.(null);
-    else if (a.person.home.prop !== undefined) ud(a).setProp?.(a.person.home.prop === 'cup' ? null : a.person.home.prop);
+    else if (a.person.home.prop !== undefined)
+      ud(a).setProp?.(a.person.home.prop === 'cup' ? null : a.person.home.prop);
     ud(a).pose?.('idle');
     place(a);
     a.plan = a.person.home ? homePlan(a, w) : flowPlan(a, gate);
@@ -382,6 +401,22 @@ export function createMapLife(o: MapLifeOpts): MapLife {
     a.tripT = nextTrip(a) * a.rng();
     a.hold = false;
     a.still = 0;
+  }
+
+  /**
+   * 接驳车到站（权重大的口）：接下来 40 分钟里要来的路过的人一起下车，站开一步，各走各的（一车人，不是一个一个冒出来）
+   */
+  function groupWith(lead: Act, day: number, minute: number) {
+    let k = 0;
+    for (const b of actors) {
+      if (k >= 3) break;
+      if (b === lead || b.state !== 'away' || b.person.home || b.person.staff) continue;
+      const w = b.person.windows(day).find((x) => x[0] > minute && x[0] < minute + 40 && b.used !== day * 10000 + x[0]);
+      if (!w) continue;
+      k++;
+      const side = k % 2 ? 1 : -1;
+      begin(b, w, day, { gate: lead.gateIn as LifeGate, dx: side * 0.7 * Math.ceil(k / 2), dz: 0.3 * k });
+    }
   }
 
   function windowAt(a: Act, day: number, minute: number): VisitWindow | null {
@@ -452,7 +487,23 @@ export function createMapLife(o: MapLifeOpts): MapLife {
   };
   function walk(a: Act, dt: number): boolean {
     const len = a.cum[a.cum.length - 1] ?? 0;
-    const v = (a.person.speed ?? WALK) * fast;
+    // 停下来张望一下（快进时不停）：转头看一眼，再接着走
+    if (a.pauseT > 0) {
+      a.pauseT -= dt * fast;
+      a.yaw = turn(a.yaw, a.pauseYaw, dt * 4);
+      place(a);
+      return false;
+    }
+    if (a.lookIn <= 0) {
+      a.lookIn = 6 + a.rng() * 12;
+      if (fast < 1.5 && len - a.s > 3 && a.rng() < 0.35) {
+        a.pauseT = 0.6 + a.rng() * 0.9;
+        a.pauseYaw = a.yaw + (a.rng() < 0.5 ? -1 : 1) * (0.5 + a.rng() * 0.6);
+        ud(a).pose?.('idle');
+        return false;
+      }
+    }
+    const v = (a.person.speed ?? WALK) * a.pace * fast;
     // 前面半米是总监：停一下（1.5 秒以后挤过去）
     const D = o.director;
     if (D && a.yield < 1.5) {
@@ -469,6 +520,7 @@ export function createMapLife(o: MapLifeOpts): MapLife {
     const s = Math.min(len, a.s + v * dt);
     const step = s - a.s;
     a.s = s;
+    a.lookIn -= step;
     let i = 1;
     while (i < a.cum.length - 1 && a.cum[i] < s) i++;
     const p0 = a.pts[i - 1];
@@ -689,7 +741,10 @@ export function createMapLife(o: MapLifeOpts): MapLife {
     for (const a of actors) {
       if (a.state === 'away') {
         const w = windowAt(a, day, minute);
-        if (w && a.used !== day * 10000 + w[0]) begin(a, w, day);
+        if (w && a.used !== day * 10000 + w[0]) {
+          begin(a, w, day);
+          if (!a.person.home && a.gateIn && (a.gateIn.weight ?? 1) >= 3) groupWith(a, day, minute);
+        }
         if (a.state === 'away') continue;
       }
       if (a.hold) {

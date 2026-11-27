@@ -19,8 +19,8 @@ import {
   expireSeeks,
   guessRole,
   isFixedRole,
-  matchWindows,
   type MapSlot,
+  matchWindows,
   memOf,
   type PersonKind,
   resolveSeek,
@@ -29,6 +29,7 @@ import {
   SEEK_REWARD,
   SLOT_TABLE,
   seekersNow,
+  setClock,
   slotInfo,
   visitWindows,
 } from '../clubsite/cast';
@@ -65,10 +66,17 @@ const EXTRA = 6;
  * 人位的提示（按摆的位置和姿势认，不按第几个）：前台后面的教练 = 前台接待；公交站 / 候车亭边的 = 坐接驳车的客人；
  * 中心球场高椅上的 = 主裁判，场上拿拍的 = 两个球员。别的按种类在人位表里顺着挑。
  */
-function hintOf(pr: Prop, kind: PersonKind, scene: SceneId, props: readonly Prop[], used: Set<string>): string | undefined {
+function hintOf(
+  pr: Prop,
+  kind: PersonKind,
+  scene: SceneId,
+  props: readonly Prop[],
+  used: Set<string>,
+): string | undefined {
   const near = (a: string, r: number) => props.some((q) => q.a === a && Math.hypot(q.x - pr.x, q.z - pr.z) < r);
   if (kind === 'coach' && near('front-desk', 2.5)) return 'desk-clerk';
-  if (kind === 'player' && (near('bus-shelter', 3.2) || near('stop-pole', 3.5))) return used.has('bus-1') ? 'bus-2' : 'bus-1';
+  if (kind === 'player' && (near('bus-shelter', 3.2) || near('stop-pole', 3.5)))
+    return used.has('bus-1') ? 'bus-2' : 'bus-1';
   if (scene === 'clubstadium') {
     if (kind === 'umpire' && (pr.seat?.[0] ?? 0) > 1) return 'umpire';
     if (kind === 'player' && pr.prop === 'racket' && (pr.pose === 'serve' || pr.pose === 'ready'))
@@ -185,7 +193,13 @@ export function prepareLife(built: readonly BuiltMap[], kit: Kit): Prepared[] {
         pois.push({
           id: `spot:${sp.id}`,
           kind: 'sit',
-          spot: { x, z, yaw, pose: sp.seat !== undefined ? 'sit' : 'idle', seat: sp.seat !== undefined ? [sp.seat, 0] : null },
+          spot: {
+            x,
+            z,
+            yaw,
+            pose: sp.seat !== undefined ? 'sit' : 'idle',
+            seat: sp.seat !== undefined ? [sp.seat, 0] : null,
+          },
           sec: [14, 30],
         });
       else if (sp.kind === 'watch')
@@ -386,16 +400,29 @@ export function mountVistaLife(o: VistaLifeOpts): VistaLife {
     const L = curLife();
     if (!L) return null;
     const ox = o.cur().ox;
-    return L.circles().map((c) => ({ x: c.x + ox, z: c.z, r: c.r }));
+    const d = o.director.position;
+    // 已经和总监挤在一起的人（他走过来、接驳车一车人围在总监身边）不挡：不然总监被围住走不出来
+    return L.circles()
+      .map((c) => ({ x: c.x + ox, z: c.z, r: c.r }))
+      .filter((c) => Math.hypot(c.x - d.x, c.z - d.z) > c.r + 0.3);
   });
 
   const count = (k: string) => {
     done[k] = (done[k] ?? 0) + 1;
   };
   /** 干完一件活：钱进账 + 上方一行字 + 原地冒一个数 */
-  function reward(key: LifeTextKey, money: number, at: THREE.Vector3) {
-    o.setState(earn(o.state(), money));
-    o.pop(lt(key, { n: money }), 'coin');
+  /**
+   * 干完一件活：钱进账、钟往前走 minutes 分钟（活要花时间：这会儿在找你的人可能等不及走了——玩法准则 2 的取舍），
+   * 上方一行字（"… +$5 · 8 分钟"）、原地冒 "+$n"
+   */
+  function reward(key: LifeTextKey, money: number, at: THREE.Vector3, minutes = 0) {
+    let s = earn(o.state(), money);
+    if (minutes > 0) {
+      const abs = (s.day - 1) * 1440 + s.minute + minutes;
+      s = setClock(s, Math.floor(abs / 1440) + 1, abs % 1440);
+    }
+    o.setState(s);
+    o.pop(lt(key, { n: money }) + (minutes ? lt('cost', { m: minutes }) : ''), 'coin');
     play.say(at.clone(), `+$${money}`, 1.4, 0.5);
     count(key);
   }
@@ -413,7 +440,6 @@ export function mountVistaLife(o: VistaLifeOpts): VistaLife {
     if (!p.shuttle || !p.desk) continue;
     const b = p.map;
     const id = b.def.id;
-    const L = lives.get(id) as MapLife;
     const deskAt = new THREE.Vector3(p.desk[0] + b.ox, b.groundAt(p.desk[0], p.desk[1]) + 0.9, p.desk[1]);
     let job: { a: LifeActor; item: ReturnType<Play['addItem']>; t: number; taken: boolean } | null = null;
     let serial = 0;
@@ -473,8 +499,9 @@ export function mountVistaLife(o: VistaLifeOpts): VistaLife {
       putLabel: lt('luggagePut'),
       onPutDown: (item) => {
         const j = job;
+        if (play.held() === item) play.take();
         item.remove();
-        reward('luggageDone', 5, deskAt);
+        reward('luggageDone', 5, deskAt, 8);
         if (j) {
           const cid = castIdOf(j.a);
           if (cid) favor(cid, 0.3);
@@ -493,6 +520,8 @@ export function mountVistaLife(o: VistaLifeOpts): VistaLife {
   function makeCup(): THREE.Object3D {
     const g = new THREE.Group();
     g.name = 'cup-left';
+    // 手机上要看得出"桌上有只杯子"：比人手里的大一号（≈ 4 纹素宽）
+    g.scale.setScalar(1.7);
     const body = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.08, 0.22, 8, 1), cupMats.white);
     body.position.y = 0.11;
     const band = new THREE.Mesh(new THREE.CylinderGeometry(0.105, 0.095, 0.09, 8, 1), cupMats.sleeve);
@@ -537,7 +566,7 @@ export function mountVistaLife(o: VistaLifeOpts): VistaLife {
               obj.removeFromParent();
               remove();
               cups.delete(s);
-              reward('cupDone', 2, at);
+              reward('cupDone', 2, at, 2);
             },
           }),
       });
