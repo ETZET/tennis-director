@@ -38,7 +38,7 @@ export const SHEET_CSS = `
 }
 @keyframes pxs-rise-r { from { transform: translateY(60%); } to { transform: none; } }
 /* 总监站在画面下沿、卡会盖住他：卡改从上面落下来（日钟、金币那一排下面） */
-.pxs-shade.top .pxs-sheet { bottom: auto; top: calc(max(6px, env(safe-area-inset-top)) + var(--s) * 78px); animation-name: pxs-drop; }
+.pxs-shade.top .pxs-sheet { bottom: auto; top: calc(max(6px, env(safe-area-inset-top)) + var(--s) * 92px); animation-name: pxs-drop; }
 @keyframes pxs-drop { from { transform: translate(-50%, -60%); } to { transform: translate(-50%, 0); } }
 .pxs-shade.top .pxs-x { top: auto; bottom: calc(var(--s) * -22px); }
 .pxs-shade.top .pxs-x .pxs-tab { box-shadow: calc(var(--s) * 1px) 0 0 0 ${ink}, calc(var(--s) * -1px) 0 0 0 ${ink}, 0 calc(var(--s) * 1px) 0 0 ${ink}; }
@@ -258,6 +258,21 @@ export function onPaper(c: number): number {
   return k;
 }
 
+/** 5 格的点（属性）：v 0..1 → 亮几格；亮 = 墨实心，暗 = 奶油空心（只一圈墨），格子之间 1 纹素 */
+export function pips5(v: number): HTMLCanvasElement {
+  const n = Math.round(Math.max(0, Math.min(1, v)) * 5);
+  const [c, g] = cv(5 * 6 - 1, 5);
+  for (let i = 0; i < 5; i++) {
+    g.fillStyle = hex(INK);
+    g.fillRect(i * 6, 0, 5, 5);
+    if (i >= n) {
+      g.fillStyle = hex(CREAM);
+      g.fillRect(i * 6 + 1, 1, 3, 3);
+    }
+  }
+  return c;
+}
+
 /** 短进度条：w 纹素宽、3 纹素高的槽 + 1 纹素墨边；v 0..1；notch = 每几格一个刻度 */
 export function bar(v: number, w: number, fill: number, notch = 0): HTMLCanvasElement {
   const [c, g] = cv(w + 2, 5);
@@ -302,32 +317,24 @@ export function dayBand(o: {
   const [c, g] = cv(W, H);
   g.drawImage(sun, 0, bandY + 3 - Math.floor(sun.height / 2));
   g.drawImage(moon, x0 + o.w + 4, bandY + 3 - Math.floor(moon.height / 2));
-  // 槽
+  // 和日钟同一种画法（locked 第 3 条）：墨轨道，他在的钟点是奶油，"现在"是一颗 3×3 白钮 + 1 纹素墨边
   g.fillStyle = hex(INK);
   g.fillRect(x0, bandY, o.w + 2, 7);
-  g.fillStyle = hex(PAPER_DARK);
-  g.fillRect(x0 + 1, bandY + 1, o.w, 5);
   const X = (h: number) => x0 + 1 + Math.round(((h - o.from) / (o.to - o.from)) * o.w);
-  g.globalAlpha = o.dim ? 0.45 : 1;
+  g.globalAlpha = o.dim ? 0.5 : 1;
   for (const [a, b] of o.segs) {
     const xa = X(Math.max(o.from, a));
     const xb = X(Math.min(o.to, b));
-    g.fillStyle = hex(onPaper(o.color));
-    g.fillRect(xa, bandY + 1, Math.max(1, xb - xa), 5);
-    g.fillStyle = 'rgba(255,255,255,0.3)';
-    g.fillRect(xa, bandY + 1, Math.max(1, xb - xa), 1);
+    g.fillStyle = hex(CREAM);
+    g.fillRect(xa, bandY + 2, Math.max(1, xb - xa), 3);
   }
   g.globalAlpha = 1;
-  // 每 3 小时一个刻度（槽底一纹素）
-  g.fillStyle = hex(INK);
-  for (let h = Math.ceil(o.from / 3) * 3; h < o.to; h += 3) if (h > o.from) g.fillRect(X(h), bandY + 5, 1, 1);
   if (o.now !== null && o.now >= o.from && o.now <= o.to) {
     const xn = X(o.now);
     g.fillStyle = hex(INK);
-    g.fillRect(xn - 2, bandY - 2, 5, 11);
-    // "现在"：一根 3 纹素宽、墨边的草帽色针（这张卡上唯一的暖色）
-    g.fillStyle = hex(KEYS.X);
-    g.fillRect(xn - 1, bandY - 1, 3, 9);
+    g.fillRect(xn - 2, bandY + 1, 5, 5);
+    g.fillStyle = '#ffffff';
+    g.fillRect(xn - 1, bandY + 2, 3, 3);
     if (mark) g.drawImage(mark, Math.max(0, Math.min(W - mark.width, xn - Math.floor(mark.width / 2))), 0);
   }
   return c;

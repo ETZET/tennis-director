@@ -21,15 +21,15 @@ export const PLACES: Record<string, Sprite> = {
     '..nnnnnnnnn..',
     '......d......',
   ),
-  /** 前台：柜台上一只银色服务铃 */
+  /** 前台：柜台后面站着一个人，台上一只服务铃 */
   clubdesk: S(
-    '......d......',
-    '....SSSSS....',
-    '...SWSSSSs...',
-    '..SWSSSSSSs..',
-    '..SSSSSSSss..',
-    '.ddddddddddd.',
+    '....ttt......',
+    '....FFF......',
+    '...nnnnn.....',
+    '...nnnnn.SSS.',
     'TTTTTTTTTTTTT',
+    'tWWWWWWWWWWWt',
+    'ttttttttttttt',
     'ttttttttttttt',
     'uuuuuuuuuuuuu',
   ),
@@ -105,17 +105,17 @@ export const PLACES: Record<string, Sprite> = {
     '.wwwwTtwwwww.',
     'sssssssssssss',
   ),
-  /** 泳池：一池深一点的水、白色泳道线、池边的扶梯 */
+  /** 泳池：一池水上的波纹，池边石沿 */
   clubpool: S(
-    'WWWWWWWWWWWWW',
-    'WaaaaaaaaaaaW',
-    'WWWWWWWWWWWWW',
-    'WaaaaaaaaaaaS',
-    'WWWWWWWWWWWWS',
-    'WaaaaaaaaaaaS',
-    'WWWWWWWWWWWWW',
-    'WaaaaaaaaaaaW',
-    'WWWWWWWWWWWWW',
+    'SSSSSSSSSSSSS',
+    'SaaaaaaaaaaaS',
+    'SaAAaaaAAaaaS',
+    'SaaaaaaaaaaaS',
+    'SaaaAAaaaAAaS',
+    'SaaaaaaaaaaaS',
+    'SaAAaaaAAaaaS',
+    'SaaaaaaaaaaaS',
+    'SSSSSSSSSSSSS',
   ),
   /** 高尔夫：一片果岭、一个洞、一面旗、一处沙坑 */
   clubgolf: S(
@@ -166,17 +166,17 @@ export const PLACES: Record<string, Sprite> = {
     'XXXXXXAAAAAXX',
     '.XXXXXXXXXXX.',
   ),
-  /** 练习场：一台发球机（顶上一斗球、侧面出球口），前面一颗球 */
+  /** 练习场：一面练习墙前面一筐球 */
   practice: S(
+    'SSSSSSSSSSSSS',
+    'SdSdSdSdSdSdS',
+    'SSSSSSSSSSSSS',
     '.............',
     '...SSSSSSS...',
-    '...SgggggS...',
-    '...SSSSSSS.g.',
-    '...SdddddS...',
-    '...SdddddSSSg',
+    '...SgGgGgS...',
+    '...SGgGgGS...',
     '...SSSSSSS...',
-    '....d...d....',
-    'bbbbbbbbbbbbb',
+    '...d.....d...',
   ),
   /** 内场：大门的拱 + 门里两片球场 */
   club: S(

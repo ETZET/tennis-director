@@ -169,9 +169,12 @@ export function createMiniMap(o: MiniMapOpts): MiniMap {
         fill(KEYS.X, sx + 1, sy + 1, 3, 3);
       }
     }
-    const view = px(cv);
-    wrap.style.width = `${W * S}px`;
-    wrap.style.height = `${H * S}px`;
+    // 放得下就画两倍（第 3 轮评判：格子太小、面板大半空纸）
+    const room = (sheet.el.clientWidth || innerWidth - 12) - S * 10;
+    const k = W * S * 2 <= room ? 2 : 1;
+    const view = px(cv, k);
+    wrap.style.width = `${W * S * k}px`;
+    wrap.style.height = `${H * S * k}px`;
     wrap.replaceChildren(view);
     // 点一块牌子：卡顶浮出名字
     for (const n of g0.nodes) {
@@ -179,7 +182,12 @@ export function createMiniMap(o: MiniMapOpts): MiniMap {
       const hit = document.createElement('div');
       hit.className = 'pxm-hit';
       hit.dataset.tip = o.name(n.id);
-      Object.assign(hit.style, { left: `${x * S}px`, top: `${y * S}px`, width: `${TW * S}px`, height: `${TH * S}px` });
+      Object.assign(hit.style, {
+        left: `${x * S * k}px`,
+        top: `${y * S * k}px`,
+        width: `${TW * S * k}px`,
+        height: `${TH * S * k}px`,
+      });
       wrap.appendChild(hit);
     }
     const d = o.detail?.() ?? '';

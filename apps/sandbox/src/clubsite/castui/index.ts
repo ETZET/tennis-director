@@ -214,7 +214,7 @@ export function mountCast(o: MountCastOpts): CastMount {
           const p = CAST.get(id);
           if (!p) return [];
           const b = binder.objOf(id);
-          return [{ id, who: whoOfPerson(p), obj: b ? b.obj : null, dy: b ? headHeight(b.kind) + 0.5 : 2 }];
+          return [{ id, who: whoOfPerson(p), obj: b ? b.obj : null, dy: b ? headHeight(b.kind) + 1.6 : 2.6 }];
         }),
       go: (id) => walkTo(id, true),
       // 还会等多久：life 的 seekOf(CAST, state, id) 合进 main 以后换成 (until − minute) / (until − from)；?seekleft=0.6 是假数据

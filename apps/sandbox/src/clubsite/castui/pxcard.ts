@@ -19,12 +19,11 @@ import {
   hudScale,
   lang,
   named,
-  PAPER_DARK,
+  pips5,
   px,
   type TKey,
   t,
   tap,
-  weekPips,
 } from '../hud';
 import { KEYS } from '../hud/colors';
 import type { Card } from './card';
@@ -158,7 +157,7 @@ export function createPxCard(ctx: CastCtx, onShow?: (id: string | null) => void)
     near = ctx.near(id);
     const n = ctx.nowOf(id);
     const s = ctx.state();
-    const accent = accentNum(p.look);
+    const _accent = accentNum(p.look);
 
     // ── 头：肖像、名字、心、心情、一句话 ──
     const top = div('pxc-top');
@@ -201,7 +200,7 @@ export function createPxCard(ctx: CastCtx, onShow?: (id: string | null) => void)
           segs,
           color: KEYS.s,
           now: nowH,
-          mark: n.here && ctx.bound(id) && n.activity !== 'idle' ? ACT_GLYPH[n.activity] : null,
+          mark: null,
           dim: !n.here,
         }),
       ),
@@ -227,7 +226,7 @@ export function createPxCard(ctx: CastCtx, onShow?: (id: string | null) => void)
     favorShown = m.favor;
   }
 
-  function second(p: CastPerson, met: boolean, wd: number): HTMLElement {
+  function second(p: CastPerson, met: boolean, _wd: number): HTMLElement {
     const box = div('pxc-more');
     box.appendChild(div('pxs-rule'));
     // 没说过话：一个大问号 + 一句"聊聊才知道"，别的都不画
@@ -239,7 +238,6 @@ export function createPxCard(ctx: CastCtx, onShow?: (id: string | null) => void)
     }
     // 一周 7 个小太阳（来的那几天亮）+ 性子（≤ 3 个词）。每个人都画（每天都在的人 = 7 个都亮）：第二层的排版人人一样
     const l2 = div('pxc-line2');
-    l2.appendChild(named(px(weekPips(p.week ? p.week.days : null, wd, KEYS.s)), 'week'));
     for (const tid of p.traits.slice(0, 3)) {
       const tr = TRAITS[tid];
       if (tr) l2.appendChild(div('pxs-chip', tr.name));
@@ -253,12 +251,12 @@ export function createPxCard(ctx: CastCtx, onShow?: (id: string | null) => void)
     const top3 = [...vals].sort((a, b) => Math.abs(b.v - 0.5) - Math.abs(a.v - 0.5)).slice(0, 3);
     const g = div('pxc-attrs');
     // 条拉满卡宽（卡宽 − 图标 − 留边，纹素）
-    const bw = Math.max(40, Math.floor((sheet.el.clientWidth || 360) / hudScale()) - 28);
+    const _bw = Math.max(40, Math.floor((sheet.el.clientWidth || 360) / hudScale()) - 28);
     for (const a of vals) {
       if (!top3.includes(a)) continue;
       const it = named(div('pxc-attr'), `attr_${a.k}` as TKey);
       it.appendChild(px(glyph(a.g)));
-      it.appendChild(px(bar(a.v, bw, a.v >= 0.66 ? 0x6aa848 : a.v >= 0.34 ? 0xd89a30 : 0xc0545a, Math.round(bw / 5))));
+      it.appendChild(px(pips5(a.v)));
       g.appendChild(it);
     }
     box.appendChild(g);
@@ -270,7 +268,8 @@ export function createPxCard(ctx: CastCtx, onShow?: (id: string | null) => void)
         if (!o) continue;
         const b = btn('pxc-tie', o.nameZh || o.name);
         b.appendChild(px(headCrop(o.id, o)));
-        b.appendChild(named(px(glyph(TIE_GLYPH[tie.kind]), 1, 'k'), `tie_${tie.kind}` as TKey));
+        // 关系不另画角标（第 3 轮评判：蓝底小牌猜不出）：点头像出"名字 · 关系"
+        named(b, null, `${shortName(o)} · ${t(`tie_${tie.kind}` as TKey)}`);
         tap(b, () => {
           if (!list.includes(o.id)) list = [id, ...p.ties.map((x) => x.with)];
           show(o.id);

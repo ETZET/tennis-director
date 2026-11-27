@@ -27,9 +27,6 @@ export const HUD_CSS = `
 /* 左上：日钟 + 日期 */
 .pxh-clock { position: absolute; left: max(6px, env(safe-area-inset-left)); top: max(6px, env(safe-area-inset-top)); display: flex; flex-direction: column; align-items: center; gap: calc(var(--s) * 1px); min-width: 48px; min-height: 48px; }
 .pxh-clock:active .pxh-px:first-child { transform: translateY(2px); }
-/* 点日钟冒出来的小牌子（星期几 + 天气图标），一两秒消失 */
-.pxh-tip { position: absolute; left: max(6px, env(safe-area-inset-left)); top: calc(max(6px, env(safe-area-inset-top)) + var(--s) * 50px); display: flex; align-items: center; gap: 6px; transition: opacity 0.3s steps(3, end); }
-.pxh-tip.gone { opacity: 0; }
 
 /* 右上：钱 */
 .pxh-money { position: absolute; right: max(10px, env(safe-area-inset-right)); top: max(10px, calc(env(safe-area-inset-top) + 4px)); display: flex; align-items: center; gap: calc(var(--s) * 2px); }
@@ -48,7 +45,7 @@ export const HUD_CSS = `
 .pxh-btn .pxh-key { position: absolute; right: calc(var(--s) * -1px); top: calc(var(--s) * -3px); }
 .pxh-btn .pxh-dot { position: absolute; right: calc(var(--s) * -2px); top: calc(var(--s) * -2px); animation: pxh-bob 0.9s steps(2, end) infinite; }
 /* 没活：动作键不画（槽位留着，名册、地图不跳）；拿 / 放整个不出现 */
-.pxh-act.empty { visibility: hidden; pointer-events: none; }
+.pxh-act.empty { pointer-events: none; }
 .pxh-pick.empty { display: none; }
 .pxh-mood.read { visibility: hidden; transition: visibility 0s 0.32s; }
 .pxh-use.on .pxh-icon { animation: pxh-bob 0.36s steps(2, end) infinite; }
@@ -72,7 +69,7 @@ export const HUD_CSS = `
 .pxh-edge-job { pointer-events: none; }
 /* 进账：金币右上那块下面浮一行（一枚小金币 + 字），往上飘 1 纹素 × 4 就消失 */
 .pxh-cpop { position: absolute; right: max(10px, env(safe-area-inset-right)); top: calc(max(10px, calc(env(safe-area-inset-top) + 4px)) + var(--s) * 15px); display: flex; align-items: center; gap: calc(var(--s) * 2px); transition: opacity 0.3s steps(3, end); }
-.pxh-cpop.up { animation: pxh-cup 1.6s steps(4, end) forwards; }
+.pxh-cpop.up { animation: pxh-cup 2.6s steps(4, end) forwards; }
 .pxh-cpop.gone { opacity: 0; }
 @keyframes pxh-cup { from { transform: translateY(calc(var(--s) * 4px)); } to { transform: translateY(0); } }
 

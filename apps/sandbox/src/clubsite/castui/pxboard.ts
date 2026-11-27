@@ -25,6 +25,7 @@ const CSS = `
 .pxb-tile { position: relative; min-width: 44px; min-height: 48px; }
 /* 心情很差：头像底下一道短墨线 + 红（不和衣服色混：墨在外） */
 .pxb-tile.low::after { content: ''; position: absolute; left: 30%; right: 30%; bottom: 2px; height: 4px; background: #c0545a; box-shadow: 0 0 0 2px ${ink}; }
+.pxb-tile.seeking .face { box-shadow: 0 0 0 2px #f6d47a, 0 0 0 4px ${ink}; }
 .pxb-tile .seek { position: absolute; right: 4px; top: 2px; animation: pxb-bob 0.9s steps(2, end) infinite; }
 @keyframes pxb-bob { 50% { transform: translateY(-2px); } }
 .pxb-more { min-width: 44px; min-height: 48px; }
@@ -114,7 +115,10 @@ export function createPxBoard(ctx: CastCtx): Roster {
         b.dataset.id = p.id;
         b.setAttribute('aria-label', shortName(p));
         b.appendChild(px(headCrop(p.id, p), 1, 'face'));
-        if (ctx.seeking(p.id)) b.appendChild(named(px(seekDot(), 1, 'seek'), 'seeking'));
+        if (ctx.seeking(p.id)) {
+          b.classList.add('seeking');
+          b.appendChild(named(px(seekDot(), 1, 'seek'), 'seeking'));
+        }
         tap(b, () => {
           sheet.close();
           ctx.openCard(p.id, ids);

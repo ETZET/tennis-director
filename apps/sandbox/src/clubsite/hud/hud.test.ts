@@ -7,6 +7,7 @@ import { moodOf } from './mood';
 import { PLACES } from './places';
 import { CHROMA_MAX, tame } from './sheet';
 import type { Sprite } from './sprite';
+import { HUD_CSS } from './style';
 
 describe('moodOf', () => {
   it('台词 → 心情泡', () => {
@@ -102,6 +103,21 @@ describe('卡片、名册、小地图的小图压过彩度', () => {
         for (const v of Object.values(t.keys ?? {})) expect(chroma(v), id).toBeLessThanOrEqual(CHROMA_MAX);
       }
     expect(CHROMA_MAX).toBeLessThan(chroma(KEYS.X));
+  });
+});
+
+describe('locked：动作键的槽永远在', () => {
+  it('没活的动作键不藏（只剩一圈细边）', () => {
+    expect(HUD_CSS).not.toMatch(/\.pxh-act\.empty\s*\{[^}]*(visibility:\s*hidden|display:\s*none)/);
+  });
+  it('界面上所有图标压过彩度以后都 ≤ CHROMA_MAX', () => {
+    const chroma = (c: number) => {
+      const ch = [(c >> 16) & 255, (c >> 8) & 255, c & 255];
+      return Math.max(...ch) - Math.min(...ch);
+    };
+    for (const set of [ICONS, MOODS, WEATHER_ICONS] as Record<string, Sprite>[])
+      for (const [id, s] of Object.entries(set))
+        for (const v of Object.values(tame(s).keys ?? {})) expect(chroma(v), id).toBeLessThanOrEqual(CHROMA_MAX);
   });
 });
 

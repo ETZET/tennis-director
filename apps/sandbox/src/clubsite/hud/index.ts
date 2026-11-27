@@ -21,17 +21,16 @@ import { dayLook, type Weather } from '../daylight/sky';
 import type { Anchor, Play } from '../play';
 import { drawClock } from './clock';
 import { CREAM, hex, INK, INK_SHADOW, KEYS } from './colors';
-import { textCanvas } from './font';
 import { ACT, GLYPH } from './glyphs';
 import { type TKey, t, weekday } from './i18n';
-import { ICONS, type IconId, MOODS, type MoodId, WEATHER_ICONS } from './icons';
+import { ICONS, type IconId, MOODS, type MoodId } from './icons';
 import { createIris, type Iris } from './iris';
 import { moodOf } from './mood';
 import { PLACES } from './places';
 import { ensurePixelFont } from './pxfont';
 import { hudScale } from './scale';
 import { seekersOf } from './seek';
-import { setSheetAvoid } from './sheet';
+import { setSheetAvoid, tame, tameColor } from './sheet';
 import { blit, type Sprite, spriteCanvas } from './sprite';
 import { HUD_CSS } from './style';
 
@@ -195,16 +194,16 @@ const PLATE_ACT = 26;
 /** 按钮右上角的点（有人在找你）：7×7 —— 墨边、奶油环、3×3 草帽芯（任何底上都看得见，常驻界面上唯一的暖色点） */
 function dotCanvas(): HTMLCanvasElement {
   const c = document.createElement('canvas');
-  c.width = 7;
-  c.height = 7;
+  c.width = 9;
+  c.height = 9;
   const g = c.getContext('2d') as CanvasRenderingContext2D;
   g.fillStyle = hex(INK);
-  g.fillRect(1, 0, 5, 7);
-  g.fillRect(0, 1, 7, 5);
+  g.fillRect(1, 0, 7, 9);
+  g.fillRect(0, 1, 9, 7);
   g.fillStyle = hex(CREAM);
-  g.fillRect(1, 1, 5, 5);
+  g.fillRect(1, 1, 7, 7);
   g.fillStyle = hex(STRAW);
-  g.fillRect(2, 2, 3, 3);
+  g.fillRect(2, 2, 5, 5);
   return c;
 }
 
@@ -214,32 +213,45 @@ function dotCanvas(): HTMLCanvasElement {
  */
 function seekBubble(left: number | null = null): HTMLCanvasElement {
   const n = 9;
+  // 外面留 1 纹素给倒计时环
+  const o = 1;
   const c = document.createElement('canvas');
-  c.width = n;
-  c.height = n + 3;
+  c.width = n + o * 2;
+  c.height = n + 3 + o * 2;
   const g = c.getContext('2d') as CanvasRenderingContext2D;
+  const put1 = (x: number, y: number, col: number) => {
+    g.fillStyle = hex(col);
+    g.fillRect(x + o, y + o, 1, 1);
+  };
   for (let y = 0; y < n; y++)
     for (let x = 0; x < n; x++) {
       if ((x === 0 || x === n - 1) && (y === 0 || y === n - 1)) continue;
-      g.fillStyle = hex(x === 0 || y === 0 || x === n - 1 || y === n - 1 ? INK : CREAM);
-      g.fillRect(x, y, 1, 1);
+      put1(x, y, x === 0 || y === 0 || x === n - 1 || y === n - 1 ? INK : CREAM);
     }
-  g.fillStyle = hex(STRAW);
-  if (left === null) g.fillRect(3, 3, 3, 3);
-  else {
-    // 倒计时：泡里面从下往上一格草帽色，剩得越少越矮（墨边不动：在亮地面上也看得清）
-    const hgt = Math.max(1, Math.round(Math.max(0, Math.min(1, left)) * (n - 4)));
-    g.fillRect(2, n - 2 - hgt, n - 4, hgt);
+  for (let y = 3; y < 6; y++) for (let x = 3; x < 6; x++) put1(x, y, STRAW);
+  // 尾巴
+  put1(3, n - 1, INK);
+  put1(5, n - 1, INK);
+  put1(4, n - 1, CREAM);
+  put1(3, n, INK);
+  put1(4, n, CREAM);
+  put1(5, n, INK);
+  put1(4, n + 1, INK);
+  put1(4, n + 2, INK_SHADOW);
+  if (left !== null) {
+    // 倒计时：泡外面一圈（-1 … n）从正上方顺时针，剩多少亮多少草帽色，其余是墨（环永远是完整的一圈，只是金的那段变短）
+    const ring: [number, number][] = [];
+    const m = Math.floor(n / 2);
+    for (let x = m; x <= n; x++) ring.push([x, -1]);
+    for (let y = 0; y <= n - 1; y++) ring.push([n, y]);
+    for (let x = n - 1; x >= -1; x--) if (x < 3 || x > 5) ring.push([x, n]);
+    for (let y = n - 1; y >= -1; y--) ring.push([-1, y]);
+    for (let x = 0; x < m; x++) ring.push([x, -1]);
+    const k = Math.round(Math.max(0, Math.min(1, left)) * ring.length);
+    ring.forEach(([x, y], i) => {
+      put1(x, y, i < k ? STRAW : INK);
+    });
   }
-  g.fillStyle = hex(INK);
-  g.fillRect(3, n - 1, 3, 1);
-  g.fillRect(3, n - 1, 1, 2);
-  g.fillRect(5, n - 1, 1, 2);
-  g.fillRect(4, n + 1, 1, 1);
-  g.fillStyle = hex(CREAM);
-  g.fillRect(4, n - 1, 1, 2);
-  g.fillStyle = hex(INK_SHADOW);
-  g.fillRect(4, n + 2, 1, 1);
   return c;
 }
 
@@ -356,7 +368,7 @@ function jobCanvas(id: MoodId): HTMLCanvasElement {
     for (let x = 0; x < row.length; x++) {
       const ch = row[x];
       if (ch === '.') continue;
-      put1(x + 3, y + 3, KEYS[ch]);
+      put1(x + 3, y + 3, tameColor(KEYS[ch]));
     }
   });
   return c;
@@ -379,9 +391,9 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
   let S = hudScale();
   root.style.setProperty('--s', String(S));
   /** 不在底板上的图标（金币、弹出来的东西）：墨色描边外面再 1 纹素奶油贴纸边 */
-  const icon = (id: IconId, ring = CREAM) => spriteCanvas(ICONS[id], id, true, ring);
+  const icon = (id: IconId, ring = CREAM) => spriteCanvas(tame(ICONS[id]), id, true, ring);
   /** 底板上的图标：墨底就是它的描边，不再加边 */
-  const bare = (id: IconId) => spriteCanvas(ICONS[id], id, false);
+  const bare = (id: IconId) => spriteCanvas(tame(ICONS[id]), id, false);
   /**
    * 字：两种，不混中间态（第 3 轮评判）。固定的数字（钱、第几天）= 5×7 点阵字，和图标同一个纹素网格；
    * 浮动的话（上方一行、小牌子、地点名、提示）= 平滑的系统字 + 1 px 墨色细描边（同参考的浮动中文），不假装像素。
@@ -440,11 +452,8 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
   let jumpTo = 0;
   let jumpT0 = 0;
   root.appendChild(clockBtn);
-  // 点日钟：小牌子（星期几 + 天气图标），1.8 秒；调试里 = 调时间面板
-  const tip = document.createElement('div');
-  tip.className = 'pxh-tip gone';
-  root.appendChild(tip);
-  let tipTimer = 0;
+  // 点日钟："第 1 天"那一行换成星期几 1.5 秒再换回来（不另叠一行）；调试里 = 调时间面板
+  let weekdayUntil = 0;
   const panel = day.panel;
   let debug = false;
   // 调试的入口：3 秒内连点日钟 5 下（玩家看不见、碰不到），或者 ?debug=1
@@ -455,7 +464,8 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
     if (taps.length >= 5) {
       taps = [];
       setDebug(!debug);
-      tip.classList.add('gone');
+      weekdayUntil = 0;
+      dateKey = '';
       return;
     }
     if (debug && panel) {
@@ -463,11 +473,8 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
       placePanel();
       return;
     }
-    const dayN = Math.floor(day.total / 24) + 1;
-    tip.replaceChildren(view(spriteCanvas(WEATHER_ICONS[day.current], `w-${day.current}`)), label(weekday(dayN)));
-    tip.classList.remove('gone');
-    clearTimeout(tipTimer);
-    tipTimer = window.setTimeout(() => tip.classList.add('gone'), 1800);
+    weekdayUntil = now + 1500;
+    dateKey = '';
   });
   function placePanel() {
     if (!panel?.isOpen()) return;
@@ -492,10 +499,11 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
       clockCv.style.height = `${h * S}px`;
     }
     const dayN = Math.floor(day.total / 24) + 1;
-    const ds = `${t('date', { wd: weekday(dayN), d: dayN })}|${S}`;
+    const wdShow = performance.now() < weekdayUntil;
+    const ds = `${t('date', { wd: weekday(dayN), d: dayN })}|${S}|${wdShow}`;
     if (ds !== dateKey) {
       dateKey = ds;
-      dateTx.textContent = t('dayN', { d: dayN });
+      dateTx.textContent = wdShow ? weekday(dayN) : t('dayN', { d: dayN });
       clockBtn.setAttribute('aria-label', `${t('clock')} · ${t('date', { d: dayN })}`);
     }
     // 几点：整 1 分钟走一格
@@ -539,7 +547,7 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
     void cpopEl.offsetWidth;
     cpopEl.classList.add('up');
     clearTimeout(cpopT);
-    cpopT = window.setTimeout(() => cpopEl.classList.add('gone'), 1600);
+    cpopT = window.setTimeout(() => cpopEl.classList.add('gone'), 2600);
   }
 
   // ── 右下：按钮（固定槽位） ──
@@ -738,7 +746,7 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
     const ar = document.createElement('canvas');
     ar.className = 'pxh-px pxh-earrow';
     ar.dataset.k = '1';
-    el.append(view(plateCanvas(14), 1, 'pxh-plate'), ic, ar);
+    el.append(view(plateCanvas(18), 1, 'pxh-plate'), ic, ar);
     root.appendChild(el);
     const st = { id: '', key: '', dir: '' };
     if (tap)
@@ -1115,7 +1123,7 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
             off.p.y,
             w,
             h,
-            () => spriteCanvas(MOODS[mid], `job-${mid}`, false),
+            () => spriteCanvas(tame(MOODS[mid]), `job-${mid}`, false),
             mid,
             seekEdge.dir,
           );
@@ -1291,7 +1299,7 @@ function showSheet(kind = '1') {
       seen.add(set[id]);
       n++;
       key[n] = `${name}/${id}`;
-      add(spriteCanvas(set[id], `sheet-${name}-${id}`), 4, String(n));
+      add(spriteCanvas(tame(set[id]), `sheet-${name}-${id}`), 4, String(n));
     }
   };
   group('hud', ICONS, ['dots', 'cal', 'arrow', 'focus']);
