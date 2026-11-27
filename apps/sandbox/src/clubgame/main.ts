@@ -1,6 +1,11 @@
-// clubgame：整个游戏的入口（页面 clubvista.html）。把两套地图合成一个能玩的页面：
-//   - 分图（clubvista/world.ts 的 mountVista）：到达、中心球场、歇脚、练习场四张主题小图，开局在到达图的公交站；
-//   - 内场（clubwalk/walk.ts 的 mountWalk）：clubwalk 的整座俱乐部（红土、匹克球、会员场、会所、餐车院子、高尔夫、广场……）当第五张图。
+// clubgame：整个游戏的入口（页面 clubvista.html）。
+// 第三轮（2026-11-26）起：游戏 = 九张分图（clubvista/world.ts 的 mountVista；到达、中心球场、歇脚、练习场、喷泉广场、会所大堂、球场街、
+// 青训场、果岭），一个场景、一块画布、一个 WebGL 上下文。旧的"内场"（clubwalk 的整座俱乐部当第五张图）默认不加载；
+// ?inner=1（或 world=club）才接回来作对照：到达图前台东边的踏脚石改通内场的大门，下面这些"两个世界同住一页"的做法只在那时生效。
+//
+// （?inner=1 时）把两套地图合成一个能玩的页面：
+//   - 分图：开局在到达图的公交站；
+//   - 内场（clubwalk/walk.ts 的 mountWalk）：clubwalk 的整座俱乐部。
 // 从到达图前台东边的踏脚石走出去 → 圆形转场 → 内场的大门里；从内场的大门走出去 → 圆形转场 → 回到前台东边。
 //
 // 怎么同住一页：两个世界各有自己的画布（#c / #cw）、画面管线、总监、导航、像素界面、人物界面（都是 clubsite 的同一套代码，
@@ -18,6 +23,7 @@ import * as THREE from 'three';
 import { createCastStore } from '../clubsite/castui';
 import { createIris, createWaySigns, type WaySigns } from '../clubsite/hud';
 import { GATE } from '../clubsite/world';
+import { MAPS } from '../clubvista/maps';
 import { mapName } from '../clubvista/text';
 import { mountVista } from '../clubvista/world';
 import type { WalkApi } from '../clubwalk/walk';
@@ -35,13 +41,20 @@ function mountGame() {
   const params = new URLSearchParams(location.search);
   const store = createCastStore(params);
   let active: World = 'vista';
+  /** 旧内场接不接（默认不接：页面里只有分图这一个 WebGL 上下文） */
+  const INNER = params.get('inner') === '1' || params.get('world') === 'club';
+  if (INNER) {
+    // 到达图东边的踏脚石改回通内场的大门（默认通喷泉广场）
+    for (const ex of MAPS.find((m) => m.id === 'arrive')?.exits ?? [])
+      if (ex.to === 'plaza') Object.assign(ex, { to: 'club', entry: 'gate' });
+  } else document.getElementById('cw')?.remove();
 
   // ── 界面分层：两个世界都往 body 上挂界面，记下谁挂的，不在台上的那一层藏起来 ──
   const owned: Record<World, Set<HTMLElement>> = { vista: new Set(), club: new Set() };
   /** 现在往 body 上挂东西的是谁（null = 共用的：换世界的转场、小地图、加载牌） */
   let tagging: World | null = null;
   const cVista = document.getElementById('c') as HTMLCanvasElement;
-  const cClub = document.getElementById('cw') as HTMLCanvasElement;
+  const cClub = document.getElementById('cw') as HTMLCanvasElement | null;
   for (const id of ['labels', 'info', 'palsel']) {
     const e = document.getElementById(id);
     if (e) owned.vista.add(e);
@@ -76,7 +89,7 @@ function mountGame() {
     active = w;
     tagging = w;
     cVista.style.visibility = w === 'vista' ? 'visible' : 'hidden';
-    cClub.style.visibility = w === 'club' ? 'visible' : 'hidden';
+    if (cClub) cClub.style.visibility = w === 'club' ? 'visible' : 'hidden';
     for (const k of ['vista', 'club'] as const) for (const e of owned[k]) e.classList.toggle('world-off', k !== w);
     if (casts[w]) win.__cast = casts[w];
   }
@@ -92,6 +105,7 @@ function mountGame() {
     const map = createWorldMap(
       () => (active === 'club' ? 'club' : vista.cur()),
       () => (active === 'club' ? clubPlace : ''),
+      INNER,
     );
     const iris = createIris({
       center: () => {
@@ -129,9 +143,11 @@ function mountGame() {
       active: () => active === 'vista',
       castStore: store,
       mapButton,
-      outer: (to) => {
-        if (to === 'club') void toClub();
-      },
+      outer: INNER
+        ? (to) => {
+            if (to === 'club') void toClub();
+          }
+        : undefined,
     }),
   );
   casts.vista = win.__cast;
@@ -157,7 +173,7 @@ function mountGame() {
     as('club', () => {
       m.mountWalk({
         pixelHud: true,
-        canvas: cClub,
+        canvas: cClub as HTMLCanvasElement,
         params: walkParams,
         start: [GATE_IN[0], GATE_IN[1]],
         active: () => active === 'club',
@@ -248,7 +264,7 @@ function mountGame() {
 
   if (params.get('world') === 'club') void toClub(false);
   // 闲着的时候先把内场的代码拿下来（不建）：第一次转场少等一会儿
-  else setTimeout(() => void import('../clubwalk/walk'), 6000);
+  else if (INNER) setTimeout(() => void import('../clubwalk/walk'), 6000);
 
   Object.assign(window, {
     __castOf: (w: World) => casts[w],

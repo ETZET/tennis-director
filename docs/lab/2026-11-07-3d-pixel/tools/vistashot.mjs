@@ -1,4 +1,4 @@
-// clubvista 一轮的验收截图：四张图 × 竖屏 390×844 / 横屏 1280×720（12 点），同一个浏览器里连拍（比 shot.mjs 一张开一次快）。
+// clubvista 一轮的验收截图：每张图（ONLY=plaza,street 只拍这几张；取景点 = MapDef.shot，没有就用下面的表 / 图的中心） × 竖屏 390×844 / 横屏 1280×720（12 点），同一个浏览器里连拍（比 shot.mjs 一张开一次快）。
 // node docs/lab/2026-11-07-3d-pixel/tools/vistashot.mjs <输出目录> [端口 5343] [额外查询串，如 "hour=18.1"] [后缀]
 // 每张：clubvista.html?map=<id>&pause=1&look=<x,z>&<额外>；文件名 <id>-port<后缀>.png / <id>-land<后缀>.png。控制台报错会打出来。
 import { existsSync, mkdirSync, readdirSync } from 'node:fs';
@@ -25,10 +25,28 @@ const SHOTS = [
   { id: 'practice', land: '14,26', port: '15,28' },
 ];
 const only = process.env.ONLY?.split(',');
+/** 新图的取景点写在图自己的数据里（MapDef.shot）：先开一次页面把它们读出来（第三轮：图多了，不用每张都来改这个表） */
+async function readShots(browser) {
+  const page = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1 });
+  await page.goto(`http://localhost:${port}/clubvista.html?pause=1&ui=0`);
+  await page.waitForFunction(() => window.__vista, null, { timeout: 60000 });
+  const defs = await page.evaluate(() =>
+    window.__vista.built.map((b) => ({ id: b.def.id, shot: b.def.shot ?? null, W: b.def.W, D: b.def.D })),
+  );
+  await page.close();
+  for (const d of defs) {
+    const row = SHOTS.find((s) => s.id === d.id);
+    const def = { land: `${d.W / 2},${d.D / 2}`, port: `${d.W / 2},${d.D / 2}` };
+    const shot = d.shot ? { land: d.shot.land.join(','), port: d.shot.port.join(',') } : null;
+    if (row) Object.assign(row, shot ?? {});
+    else SHOTS.push({ id: d.id, ...(shot ?? def) });
+  }
+}
 const browser = await pw.chromium.launch({
   executablePath: existsSync(exe) ? exe : undefined,
   args: ['--use-gl=angle', '--enable-unsafe-swiftshader'],
 });
+await readShots(browser);
 for (const s of SHOTS) {
   if (only && !only.includes(s.id)) continue;
   for (const [kind, w, h] of [
@@ -42,6 +60,8 @@ for (const s of SHOTS) {
     const url = `http://localhost:${port}/clubvista.html?map=${s.id}&pause=1&look=${s[kind]}${extra ? `&${extra}` : ''}`;
     await page.goto(url);
     await page.waitForFunction(() => window.__vista, null, { timeout: 60000 });
+    // ui=0 时像素界面没挂上，配色切换牌（#palsel）和调试牌会露出来：验收图里藏掉
+    await page.addStyleTag({ content: '#palsel, #info, .pxsel { display: none !important; }' });
     await page.waitForTimeout(2500);
     const file = `${out}/${s.id}-${kind}${suffix}.png`;
     await page.screenshot({ path: file });

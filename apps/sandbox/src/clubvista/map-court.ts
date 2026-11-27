@@ -47,9 +47,8 @@ const match: Prop[] = [
   // 球员长椅（裁判两边）+ 伞 + 球拍包
   { a: 'player-bench', x: C.x0 + 1.1, z: NET - 2.8, r: PI / 2 },
   { a: 'player-bench', x: C.x0 + 1.1, z: NET + 2.8, r: PI / 2 },
-  // 球员伞用本地的米白伞 + 蓝下摆（第 4 轮：main 上共用的场边伞换成了珊瑚红白条，两把并排成了整屏最艳的暖色）
+  // 第三轮：只留北边一把（两把一样的白伞并排读成一对小圆点）。球员伞用本地的米白伞 + 蓝下摆（第 4 轮：main 上共用的场边伞换成了珊瑚红白条，两把并排成了整屏最艳的暖色）
   { a: 'parasol', x: C.x0 + 1.0, z: NET - 4.4, v: 1, block: 0.2 },
-  { a: 'parasol', x: C.x0 + 1.0, z: NET + 4.4, v: 1, block: 0.2 },
   { a: 'kit-bag', x: C.x0 + 1.2, z: NET - 1.6, r: PI / 2, v: 0 },
   { a: 'kit-bag', x: C.x0 + 1.2, z: NET + 1.6, r: PI / 2, v: 1 },
   // 两个球员：北边发球、南边准备接
@@ -437,4 +436,21 @@ export const court: MapDef = {
   },
   start: { at: [14, 56.4], yaw: PI },
   clouds: [[42, 16, 5, 3]],
+  shot: { port: [14, 34], land: [14, 24] },
+  // 兴趣点（给"人和活"那条线；画面不读）
+  spots: [
+    { id: 'door-south', kind: 'door', at: [12.4, 63.6], yaw: PI, note: '南口（← 到达）' },
+    { id: 'door-east', kind: 'door', at: [37.6, 37.2], yaw: -PI / 2, note: '东口（← 歇脚）' },
+    { id: 'door-north', kind: 'door', at: [0, -0.4], yaw: 0, note: '西北石阶（← 练习场）' },
+    { id: 'gate', kind: 'watch', at: [CX, FRONT_S + 2.4], yaw: PI, note: '进场口外，站着往场里看' },
+    { id: 'gate-queue', kind: 'queue', at: [CX, FRONT_S + 4], yaw: PI, note: '进场排队的队头，往南排' },
+    { id: 'base-n', kind: 'play', at: [CX, BASE_N - 0.6], yaw: 0, note: '北底线（发球）' },
+    { id: 'base-s', kind: 'play', at: [CX, BASE_S + 0.8], yaw: PI, note: '南底线（接发）' },
+    { id: 'net-post-e', kind: 'work', at: [C.x1 - 1.6, NET], yaw: -PI / 2, note: '东边网柱（总监：量网高、捡球）' },
+    { id: 'bench-n', kind: 'rest', at: [C.x0 + 1.9, NET - 2.8], yaw: PI / 2, seat: 0.45, note: '球员席（北）前面' },
+    { id: 'bench-s', kind: 'rest', at: [C.x0 + 1.9, NET + 2.8], yaw: PI / 2, seat: 0.45, note: '球员席（南）前面' },
+    { id: 'tunnel', kind: 'door', at: [CX, C.z0 + 1.2], yaw: 0, note: '球员通道口（球员从这里出来）' },
+    { id: 'baseline-sweep', kind: 'work', at: [CX + 4, BASE_S + 2.4], yaw: PI, note: '南底线后（总监：刷线、拖场）' },
+    { id: 'east-walk', kind: 'watch', at: [28.6, 44], yaw: -PI / 2, note: '东廊（看台背后）' },
+  ],
 };

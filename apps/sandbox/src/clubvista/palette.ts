@@ -5,9 +5,14 @@
 // 《垂钓手记》的整屏规则（~/workspace/tennis-director-refs/club-redo/brief/analysis.md）：大面安静（元素少、缝浅、块大），
 // 受光暖、背光冷，冷的大面（球场、池水、干河床、马路）放在每张图最低的那层。
 
+import { PAL as CLAY_PAL } from '../clubclay/palette';
 import { GROUP_AS as COURTS_AS, PAL as COURTS_PAL } from '../clubcourts/palette';
 import { PAL as FOOD_PAL, PROXY as FOOD_PROXY } from '../clubfood/palette';
+import { PAL as GOLF_PAL, PROXY as GOLF_PROXY } from '../clubgolf/palette';
 import { PAL as HOUSE_PAL, PROXY as HOUSE_PROXY } from '../clubhouse/palette';
+import { PAL as PARK_PAL } from '../clubpark/palette';
+import { PAL as PICKLE_PAL } from '../clubpickle/palette';
+import { PAL as PLAZA_PAL, PROXY as PLAZA_PROXY } from '../clubplaza/palette';
 import { PAL as POOL_PAL, PROXY as POOL_PROXY, SUN_SKIP as POOL_SUN_SKIP } from '../clubpool/palette';
 import type { Swatch } from '../clubsite/render/palette';
 import type { Elem, Tones } from '../clubsite/render/toon';
@@ -221,22 +226,54 @@ const VISTA = {
   poolStone: s([0xeadcc4, 0xc8b8b8, 0x7a7896], 0.1, 0.05),
   /** 歇脚的小路：浅一档的灰沙（第 4 轮：露台、池边、小路是同一种陶土橙，糊成一团） */
   gravel: s([0xdcc6a2, 0xb4a49c, 0x6e6a8a], 0.08, 0),
+  /** 果岭（golf 图）：推杆果岭的短草，比周围的草冷一档（色相 ≈ 140°，L 171），平涂、不撒草叶 —— 这张图最大的安静面 */
+  puttGreen: s([0x6cc488, 0x4ea37c, 0x2f7472], 0.05, 0),
+  /** 果岭（golf 图）：割草条纹，比 puttGreen 浅半档（很淡，只读成"刚割过"） */
+  puttStripe: s([0x76cb90, 0x56a984, 0x357a78], 0.05, 0),
+  /** 果岭（golf 图）：领草（fringe），果岭外一圈，比果岭暖、浅一档，比周围的草冷 */
+  puttFringe: s([0x88cf78, 0x60ad6c, 0x387e70], 0.05, 0),
+  /** 练习场（practice 图）的半片场、发球机道：比 practiceOut 亮一档的浅青（色相 ≈ 174°，L 170；中心球场是 200°+ 的蓝） */
+  drillIn: s([0x66cab8, 0x48a2a0, 0x2e6e7e], 0.05, 0),
+  /** 练习场（practice 图）坑里的外圈：中一档的青（色相 ≈ 184°，L 138） */
+  drillOut: s([0x40a6aa, 0x327e8c, 0x255a74], 0.05, 0),
+  /** 到达（arrive）停车场车棚的帆布：米白（比前台的奶油杏帆淡、彩度低，不抢焦点），暗档冷灰紫；不接投影（薄布） */
+  arriveSail: { ...s([0xf0e4cc, 0xc8b4b0, 0x7e7698], 0.4, 0.2), opts: { noShadowReceive: true } },
+  /** 车棚帆布的条：浅暖灰（和米白只差一点，远看是一整块） */
+  arriveSailStripe: { ...s([0xd8ccbc, 0xb0a2a8, 0x6e6890], 0.4, 0.2), opts: { noShadowReceive: true } },
   /** 白模：占位体块（冷灰，按高度一档档） */
   box: s([0xd8d6e4, 0xa8a4c0, 0x6a6690], 0.6, 0.5),
   /** 白模：占位体块的主角色（每张图一个最鲜艳的暖色：入口的车、前台的帆、泳池的伞……） */
   boxHot: s([0xff8a5c, 0xd85a5a, 0x7a3a6a], 0.6, 0.5),
 } as const satisfies Record<string, Swatch>;
 
-export const PAL = { ...HOUSE_PAL, ...FOOD_PAL, ...POOL_PAL, ...COURTS_PAL, ...STADIUM_PAL, ...VISTA } as const;
+// 第三轮：内场剩下的地方也改成分图 —— 红土、匹克球、广场、停车场、高尔夫的表也并进来（它们的资产只读复用时颜色一个不差）。
+// 后面的盖前面的：原来四张图用到的表（会所、餐车、泳池、会员场、中心球场）排在后面，同名的条目不变。
+export const PAL = {
+  ...PARK_PAL,
+  ...CLAY_PAL,
+  ...PICKLE_PAL,
+  ...PLAZA_PAL,
+  ...GOLF_PAL,
+  ...HOUSE_PAL,
+  ...FOOD_PAL,
+  ...POOL_PAL,
+  ...COURTS_PAL,
+  ...STADIUM_PAL,
+  ...VISTA,
+} as const;
 export type Pal = typeof PAL;
 
 /** 新材质借哪个名字过配色方案的分组（同 clubpool / clubfood 的 PROXY 做法；方案的 GROUP 表不归这里改） */
 export const GRADE_AS: Partial<Record<keyof Pal, keyof Pal>> = {
+  ...(PLAZA_PROXY as Partial<Record<keyof Pal, keyof Pal>>),
+  ...(GOLF_PROXY as Partial<Record<keyof Pal, keyof Pal>>),
   ...(HOUSE_PROXY as Partial<Record<keyof Pal, keyof Pal>>),
   ...(FOOD_PROXY as Partial<Record<keyof Pal, keyof Pal>>),
   ...(POOL_PROXY as Partial<Record<keyof Pal, keyof Pal>>),
   ...(STADIUM_PROXY as Partial<Record<keyof Pal, keyof Pal>>),
   ...(COURTS_AS as Partial<Record<keyof Pal, keyof Pal>>),
+  // 匹克球场（第三轮，球场街）：场面、厨房借球场的组（不然过配色方案以后厨房发灰）
+  kitchen: 'court',
   floor: 'sand',
   mesa: 'sandHigh',
   washBed: 'water',
@@ -256,8 +293,17 @@ export const GRADE_AS: Partial<Record<keyof Pal, keyof Pal>> = {
   roadPaint: 'line',
   bluff: 'cliff',
   bluffLip: 'cliffLip',
+  /** 果岭（golf 图） */
+  puttGreen: 'lawn',
+  puttStripe: 'lawn',
+  puttFringe: 'lawn',
+  /** 练习场的半片场（practice 图） */
+  drillIn: 'court',
+  drillOut: 'court',
   box: 'placeholder',
   boxHot: 'placeholder',
+  arriveSail: 'canvas',
+  arriveSailStripe: 'canvas',
 };
 
 /** 亮档要除掉多少太阳色（1 = 一点不染）：水面亮处是天光 */
@@ -270,6 +316,8 @@ export const SUN_SKIP: Partial<Record<keyof Pal, number>> = {
   courtIn: 0.6,
   practiceIn: 0.7,
   practiceOut: 0.7,
+  drillIn: 0.7,
+  drillOut: 0.7,
   stepStone: 0.6,
 };
 

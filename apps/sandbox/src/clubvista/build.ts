@@ -12,7 +12,15 @@ import type { Court, ElKey, MapDef, Plate, Prop, Stair, Strip, V2 } from './mapd
 import { NIGHT_PROPS } from './night-props';
 import { EL, GRADE_AS, PAL, type Pal, SUN_SKIP } from './palette';
 import { placeholder, SPECS } from './placeholders';
-import { REUSED } from './reuse';
+import { REUSED as BASE_REUSED } from './reuse';
+
+/**
+ * 每张图自己的复用表（reuse-<图>.ts，export const REUSED）：只读引用别的小景的资产，id 加图的前缀免得撞名（例 'plaza:fountain'）。
+ * 共用的那张 reuse.ts 不用每张图都去改。
+ */
+const REUSE_MODS = import.meta.glob<{ REUSED: Record<string, AssetBuild> }>('./reuse-*.ts', { eager: true });
+const REUSED: Record<string, AssetBuild> = { ...BASE_REUSED };
+for (const mod of Object.values(REUSE_MODS)) Object.assign(REUSED, mod.REUSED);
 
 /** 这个场景自己画的资产（assets/<id>.ts，export function build）；同名的优先于复用的 */
 const MODS = import.meta.glob<{ build: AssetBuild }>('./assets/*.ts', { eager: true });
@@ -275,7 +283,7 @@ export function buildMap(def: MapDef, ox: number, kit: Kit, params: URLSearchPar
     paintCourt(c, (g, key) =>
       addMesh(
         g,
-        ctx.mat(key, c.look === 'practice' && key !== 'line' ? { elem: EL.courtWear } : {}),
+        ctx.mat(key, (c.wear ?? c.look === 'practice') && key !== (c.lineMat ?? 'line') ? { elem: EL.courtWear } : {}),
         `court:${c.id}:${key}`,
       ),
     );
@@ -365,7 +373,7 @@ export function buildMap(def: MapDef, ox: number, kit: Kit, params: URLSearchPar
       const x = gx0 + (i + 0.5) * CELL;
       const z = gz0 + (j + 0.5) * CELL;
       const p = plateAt(x, z);
-      let h = p ? p.h : 0;
+      let h = p ? p.h : def.interior ? Number.NaN : 0;
       if (p && p.walk === false) h = Number.NaN;
       else if (onBank(x, z)) h = Number.NaN;
       else if (def.noWalk.some((poly) => insidePoly([x, z], poly))) h = Number.NaN;
@@ -628,14 +636,30 @@ function paintCourt(c: Court, add: (g: THREE.BufferGeometry, key: keyof Pal) => 
     g.deleteAttribute('uv');
     return g;
   };
-  add(q({ x0: c.x0, x1: c.x1, z0: c.z0, z1: c.z1 }, 0.008), c.look === 'practice' ? 'practiceOut' : 'courtOut');
-  const m = 1.4;
-  add(
-    q(r(-L / 2 - m, L / 2 + m, -DW / 2 - m * 0.6, DW / 2 + m * 0.6), 0.014),
-    c.look === 'practice' ? 'practiceIn' : 'courtIn',
-  );
+  const outKey = c.outMat ?? (c.look === 'practice' ? 'practiceOut' : 'courtOut');
+  const inKey = c.inMat ?? (c.look === 'practice' ? 'practiceIn' : 'courtIn');
+  const lineKey = c.lineMat ?? 'line';
+  add(q({ x0: c.x0, x1: c.x1, z0: c.z0, z1: c.z1 }, 0.008), outKey);
   const lines: THREE.BufferGeometry[] = [];
   const line = (u0: number, u1: number, v0: number, v1: number) => lines.push(q(r(u0, u1, v0, v1), 0.02));
+  if (c.kind === 'pickle') {
+    // 匹克球：13.41 × 6.10，网两边各 2.13 米的非截击区（厨房，深一级的蓝），厨房线到底线一条中线
+    const PL = 13.41;
+    const PW = 6.1;
+    const NVZ = 2.13;
+    add(q(r(-PL / 2, PL / 2, -PW / 2, PW / 2), 0.014), inKey);
+    add(q(r(-NVZ, NVZ, -PW / 2, PW / 2), 0.017), c.kitchenMat ?? ('kitchen' as keyof Pal));
+    for (const s of [-1, 1]) {
+      line((s * PL) / 2 - LW / 2, (s * PL) / 2 + LW / 2, -PW / 2, PW / 2);
+      line(-PL / 2, PL / 2, (s * PW) / 2 - LW / 2, (s * PW) / 2 + LW / 2);
+      line(s * NVZ - LW / 2, s * NVZ + LW / 2, -PW / 2, PW / 2);
+      line(Math.min(s * NVZ, (s * PL) / 2), Math.max(s * NVZ, (s * PL) / 2), -LW / 2, LW / 2);
+    }
+    add(merge(lines), lineKey);
+    return;
+  }
+  const m = 1.4;
+  add(q(r(-L / 2 - m, L / 2 + m, -DW / 2 - m * 0.6, DW / 2 + m * 0.6), 0.014), inKey);
   for (const s of [-1, 1]) {
     line((s * L) / 2 - LW / 2, (s * L) / 2 + LW / 2, -DW / 2, DW / 2);
     line(-L / 2, L / 2, (s * DW) / 2 - LW / 2, (s * DW) / 2 + LW / 2);
@@ -643,7 +667,7 @@ function paintCourt(c: Court, add: (g: THREE.BufferGeometry, key: keyof Pal) => 
     line(s * SVC - LW / 2, s * SVC + LW / 2, -SW / 2, SW / 2);
   }
   line(-SVC, SVC, -LW / 2, LW / 2);
-  add(merge(lines), 'line');
+  add(merge(lines), lineKey);
 }
 
 /** 点到闭合折线的距离 */
