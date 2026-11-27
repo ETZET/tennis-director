@@ -44,7 +44,17 @@ const page = await browser.newPage({ viewport: { width: 390, height: 844 }, devi
 const errors = [];
 page.on('pageerror', (e) => errors.push(String(e)));
 let fails = 0;
-for (const [name, map, from, to, expect] of ROUTES) {
+// 新图的路线写在图自己的数据里（MapDef.walks：{ name, from, to, expect? }）：开一次页面读出来接在后面。ONLY=plaza,street 只走这几张图的
+await page.goto(`http://localhost:${port}/clubvista.html?pause=1&ui=0`);
+await page.waitForFunction(() => window.__vista, null, { timeout: 60000 });
+const extra = await page.evaluate(() =>
+  window.__vista.built.flatMap((b) =>
+    (b.def.walks ?? []).map((w) => [`${b.def.name}：${w.name}`, b.def.id, w.from, w.to, w.expect ?? null]),
+  ),
+);
+const only = process.env.ONLY?.split(',');
+for (const [name, map, from, to, expect] of [...ROUTES, ...extra]) {
+  if (only && !only.includes(map)) continue;
   await page.goto(`http://localhost:${port}/clubvista.html?map=${map}&at=${from.join(',')}&clouds=0`);
   await page.waitForFunction(() => window.__vista?.play, null, { timeout: 60000 });
   await page.waitForTimeout(600);

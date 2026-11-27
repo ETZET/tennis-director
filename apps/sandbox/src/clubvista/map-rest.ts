@@ -390,8 +390,12 @@ export const rest: MapDef = {
   courts: [],
   props: [...house, ...cafe, ...pool, ...shade, ...frame],
   noWalk: [rect(-30, 45, 60, 72), rect(-30, 44, -2.4, 45), rect(28, -20, 60, 72)],
-  exits: [{ to: 'court', entry: 'fromOasis', at: [-12, 41.8], r: 2 }],
-  entries: { fromCourt: { at: [-8, 42], yaw: PI / 2 } },
+  exits: [
+    { to: 'court', entry: 'fromOasis', at: [-12, 41.8], r: 2 },
+    // 会所后门 → 会所大堂（第三轮）
+    { to: 'lobby', entry: 'fromOasis', at: [15.4, 5.7], r: 0.9 },
+  ],
+  entries: { fromCourt: { at: [-8, 42], yaw: PI / 2 }, fromLobby: { at: [15.4, 7.6], yaw: 0 } },
   start: { at: [-8, 42], yaw: PI / 2 },
   clouds: [],
 };

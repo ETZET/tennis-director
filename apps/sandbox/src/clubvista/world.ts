@@ -252,6 +252,7 @@ export function mountVista(hooks: VistaHooks = {}) {
     setClouds(cur);
     applyZoom();
     syncLamps();
+    applyBackdrop();
     const wx = e.at[0] + cur.ox;
     const wz = e.at[1];
     if (play) {
@@ -433,6 +434,13 @@ export function mountVista(hooks: VistaHooks = {}) {
       ],
     });
   }
+  /** 室内的图（MapDef.interior）：背景换成近黑（黑底上浮着的单间），出来换回 daylight 的天色 */
+  const skyBackdrop = scene.background;
+  const voidBackdrop = new THREE.Color(0x0b0a12);
+  function applyBackdrop() {
+    scene.background = cur.def.interior ? voidBackdrop : skyBackdrop;
+  }
+  applyBackdrop();
   /**
    * 夜里的灯只认当前这张图的：四张图叠在同一块坐标上，daylight 的 rescan 会把隐藏的图的灯（中心球场的灯杆）也找进来，
    * 别的图上就平白多出几个灯光圈。隐藏的图把 userData.night 挪到 _night 里藏着，换图时换回来。
