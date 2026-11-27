@@ -25,68 +25,78 @@ function court(c: string, s: string): Sprite {
 
 export const PLACES: Record<string, Sprite> = {
   // ── 内场（clubwalk）的十一处 ──
-  /** 停车场：沥青、白色车位线、两辆车的车顶 */
+  /** 停车场：路边的蓝色 P 牌 */
   clubpark: S(
-    'ddddddddddddd',
-    'dWdddWdddWddd',
-    'dWBBBWdddWRRR',
-    'dWAAAWdddWAAA',
-    'dWBBBWdddWRRR',
-    'dWBBBWdddWRRR',
-    'dWAAAWdddWAAA',
-    'dWBBBWdddWRRR',
-    'dWdddWdddWddd',
+    '..nnnnnnnnn..',
+    '..nnWWWWnnn..',
+    '..nnWnnnWnn..',
+    '..nnWnnnWnn..',
+    '..nnWWWWnnn..',
+    '..nnWnnnnnn..',
+    '..nnWnnnnnn..',
+    '..nnnnnnnnn..',
+    '......d......',
   ),
-  /** 前台：条纹雨棚下的一张柜台，台上一只铃 */
+  /** 前台：柜台上一只银色服务铃 */
   clubdesk: S(
-    'RWRWRWRWRWRWR',
-    'RWRWRWRWRWRWR',
-    'rwrwrwrwrwrwr',
-    '.t.........t.',
-    '.t....X....t.',
-    '.t...XXX...t.',
-    'BBBBBBBBBBBBB',
-    'bbbbbbbbbbbbb',
-    'nnnnnnnnnnnnn',
+    '......d......',
+    '....SSSSS....',
+    '...SWSSSSs...',
+    '..SWSSSSSSs..',
+    '..SSSSSSSss..',
+    '.ddddddddddd.',
+    'TTTTTTTTTTTTT',
+    'ttttttttttttt',
+    'uuuuuuuuuuuuu',
   ),
-  /** 匹克球场：两片小场地并排（比网球场小、青色） */
+  /** 匹克球：一只实心的板拍 + 一颗带洞的球 */
   clubpickle: S(
-    'ppppppppppppp',
-    'pWWWWWpWWWWWp',
-    'pWaWaWpWaWaWp',
-    'pWaWaWpWaWaWp',
-    'pKKKKKpKKKKKp',
-    'pWaWaWpWaWaWp',
-    'pWaWaWpWaWaWp',
-    'pWWWWWpWWWWWp',
-    'ppppppppppppp',
+    '..ppppp......',
+    '.pPPPPPp.....',
+    '.pPPPPPp.....',
+    '.pPPPPPp.....',
+    '.pPPPPPp.WWW.',
+    '..pPPPp.WdWdW',
+    '...ttt..WWWWW',
+    '...ttt...WWW.',
+    '...ttt.......',
   ),
-  /** 棕榈喷泉广场：圆水池、中间一柱水，两边各一棵棕榈 */
+  /** 喷泉广场：两层的喷泉 */
   clubplaza: S(
-    '.P.........P.',
-    'PPP...W...PPP',
-    '.t...WAW...t.',
-    '.t....A....t.',
-    '.t.SSSSSSS.t.',
-    '..SAAAAAAAS..',
-    '..SAAaAaAAS..',
-    '...SSSSSSS...',
-    '.............',
+    '......A......',
+    '....AAWAA....',
+    '...A..A..A...',
+    '..A.SSSSS.A..',
+    '.A...SAS...A.',
+    '.SSSSSSSSSSS.',
+    'SAAAAAAAAAAAS',
+    'SAaAAAaAAAaAS',
+    '.SSSSSSSSSSS.',
   ),
-  /** 中心球场：一片场地，三面台阶看台 */
+  /** 中心球场：正面看的一圈高看台，顶上插着旗 */
   clubstadium: S(
+    '..r...r...r..',
+    '..d...d...d..',
+    'SSSSSSSSSSSSS',
     'SsSsSsSsSsSsS',
-    'sdddddddddddS',
-    'SdWWWWWWWWWds',
-    'sdWbbWKWbbWdS',
-    'SdWbbWKWbbWds',
-    'sdWbbWKWbbWdS',
-    'SdWWWWWWWWWds',
-    'sdddddddddddS',
-    'SsSsS...SsSsS',
+    'SSSSSSSSSSSSS',
+    'SsSsSsSsSsSsS',
+    'SSSSSdddSSSSS',
+    'SSSSdddddSSSS',
+    'SSSSdddddSSSS',
   ),
-  /** 会员场：蓝色硬地、绿色场外 */
-  clubcourts: court('b', 'p'),
+  /** 会员场：一排三片小场地 */
+  clubcourts: S(
+    'ppppppppppppp',
+    'pbbbpbbbpbbbp',
+    'pbWbpbWbpbWbp',
+    'pbbbpbbbpbbbp',
+    'pKKKpKKKpKKKp',
+    'pbbbpbbbpbbbp',
+    'pbWbpbWbpbWbp',
+    'pbbbpbbbpbbbp',
+    'ppppppppppppp',
+  ),
   /** 红土场：橙红的土 */
   clubclay: court('r', 'm'),
   /** 会所：两层的房子，平屋顶，一排窗，中间一扇门 */
@@ -150,17 +160,6 @@ export const PLACES: Record<string, Sprite> = {
     'ddddddddddddd',
     'dWWdWWdWWdWWd',
   ),
-  court: S(
-    'SsSsSsSsSsSsS',
-    'sdddddddddddS',
-    'SdWWWWWWWWWds',
-    'sdWbbWKWbbWdS',
-    'SdWbbWKWbbWds',
-    'sdWbbWKWbbWdS',
-    'SdWWWWWWWWWds',
-    'sdddddddddddS',
-    'SsSsS...SsSsS',
-  ),
   /** 歇脚：一汪水、一棵棕榈、一把伞 */
   oasis: S(
     '..PP.PP......',
@@ -173,17 +172,17 @@ export const PLACES: Record<string, Sprite> = {
     'XXXXXXAAAAAXX',
     '.XXXXXXXXXXX.',
   ),
-  /** 练习场：半片场地对着一面练习墙，地上几颗球 */
+  /** 练习场：一面练习墙，球弹回来 */
   practice: S(
-    'ddddddddddddd',
-    'dSSSSSWSSSSSd',
-    'ddddddddddddd',
-    'pbbbbbbbbbbbp',
-    'pbWWWWWWWWWbp',
-    'pbWbbbWbbbWbp',
-    'pbWbGbWbbGWbp',
-    'pbWbbbWbGbWbp',
-    'ppppppppppppp',
+    'SSSSSSS......',
+    'SdSdSdS......',
+    'SSSSSSS..gg..',
+    'SdSdSdS.gggg.',
+    'SSSSSSS..gg..',
+    'SdSdSdS......',
+    'SSSSSSS.W.W..',
+    'bbbbbbbbbbbbb',
+    'bbbbbbbbbbbbb',
   ),
   /** 内场：大门的拱 + 门里两片球场 */
   club: S(
@@ -197,7 +196,26 @@ export const PLACES: Record<string, Sprite> = {
     '.Tt.XXXXX.tT.',
     'XXXXXXXXXXXXX',
   ),
+  /** 会所大堂（室内）：一张长沙发 */
+  lobby: S(
+    '.............',
+    '..TTTTTTTTT..',
+    '.TtttttttttT.',
+    '.TtttttttttT.',
+    'TTTTTTTTTTTTT',
+    'TtTTTTTTTTTtT',
+    'TtTTTTTTTTTtT',
+    'TTTTTTTTTTTTT',
+    '.u.........u.',
+  ),
 };
+
+// 同一块地的别名：分图的中心球场就是内场的中心球场；world 代理的新图按 clubvista/text.ts 的 CAST_SCENE 对上
+PLACES.court = PLACES.clubstadium;
+PLACES.plaza = PLACES.clubplaza;
+PLACES.street = PLACES.clubclay;
+PLACES.academy = PLACES.clubcourts;
+PLACES.golf = PLACES.clubgolf;
 
 /** 没画过剪影的地方：一块围着矮墙的小院子 */
 const GENERIC = S(

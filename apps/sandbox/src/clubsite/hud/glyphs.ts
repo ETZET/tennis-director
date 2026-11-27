@@ -42,16 +42,15 @@ export const ACT = {
     '..ZxxxxxxXz.',
     '...zzzzzzz..',
   ),
-  /** 孩子：一根冰棍 */
+  /** 孩子：一根三色冰棍（缺一口） */
   pop: S(
-    '..RRRR..',
-    '.RWRRRr.',
-    '.RWRRRr.',
-    '.RRRRRr.',
-    '.RRRRrr.',
-    '.RRRRrr.',
-    '.rrrrrr.',
-    '...Tt...',
+    '..RRR...',
+    '.RWRRR..',
+    '.RWRRRR.',
+    '.XXXXXX.',
+    '.XXXXXx.',
+    '.AAAAAa.',
+    '.aaaaaa.',
     '...Tt...',
     '...Tt...',
     '...tt...',
@@ -185,6 +184,10 @@ export const GLYPH = {
   clock: S('..WWWWW..', '.WWWKWWWw', 'WWWWKWWWw', 'WWWWKWWWw', 'WWWWKKKWw', 'WWWWWWWWw', '.WWWWWWw.', '..wwwww..'),
   sun: { ...S('...L...', '.L.L.L.', '..LLL..', 'LLLLLLL', '..LLL..', '.L.L.L.', '...L...'), keys: { L: PALE_SUN } },
   moon: S('..WWW..', '.WWw...', 'WWw....', 'WWw....', 'WWw....', '.WWw...', '..WWW..'),
+  /** 师徒：一顶学士帽（带流苏） */
+  cap: S('....n....', '..nnnnn..', 'nnnnnnnnn', '..nnnnn.X', '...nnn..X', '...ddd..X', '..ddddd.x'),
+  /** 社交：两个叠着的对话泡 */
+  talkers: S('WWWWWW...', 'WKWKWW...', 'WWWWWW...', '.WwSSSSSS', '.w.SdSdSS', '...SSSSSS', '.....sS..', '......s..'),
   /** 牵连（朋友、同事、旧事）：两个扣在一起的环 */
   link: S('.AAA.....', 'A...A....', 'A..cccc..', 'A..cA..c.', '.AAAA..c.', '...c...c.', '....ccc..'),
   // ── 一图一义（第三轮）：属性、牵连、在干什么、地点四组互不重用；地点图在 places.ts（那块地方的缩小剪影） ──
@@ -211,18 +214,6 @@ export const GLYPH = {
     'BBBB.RRRR',
     'BBBB.RRRR',
     'bbbb.rrrr',
-  ),
-  /** 搭档（双打）：两把交叉的球拍 */
-  rackets: S(
-    '.SS...SS.',
-    'SWWS.SWWS',
-    'SWWS.SWWS',
-    '.SSt.tSS.',
-    '...tTt...',
-    '...TtT...',
-    '..t...t..',
-    '.t.....t.',
-    't.......t',
   ),
   /** 耐心：一只乌龟（沙漏只留给"在等"） */
   turtle: S('.........', '..qqqq...', '.qPPPPq..', 'qPPqPPPq.', 'qPqPPqPPP', 'qqqqqqqPK', '.p...p...', '.p...p...'),

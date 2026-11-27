@@ -32,4 +32,8 @@ export interface CastCtx {
   doAct(id: string, action: ActionId): ActResult;
   nextDay(): void;
   clock(): string;
+  /** 他现在在找你（演员表的 seeking） */
+  seeking(id: string): boolean;
+  /** 现在在找你的人 */
+  seekers(): string[];
 }

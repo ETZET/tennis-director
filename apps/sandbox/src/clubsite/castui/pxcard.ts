@@ -24,8 +24,9 @@ import {
   type TKey,
   t,
   tap,
-  weekSuns,
+  weekPips,
 } from '../hud';
+import { KEYS } from '../hud/colors';
 import type { Card } from './card';
 import type { CastCtx } from './ctx';
 import { accentDarkNum, accentNum, portraitCanvas } from './portrait';
@@ -46,9 +47,9 @@ export const ACT_GLYPH: Record<Activity, GlyphId> = {
 /** 牵连的种类 → 小图 */
 export const TIE_GLYPH: Record<TieKind, GlyphId> = {
   family: 'house',
-  partner: 'rackets',
+  partner: 'pair',
   friend: 'link',
-  mentor: 'star',
+  mentor: 'cap',
   rival: 'swords',
   crush: 'heart',
   colleague: 'badge',
@@ -57,15 +58,15 @@ export const TIE_GLYPH: Record<TieKind, GlyphId> = {
 export const ATTR_ROWS: { k: 'ntrp' | 'fitness' | 'social' | 'patience' | 'spend' | 'loyalty'; g: GlyphId }[] = [
   { k: 'ntrp', g: 'racket' },
   { k: 'fitness', g: 'bolt' },
-  { k: 'social', g: 'pair' },
+  { k: 'social', g: 'talkers' },
   { k: 'patience', g: 'turtle' },
   { k: 'spend', g: 'wallet' },
   { k: 'loyalty', g: 'anchor' },
 ];
 /** 互动按钮的固定槽位（同 clubsite/cast/actions.ts 的顺序） */
 const SLOTS: ActionId[] = ['chat', 'treat', 'rally', 'ask', 'gift', 'message'];
-/** 营业时段（同演员表的时钟 7:00–22:00） */
-const OPEN = 7;
+/** 营业时段（同日钟的外圈、life 的 presence：6:00–22:00） */
+const OPEN = 6;
 const CLOSE = 22;
 
 const CSS = `
@@ -79,8 +80,8 @@ const CSS = `
 .pxc-band { display: flex; justify-content: center; margin: calc(var(--s) * 4px) 0 calc(var(--s) * 2px); position: relative; }
 .pxc-acts { display: flex; justify-content: space-between; gap: calc(var(--s) * 3px); margin-top: calc(var(--s) * 3px); padding: 0 2px; }
 .pxc-acts .pxs-btn, .pxc-slot { flex: 1 1 0; min-width: 0; min-height: 60px; position: relative; margin: 0 0 4px; }
-/* 空槽：凹下去的一块（暗纸色，里面一圈淡墨） */
-.pxc-slot { background: #f0d8a8; box-shadow: inset 2px 2px 0 0 rgba(44, 40, 72, 0.45), 2px 0 0 0 #2c2848, -2px 0 0 0 #2c2848, 0 2px 0 0 #2c2848, 0 -2px 0 0 #2c2848; }
+/* 空槽：位置留着（按钮不跳），只画一圈淡淡的虚线，不像一个按不动的按钮 */
+.pxc-slot { background: repeating-linear-gradient(90deg, #f0c888 0 4px, transparent 4px 8px) top / 100% 2px no-repeat, repeating-linear-gradient(90deg, #f0c888 0 4px, transparent 4px 8px) bottom / 100% 2px no-repeat, repeating-linear-gradient(0deg, #f0c888 0 4px, transparent 4px 8px) left / 2px 100% no-repeat, repeating-linear-gradient(0deg, #f0c888 0 4px, transparent 4px 8px) right / 2px 100% no-repeat; }
 .pxc-acts.far { gap: calc(var(--s) * 4px); }
 .pxc-acts.one { justify-content: center; }
 .pxc-acts.one .pxs-big { flex: 0 0 160px; }
@@ -240,7 +241,7 @@ export function createPxCard(ctx: CastCtx, onShow?: (id: string | null) => void)
     }
     // 一周 7 个小太阳（来的那几天亮）+ 性子（≤ 3 个词）。每个人都画（每天都在的人 = 7 个都亮）：第二层的排版人人一样
     const l2 = div('pxc-line2');
-    l2.appendChild(named(px(weekSuns(p.week ? p.week.days : null, wd)), 'week'));
+    l2.appendChild(named(px(weekPips(p.week ? p.week.days : null, wd, KEYS.s)), 'week'));
     for (const tid of p.traits.slice(0, 3)) {
       const tr = TRAITS[tid];
       if (tr) l2.appendChild(div('pxs-chip', tr.name));

@@ -3,7 +3,7 @@
 // 箭头朝出口真的在的方向。只是提示，点不了。
 // 用法：const signs = createWaySigns(); 每帧 signs.set([{ x, y, text }, …])（x, y = 出口在屏幕上的位置，CSS 像素，可以在屏幕外）。
 import { CREAM, hex, INK } from './colors';
-import { hudScale } from './scale';
+import { ensurePixelFont, pxFont } from './pxfont';
 
 export interface WaySign {
   /** 出口在屏幕上的位置（CSS 像素；在屏幕外就贴到那一边） */
@@ -19,6 +19,7 @@ export interface WaySigns {
 const ARROW = { up: '↑', down: '↓', left: '←', right: '→' } as const;
 
 export function createWaySigns(): WaySigns {
+  ensurePixelFont();
   const root = document.createElement('div');
   root.className = 'pxh-ways';
   Object.assign(root.style, { position: 'fixed', inset: '0', pointerEvents: 'none', zIndex: '6' });
@@ -35,8 +36,8 @@ export function createWaySigns(): WaySigns {
       color: ink,
       background: hex(CREAM),
       padding: '3px 8px',
-      font: `700 ${hudScale() * 6 + 1}px/1.25 "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", system-ui, sans-serif`,
-      letterSpacing: '0.5px',
+      font: pxFont(),
+      webkitFontSmoothing: 'none',
       boxShadow: `2px 0 0 0 ${ink}, -2px 0 0 0 ${ink}, 0 2px 0 0 ${ink}, 0 -2px 0 0 ${ink}`,
     });
     root.appendChild(e);

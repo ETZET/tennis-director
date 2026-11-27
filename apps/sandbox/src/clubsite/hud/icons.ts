@@ -9,22 +9,22 @@ const S = (...rows: string[]): Sprite => ({ rows });
 
 /** 按钮图标 */
 export const ICONS = {
-  /** 名册：两个人（前面一个、后面半个）—— "这儿的人"；低饱和 */
+  /** 名册：两个人（前面一个、后面一个浅灰的背影）—— "这儿的人"；低饱和 */
   roster: S(
-    '.........ddd....',
-    '........dvvvd...',
-    '...tttt.dFvvd...',
-    '..tttttt.fvv....',
-    '..tFFFFt..vv....',
-    '..FFKFKF.sssss..',
-    '..FFFFFF.ssssss.',
-    '...FFFF..ssssss.',
-    '....ff...ssssss.',
-    '.aaaaaaaa.sssss.',
-    'aaaaWWaaaa.ssss.',
-    'aaaaWWaaaac.sss.',
-    'aaaaaaaaaac.sss.',
-    'ccccccccccc.sss.',
+    '.........SSS....',
+    '........SzzzS...',
+    '...tttt.SzzzS...',
+    '..tttttt.zzz....',
+    '..tFFFFt..zz....',
+    '..FFKFKF.zzzzz..',
+    '..FFFFFF.zzzzzz.',
+    '...FFFF..zzzzzz.',
+    '....ff...zzzzzz.',
+    '.aaaaaaaa.zzzzz.',
+    'aaaaWWaaaa.zzzz.',
+    'aaaaWWaaaac.zzz.',
+    'aaaaaaaaaac.zzz.',
+    'ccccccccccc.zzz.',
   ),
   /** 地图：三折的纸，一条虚线路 + 一个红点（要去的地方） */
   map: S(
@@ -307,16 +307,17 @@ export const MOODS = {
     '....r....',
     '.........',
   ),
+  /** 喊、唱：一个八分音符 */
   note: S(
-    '....nnnnn',
-    '....n...n',
-    '....n...n',
-    '....n...n',
-    '..nnn.nnn',
-    '.nnnnnnnn',
-    '.nnn.nnn.',
-    '.........',
-    '.........',
+    '....nn...',
+    '....nnn..',
+    '....n.nn.',
+    '....n..n.',
+    '....n....',
+    '..nnn....',
+    '.nnnn....',
+    '.nnnn....',
+    '..nn.....',
   ),
   drop: S(
     '....A....',
@@ -351,17 +352,17 @@ export const MOODS = {
     '.rrrrr...',
     '.........',
   ),
-  /** 不耐烦（脏、满、臭）：漫画里的青筋 */
+  /** 不耐烦（脏、满、臭）：一团乱线 */
   grr: S(
-    '.RR...RR.',
-    'RR.....RR',
-    'R.......R',
     '.........',
-    '.........',
-    '.........',
-    'R.......R',
-    'RR.....RR',
-    '.RR...RR.',
+    '..dddd...',
+    '.d....d..',
+    'd..dd..d.',
+    'd.d..d.d.',
+    'd..d.d.d.',
+    '.d..d..d.',
+    '..ddd.d..',
+    '.......d.',
   ),
   /** 等：沙漏 */
   wait: S(

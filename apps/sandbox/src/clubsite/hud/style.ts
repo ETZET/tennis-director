@@ -3,6 +3,7 @@
 // body.pxh-on 时把旧的文字界面（clubsite/play 的顶栏、按钮、气泡、提示，像素级别牌子、小地图、地点名、名字小牌）藏起来；
 // body.pxh-debug 再把调试的那几块（像素级别、模拟状态条）放出来。
 import { CREAM, hex, INK, INK_SHADOW } from './colors';
+import { pxFont, pxOutline } from './pxfont';
 
 const ink = hex(INK);
 const shadow = hex(INK_SHADOW);
@@ -14,10 +15,9 @@ export const HUD_CSS = `
 .pxh-root { --s: 2; position: fixed; inset: 0; z-index: 7; pointer-events: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
 .pxh-root [hidden] { display: none !important; }
 .pxh-px { display: block; image-rendering: pixelated; image-rendering: crisp-edges; flex: none; }
-/* 浮动的话：平滑的系统字 + 1 px 墨色细描边 + 下面 1 px 深影（同参考的浮动中文），不做阈值伪像素 */
-.pxh-txt { font: 600 calc(var(--s) * 6px + 1px)/1.25 "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", system-ui, sans-serif; letter-spacing: 0.5px; white-space: nowrap;
-  text-shadow: 1px 0 0 ${ink}, -1px 0 0 ${ink}, 0 1px 0 ${ink}, 0 -1px 0 ${ink}, 1px 1px 0 ${ink}, -1px 1px 0 ${ink}, 1px -1px 0 ${ink}, -1px -1px 0 ${ink}, 0 2px 0 ${shadow}; }
-.pxh-txt.ink { text-shadow: none; font-weight: 700; color: ${ink} !important; }
+/* 浮动的话：12 px 点阵中文（pxfont.ts，按纹素放大，和图标同一个网格）+ 一纹素墨描边 + 一纹素深影 */
+.pxh-txt { font: ${pxFont()}; white-space: nowrap; -webkit-font-smoothing: none; font-smooth: never; ${pxOutline(ink, shadow)} }
+.pxh-txt.ink { text-shadow: none; color: ${ink} !important; }
 .pxh-txt.name { opacity: 0.92; }
 .pxh-date { display: flex; align-items: center; gap: calc(var(--s) * 1px); }
 .pxh-root button { border: 0; margin: 0; padding: 0; background: none; cursor: pointer; pointer-events: auto; touch-action: none; -webkit-tap-highlight-color: transparent; }
@@ -34,7 +34,7 @@ export const HUD_CSS = `
 .pxh-money { position: absolute; right: max(10px, env(safe-area-inset-right)); top: max(10px, calc(env(safe-area-inset-top) + 4px)); display: flex; align-items: center; gap: calc(var(--s) * 2px); }
 
 /* 右下（拇指区）：一行 [名册][地图][动作键]，动作键在最右下角；拿 / 放叠在动作键上面。三个按钮同一种墨色底板（index.ts 的 plateCanvas） */
-.pxh-dock { position: absolute; right: max(6px, env(safe-area-inset-right)); bottom: max(8px, env(safe-area-inset-bottom)); display: flex; flex-direction: column; align-items: flex-end; gap: calc(var(--s) * 3px); }
+.pxh-dock { position: absolute; right: calc(env(safe-area-inset-right) + var(--s) * 6px); bottom: calc(env(safe-area-inset-bottom) + var(--s) * 6px); display: flex; flex-direction: column; align-items: flex-end; gap: calc(var(--s) * 3px); }
 .pxh-row { display: flex; align-items: flex-end; gap: calc(var(--s) * 3px); }
 .pxh-btn { position: relative; min-width: 48px; min-height: 48px; display: grid; place-items: center; }
 .pxh-btn > * { grid-area: 1 / 1; }
@@ -46,8 +46,8 @@ export const HUD_CSS = `
 .pxh-btn .pxh-icon { position: relative; margin-bottom: calc(var(--s) * 1px); }
 .pxh-btn .pxh-key { position: absolute; right: calc(var(--s) * -1px); top: calc(var(--s) * -3px); }
 .pxh-btn .pxh-dot { position: absolute; right: calc(var(--s) * -1px); top: calc(var(--s) * -1px); animation: pxh-bob 0.9s steps(2, end) infinite; }
-/* 没活：动作键只剩一圈细边（槽位不动）；拿 / 放整个不出现 */
-.pxh-act.empty { pointer-events: none; }
+/* 没活：动作键不画（槽位留着，名册、地图不跳）；拿 / 放整个不出现 */
+.pxh-act.empty { visibility: hidden; pointer-events: none; }
 .pxh-pick.empty { display: none; }
 .pxh-mood.read { visibility: hidden; transition: visibility 0s 0.32s; }
 .pxh-use.on .pxh-icon { animation: pxh-bob 0.36s steps(2, end) infinite; }
@@ -55,6 +55,25 @@ export const HUD_CSS = `
 /* 按钮名的小奶油牌子（长按 / 第一次出现）：在这一行按钮的上面、右对齐，隔开 4 纹素，不压按钮 */
 .pxh-sign { padding: 3px 7px; ${SIGN} margin-bottom: calc(var(--s) * 2px); transition: opacity 0.3s steps(3, end); }
 .pxh-sign.gone { opacity: 0; }
+
+/* 有人在找你：屏幕边的小人头（墨底板 + 他的小人头 + 朝他的箭头） */
+.pxh-edge { position: absolute; left: 0; top: 0; pointer-events: auto; }
+.pxh-edge .pxh-earrow { position: absolute; }
+.pxh-edge[data-dir='r'] .pxh-earrow { right: calc(var(--s) * -2px); top: 50%; margin-top: calc(var(--s) * -4px); }
+.pxh-edge[data-dir='l'] .pxh-earrow { left: calc(var(--s) * -2px); top: 50%; margin-top: calc(var(--s) * -4px); }
+.pxh-edge[data-dir='u'] .pxh-earrow { top: calc(var(--s) * -2px); left: 50%; margin-left: calc(var(--s) * -4px); }
+.pxh-edge[data-dir='d'] .pxh-earrow { bottom: calc(var(--s) * -2px); left: 50%; margin-left: calc(var(--s) * -4px); }
+.pxh-seekdot .pxh-px { animation: pxh-bob 0.9s steps(2, end) infinite; }
+
+/* 这儿有活：大一号的实心泡，慢慢上下跳（两格），点不了（点地面照样走过去） */
+.pxh-job { position: absolute; left: 0; top: 0; pointer-events: none; }
+.pxh-job .pxh-px { animation: pxh-bob 1.1s steps(2, end) infinite; }
+.pxh-edge-job { pointer-events: none; }
+/* 进账：金币右上那块下面浮一行（一枚小金币 + 字），往上飘 1 纹素 × 4 就消失 */
+.pxh-cpop { position: absolute; right: max(10px, env(safe-area-inset-right)); top: calc(max(10px, calc(env(safe-area-inset-top) + 4px)) + var(--s) * 13px); display: flex; align-items: center; gap: calc(var(--s) * 2px); transition: opacity 0.3s steps(3, end); }
+.pxh-cpop.up { animation: pxh-cup 1.6s steps(4, end) forwards; }
+.pxh-cpop.gone { opacity: 0; }
+@keyframes pxh-cup { from { transform: translateY(calc(var(--s) * 4px)); } to { transform: translateY(0); } }
 
 /* 场景里人头上的心情泡、点开以后的一句话 */
 .pxh-moods { position: absolute; inset: 0; overflow: hidden; }
@@ -70,7 +89,8 @@ export const HUD_CSS = `
 .pxh-line .pxh-txt { white-space: normal; }
 .pxh-toast .pxh-item { animation: pxh-item 0.5s steps(5, end); }
 @keyframes pxh-item { 0% { transform: scale(0.2) translateY(30px); } 60% { transform: scale(1.15) translateY(-4px); } 100% { transform: scale(1); } }
-.pxh-place { position: absolute; left: 50%; top: max(12%, calc(env(safe-area-inset-top) + 100px)); transform: translateX(-50%); opacity: 0; }
+/* 地名：画面最上沿、日钟和金币之间（不压记分牌、不压总监）；不带底的奶油字（路牌是奶油纸牌，两样分得开） */
+.pxh-place { position: absolute; left: 50%; top: calc(max(6px, env(safe-area-inset-top)) + var(--s) * 4px); transform: translateX(-50%); opacity: 0; white-space: nowrap; }
 .pxh-place.show { animation: pxh-place 2.6s steps(12, end) forwards; }
 @keyframes pxh-place { 0% { opacity: 0; } 12% { opacity: 1; } 70% { opacity: 1; } 100% { opacity: 0; } }
 
