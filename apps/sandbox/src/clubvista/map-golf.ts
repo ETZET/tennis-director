@@ -344,13 +344,14 @@ export const golf: MapDef = {
       wall: 'none',
       smooth: 0.8,
     },
-    // 推杆果岭：比草高 0.3 的缓台，朝镜头的一圈草坎是冷暗带
-    { id: 'fringe', pts: FRINGE, h: GREEN_H - 0.05, top: 'puttFringe', el: 'none', wall: 'lawn', smooth: 0.6 },
+    // 推杆果岭：比草高 0.3 的缓台，朝镜头的一圈草坎是冷暗带。
+    // 领草在半高（0.15）：寻路一步只认 ≤ stepUp / 2（0.16）的高差，0 → 0.25 一步迈不上去，果岭就成了寻路找不到的孤岛
+    { id: 'fringe', pts: FRINGE, h: GREEN_H - 0.15, top: 'puttFringe', el: 'none', wall: 'lawn', smooth: 0.6 },
     {
       id: 'green',
       pts: GREEN,
       h: GREEN_H,
-      base: GREEN_H - 0.05,
+      base: GREEN_H - 0.15,
       top: 'puttGreen',
       el: 'none',
       wall: 'lawn',
