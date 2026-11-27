@@ -12,7 +12,7 @@ import { act, activityOf, CAST, CLOSE, clockText, initState, memOf, OPEN, though
 import { CLOTH, HAIR, SKIN } from '../cast/colors';
 import type { ActionId, ActResult, CastPerson, CastState } from '../cast/types';
 import { SCENE_NAME } from '../cast/types';
-import type { Peek, Who } from '../hud';
+import { type Peek, provideSeekers, type Who } from '../hud';
 import { createDresser } from '../people/dress';
 import type { Play } from '../play';
 import { Binder, type Bound, headHeight, type LiveLike } from './bind';
@@ -196,7 +196,36 @@ export function mountCast(o: MountCastOpts): CastMount {
       play.toast(TXT.nextDayToast(S.state.day), 2.2);
     },
     clock: () => clockText(S.state),
+    seeking: (id) => seekIds().includes(id),
+    seekers: () => seekIds(),
   };
+
+  // ── 有人在找你：演员表状态里的 seeking（life 代理每半秒刷新），?seek=<id>,<id> 是假数据（定画法、截图用） ──
+  const fakeSeek = (params.get('seek') ?? '').split(',').filter((x) => CAST.get(x));
+  const fakeLeft = params.has('seekleft') ? Number(params.get('seekleft')) : null;
+  function seekIds(): string[] {
+    const st = S.state as CastState & { seeking?: string[] };
+    return [...new Set([...(st.seeking ?? []), ...fakeSeek])];
+  }
+  if (o.quiet)
+    provideSeekers(play, {
+      list: () =>
+        seekIds().flatMap((id) => {
+          const p = CAST.get(id);
+          if (!p) return [];
+          const b = binder.objOf(id);
+          return [{ id, who: whoOfPerson(p), obj: b ? b.obj : null, dy: b ? headHeight(b.kind) + 1.6 : 2.6 }];
+        }),
+      go: (id) => walkTo(id, true),
+      // 还会等多久：life 的 seekOf(CAST, state, id) 合进 main 以后换成 (until − minute) / (until − from)；?seekleft=0.6 是假数据
+      left: () => (fakeLeft === null ? null : fakeLeft),
+      scenes: () =>
+        seekIds().flatMap((id) => {
+          const b = binder.objOf(id);
+          const s = b ? b.scene : CAST.where(id, S.state.day)[0]?.scene;
+          return s ? [s] : [];
+        }),
+    });
 
   // 像素界面：半屏的像素人物卡、"今天的人"看板（pxcard / pxboard）；旧界面还是全屏的文字卡、名册表
   const roster = o.quiet ? createPxBoard(ctx) : createRoster(ctx, ui);

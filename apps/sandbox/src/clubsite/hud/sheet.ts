@@ -7,7 +7,10 @@
 import { CREAM, hex, INK, INK_SHADOW, KEYS } from './colors';
 import { textCanvas } from './font';
 import { ACT, type ActIcon, DIGITS, GLYPH, type GlyphId, TINY } from './glyphs';
+import { type TKey, t } from './i18n';
 import { ICONS } from './icons';
+import { placeSprite } from './places';
+import { ensurePixelFont, pxFont, pxOutline } from './pxfont';
 import { hudScale } from './scale';
 import { type Sprite, spriteCanvas } from './sprite';
 
@@ -34,6 +37,12 @@ export const SHEET_CSS = `
   .pxs-sheet { left: auto; right: max(calc(var(--s) * 4px), env(safe-area-inset-right)); width: 360px; max-width: 360px; transform: none; animation-name: pxs-rise-r; }
 }
 @keyframes pxs-rise-r { from { transform: translateY(60%); } to { transform: none; } }
+/* 总监站在画面下沿、卡会盖住他：卡改从上面落下来（日钟、金币那一排下面） */
+.pxs-shade.top .pxs-sheet { bottom: auto; top: calc(max(6px, env(safe-area-inset-top)) + var(--s) * 92px); animation-name: pxs-drop; }
+@keyframes pxs-drop { from { transform: translate(-50%, -60%); } to { transform: translate(-50%, 0); } }
+.pxs-shade.top .pxs-x { top: auto; bottom: calc(var(--s) * -22px); }
+.pxs-shade.top .pxs-x .pxs-tab { box-shadow: calc(var(--s) * 1px) 0 0 0 ${ink}, calc(var(--s) * -1px) 0 0 0 ${ink}, 0 calc(var(--s) * 1px) 0 0 ${ink}; }
+.pxs-shade.top .pxs-say { bottom: auto; top: calc(100% + var(--s) * 28px); }
 /* 卡顶上浮的一行字（同参考：一行白字黑边，过一会儿消失）：按了哪个按钮、得了什么 */
 .pxs-say { position: absolute; left: 0; right: 0; bottom: calc(100% + var(--s) * 28px); display: flex; justify-content: center; pointer-events: none; transition: opacity 0.4s steps(3, end); }
 .pxs-say.gone { opacity: 0; }
@@ -41,8 +50,8 @@ export const SHEET_CSS = `
 /* 好感变了：心旁边一颗心闪三下 */
 .pxs-blink { position: absolute; pointer-events: none; animation: pxs-blink 1.2s steps(1, end) forwards; }
 @keyframes pxs-blink { 0%, 33%, 66% { opacity: 1; } 16%, 50%, 83% { opacity: 0; } 100% { opacity: 0; } }
-.pxs-say span { font: 600 15px/1.25 "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", system-ui, sans-serif; color: ${cream}; letter-spacing: 0.5px; white-space: nowrap;
-  text-shadow: 1px 0 0 ${ink}, -1px 0 0 ${ink}, 0 1px 0 ${ink}, 0 -1px 0 ${ink}, 1px 1px 0 ${ink}, -1px 1px 0 ${ink}, 1px -1px 0 ${ink}, -1px -1px 0 ${ink}, 0 2px 0 ${shadow}; }
+.pxs-say span { font: ${pxFont()}; color: ${cream}; white-space: nowrap; ${pxOutline(ink, shadow)} }
+.pxs-sheet, .pxs-say { -webkit-font-smoothing: none; font-smooth: never; }
 .pxs-sheet .pxh-px, .pxs-px { display: block; image-rendering: pixelated; image-rendering: crisp-edges; flex: none; }
 .pxs-sheet button { border: 0; margin: 0; padding: 0; background: none; color: inherit; font: inherit; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 .pxs-sheet button:focus-visible { outline: 2px solid ${ink}; outline-offset: 1px; }
@@ -57,10 +66,10 @@ export const SHEET_CSS = `
 /* 大按钮（不当面时的走过去、发消息）：同一张纸凸起来一块，墨边 + 底下一纹素深影 */
 .pxs-big { background: ${cream}; ${FRAME(hudScale())} min-height: 60px; margin: 0 2px 4px; }
 /* 名字和一句话：卡片上仅有的两种字（平滑系统字，墨色） */
-.pxs-name { font: 700 17px/1.15 "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", system-ui, sans-serif; letter-spacing: 0.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pxs-line { font: 500 14px/1.35 "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", system-ui, sans-serif; color: ${ink}; opacity: 0.86; }
+.pxs-name { font: ${pxFont()}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pxs-line { font: ${pxFont()}; color: ${ink}; opacity: 0.86; }
 .pxs-line.bad { color: #8a3a4e; opacity: 1; }
-.pxs-chip { font: 600 12px/1 "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", system-ui, sans-serif; padding: calc(var(--s) * 2px) calc(var(--s) * 3px); background: ${paperDark}; color: ${ink}; white-space: nowrap; box-shadow: 2px 0 0 0 ${ink}, -2px 0 0 0 ${ink}, 0 2px 0 0 ${ink}, 0 -2px 0 0 ${ink}, 0 4px 0 0 ${shadow}; margin: 2px; }
+.pxs-chip { font: ${pxFont()}; padding: 0 calc(var(--s) * 3px); background: ${paperDark}; color: ${ink}; white-space: nowrap; box-shadow: 2px 0 0 0 ${ink}, -2px 0 0 0 ${ink}, 0 2px 0 0 ${ink}, 0 -2px 0 0 ${ink}, 0 4px 0 0 ${shadow}; margin: 2px; }
 /* 分隔：一纹素的暗纸色虚线 */
 .pxs-rule { height: calc(var(--s) * 1px); margin: calc(var(--s) * 3px) 0; background: repeating-linear-gradient(90deg, ${paperDark} 0 calc(var(--s) * 2px), transparent calc(var(--s) * 2px) calc(var(--s) * 4px)); }
 /* 往上飘的心（好感变了） */
@@ -70,6 +79,7 @@ export const SHEET_CSS = `
 
 let cssDone = false;
 function injectCss() {
+  ensurePixelFont();
   if (cssDone || document.getElementById('pxs-css')) return;
   cssDone = true;
   const st = document.createElement('style');
@@ -94,8 +104,42 @@ export function px(src: HTMLCanvasElement, k = 1, cls = ''): HTMLCanvasElement {
   return c;
 }
 
-export const glyph = (id: GlyphId) => spriteCanvas(GLYPH[id], `g-${id}`);
-export const actIcon = (id: ActIcon) => spriteCanvas(ACT[id], `a-${id}`);
+export const glyph = (id: GlyphId) => spriteCanvas(tame(GLYPH[id]), `g-${id}`);
+export const actIcon = (id: ActIcon) => spriteCanvas(tame(ACT[id]), `a-${id}`);
+/** 地方的缩小剪影（places.ts）；ring = 外面再一圈的颜色 */
+export const placeIcon = (id: string, ring?: number) => spriteCanvas(tame(placeSprite(id)), `pl-${id}`, true, ring);
+
+/** 彩度上限（max − min）：草帽亮档的彩度（≈ 124）再低一点 —— 卡片、名册、小地图上的小图都不比草帽艳 */
+export const CHROMA_MAX = 110;
+/** 一个颜色的彩度压到 CHROMA_MAX 以下（往它自己的灰收，亮度不变） */
+export function tameColor(c: number): number {
+  const ch = [(c >> 16) & 255, (c >> 8) & 255, c & 255];
+  const hi = Math.max(...ch);
+  const lo = Math.min(...ch);
+  if (hi - lo <= CHROMA_MAX) return c;
+  const mean = (ch[0] + ch[1] + ch[2]) / 3;
+  const k = CHROMA_MAX / (hi - lo);
+  const [r, g, b] = ch.map((v) => Math.round(mean + (v - mean) * k));
+  return (r << 16) | (g << 8) | b;
+}
+const tamed = new WeakMap<Sprite, Sprite>();
+/** 精灵的每个颜色都压彩度（缓存） */
+export function tame(s: Sprite): Sprite {
+  const hit = tamed.get(s);
+  if (hit) return hit;
+  const keys: Record<string, number> = {};
+  for (const r of s.rows)
+    for (const ch of r) if (ch !== '.' && keys[ch] === undefined) keys[ch] = tameColor(s.keys?.[ch] ?? KEYS[ch]);
+  const out = { rows: s.rows, keys };
+  tamed.set(s, out);
+  return out;
+}
+/** 给一个图标起名字：点它（或长按它所在的按钮）卡顶上浮两三个字。每个图标只有一个意思，名字是兜底 */
+export function named<T extends HTMLElement>(el: T, key: TKey | null, text?: string): T {
+  const s = text ?? (key ? t(key) : '');
+  if (s) el.dataset.tip = s;
+  return el;
+}
 
 function cv(w: number, h: number): [HTMLCanvasElement, CanvasRenderingContext2D] {
   const c = document.createElement('canvas');
@@ -195,6 +239,40 @@ export function hearts(f: number): HTMLCanvasElement {
   return c;
 }
 
+const lumOf = (c: number) => 0.3 * ((c >> 16) & 255) + 0.59 * ((c >> 8) & 255) + 0.11 * (c & 255);
+/** 填在纸上的颜色太淡（淡紫、米白：在时间带上像"空着"）→ 一步步压暗到和纸分得开 */
+export function onPaper(c: number): number {
+  // 先往低彩度的灰紫（#6a6488）收 40%：卡上的颜色不比草帽艳，淡紫也不再像"空着"
+  const mixC = (x: number, y: number, t: number) => Math.round(x + (y - x) * t);
+  const G = 0x6a6488;
+  let k =
+    (mixC((c >> 16) & 255, (G >> 16) & 255, 0.4) << 16) |
+    (mixC((c >> 8) & 255, (G >> 8) & 255, 0.4) << 8) |
+    mixC(c & 255, G & 255, 0.4);
+  for (let i = 0; i < 8 && lumOf(PAPER_DARK) - lumOf(k) < 78; i++) {
+    const r = Math.round(((k >> 16) & 255) * 0.84);
+    const g = Math.round(((k >> 8) & 255) * 0.84);
+    const b = Math.round((k & 255) * 0.84);
+    k = (r << 16) | (g << 8) | b;
+  }
+  return k;
+}
+
+/** 5 格的点（属性）：v 0..1 → 亮几格；亮 = 墨实心，暗 = 奶油空心（只一圈墨），格子之间 1 纹素 */
+export function pips5(v: number): HTMLCanvasElement {
+  const n = Math.round(Math.max(0, Math.min(1, v)) * 5);
+  const [c, g] = cv(5 * 6 - 1, 5);
+  for (let i = 0; i < 5; i++) {
+    g.fillStyle = hex(INK);
+    g.fillRect(i * 6, 0, 5, 5);
+    if (i >= n) {
+      g.fillStyle = hex(CREAM);
+      g.fillRect(i * 6 + 1, 1, 3, 3);
+    }
+  }
+  return c;
+}
+
 /** 短进度条：w 纹素宽、3 纹素高的槽 + 1 纹素墨边；v 0..1；notch = 每几格一个刻度 */
 export function bar(v: number, w: number, fill: number, notch = 0): HTMLCanvasElement {
   const [c, g] = cv(w + 2, 5);
@@ -239,49 +317,43 @@ export function dayBand(o: {
   const [c, g] = cv(W, H);
   g.drawImage(sun, 0, bandY + 3 - Math.floor(sun.height / 2));
   g.drawImage(moon, x0 + o.w + 4, bandY + 3 - Math.floor(moon.height / 2));
-  // 槽
+  // 和日钟同一种画法（locked 第 3 条）：墨轨道，他在的钟点是奶油，"现在"是一颗 3×3 白钮 + 1 纹素墨边
   g.fillStyle = hex(INK);
   g.fillRect(x0, bandY, o.w + 2, 7);
-  g.fillStyle = hex(PAPER_DARK);
-  g.fillRect(x0 + 1, bandY + 1, o.w, 5);
   const X = (h: number) => x0 + 1 + Math.round(((h - o.from) / (o.to - o.from)) * o.w);
-  g.globalAlpha = o.dim ? 0.45 : 1;
+  g.globalAlpha = o.dim ? 0.5 : 1;
   for (const [a, b] of o.segs) {
     const xa = X(Math.max(o.from, a));
     const xb = X(Math.min(o.to, b));
-    g.fillStyle = hex(o.color);
-    g.fillRect(xa, bandY + 1, Math.max(1, xb - xa), 5);
-    g.fillStyle = 'rgba(255,255,255,0.3)';
-    g.fillRect(xa, bandY + 1, Math.max(1, xb - xa), 1);
+    g.fillStyle = hex(CREAM);
+    g.fillRect(xa, bandY + 2, Math.max(1, xb - xa), 3);
   }
   g.globalAlpha = 1;
-  // 每 3 小时一个刻度（槽底一纹素）
-  g.fillStyle = hex(INK);
-  for (let h = Math.ceil(o.from / 3) * 3; h < o.to; h += 3) if (h > o.from) g.fillRect(X(h), bandY + 5, 1, 1);
   if (o.now !== null && o.now >= o.from && o.now <= o.to) {
     const xn = X(o.now);
     g.fillStyle = hex(INK);
-    g.fillRect(xn - 2, bandY - 2, 5, 11);
-    // "现在"：一根 3 纹素宽、墨边的草帽色针（这张卡上唯一的暖色）
-    g.fillStyle = hex(KEYS.X);
-    g.fillRect(xn - 1, bandY - 1, 3, 9);
+    g.fillRect(xn - 2, bandY + 1, 5, 5);
+    g.fillStyle = '#ffffff';
+    g.fillRect(xn - 1, bandY + 2, 3, 3);
     if (mark) g.drawImage(mark, Math.max(0, Math.min(W - mark.width, xn - Math.floor(mark.width / 2))), 0);
   }
   return c;
 }
 
-/** 一周 7 格（周一起）：来的日子填色，今天下面一个墨点 */
+/** 一周 7 格（周一起）：来的日子实心（color），不来的空心（只一圈墨），格子之间空 2 纹素；今天下面一道草帽色短线 */
 export function weekPips(days: readonly number[] | null, today: number, color: number): HTMLCanvasElement {
-  const [c, g] = cv(7 * 6 + 1, 9);
+  const [c, g] = cv(7 * 8 - 2, 9);
   for (let d = 0; d < 7; d++) {
-    const x = d * 6;
+    const x = d * 8;
     g.fillStyle = hex(INK);
     g.fillRect(x, 0, 6, 6);
-    g.fillStyle = hex(!days || days.includes(d) ? color : PAPER_DARK);
+    g.fillStyle = hex(!days || days.includes(d) ? color : CREAM);
     g.fillRect(x + 1, 1, 4, 4);
     if (d === today) {
       g.fillStyle = hex(INK);
-      g.fillRect(x + 2, 7, 2, 2);
+      g.fillRect(x, 7, 6, 2);
+      g.fillStyle = hex(KEYS.X);
+      g.fillRect(x + 1, 7, 4, 1);
     }
   }
   return c;
@@ -345,6 +417,12 @@ export function tap(el: HTMLElement, fn: (e: PointerEvent) => void) {
   });
 }
 
+/** 总监头顶在屏幕上的 y（CSS 像素），界面挂上时给（mountPixelHud）；卡打开时躲开他 */
+let avoidY: (() => number | null) | null = null;
+export function setSheetAvoid(f: (() => number | null) | null) {
+  avoidY = f;
+}
+
 export interface Sheet {
   /** 外层（全屏透明一层，点它 = 收起） */
   shade: HTMLElement;
@@ -398,6 +476,18 @@ export function createSheet(panel: string, onClose?: () => void): Sheet {
     sy = null;
     if (dy > 70 && Math.abs(dx) < 50) api.close();
   });
+  // 图标的名字：点一个有名字的图标（named()）→ 卡顶上浮两三个字；按钮里的图标 = 长按按钮
+  let tipT = 0;
+  el.addEventListener('pointerdown', (e) => {
+    clearTimeout(tipT);
+    const hit = (e.target as HTMLElement | null)?.closest?.('[data-tip]') as HTMLElement | null;
+    if (!hit || !el.contains(hit)) return;
+    const inBtn = hit.closest('button');
+    if (!inBtn) api.say(hit.dataset.tip ?? '', 1.2);
+    else tipT = window.setTimeout(() => api.say(hit.dataset.tip ?? '', 1.2), 420);
+  });
+  for (const ev of ['pointerup', 'pointercancel', 'pointerleave'] as const)
+    el.addEventListener(ev, () => clearTimeout(tipT));
   tap(x, () => api.close());
   const sayEl = document.createElement('div');
   sayEl.className = 'pxs-say gone';
@@ -405,6 +495,15 @@ export function createSheet(panel: string, onClose?: () => void): Sheet {
   const body = document.createElement('div');
   body.className = 'pxs-body';
   el.append(body, x, sayEl);
+  /** 卡会盖住总监（他的头在卡的上沿以下）：改到上面 */
+  function place() {
+    if (shade.hidden || shade.classList.contains('top')) return;
+    const y = avoidY?.();
+    if (y === null || y === undefined) return;
+    // 布局里的位置（不算升起来的动画）
+    const top = el.offsetTop;
+    if (y > top - hudScale() * (22 + 10) && y < innerHeight) shade.classList.add('top');
+  }
   const api: Sheet = {
     shade,
     el,
@@ -419,7 +518,13 @@ export function createSheet(panel: string, onClose?: () => void): Sheet {
       sayT = window.setTimeout(() => sayEl.classList.add('gone'), sec * 1000);
     },
     open() {
+      const was = !shade.hidden;
       shade.hidden = false;
+      // 内容是 open() 之后才画的：下一帧量好再决定上下（只在刚打开时换，免得开着开着跳）
+      if (!was) {
+        shade.classList.remove('top');
+        requestAnimationFrame(place);
+      }
     },
     close() {
       if (shade.hidden) return;

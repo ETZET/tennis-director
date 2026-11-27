@@ -9,61 +9,62 @@ import { TRAITS } from '../cast/traits';
 import type { ActionDef, ActionId, Activity, CastPerson, TieKind } from '../cast/types';
 import {
   actIcon,
-  bar,
   costChip,
   createSheet,
   dayBand,
   type GlyphId,
   glyph,
   hearts,
+  hudScale,
   lang,
-  PAPER_DARK,
+  named,
+  pips5,
   px,
   type TKey,
   t,
   tap,
-  weekSuns,
 } from '../hud';
+import { KEYS } from '../hud/colors';
 import type { Card } from './card';
 import type { CastCtx } from './ctx';
 import { accentDarkNum, accentNum, portraitCanvas } from './portrait';
 
 /** 在干什么 → 时间带上"现在"那根线上面的小图 */
-const ACT_GLYPH: Record<Activity, GlyphId> = {
+export const ACT_GLYPH: Record<Activity, GlyphId> = {
   play: 'ball',
   watch: 'eye',
   rest: 'zzz',
-  eat: 'cup',
+  eat: 'fork',
   walk: 'feet',
-  work: 'broom',
+  work: 'clip',
   gym: 'dumbbell',
-  swim: 'drop',
+  swim: 'swim',
   wait: 'wait',
   idle: '…',
 };
 /** 牵连的种类 → 小图 */
-const TIE_GLYPH: Record<TieKind, GlyphId> = {
+export const TIE_GLYPH: Record<TieKind, GlyphId> = {
   family: 'house',
-  partner: 'racket',
+  partner: 'pair',
   friend: 'link',
-  mentor: 'star',
-  rival: 'bolt',
+  mentor: 'cap',
+  rival: 'swords',
   crush: 'heart',
-  colleague: 'link',
-  history: 'link',
+  colleague: 'badge',
+  history: 'book',
 };
-const ATTR_ROWS: { k: 'ntrp' | 'fitness' | 'social' | 'patience' | 'spend' | 'loyalty'; g: GlyphId }[] = [
+export const ATTR_ROWS: { k: 'ntrp' | 'fitness' | 'social' | 'patience' | 'spend' | 'loyalty'; g: GlyphId }[] = [
   { k: 'ntrp', g: 'racket' },
   { k: 'fitness', g: 'bolt' },
-  { k: 'social', g: 'bubble' },
-  { k: 'patience', g: 'wait' },
-  { k: 'spend', g: 'bag' },
-  { k: 'loyalty', g: 'flag' },
+  { k: 'social', g: 'talkers' },
+  { k: 'patience', g: 'turtle' },
+  { k: 'spend', g: 'wallet' },
+  { k: 'loyalty', g: 'anchor' },
 ];
 /** 互动按钮的固定槽位（同 clubsite/cast/actions.ts 的顺序） */
 const SLOTS: ActionId[] = ['chat', 'treat', 'rally', 'ask', 'gift', 'message'];
-/** 营业时段（同演员表的时钟 7:00–22:00） */
-const OPEN = 7;
+/** 营业时段（同日钟的外圈、life 的 presence：6:00–22:00） */
+const OPEN = 6;
 const CLOSE = 22;
 
 const CSS = `
@@ -77,8 +78,8 @@ const CSS = `
 .pxc-band { display: flex; justify-content: center; margin: calc(var(--s) * 4px) 0 calc(var(--s) * 2px); position: relative; }
 .pxc-acts { display: flex; justify-content: space-between; gap: calc(var(--s) * 3px); margin-top: calc(var(--s) * 3px); padding: 0 2px; }
 .pxc-acts .pxs-btn, .pxc-slot { flex: 1 1 0; min-width: 0; min-height: 60px; position: relative; margin: 0 0 4px; }
-/* 空槽：凹下去的一块（暗纸色，里面一圈淡墨） */
-.pxc-slot { background: #f0d8a8; box-shadow: inset 2px 2px 0 0 rgba(44, 40, 72, 0.45), 2px 0 0 0 #2c2848, -2px 0 0 0 #2c2848, 0 2px 0 0 #2c2848, 0 -2px 0 0 #2c2848; }
+/* 空槽：位置留着（按钮不跳），只画一圈淡淡的虚线，不像一个按不动的按钮 */
+.pxc-slot { background: repeating-linear-gradient(90deg, #f0c888 0 4px, transparent 4px 8px) top / 100% 2px no-repeat, repeating-linear-gradient(90deg, #f0c888 0 4px, transparent 4px 8px) bottom / 100% 2px no-repeat, repeating-linear-gradient(0deg, #f0c888 0 4px, transparent 4px 8px) left / 2px 100% no-repeat, repeating-linear-gradient(0deg, #f0c888 0 4px, transparent 4px 8px) right / 2px 100% no-repeat; }
 .pxc-acts.far { gap: calc(var(--s) * 4px); }
 .pxc-acts.one { justify-content: center; }
 .pxc-acts.one .pxs-big { flex: 0 0 160px; }
@@ -100,8 +101,6 @@ function headCrop(id: string, p: CastPerson, size = 22): HTMLCanvasElement {
   c.height = size;
   const g = c.getContext('2d') as CanvasRenderingContext2D;
   // 头像底：卡纸暗一档（看板上一片浅，不是一墙深色方块）
-  g.fillStyle = hexN(PAPER_DARK);
-  g.fillRect(0, 0, size, size);
   const y0 = p.look.body === 'kid' ? 1 : 2;
   g.drawImage(src, (32 - size) / 2, y0, size, size, 0, 0, size, size);
   return c;
@@ -157,7 +156,7 @@ export function createPxCard(ctx: CastCtx, onShow?: (id: string | null) => void)
     near = ctx.near(id);
     const n = ctx.nowOf(id);
     const s = ctx.state();
-    const accent = accentNum(p.look);
+    const _accent = accentNum(p.look);
 
     // ── 头：肖像、名字、心、心情、一句话 ──
     const top = div('pxc-top');
@@ -165,12 +164,9 @@ export function createPxCard(ctx: CastCtx, onShow?: (id: string | null) => void)
     const idb = div('pxc-id');
     const row = div('pxc-row');
     const nm = div('pxs-name', shortName(p));
-    const hc = px(hearts(m.favor), 1, 'pxc-hearts');
-    const mood = div('pxc-mood');
-    mood.append(
-      px(glyph(m.mood >= 66 ? 'smile' : m.mood >= 33 ? 'meh' : 'sad')),
-      px(bar(m.mood / 100, 20, m.mood >= 66 ? 0x6aa848 : m.mood >= 33 ? 0xc8902c : 0xc0545a)),
-    );
+    const hc = named(px(hearts(m.favor), 1, 'pxc-hearts'), 'favor');
+    const mood = named(div('pxc-mood'), 'mood');
+    mood.append(px(glyph(m.mood >= 66 ? 'smile' : m.mood >= 33 ? 'meh' : 'sad')), px(pips5(m.mood / 100)));
     row.append(nm, hc, mood);
     const lineText = said?.id === id ? said.text : n.thought;
     const line = div(`pxs-line${said?.id === id && said.bad ? ' bad' : ''}`, lineText ? `「${lineText}」` : '');
@@ -190,6 +186,7 @@ export function createPxCard(ctx: CastCtx, onShow?: (id: string | null) => void)
     const nowH = s.minute / 60;
     // 他就在场：现在这一段一定是他的颜色（不在常来的钟点也来了），针不落在空槽里
     if (ctx.bound(id) && !segs.some(([a, b]) => nowH >= a && nowH <= b)) segs.push([nowH - 0.5, nowH + 1]);
+    named(band, n.here && ctx.bound(id) && n.activity !== 'idle' ? (`do_${n.activity}` as TKey) : 'hours');
     band.appendChild(
       px(
         dayBand({
@@ -197,9 +194,9 @@ export function createPxCard(ctx: CastCtx, onShow?: (id: string | null) => void)
           to: CLOSE,
           w: 120,
           segs,
-          color: accent,
+          color: KEYS.s,
           now: nowH,
-          mark: n.here && ctx.bound(id) && n.activity !== 'idle' ? ACT_GLYPH[n.activity] : null,
+          mark: null,
           dim: !n.here,
         }),
       ),
@@ -225,7 +222,7 @@ export function createPxCard(ctx: CastCtx, onShow?: (id: string | null) => void)
     favorShown = m.favor;
   }
 
-  function second(p: CastPerson, met: boolean, wd: number): HTMLElement {
+  function second(p: CastPerson, met: boolean, _wd: number): HTMLElement {
     const box = div('pxc-more');
     box.appendChild(div('pxs-rule'));
     // 没说过话：一个大问号 + 一句"聊聊才知道"，别的都不画
@@ -235,10 +232,8 @@ export function createPxCard(ctx: CastCtx, onShow?: (id: string | null) => void)
       box.appendChild(u);
       return box;
     }
-    // 一周 7 个小太阳（来的那几天亮）+ 性子（≤ 3 个词）
+    // 一周 7 个小太阳（来的那几天亮）+ 性子（≤ 3 个词）。每个人都画（每天都在的人 = 7 个都亮）：第二层的排版人人一样
     const l2 = div('pxc-line2');
-    // 每天都在的（员工）不画：7 个一样的太阳什么也没说
-    if (p.week && p.week.days.length < 7) l2.appendChild(px(weekSuns(p.week.days, wd)));
     for (const tid of p.traits.slice(0, 3)) {
       const tr = TRAITS[tid];
       if (tr) l2.appendChild(div('pxs-chip', tr.name));
@@ -251,11 +246,13 @@ export function createPxCard(ctx: CastCtx, onShow?: (id: string | null) => void)
     }));
     const top3 = [...vals].sort((a, b) => Math.abs(b.v - 0.5) - Math.abs(a.v - 0.5)).slice(0, 3);
     const g = div('pxc-attrs');
+    // 条拉满卡宽（卡宽 − 图标 − 留边，纹素）
+    const _bw = Math.max(40, Math.floor((sheet.el.clientWidth || 360) / hudScale()) - 28);
     for (const a of vals) {
       if (!top3.includes(a)) continue;
-      const it = div('pxc-attr');
+      const it = named(div('pxc-attr'), `attr_${a.k}` as TKey);
       it.appendChild(px(glyph(a.g)));
-      it.appendChild(px(bar(a.v, 40, a.v >= 0.66 ? 0x6aa848 : a.v >= 0.34 ? 0xd89a30 : 0xc0545a, 8)));
+      it.appendChild(px(pips5(a.v)));
       g.appendChild(it);
     }
     box.appendChild(g);
@@ -267,7 +264,8 @@ export function createPxCard(ctx: CastCtx, onShow?: (id: string | null) => void)
         if (!o) continue;
         const b = btn('pxc-tie', o.nameZh || o.name);
         b.appendChild(px(headCrop(o.id, o)));
-        b.appendChild(px(glyph(TIE_GLYPH[tie.kind]), 1, 'k'));
+        // 关系不另画角标（第 3 轮评判：蓝底小牌猜不出）：点头像出"名字 · 关系"
+        named(b, null, `${shortName(o)} · ${t(`tie_${tie.kind}` as TKey)}`);
         tap(b, () => {
           if (!list.includes(o.id)) list = [id, ...p.ties.map((x) => x.with)];
           show(o.id);
