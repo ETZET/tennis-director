@@ -2,7 +2,7 @@
 // 设计：docs/design/people.md（人物：3D 俱乐部里的人）。
 //
 // 这一层是纯数据 + 纯函数：不碰 three、DOM、Math.random（种子哈希），可序列化 —— 以后重写模拟（M-B）时整个搬进 packages/sim。
-// 画面那边：clubsite/people/dress.ts 按 CastLook 给已经建好的 Q 版人换装；clubwalk/cast/ 把场景里的人对上演员表、名册、互动。
+// 画面那边：clubsite/people/dress.ts 按 CastLook 给已经建好的 Q 版人换装；clubsite/castui/ 把场景里的人对上演员表、名册、互动。
 //
 // 三层人（设计文档「三层人」）：
 //   named   有名有姓、手写故事的人（named.ts）：员工、老会员、常客、他们的家人
@@ -208,7 +208,7 @@ export interface Tie {
   note: string;
 }
 
-/** 正在干什么（按场景里的姿势推断，clubwalk/cast 给出；"在想什么"按它挑台词） */
+/** 正在干什么（按场景里的姿势推断，clubsite/castui 给出；"在想什么"按它挑台词） */
 export type Activity =
   | 'play' // 打球（ready、forehand、serve、dink……）
   | 'watch' // 看球（看台、场边坐着鼓掌）

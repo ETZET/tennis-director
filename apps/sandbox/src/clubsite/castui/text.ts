@@ -1,5 +1,5 @@
 // 名册和人物卡片的界面文字（集中在这里，以后搬进 i18n 键值表；sandbox 的 demo 先写死中文）。
-import type { Activity, Role, TieKind } from '../../clubsite/cast/types';
+import type { Activity, Role, TieKind } from '../cast/types';
 
 export const TXT = {
   rosterBtn: '名册',

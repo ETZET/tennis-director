@@ -1,5 +1,5 @@
 // 人物系统（cast）的入口：数据契约、特质、颜色、种子随机、人位表、生成、选角、互动、状态、"在想什么"。
-// 纯数据 + 纯函数（不碰 three、DOM、Math.random；pnpm check:deps 的 cast-is-pure）。界面在 clubwalk/cast/，换装在 people/dress.ts。
+// 纯数据 + 纯函数（不碰 three、DOM、Math.random；pnpm check:deps 的 cast-is-pure）。界面在 clubsite/castui/，换装在 people/dress.ts。
 import { buildCast } from './casting';
 import { NAMED } from './named';
 

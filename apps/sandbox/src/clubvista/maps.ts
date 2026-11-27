@@ -181,6 +181,13 @@ const arrive: MapDef = {
       [13.6, 9.6],
       [12.6, 8.8],
     ]),
+    // 去内场（clubgame 把 clubwalk 的整座俱乐部接成第五张图）：前台东边一串踏脚石穿过草坪，走到东沿出图
+    stones('club', [
+      [25.6, 12.6],
+      [28, 13.8],
+      [30.4, 15],
+      [33.4, 15.6],
+    ]),
     ...dashes('dash', -30, 60, 48.3, 2.4, 5),
   ],
   stairs: [
@@ -386,12 +393,20 @@ const arrive: MapDef = {
       [60, 45],
       [19.8, 45],
     ],
-    rect(28.6, 4, 60, 31),
+    // 东边的草坪不能走，只留去内场的那串踏脚石一条 4 米宽的走廊（z 13.4…17.4，走到 x 36）
+    rect(28.6, 4, 60, 13.4),
+    rect(28.6, 17.4, 60, 31),
+    rect(36, 13.4, 60, 17.4),
   ],
-  exits: [{ to: 'court', entry: 'fromArrive', at: [23.5, -3.6], r: 2 }],
+  exits: [
+    { to: 'court', entry: 'fromArrive', at: [23.5, -3.6], r: 2 },
+    // 'club' 不是这四张图里的：world.ts 交给 hooks.outer（clubgame 换到内场的世界）；只开 clubvista 自己时这个出口不通
+    { to: 'club', entry: 'gate', at: [33.6, 15.6], r: 2 },
+  ],
   entries: {
     start: { at: [11, 42.2], yaw: PI },
     fromCourt: { at: [23, 2.4], yaw: 0.1 },
+    fromClub: { at: [28.4, 14], yaw: -PI / 2 },
   },
   start: { at: [11, 42.2], yaw: PI },
   clouds: [[38, 14, 5, 3]],

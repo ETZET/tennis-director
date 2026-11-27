@@ -1,7 +1,7 @@
 // 名册：HUD 右上"名册"按钮点开的全屏面板（手机竖屏）。顶上时钟、零用钱、"下一天"（demo）；页签 + 搜索；
 // 一行一人：像素肖像、名字 + 中文叫法、身份、好感格子、今天在不在（在哪儿）。点一行 → 人物卡片。
-import type { CastPerson } from '../../clubsite/cast/types';
-import { MEMBERSHIP_NAME, SCENE_NAME } from '../../clubsite/cast/types';
+import type { CastPerson } from '../cast/types';
+import { MEMBERSHIP_NAME, SCENE_NAME } from '../cast/types';
 import type { CastCtx } from './ctx';
 import { accentMid, portraitURL } from './portrait';
 import { ROLE_NAME, TXT } from './text';

@@ -5,7 +5,7 @@
 //   区域刚建好时一个区域分几帧换完，走路不卡）。
 // - 换天：清掉所有对象的 castId，下一次扫描重新选角、重新换装（只换 id 变了的）。
 import * as THREE from 'three';
-import type { CastLook, CastPerson, PersonKind, SceneId } from '../../clubsite/cast/types';
+import type { CastLook, CastPerson, PersonKind, SceneId } from '../cast/types';
 
 /** clubwalk 的 Live 只用到这几个字段 */
 export interface LiveLike {

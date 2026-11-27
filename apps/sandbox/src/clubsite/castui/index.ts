@@ -1,4 +1,5 @@
-// clubwalk 的人物：把场景里的人对上演员表（bind.ts）、走近了头顶有名字小牌、点人 → 总监走过去 → 人物卡片（card.ts）、
+// 人物界面（原 clubwalk/cast，2026-11-26 提到 clubsite：clubwalk 和分图 clubvista 共用一套；通勤 commute.ts 绑着整座俱乐部的出入口，留在 clubwalk，从 opts.commute 给）：
+// 把场景里的人对上演员表（bind.ts）、走近了头顶有名字小牌、点人 → 总监走过去 → 人物卡片（card.ts）、
 // HUD 上的"名册"（roster.ts）、游戏时钟（1 秒 = 1 游戏分钟，?castspeed= 调；7:00–22:00，过了 22:00 进下一天重新选角）、
 // 存档（save.ts，localStorage 'td-cast-v1'，?castreset=1 清掉）。?cast=0 整个关掉（main.ts 里判断）。
 //
@@ -7,16 +8,15 @@
 //   step() 的循环里 cast?.step(DT)；frame() 里 render 之后 cast?.frame()。
 // 调试：window.__cast（state、open(id)、roster()、nextDay()、bound()…）。
 import * as THREE from 'three';
-import { act, activityOf, CAST, CLOSE, clockText, initState, memOf, OPEN, thought, tick } from '../../clubsite/cast';
-import { CLOTH, HAIR, SKIN } from '../../clubsite/cast/colors';
-import type { ActionId, ActResult, CastPerson, CastState } from '../../clubsite/cast/types';
-import { SCENE_NAME } from '../../clubsite/cast/types';
-import type { Peek, Who } from '../../clubsite/hud';
-import { createDresser } from '../../clubsite/people/dress';
-import type { Play } from '../../clubsite/play';
+import { act, activityOf, CAST, CLOSE, clockText, initState, memOf, OPEN, thought, tick } from '../cast';
+import { CLOTH, HAIR, SKIN } from '../cast/colors';
+import type { ActionId, ActResult, CastPerson, CastState } from '../cast/types';
+import { SCENE_NAME } from '../cast/types';
+import type { Peek, Who } from '../hud';
+import { createDresser } from '../people/dress';
+import type { Play } from '../play';
 import { Binder, type Bound, headHeight, type LiveLike } from './bind';
 import { createCard } from './card';
-import { Commute } from './commute';
 import type { CastCtx, NowInfo } from './ctx';
 import { accentMid } from './portrait';
 import { createPxBoard } from './pxboard';
@@ -40,8 +40,13 @@ export interface MountCastOpts {
   mats: DresserOpts['mats'];
   /** 配色方案（dress.ts 按它调色） */
   scheme: DresserOpts['scheme'] | undefined;
-  /** 建一个通勤的替身（commute.ts）：不给 = 不管人从哪儿出现 */
-  makePerson?: (kind: 'adult' | 'kid') => THREE.Object3D;
+  /**
+   * 通勤（clubwalk/cast/commute.ts：人从停车场的车边、会所的门进出，按整座俱乐部的出入口写的，留在 clubwalk）：
+   * 不给 = 不管人从哪儿出现（分图 clubvista 的人是摆上去的）
+   */
+  commute?: (deps: CommuteDeps) => CommuteLike | null;
+  /** 演员表的状态盒子（createCastStore）：不给 = 自己读存档建一个 */
+  store?: CastStore;
   /**
    * 像素界面（clubsite/hud）：不画名字小牌和"名册"牌子（名册由界面右下的图标开）；点人 = 头上一个小框（名字 + 一句话，peek），
    * 总监照样走过去，到了不自动开卡片，点小框才开。
@@ -50,6 +55,28 @@ export interface MountCastOpts {
   peek?: (p: Peek | null) => void;
   /** 人物卡开着：标出画面里的这个人（null = 收起） */
   focus?: (anchor: THREE.Object3D | null, dy: number) => void;
+}
+
+export interface CastStore {
+  state: CastState;
+}
+/** 读存档（没有就新开一局）；一页里几处界面共用时先建好传给 mountCast({ store }) */
+export function createCastStore(params: URLSearchParams): CastStore {
+  return { state: loadState(params, () => initState(CAST, CAST.seed)) };
+}
+
+export interface CommuteDeps {
+  scene: THREE.Scene;
+  director: THREE.Object3D;
+  nav: () => Play['nav'];
+  dresser: ReturnType<typeof createDresser> | null;
+  person: (obj: THREE.Object3D) => CastPerson | null;
+}
+export interface CommuteLike {
+  hook(obj: THREE.Object3D, scene: string): void;
+  suppress(on: boolean): void;
+  step(dt: number): void;
+  debug(): unknown;
 }
 
 export interface CastMount {
@@ -66,6 +93,8 @@ export interface CastMount {
   open(id: string): void;
   /** 打开名册 */
   openRoster(): void;
+  /** 卡片、名册都收起（换世界的时候） */
+  close(): void;
   /** 钱（演员表的状态里的） */
   money(): number;
   /** 场景里这个人（Object3D）是谁：名字 + 发色、肤色、衣服色（界面上方那行字前面的小人头）；不是演员表里的人 = null */
@@ -84,7 +113,8 @@ export function mountCast(o: MountCastOpts): CastMount {
   injectCastCss();
   const { play, director, params } = o;
   const speed = params.has('castspeed') ? Number(params.get('castspeed')) || 1 : 1;
-  let state: CastState = loadState(params, () => initState(CAST, CAST.seed));
+  // 状态放在一个盒子里：同一页里两个世界（clubgame：分图 + 内场）各挂一份界面，共用一个盒子 = 同一份钱、好感、时钟
+  const S: CastStore = o.store ?? createCastStore(params);
   let saveT = 10;
 
   const dresser = (() => {
@@ -97,13 +127,12 @@ export function mountCast(o: MountCastOpts): CastMount {
   })();
   // 通勤（commute.ts）：人从停车场的车边、会所的门进出，不在路中间凭空出现 / 消失（?commute=0 关掉，对照用）
   const commute =
-    o.makePerson && params.get('commute') !== '0'
-      ? new Commute({
+    o.commute && params.get('commute') !== '0'
+      ? o.commute({
           scene: o.scene,
           director,
           nav: () => play.nav,
           dresser,
-          make: o.makePerson,
           person: (obj) => CAST.get(obj.userData.castId as string) ?? null,
         })
       : null;
@@ -144,9 +173,9 @@ export function mountCast(o: MountCastOpts): CastMount {
 
   const ctx: CastCtx = {
     cast: CAST,
-    state: () => state,
+    state: () => S.state,
     person: (id) => CAST.get(id),
-    mem: (id) => memOf(state, id, CAST.get(id)),
+    mem: (id) => memOf(S.state, id, CAST.get(id)),
     bound: (id) => binder.objOf(id),
     near: (id) => {
       const b = binder.objOf(id);
@@ -163,10 +192,10 @@ export function mountCast(o: MountCastOpts): CastMount {
     doAct: (id, a) => doAct(id, a),
     nextDay: () => {
       // 跳到第二天早上 8 点（tick 过夜：说话次数清零、心情回落）
-      advance(CLOSE - state.minute + (8 * 60 - OPEN), true);
-      play.toast(TXT.nextDayToast(state.day), 2.2);
+      advance(CLOSE - S.state.minute + (8 * 60 - OPEN), true);
+      play.toast(TXT.nextDayToast(S.state.day), 2.2);
     },
-    clock: () => clockText(state),
+    clock: () => clockText(S.state),
   };
 
   // 像素界面：半屏的像素人物卡、"今天的人"看板（pxcard / pxboard）；旧界面还是全屏的文字卡、名册表
@@ -203,7 +232,7 @@ export function mountCast(o: MountCastOpts): CastMount {
   function nowOf(id: string): NowInfo {
     const p = CAST.get(id);
     const b = binder.objOf(id);
-    const homes = CAST.where(id, state.day);
+    const homes = CAST.where(id, S.state.day);
     if (!p) return { here: false, scene: null, activity: 'idle', text: TXT.notHereToday, thought: '' };
     if (b) {
       const ud = b.obj.userData;
@@ -211,13 +240,13 @@ export function mountCast(o: MountCastOpts): CastMount {
       const prop = (ud.prop?.() as string | null | undefined) ?? null;
       const activity = activityOf(pose, prop);
       const sceneName = SCENE_NAME[b.scene];
-      const salt = Math.floor(state.minute / 20) + state.day * 97;
+      const salt = Math.floor(S.state.minute / 20) + S.state.day * 97;
       return {
         here: true,
         scene: b.scene,
         activity,
         text: TXT.nowAt(sceneName, ACTIVITY_NAME[activity]),
-        thought: thought(p, memOf(state, id, p), activity, sceneName, salt),
+        thought: thought(p, memOf(S.state, id, p), activity, sceneName, salt),
       };
     }
     if (homes.length) {
@@ -232,12 +261,12 @@ export function mountCast(o: MountCastOpts): CastMount {
   /** 推进游戏时钟；过了 22:00 tick 自己进下一天（7:00）→ 重新选角、重新换装 */
   function advance(minutes: number, quiet = false) {
     if (minutes <= 0) return;
-    const day0 = state.day;
-    state = tick(state, minutes);
-    if (state.day !== day0) {
-      saveState(state);
-      binder.step(0, state.day, true);
-      if (!quiet) play.toast(TXT.newDayToast(state.day), 2.2);
+    const day0 = S.state.day;
+    S.state = tick(S.state, minutes);
+    if (S.state.day !== day0) {
+      saveState(S.state);
+      binder.step(0, S.state.day, true);
+      if (!quiet) play.toast(TXT.newDayToast(S.state.day), 2.2);
       changed();
     }
   }
@@ -248,12 +277,12 @@ export function mountCast(o: MountCastOpts): CastMount {
     const b = binder.objOf(id);
     const near = !!b && flatDist(b) <= NEAR;
     const now = nowOf(id);
-    const r = act(state, p, a, { near, activity: now.activity, scene: b?.scene ?? null });
-    state = r.state;
+    const r = act(S.state, p, a, { near, activity: now.activity, scene: b?.scene ?? null });
+    S.state = r.state;
     const res = r.result;
     if (res.ok) {
       advance(res.minutes);
-      saveState(state);
+      saveState(S.state);
       if (b) {
         b.obj.getWorldPosition(tv);
         if (near) {
@@ -319,7 +348,7 @@ export function mountCast(o: MountCastOpts): CastMount {
   /** 他今天在的区域还没建（画面外）：往那个区域里离总监近的能站的点走 */
   function planScene(id: string): boolean {
     const d = dirPos();
-    for (const h of CAST.where(id, state.day)) {
+    for (const h of CAST.where(id, S.state.day)) {
       const rects = o.lives.find((l) => l.def.id === h.scene)?.def.rects;
       if (!rects) continue;
       const pts: [number, number][] = [];
@@ -440,7 +469,7 @@ export function mountCast(o: MountCastOpts): CastMount {
         at: () => at,
         radius: 2,
         priority: -1,
-        label: TXT.talkTo(name.split(' ')[0]),
+        label: TXT.talkTo(p ? shortName(p) : name),
         autoUse: true,
         canUse: () => !panelOpen(),
         onUse: () => {
@@ -484,6 +513,8 @@ export function mountCast(o: MountCastOpts): CastMount {
         if (walkTo(best, true)) return;
       }
     }
+    // 点了别处（地面、场景里的活）：不再往刚才点的那个人那儿走（不然走到地方又自己折回去找他）
+    pending = null;
     origTap(x, y, W, H);
   };
 
@@ -533,7 +564,7 @@ export function mountCast(o: MountCastOpts): CastMount {
         el.hidden = true;
         continue;
       }
-      const met = memOf(state, p.id, p).met;
+      const met = memOf(S.state, p.id, p).met;
       const key = `${p.id}|${met}`;
       if (tagKey[i] !== key) {
         tagKey[i] = key;
@@ -590,14 +621,18 @@ export function mountCast(o: MountCastOpts): CastMount {
     openRoster() {
       roster.open();
     },
-    money: () => state.money,
+    close() {
+      card.close();
+      roster.close();
+    },
+    money: () => S.state.money,
     whoOf(anchor) {
       const b = binder.bound.find((x) => x.obj === anchor);
       const p = b ? CAST.get(b.id) : null;
       return p ? whoOfPerson(p) : null;
     },
     step(dt) {
-      binder.step(dt, state.day);
+      binder.step(dt, S.state.day);
       commute?.step(dt);
       // 时钟：1 秒 = speed 游戏分钟
       minAcc += dt * speed;
@@ -621,12 +656,12 @@ export function mountCast(o: MountCastOpts): CastMount {
       saveT -= dt;
       if (saveT <= 0) {
         saveT = 10;
-        saveState(state);
+        saveState(S.state);
       }
     },
     frame() {
       if (!o.quiet) drawTags();
-      const ct = clockText(state);
+      const ct = clockText(S.state);
       if (ct !== lastClock) {
         lastClock = ct;
         clockEl.textContent = ct;
@@ -634,12 +669,12 @@ export function mountCast(o: MountCastOpts): CastMount {
       }
     },
   };
-  addEventListener('pagehide', () => saveState(state));
+  addEventListener('pagehide', () => saveState(S.state));
 
   (window as unknown as Record<string, unknown>).__cast = {
     ctx,
     binder,
-    state: () => state,
+    state: () => S.state,
     open: (id: string) => card.open(id),
     roster: () => roster.open(),
     close: () => {
@@ -650,6 +685,10 @@ export function mountCast(o: MountCastOpts): CastMount {
     bound: () =>
       binder.bound.map((b) => ({ id: b.id, scene: b.scene, slot: b.slot, kind: b.kind, d: Math.sqrt(b.d2) })),
     walkTo,
+    /** 不再往点的那个人那儿走（测试脚本直接 tapWorld 之前调） */
+    cancel: () => {
+      pending = null;
+    },
     pending: () => binder.pending(),
     commute: () => commute?.debug(),
   };

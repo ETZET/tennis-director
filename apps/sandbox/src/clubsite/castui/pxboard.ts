@@ -2,10 +2,10 @@
 // 不是表：今天来俱乐部的人按地点分簇，每簇一行 —— 打头一个地点小图（车 = 停车场、铃 = 前台、喷泉 = 广场……），
 // 后面是这儿的人的像素头像，多的收成 "+N"（点了这一簇展开）。离总监近的簇在前、簇里近的在前。
 // 没有页签、搜索、字；点一个头像 = 开他的人物卡（卡上能走过去、能互动）。左上探出来一张工牌（同 HUD 的名册图标）。
-import type { CastPerson, SceneId } from '../../clubsite/cast/types';
-import { actIcon, costChip, createSheet, type GlyphId, glyph, px, t, tap } from '../../clubsite/hud';
-import { ICONS } from '../../clubsite/hud/icons';
-import { spriteCanvas } from '../../clubsite/hud/sprite';
+import type { CastPerson, SceneId } from '../cast/types';
+import { actIcon, costChip, createSheet, type GlyphId, glyph, px, t, tap } from '../hud';
+import { ICONS } from '../hud/icons';
+import { spriteCanvas } from '../hud/sprite';
 import type { CastCtx } from './ctx';
 import { headCrop, shortName } from './pxcard';
 import type { Roster } from './roster';
