@@ -240,6 +240,12 @@ const VISTA = {
   arriveSail: { ...s([0xf0e4cc, 0xc8b4b0, 0x7e7698], 0.4, 0.2), opts: { noShadowReceive: true } },
   /** 车棚帆布的条：浅暖灰（和米白只差一点，远看是一整块） */
   arriveSailStripe: { ...s([0xd8ccbc, 0xb0a2a8, 0x6e6890], 0.4, 0.2), opts: { noShadowReceive: true } },
+  /**
+   * 球场街（street）的红土：比 clubclay 的 clayBrushed 低一档彩度（第三轮评判：0.55 的一大块平涂橙霸屏、跳出整套）。
+   * 场内 L ≈ 132、S ≈ 0.52；外圈更灰更暗的土色（让白线和人浮出来）。暗档同一套冷灰紫。
+   */
+  streetClay: s([0xd8805e, 0xae6260, 0x684064], 0.05, 0),
+  streetClayOut: s([0xbc8670, 0x9a6a68, 0x5e4460], 0.05, 0),
   /** 白模：占位体块（冷灰，按高度一档档） */
   box: s([0xd8d6e4, 0xa8a4c0, 0x6a6690], 0.6, 0.5),
   /** 白模：占位体块的主角色（每张图一个最鲜艳的暖色：入口的车、前台的帆、泳池的伞……） */
@@ -302,6 +308,8 @@ export const GRADE_AS: Partial<Record<keyof Pal, keyof Pal>> = {
   drillOut: 'court',
   box: 'placeholder',
   boxHot: 'placeholder',
+  streetClay: 'clay',
+  streetClayOut: 'clay',
   arriveSail: 'canvas',
   arriveSailStripe: 'canvas',
 };

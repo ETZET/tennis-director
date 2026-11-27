@@ -504,7 +504,16 @@ export const street: MapDef = {
     },
   ],
   courts: [
-    { id: 'clay', ...C, h: CLAY_H, axis: 'z', outMat: 'clayDust', inMat: 'clayBrushed', lineMat: 'tape', wear: true },
+    {
+      id: 'clay',
+      ...C,
+      h: CLAY_H,
+      axis: 'z',
+      outMat: 'streetClayOut',
+      inMat: 'streetClay',
+      lineMat: 'tape',
+      wear: true,
+    },
     {
       id: 'pickle-a',
       ...PA,
@@ -553,7 +562,8 @@ export const street: MapDef = {
     [-6, 28, 6, 3.4],
     [30, 46, 5, 3],
   ],
-  shot: { port: [14, 42], land: [13, 38] },
+  // 竖屏取景对准两种场的中线（x 17）：两块匹克球场都在画面里（第三轮评判：东边那块被切掉一半）
+  shot: { port: [17, 41], land: [13, 38] },
   spots: [
     { id: 'door-plaza', kind: 'door', at: [-9, EXIT_Z], yaw: PI / 2, note: '西口（← 喷泉广场）' },
     { id: 'door-academy', kind: 'door', at: [14, 0.6], yaw: 0, note: '北台地石阶顶（→ 青训场）' },
