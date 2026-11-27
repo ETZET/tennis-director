@@ -8,7 +8,20 @@
 //   step() 的循环里 cast?.step(DT)；frame() 里 render 之后 cast?.frame()。
 // 调试：window.__cast（state、open(id)、roster()、nextDay()、bound()…）。
 import * as THREE from 'three';
-import { act, activityOf, CAST, CLOSE, clockText, initState, memOf, OPEN, thought, tick } from '../cast';
+import {
+  act,
+  activityOf,
+  CAST,
+  CLOSE,
+  clockText,
+  initState,
+  memOf,
+  OPEN,
+  presenceOf,
+  seekOf,
+  thought,
+  tick,
+} from '../cast';
 import { CLOTH, HAIR, SKIN } from '../cast/colors';
 import type { ActionId, ActResult, CastPerson, CastState } from '../cast/types';
 import { SCENE_NAME } from '../cast/types';
@@ -217,12 +230,17 @@ export function mountCast(o: MountCastOpts): CastMount {
           return [{ id, who: whoOfPerson(p), obj: b ? b.obj : null, dy: b ? headHeight(b.kind) + 1.6 : 2.6 }];
         }),
       go: (id) => walkTo(id, true),
-      // 还会等多久：life 的 seekOf(CAST, state, id) 合进 main 以后换成 (until − minute) / (until − from)；?seekleft=0.6 是假数据
-      left: () => (fakeLeft === null ? null : fakeLeft),
+      // 还会等多久：演员表的 seekOf（从几点等到几点）→ (until − minute) / (until − from)；?seekleft=0.6 仍可强制成假数据
+      left: (id) => {
+        if (fakeLeft !== null) return fakeLeft;
+        const k = seekOf(CAST, S.state, id);
+        if (!k || k.until <= k.from) return null;
+        return Math.min(1, Math.max(0, (k.until - S.state.minute) / (k.until - k.from)));
+      },
       scenes: () =>
         seekIds().flatMap((id) => {
           const b = binder.objOf(id);
-          const s = b ? b.scene : CAST.where(id, S.state.day)[0]?.scene;
+          const s = b ? b.scene : (presenceOf(CAST, S.state, id)?.scene ?? CAST.where(id, S.state.day)[0]?.scene);
           return s ? [s] : [];
         }),
     });

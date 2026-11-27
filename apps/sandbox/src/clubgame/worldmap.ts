@@ -3,7 +3,7 @@
 // 整个游戏的像素小地图（右下地图键点开）：每张图一块剪影小牌、点点的小路、你在哪、出口、有人在找你的图。只看信息，点了不去哪（玩法准则 1）。
 import { createMiniMap, type MiniGraph, seekScenes } from '../clubsite/hud';
 import { CAST_SCENE, mapName } from '../clubvista/text';
-import { EXITS, LINKS, NODES, INNER_LINKS, INNER_NODE } from './mapgraph';
+import { EXITS, INNER_LINKS, INNER_NODE, LINKS, NODES } from './mapgraph';
 
 export interface WorldMap {
   open(): void;
