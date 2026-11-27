@@ -38,6 +38,7 @@ export { createIris } from './iris';
 export { moodOf } from './mood';
 export { hudScale } from './scale';
 export * from './sheet';
+export { createWaySigns, type WaySign, type WaySigns } from './waysign';
 
 export interface HudButton {
   id: string;
@@ -59,6 +60,8 @@ export interface PixelHudOpts {
   /** 场景里说话的是谁（点心情泡时，上方那行字前面带名字和小人头）；不给 = 只有那句话 */
   who?: (anchor: Anchor) => Who | null;
   params?: URLSearchParams;
+  /** false = 不出开局的操作提示（同一页里第二个世界的界面：玩家已经看过了） */
+  hint?: boolean;
 }
 
 export interface Peek {
@@ -571,6 +574,7 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
   hintEl.appendChild(label(t('hint')));
   root.appendChild(hintEl);
   const hideHint = () => hintEl.classList.add('gone');
+  if (o.hint === false) hideHint();
   const hintTimer = window.setTimeout(hideHint, 5000);
   canvas.addEventListener('pointerdown', () => {
     clearTimeout(hintTimer);

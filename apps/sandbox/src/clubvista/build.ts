@@ -26,6 +26,8 @@ export type Kind = 'own' | 'reused' | 'placeholder';
 export interface Kit {
   ctxFor(variant: number): AssetCtx;
   makeAsset(asset: string, variant: number): { obj: THREE.Object3D; kind: Kind };
+  /** 原始的材质库（没过配色方案的）：人物换装（clubsite/people/dress.ts）要它 */
+  mats: ReturnType<typeof createMats>;
 }
 
 export function createKit(o: {
@@ -79,7 +81,7 @@ export function createKit(o: {
     ctxBase.mats.prepare(obj);
     return { obj, kind: 'placeholder' };
   }
-  return { ctxFor, makeAsset };
+  return { ctxFor, makeAsset, mats };
 }
 
 /** 亮档除掉太阳色的 k 份（同 clubpool/scene.ts 的 unSun：水面亮处是天光，不该被午后的太阳染成薄荷绿） */

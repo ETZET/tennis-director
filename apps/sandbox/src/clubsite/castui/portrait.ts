@@ -1,8 +1,8 @@
 // 像素肖像：按 CastLook 画 32×32 的胸像（canvas → dataURL，按 id 缓存；界面里按 2×/3×/4× 放大，image-rendering: pixelated）。
 // 色阶同 3D（clubsite/cast/colors.ts 的 [亮, 中, 暗]）：光从左上来，左上用亮档、身子主体中档、右边和下面暗档（暗档偏紫）。
 // 发型 9 种、帽子 5 种和 dress.ts 的 3D 对得上；孩子头大身子小，老人两道皱纹、鬓角白。同一个人永远同一张（只读 look 和 age，不随机）。
-import { CLOTH, EYE, HAIR, hex, type Ramp3, SKIN } from '../../clubsite/cast/colors';
-import type { CastLook, Cloth } from '../../clubsite/cast/types';
+import { CLOTH, EYE, HAIR, hex, type Ramp3, SKIN } from '../cast/colors';
+import type { CastLook, Cloth } from '../cast/types';
 
 const N = 32;
 /** 描边（深紫，同场景的描边色调） */

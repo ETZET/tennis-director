@@ -1,5 +1,5 @@
 // 存档：演员表的状态（好感、记忆、时钟、零用钱）放 localStorage 'td-cast-v1'；?castreset=1 清掉重来。
-import type { CastState } from '../../clubsite/cast/types';
+import type { CastState } from '../cast/types';
 
 const KEY = 'td-cast-v1';
 

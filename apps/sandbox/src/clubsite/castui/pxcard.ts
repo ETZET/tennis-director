@@ -4,9 +4,9 @@
 //           底下一排互动按钮：图标 + 代价（小时钟 / 金币 + 点阵数字）。不当面时按了先走过去，到了自动做。
 //   第二层（点卡顶的小箭头）：一周 7 格、6 项属性（图标 + 短条）、性子（≤ 3 个词）、牵连（小头像 + 关系小图，点了换成他）。
 // 字：名字 + 一句话，第二层只有性子的几个词。卡片外面点一下 / 往下滑 = 收起。
-import { actionsFor } from '../../clubsite/cast';
-import { TRAITS } from '../../clubsite/cast/traits';
-import type { ActionDef, ActionId, Activity, CastPerson, TieKind } from '../../clubsite/cast/types';
+import { actionsFor } from '../cast';
+import { TRAITS } from '../cast/traits';
+import type { ActionDef, ActionId, Activity, CastPerson, TieKind } from '../cast/types';
 import {
   actIcon,
   bar,
@@ -23,7 +23,7 @@ import {
   t,
   tap,
   weekSuns,
-} from '../../clubsite/hud';
+} from '../hud';
 import type { Card } from './card';
 import type { CastCtx } from './ctx';
 import { accentDarkNum, accentNum, portraitCanvas } from './portrait';

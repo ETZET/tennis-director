@@ -1,14 +1,5 @@
 // 名册和卡片共用的接口（index.ts 实现）：读状态、找人、他现在在哪儿、互动、开别的面板。
-import type {
-  ActionId,
-  Activity,
-  ActResult,
-  Cast,
-  CastPerson,
-  CastState,
-  PersonMem,
-  SceneId,
-} from '../../clubsite/cast/types';
+import type { ActionId, Activity, ActResult, Cast, CastPerson, CastState, PersonMem, SceneId } from '../cast/types';
 import type { Bound } from './bind';
 
 export interface NowInfo {

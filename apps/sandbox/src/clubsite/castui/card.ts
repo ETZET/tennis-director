@@ -1,10 +1,10 @@
 // 人物卡片：大像素肖像、身份、属性、特质、喜好、故事、牵连（点了跳到那个人）、每周什么时候来、现在在哪儿干什么 + 在想什么、
 // 好感和心情、最近的记忆；底部互动按钮（actionsFor，写着代价）。不当面时当面的动作变成"走过去"（到了自动打开，当面）。
 // 没见过面的人：只给外观、身份和"还没说过话"，属性、故事打问号 —— 聊过一次以后解开。◀ ▶ 或左右滑切人。
-import { actionsFor } from '../../clubsite/cast';
-import { TRAITS } from '../../clubsite/cast/traits';
-import type { ActionDef, ActResult, CastPerson } from '../../clubsite/cast/types';
-import { ATTR_NAMES, MEMBERSHIP_NAME, SCENE_NAME } from '../../clubsite/cast/types';
+import { actionsFor } from '../cast';
+import { TRAITS } from '../cast/traits';
+import type { ActionDef, ActResult, CastPerson } from '../cast/types';
+import { ATTR_NAMES, MEMBERSHIP_NAME, SCENE_NAME } from '../cast/types';
 import type { CastCtx } from './ctx';
 import { accentDark, accentLight, isLight, portraitURL } from './portrait';
 import { favorCells } from './roster';

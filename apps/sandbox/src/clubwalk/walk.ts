@@ -21,6 +21,7 @@ import { placements } from '../clubmap2/scatter';
 import { SPOTS as PARK_SPOTS } from '../clubpark/layout';
 import { createParkKit } from '../clubpark/scene';
 import { CLOUDS as PLAZA_CLOUDS } from '../clubplaza/layout';
+import { type CastStore, mountCast } from '../clubsite/castui';
 import { mountDaylight } from '../clubsite/daylight';
 import { mountPixelHud, type PixelHud } from '../clubsite/hud';
 import {
@@ -63,7 +64,7 @@ import {
   POOL,
   type Rect,
 } from '../clubsite/world';
-import { mountCast } from './cast';
+import { Commute } from './cast/commute';
 import { clipMesh } from './clip';
 import { grow, keepOwn, outside, overlaps, shapeBox } from './navclip';
 import { inRects, REGIONS, type RegionDef, rectDist } from './regions';
@@ -110,6 +111,21 @@ export interface WalkHooks {
    * 收进调试（?debug=1 或左下角的小点）。clubwalk 开；山谷（valley）还是旧的。?hud=old 关掉（对照用）
    */
   pixelHud?: boolean;
+  // ── 和别的世界同住一页（clubgame：分图 clubvista + 这个世界当"内场"） ──
+  /** 画在哪块画布上（默认 #c） */
+  canvas?: HTMLCanvasElement;
+  /** 查询串（默认 location.search） */
+  params?: URLSearchParams;
+  /** false = 这个世界现在不在台上：不走步、不画（循环照转，回来接着走） */
+  active?: () => boolean;
+  /** 演员表的状态盒子（两个世界共用一份钱、好感、时钟） */
+  castStore?: CastStore;
+  /** 右下的地图图标：给了就由外面管（整个游戏的像素小地图），不给 = 俱乐部自己的小地图 */
+  mapButton?: { onTap(): void; pressed(): boolean };
+  /** 地点名显示之前过一道（clubgame："内场 · 广场"，和分图里同名的地方分开） */
+  placeLabel?(name: string): string;
+  /** false = 像素界面不出开局的操作提示（玩家在别的世界已经看过了） */
+  hudHint?: boolean;
 }
 export interface WalkApi {
   scene: THREE.Scene;
@@ -124,10 +140,12 @@ export interface WalkApi {
   day: ReturnType<typeof mountDaylight>;
   /** 俱乐部的一天（clubwalk/sim）：sim.enable(true, { at, speed, panel }) 打开观察模式 */
   sim: SimMount;
+  /** 像素界面（pixelHud 开着才有） */
+  hud: PixelHud | null;
 }
 
 export function mountWalk(hooks: WalkHooks = {}) {
-  const params = new URLSearchParams(location.search);
+  const params = hooks.params ?? new URLSearchParams(location.search);
   const num = (k: string, d: number) => (params.has(k) ? Number(params.get(k)) : d);
   const pair = (k: string): [number, number] | null => {
     const v = params.get(k);
@@ -146,7 +164,7 @@ export function mountWalk(hooks: WalkHooks = {}) {
     if (hud) void hud.iris.run(fn);
     else fn();
   };
-  const canvas = document.getElementById('c') as HTMLCanvasElement;
+  const canvas = hooks.canvas ?? (document.getElementById('c') as HTMLCanvasElement);
   const placeEl = document.getElementById('place') as HTMLDivElement;
   const perfEl = document.getElementById('perf') as HTMLDivElement;
   const mapEl = document.getElementById('minimap') as HTMLCanvasElement;
@@ -925,7 +943,7 @@ export function mountWalk(hooks: WalkHooks = {}) {
   play.nav.prepare();
   // 调试钩子（测试、截图脚本用）
   (window as unknown as Record<string, unknown>).__clubwalk = { scene, lives, play, director, step };
-  // 人物：场景里的人对上演员表、名册、互动（clubwalk/cast；?cast=0 关）
+  // 人物：场景里的人对上演员表、名册、互动（clubsite/castui，通勤在 clubwalk/cast/commute.ts；?cast=0 关）
   const cast =
     params.get('cast') === '0'
       ? null
@@ -941,7 +959,12 @@ export function mountWalk(hooks: WalkHooks = {}) {
           mats: dirKit.mats,
           scheme,
           // 通勤的替身：同一套 Q 版人（材质用总监那套），换装成要替的那个人
-          makePerson: (k) => (k === 'kid' ? clubKid : clubPlayer)(dirKit.ctxFor(0) as unknown as BaseCtx),
+          commute: (deps) =>
+            new Commute({
+              ...deps,
+              make: (k) => (k === 'kid' ? clubKid : clubPlayer)(dirKit.ctxFor(0) as unknown as BaseCtx),
+            }),
+          store: hooks.castStore,
         });
 
   // ── 俱乐部的一天（clubwalk/sim）：观察模式；?sim=1 开局就开，valley 的调试面板里开关 ──
@@ -975,6 +998,9 @@ export function mountWalk(hooks: WalkHooks = {}) {
     get sim() {
       return sim as SimMount;
     },
+    get hud() {
+      return hud;
+    },
   });
 
   // ── 地点名（进入区域时淡出）+ 小地图 ──
@@ -1004,7 +1030,7 @@ export function mountWalk(hooks: WalkHooks = {}) {
     if (name !== placeName) {
       placeName = name;
       if (hud) {
-        hud.place(name);
+        hud.place(hooks.placeLabel ? hooks.placeLabel(name) : name);
         return;
       }
       placeEl.textContent = name;
@@ -1117,6 +1143,7 @@ export function mountWalk(hooks: WalkHooks = {}) {
       canvas,
       day,
       params,
+      hint: hooks.hudHint,
       money: cast ? () => cast.money() : undefined,
       who: cast ? (a) => cast.whoOf(a) : undefined,
       buttons: [
@@ -1124,8 +1151,8 @@ export function mountWalk(hooks: WalkHooks = {}) {
           id: 'map',
           icon: 'map',
           label: 'map',
-          onTap: () => document.body.classList.toggle('pxh-map'),
-          pressed: () => document.body.classList.contains('pxh-map'),
+          onTap: hooks.mapButton?.onTap ?? (() => document.body.classList.toggle('pxh-map')),
+          pressed: hooks.mapButton?.pressed ?? (() => document.body.classList.contains('pxh-map')),
         },
         ...(cast
           ? [{ id: 'roster', icon: 'roster' as const, label: 'roster' as const, onTap: () => cast.openRoster() }]
@@ -1269,6 +1296,11 @@ export function mountWalk(hooks: WalkHooks = {}) {
   const SMOOTH = params.get('smooth') !== '0';
   const lerp = new ViewLerp(director, pipe.rig, scene);
   function frame(now: number) {
+    if (hooks.active && !hooks.active()) {
+      last = now;
+      requestAnimationFrame(frame);
+      return;
+    }
     let real = Math.min(0.1, (now - last) / 1000);
     // 上一帧建了区域（主线程卡了一下）：不追那段时间，不然卡完总监一下跳出去好几步
     if (hitched && SMOOTH) real = DT;

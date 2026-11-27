@@ -4,12 +4,17 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <link rel="icon" href="data:,">
-<title>Club Vista · Tennis Director</title>
+<title>Tennis Director · Club</title>
 <style>
   html, body { margin: 0; height: 100%; background: #5fb0e8; overflow: hidden; font: 11px/1.3 system-ui, sans-serif; }
   canvas { display: block; touch-action: none; image-rendering: pixelated; }
   #c { position: fixed; inset: 0; width: 100vw; height: 100vh; height: 100dvh; }
+  #cw { position: fixed; inset: 0; width: 100vw; height: 100vh; height: 100dvh; visibility: hidden; }
   #c2 { display: none; }
+  /* clubgame：不在台上的那个世界的画布和界面（两个世界同住一页，见 src/clubgame/main.ts） */
+  .world-off { visibility: hidden !important; pointer-events: none !important; }
+  #place, #minimap { display: none; }
+  #perf { position: fixed; left: 6px; bottom: 6px; padding: 2px 6px; background: rgba(27, 20, 16, 0.6); color: #f4ead8; pointer-events: none; z-index: 6; }
   body.gallery #c { inset: 0 0 auto 0; height: 42dvh; }
   body.gallery #c2 { display: block; position: fixed; inset: auto 0 0 0; width: 100vw; height: 58dvh; border-top: 2px solid #1b1410; }
   @media (orientation: landscape) {
@@ -42,15 +47,22 @@
   .bub { position: absolute; left: 0; top: 0; padding: 3px 7px; background: #fff3d6; color: #2c2450; white-space: nowrap; font: 700 12px/1.2 "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", system-ui, sans-serif; box-shadow: 2px 0 0 0 #2c2450, -2px 0 0 0 #2c2450, 0 2px 0 0 #2c2450, 0 -2px 0 0 #2c2450; }
   .bub.shout { background: #ffd23c; font-size: 14px; }
   .bub.score { background: #2c2450; color: #fff3d6; letter-spacing: 1px; box-shadow: 2px 0 0 0 #fff3d6, -2px 0 0 0 #fff3d6, 0 2px 0 0 #fff3d6, 0 -2px 0 0 #fff3d6; }
+  /* 像素界面开着：配色切换只在调试里（?debug=1 / 连点日钟 5 下） */
+  body.pxh-on #palsel, body.pxh-on #info { display: none !important; }
+  body.pxh-on.pxh-debug #palsel { display: flex !important; top: auto; bottom: 8px; flex-direction: column-reverse; }
 </style>
 </head>
 <body>
 <canvas id="c"></canvas>
+<canvas id="cw"></canvas>
 <canvas id="c2"></canvas>
+<div id="place"></div>
+<canvas id="minimap" width="188" height="102"></canvas>
+<div id="perf" hidden></div>
 <div id="labels"></div>
 <div id="info"></div>
 <div id="pxsel" class="pxsel"></div>
 <div id="palsel" class="pxsel palsel"></div>
-<script type="module" src="./src/clubvista/main.ts"></script>
+<script type="module" src="./src/clubgame/main.ts"></script>
 </body>
 </html>

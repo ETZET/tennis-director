@@ -51,7 +51,7 @@ module.exports = {
       name: 'cast-is-pure',
       comment:
         '人物（clubsite/cast）是纯数据 + 纯函数（以后整个搬进 packages/sim）：不依赖 three，也不依赖画面那几层' +
-        '（clubsite 的 render、people、play、assets、tools、nature 和场景）。换装在 people/dress.ts，界面在 clubwalk/cast。',
+        '（clubsite 的 render、people、play、assets、tools、nature 和场景）。换装在 people/dress.ts，界面在 clubsite/castui。',
       severity: 'error',
       from: { path: '^apps/sandbox/src/clubsite/cast/' },
       to: {
@@ -84,9 +84,10 @@ module.exports = {
       name: 'clubwalk-is-top',
       comment:
         'src/clubwalk（所有场景连成的大世界）是唯一 import 各场景模块（scene.ts）拼在一起的地方；反过来谁也不 import clubwalk。' +
-        '例外：src/valley（俱乐部所在的小镇和山谷）在 clubwalk 外面再包一层，只通过 valley/reuse.ts 用 mountWalk。',
+        '例外：src/valley（俱乐部所在的小镇和山谷）在 clubwalk 外面再包一层，只通过 valley/reuse.ts 用 mountWalk；' +
+        'src/clubgame（整个游戏的入口：分图 clubvista + clubwalk 当"内场"，同住一页）也在最上面，谁也不 import 它。',
       severity: 'error',
-      from: { pathNot: '^apps/sandbox/src/(clubwalk|valley)/' },
+      from: { pathNot: '^apps/sandbox/src/(clubwalk|valley|clubgame)/' },
       to: { path: '^apps/sandbox/src/clubwalk/' },
     },
     {
