@@ -400,3 +400,26 @@ z 51  棕榈  灌木  龙舌兰  棕榈                 z 58  灌木      入口
 | `clubgame/worldmap.ts` | 照 `mapgraph.ts` 画（4 × 4 格，拐弯的路，每种图一个小记号） |
 | `clubgame/main.ts` | 默认不加载内场：`#cw` 画布删掉，页面里一个 WebGL 上下文；`?inner=1`（或 `world=club`）才把到达图东边的出口改回通内场，作对照 |
 | 工具 | `vistashot.mjs` / `vistawalk.mjs` 读图自己的 `shot` / `walks`（`ONLY=plaza,street` 只跑这几张）；`vistanums.mjs` 量目录里有的图；`vistaeval.mjs`（新）开页面跑一段 JS 再截图 |
+
+### 怎么做的（第三轮）
+
+新图多（五张新的 + 两张重做），每张图一个子代理并行画（共同说明：`~/workspace/tennis-director-refs/club-redo3/world/map-agent-brief.md`，只改自己的 `map-<id>.ts`、`reuse-<id>.ts`、`assets/<id>-*.ts`；样板 `map-rest.ts`）；world 负责连接图、公共部分、验收和评判。
+
+| 文件（新） | 内容 |
+| --- | --- |
+| `map-plaza.ts` + `reuse-plaza.ts` + `assets/plaza-lamp.ts` | 喷泉广场：北框会所正面（正门 → 大堂），中间 clubplaza 的棕榈喷泉落在浅米石圆广场上，东南餐车集市角（一辆餐车、奶茶三轮、两张桌伞、灯串），西南树荫长椅；西东 1.1 米的棕榈台 |
+| `map-lobby.ts` + `reuse-lobby.ts` | 会所大堂：黑底上浮着的竖长单间（`interior: true`），北墙接待台 + 会徽，西北休息区（壁炉、沙发、地毯）、西南咖啡角、东半商店（球拍墙、鞋墙、穿线机、收银台）；南墙正门 → 广场，西墙侧门 → 歇脚 |
+| `map-street.ts` + `reuse-street.ts` + `assets/street-hedge.ts` | 球场街：北边一块真尺寸红土场（下沉 0.8，工作人员拖场）、南边两块匹克球场，街贴西边走、中间一处伞下歇脚；边界是修剪的树篱 + 棕榈（不用围网） |
+| `map-academy.ts` + `reuse-academy.ts` | 青训场：北边教练带孩子的迷你场 + 训练区（标志桶、绳梯），遮阳帆下的家长区，南边下沉的会员场；斜路从南口穿过 |
+| `map-golf.ts` + `assets/golf-{pin,bag,mat,cart,yardage}.ts` | 果岭：中间推杆果岭（+0.3 的缓台、一圈领草、三根旗），两个白沙坑，东边四块打位朝图外的练习球道，凉棚歇脚，西南水塘 |
+| `map-arrive.ts`（重做下半屏）+ `reuse-arrive.ts` + `assets/arrive-carport.ts` | 到达：并进旧停车场（柏油、车位线、代客亭、落客车、俱乐部石碑） |
+| `map-practice.ts`（换主题）+ `reuse-practice.ts` + `assets/practice-wall.ts` | 练习场：练习墙坑（两面练习墙 + 半片场）+ 发球机道 + 凉棚边一堆球车球筐；不再有真尺寸的场 |
+
+公共部分在第一轮之后又改的：`world.ts` 观众开关只认带 `crowd` 的摆件（clubplaza 的保洁车、clubfood 的回收站也有 `setFill`，原来摆上去整页崩）；`palette.ts` 的 `GRADE_AS` 给匹克球的厨房借球场的组；`mapdef.ts` 的 `ElKey` 加 `courtWear`（台面也能用球场的磨损斑）；中心球场观众默认半场、从看台正中往两头坐（`stands/kit.ts`，边看台只坐 0.28）；通道篷的影子打碎成两条门墩影。
+
+**踩到的坑**（写给以后画分图的人）：
+- **寻路一步只认 ≤ stepUp / 2（0.16 米）的高差**（`clubsite/play/nav.ts` 的 A*；连续走路认 stepUp 0.32）。果岭第一版领草在 0.25 米，草地 0 → 0.25 一步迈不上去，果岭成了寻路找不到的孤岛（点上去会停在边上）。多级的台面每级 ≤ 0.15，或者用台阶 / 坡道（Stair）。
+- 同高的两块台面重叠会互相打架（锯齿、横纹）：里面那块压低 0.02 米、让外面那块挖洞。
+- 下到坑里的台阶要越过坑沿一点，正好停在坑沿时寻路找不到路。
+- 摆件的 `userData.setFill` 不一定是观众（保洁车、回收站也有）。
+- 七个子代理同时开浏览器截图，机器负载到过 170～250，截图超时；同时最多两个。
