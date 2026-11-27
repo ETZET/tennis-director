@@ -311,6 +311,15 @@ export interface CastState {
   /** 总监手里的零用钱（请客、送礼物） */
   money: number;
   people: Record<string, PersonMem>;
+  /** 找总监的人今天的结果（presence.ts）：'<day>:<id>' → 接上了 / 错过了；没有 = 还挂着或者今天没找 */
+  seeks?: Record<string, 'done' | 'missed'>;
+  /**
+   * 这一刻在找总监的人（演员表的 id；界面画"在找你"用）。presence.ts 的 seekersNow 的镜像，分图的演出每半秒更新一次：
+   * 总监当面搭上话、或者过点他走了，就从这里拿掉。为什么找、在哪张图等：seekOf(CAST, state, id)。
+   */
+  seeking?: string[];
+  /** 总监今天干了几件活、挣了多少（presence.ts 的 earn） */
+  chores?: { day: number; n: number; money: number };
 }
 
 // ── 互动 ──────────────────────────────────────────────────────────────────────────

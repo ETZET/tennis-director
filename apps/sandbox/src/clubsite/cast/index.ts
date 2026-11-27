@@ -5,9 +5,11 @@ import { NAMED } from './named';
 
 export * from './actions';
 export * from './casting';
+export * from './clock';
 export * from './colors';
 export * from './crowd';
 export { NAMED, NAMED_BY_ID } from './named';
+export * from './presence';
 export * from './rng';
 export * from './slots';
 export * from './state';
