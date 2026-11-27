@@ -179,7 +179,7 @@ export const practice: MapDef = {
       id: 'lane-pit',
       pts: rect(12, 29.8, 20.4, 54.2),
       h: LANE_H,
-      // 第 4 版（评判：发球机道和上面两格同一种青绿 + 白边线 + 横网，读成第三块球场）：道换浅米色的胶面、外圈灰石，只留一条发球线
+      // 第 4 版（评判：发球机道和上面两格同一种青绿 + 白边线 + 横网，读成第三块球场）：道换整块平涂的浅灰沙胶面（gravel，不带石板缝）、外圈中青，只留一条发球线
       top: 'drillOut',
       el: 'none',
       wall: 'bluff',
@@ -190,7 +190,7 @@ export const practice: MapDef = {
       pts: rect(LANE.x0, LANE.z0, LANE.x1, LANE.z1),
       h: LANE_H - 0.02,
       base: LANE_H,
-      top: 'poolStone',
+      top: 'gravel',
       el: 'none',
       wall: 'none',
       smooth: 0,
