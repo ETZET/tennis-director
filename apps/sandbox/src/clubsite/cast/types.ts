@@ -311,6 +311,10 @@ export interface CastState {
   /** 总监手里的零用钱（请客、送礼物） */
   money: number;
   people: Record<string, PersonMem>;
+  /** 找总监的人今天的结果（presence.ts）：'<day>:<id>' → 接上了 / 错过了；没有 = 还挂着或者今天没找 */
+  seeks?: Record<string, 'done' | 'missed'>;
+  /** 总监今天干了几件活、挣了多少（presence.ts 的 earn） */
+  chores?: { day: number; n: number; money: number };
 }
 
 // ── 互动 ──────────────────────────────────────────────────────────────────────────
