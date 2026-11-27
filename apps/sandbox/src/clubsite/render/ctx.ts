@@ -40,10 +40,19 @@ export interface DayUniforms {
   /** 灯光圈：每个 (x, z, 半径, 最高照到的 y)；半径 0 = 空位。长度 toon.ts 的 LAMP_N */
   uLamps: { value: THREE.Vector4[] };
   /** 灯开多少 0..1、灯光颜色（乘子） */
+  /** 每盏灯的颜色（rgb 乘子）和强度（a；1 = 一盏普通的灯，球场泛光灯 > 1）；和 uLamps 一一对应 */
+  uLampC: { value: THREE.Vector4[] };
   uLampK: { value: number };
   uLampCol: { value: THREE.Vector3 };
   /** 饱和度（1 = 原样） */
   uDaySat: { value: number };
+  /** 投影毛边的倍数（太阳低的时候影子拉长，毛边跟着拉成长刺：收掉） */
+  uDayFur: { value: number };
+  /** 地面湿不湿 0..1（雨：平地上一摊摊积水映着天色）、风沙吹不吹 0..1（地上一道道沙顺风走） */
+  uWet: { value: number };
+  uDustK: { value: number };
+  /** 积水映出来的天色 */
+  uWetCol: { value: THREE.Vector3 };
 }
 
 /**

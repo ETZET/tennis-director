@@ -27,6 +27,9 @@ import { build as ballCart } from '../clubsite/assets/ball-cart';
 import { build as courtLight } from '../clubsite/assets/court-light';
 import { build as courtNet } from '../clubsite/assets/court-net';
 import { build as kitBag } from '../clubsite/assets/kit-bag';
+import { build as pathLamp } from '../clubsite/assets/path-lamp';
+import { build as poolLight } from '../clubsite/assets/pool-light';
+import { build as stringLights } from '../clubsite/assets/string-lights';
 import { buildClay as courtUmbrella, buildPickle as sideUmbrella } from '../clubsite/assets/umbrella';
 import * as people from '../clubsite/people';
 import { REUSED as SITE_REUSED } from '../clubsite/reuse';
@@ -67,6 +70,10 @@ export const REUSED: Record<string, AssetBuild> = {
   'court-umbrella': as(courtUmbrella),
   'kit-bag': as(kitBag),
   'court-light': as(courtLight),
+  // 夜灯（light 代理，摆在 night-props.ts）
+  'path-lamp': as(pathLamp),
+  'pool-light': as(poolLight),
+  'string-lights': as(stringLights),
   // 歇脚景（第二轮）：会所后门、拱窗、三角梅、壁泉、树池、露台的桌伞躺椅（clubhouse）；灯串、托盘、长桌、凉棚架（clubfood）
   'back-door': as(mainDoor),
   'arch-window': as(archWindow),

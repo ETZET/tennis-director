@@ -3,6 +3,7 @@
 // 箭头朝出口真的在的方向。只是提示，点不了。
 // 用法：const signs = createWaySigns(); 每帧 signs.set([{ x, y, text }, …])（x, y = 出口在屏幕上的位置，CSS 像素，可以在屏幕外）。
 import { CREAM, hex, INK } from './colors';
+import { ensurePixelFont, pxFont } from './pxfont';
 import { hudScale } from './scale';
 
 export interface WaySign {
@@ -19,6 +20,7 @@ export interface WaySigns {
 const ARROW = { up: '↑', down: '↓', left: '←', right: '→' } as const;
 
 export function createWaySigns(): WaySigns {
+  ensurePixelFont();
   const root = document.createElement('div');
   root.className = 'pxh-ways';
   Object.assign(root.style, { position: 'fixed', inset: '0', pointerEvents: 'none', zIndex: '6' });
@@ -34,9 +36,9 @@ export function createWaySigns(): WaySigns {
       whiteSpace: 'nowrap',
       color: ink,
       background: hex(CREAM),
-      padding: '3px 8px',
-      font: `700 ${hudScale() * 6 + 1}px/1.25 "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", system-ui, sans-serif`,
-      letterSpacing: '0.5px',
+      padding: `0 ${hudScale() * 2}px`,
+      font: pxFont(),
+      webkitFontSmoothing: 'none',
       boxShadow: `2px 0 0 0 ${ink}, -2px 0 0 0 ${ink}, 0 2px 0 0 ${ink}, 0 -2px 0 0 ${ink}`,
     });
     root.appendChild(e);
@@ -50,7 +52,8 @@ export function createWaySigns(): WaySigns {
       const H = innerHeight;
       // 四个角是界面的（日钟、金币、右下图标）：路牌让开
       const top = 118;
-      const bottom = H - 150;
+      // 右下三键顶 ≈ 底边往上 (6 + 29) 纹素；牌的底边再离它 6 纹素
+      const bottom = H - hudScale() * (6 + 29 + 6) - 30;
       const side = 10;
       for (let i = 0; i < Math.max(list.length, els.length); i++) {
         const e = els[i] ?? make();
@@ -64,13 +67,14 @@ export function createWaySigns(): WaySigns {
         // 箭头：出口相对屏幕中心（总监差不多在那儿）的方向
         const dir = Math.abs(dx) * (H / W) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : dy > 0 ? 'down' : 'up';
         const text = dir === 'left' ? `${ARROW.left} ${s.text}` : `${s.text} ${ARROW[dir]}`;
-        if (e.textContent !== text) e.textContent = text;
+        const tx = text.replace(/\s*·\s*/g, '·');
+        if (e.textContent !== tx) e.textContent = tx;
         e.hidden = false;
         const w = e.offsetWidth || 80;
         // 贴着出口那一边的屏幕边（不跟着出口的位置飘到画面中间）：左右的贴左右边，上下的贴上下的安全带
         const mid = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
         const x = dir === 'right' ? W - side - w : dir === 'left' ? side : mid(s.x - w / 2, side, W - side - w - 110);
-        const y = dir === 'down' ? bottom + 60 : dir === 'up' ? top : mid(s.y - 34, top, bottom);
+        const y = dir === 'down' ? bottom : dir === 'up' ? top : mid(s.y - 34, top, bottom);
         e.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px)`;
       }
     },

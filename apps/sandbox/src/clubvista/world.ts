@@ -7,8 +7,27 @@
 // 调试：window.__vista（play、go(图, 入口)、step(秒)、state()）。
 import '../clubsite/render/colors';
 import * as THREE from 'three';
-import { type CastStore, mountCast } from '../clubsite/castui';
+import { alignClock, isDeepNight, NIGHT_RATE, reconcileClock } from '../clubsite/cast';
+import { type CastStore, createCastStore, mountCast } from '../clubsite/castui';
 import { mountDaylight } from '../clubsite/daylight';
+import { type DayLook, dayLook } from '../clubsite/daylight/sky';
+
+/** 室内的固定光（lobby 等 interior 图）：正午的颜色，太阳拉高（影子短）、亮面偏暖一点，没有天气 */
+const INDOOR: DayLook = {
+  ...dayLook(12, 'clear', { sky: { top: 0x000000, horizon: 0x000000 } }),
+  el: 72,
+  az: 10,
+  shadeEl: 72,
+  lit: [1.0, 0.98, 0.95],
+  // 室内的大面（陶土地板）不要那么艳：草帽站在上面要找得到
+  sat: 0.76,
+  cloudCut: 0.01,
+  rain: 0,
+  dust: 0,
+  stars: 0,
+  lamps: 0,
+};
+
 import { createWaySigns, mountPixelHud, type PixelHud, type WaySign } from '../clubsite/hud';
 import { type Hud, mountPlay, type Play, type Shape } from '../clubsite/play';
 import { snapDelta, ViewLerp } from '../clubsite/play/smooth';
@@ -19,6 +38,7 @@ import { CLOUD_N } from '../clubsite/render/toon';
 import { type BuiltMap, buildMap, createKit } from './build';
 import type { SharedUniforms } from './ctx';
 import { vista } from './grade';
+import { mountVistaLife, prepareLife, type VistaLife } from './life';
 import { MAP_GAP, MAPS } from './maps';
 import { SPECS } from './placeholders';
 import { CAST_SCENE, mapName } from './text';
@@ -133,6 +153,9 @@ export function mountVista(hooks: VistaHooks = {}) {
     return b;
   });
   const byId = (id: string) => built.find((b) => b.def.id === id) as BuiltMap;
+  // 人和活（life.ts）：给摆着的人对上人位、从静态挡路里拿掉（他们会走）、补路过的人 —— 要在建导航以前
+  const LIFE = params.get('life') !== '0';
+  const prepared = LIFE ? prepareLife(built, kit) : [];
   let cur = byId(params.get('map') ?? 'arrive') ?? built[0];
   cur.root.visible = true;
 
@@ -252,6 +275,7 @@ export function mountVista(hooks: VistaHooks = {}) {
     setClouds(cur);
     applyZoom();
     syncLamps();
+    applyBackdrop();
     const wx = e.at[0] + cur.ox;
     const wz = e.at[1];
     if (play) {
@@ -265,6 +289,7 @@ export function mountVista(hooks: VistaHooks = {}) {
     }
     placeSun(wx, wz);
     armed = false;
+    life?.enter();
   }
   // 出口的小路牌（clubsite/hud/waysign.ts）：离出口 9 米以内，在出口那个方向的屏幕边上写"目的地 + 箭头"；走开、换图就没有
   const ways = params.get('ui') !== '0' ? createWaySigns() : null;
@@ -399,6 +424,23 @@ export function mountVista(hooks: VistaHooks = {}) {
       return b === cur;
     },
   }));
+  // 一个时钟（clubsite/cast/clock.ts）：天光是主钟，演员表的 day / minute 每步抄它的；演员表自己的秒表关掉（castspeed ≈ 0）
+  const store: CastStore = hooks.castStore ?? createCastStore(params);
+  const castParams = new URLSearchParams(params);
+  castParams.set('castspeed', '1e-9');
+  {
+    const al = alignClock(store.state, day.total, params.has('hour'));
+    store.state = al.state;
+    day.total = al.total;
+  }
+  /** 开局在白天：夜里（22:30–5:30）时钟走快 8 倍；开局就在夜里（?hour=23 截图）不加速 */
+  const nightFast = !isDeepNight(((day.total % 24) + 24) % 24) && params.get('nightfast') !== '0';
+  function syncClock() {
+    const r = reconcileClock(store.state, day.total);
+    if (r.state !== store.state) store.state = r.state;
+    if (r.total !== day.total) day.total = r.total;
+  }
+  const gameClock = () => ({ day: Math.floor(day.total / 24) + 1, minute: (((day.total % 24) + 24) % 24) * 60 });
   const cast =
     play && params.get('cast') !== '0'
       ? mountCast({
@@ -406,13 +448,13 @@ export function mountVista(hooks: VistaHooks = {}) {
           lives,
           play,
           director,
-          params,
+          params: castParams,
           quiet: true,
           peek: (p) => hud?.peek(p),
           focus: (a, dy) => hud?.focus(a, dy),
           mats: kit.mats,
           scheme: scheme ?? undefined,
-          store: hooks.castStore,
+          store,
         })
       : null;
 
@@ -433,6 +475,35 @@ export function mountVista(hooks: VistaHooks = {}) {
       ],
     });
   }
+  // ── 人和活：人按时钟来去、总监在分图里的活、找总监的人（life.ts） ──
+  const life: VistaLife | null =
+    play && LIFE
+      ? mountVistaLife({
+          prepared,
+          kit,
+          play,
+          director,
+          cur: () => cur,
+          clock: gameClock,
+          state: () => store.state,
+          setState: (s) => {
+            store.state = s;
+          },
+          pop: (text, icon) => (hud ? hud.pop(text, icon, 2.4) : play?.toast(text, 2.4)),
+          autoCrowd: !params.has('crowd'),
+        })
+      : null;
+  life?.enter();
+
+  /** 室内的图（MapDef.interior）：背景换成近黑（黑底上浮着的单间），出来换回 daylight 的天色 */
+  const skyBackdrop = scene.background;
+  const voidBackdrop = new THREE.Color(0x0b0a12);
+  function applyBackdrop() {
+    scene.background = cur.def.interior ? voidBackdrop : skyBackdrop;
+    // 室内图（light 代理）：不跟着时刻和天气走 —— 固定的室内光（正午偏高、偏暖一点，影子短；没有雨、沙、星星、云影）
+    day.override = cur.def.interior ? INDOOR : null;
+  }
+  applyBackdrop();
   /**
    * 夜里的灯只认当前这张图的：四张图叠在同一块坐标上，daylight 的 rescan 会把隐藏的图的灯（中心球场的灯杆）也找进来，
    * 别的图上就平白多出几个灯光圈。隐藏的图把 userData.night 挪到 _night 里藏着，换图时换回来。
@@ -458,7 +529,7 @@ export function mountVista(hooks: VistaHooks = {}) {
   function crowd(f?: number) {
     const st: { setFill: (f: number) => void; crowd: { fill: number } }[] = [];
     cur.root.traverse((o) => {
-      if (o.userData.setFill) st.push(o.userData as never);
+      if (o.userData.setFill && o.userData.crowd) st.push(o.userData as never);
     });
     if (!st.length) return null;
     const next = f ?? (st[0].crowd.fill > 0.5 ? 0 : 1);
@@ -485,7 +556,7 @@ export function mountVista(hooks: VistaHooks = {}) {
     let full = false;
     let any = false;
     cur.root.traverse((o) => {
-      if (o.userData.setFill) {
+      if (o.userData.setFill && o.userData.crowd) {
         any = true;
         full = o.userData.crowd.fill > 0.5;
       }
@@ -511,10 +582,15 @@ export function mountVista(hooks: VistaHooks = {}) {
       simT += DT;
       uniforms.uTime.value = simT;
       day.step(DT);
+      if (nightFast && isDeepNight(((day.total % 24) + 24) % 24))
+        day.total += ((NIGHT_RATE - 1) * DT * day.speed) / 3600;
+      syncClock();
       uniforms.uGust.value = 0.5 + 0.35 * Math.sin(simT * 0.7) * Math.sin(simT * 0.23);
       for (const u of cur.updaters) u(DT, simT);
       play?.update(DT, simT);
       cast?.step(DT);
+      syncClock();
+      life?.step(DT);
       checkExits();
       if (play) {
         const s = play.state();
@@ -574,6 +650,8 @@ export function mountVista(hooks: VistaHooks = {}) {
       step,
       cur: () => cur.def.id,
       crowd,
+      life,
+      clock: gameClock,
       state: () => (play ? { ...play.state(), map: cur.def.id, lx: play.state().x - cur.ox } : null),
     },
   });
@@ -585,6 +663,7 @@ export function mountVista(hooks: VistaHooks = {}) {
     director,
     day,
     cast,
+    life,
     get hud() {
       return hud;
     },

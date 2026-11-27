@@ -261,8 +261,29 @@ export const SLOT_TABLE: readonly SlotInfo[] = [
   ]),
 ];
 
+/**
+ * 只有分图（clubvista）用到的人位：到达图柜台里的接待、公交站的客人，中心球场的六个司线员，歇脚的服务员和搬货的店员。
+ * 不进 SLOT_TABLE：俱乐部的一天（clubsite/sim）按 SLOT_TABLE 排员工的岗，内场没有这些位置。
+ * slotInfo() 照样认它们（选角、在场时段按这里的身份和称呼）。
+ */
+export const VISTA_SLOTS: readonly SlotInfo[] = [
+  ...S('clubdesk', [
+    ['desk-clerk', C, 'staff', '前台接待'],
+    ['bus-1', P, 'guest', '刚下接驳车的客人'],
+    ['bus-2', P, 'guest', '候车亭里等车的客人'],
+  ]),
+  ...S(
+    'clubstadium',
+    Array.from({ length: 6 }, (_, i): Row => [`line-${i + 1}`, 'umpire', 'staff', '司线员']),
+  ),
+  ...S('clubpool', [
+    ['waiter', 'umpire', 'staff', '露台服务员'],
+    ['stock', P, 'staff', '搬货的店员'],
+  ]),
+];
+
 /** 'scene:slot' → SlotInfo */
-const BY_KEY = new Map(SLOT_TABLE.map((s) => [slotKey(s.scene, s.slot), s]));
+const BY_KEY = new Map([...SLOT_TABLE, ...VISTA_SLOTS].map((s) => [slotKey(s.scene, s.slot), s]));
 
 export function slotKey(scene: SceneId, slot: string): string {
   return `${scene}:${slot}`;

@@ -28,8 +28,8 @@ describe('dayLook', () => {
     expect(pm.az).toBeLessThan(-30);
     expect(am.el).toBeLessThan(30);
     expect(pm.el).toBeLessThan(30);
-    // 投影最低 12°：影子不会长过 ≈ 4.7 倍高
-    for (let h = 5; h <= 20; h += 0.05) expect(dayLook(h, 'clear', base).el).toBeGreaterThanOrEqual(12);
+    // 投影最低 18°：影子不会长过 ≈ 3.1 倍高
+    for (let h = 5; h <= 20; h += 0.05) expect(dayLook(h, 'clear', base).el).toBeGreaterThanOrEqual(18);
   });
 
   it('夜里换月亮：三档压暗偏蓝，开灯，有星星', () => {

@@ -2,12 +2,20 @@
 // 裁掉角上的界面（竖屏 y 70…780，横屏 y 70…660）。打一张 markdown 表；目标：平静 ≥ 65%、冷 ≥ 25%、强边缘 ≤ 0.05、饱和度 ≥ 0.42。
 // node docs/lab/2026-11-07-3d-pixel/tools/vistanums.mjs <目录> [后缀]
 import { execFileSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const [dir, suffix = ''] = process.argv.slice(2);
 const tools = import.meta.dirname;
-const ids = ['arrive', 'court', 'oasis', 'practice'];
+const known = ['arrive', 'court', 'oasis', 'practice', 'plaza', 'lobby', 'street', 'academy', 'golf'];
+// 目录里有哪些图就量哪些（<id>-port<后缀>.png）；ONLY=plaza,street 只量这几张
+const found = readdirSync(dir)
+  .filter((f) => f.endsWith(`-port${suffix}.png`))
+  .map((f) => f.slice(0, -`-port${suffix}.png`.length));
+const only = process.env.ONLY?.split(',');
+const ids = [...known.filter((k) => found.includes(k)), ...found.filter((f) => !known.includes(f))].filter(
+  (id) => !only || only.includes(id),
+);
 const rows = [];
 const crop = { port: [0, 70, 390, 780], land: [0, 70, 1280, 660] };
 const hueArgs = [];

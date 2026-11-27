@@ -12,6 +12,8 @@ export function build(ctx: AssetCtx) {
     facing: true,
     aisles: [ctx.variant % 2 ? -1.6 : 1.6],
     wall: 1,
+    // 第 4 版：北看台默认坐三成半（两块观众各减三分之一：中心球场的强边缘三轮超标）
+    fill0: 0.35,
     seed: `north${ctx.variant}`,
   });
 }

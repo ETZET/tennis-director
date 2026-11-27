@@ -81,6 +81,13 @@ export interface Elem {
    * 沙、草地上留一点毛边。
    */
   fur?: number;
+  /**
+   * 大元素（第三轮，redo-fix.md）：亮档里稀疏、低对比的一团团（只在受光面，影子和云影里不画 —— 影子保持安静）。
+   * 叠在本来的图案上面：草地 = 一团团草丛（上半高一级、下沿一行低一级）+ 零星两三点小花（flower 色）；
+   * 沙地（ridge）= 一道道长的沙纹（一行亮边 + 下面一行低一级，两头收尖）。
+   * density 每格的概率，size 一团的宽（纹素，格子 = 1.8 倍），flowers 有花的团占多少，flower 花色（不给 = 亮边色）
+   */
+  clumps?: { density: number; size: number; flowers?: number; flower?: Hex; ridge?: boolean };
 }
 
 export interface ToonOpts {
@@ -122,6 +129,11 @@ export interface ToonOpts {
   tones?: Tones;
   /** 元素取 [高一级, 低一级] 的比例（其余本色），默认 [0.28, 0.24] */
   toneW?: [number, number];
+  /**
+   * 焦点 0..1（总监的草帽这类"一眼要找到"的东西）：少吃多少时间和天气 —— 阴雨天不被压到中档、不降饱和，
+   * 清晨傍晚夜里的颜色乘子往"同亮度的中性色再提一截"收（夜里草帽还是暖黄，只是暗一点）。不给 = 0（和以前一样）。
+   */
+  focus?: number;
 }
 
 /** 每个 kind 的默认参数 */
@@ -226,7 +238,7 @@ export function packEdge(edge: number, convex: number): number {
 export const CLOUD_N = 8;
 export const CLOUD_W = 96;
 /** 灯光圈最多几个（DayUniforms.uLamps 的长度）：clubsite/daylight 每帧挑离镜头最近的这么多盏 */
-export const LAMP_N = 12;
+export const LAMP_N = 16;
 
 /** 中性的时间天气 uniform（正午、晴、关灯）：乘子全是 1，画面和没有时间系统时一样 */
 export function createDayUniforms(): DayUniforms {
@@ -238,9 +250,14 @@ export function createDayUniforms(): DayUniforms {
     uDayLift: { value: 0 },
     uCloudCut: { value: 1 },
     uLamps: { value: Array.from({ length: LAMP_N }, () => new THREE.Vector4(0, 0, 0, 0)) },
+    uLampC: { value: Array.from({ length: LAMP_N }, () => new THREE.Vector4(0.76, 0.72, 0.56, 1)) },
     uLampK: { value: 0 },
     uLampCol: { value: new THREE.Vector3(0.76, 0.72, 0.56) },
     uDaySat: { value: 1 },
+    uDayFur: { value: 1 },
+    uWet: { value: 0 },
+    uWetCol: { value: new THREE.Vector3(0.6, 0.66, 0.74) },
+    uDustK: { value: 0 },
   };
 }
 
@@ -330,9 +347,17 @@ uniform float uSunK;
 uniform float uDayLift;
 uniform float uCloudCut;
 uniform vec4 uLamps[LAMP_N];
+uniform vec4 uLampC[LAMP_N];
 uniform float uLampK;
 uniform vec3 uLampCol;
 uniform float uDaySat;
+uniform float uDayFur;
+uniform float uWet;
+uniform vec2 uWind;
+uniform float uDustK;
+uniform vec3 uWetCol;
+uniform float uFocus;
+uniform float uGround;
 varying vec2 vCloudXZ;
 varying vec3 vWorldP;
 float rhash12(vec2 p) { vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
@@ -360,15 +385,18 @@ float bayer4(vec2 p) {
   float m[16] = float[16](0.0, 8.0, 2.0, 10.0, 12.0, 4.0, 14.0, 6.0, 3.0, 11.0, 1.0, 9.0, 15.0, 7.0, 13.0, 5.0);
   return (m[i] + 0.5) / 16.0;
 }
-// 灯光圈：离最近一盏灯的"归一化距离"（< 1 = 圈里）；高过灯的东西不算
-float lampR(vec3 p) {
-  float r = 9.0;
+// 灯光场（第三轮）：每盏灯一个抛物线的光斑 强度 × (1 − d²/r²)，几盏加起来 —— 挨着的灯合成一片（球场四盏灯照亮整片场地，
+// 不是四个圆）；高过灯的东西不算。返回 (按强度加权的灯色, 光的总量)。一盏强度 1 的灯：总量 0.7 以上 = 圈心（原来的 55% 半径）
+vec4 lampField(vec3 p) {
+  vec4 acc = vec4(0.0);
   for (int i = 0; i < LAMP_N; i++) {
     vec4 L = uLamps[i];
     if (L.z <= 0.0 || p.y > L.w) continue;
-    r = min(r, length(p.xz - L.xy) / L.z);
+    vec2 d = (p.xz - L.xy) / L.z;
+    float w = uLampC[i].a * max(0.0, 1.0 - dot(d, d));
+    acc += vec4(uLampC[i].rgb * w, w);
   }
-  return r;
+  return acc;
 }
 float rhash13(vec3 p3) { p3 = fract(p3 * 0.1031); p3 += dot(p3, p3.zyx + 31.32); return fract((p3.x + p3.y) * p3.z); }
 vec3 rgb2hsv(vec3 c) {
@@ -412,6 +440,8 @@ uniform vec4 uElQ;
 uniform float uElPeb;
 uniform float uElSeed;
 uniform float uElFur;
+uniform vec4 uElC;   // clumps：density, size, flowers, ridge
+uniform vec3 uElFl;
 varying vec3 vElemP;
 varying vec3 vElemL;
 varying vec2 vElemUv;
@@ -702,6 +732,53 @@ vec3 elemShade(int b, vec3 Nw) {
   #endif
 
   if (uElPeb > 0.0) c = ePebbles(b, p, uElPeb * (0.35 + 1.3 * pd), c);
+  // 大元素（Elem.clumps）：只在亮档。屏幕纹素格（1.8 × size），每格按概率放一团，团心在格里随机挪
+  if (uElC.x > 0.0 && b == 2) {
+    float G = floor(uElC.y * 1.8);
+    vec2 gc = floor(p / G);
+    for (int j = 0; j <= 1; j++) for (int i = 0; i <= 1; i++) {
+      vec2 g = gc - vec2(float(i), float(j));
+      if (eh(g + 61.0) >= uElC.x * (0.5 + pd)) continue;
+      vec2 o = g * G + floor(vec2(eh(g + 62.0), eh(g + 63.0)) * G);
+      vec2 d = p - o;
+      float rx = uElC.y * (0.35 + 0.3 * eh(g + 64.0));
+      if (uElC.w > 0.5) {
+        // 沙纹：长 2.8 × rx，一行亮边 + 下面一行低一级
+        // 弧：中间高两头低（每 9 纹素落一行），像风吹出来的一道沙脊
+        float sl = -floor(abs(d.x) / 9.0) + (eh(g + 65.0) < 0.5 ? 0.0 : floor(d.x / 18.0));
+        float L = rx * 1.4;
+        // 一组 3 道（每道往下 3 行、短一截）：一小片风吹出来的沙纹田
+        for (int r = 0; r < 3; r++) {
+          float Lr = L * (1.0 - 0.22 * float(r)) - float(r) * 2.0;
+          if (abs(d.x - float(r) * 2.0) >= Lr) continue;
+          float dy = d.y - sl + float(r) * 3.0;
+          if (dy == 0.0) c = abs(d.x - float(r) * 2.0) < Lr - 2.0 ? uHiC[b] : eTone(b, 1);
+          else if (dy == -1.0 && abs(d.x - float(r) * 2.0) < Lr - 1.0) c = eTone(b, 2);
+        }
+      } else {
+        // 草丛：扁圆（高 = 宽 × 0.45），边上按纹素哈希毛一下；身子略深、上沿一行亮边色带草尖（隔列冒一纹素）、
+        // 最下两行低一级（团有体积）
+        float ry = max(2.0, floor(rx * 0.45));
+        float jag = (eh(p + 66.0) - 0.5) * 0.45;
+        float q = (d.x * d.x) / (rx * rx) + (d.y * d.y) / (ry * ry) + jag;
+        float tip = (eh(vec2(p.x, g.y) + 69.0) < 0.5) ? 1.0 : 0.0;
+        float qT = (d.x * d.x) / (rx * rx) + ((d.y - 1.0 - tip) * (d.y - 1.0 - tip)) / (ry * ry);
+        if (q < 1.0) {
+          // 身子：本色往低一级挪 55%（一团比草皮深一点，像参考里的草丛），上沿亮边、下沿低一级
+          c = mix(eTone(b, 0), eTone(b, 2), 0.55);
+          // 团里的草叶更密：竖的 2 纹素一划（上亮边、下低一级），约四成的列
+          float bc = floor((p.y + floor(eh(vec2(p.x, 71.0)) * 2.0)) / 2.0);
+          if (eh(vec2(p.x, bc) + 70.0) < 0.6) c = mod(p.y + floor(eh(vec2(p.x, 71.0)) * 2.0), 2.0) > 0.5 ? uHiC[b] : eTone(b, 2);
+          float qU = (d.x * d.x) / (rx * rx) + ((d.y + 1.0) * (d.y + 1.0)) / (ry * ry) + jag;
+          float qU2 = (d.x * d.x) / (rx * rx) + ((d.y + 2.0) * (d.y + 2.0)) / (ry * ry) + jag;
+          if (d.y < 0.0 && (qU >= 1.0 || (ry > 3.0 && qU2 >= 1.0))) c = eTone(b, 2);
+          else if (d.y >= 0.0 && qT >= 1.0) c = uHiC[b];
+          // 花：有花的团上两三点（团的上半，1 纹素）
+          if (eh(g + 67.0) < uElC.z && d.y >= 0.0 && eh(p + 68.0) < 0.12) c = uElFl;
+        } else if (d.y > 0.0 && qT < 1.0 && tip > 0.5) c = uHiC[b];
+      }
+    }
+  }
   return c;
 }
 #endif
@@ -744,22 +821,28 @@ const RAMP_OUT = /* glsl */ `
       #ifdef ELEM
         fur *= uElFur;
       #endif
-      sh = uShadowHard > 0.5 ? step(0.5 + fur * uFur * uFurK, v) : v;
+      sh = uShadowHard > 0.5 ? step(0.5 + fur * uFur * uFurK * uDayFur, v) : v;
     }
   #endif
   // 投影：直射光弱的时候（太阳换月亮、阴雨天）按有序抖动稀掉，uSunK = 1 和以前一样
   vec2 scrT = floor((mat3(viewMatrix) * vWorldP).xy / uTexel + 0.25);
-  if (sh < 0.5 && (uSunK >= 1.0 || bayer4(scrT) < uSunK)) band = 0.0;
+  float bandN = band;
+  // 第三轮：直射光弱的时候（太阳换月亮、晴转阴）投影不再按 4×4 网点稀掉（傍晚橙地上一片深紫的网点，强边缘很高），
+  // 而是分三段整片换档：直射 > 0.6 暗档（照旧）、0.25～0.6 整片中档（像云影，亮 → 中只差一档）、< 0.25 没有投影。
+  if (sh < 0.5) {
+    if (uSunK > 0.6) band = 0.0;
+    else if (uSunK > 0.25) band = min(band, 1.0);
+  }
   // 云影（池塘的教训：手摆、硬边、纹理在里面接着走）：亮档整档换成中档那套颜色（元素、缝、亮边照画），
   // 边上最多一纹素的棋盘抖动；只压亮档（侧面、投影本来就不吃直射光）。亮 → 中只差 35～40 个亮度，不出强边缘。
   // uCloudCut：1 = 手摆的云；> 1 云团更胖（多云）；≥ 50 = 满天（阴天：亮档全压到中档，连没开云影的地图也压）
-  if (band > 1.5 && uCloudCut >= 50.0) band = 1.0;
+  if (band > 1.5 && uCloudCut >= 50.0 && uFocus < 0.5) band = 1.0;
   // 飘云绕回的那道缝（cloudR 里 q.x 每 CLOUD_W 米折回去一次）：缝两边 cr 跳一大截，fwidth(cr) 跟着变大 →
   // 原来缝上一整列都走下面的棋盘抖动 = 一条 1 纹素的蓝灰点线，跟着云慢慢飘（2026-11-22 valley 路面上的南北细线）。缝上不抖。
   // 按位置判（离折回点 2 纹素以内），不用导数：多一个 fwidth 会改掉投影边上那圈棋盘（分支里的导数本来就没定义，编译一变就变）
   float cloudQm = mod(vCloudXZ.x - uCloudVel.x * uTime + CLOUD_W * 0.5, CLOUD_W);
   bool cloudSeam = cloudQm < uTexel * 2.0 || cloudQm > CLOUD_W - uTexel * 2.0;
-  if (uCloudStrength > 0.0 && band > 1.5) {
+  if (uCloudStrength > 0.0 && band > 1.5 && uFocus < 0.5) {
     float cr = cloudR(vCloudXZ);
     if (cr < uCloudCut) band = 1.0;
     else if (cr - fwidth(cr) < uCloudCut) {
@@ -783,29 +866,84 @@ const RAMP_OUT = /* glsl */ `
     dark = base * 0.55;
   }
   // 灯光圈（夜里、阴雨天）：圈心 55% 升到亮档，外圈至少中档；边上一纹素棋盘抖动；颜色换灯光的暖色
+  // 第三轮：灯光场（几盏灯加起来）；圈心里朝上、朝灯的面升亮档，背光面和影子里是中档（灯下的东西还有体积、人脚下还有影子）；
+  // 两道边都按 4×4 有序抖动过渡（光越缓、过渡带越宽）
   float lampIn = 0.0;
+  vec3 lampCol = uLampCol;
   if (uLampK > 0.0) {
-    float lr = lampR(vWorldP);
-    float lw = fwidth(lr);
-    bool chk = mod(scrT.x + scrT.y, 2.0) < 0.5;
-    if (lr < 0.55 || (lr - lw < 0.55 && chk)) { band = 2.0; lampIn = 1.0; }
-    else if (lr < 1.0 || (lr - lw < 1.0 && chk)) { band = max(band, 1.0); lampIn = 1.0; }
+    vec4 lf = lampField(vWorldP);
+    // 白天阴雨天灯只开一点（uLampK 0.1～0.3，灯面也还没亮）：没有光斑；天黑（灯面亮了，uLampK > 0.35）才照地
+    lf.a *= clamp((uLampK - 0.3) / 0.35, 0.0, 1.0);
+    if (lf.a > 0.0) {
+      float dth = (bayer4(scrT) - 0.5) * 0.2;
+      if (lf.a > 0.7 + dth) { band = (sh < 0.5 || bandN < 0.5) ? 1.0 : 2.0; lampIn = 2.0; }
+      else if (lf.a > 0.2 + dth) lampIn = 1.0;
+      if (lampIn > 0.5) lampCol = lf.rgb / lf.a;
+      // 光场的结构（第 2 轮评判：整片一样亮，读不出灯在哪）：两盏以上叠起来的地方（灯塔脚下、场心）是满的，
+      // 只吃一盏的地方暗 12%，交界按有序抖动
+      if (lampIn > 1.5 && lf.a < 1.25 + dth * 2.0) lampCol *= 0.88;
+    }
   }
   vec3 col = band > 1.5 ? lit : (band > 0.5 ? mid : dark);
   #ifdef ELEM
     // 元素：本档三色 + 缝 + 亮边（投影已经把 band 压到 0、云影压到 1：整套换那一档的颜色，纹理照样在）
     col = elemShade(int(band + 0.5), inverseTransformDirection(Nn, viewMatrix)) * base;
   #endif
+  // 雨天的积水、风沙天贴地走的沙（第三轮，便宜的版本）：只画在"地面"材质（描边 ≤ 0.15 的大面）朝上的面上，水面不画。
+  // 积水 = 低频噪声圈出来的一摊摊（跟世界锚定、按纹素取），里面换成天色（灯光圈里映灯色），北沿一纹素更亮（反光的边）；
+  // 沙 = 一行行 1 纹素高的短线顺风滑过去（按阵风的斑块时密时疏）。
+  float wetK = 0.0;
+  float dustHit = 0.0;
+  #ifndef ELEM_WATER
+  if (uGround > 0.5 && (uWet > 0.0 || uDustK > 0.0) && inverseTransformDirection(Nn, viewMatrix).y > 0.92) {
+    vec2 wp = (floor(vWorldP.xz / uTexel) + 0.5) * uTexel;
+    if (uWet > 0.0) {
+      // 一摊摊小水洼（约 1～2 米，占地面一成上下），不是大片
+      float thr = 1.0 - 0.21 * uWet;
+      float pn = cvn(wp * 0.55 + 17.3) * 0.75 + cvn(wp * 1.6 + 4.1) * 0.25;
+      if (pn > thr) {
+        vec2 wn = wp - vec2(0.0, uTexel * 1.5);
+        float pu = cvn(wn * 0.55 + 17.3) * 0.75 + cvn(wn * 1.6 + 4.1) * 0.25;
+        wetK = pu > thr ? 1.0 : 2.0;
+      }
+    }
+    if (uDustK > 0.0) {
+      float dir = uWind.x < 0.0 ? -1.0 : 1.0;
+      float row = scrT.y;
+      float qx = scrT.x - dir * floor(uTime * (11.0 + 7.0 * rhash12(vec2(row, 9.0)))) + rhash12(vec2(row, 3.0)) * 64.0;
+      float ci = floor(qx / 26.0);
+      float gust = cvn(wp * 0.11 - vec2(dir * uTime * 0.9, 0.0));
+      if (rhash12(vec2(ci, row)) < 0.16 * uDustK * (0.25 + 1.5 * gust * gust)
+          && fract(qx / 26.0) < 0.2 + 0.35 * rhash12(vec2(row, ci + 7.0))) dustHit = 1.0;
+    }
+  }
+  #endif
   // 太阳色（日出日落偏暖、夜里偏暗）：只影响亮档，按最大分量归一
   float sm = max(max(sunCol.r, sunCol.g), max(sunCol.b, 1e-3));
   if (band > 1.5 && lampIn < 0.5) col *= mix(vec3(1.0), sunCol / sm, 0.35);
   // 时间：三档各乘各的（自发光的东西 —— 开着的灯面、机器的指示灯 —— 不跟着变暗）；灯光圈里换灯光色
   vec3 dayM = band > 1.5 ? uDayLit : (band > 0.5 ? uDayMid : uDayDark);
-  if (lampIn > 0.5) dayM = mix(dayM, uLampCol * (band > 1.5 ? 1.0 : 0.62), uLampK);
+  // 圈心（亮档）整个换灯色；外圈（中档）只往灯色混 55%：夜色还在、只是暖一点亮一点（全换成灯色，草地外圈是一圈黄绿）
+  // lampIn 2 = 圈心（亮面亮档、背光面中档，都整个换灯色），1 = 外圈（档位不动，夜色往灯色混 40%：夜里的冷色提亮一点、
+  // 偏中性，不经过褐色 —— 第 1 轮评判：琥珀 × 0.66 混在草和沙上是一圈脏褐）
+  // 圈心留两成夜色（草上全换琥珀 = 一块艳黄绿，第 2 轮主代理 / 评判）
+  if (lampIn > 1.5) dayM = mix(dayM, lampCol * (band > 1.5 ? 1.0 : 0.66), uLampK * 0.8);
+  else if (lampIn > 0.5) dayM = mix(dayM, lampCol * (band > 1.5 ? 1.0 : 0.8), uLampK * 0.4);
+  // 焦点（草帽）：乘子往"中性、提亮一截"收 —— 夜里、阴雨天还是原来的色相，只暗一点
+  if (uFocus > 0.0) {
+    float dl = dot(dayM, vec3(0.2126, 0.7152, 0.0722));
+    // 中性、至少 0.72（夜里乘子 ≈ 0.45 时草帽还是暖黄，不被染成蓝灰）
+    dayM = mix(dayM, vec3(max(mix(dl, 1.0, 0.45), 0.72)) * mix(vec3(1.0), dayM / max(dl, 1e-3), 0.12), uFocus);
+    // 夜里（灯开着）焦点再往暖偏一点：草帽在靛蓝的夜里还是暖黄（第 2 轮评判：夜里饱和 0.28 太弱）
+    dayM *= mix(vec3(1.0), vec3(1.1, 1.0, 0.8), uFocus * uLampK);
+  }
   float glow = step(1e-3, dot(totalEmissiveRadiance, vec3(1.0)));
   col *= mix(dayM, vec3(1.0), glow);
-  float sat = mix(uDaySat, 1.0, max(glow, lampIn * uLampK * 0.5));
+  float sat = mix(uDaySat, 1.0, max(max(glow, min(lampIn, 1.0) * uLampK * 0.35), uFocus));
   if (sat != 1.0) col = mix(vec3(dot(col, vec3(0.2126, 0.7152, 0.0722))), col, sat);
+  // 水洼：往天色混 35%（湿地面映一点天），北沿一纹素混 65%（反光的边）
+  if (wetK > 0.5) col = mix(col, lampIn > 0.5 ? mix(uWetCol, lampCol, 0.6 * uLampK) : uWetCol, wetK > 1.5 ? 0.65 : 0.35);
+  if (dustHit > 0.5) col = mix(col, vec3(0.96, 0.84, 0.64) * uDayLit, 0.5);
   col += totalEmissiveRadiance;
   gl_FragColor = vec4(col, diffuseColor.a);
 }
@@ -884,6 +1022,15 @@ function elemSetup(
       uElPeb: { value: e.pebbles ?? 0 },
       uElSeed: { value: e.seed ?? 0 },
       uElFur: { value: e.fur ?? 1 },
+      uElC: {
+        value: new THREE.Vector4(
+          e.clumps?.density ?? 0,
+          e.clumps?.size ?? 10,
+          e.clumps?.flowers ?? 0,
+          e.clumps?.ridge ? 1 : 0,
+        ),
+      },
+      uElFl: { value: col(e.clumps?.flower ?? t.hi[0]) },
     },
   };
 }
@@ -944,6 +1091,7 @@ export function createMats(u: SharedUniforms, texelMeters: () => number): Mats {
             sphere,
             opts.noShadowReceive,
             opts.fur,
+            opts.focus,
             elemKey(opts),
           ]);
     if (key && cache.has(key)) return cache.get(key)!;
@@ -983,6 +1131,8 @@ export function createMats(u: SharedUniforms, texelMeters: () => number): Mats {
         uTexel,
         uNoRecv: { value: opts.noShadowReceive ? 1 : 0 },
         uFurK: { value: opts.fur ?? 1 },
+        uFocus: { value: opts.focus ?? 0 },
+        uGround: { value: edge <= 0.15 ? 1 : 0 },
         ...globals,
       });
       if (el) Object.assign(shader.uniforms, el.uniforms);

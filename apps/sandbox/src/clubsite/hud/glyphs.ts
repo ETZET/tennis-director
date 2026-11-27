@@ -4,7 +4,7 @@
 // - GLYPH：9×9 的小字形 —— 在干什么、属性、牵连、心情脸
 // - TINY：5×5 不描边的墨色小图（代价那一行：时钟、金币）+ 3×5 点阵数字（DIGITS）
 // 暖色不比草帽（≈ #ffcd81）艳：灯泡、闪电、星用草帽色 X / x，金币用干草色。
-import { COIN_KEYS, KEYS, PALE_SUN } from './colors';
+import { COIN_KEYS, PALE_SUN } from './colors';
 import { MOODS } from './icons';
 import type { Sprite } from './sprite';
 
@@ -42,34 +42,32 @@ export const ACT = {
     '..ZxxxxxxXz.',
     '...zzzzzzz..',
   ),
-  /** 孩子：一根冰棍 */
+  /** 孩子：一根三色冰棍（缺一口） */
   pop: S(
-    '..RRRR..',
-    '.RWRRRr.',
-    '.RWRRRr.',
-    '.RRRRRr.',
-    '.RRRRrr.',
-    '.RRRRrr.',
-    '.rrrrrr.',
-    '...Tt...',
+    '..RRR...',
+    '.RWRRR..',
+    '.RWRRRR.',
+    '.XXXXXX.',
+    '.XXXXXx.',
+    '.AAAAAa.',
+    '.aaaaaa.',
     '...Tt...',
     '...Tt...',
     '...tt...',
   ),
-  /** 打一局：球拍 + 网球 */
+  /** 打一局：一颗球飞过球网（球拍只留给"球技"） */
   rally: S(
-    '.....SSSS.....',
-    '....SWsWsS....',
-    '...SWsWsWsS...',
-    '...SsWsWsWS...',
-    '...SWsWsWsS...',
-    '....SsWsWS....',
-    '.....SSSS.....',
-    '......tT......',
-    '......tT...GG.',
-    '......tT..GGWg',
-    '......TT..GWgg',
-    '......uu...gg.',
+    '......GG......',
+    '.....GGWg.....',
+    '.....GWgg.....',
+    '......gg......',
+    '..............',
+    'SWWWWWWWWWWWWS',
+    'SsdsdsdsdsdsdS',
+    'SdsdsdsdsdsdsS',
+    'SsdsdsdsdsdsdS',
+    'S............S',
+    'S............S',
   ),
   /** 听听意见：一只灯泡（草帽色，不抢焦点） */
   ask: S(
@@ -150,14 +148,12 @@ export const GLYPH = {
     '.....tt..',
     '.Tt......',
   ),
-  dumbbell: S('.........', 'SS.....SS', 'SSs...SSs', 'SSsSSSSSs', 'SSsssssSs', 'SSs...SSs', 'ss.....ss'),
+  dumbbell: S('.S.....S.', 'SS.....SS', 'SSdddddSS', 'SSdddddSS', 'SS.....SS', '.s.....s.'),
   bolt: S('....XXX..', '...XXx...', '..XXx....', '.XXXXXX..', '....XXx..', '...XXx...', '..XXx....', '.Xx......'),
-  bubble: S('.WWWWWWW.', 'WWWWWWWWw', 'WKWWKWWKw', 'WWWWWWWWw', '.wwWWwww.', '..wWw....', '.ww......'),
   coin: {
     ...S('..YYYYY..', '.YWWYYYy.', 'YWYyyyYYy', 'YWyYYYWyy', 'YYyYYYWyy', 'YYYWWWYyy', '.yYYYYyy.', '..yyyyy..'),
     keys: COIN_KEYS,
   },
-  flag: S('S........', 'SRRRRRR..', 'SRWRRRRr.', 'SRRRRRRr.', 'SRRRRrr..', 'Srrrr....', 'S........', 'd........'),
   house: S(
     '....R....',
     '...RRR...',
@@ -183,56 +179,85 @@ export const GLYPH = {
   smile: S('..XXXXX..', '.XXXXXXx.', 'XXKXXKXXx', 'XXKXXKXXx', 'XXXXXXXXx', 'XKXXXXKXx', '.XKKKKXx.', '..xxxxx..'),
   meh: S('..XXXXX..', '.XXXXXXx.', 'XXKXXKXXx', 'XXKXXKXXx', 'XXXXXXXXx', 'XXKKKKXXx', '.XXXXXXx.', '..xxxxx..'),
   sad: S('..XXXXX..', '.XXXXXXx.', 'XXKXXKXXx', 'XXKXXKXXx', 'XXXXXXXXx', 'XXKKKKXXx', '.XKXXXKx.', '..xxxxx..'),
-  star: S('....X....', '...XXx...', 'XXXXXXXXx', '.XXXXXXx.', '..XXXXx..', '..XXxXx..', '.XXx.xXx.', '.Xx...xx.'),
   badge: S('...nn....', '.BBBBBBB.', '.WWWWWWw.', '.WvvWWWw.', '.WddWssw.', '.WddWWWw.', '.WWWssWw.', '.wwwwwww.'),
   clock: S('..WWWWW..', '.WWWKWWWw', 'WWWWKWWWw', 'WWWWKWWWw', 'WWWWKKKWw', 'WWWWWWWWw', '.WWWWWWw.', '..wwwww..'),
-  broom: S(
-    '.......T.',
-    '......T..',
-    '.....T...',
-    '....t....',
-    '..XXX....',
-    '.XXXXx...',
-    'XXXxXx...',
-    'XxXxx....',
-    '.x.x.....',
-  ),
   sun: { ...S('...L...', '.L.L.L.', '..LLL..', 'LLLLLLL', '..LLL..', '.L.L.L.', '...L...'), keys: { L: PALE_SUN } },
   moon: S('..WWW..', '.WWw...', 'WWw....', 'WWw....', 'WWw....', '.WWw...', '..WWW..'),
-  // ── 地点（名册看板按地点分簇的打头小图） ──
-  car: S('..BBBBB..', '.BAAbAAB.', 'BBBBBBBBn', 'BWBBBBWBn', 'nnnnnnnnn', '.dd...dd.'),
-  bell: S('....X....', '...XXx...', '..XXXXx..', '..XWXXx..', '.XWXXXXx.', '.XXXXXXx.', 'XXXXXXXXx', 'ttttttttt'),
-  paddle: S(
-    '.SSSS....',
-    'SBBBBS...',
-    'SBWBBS...',
-    'SBBBBS...',
-    'SBBBbS...',
-    '.SSSS....',
-    '...TT.GG.',
-    '...Tt.Gg.',
-    '...tt....',
-  ),
-  fountain: S('..A.A.A..', '.A.AWA.A.', 'A..AWA..A', 'A...A...A', 'SSSSSSSSS', 'SAAAAAAAd', 'SaaaaaaAd', '.ddddddd.'),
-  trophy: S('XXXXXXXXX', 'XWXXXXXXx', '.XXXXXXx.', '..XXXXx..', '...XXx...', '....X....', '...XXx...', '..xxxxx..'),
-  clay: {
-    ...S(
-      '...GGG...',
-      '.WGGGGGW.',
-      '.GWGGGWg.',
-      'GGGWGWggg',
-      'GGGWGWggg',
-      'GGGWgWggg',
-      '.gWgggWh.',
-      '.Wgggghh.',
-      '...hhh...',
-    ),
-    keys: { G: KEYS.R, g: KEYS.r, h: KEYS.m },
-  },
+  /** 师徒：一顶学士帽（带流苏） */
+  cap: S('....n....', '..nnnnn..', 'nnnnnnnnn', '..nnnnn.X', '...nnn..X', '...ddd..X', '..ddddd.x'),
+  /** 社交：两个叠着的对话泡 */
+  talkers: S('WWWWWW...', 'WKWKWW...', 'WWWWWW...', '.WwSSSSSS', '.w.SdSdSS', '...SSSSSS', '.....sS..', '......s..'),
   /** 牵连（朋友、同事、旧事）：两个扣在一起的环 */
   link: S('.AAA.....', 'A...A....', 'A..cccc..', 'A..cA..c.', '.AAAA..c.', '...c...c.', '....ccc..'),
-  /** 消费力：一只购物袋（不用金币，免得和"花钱"撞） */
-  bag: S('..T...T..', '..T...T..', '.TRRRRRT.', '.RRWRRRRr', '.RWRRRRRr', '.RRRRRRRr', '.RRRRRRrr', '.rrrrrrr.'),
+  // ── 一图一义（第三轮）：属性、牵连、在干什么、地点四组互不重用；地点图在 places.ts（那块地方的缩小剪影） ──
+  /** 对手：两把交叉的剑（闪电只留给"体能"） */
+  swords: S(
+    'S.......S',
+    'SS.....SS',
+    '.SS...SS.',
+    '..SS.SS..',
+    '...SSS...',
+    '..SS.SS..',
+    't.S...S.t',
+    '.tt...tt.',
+    't.t...t.t',
+  ),
+  /** 社交：并排的两个人 */
+  pair: S(
+    '.TT...uu.',
+    'TTTT.uuuu',
+    'FFFF.ffff',
+    'FKFK.fKfK',
+    'FFFF.ffff',
+    '.FF...ff.',
+    'BBBB.RRRR',
+    'BBBB.RRRR',
+    'bbbb.rrrr',
+  ),
+  /** 耐心：一只乌龟（沙漏只留给"在等"） */
+  turtle: S('.........', '..qqqq...', '.qPPPPq..', 'qPPqPPPq.', 'qPqPPqPPP', 'qqqqqqqPK', '.p...p...', '.p...p...'),
+  /** 消费：钱包里露出一张钞票 */
+  wallet: S('..PPPPP..', '..PpPpP..', 'tttttttt.', 'tTTTTTTtt', 'tTTTTTXXt', 'tTTTTTXXt', 'tTTTTTTtt', 'uuuuuuuu.'),
+  /** 忠诚：一只锚（留得住） */
+  anchor: S(
+    '...SSS...',
+    '...S.S...',
+    '...SSS...',
+    '.SSSSSSS.',
+    '....S....',
+    '....S....',
+    'S...S...S',
+    'SS..S..SS',
+    '.SSSSSSS.',
+  ),
+  /** 在吃：叉子和刀 */
+  fork: S(
+    'S.S.S..S.',
+    'S.S.S.SS.',
+    'S.S.S.SS.',
+    'SSSSS.SS.',
+    '.SSS..SS.',
+    '..S...SS.',
+    '..S....S.',
+    '..S....S.',
+    '..S....S.',
+  ),
+  /** 在游泳：水面上露着的头 */
+  swim: S('...TTT...', '...FFF...', '.AA.F.AA.', 'A..AAA..A', '.........', '.AA...AA.', 'A..AAA..A'),
+  /** 在干活：写字板 */
+  clip: S(
+    '...SSS...',
+    '.ttSSStt.',
+    '.tWWWWWt.',
+    '.tWddWWt.',
+    '.tWWWWWt.',
+    '.tWdddWt.',
+    '.tWWWWWt.',
+    '.tWddWWt.',
+    '.ttttttt.',
+  ),
+  /** 旧事：一本摊开的书 */
+  book: S('BBBB.BBBB', 'BWWWBWWWB', 'BWdWBWdWB', 'BWWWBWWWB', 'BWdWBWdWB', 'BWWWBWWWB', 'BBBBBBBBB', '.nnn.nnn.'),
   /** 好感：一颗心（满 / 半 / 空） */
   heart: S('.RR.RR.', 'RWRRRRr', 'RRRRRRr', '.RRRRr.', '..RRr..', '...r...'),
   heartHalf: S('.RR.vv.', 'RWRRvvv', 'RRRRvvv', '.RRRvv.', '..Rvv..', '...v...'),

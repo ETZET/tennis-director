@@ -7,6 +7,7 @@
 // 材质：顶棚、柱、框、椅脚 ironwork；檐口 carSilver；后墙 glass；椅面 woodWeathered；水泥台 curb。
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { LAMP_COOL, nightLight } from '../../clubsite/daylight/night';
 import type { AssetCtx } from '../ctx';
 
 const T = 0.09;
@@ -109,5 +110,12 @@ export function build(ctx: AssetCtx): THREE.Object3D {
   );
   add(pad, ctx.mat('curb', { edge: 0.2, convex: 0.3 }));
   ctx.mats.prepare(g);
+  // 夜里（light 代理，clubsite/daylight）：檐口换成亮着的灯管，亭里和亭前一片冷白的光
+  const fasciaMesh = g.children[3] as THREE.Mesh;
+  const fasciaOn = ctx.mat('carSilver', { ...FACE, ramp: [0xeef6e8, 0xeef6e8, 0xeef6e8], emissive: 0x141810 });
+  g.userData.night = nightLight(g, {
+    glow: [[fasciaMesh, fasciaMesh.material as THREE.Material, fasciaOn]],
+    spots: [{ at: [0, 0, 0.9], r: 4.4, h: 2.4, c: LAMP_COOL }],
+  });
   return g;
 }

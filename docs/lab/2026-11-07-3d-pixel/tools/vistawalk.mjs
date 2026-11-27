@@ -19,9 +19,9 @@ const [port = '5343'] = process.argv.slice(2);
 
 /** [名字, 图, 起点（本图坐标）, 目标（本图坐标）, 期望转场到哪张图（null = 只走到）] */
 const ROUTES = [
-  ['到达：下车 → 前台', 'arrive', [11, 42.2], [20.4, 14.6], null],
-  ['到达：下车 → 歇脚长椅', 'arrive', [11, 42.2], [13.4, 9.2], null],
-  ['到达：下车 → 山口（→ 球场）', 'arrive', [11, 42.2], [23.5, -3.6], 'court'],
+  ['到达：下车 → 前台', 'arrive', [10.8, 37.4], [20.4, 14.6], null],
+  ['到达：下车 → 歇脚长椅', 'arrive', [10.8, 37.4], [13.4, 9.2], null],
+  ['到达：下车 → 山口（→ 球场）', 'arrive', [10.8, 37.4], [23.5, -3.6], 'court'],
   ['球场：南口 → 场里（进场口）', 'court', [14, 61], [14, 40], null],
   ['球场：南口 → 东廊长椅', 'court', [14, 61], [28.4, 42], null],
   ['球场：南口 → 东口（→ 歇脚）', 'court', [14, 61], [40, 37.2], 'oasis'],
@@ -31,9 +31,6 @@ const ROUTES = [
   ['歇脚：西口 → 树荫长椅', 'oasis', [-8, 42], [5.4, 39.6], null],
   ['歇脚：西口 → 后门', 'oasis', [-8, 42], [15, 6.2], null],
   ['歇脚：后门 → 西口（→ 球场）', 'oasis', [15, 6.2], [-12, 41.8], 'court'],
-  ['练习场：南口 → 场里', 'practice', [23.4, 55.4], [13, 40], null],
-  ['练习场：南口 → 凉棚', 'practice', [23.4, 55.4], [16, 7.2], null],
-  ['练习场：凉棚 → 南口（→ 球场）', 'practice', [16, 7.2], [21.4, 59.4], 'court'],
 ];
 
 const browser = await pw.chromium.launch({
@@ -44,7 +41,17 @@ const page = await browser.newPage({ viewport: { width: 390, height: 844 }, devi
 const errors = [];
 page.on('pageerror', (e) => errors.push(String(e)));
 let fails = 0;
-for (const [name, map, from, to, expect] of ROUTES) {
+// 新图的路线写在图自己的数据里（MapDef.walks：{ name, from, to, expect? }）：开一次页面读出来接在后面。ONLY=plaza,street 只走这几张图的
+await page.goto(`http://localhost:${port}/clubvista.html?pause=1&ui=0`);
+await page.waitForFunction(() => window.__vista, null, { timeout: 60000 });
+const extra = await page.evaluate(() =>
+  window.__vista.built.flatMap((b) =>
+    (b.def.walks ?? []).map((w) => [`${b.def.name}：${w.name}`, b.def.id, w.from, w.to, w.expect ?? null]),
+  ),
+);
+const only = process.env.ONLY?.split(',');
+for (const [name, map, from, to, expect] of [...ROUTES, ...extra]) {
+  if (only && !only.includes(map)) continue;
   await page.goto(`http://localhost:${port}/clubvista.html?map=${map}&at=${from.join(',')}&clouds=0`);
   await page.waitForFunction(() => window.__vista?.play, null, { timeout: 60000 });
   await page.waitForTimeout(600);

@@ -18,10 +18,13 @@ import type { Scheme } from '../render/palettes';
 import type { PixelPipeline } from '../render/pipeline';
 import { createDayUniforms, LAMP_N } from '../render/toon';
 import { type DayPanel, mountDayHud } from './hud';
+import type { NightLight } from './night';
 import { type DayLook, WEATHERS, type Weather, wrapHour } from './sky';
 import { autoWeather, lookAt } from './weather';
 
 export type { DayPanel } from './hud';
+export type { LampPool, NightLight } from './night';
+export { LAMP_AMBER, LAMP_AQUA, LAMP_COOL, LAMP_WARM, nightLight } from './night';
 export type { DayLook, Weather } from './sky';
 export { clockText, periodName, WEATHER_NAME, WEATHERS } from './sky';
 
@@ -70,11 +73,6 @@ export interface Daylight {
    * 固定的光照（给了就一直用它，不按时刻、天气算；null = 恢复）：室内（valley 的店里）不要日夜和天气。时钟照样走
    */
   override: DayLook | null;
-}
-
-interface NightLight {
-  setOn?: (on: boolean) => void;
-  pool?: () => [number, number, number, number];
 }
 
 const DEFAULT_SKY = { top: 0x5fb0e8, horizon: 0xbfe3f2 };
@@ -147,7 +145,8 @@ export function mountDaylight(o: DaylightOpts): Daylight {
     // 新找到的灯（新建的区域）也按现在的状态开关一次
     for (const l of lights) l.setOn?.(lampsOn);
   }
-  const pools: [number, number, number, number, number][] = [];
+  const pools: [number, number, number, number, number, [number, number, number], number][] = [];
+  const DEF_C: [number, number, number] = [day.uLampCol.value.x, day.uLampCol.value.y, day.uLampCol.value.z];
   function placeLamps(k: number) {
     const on = k > 0.35;
     if (on !== lampsOn) {
@@ -160,16 +159,25 @@ export function mountDaylight(o: DaylightOpts): Daylight {
     if (k <= 0) return;
     const t = pipe.rig.target;
     pools.length = 0;
-    for (const l of lights) {
-      if (!l.pool) continue;
-      const [x, z, r, h] = l.pool();
+    // 离镜头的距离扣掉半径：大的光斑（球场泛光灯）边上照得到画面，就不该被远处的小灯挤掉
+    const push = (x: number, z: number, r: number, h: number, c: [number, number, number], k: number) => {
       // 关着的灯（半径 0）不占 LAMP_N 的名额：它本来什么也不照，占了名额近处开着的灯就没光圈（2026-11-21 valley 住宅门廊灯）
-      if (r <= 0) continue;
-      pools.push([x, z, r, h, (x - t.x) ** 2 + (z - t.z) ** 2]);
+      if (r <= 0 || k <= 0) return;
+      pools.push([x, z, r, h, Math.hypot(x - t.x, z - t.z) - r, c, k]);
+    };
+    for (const l of lights) {
+      if (l.pool) {
+        const [x, z, r, h] = l.pool();
+        push(x, z, r, h, l.color ?? DEF_C, l.power ?? 1);
+      }
+      if (l.pools) for (const p of l.pools()) push(p.x, p.z, p.r, p.h, p.c ?? l.color ?? DEF_C, p.k ?? l.power ?? 1);
     }
     pools.sort((a, b) => a[4] - b[4]);
-    for (let i = 0; i < Math.min(LAMP_N, pools.length); i++)
+    const cols = day.uLampC.value;
+    for (let i = 0; i < Math.min(LAMP_N, pools.length); i++) {
       arr[i].set(pools[i][0], pools[i][1], pools[i][2], pools[i][3]);
+      cols[i].set(pools[i][5][0], pools[i][5][1], pools[i][5][2], pools[i][6]);
+    }
   }
 
   /**
@@ -209,6 +217,14 @@ export function mountDaylight(o: DaylightOpts): Daylight {
     day.uDayLift.value = Math.max(0, Math.tan(e2) * Math.cos(e) - Math.sin(e));
     day.uCloudCut.value = look.cloudCut;
     day.uDaySat.value = look.sat;
+    // 投影的毛边：太阳低（影子拉长）时收掉，不然毛边跟着拉成一根根长刺；仰角 ≥ 38° 是 1（正午不变）
+    day.uDayFur.value = THREE.MathUtils.smoothstep(look.el, 16, 38);
+    day.uWet.value = look.rain;
+    day.uDustK.value = look.dust;
+    // 积水映的天色：天顶和天边各一半、再压暗一点（夜里跟着暗）
+    const sk = (h: number, s: number) => ((h >> s) & 255) / 255;
+    const wc = (s: number) => 0.9 * (0.5 * sk(look.skyTop, s) + 0.5 * sk(look.skyHorizon, s));
+    day.uWetCol.value.set(wc(16), wc(8), wc(0));
     uniforms.uWind.value.copy(baseWind).multiplyScalar(look.wind);
     uniforms.uCloudVel.value.copy(baseCloudVel).multiplyScalar(look.cloudVel);
     pipe.edges.tint = [baseEdge[0] * look.edgeMul[0], baseEdge[1] * look.edgeMul[1], baseEdge[2] * look.edgeMul[2]];
