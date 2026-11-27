@@ -5,9 +5,14 @@
 // 《垂钓手记》的整屏规则（~/workspace/tennis-director-refs/club-redo/brief/analysis.md）：大面安静（元素少、缝浅、块大），
 // 受光暖、背光冷，冷的大面（球场、池水、干河床、马路）放在每张图最低的那层。
 
+import { PAL as CLAY_PAL } from '../clubclay/palette';
 import { GROUP_AS as COURTS_AS, PAL as COURTS_PAL } from '../clubcourts/palette';
 import { PAL as FOOD_PAL, PROXY as FOOD_PROXY } from '../clubfood/palette';
+import { PAL as GOLF_PAL, PROXY as GOLF_PROXY } from '../clubgolf/palette';
 import { PAL as HOUSE_PAL, PROXY as HOUSE_PROXY } from '../clubhouse/palette';
+import { PAL as PARK_PAL } from '../clubpark/palette';
+import { PAL as PICKLE_PAL } from '../clubpickle/palette';
+import { PAL as PLAZA_PAL, PROXY as PLAZA_PROXY } from '../clubplaza/palette';
 import { PAL as POOL_PAL, PROXY as POOL_PROXY, SUN_SKIP as POOL_SUN_SKIP } from '../clubpool/palette';
 import type { Swatch } from '../clubsite/render/palette';
 import type { Elem, Tones } from '../clubsite/render/toon';
@@ -227,11 +232,27 @@ const VISTA = {
   boxHot: s([0xff8a5c, 0xd85a5a, 0x7a3a6a], 0.6, 0.5),
 } as const satisfies Record<string, Swatch>;
 
-export const PAL = { ...HOUSE_PAL, ...FOOD_PAL, ...POOL_PAL, ...COURTS_PAL, ...STADIUM_PAL, ...VISTA } as const;
+// 第三轮：内场剩下的地方也改成分图 —— 红土、匹克球、广场、停车场、高尔夫的表也并进来（它们的资产只读复用时颜色一个不差）。
+// 后面的盖前面的：原来四张图用到的表（会所、餐车、泳池、会员场、中心球场）排在后面，同名的条目不变。
+export const PAL = {
+  ...PARK_PAL,
+  ...CLAY_PAL,
+  ...PICKLE_PAL,
+  ...PLAZA_PAL,
+  ...GOLF_PAL,
+  ...HOUSE_PAL,
+  ...FOOD_PAL,
+  ...POOL_PAL,
+  ...COURTS_PAL,
+  ...STADIUM_PAL,
+  ...VISTA,
+} as const;
 export type Pal = typeof PAL;
 
 /** 新材质借哪个名字过配色方案的分组（同 clubpool / clubfood 的 PROXY 做法；方案的 GROUP 表不归这里改） */
 export const GRADE_AS: Partial<Record<keyof Pal, keyof Pal>> = {
+  ...(PLAZA_PROXY as Partial<Record<keyof Pal, keyof Pal>>),
+  ...(GOLF_PROXY as Partial<Record<keyof Pal, keyof Pal>>),
   ...(HOUSE_PROXY as Partial<Record<keyof Pal, keyof Pal>>),
   ...(FOOD_PROXY as Partial<Record<keyof Pal, keyof Pal>>),
   ...(POOL_PROXY as Partial<Record<keyof Pal, keyof Pal>>),

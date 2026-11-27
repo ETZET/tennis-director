@@ -390,8 +390,36 @@ export const rest: MapDef = {
   courts: [],
   props: [...house, ...cafe, ...pool, ...shade, ...frame],
   noWalk: [rect(-30, 45, 60, 72), rect(-30, 44, -2.4, 45), rect(28, -20, 60, 72)],
-  exits: [{ to: 'court', entry: 'fromOasis', at: [-12, 41.8], r: 2 }],
-  entries: { fromCourt: { at: [-8, 42], yaw: PI / 2 } },
+  exits: [
+    { to: 'court', entry: 'fromOasis', at: [-12, 41.8], r: 2 },
+    // 会所后门 → 会所大堂（第三轮）
+    { to: 'lobby', entry: 'fromOasis', at: [15.4, 5.7], r: 0.9 },
+  ],
+  entries: { fromCourt: { at: [-8, 42], yaw: PI / 2 }, fromLobby: { at: [15.4, 7.6], yaw: 0 } },
   start: { at: [-8, 42], yaw: PI / 2 },
   clouds: [],
+  shot: { port: [13, 24], land: [14, 22] },
+  walks: [
+    { name: '西口 → 后门（→ 会所大堂）', from: [-8, 42], to: [15.4, 5.7], expect: 'lobby' },
+    { name: '后门进来 → 池边', from: [15.4, 7.6], to: [6, 30.6] },
+  ],
+  // 兴趣点（给"人和活"那条线；画面不读）
+  spots: [
+    { id: 'door-west', kind: 'door', at: [-10, 41.8], yaw: PI / 2, note: '西口（← 中心球场）' },
+    { id: 'door-back', kind: 'door', at: [15.4, 6.6], yaw: 0, note: '会所后门（← 会所大堂）' },
+    { id: 'kiosk-window', kind: 'work', at: [6.4, 13], yaw: PI, note: '咖啡车窗口（店员在车里，总监来搭把手站这儿）' },
+    { id: 'kiosk-queue', kind: 'queue', at: [6.2, 14.2], yaw: PI, note: '咖啡车排队的队头，往南排' },
+    { id: 'patio-serve', kind: 'work', at: [17.2, 13.2], yaw: 0, note: '露台中间：服务员端盘子、收桌子' },
+    { id: 'table-nw', kind: 'rest', at: [11.6, 12.1], yaw: PI, seat: 0.47, note: '露台大伞那桌的南边' },
+    { id: 'table-mid', kind: 'rest', at: [13.6, 14.1], yaw: PI / 2, seat: 0.47, note: '露台中间那桌的西边' },
+    { id: 'table-e', kind: 'rest', at: [21, 13.1], yaw: PI, seat: 0.47, note: '露台东头那桌的南边' },
+    { id: 'supply', kind: 'work', at: [14.2, 7.2], yaw: -PI / 2, note: '后门口的货箱（搬货）' },
+    { id: 'pool-towels', kind: 'work', at: [3.2, 30.2], yaw: -PI / 2, note: '毛巾车（补毛巾）' },
+    { id: 'pool-watch', kind: 'watch', at: [13.2, 28.6], yaw: -PI * 0.75, note: '池子东南角站着看孩子' },
+    { id: 'pool-edge', kind: 'rest', at: [8.4, 28.2], yaw: PI, seat: 0.06, note: '南边池沿坐着泡脚' },
+    { id: 'lounger', kind: 'rest', at: [15.6, 24.8], yaw: 0, seat: 0.46, note: '池东边空着的那张躺椅' },
+    { id: 'bench-shade', kind: 'rest', at: [7.8, 39.1], yaw: 0, seat: 0.47, note: '树荫长椅（前面站一步）' },
+    { id: 'water', kind: 'work', at: [10.2, 38.9], yaw: -PI / 2, note: '饮水桶（换水）' },
+    { id: 'lawn', kind: 'watch', at: [19, 33], yaw: -PI / 2, note: '小路拐弯处的草地，站着聊天' },
+  ],
 };
