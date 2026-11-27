@@ -38,10 +38,6 @@ export const SLOT_TABLE: readonly SlotInfo[] = [
     ['#0', P, 'member', '从大门进来的会员'],
     ['#1', P, 'guest', '第一次来的客人'],
     ['#2', P, 'member', '去球场的会员'],
-    // 分图「到达 · 前台」（clubvista）的人：柜台里的接待、公交站刚下接驳车的、候车亭里等车的
-    ['desk-clerk', C, 'staff', '前台接待'],
-    ['bus-1', P, 'guest', '刚下接驳车的客人'],
-    ['bus-2', P, 'guest', '候车亭里等车的客人'],
   ]),
   // ── 匹克球场：2 号场双打、拍架边等场、场边看球、长廊和步道上走的 ──
   ...S('clubpickle', [
@@ -102,8 +98,6 @@ export const SLOT_TABLE: readonly SlotInfo[] = [
     ['member-prom-2', P, 'member', '长廊上的会员'],
     ['spec-link-1', P, 'guest', '从广场来看球的观众'],
     ['spec-link-2', P, 'guest', '从广场来看球的观众'],
-    // 分图「中心球场」（clubvista）：六个司线员
-    ...Array.from({ length: 6 }, (_, i): Row => [`line-${i + 1}`, 'umpire', 'staff', '司线员']),
   ]),
   // ── 会员场 · 青训：教练喂球、排队的孩子、家长、会员双打、等场的、自己练发球的少年 ──
   ...S('clubcourts', [
@@ -197,9 +191,6 @@ export const SLOT_TABLE: readonly SlotInfo[] = [
     ['sun-w2', P, 'guest', '西边躺椅上看书的客人'],
     ['member-in', P, 'member', '打完球来游泳的会员'],
     ['kid-shower', K, 'kid', '冲凉的孩子'],
-    // 分图「歇脚」（clubvista）：露台的服务员、从后门搬货的店员
-    ['waiter', 'umpire', 'staff', '露台服务员'],
-    ['stock', P, 'staff', '搬货的店员'],
   ]),
   // ── 高尔夫：果岭推杆、扶旗、发球台、球车、沙漠里找球 ──
   ...S('clubgolf', [
@@ -270,8 +261,29 @@ export const SLOT_TABLE: readonly SlotInfo[] = [
   ]),
 ];
 
+/**
+ * 只有分图（clubvista）用到的人位：到达图柜台里的接待、公交站的客人，中心球场的六个司线员，歇脚的服务员和搬货的店员。
+ * 不进 SLOT_TABLE：俱乐部的一天（clubsite/sim）按 SLOT_TABLE 排员工的岗，内场没有这些位置。
+ * slotInfo() 照样认它们（选角、在场时段按这里的身份和称呼）。
+ */
+export const VISTA_SLOTS: readonly SlotInfo[] = [
+  ...S('clubdesk', [
+    ['desk-clerk', C, 'staff', '前台接待'],
+    ['bus-1', P, 'guest', '刚下接驳车的客人'],
+    ['bus-2', P, 'guest', '候车亭里等车的客人'],
+  ]),
+  ...S(
+    'clubstadium',
+    Array.from({ length: 6 }, (_, i): Row => [`line-${i + 1}`, 'umpire', 'staff', '司线员']),
+  ),
+  ...S('clubpool', [
+    ['waiter', 'umpire', 'staff', '露台服务员'],
+    ['stock', P, 'staff', '搬货的店员'],
+  ]),
+];
+
 /** 'scene:slot' → SlotInfo */
-const BY_KEY = new Map(SLOT_TABLE.map((s) => [slotKey(s.scene, s.slot), s]));
+const BY_KEY = new Map([...SLOT_TABLE, ...VISTA_SLOTS].map((s) => [slotKey(s.scene, s.slot), s]));
 
 export function slotKey(scene: SceneId, slot: string): string {
   return `${scene}:${slot}`;

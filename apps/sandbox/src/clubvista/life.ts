@@ -32,6 +32,7 @@ import {
   seekersNow,
   setClock,
   slotInfo,
+  VISTA_SLOTS,
   visitWindows,
 } from '../clubsite/cast';
 import { hashOf, mulberry32 } from '../clubsite/cast/rng';
@@ -106,7 +107,7 @@ const isPerson = (o: THREE.Object3D) => !!(o.userData.pose && o.userData.setProp
 export function prepareLife(built: readonly BuiltMap[], kit: Kit): Prepared[] {
   return built.map((b) => {
     const scene = CAST_SCENE[b.def.id] ?? ('clubplaza' as SceneId);
-    const rows = SLOT_TABLE.filter((s) => s.scene === scene);
+    const rows = [...SLOT_TABLE, ...VISTA_SLOTS].filter((s) => s.scene === scene);
     const used = new Set<string>();
     let fallback = 0;
     const take = (kind: PersonKind, hint?: string): string => {
