@@ -19,6 +19,7 @@ import {
   expireSeeks,
   guessRole,
   isFixedRole,
+  matchWindows,
   type MapSlot,
   memOf,
   type PersonKind,
@@ -44,7 +45,8 @@ import {
 } from '../clubsite/life/maplife';
 import type { Play } from '../clubsite/play';
 import type { BuiltMap, Kit } from './build';
-import { lt } from './life-text';
+import { mountChores } from './chores';
+import { type LifeTextKey, lt } from './life-text';
 import type { Prop } from './mapdef';
 import { CAST_SCENE } from './text';
 
@@ -171,6 +173,38 @@ export function prepareLife(built: readonly BuiltMap[], kit: Kit): Prepared[] {
     });
     for (const ex of b.def.exits) gates.push({ id: `exit:${ex.to}`, x: ex.at[0], z: ex.at[1] });
 
+    // ── world 填的站位（MapDef.spots）：rest = 坐 / 歇、watch = 站着看、queue = 排队的队头、door = 进出的门、play = 打球的位置 ──
+    // 摆件已经给过的地方（0.8 米以内有兴趣点）不重复；work 是总监干活的地方（chores.ts），不给客人
+    const playSpots: LifeSpot[] = [];
+    const hasCourt = b.def.courts.length > 0;
+    for (const sp of b.def.spots ?? []) {
+      const [x, z] = sp.at;
+      const yaw = sp.yaw ?? 0;
+      if (pois.some((p) => Math.hypot(p.spot.x - x, p.spot.z - z) < 0.8)) continue;
+      if (sp.kind === 'rest')
+        pois.push({
+          id: `spot:${sp.id}`,
+          kind: 'sit',
+          spot: { x, z, yaw, pose: sp.seat !== undefined ? 'sit' : 'idle', seat: sp.seat !== undefined ? [sp.seat, 0] : null },
+          sec: [14, 30],
+        });
+      else if (sp.kind === 'watch')
+        pois.push({ id: `spot:${sp.id}`, kind: 'look', spot: { x, z, yaw, pose: 'idle' }, sec: [8, 18] });
+      else if (sp.kind === 'queue')
+        pois.push({
+          id: `spot:${sp.id}`,
+          kind: 'queue',
+          spot: { x, z, yaw, pose: 'idle' },
+          sec: [4, 8],
+          // 队往背后排（朝 yaw 看，后面的人站在 −朝向 上）
+          queue: { dx: -Math.sin(yaw) * 0.85, dz: -Math.cos(yaw) * 0.85, n: 4 },
+        });
+      else if (sp.kind === 'door') {
+        if (!gates.some((g) => Math.hypot(g.x - x, g.z - z) < 3)) gates.push({ id: `door:${sp.id}`, x, z });
+      } else if (sp.kind === 'play')
+        playSpots.push({ x, z, yaw, pose: hasCourt ? 'ready' : 'idle', prop: hasCourt ? 'racket' : null });
+    }
+
     // ── 摆着的人 ──
     const people: Prepared['people'] = [];
     for (const pl of b.placed) {
@@ -223,10 +257,25 @@ export function prepareLife(built: readonly BuiltMap[], kit: Kit): Prepared[] {
         pois.splice(i, 1);
     }
 
-    // ── 补路过的人：人位表里这个场景剩下的普通位置 ──
+    // ── 补人：人位表里这个场景剩下的普通位置。先给 play 站位各一个有固定位置的人（打球的），剩下的当路过的 ──
     const spare = rows.filter(
       (r) => !used.has(r.slot) && !isFixedRole(r.role) && (r.kind === 'player' || r.kind === 'kid'),
     );
+    for (const home of playSpots) {
+      const i = spare.findIndex((r) => r.kind === 'player');
+      if (i < 0) break;
+      const row = spare.splice(i, 1)[0];
+      used.add(row.slot);
+      const obj = kit.makeAsset('player', people.length + 1).obj;
+      obj.name = `slot:${row.slot}`;
+      obj.visible = false;
+      b.root.add(obj);
+      obj.traverse((c) => {
+        const u = c.userData.update as ((dt: number, t: number) => void) | undefined;
+        if (u) b.updaters.push(u);
+      });
+      people.push({ obj, slot: row.slot, kind: row.kind, home, staff: false });
+    }
     // 没有出入口以外的去处（没有柜台、没有座位）的图不补：人进来没事干
     const want = pois.length ? Math.min(EXTRA, spare.length) : Math.min(2, spare.length);
     for (let i = 0; i < want; i++) {
@@ -265,6 +314,8 @@ export interface VistaLifeOpts {
   setState(s: CastState): void;
   /** 反馈：上方一行字（带金币图标） */
   pop(text: string, icon: 'coin' | null): void;
+  /** 看台坐满 / 空场跟着比赛走（false = 调试里手动切，?crowd=） */
+  autoCrowd?: boolean;
 }
 
 export interface VistaLife {
@@ -321,6 +372,7 @@ export function mountVistaLife(o: VistaLifeOpts): VistaLife {
         groundAt: b.groundAt,
         clock: o.clock,
         director: o.director,
+        wander: [b.def.start.at, ...Object.values(b.def.entries).map((e) => e.at)],
         on: (ev) => {
           for (const h of hs) h(ev);
         },
@@ -341,7 +393,7 @@ export function mountVistaLife(o: VistaLifeOpts): VistaLife {
     done[k] = (done[k] ?? 0) + 1;
   };
   /** 干完一件活：钱进账 + 上方一行字 + 原地冒一个数 */
-  function reward(key: 'luggageDone' | 'cupDone' | 'greetDone', money: number, at: THREE.Vector3) {
+  function reward(key: LifeTextKey, money: number, at: THREE.Vector3) {
     o.setState(earn(o.state(), money));
     o.pop(lt(key, { n: money }), 'coin');
     play.say(at.clone(), `+$${money}`, 1.4, 0.5);
@@ -508,8 +560,14 @@ export function mountVistaLife(o: VistaLifeOpts): VistaLife {
       for (const k of ex.missed)
         o.pop(lt('seekMissed', { name: CAST.get(k.id)?.nameZh ?? '', f: SEEK_MISS.toFixed(1) }), null);
     }
-    const s = o.state();
+    let s = o.state();
     const now = seekersNow(CAST, s);
+    // 给界面的镜像（CastState.seeking）：变了才写
+    const ids = now.map((k) => k.id);
+    if ((s.seeking ?? []).join() !== ids.join()) {
+      s = { ...s, seeking: ids };
+      o.setState(s);
+    }
     const here = o.cur().def.id;
     const L = curLife();
     const live = new Set<string>();
@@ -547,8 +605,55 @@ export function mountVistaLife(o: VistaLifeOpts): VistaLife {
     for (const id of talks.keys()) if (!now.some((k) => k.id === id)) talks.delete(id);
   }
 
+  // ── 站位上的活（拉网、扫场、换水、补毛巾）和练习场的捡球、补球：chores.ts ──
+  const chores = mountChores({
+    built: o.prepared.map((p) => p.map),
+    kit: o.kit,
+    play,
+    director: o.director,
+    cur: o.cur,
+    clock: o.clock,
+    reward,
+  });
+
+  // ── 看台：比赛前半小时开始进人、比赛时坐满、散场以后慢慢走空（只看时钟，换图回来也对） ──
+  const fills = new Map<BuiltMap, ((f: number) => void)[]>();
+  for (const p of o.prepared) {
+    const list: ((f: number) => void)[] = [];
+    p.map.root.traverse((x) => {
+      const f = x.userData.setFill as ((f: number) => void) | undefined;
+      if (f) list.push(f);
+    });
+    if (list.length) fills.set(p.map, list);
+  }
+  let lastFill = -1;
+  let lastFillMap: BuiltMap | null = null;
+  function crowdFill(day: number, m: number): number {
+    let f = 0.08;
+    for (const w of matchWindows(CAST.seed, day)) {
+      if (m >= w[0] - 30 && m < w[0]) f = Math.max(f, 0.3 + ((m - (w[0] - 30)) / 30) * 0.7);
+      else if (m >= w[0] && m < w[1]) f = 1;
+      else if (m >= w[1] && m < w[1] + 20) f = Math.max(f, 1 - ((m - w[1]) / 20) * 0.92);
+    }
+    return Math.round(f * 10) / 10;
+  }
+  function stepCrowd() {
+    if (o.autoCrowd === false) return;
+    const b = o.cur();
+    const list = fills.get(b);
+    if (!list) return;
+    const t = o.clock();
+    const f = crowdFill(t.day, t.minute);
+    if (f === lastFill && b === lastFillMap) return;
+    lastFill = f;
+    lastFillMap = b;
+    for (const set of list) set(f);
+  }
+
   return {
     step(dt) {
+      chores.step(dt);
+      stepCrowd();
       const id = o.cur().def.id;
       lives.get(id)?.step(dt);
       for (const f of steppers.get(id) ?? []) f(dt);
@@ -560,11 +665,14 @@ export function mountVistaLife(o: VistaLifeOpts): VistaLife {
     },
     enter() {
       curLife()?.settle();
+      lastFill = -1;
+      stepCrowd();
     },
     of: (id) => lives.get(id),
     debug: () => ({
       map: o.cur().def.id,
       done: { ...done },
+      chores: chores.debug(),
       stats: curLife()?.stats,
       actors: curLife()?.debug(),
       pois: preps.get(o.cur().def.id)?.pois.map((p) => ({ id: p.id, kind: p.kind, x: p.spot.x, z: p.spot.z })),

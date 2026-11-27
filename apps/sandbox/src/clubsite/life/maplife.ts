@@ -141,6 +141,8 @@ export interface MapLifeOpts {
   clock(): { day: number; minute: number };
   director?: THREE.Object3D;
   on?(ev: LifeEvent): void;
+  /** 没地方可去的路过的人走到这些点里的一个、站一会儿再走（图的入口点：不然只有一个出口的图上，人进来就走） */
+  wander?: readonly [number, number][];
 }
 
 export interface MapLife {
@@ -172,12 +174,16 @@ export interface MapLife {
 const WALK = 1.35;
 const HOP = 0.4;
 const SEAT0: [number, number] = [0.52, 0];
+/** 平常的时钟：2 游戏分钟 / 真实秒（daylight 的 tspeed 120）；比这快多少倍，人就走快多少倍（最多 8 倍） */
+const NORMAL_RATE = 2;
 
 export function createMapLife(o: MapLifeOpts): MapLife {
   const stats = { pathFail: 0, spawned: 0, left: 0 };
   const occupied = new Map<LifeSpot, Act>();
   const queues = new Map<LifePoi, Act[]>();
   const tv = new THREE.Vector3();
+  let rate = NORMAL_RATE;
+  let fast = 1;
 
   const actors: Act[] = o.people.map((person) => ({
     person,
@@ -307,6 +313,10 @@ export function createMapLife(o: MapLifeOpts): MapLife {
     if (errands.length && a.rng() < 0.85) plan.push(...visitPoi(a, errands[Math.floor(a.rng() * errands.length)]));
     const rests = freePois(['sit', 'drink', 'look']);
     if (rests.length && a.rng() < 0.6) plan.push(...visitPoi(a, rests[Math.floor(a.rng() * rests.length)]));
+    if (!plan.length && o.wander?.length) {
+      const w = o.wander[Math.floor(a.rng() * o.wander.length)];
+      plan.push({ t: 'go', x: w[0] + (a.rng() - 0.5) * 2, z: w[1] + (a.rng() - 0.5) * 2 }, { t: 'stay', sec: 3 + a.rng() * 5 });
+    }
     plan.push({ t: 'out', gate: pickGate(a, 'out', gate) });
     return plan;
   }
@@ -442,7 +452,7 @@ export function createMapLife(o: MapLifeOpts): MapLife {
   };
   function walk(a: Act, dt: number): boolean {
     const len = a.cum[a.cum.length - 1] ?? 0;
-    const v = a.person.speed ?? WALK;
+    const v = (a.person.speed ?? WALK) * fast;
     // 前面半米是总监：停一下（1.5 秒以后挤过去）
     const D = o.director;
     if (D && a.yield < 1.5) {
@@ -523,7 +533,7 @@ export function createMapLife(o: MapLifeOpts): MapLife {
     }
     if (a.pts.length) {
       const len = a.cum[1];
-      const s = Math.min(len, a.s + WALK * 0.8 * dt);
+      const s = Math.min(len, a.s + WALK * 0.8 * fast * dt);
       const step = s - a.s;
       a.s = s;
       const k = len > 0 ? s / len : 1;
@@ -544,7 +554,7 @@ export function createMapLife(o: MapLifeOpts): MapLife {
     place(a);
     if (i > 0) return false;
     // 排到了：办事
-    a.sec -= dt;
+    a.sec -= dt * fast;
     if (a.sec > 0) return false;
     if (p.gives) ud(a).setProp?.(p.gives);
     emit('served', a, { poi: p });
@@ -667,6 +677,12 @@ export function createMapLife(o: MapLifeOpts): MapLife {
 
   function step(dt: number) {
     const { day, minute } = o.clock();
+    // 时钟走多快（游戏分钟 / 真实秒，平滑）：快进时人走得快、待得短（像延时摄影），不然一趟路走完半天过去了
+    if (day === lastDay && dt > 0) {
+      const r = Math.max(0, Math.min(200, (minute - lastMin) / dt));
+      rate += (r - rate) * Math.min(1, dt * 2);
+    }
+    fast = Math.min(8, Math.max(1, rate / NORMAL_RATE));
     if (day !== lastDay || minute < lastMin - 1 || minute > lastMin + 45) settle();
     lastDay = day;
     lastMin = minute;
@@ -705,7 +721,7 @@ export function createMapLife(o: MapLifeOpts): MapLife {
         if (a.until >= 0) {
           if (minute >= a.until) advance(a, minute);
           else if (a.person.home && a.spot === a.person.home && !a.person.staff) {
-            a.tripT -= dt;
+            a.tripT -= dt * fast;
             if (a.tripT <= 0) {
               a.tripT = nextTrip(a) + 20;
               // 快到点了不去；一半的时候去
@@ -716,7 +732,7 @@ export function createMapLife(o: MapLifeOpts): MapLife {
             }
           }
         } else {
-          a.sec -= dt;
+          a.sec -= dt * fast;
           if (a.sec <= 0) advance(a, minute);
         }
       }

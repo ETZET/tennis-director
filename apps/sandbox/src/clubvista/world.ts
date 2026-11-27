@@ -472,6 +472,7 @@ export function mountVista(hooks: VistaHooks = {}) {
             store.state = s;
           },
           pop: (text, icon) => (hud ? hud.pop(text, icon, 2.4) : play?.toast(text, 2.4)),
+          autoCrowd: !params.has('crowd'),
         })
       : null;
   life?.enter();

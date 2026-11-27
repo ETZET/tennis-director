@@ -110,7 +110,8 @@ export function visitWindows(
   const r = mulberry32(hashOf(seed, 'visit', scene, slot, day));
   const jit = (n: number) => Math.floor(r() * (n + 1));
 
-  if (scene === 'clubstadium') {
+  // 中心球场：坐着看的、当班的跟着比赛走；路过的（flow）照平常的钟点来（两场之间也有人在场边走、去饮水点）
+  if (scene === 'clubstadium' && !flow) {
     const ms = matchWindows(seed, day);
     // 当班的（裁判、球童、司线）和球员：每场都在，赛前到、赛后走；卖水的整天；观众挑一两场
     if (role === 'vendor') return [[ms[0][0] - 40, ms[ms.length - 1][1] + 20]];
@@ -118,7 +119,6 @@ export function visitWindows(
       const early = role === 'pro' ? 8 : 18;
       return ms.map((m): VisitWindow => [m[0] - early - jit(6), m[1] + 4 + jit(8)]);
     }
-    if (flow) return ms.map((m): VisitWindow => [m[0] - 30 + jit(24), m[0] - 30 + 60]);
     const out = ms.filter(() => r() < 0.7).map((m): VisitWindow => [m[0] - 25 + jit(20), m[1] + jit(15)]);
     return out.length ? out : [[ms[0][0] - 20, ms[0][1] + 10]];
   }

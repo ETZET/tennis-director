@@ -123,6 +123,74 @@ const popText = (page) =>
   await page.close();
 }
 
+/**
+ * 站位上的活（chores.ts）：等互动点有字 → 总监站到站位上 → 按住动作键 hold 秒（或点一下）→ 断言干完了、钱涨了。
+ * id = 'chore:<图>:<站位>'、'balls:<图>:<第几簇>'、'machine:<图>'
+ */
+async function doChore(page, iid, holdSec, name, shotName) {
+  const ready = await page.waitForFunction(
+    (id) => {
+      const it = window.__vista.play.get(id);
+      const l = it && (typeof it.label === 'function' ? it.label(window.__vista.play.state()) : it.label);
+      return !!l;
+    },
+    iid,
+    { timeout: 150000, polling: 250 },
+  ).then(
+    () => true,
+    () => false,
+  );
+  check(`${name}：活出现了`, ready);
+  if (!ready) return;
+  const m0 = await money(page);
+  await page.evaluate((id) => {
+    const p = window.__vista.play;
+    const it = p.get(id);
+    const st = it.stand?.() ?? null;
+    const a = it.at();
+    if (st) p.teleport(st[0], st[1]);
+    else p.teleport(a.x, a.z + 1.0, Math.PI);
+  }, iid);
+  await page.waitForTimeout(500);
+  if (shotName) await page.screenshot({ path: `${out}/${shotName}-before.png` });
+  await page.evaluate(() => window.__vista.play.setUse(true));
+  // 按住到钱涨（机器忙的时候模拟时间比真实时间慢：按秒数松手会松早）
+  await page.waitForTimeout(Math.min(1500, holdSec * 500));
+  await until(page, `window.__cast.state().money > ${m0}`, holdSec * 4 + 4);
+  if (shotName) await page.screenshot({ path: `${out}/${shotName}-doing.png` });
+  await page.evaluate(() => window.__vista.play.setUse(false));
+  await page.waitForTimeout(800);
+  const m1 = await money(page);
+  check(`${name}：干完了、钱涨了`, m1 > m0, `${m0} → ${m1}`);
+  if (shotName) await page.screenshot({ path: `${out}/${shotName}-done.png` });
+}
+
+// ── 中心球场：赛前摇网、两场之间扫场 ──
+{
+  const { page, errors } = await open('map=court&hour=8.6&tspeed=600');
+  await doChore(page, 'chore:court:net-post-e', 2.4, '中心球场：摇网', 'court-net');
+  await doChore(page, 'chore:court:baseline-sweep', 4, '中心球场：扫场', 'court-sweep');
+  check('中心球场：页面没有报错', errors.length === 0, errors.slice(0, 3).join(' / '));
+  await page.close();
+}
+
+// ── 练习场：捡球、补发球机 ──
+{
+  const { page, errors } = await open('map=practice&hour=9&tspeed=300');
+  await doChore(page, 'balls:practice:0', 0.2, '练习场：捡球', 'practice-balls');
+  await doChore(page, 'machine:practice', 0.2, '练习场：补发球机', 'practice-machine');
+  check('练习场：页面没有报错', errors.length === 0, errors.slice(0, 3).join(' / '));
+  await page.close();
+}
+
+// ── 歇脚：换水 ──
+{
+  const { page, errors } = await open('map=oasis&hour=8.2&tspeed=300');
+  await doChore(page, 'chore:oasis:water', 2, '歇脚：换水', 'oasis-water');
+  check('歇脚（换水）：页面没有报错', errors.length === 0, errors.slice(0, 3).join(' / '));
+  await page.close();
+}
+
 await browser.close();
 console.log(fails ? `${fails} FAIL` : 'all ok');
 process.exit(fails ? 1 : 0);
