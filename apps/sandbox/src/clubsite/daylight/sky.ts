@@ -60,8 +60,11 @@ export interface DayLook {
 export const SUNRISE = 6;
 export const SUNSET = 18.5;
 const MAX_EL = 46;
-/** 投影用的最低仰角：真太阳贴着地平线时影子能拉满屏，像素画里读不清；压到 12° 起（影子最长 ≈ 4.7 倍高） */
-const MIN_EL = 12;
+/**
+ * 投影用的最低仰角：真太阳贴着地平线时影子能拉满屏，像素画里读不清。
+ * 第三轮：12° → 18°（影子最长 ≈ 3.1 倍高，原来 4.7 倍）：傍晚看台的影子一道道横穿整片球场，场地只剩几条亮缝
+ */
+const MIN_EL = 18;
 const AZ_RISE = 75;
 /** 月亮：固定挂在画面后方偏西，影子短 */
 const MOON = { el: 52, az: -18 };
@@ -150,11 +153,12 @@ const KEYS: Key[] = [
     edge: [1.02, 0.95, 0.95],
   },
   // 日落：亮面橙、中档淡紫、影子深紫
+  // 第三轮：影子的紫降彩（[0.6, 0.5, 0.74] 读成薰衣草）、亮面的橙收一点（沙地满饱和）
   {
     h: 18.1,
-    lit: [1.1, 0.78, 0.58],
-    mid: [0.84, 0.67, 0.76],
-    dark: [0.6, 0.5, 0.74],
+    lit: [1.0, 0.84, 0.72],
+    mid: [0.82, 0.7, 0.76],
+    dark: [0.56, 0.54, 0.63],
     sky: [0x4a5aa2, 0xf29462],
     edge: [0.95, 0.75, 0.9],
   },
@@ -358,7 +362,8 @@ export function dayLook(hour: number, weather: Weather, base: SkyBase): DayLook 
     wind: w.wind,
     lamps: Math.min(1, Math.max(smooth(0.3, 0.6, night), w.lamps * (0.5 + 0.5 * night))),
     dustColor: [0.86, 0.68, 0.46],
-    sat: w.sat * (1 - 0.22 * night),
+    // 第三轮：夜里 0.78 → 0.72（浅灰紫的大面 × 夜里的靛蓝乘子 = 一整块饱和蓝，停车场）
+    sat: w.sat * (1 - 0.28 * night),
   };
 }
 

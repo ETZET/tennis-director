@@ -12,7 +12,7 @@ float ftnLine(float d) { return step(abs(d), fwidth(d) * 0.55); }
  * 1. 池底一圈砖缝（r 3.4 的环线 + 外圈放射缝，缝色、断续）—— 透过浅水看到的池底；
  * 2. 落叶（uFtnLeaves ≥ 3）：亮边色的天光带一部分换回本色、整体往缝色压一点（水变暗、变浑）；
  * 3. 溢流帘的落水圈（帘脚外面一圈：里半圈泡沫、外半圈亮边色，0.2 秒换一次花样 = 翻腾）；
- * 4. 四股小水柱的落点：三圈涟漪（1.2 秒一循环，越大越断），落点一团泡沫；
+ * 4. 四股小水柱的落点：两圈涟漪（1.2 秒一循环，越大越断），落点一团泡沫；
  * 5. 闪光：按纹素哈希，每个纹素自己 0.25～0.6 秒一拍，亮档约 0.45%（泡沫色）、云影 0.3%、投影里 0.2%（暗档亮边色，
  *    蒲葵荫里的水也有一点闪）；叶子多了闪光少。
  */
@@ -64,8 +64,9 @@ export const WATER = /* glsl */ `
       float d = length(q - uFtnLand[k]);
       if (d > 0.8) continue;
       if (d < 0.075) { col = uElX[b]; continue; }
-      for (int j = 0; j < 3; j++) {
-        float ph = fract(uTime / 1.2 + float(j) / 3.0 + float(k) * 0.29);
+      // 第三轮（light）：三圈 → 两圈（评判：涟漪圈数太多，水面一片同心圆）
+      for (int j = 0; j < 2; j++) {
+        float ph = fract(uTime / 1.2 + float(j) / 2.0 + float(k) * 0.29);
         float rr = 0.1 + 0.62 * ph;
         if (ftnLine(d - rr) > 0.5 && eh(floor(p / vec2(2.0, 1.0)) + float(j) * 3.1 + float(k) * 0.7) < (1.05 - ph) * flow)
           col = ph < 0.34 ? uElX[b] : uHiC[b];

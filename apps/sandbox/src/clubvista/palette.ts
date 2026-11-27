@@ -332,8 +332,26 @@ export const SUN_SKIP: Partial<Record<keyof Pal, number>> = {
 /** 大面的元素预设（材质规范 v2）：一开始就照"大块安静"画——块大、缝浅、撒的细节少 */
 export const EL = {
   /** 沙漠地面：几乎纯色，只有低频的深浅斑（比 EL.sand 的沙纹少一个数量级） */
-  floor: { kind: 'ripples', size: [12, 4], density: [0.05, 0.3], patch: 4, mottle: 0.45, pebbles: 0.04 },
-  mesa: { kind: 'ripples', size: [16, 5], density: [0.02, 0.14], patch: 6, mottle: 0.2, pebbles: 0.02, seed: 5 },
+  floor: {
+    kind: 'ripples',
+    size: [12, 4],
+    density: [0.05, 0.3],
+    patch: 4,
+    mottle: 0.45,
+    pebbles: 0.04,
+    // 第三轮（light）：亮面上稀疏的长沙纹（平静纹素 79% → ~70%）
+    clumps: { density: 1, size: 24, ridge: true },
+  },
+  mesa: {
+    kind: 'ripples',
+    size: [16, 5],
+    density: [0.02, 0.14],
+    patch: 6,
+    mottle: 0.2,
+    pebbles: 0.02,
+    seed: 5,
+    clumps: { density: 0.55, size: 22, ridge: true },
+  },
   /** 干河床：大块鹅卵石，缝浅 */
   wash: { kind: 'stones', size: [26, 14], seam: 0.4, hi: 0.25 },
   /** 崖壁：岩层（墙 uv） */
@@ -344,7 +362,14 @@ export const EL = {
   trail: { kind: 'pebbles', size: [16, 8], seam: 0.4, density: [0.005, 0.04], patch: 4, pebbles: 0.02 },
   water: { kind: 'water', attr: true },
   /** 草坪：草叶（亮边色的 1 × 2～4 竖划），3 米斑块 3% → 12%，阴影里照画（同 valley 的 townLawn）——第二轮：平涂的草让平静纹素到 85%+ */
-  turf: { kind: 'blades', density: [0.02, 0.12], patch: 3, pebbles: 0.06 },
+  // 第三轮（light）：亮面上一团团草丛 + 零星的小黄花（平静纹素 79% → ~70%）
+  turf: {
+    kind: 'blades',
+    density: [0.02, 0.12],
+    patch: 3,
+    pebbles: 0.06,
+    clumps: { density: 1, size: 22, flowers: 0.35, flower: 0xfff0a0 },
+  },
   /** 练习场的场面：用旧了的刷漆斑（中心球场平涂） */
   courtWear: { kind: 'paint', size: [8, 5], density: [0.01, 0.035], patch: 2.5 },
   /** 停车场的沥青（到达图）：clubpark 的大块封层补丁（几乎干净；平涂的柏油白天读成浅紫的一块、夜里一整块饱和的蓝） */

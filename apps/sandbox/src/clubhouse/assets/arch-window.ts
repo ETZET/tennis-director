@@ -13,6 +13,7 @@
 // 材质：stucco、cap、talavera、glass、windscreen（门漆）、ironwork。三角形 v0 ≈ 150、v1 ≈ 155。
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { nightLight } from '../../clubsite/daylight/night';
 import type { AssetCtx } from '../ctx';
 import { EL } from '../palette';
 
@@ -158,14 +159,38 @@ export function build(ctx: AssetCtx): THREE.Object3D {
   // ── 玻璃（洞里，退进去） ──
   const ZG = big ? -0.08 : -0.06;
   const CUT = big ? SPRING + 0.09 : SPRING; // 亮子的底（v1 = 门框顶，v0 = 拱脚的横条）
-  g.add(new THREE.Mesh(new THREE.ShapeGeometry(archFill(R, SILL, TOP)).translate(0, 0, ZG), glass));
+  const pane = new THREE.Mesh(new THREE.ShapeGeometry(archFill(R, SILL, TOP)).translate(0, 0, ZG), glass);
+  g.add(pane);
   // 亮子：半圆（圆心在拱脚），贴在玻璃前面一点
   const fan = new THREE.Shape([
     new THREE.Vector2(-R + 0.005, CUT),
     ...arc(R - 0.005, SPRING, 7).slice(1, -1),
     new THREE.Vector2(R - 0.005, CUT),
   ]);
-  g.add(new THREE.Mesh(new THREE.ShapeGeometry(fan).translate(0, 0, ZG + 0.004), sky));
+  const fanMesh = new THREE.Mesh(new THREE.ShapeGeometry(fan).translate(0, 0, ZG + 0.004), sky);
+  g.add(fanMesh);
+  // 夜里（clubsite/daylight）：窗里亮灯，窗前地上一片暖光
+  const warm = ctx.mat('glass', {
+    ...face,
+    ramp: [0xffd98a, 0xf6c070, 0xd89850],
+    emissive: 0x201404,
+    edge: 0.3,
+    convex: 0,
+  });
+  const warmHi = ctx.mat('glass', {
+    ...face,
+    ramp: [0xffe9b0, 0xffe9b0, 0xffe9b0],
+    emissive: 0x201404,
+    edge: 0.2,
+    convex: 0,
+  });
+  g.userData.night = nightLight(g, {
+    glow: [
+      [pane, glass, warm],
+      [fanMesh, sky, warmHi],
+    ],
+    spots: [{ at: [0, 0, 1.5], r: 2.2, h: 2.4, k: 0.9 }],
+  });
   const glints: G[] = [];
   const ironG: G[] = [];
 

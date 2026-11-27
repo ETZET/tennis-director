@@ -9,6 +9,7 @@
 //   aim(rad)           灯头绕竖轴转（相对杆身）
 //   night              给 clubsite/daylight 的：{ setOn, pool() }，天黑自动开灯，pool() = 灯光圈 [x, z, 半径, 照到的最高 y]（世界坐标，跟着灯头朝向）
 import * as THREE from 'three';
+import { LAMP_WARM } from '../daylight/night';
 import { Bucket, box, DU, FACING, type NetCtx } from './nets/kit';
 
 const H = 8.8;
@@ -83,14 +84,17 @@ export function build(ctx: NetCtx): THREE.Object3D {
   g.userData.aim = (rad: number) => {
     head.rotation.y = rad;
   };
-  // 灯光圈：灯头朝向前方 6.5 米为圆心、半径 6.5 米（一盏灯照亮场地的一角和杆子本身；一片场四盏拼起来差不多盖住场地，往场外漏得少），照到灯头那么高
+  // 灯光斑（第三轮）：灯头朝向前方 11.5 米为圆心、半径 14 米（场心离每盏灯的圆心约 11 米，四盏加起来 ≈ 1.6，稳稳在圈心；杆后的看台只吃一盏的边 ≈ 0.3，是外圈） —— 一片场四盏灯的光斑大半叠在一起，加起来把整片场地升到亮档
+  // （原来 6.5 / 6.5：四个硬边的圆落在场地四角，场心反而暗）；往场外按有序抖动淡到中档再到夜色。照到灯头那么高
   const poolC = new THREE.Vector3();
   g.userData.night = {
     setOn: g.userData.setOn,
+    // 泛光灯比路灯亮、偏暖白：场面是夜里全屏最亮的一块（第 3 轮评判：蓝灰、读不出场灯）
+    color: [LAMP_WARM[0] * 1.22, LAMP_WARM[1] * 1.26, LAMP_WARM[2] * 1.3],
     pool: (): [number, number, number, number] => {
       head.updateWorldMatrix(true, false);
-      poolC.set(0, 0, 6.5).applyMatrix4(head.matrixWorld);
-      return [poolC.x, poolC.z, 6.5, H + 0.6];
+      poolC.set(0, 0, 11.5).applyMatrix4(head.matrixWorld);
+      return [poolC.x, poolC.z, 14, H + 0.6];
     },
   };
   return g;
