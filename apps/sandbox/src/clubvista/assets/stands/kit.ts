@@ -62,6 +62,8 @@ export interface StandSpec {
   seed?: string;
   /** 坐得密（边看台：人侧对镜头、俯视里很窄，要坐密了才读得出"满"，簇间只空 0～1 座） */
   dense?: boolean;
+  /** 默认坐几成（不给 = 0.5；?crowd= 覆盖）。边看台长、人头一列等距最碎，只坐中段（第三轮评判） */
+  fill0?: number;
   /** 上面几排盖一条遮阳篷（俱乐部蓝、固定中档：冷的一条安静的带，压住一半观众；第 2 轮评判：边看台的观众是整屏最吵的花条纹） */
   awning?: number;
 }
@@ -310,7 +312,7 @@ export function buildStand(ctx: AssetCtx, s: StandSpec): THREE.Object3D {
   root.userData.crowd = crowd;
   const f0 = ctx.params.get('crowd');
   // 默认半场（第三轮：坐满的看台一圈几百个一样大的人头，强边缘超标）；?crowd=1 坐满、?crowd=empty 空场
-  crowd.setFill(f0 === 'empty' || f0 === '0' ? 0 : f0 && Number.isFinite(Number(f0)) ? Number(f0) : 0.5);
+  crowd.setFill(f0 === 'empty' || f0 === '0' ? 0 : f0 && Number.isFinite(Number(f0)) ? Number(f0) : (s.fill0 ?? 0.5));
   return root;
 }
 

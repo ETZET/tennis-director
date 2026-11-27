@@ -15,6 +15,7 @@ export type ElKey =
   | 'turf'
   | 'flag'
   | 'courtWear'
+  | 'lot'
   | 'none';
 
 /**

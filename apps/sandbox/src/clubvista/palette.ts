@@ -10,7 +10,7 @@ import { GROUP_AS as COURTS_AS, PAL as COURTS_PAL } from '../clubcourts/palette'
 import { PAL as FOOD_PAL, PROXY as FOOD_PROXY } from '../clubfood/palette';
 import { PAL as GOLF_PAL, PROXY as GOLF_PROXY } from '../clubgolf/palette';
 import { PAL as HOUSE_PAL, PROXY as HOUSE_PROXY } from '../clubhouse/palette';
-import { PAL as PARK_PAL } from '../clubpark/palette';
+import { EL as PARK_EL, PAL as PARK_PAL } from '../clubpark/palette';
 import { PAL as PICKLE_PAL } from '../clubpickle/palette';
 import { PAL as PLAZA_PAL, PROXY as PLAZA_PROXY } from '../clubplaza/palette';
 import { PAL as POOL_PAL, PROXY as POOL_PROXY, SUN_SKIP as POOL_SUN_SKIP } from '../clubpool/palette';
@@ -233,13 +233,19 @@ const VISTA = {
   /** 果岭（golf 图）：领草（fringe），果岭外一圈，比果岭暖、浅一档，比周围的草冷 */
   puttFringe: s([0x88cf78, 0x60ad6c, 0x387e70], 0.05, 0),
   /** 练习场（practice 图）的半片场、发球机道：比 practiceOut 亮一档的浅青（色相 ≈ 174°，L 170；中心球场是 200°+ 的蓝） */
-  drillIn: s([0x66cab8, 0x48a2a0, 0x2e6e7e], 0.05, 0),
+  drillIn: s([0x52ceae, 0x36a698, 0x22707a], 0.05, 0),
   /** 练习场（practice 图）坑里的外圈：中一档的青（色相 ≈ 184°，L 138） */
-  drillOut: s([0x40a6aa, 0x327e8c, 0x255a74], 0.05, 0),
+  drillOut: s([0x2aaca6, 0x20828a, 0x175c72], 0.05, 0),
   /** 到达（arrive）停车场车棚的帆布：米白（比前台的奶油杏帆淡、彩度低，不抢焦点），暗档冷灰紫；不接投影（薄布） */
   arriveSail: { ...s([0xf0e4cc, 0xc8b4b0, 0x7e7698], 0.4, 0.2), opts: { noShadowReceive: true } },
   /** 车棚帆布的条：浅暖灰（和米白只差一点，远看是一整块） */
   arriveSailStripe: { ...s([0xd8ccbc, 0xb0a2a8, 0x6e6890], 0.4, 0.2), opts: { noShadowReceive: true } },
+  /**
+   * 球场街（street）的红土：比 clubclay 的 clayBrushed 低一档彩度（第三轮评判：0.55 的一大块平涂橙霸屏、跳出整套）。
+   * 场内 L ≈ 132、S ≈ 0.52；外圈更灰更暗的土色（让白线和人浮出来）。暗档同一套冷灰紫。
+   */
+  streetClay: s([0xd8805e, 0xae6260, 0x684064], 0.05, 0),
+  streetClayOut: s([0xbc8670, 0x9a6a68, 0x5e4460], 0.05, 0),
   /** 白模：占位体块（冷灰，按高度一档档） */
   box: s([0xd8d6e4, 0xa8a4c0, 0x6a6690], 0.6, 0.5),
   /** 白模：占位体块的主角色（每张图一个最鲜艳的暖色：入口的车、前台的帆、泳池的伞……） */
@@ -302,6 +308,8 @@ export const GRADE_AS: Partial<Record<keyof Pal, keyof Pal>> = {
   drillOut: 'court',
   box: 'placeholder',
   boxHot: 'placeholder',
+  streetClay: 'clay',
+  streetClayOut: 'clay',
   arriveSail: 'canvas',
   arriveSailStripe: 'canvas',
 };
@@ -364,6 +372,8 @@ export const EL = {
   },
   /** 练习场的场面：用旧了的刷漆斑（中心球场平涂） */
   courtWear: { kind: 'paint', size: [8, 5], density: [0.01, 0.035], patch: 2.5 },
+  /** 停车场的沥青（到达图）：clubpark 的大块封层补丁（几乎干净；平涂的柏油白天读成浅紫的一块、夜里一整块饱和的蓝） */
+  lot: PARK_EL.lotAsphalt,
   /** 石板铺地：大块石板、缝浅（廊道、广场、池边、露台） */
   flag: { kind: 'stones', size: [28, 16], seam: 0.5, hi: 0.3, contrast: [0.45, 0.4, 0.2] },
 } as const satisfies Record<string, Elem>;
