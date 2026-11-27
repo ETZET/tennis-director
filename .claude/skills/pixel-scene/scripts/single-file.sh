@@ -21,7 +21,7 @@ tmp, page, out, defq = sys.argv[1:5]
 js = open(glob.glob(f'{tmp}/assets/*.js')[0]).read()
 assert '</script' not in js, 'bundle contains </script'
 if defq:
-    js = js.replace('URLSearchParams(location.search)', f'URLSearchParams(location.search||"{defq}")', 1)
+    js = js.replace('URLSearchParams(location.search)', f'URLSearchParams(location.search||"{defq}")')
 html = open(f'{tmp}/{page}.html').read()
 title = re.search(r'<title>(.*?)</title>', html, re.S)
 style = re.search(r'<style>(.*?)</style>', html, re.S)
