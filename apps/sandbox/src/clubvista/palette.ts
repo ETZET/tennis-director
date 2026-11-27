@@ -228,6 +228,18 @@ const VISTA = {
   gravel: s([0xdcc6a2, 0xb4a49c, 0x6e6a8a], 0.08, 0),
   /** 果岭（golf 图）：推杆果岭的短草，比周围的草冷一档（色相 ≈ 140°，L 171），平涂、不撒草叶 —— 这张图最大的安静面 */
   puttGreen: s([0x6cc488, 0x4ea37c, 0x2f7472], 0.05, 0),
+  /** 果岭（golf 图）：割草条纹，比 puttGreen 浅半档（很淡，只读成"刚割过"） */
+  puttStripe: s([0x76cb90, 0x56a984, 0x357a78], 0.05, 0),
+  /** 果岭（golf 图）：领草（fringe），果岭外一圈，比果岭暖、浅一档，比周围的草冷 */
+  puttFringe: s([0x88cf78, 0x60ad6c, 0x387e70], 0.05, 0),
+  /** 练习场（practice 图）的半片场、发球机道：比 practiceOut 亮一档的浅青（色相 ≈ 174°，L 170；中心球场是 200°+ 的蓝） */
+  drillIn: s([0x66cab8, 0x48a2a0, 0x2e6e7e], 0.05, 0),
+  /** 练习场（practice 图）坑里的外圈：中一档的青（色相 ≈ 184°，L 138） */
+  drillOut: s([0x40a6aa, 0x327e8c, 0x255a74], 0.05, 0),
+  /** 到达（arrive）停车场车棚的帆布：米白（比前台的奶油杏帆淡、彩度低，不抢焦点），暗档冷灰紫；不接投影（薄布） */
+  arriveSail: { ...s([0xf0e4cc, 0xc8b4b0, 0x7e7698], 0.4, 0.2), opts: { noShadowReceive: true } },
+  /** 车棚帆布的条：浅暖灰（和米白只差一点，远看是一整块） */
+  arriveSailStripe: { ...s([0xd8ccbc, 0xb0a2a8, 0x6e6890], 0.4, 0.2), opts: { noShadowReceive: true } },
   /** 白模：占位体块（冷灰，按高度一档档） */
   box: s([0xd8d6e4, 0xa8a4c0, 0x6a6690], 0.6, 0.5),
   /** 白模：占位体块的主角色（每张图一个最鲜艳的暖色：入口的车、前台的帆、泳池的伞……） */
@@ -283,8 +295,15 @@ export const GRADE_AS: Partial<Record<keyof Pal, keyof Pal>> = {
   bluffLip: 'cliffLip',
   /** 果岭（golf 图） */
   puttGreen: 'lawn',
+  puttStripe: 'lawn',
+  puttFringe: 'lawn',
+  /** 练习场的半片场（practice 图） */
+  drillIn: 'court',
+  drillOut: 'court',
   box: 'placeholder',
   boxHot: 'placeholder',
+  arriveSail: 'canvas',
+  arriveSailStripe: 'canvas',
 };
 
 /** 亮档要除掉多少太阳色（1 = 一点不染）：水面亮处是天光 */
@@ -297,6 +316,8 @@ export const SUN_SKIP: Partial<Record<keyof Pal, number>> = {
   courtIn: 0.6,
   practiceIn: 0.7,
   practiceOut: 0.7,
+  drillIn: 0.7,
+  drillOut: 0.7,
   stepStone: 0.6,
 };
 

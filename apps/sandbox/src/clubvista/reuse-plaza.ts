@@ -24,21 +24,6 @@ const festoonLit: AssetBuild = (ctx: AssetCtx) => {
   return g;
 };
 
-/**
- * 保洁车：它的 userData.setFill（落叶桶满不满）和 world.ts 的观众开关同名（那边见到 setFill 就当看台、去读 crowd.fill）→
- * 改名成 setLeafFill，免得整页报错。
- */
-const leafCartSafe: AssetBuild = (ctx: AssetCtx) => {
-  const g = (leafCart as unknown as AssetBuild)(ctx) as THREE.Object3D;
-  g.traverse((o) => {
-    if (o.userData.setFill && !o.userData.crowd) {
-      o.userData.setLeafFill = o.userData.setFill;
-      delete o.userData.setFill;
-    }
-  });
-  return g;
-};
-
 export const REUSED: Record<string, AssetBuild> = {
   'plaza:fountain': as(palmFountain),
   'plaza:spray': as(fountainSpray),
@@ -50,5 +35,5 @@ export const REUSED: Record<string, AssetBuild> = {
   'plaza:sign': as(clubSign),
   'plaza:drink-fountain': as(drinkFountain),
   'plaza:drinks-cart': as(drinksCart),
-  'plaza:leaf-cart': leafCartSafe,
+  'plaza:leaf-cart': as(leafCart),
 };

@@ -5,7 +5,7 @@
 //   墙脚：树池 + 小棕榈、陶罐成对；门前一小块石板前庭；
 //   喷泉（焦点，冷色）：两层碗的棕榈喷泉落在一块浅米石的圆广场正中，池沿南边坐着两个人歇脚，一个孩子在池边伸手玩水、
 //     另一个孩子绕着池子跑，家长站在西边看；西边一棵大烟树下一条长椅，东边总监的保洁车停在棕榈荫里；
-//   东南：餐车集市角（沙色铺地上）—— 一辆塔可车（这一屏唯一的暖色焦点）窗口排着两个人，旁边吉事果小车，
+//   东南：餐车集市角（沙色铺地上）—— 一辆薄荷色的圆头咖啡车（不抢喷泉）窗口排着两个人，
 //     东头一辆奶茶三轮；中间两张野餐桌 + 米白伞，有人坐着吃；西沿两根灯柱拉一串灯（夜里亮）。
 //   路：西口（← 到达）进来的灰沙路斜着弯上喷泉广场；广场往东分出去到东口（→ 球场街），往南弯下去到南口（→ 果岭）；
 //     北边石板前庭直通会所正门（→ 大堂）。
@@ -81,10 +81,8 @@ const fountain: Prop[] = [
   { a: 'fan-palm', x: 24.4, z: 13.2, s: 1.05, v: 1 },
   { a: 'fan-palm', x: 25.8, z: 15.6, s: 0.7, v: 2 },
   { a: 'plaza:leaf-cart', x: 22.4, z: 17, r: -PI / 2 },
-  // 广场的几个口各一根灯柱（夜里亮），广场边上陶罐成对
+  // 广场边两根灯柱（西口、东北角，不对称；夜里亮），广场边上陶罐成对
   { a: 'plaza-lamp', x: 5.6, z: 26.2 },
-  { a: 'plaza-lamp', x: 22.6, z: 25.4 },
-  { a: 'plaza-lamp', x: 9.6, z: 11.4 },
   { a: 'plaza-lamp', x: 18.4, z: 11.4 },
   ...cluster('pot', 21.4, 13.4, [
     [0, 0, 1],
@@ -108,11 +106,12 @@ const fountain: Prop[] = [
 ];
 
 const market: Prop[] = [
-  // 塔可车（这一屏唯一的暖色焦点），服务窗朝镜头；窗口一个大人一个孩子排队，车里一个摊主
-  { a: 'plaza:taco', x: 20, z: 31.6, block: 'box' },
-  { a: 'player', x: 20.2, z: 32.35, y: 0.85, r: 0, pose: 'idle', v: 4, block: false },
-  { a: 'player', x: 20.1, z: 34, r: PI, pose: 'idle', v: 1 },
-  { a: 'kid', x: 20.6, z: 35.1, r: PI - 0.3, pose: 'idle', v: 1 },
+  // 薄荷色的圆头咖啡车（第 2 轮：橙色塔可车比喷泉还艳、抢焦点 → 换成冷一点的这辆），服务窗朝镜头；
+  // 窗口一个大人一个孩子排队，车里一个摊主
+  { a: 'kiosk', x: 20, z: 31.6, block: 'box' },
+  { a: 'player', x: 19.7, z: 32.25, y: 0.85, r: 0, pose: 'idle', v: 4, block: false },
+  { a: 'player', x: 19.7, z: 33.7, r: PI, pose: 'idle', v: 1 },
+  { a: 'kid', x: 20.2, z: 34.8, r: PI - 0.3, pose: 'idle', v: 1 },
   // 刚买好的一个人端着吃的往桌子走
   { a: 'player', x: 17.6, z: 35.6, r: -0.7, pose: 'walk', v: 2, prop: 'none' },
   // 奶茶三轮（东头，朝西南）+ 一个人在台面前
@@ -537,8 +536,8 @@ export const plaza: MapDef = {
     { id: 'leaf-cart', kind: 'work', at: [22.4, 18.6], yaw: PI, note: '保洁车（取捞网、扫帚）' },
     { id: 'bench-w', kind: 'rest', at: [5, 16.6], yaw: PI / 2, seat: 0.46, note: '烟树荫下的长椅' },
     { id: 'drink-fountain', kind: 'queue', at: [4.2, 19.6], yaw: -PI / 2, note: '饮水点' },
-    { id: 'taco-window', kind: 'queue', at: [20.1, 33.8], yaw: PI, note: '塔可车窗口排队（往南排）' },
-    { id: 'taco-vendor', kind: 'work', at: [20.2, 32.35], yaw: 0, note: '塔可车里的摊主（车地板 0.85）' },
+    { id: 'coffee-window', kind: 'queue', at: [19.7, 33.6], yaw: PI, note: '咖啡车窗口排队（往南排）' },
+    { id: 'coffee-vendor', kind: 'work', at: [19.7, 32.25], yaw: 0, note: '咖啡车里的摊主（车地板 0.85）' },
     { id: 'boba', kind: 'queue', at: [23.2, 39.7], yaw: PI - 0.5, note: '奶茶三轮的台面前' },
     { id: 'table-1', kind: 'rest', at: [16.2, 38.18], yaw: PI, seat: 0.46, note: '野餐桌（大伞）' },
     { id: 'table-2', kind: 'rest', at: [20.6, 42.42], yaw: 0, seat: 0.46, note: '野餐桌（小伞）' },
@@ -546,7 +545,7 @@ export const plaza: MapDef = {
   ],
   walks: [
     { name: '西口 → 喷泉', from: [-8, 30], to: [9, 24.4] },
-    { name: '西口 → 塔可车窗口', from: [-8, 30], to: [18.6, 35.4] },
+    { name: '西口 → 咖啡车窗口', from: [-8, 30], to: [18.6, 35.4] },
     { name: '西口 → 会所正门（→ 大堂）', from: [-8, 30], to: [FX, WALL_Z + 0.6], expect: 'lobby' },
     { name: '西口 → 东口（→ 球场街）', from: [-8, 30], to: [40.6, 26], expect: 'street' },
     { name: '东口 → 南口（→ 果岭）', from: [36, 26], to: [14, 51.2], expect: 'golf' },

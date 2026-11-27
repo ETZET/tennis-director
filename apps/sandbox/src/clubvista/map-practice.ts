@@ -5,14 +5,13 @@
 //   石台下面一个下沉 0.8 的绿土坑：两面练习墙（9 米一段，一条网高的白线 + 靶框）靠着石台的崖脚，墙前两格半片场
 //   （只有一侧的发球线和底线），每格一个人对墙打、脚边一筐球 —— 焦点；
 //   中段：西边一条下沉 0.6 的发球机道（6 × 23 米，北头发球机 + 球筐、南头一个人接、地上散着几撮球、教练站在旁边看），
-//   东边一块安静的草地（热身 / 等人），再往东是主路和干河床。
-//   路：南口进来（← 中心球场），主路沿草地东沿、干河床西岸往上弯，经过练习墙坑的东台阶，上北石台的台阶到凉棚。
+//   东边沙地上一处球场后勤（球车、三个球筐、翻出来的一片散球，教练在捡）和成簇的灌木石头，再往东是主路和干河床。
+//   路：南口进来（← 中心球场），主路沿沙地东沿、干河床西岸往上弯，经过练习墙坑的东台阶，上北石台的台阶到凉棚。
 //   边框：西边乱石台（石头、假紫荆）、东边干河床 + 仙人掌丛、北崖顶的树和石头、南边一排灌木。
 //   层：墙坑 −0.8 / 发球机道 −0.6 / 干河床 −1.3 / 地面 0 / 西石台 1.3 / 北石台 1.5 / 北崖 4.6。
 // ════════════════════════════════════════════════════════════════════════════════════════
 import {
   band,
-  blob,
   cluster,
   type ElKey,
   type MapDef,
@@ -39,7 +38,7 @@ const WASH_D: V2[] = [
 /** 练习墙坑：下沉 0.8；两格半片场的中线 x、墙脚 z、发球线 z、底线 z */
 const PIT_H = -0.8;
 const CELLS = [5.8, 15.7];
-const WALL_Z = 10.9;
+const WALL_Z = 10.8;
 const SERVE_Z = 17.3;
 const BASE_Z = 22.9;
 /** 发球机道：下沉 0.6 */
@@ -57,11 +56,11 @@ const line = (id: string, pts: V2[]): Strip => ({ id, pts, w: 0.1, mat: 'line', 
 
 const cellLines: Strip[] = CELLS.flatMap((cx, i) => [
   line(`cell${i}-l`, [
-    [cx - 4.1, WALL_Z + 0.3],
+    [cx - 4.1, WALL_Z + 0.95],
     [cx - 4.1, BASE_Z],
   ]),
   line(`cell${i}-r`, [
-    [cx + 4.1, WALL_Z + 0.3],
+    [cx + 4.1, WALL_Z + 0.95],
     [cx + 4.1, BASE_Z],
   ]),
   line(`cell${i}-base`, [
@@ -73,7 +72,7 @@ const cellLines: Strip[] = CELLS.flatMap((cx, i) => [
     [cx + 4.1, SERVE_Z],
   ]),
   line(`cell${i}-mid`, [
-    [cx, WALL_Z + 0.3],
+    [cx, WALL_Z + 0.95],
     [cx, SERVE_Z],
   ]),
 ]);
@@ -99,12 +98,12 @@ const laneLines: Strip[] = [
 
 /** 焦点：两面练习墙，每格一个人对墙打，脚边一筐球 */
 const walls: Prop[] = [
-  { a: 'hit-wall', x: CELLS[0], z: WALL_Z, block: 'box' },
-  { a: 'hit-wall', x: CELLS[1], z: WALL_Z, block: 'box' },
+  { a: 'practice-wall', x: CELLS[0], z: WALL_Z, block: 'box' },
+  { a: 'practice-wall', x: CELLS[1], z: WALL_Z, block: 'box' },
   // 西格：正手，满筐在右后方
   { a: 'player', x: 6.6, z: 20.8, r: PI, pose: 'forehand', prop: 'racket', v: 2 },
   { a: 'practice:hopper', x: 8.8, z: 22.4, v: 1 },
-  { a: 'practice:balls', x: 5.2, z: 13.6, v: 1, s: 0.8, block: false },
+  { a: 'practice:balls', x: 5.2, z: 14.2, v: 1, s: 0.8, block: false },
   // 东格：反手；筐翻了，球滚出一串；地上一撮
   { a: 'player', x: 15, z: 19.8, r: PI, pose: 'backhand', prop: 'racket', v: 4 },
   { a: 'practice:hopper', x: 18.2, z: 23.2, r: -0.5, v: 0 },
@@ -113,12 +112,16 @@ const walls: Prop[] = [
 
 /** 发球机道：北头发球机 + 球筐，南头一个人接；地上散着球；教练在道边看、记数 */
 const lane: Prop[] = [
-  { a: 'ball-machine', x: 4.9, z: 31.6 },
-  { a: 'practice:hopper', x: 6.8, z: 31, v: 1 },
-  { a: 'practice:hopper', x: 7, z: 32.2, v: 1, s: 0.9 },
+  // 发球机在道的中段偏北（不在北崖的影子里），旁边三个大小不一的球筐成一簇，机前一片散球
+  { a: 'ball-machine', x: 4.9, z: 34.6, s: 1.3 },
+  { a: 'practice:hopper', x: 6.9, z: 33.8, v: 1, s: 1.3 },
+  { a: 'practice:hopper', x: 7.1, z: 35.3, v: 1 },
+  { a: 'practice:hopper', x: 6.3, z: 36.1, v: 1, s: 0.75 },
+  { a: 'practice:balls', x: 4.6, z: 38.2, v: 1, s: 1.1, block: false },
+  // 南头一个人接；脚边一大片散球；教练站在道边看、记数
   { a: 'player', x: 4.4, z: 48.2, r: PI, pose: 'forehand', prop: 'racket', v: 3 },
-  { a: 'practice:balls', x: 4.6, z: 45, v: 1, block: false },
-  { a: 'practice:balls', x: 5.6, z: 38.4, v: 1, s: 0.7, block: false },
+  { a: 'practice:balls', x: 4.6, z: 45.4, v: 1, s: 1.3, block: false },
+  { a: 'practice:balls', x: 5.2, z: 50.6, v: 1, s: 0.8, block: false },
   { a: 'coach', x: 7, z: 46.2, r: -PI / 2, pose: 'idle', prop: 'racket' },
 ];
 
@@ -166,24 +169,14 @@ export const practice: MapDef = {
       smooth: 1,
       walk: false,
     },
-    // 中间一块草地（热身、等人）：安静的大面
-    {
-      id: 'lawn',
-      pts: blob(16.9, 40.4, 4.6, 10.2, 16, [0.04, -0.03, 0.05, 0, -0.05, 0.03, 0.02, -0.04]),
-      h: -0.02, // 比地面低 2 厘米 = 坑：地面在这里挖洞（同高会和沙地打架，出一道道锯齿）
-      top: 'turf',
-      el: 'turf',
-      wall: 'none',
-      smooth: 1,
-    },
-    // 练习墙坑（外圈深一级的绿土）+ 两格半片场
-    { id: 'pit', pts: rect(0.4, 10.4, 21.8, 26.6), h: PIT_H, top: 'practiceIn', el: WEAR, wall: 'bluff', smooth: 0 },
+    // 练习墙坑（外圈中一档的青）+ 两格半片场（浅青；北头留 1.2 米的外圈 = 墙影落在这里，不压场地）
+    { id: 'pit', pts: rect(0.4, 10.4, 21.8, 26.6), h: PIT_H, top: 'drillOut', el: WEAR, wall: 'bluff', smooth: 0 },
     ...CELLS.map((cx, i) => ({
       id: `cell${i}`,
-      pts: rect(cx - 4.6, 10.4, cx + 4.6, 24.2),
+      pts: rect(cx - 4.6, 11.6, cx + 4.6, 24.2),
       h: PIT_H - 0.02,
       base: PIT_H,
-      top: 'practiceOut' as const,
+      top: 'drillIn' as const,
       el: WEAR,
       wall: 'none' as const,
       smooth: 0,
@@ -193,7 +186,7 @@ export const practice: MapDef = {
       id: 'lane-pit',
       pts: rect(0.4, 29, 9.4, 53),
       h: LANE_H,
-      top: 'practiceIn',
+      top: 'drillOut',
       el: WEAR,
       wall: 'bluff',
       smooth: 0,
@@ -203,7 +196,7 @@ export const practice: MapDef = {
       pts: rect(LANE.x0, LANE.z0, LANE.x1, LANE.z1),
       h: LANE_H - 0.02,
       base: LANE_H,
-      top: 'practiceOut',
+      top: 'drillIn',
       el: WEAR,
       wall: 'none',
       smooth: 0,
@@ -343,15 +336,54 @@ export const practice: MapDef = {
     ),
     ...cluster('agave', 29.8, 48.6, [[0, 0, 0.8]]),
     { a: 'ocotillo', x: 30.6, z: 20.4 },
-    // 草地的南角一棵假紫荆（草地上唯一的一块树影）
+    // 中段沙地的南角一棵假紫荆
     { a: 'palo-verde', x: 13.4, z: 52.4, v: 2, s: 0.9 },
     // 两根场灯（夜里练习墙和发球机道还亮着）：两格之间的缝里一根、发球机道东沿一根
     { a: 'court-light', x: 10.75, z: 25.2, r: PI },
     { a: 'court-light', x: 10, z: 31, r: -PI / 2 },
-    // 草地上一个人在拉伸（等空格），球包、水壶放在脚边
-    { a: 'player', x: 16.6, z: 34.4, r: -PI * 0.75, pose: 'idle', v: 0 },
-    { a: 'kit-bag', x: 17.8, z: 35.2, r: 0.4 },
-    // 草地边上几簇灌木（东沿、南沿）+ 发球机道台阶边一丛龙舌兰
+    // 中段的球场后勤（踏脚石北边）：一辆球车、三个大小不一的球筐、翻出来的一片散球，教练弯腰在捡
+    { a: 'ball-cart', x: 15.2, z: 34.6, r: 0.5 },
+    ...cluster(
+      'practice:hopper',
+      16.9,
+      35.4,
+      [
+        [0, 0, 1.25],
+        [1, -0.6, 1],
+        [0.6, 0.8, 0.75],
+      ],
+      { v0: 1, nv: 1 },
+    ),
+    { a: 'practice:hopper', x: 15, z: 36.8, r: 0.9, v: 0 },
+    { a: 'practice:balls', x: 15.6, z: 37.6, v: 1, s: 1.2, block: false },
+    { a: 'coach', x: 13.8, z: 37.2, r: PI / 2, pose: 'pickup', v: 1 },
+    { a: 'kit-bag', x: 18.8, z: 34, r: 0.4 },
+    // 中段沙地上成簇的灌木、石头（东沿、南边）+ 发球机道台阶边一丛龙舌兰
+    ...cluster(
+      'creosote',
+      17.4,
+      44.6,
+      [
+        [0, 0],
+        [2.2, 1.2, 0.8],
+        [0.8, 2.6, 0.7],
+      ],
+      { v0: 1 },
+    ),
+    ...cluster(
+      'rocks',
+      14.4,
+      47.6,
+      [
+        [0, 0, 1],
+        [1.4, 0.8, 0.6],
+      ],
+      { v0: 0 },
+    ),
+    ...cluster('brittlebush', 21.6, 40.8, [
+      [0, 0],
+      [-0.6, 2, 0.8],
+    ]),
     ...cluster(
       'brittlebush',
       21.4,
@@ -576,7 +608,7 @@ export const practice: MapDef = {
     { id: 'lane-hitter', kind: 'play', at: [4.4, 48.2], yaw: PI, note: '发球机道南头接球的人' },
     { id: 'lane-machine', kind: 'work', at: [5, 33.2], yaw: PI, note: '发球机（装球、调角度）' },
     { id: 'lane-coach', kind: 'watch', at: [7, 46.2], yaw: -PI / 2, note: '教练在道边看、记数' },
-    { id: 'lawn', kind: 'rest', at: [17, 44], yaw: 0, note: '草地：热身、等空格' },
+    { id: 'ball-yard', kind: 'work', at: [14, 36], yaw: PI / 2, note: '中段的球车、球筐（倒球、捡球）' },
     { id: 'ramada-bench', kind: 'rest', at: [15.8, 6.1], yaw: 0, seat: 0.45, note: '凉棚下的长椅' },
     { id: 'water', kind: 'queue', at: [19, 6], yaw: PI, note: '饮水站（排队的队头）' },
     { id: 'ball-store', kind: 'work', at: [10, 7.6], yaw: PI, note: '球车、球筐、捡球器的后勤堆' },

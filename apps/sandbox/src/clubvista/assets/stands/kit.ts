@@ -367,7 +367,9 @@ function buildCrowd(
       // 按离看台正中的距离 + 排数排，抖一点：坐到一半时是正中一大块人、两头露出空座
       const gx = row[Math.min(i + 1, row.length - 1)].x;
       const r =
-        Math.min(1, Math.abs(Number.isNaN(gx) ? 0 : gx) / (s.L / 2)) * 0.62 + (k / Math.max(1, s.n - 1)) * 0.2 + rnd() * 0.18;
+        Math.min(1, Math.abs(Number.isNaN(gx) ? 0 : gx) / (s.L / 2)) * 0.62 +
+        (k / Math.max(1, s.n - 1)) * 0.2 +
+        rnd() * 0.18;
       const groupShirt = pick(SHIRT_W);
       const groupHat = rnd() < 0.5 ? Math.floor(rnd() * 2) : -1;
       for (let j = 0; j < n && i < row.length; j++, i++) {

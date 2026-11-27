@@ -26,22 +26,46 @@ const GREEN: V2[] = blob(
 );
 /** 水塘（西南角，贴着西边的沙丘） */
 const POND: V2[] = blob(
-  4.2,
-  40.6,
-  6,
-  4.4,
+  7.6,
+  41,
+  4.6,
+  3.8,
   14,
   [0.05, 0.12, -0.04, 0.08, 0, -0.06, 0.1, 0.04, -0.08, 0.06, 0.02, -0.05, 0.08, 0],
 );
 /** 练习打位：四块垫子的中心（x 一样，朝东打） */
 const MATS: V2[] = [
-  [21.8, 30.6],
-  [21.8, 33.9],
-  [21.8, 37.2],
-  [21.8, 40.5],
+  [20.3, 30.6],
+  [20.3, 33.9],
+  [20.3, 37.2],
+  [20.3, 40.5],
 ];
 /** 练习球道（打位东边低 0.6 的草坡）的西沿 */
-const RANGE_X = 23.6;
+const RANGE_X = 22.1;
+/** 领草（fringe）：果岭外一圈 0.8 米、比果岭低 0.05（第 2 轮：果岭是一块没有边框的平涂） */
+const FRINGE: V2[] = blob(
+  9.6,
+  19.2,
+  7.8,
+  5.8,
+  16,
+  [0.04, -0.05, 0.08, 0.02, -0.06, 0.05, 0.1, -0.02, 0, 0.06, -0.08, 0.03, 0.07, -0.04, 0.02, 0.05],
+);
+/** 果岭面上很淡的割草条纹（顺 x，三条；只在果岭里面，两头收进果岭边） */
+const MOW: Strip[] = [16.4, 18.8, 21.2].map((z, i) => {
+  const hw = 5.8 * Math.sqrt(1 - ((z - 19.2) / 4) ** 2);
+  return {
+    id: `mow${i}`,
+    pts: [
+      [9.6 - hw, z],
+      [9.6 + hw, z],
+    ],
+    w: 1.2,
+    mat: 'puttStripe',
+    el: 'none',
+    lift: 0.008,
+  };
+});
 
 const green: Prop[] = [
   // 三根旗：红的在果岭中间偏北（焦点），白、蓝两根在两头
@@ -71,14 +95,17 @@ const range: Prop[] = [
   // 第 4 块垫子的人打完了，站着喝水看球飞
   { a: 'player', x: MATS[3][0] - 0.3, z: MATS[3][1] - 0.5, r: PI / 2, pose: 'sip', prop: 'cup', v: 3, block: false },
   // 凉棚（垫子西边）：长椅上两个人歇着，饮水桶靠着西南角，一只球包靠着东北柱
-  { a: 'ramada', x: 16.6, z: 36, block: false },
-  { a: 'bench', x: 16.2, z: 36.6 },
-  { a: 'player', x: 15.6, z: 36.7, pose: 'sit', v: 0, block: false },
-  { a: 'player', x: 16.8, z: 36.7, pose: 'sip', prop: 'cup', v: 1, block: false },
-  { a: 'water-station', x: 14.4, z: 37.4, s: 0.85 },
-  { a: 'golf-bag', x: 18.4, z: 34.8, r: -0.3, v: 2, block: 0.3 },
+  { a: 'ramada', x: 15.1, z: 36, block: false },
+  { a: 'bench', x: 14.7, z: 36.6 },
+  { a: 'player', x: 14.1, z: 36.7, pose: 'sit', v: 0, block: false },
+  { a: 'player', x: 15.3, z: 36.7, pose: 'sip', prop: 'cup', v: 1, block: false },
+  { a: 'water-station', x: 12.9, z: 37.4, s: 0.85 },
+  // 夜里的灯（第 2 轮：夜里一盏灯都没有）：凉棚东北角一盏、打位南头一盏
+  { a: 'plaza-lamp', x: 17.8, z: 33.6, block: 0.3 },
+  { a: 'plaza-lamp', x: 18.8, z: 42.4, block: 0.3 },
+  { a: 'golf-bag', x: 16.9, z: 34.8, r: -0.3, v: 2, block: 0.3 },
   // 第三辆球车：开下来停在凉棚北边的路边
-  { a: 'golf-cart', x: 20.4, z: 26.6, r: -PI / 2 + 0.25, block: 'box' },
+  { a: 'golf-cart', x: 19.8, z: 26.4, r: -PI / 2 + 0.25, block: 'box' },
 ];
 
 const carts: Prop[] = [
@@ -91,16 +118,16 @@ const carts: Prop[] = [
 
 const pond: Prop[] = [
   // 东岸一条长椅，一个人坐着看水；长椅西北一棵树（树冠不挡长椅）
-  { a: 'bench', x: 11.8, z: 41, r: -PI / 2 },
-  { a: 'player', x: 11.8, z: 41, r: -PI / 2, pose: 'sit', v: 2, block: false },
+  { a: 'bench', x: 13.6, z: 41.2, r: -PI / 2 },
+  { a: 'player', x: 13.6, z: 41.2, r: -PI / 2, pose: 'sit', v: 2, block: false },
   { a: 'smoke-tree', x: 9.4, z: 35.4, s: 1.05 },
   // 岸边：石头、灌木、一丛龙舌兰（成簇，留出看水的口子）
-  ...cluster('rocks', -0.6, 36.2, [
+  ...cluster('rocks', 2.4, 37.6, [
     [0, 0, 1.1],
     [1.3, -0.6, 0.7],
     [-0.8, 1.2, 0.8],
   ]),
-  ...cluster('rocks', 7.8, 45.6, [
+  ...cluster('rocks', 10.6, 45.4, [
     [0, 0, 0.9],
     [1.2, 0.3, 0.6],
   ]),
@@ -108,7 +135,7 @@ const pond: Prop[] = [
     [0, 0, 0.7],
     [1.1, 0.7, 0.5],
   ]),
-  ...cluster('agave', 1.2, 46, [
+  ...cluster('agave', 3.6, 45.8, [
     [0, 0, 0.8],
     [1.3, 0.4, 0.6],
   ]),
@@ -318,7 +345,17 @@ export const golf: MapDef = {
       smooth: 0.8,
     },
     // 推杆果岭：比草高 0.3 的缓台，朝镜头的一圈草坎是冷暗带
-    { id: 'green', pts: GREEN, h: GREEN_H, top: 'puttGreen', el: 'none', wall: 'lawn', smooth: 0.6 },
+    { id: 'fringe', pts: FRINGE, h: GREEN_H - 0.05, top: 'puttFringe', el: 'none', wall: 'lawn', smooth: 0.6 },
+    {
+      id: 'green',
+      pts: GREEN,
+      h: GREEN_H,
+      base: GREEN_H - 0.05,
+      top: 'puttGreen',
+      el: 'none',
+      wall: 'lawn',
+      smooth: 0.6,
+    },
     // 两个沙坑（下沉 0.3，斜壁）
     {
       id: 'bunker-sw',
@@ -431,9 +468,9 @@ export const golf: MapDef = {
         [15.6, 7.4],
         [18.2, 11.8],
         [19.4, 17.4],
-        [19.2, 23.6],
-        [18.2, 28.8],
-        [16.8, 33.2],
+        [18.8, 23.6],
+        [17, 28.6],
+        [15.4, 33],
       ],
       1.8,
     ),
@@ -443,15 +480,16 @@ export const golf: MapDef = {
       [16.8, 20],
     ]),
     stones('to-mats', [
-      [18.6, 30.2],
-      [20.4, 31.2],
+      [17.4, 30],
+      [18.9, 31.2],
     ]),
     stones('to-pond', [
-      [17.6, 30],
-      [14.6, 32.4],
-      [12.4, 35],
-      [10.8, 38.4],
+      [16.4, 29.8],
+      [13.6, 31.8],
+      [11.8, 34.6],
+      [12.4, 38.2],
     ]),
+    ...MOW,
     // 练习球道的修剪条纹（浅一档）
     ...[23.6, 29.2, 34.8, 40.4, 46].map(
       (z, i): Strip => ({
@@ -476,12 +514,12 @@ export const golf: MapDef = {
   },
   start: { at: [14, 1.5], yaw: 0 },
   clouds: [],
-  shot: { port: [12.5, 24], land: [14, 24] },
+  shot: { port: [13.5, 24], land: [14, 24] },
   walks: [
     { name: '北口 → 果岭（推杆的人旁边）', from: [14, 1.5], to: [12.6, 22.2] },
-    { name: '北口 → 打位（第 3 块垫子）', from: [14, 1.5], to: [21, 36.6] },
-    { name: '北口 → 凉棚', from: [14, 1.5], to: [17.8, 38.4] },
-    { name: '北口 → 水塘长椅', from: [14, 1.5], to: [10.6, 39.6] },
+    { name: '北口 → 打位（第 3 块垫子）', from: [14, 1.5], to: [19.5, 36.6] },
+    { name: '北口 → 凉棚', from: [14, 1.5], to: [16.3, 38.4] },
+    { name: '北口 → 水塘长椅', from: [14, 1.5], to: [12.8, 40.2] },
     { name: '回广场', from: [14, 4], to: [14, -3], expect: 'plaza' },
   ],
   // 兴趣点（给"人和活"那条线；画面不读）
@@ -501,14 +539,14 @@ export const golf: MapDef = {
       note: '果岭南沿长椅（朝果岭坐，前面站一步）',
     },
     { id: 'bunker-rake', kind: 'work', at: [15.4, 14.6], yaw: PI, note: '东北沙坑南沿：耙沙' },
-    { id: 'mat-1', kind: 'play', at: [21.9, 30.25], yaw: 0, note: '打位 1（朝东打）' },
-    { id: 'mat-2', kind: 'play', at: [21.9, 33.55], yaw: 0, note: '打位 2' },
-    { id: 'mat-3', kind: 'play', at: [21.9, 36.85], yaw: 0, note: '打位 3（空着）' },
-    { id: 'mat-4', kind: 'play', at: [21.9, 40.15], yaw: 0, note: '打位 4' },
-    { id: 'mats-queue', kind: 'queue', at: [19.8, 31.8], yaw: PI / 2, note: '等打位的人，往西排' },
-    { id: 'ramada-bench', kind: 'rest', at: [16.2, 37.3], yaw: 0, seat: 0.47, note: '凉棚长椅（前面站一步）' },
-    { id: 'water', kind: 'work', at: [14.4, 38.4], yaw: PI, note: '凉棚的饮水桶（换水）' },
-    { id: 'pond-bench', kind: 'rest', at: [11.1, 41], yaw: -PI / 2, seat: 0.47, note: '水塘东岸长椅（看水）' },
-    { id: 'pond-watch', kind: 'watch', at: [10.6, 45], yaw: -PI * 0.75, note: '水塘东南岸站着看水' },
+    { id: 'mat-1', kind: 'play', at: [20.4, 30.25], yaw: 0, note: '打位 1（朝东打）' },
+    { id: 'mat-2', kind: 'play', at: [20.4, 33.55], yaw: 0, note: '打位 2' },
+    { id: 'mat-3', kind: 'play', at: [20.4, 36.85], yaw: 0, note: '打位 3（空着）' },
+    { id: 'mat-4', kind: 'play', at: [20.4, 40.15], yaw: 0, note: '打位 4' },
+    { id: 'mats-queue', kind: 'queue', at: [18.3, 31.8], yaw: PI / 2, note: '等打位的人，往西排' },
+    { id: 'ramada-bench', kind: 'rest', at: [14.7, 37.3], yaw: 0, seat: 0.47, note: '凉棚长椅（前面站一步）' },
+    { id: 'water', kind: 'work', at: [12.9, 38.4], yaw: PI, note: '凉棚的饮水桶（换水）' },
+    { id: 'pond-bench', kind: 'rest', at: [12.9, 41.2], yaw: -PI / 2, seat: 0.47, note: '水塘东岸长椅（看水）' },
+    { id: 'pond-watch', kind: 'watch', at: [11.8, 45.6], yaw: -PI * 0.75, note: '水塘东南岸站着看水' },
   ],
 };

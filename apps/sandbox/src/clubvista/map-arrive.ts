@@ -4,11 +4,11 @@
 //   北崖山口（→ 球场）+ 崖顶蒲葵 = 上沿的框；露天前台（台地上一块石板小广场，前台东边一串踏脚石 → 喷泉广场）；
 //   石阶下到小木桥，桥过干河床（冷色带，从左上崖口斜着流到右边，过了桥往东拐平）；
 //   河床南岸一条沙地（石头、仙人掌簇 = 过渡）；
-//   停车场（下半屏的安静大面：冷灰柏油，一排 7 个车位 5 辆车、两个空位；东头一段车棚罩着两辆，红车半遮在棚下；
-//     西南角代客亭，通道里一辆落客的车开着门：代客员接钥匙、后备箱边有人拿球拍包、行李车等着装包）；
+//   停车场（下半屏的安静大面：冷灰柏油；西半边空着 = 一整块安静的柏油，东头四个车位罩在米白车棚下、停两辆；
+//     右下一簇 = 落客：薄荷绿的车开着门，代客员接钥匙、后备箱边有人拿球拍包、行李车，代客亭在旁边）；
 //   左下公交站（候车亭里坐着等车的人，刚下车拖箱子的人往路上走）+ 接驳车停在马路上；
 //   马路（最下沿，自然边界）。公交站和停车场的人汇到同一条土路上，土路斜着弯上去过桥。
-//   层：干河床 −1.3 / 沙地、停车场 0 / 西边棕榈台 1.2、前台台地 1.8 / 北崖 4.2。
+//   层：干河床 −0.9 / 沙地、停车场 0 / 西边棕榈台、前台台地 1.2 / 北崖 4.2（第 2 轮：台地 1.8 → 1.2、河床 −1.3 → −0.9，朝镜头的崖带收窄）。
 //   第三轮（round-1）：下半屏原来是一大片空沙（平静 79%），旧内场的停车场（clubpark）并进来。
 // ════════════════════════════════════════════════════════════════════════════════════════
 import {
@@ -42,8 +42,8 @@ const WASH_A: V2[] = [
 ];
 
 // ── 停车场：柏油 x 15.6…36.4、z 36.8…47.5；北边一排车位（车头朝北），南边是通道，东头开口接马路 ──
-const LOT = { x0: 15, x1: 36.4, z0: 36.8, z1: 47.5 };
-const STALL = { x0: 16.2, w: 2.7, n: 7, z0: 37.2, z1: 42.4 };
+const LOT = { x0: 15, x1: 40.4, z0: 36.8, z1: 47.5 };
+const STALL = { x0: 29.2, w: 2.7, n: 4, z0: 37.2, z1: 42.4 };
 const stallX = (i: number) => STALL.x0 + STALL.w * (i + 0.5);
 const STALL_Z = (STALL.z0 + STALL.z1) / 2;
 
@@ -65,27 +65,22 @@ const stallLines: Strip[] = [
 ];
 
 const lot: Prop[] = [
-  // 车棚罩着东头四个车位（4 号、5 号有车：红车半遮在棚下）
-  { a: 'arrive:carport', x: STALL.x0 + STALL.w * 5, z: STALL_Z, block: false },
-  // 一排车（车头朝北），两个空位
-  // 四种颜色：深蓝、奶油、红（只一辆，在棚下）、薄荷（落客的那辆）
-  { a: 'arrive:car', x: stallX(0), z: STALL_Z + 0.2, v: 3 },
-  { a: 'arrive:suv', x: stallX(2), z: STALL_Z + 0.1, v: 4 },
-  { a: 'arrive:car', x: stallX(4), z: STALL_Z - 0.2, v: 2 },
-  { a: 'arrive:car', x: stallX(5), z: STALL_Z, v: 0 },
-  { a: 'arrive:suv', x: stallX(6), z: STALL_Z + 0.1, v: 3 },
-  // 落客：通道里一辆薄荷绿的车车头朝西、门开着；代客员站在车门边接钥匙，车尾一个会员从后备箱拿球拍包，行李车等着装包
-  { a: 'arrive:car', x: 21.6, z: 44.9, r: PI / 2, v: 8 },
-  { a: 'arrive:valet', x: 20.4, z: 46.2, r: 0, pose: 'handoff', v: 0 },
-  { a: 'player', x: 20.5, z: 47.1, r: PI, pose: 'idle', v: 1 },
-  { a: 'player', x: 24.5, z: 45.2, r: -PI / 2, pose: 'idle', prop: 'racket', v: 2 },
-  { a: 'kit-bag', x: 24.4, z: 46.1, r: 0.3, v: 0 },
-  { a: 'arrive:bag-trolley', x: 25.8, z: 46.3, r: -0.3 },
-  // 代客亭（西南角，窗口朝镜头）
-  { a: 'arrive:valet-booth', x: 16.8, z: 45.6 },
-  // 入口：俱乐部石碑（开口西边，朝马路）+ 代客牌
-  { a: 'arrive:monument', x: 26.9, z: 48.25 },
-  { a: 'arrive:valet-sign', x: 35.6, z: 48.2 },
+  // 第 2 轮：车减到 3 辆。东头四个车位罩在米白车棚下（停两辆：深蓝轿车、奶油 SUV），西半边是一整块安静的柏油
+  { a: 'arrive-carport', x: STALL.x0 + STALL.w * 2, z: STALL_Z, block: false },
+  { a: 'arrive:car', x: stallX(1), z: STALL_Z + 0.1, v: 3 },
+  { a: 'arrive:suv', x: stallX(3), z: STALL_Z + 0.1, v: 4 },
+  // 右下一簇 = 落客：薄荷绿的车车头朝西、门开着；代客员在车门边接钥匙，车尾一个会员从后备箱拿球拍包，行李车等着装包；
+  // 代客亭在车尾东边（窗口朝镜头）
+  { a: 'arrive:car', x: 25.4, z: 44.9, r: PI / 2, v: 8 },
+  { a: 'arrive:valet', x: 24, z: 46.3, r: 0, pose: 'handoff', v: 0 },
+  { a: 'player', x: 24.1, z: 47.1, r: PI, pose: 'idle', v: 1 },
+  { a: 'player', x: 28.3, z: 45, r: -PI / 2, pose: 'idle', prop: 'racket', v: 2 },
+  { a: 'kit-bag', x: 28.2, z: 46, r: 0.3, v: 0 },
+  { a: 'arrive:bag-trolley', x: 27.4, z: 46.9, r: -0.3 },
+  { a: 'arrive:valet-booth', x: 31, z: 45.3 },
+  // 俱乐部石碑：停车场西南角、主路口的人行道上（下车第一眼看到）；代客牌在马路开口东边
+  { a: 'arrive:monument', x: 17.8, z: 48.25 },
+  { a: 'arrive:valet-sign', x: 38.4, z: 48.2 },
 ];
 
 const busStop: Prop[] = [
@@ -128,8 +123,8 @@ export const arrive: MapDef = {
     },
     {
       id: 'wash',
-      pts: band(WASH_A, [4, 4, 4.4, 4.8, 4.8, 4.4, 4.2, 4, 4]),
-      h: -1.3,
+      pts: band(WASH_A, [4, 4, 3.8, 3.6, 3.8, 4.2, 4.2, 4, 4]),
+      h: -0.9,
       top: 'washBed',
       el: 'wash',
       wall: 'bluff',
@@ -149,7 +144,7 @@ export const arrive: MapDef = {
         [12.4, 13],
         [10.4, 6],
       ],
-      h: 1.8,
+      h: 1.2,
       top: 'turf',
       el: 'none',
       wall: 'bluff',
@@ -188,7 +183,7 @@ export const arrive: MapDef = {
         [27.2, 0],
       ],
       h: 4,
-      base: 1.8,
+      base: 1.2,
       top: 'mesa',
       el: 'mesa',
       wall: 'bluff',
@@ -197,8 +192,8 @@ export const arrive: MapDef = {
     {
       id: 'plaza',
       pts: blob(20, 11.6, 5.4, 4.2, 16),
-      h: 1.82,
-      base: 1.8,
+      h: 1.22,
+      base: 1.2,
       top: 'flagstone',
       el: 'none',
       wall: 'none',
@@ -214,9 +209,9 @@ export const arrive: MapDef = {
       wall: 'none',
       smooth: 0,
     },
-    { id: 'drive', pts: rect(29.6, 47, 34.4, 49.2), h: 0.03, top: 'road', el: 'none', wall: 'none', smooth: 0 },
-    { id: 'sidewalk-w', pts: rect(-30, 47.5, 29.6, 49), h: 0.12, top: 'curb', el: 'none', wall: 'curb', smooth: 0 },
-    { id: 'sidewalk-e', pts: rect(34.4, 47.5, 60, 49), h: 0.12, top: 'curb', el: 'none', wall: 'curb', smooth: 0 },
+    { id: 'drive', pts: rect(33.4, 47, 37.4, 49.2), h: 0.03, top: 'road', el: 'none', wall: 'none', smooth: 0 },
+    { id: 'sidewalk-w', pts: rect(-30, 47.5, 33.4, 49), h: 0.12, top: 'curb', el: 'none', wall: 'curb', smooth: 0 },
+    { id: 'sidewalk-e', pts: rect(37.4, 47.5, 60, 49), h: 0.12, top: 'curb', el: 'none', wall: 'curb', smooth: 0 },
     { id: 'road', pts: rect(-30, 49, 60, 55.6), h: 0.02, top: 'road', el: 'none', wall: 'none', smooth: 0 },
   ],
   strips: [
@@ -226,15 +221,14 @@ export const arrive: MapDef = {
       [10.2, 43.4],
       [11.8, 38.8],
       [13.8, 34.2],
-      [13.4, 29.6],
-      [13.1, 27.6],
+      [13.6, 28.6],
+      [13.1, 25.6],
     ]),
     // 停车场的人从代客亭北边出来，汇到主路上
     trail(
       'lot',
       [
-        [19.4, 43.6],
-        [16, 43.2],
+        [16.6, 43.4],
         [13.4, 42],
         [11, 41.2],
       ],
@@ -267,8 +261,8 @@ export const arrive: MapDef = {
     ...dashes('dash', -30, 60, 52.3, 2.4, 5),
   ],
   stairs: [
-    { id: 'bridge', x0: 12, x1: 14.2, z0: 17.4, z1: 27.6, axis: 'z', h0: 0.15, h1: 0.15, kind: 'bridge' },
-    { id: 'steps', x0: 11.6, x1: 14.6, z0: 13, z1: 17.4, axis: 'z', h0: 1.8, h1: 0.15, kind: 'stairs' },
+    { id: 'bridge', x0: 12, x1: 14.2, z0: 17.4, z1: 25.6, axis: 'z', h0: 0.15, h1: 0.15, kind: 'bridge' },
+    { id: 'steps', x0: 11.6, x1: 14.6, z0: 13, z1: 17.4, axis: 'z', h0: 1.2, h1: 0.15, kind: 'stairs' },
   ],
   courts: [],
   props: [
@@ -398,8 +392,8 @@ export const arrive: MapDef = {
       [-2.2, 0.8, 0.8],
     ]),
     // 干河床：床里两块石头
-    { a: 'rocks', x: 6.6, z: 14.4, v: 2, s: 0.7, y: -1.3 },
-    { a: 'rocks', x: 30.4, z: 32, v: 0, s: 0.7, y: -1.3 },
+    { a: 'rocks', x: 6.6, z: 14.4, v: 2, s: 0.7, y: -0.9 },
+    { a: 'rocks', x: 30.4, z: 32, v: 0, s: 0.7, y: -0.9 },
     // 东边台地（右上的框）：烟树、假紫荆、石炭酸灌木
     { a: 'smoke-tree', x: 31, z: 12.4 },
     { a: 'palo-verde', x: 36.4, z: 18, s: 1.1 },
@@ -476,13 +470,13 @@ export const arrive: MapDef = {
       [1.2, 0.5, 0.6],
     ]),
     // 停车场东边（右下的框）：烟树、豹木、仙人掌、灌木成簇
-    { a: 'ocotillo', x: 37.8, z: 36.2 },
-    { a: 'palo-verde', x: 39.6, z: 39.4, s: 1.05, v: 1 },
-    ...cluster('rocks', 37.4, 46.2, [
+    { a: 'ocotillo', x: 41.2, z: 36.2 },
+    { a: 'palo-verde', x: 42.8, z: 40, s: 1.05, v: 1 },
+    ...cluster('rocks', 41.2, 46.4, [
       [0, 0, 0.9],
       [1.2, 0.6, 0.6],
     ]),
-    ...cluster('creosote', 38.6, 43.6, [
+    ...cluster('creosote', 41.6, 43.6, [
       [0, 0],
       [2.6, 1.2, 0.85],
       [0.6, 2.6, 0.7],
@@ -515,7 +509,7 @@ export const arrive: MapDef = {
   noWalk: [
     rect(-30, 49, 60, 80),
     // 停车场东边的植物框
-    rect(37.4, 34.6, 60, 49),
+    rect(40.8, 34.6, 60, 49),
     // 东边的草坪不能走，只留去广场的那串踏脚石一条 4 米宽的走廊（z 13.4…17.4，走到 x 36）
     rect(28.6, 4, 60, 13.4),
     rect(28.6, 17.4, 60, 27.2),
@@ -534,11 +528,11 @@ export const arrive: MapDef = {
   },
   start: { at: [9.6, 46.4], yaw: PI },
   clouds: [[38, 14, 5, 3]],
-  shot: { port: [19, 30], land: [16, 28] },
+  shot: { port: [19, 22], land: [16, 28] },
   walks: [
     { name: '下车 → 前台', from: [9.6, 46.4], to: [20.4, 14.6] },
     { name: '下车 → 歇脚长椅', from: [9.6, 46.4], to: [13.4, 9.2] },
-    { name: '停车场 → 前台', from: [24, 43.6], to: [20.4, 14.6] },
+    { name: '停车场 → 前台', from: [20, 44], to: [20.4, 14.6] },
     { name: '下车 → 山口（→ 球场）', from: [9.6, 46.4], to: [23.5, -3.6], expect: 'court' },
     { name: '前台 → 东口（→ 喷泉广场）', from: [20.4, 14.6], to: [33.6, 15.6], expect: 'plaza' },
   ],
@@ -547,7 +541,7 @@ export const arrive: MapDef = {
     { id: 'door-bus', kind: 'door', at: [9.6, 46.4], yaw: PI, note: '公交站下车（开局）' },
     { id: 'door-court', kind: 'door', at: [23.4, -1.2], yaw: PI, note: '北山口（→ 中心球场）' },
     { id: 'door-plaza', kind: 'door', at: [31.4, 15], yaw: -PI / 2, note: '东边踏脚石（→ 喷泉广场）' },
-    { id: 'door-road', kind: 'door', at: [32, 48.4], yaw: PI, note: '停车场开口（车从马路进来）' },
+    { id: 'door-road', kind: 'door', at: [35.4, 48.4], yaw: PI, note: '停车场开口（车从马路进来）' },
     { id: 'desk', kind: 'work', at: [19.6, 9.0], yaw: 0, note: '前台后面（总监 / 前台员工）' },
     { id: 'desk-queue', kind: 'queue', at: [20.2, 12.2], yaw: PI, note: '前台前面排队的队头，往南排' },
     { id: 'water', kind: 'work', at: [24.4, 10.8], yaw: PI * 0.85, note: '水站（补水、换杯子）' },
@@ -557,8 +551,8 @@ export const arrive: MapDef = {
     { id: 'bench-bridge', kind: 'rest', at: [17.2, 33.1], yaw: -0.3, seat: 0.47, note: '桥南头树下的长椅（等人来接）' },
     { id: 'shelter', kind: 'rest', at: [6, 45.6], yaw: 0, seat: 0.47, note: '候车亭长椅' },
     { id: 'bus-queue', kind: 'queue', at: [8.4, 46.9], yaw: 0, note: '等车的队头（站牌边），往北排' },
-    { id: 'valet-booth', kind: 'work', at: [16.8, 47.2], yaw: PI, note: '代客亭窗口（拿钥匙、挂钥匙）' },
-    { id: 'valet', kind: 'work', at: [20.4, 46.2], yaw: 0, note: '落客的车门边（代客员接钥匙）' },
-    { id: 'trunk', kind: 'work', at: [24.5, 45.2], yaw: -PI / 2, note: '后备箱（拿包、装行李车）' },
+    { id: 'valet-booth', kind: 'work', at: [31, 46.9], yaw: PI, note: '代客亭窗口（拿钥匙、挂钥匙）' },
+    { id: 'valet', kind: 'work', at: [24, 46.3], yaw: 0, note: '落客的车门边（代客员接钥匙）' },
+    { id: 'trunk', kind: 'work', at: [28.3, 45], yaw: -PI / 2, note: '后备箱（拿包、装行李车）' },
   ],
 };

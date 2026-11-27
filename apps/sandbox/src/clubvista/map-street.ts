@@ -22,7 +22,7 @@ const CX = (C.x0 + C.x1) / 2;
 const NET = (C.z0 + C.z1) / 2;
 const BASE_N = NET - 11.885;
 const BASE_S = NET + 11.885;
-const CLAY_H = -0.8;
+const CLAY_H = -1.1;
 /** 匹克球场：两块并排（南北向，每块外圈 9.2 × 16.5），落在 0.15 的矮台上 */
 const PK_H = 0.15;
 const PZ0 = 51.6;
@@ -82,13 +82,14 @@ const yard: Prop[] = [
 
 // ── 西边的街：看拖场的两个人 ──
 const lane: Prop[] = [
-  { a: 'player', x: 5.6, z: 21.6, r: PI / 2 - 0.2, pose: 'idle', v: 1, look: [13, 0.5, 19.4] },
-  { a: 'kid', x: 5.9, z: 22.8, r: PI / 2, pose: 'idle', v: 0, look: [13, 0.5, 19.4] },
-  // 两个拿着拍子往北走的人（去青训场）
-  { a: 'player', x: 3.0, z: 39.4, r: PI + 0.1, pose: 'walk', prop: 'racket', v: 3 },
-  { a: 'player', x: 4.1, z: 40.2, r: PI, pose: 'walk', v: 0 },
+  // 第 2 轮评判：左边小路上的人挤成一团 → 散成三组、隔开：
+  // 场边一大一小看拖场（中段）；一个人拿着拍子独自往北走（南段）；横街长椅上坐着一个看场的（北头，见下）
+  { a: 'player', x: 6.0, z: 26.6, r: PI / 2 - 0.2, pose: 'idle', v: 1, look: [13, 0.5, 19.4] },
+  { a: 'kid', x: 6.1, z: 27.8, r: PI / 2, pose: 'idle', v: 0, look: [13, 0.5, 19.4] },
+  { a: 'player', x: 3.3, z: 38.6, r: PI + 0.1, pose: 'walk', prop: 'racket', v: 3 },
   // 横街西头：一条长椅背靠台地，对着红土场
   { a: 'bench', x: 4.6, z: TERR_Z + 0.9 },
+  { a: 'coach', x: 5.1, z: TERR_Z + 1.0, pose: 'sip', prop: 'cup', seat: [0.47, 0], block: false },
   { a: 'pot', x: 2.9, z: TERR_Z + 0.8, s: 1 },
   { a: 'pot', x: 6.3, z: TERR_Z + 0.9, s: 0.8, v: 1 },
   // 街边、场边的几簇（边上密一点）
@@ -412,7 +413,7 @@ export const street: MapDef = {
     // 红土场：下沉 0.8，四面 45° 石坡（一圈冷暗带）
     {
       id: 'clay-pit',
-      pts: rect(C.x0 - 0.8, C.z0 - 0.8, C.x1 + 0.8, C.z1 + 0.8),
+      pts: rect(C.x0 + CLAY_H, C.z0 + CLAY_H, C.x1 - CLAY_H, C.z1 - CLAY_H),
       h: CLAY_H,
       top: 'clay',
       el: 'none',
@@ -491,7 +492,7 @@ export const street: MapDef = {
     // 西沿一段台阶下到红土场
     {
       id: 'clay-steps',
-      x0: C.x0 - 1.2,
+      x0: C.x0 - 1.5,
       x1: C.x0 + 0.4,
       z0: 32.6,
       z1: 35,
@@ -503,7 +504,7 @@ export const street: MapDef = {
     },
   ],
   courts: [
-    { id: 'clay', ...C, h: CLAY_H, axis: 'z', outMat: 'clayBrushed', inMat: 'clay', lineMat: 'tape', wear: true },
+    { id: 'clay', ...C, h: CLAY_H, axis: 'z', outMat: 'clayDust', inMat: 'clayBrushed', lineMat: 'tape', wear: true },
     {
       id: 'pickle-a',
       ...PA,
@@ -552,7 +553,7 @@ export const street: MapDef = {
     [-6, 28, 6, 3.4],
     [30, 46, 5, 3],
   ],
-  shot: { port: [14, 34], land: [13, 38] },
+  shot: { port: [14, 42], land: [13, 38] },
   spots: [
     { id: 'door-plaza', kind: 'door', at: [-9, EXIT_Z], yaw: PI / 2, note: '西口（← 喷泉广场）' },
     { id: 'door-academy', kind: 'door', at: [14, 0.6], yaw: 0, note: '北台地石阶顶（→ 青训场）' },
@@ -569,7 +570,7 @@ export const street: MapDef = {
       seat: 0.47,
       note: '红土场东边球员长椅',
     },
-    { id: 'watch-clay', kind: 'watch', at: [5.6, 21.6], yaw: PI / 2, note: '街边看拖场' },
+    { id: 'watch-clay', kind: 'watch', at: [6.0, 26.6], yaw: PI / 2, note: '街边看拖场' },
     { id: 'rest-bench', kind: 'rest', at: [1.4, 49.1], yaw: 0, seat: 0.47, note: '两种场之间的伞下长椅' },
     { id: 'rest-water', kind: 'work', at: [6, 50.4], yaw: PI, note: '饮水站' },
     { id: 'paddle-queue', kind: 'queue', at: [5.2, 53.4], yaw: PI, note: '拍架前排队等上匹克球场' },
