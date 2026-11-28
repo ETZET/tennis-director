@@ -1,12 +1,14 @@
 // 像素界面（所有俱乐部场景都能用；clubwalk 先接）。参考《垂钓手记》：界面只占三个角，画面中间没有字。
-// - 左上：日钟（clock.ts，画着这一刻的天，外圈一天的进度，网球是"现在"）+ 一行日期。点它只冒一个小牌子（星期几 + 天气图标），
-//   一两秒自己消失；原来调时刻和天气的面板是调试工具，只在调试里（?debug=1 或左下角的小点）点日钟才开。
+// - 左上：日钟（clock.ts，画着这一刻的天，外圈一天的进度，网球是"现在"）+ 底下一行几点（12:12）。"第几天"只在换天时亮 3 秒；
+//   点日钟 = 这一行换成"第几天 星期几"、画面上沿亮一下现在的地名，1.6 秒自己消失（第四轮：进图不再出地名）。
+//   原来调时刻和天气的面板是调试工具，只在调试里（?debug=1 或连点日钟 5 下）点日钟才开。
 // - 右上：金币 + 数字。
 // - 右下（拇指区）：像素图标按钮，位置固定。底下一排常驻的（名册、地图……由场景给）；上面一排是这里能干的活
 //   （动作键：按住干活；拿 / 放），没有活的时候槽位空着，别的按钮不跳。图标就是说明；字只在长按、或者这个活第一次出现时，
 //   在按钮正上方的小奶油牌子里亮 1.5 秒（不飘在场景上）。
 // - 场景里：人头上只画心情泡（icons.ts 的 MOODS，mood.ts 按台词挑），点泡才看整句；点人显示名字和他自己的一句话（peek）。
-// - 反馈：画面上方一行白字黑边 + 弹出来的东西（toast → pop），过一会儿消失。开局的操作提示几秒后消失。
+// - 反馈：干活的进账 = 钱下面一行"图标 + 数字"（gain：金币 +5、小钟 3、心 +0.3），不写整句；点人 = 上方一行（小人头 + 名字 + 一句话，
+//   一行放不下就截断，2 秒）。开局的操作提示 = 一只手指点一下地面的小动画，只第一次开局出一次（localStorage 记住），不写字。
 // - 调试牌（像素级别、模拟状态条、调时间面板）默认藏着：?debug=1 或者点左下角的小点。
 // - 转场：iris.ts 的圆形遮罩（收拢 → 黑 → 展开）。
 // 界面纹素：手机 2 CSS 像素；短边 ≥ 600 的屏（平板、桌面横屏）3 CSS 像素。字用系统字体切成实心（font.ts），字号 = 6 × 纹素。
@@ -21,6 +23,7 @@ import { dayLook, type Weather } from '../daylight/sky';
 import type { Anchor, Play } from '../play';
 import { drawClock } from './clock';
 import { CREAM, hex, INK, INK_SHADOW, KEYS } from './colors';
+import { textCanvas } from './font';
 import { ACT, GLYPH } from './glyphs';
 import { type TKey, t, weekday } from './i18n';
 import { ICONS, type IconId, MOODS, type MoodId } from './icons';
@@ -70,6 +73,14 @@ export interface PixelHudOpts {
   params?: URLSearchParams;
   /** false = 不出开局的操作提示（同一页里第二个世界的界面：玩家已经看过了） */
   hint?: boolean;
+  /** 现在的地名（点日钟时在画面上沿亮一下）；不给 = 不亮 */
+  placeName?: () => string;
+}
+
+/** 进账反馈的一格：小图标 + 数字（'+5'、'3'、'+0.3'、'−0.5'） */
+export interface Gain {
+  icon: 'coin' | 'clock' | 'heart' | 'heartOff';
+  text: string;
 }
 
 export interface Peek {
@@ -100,7 +111,9 @@ export interface PixelHud {
   peek(p: Peek | null): void;
   /** 反馈：弹出来的东西（可选）+ 一行字 */
   pop(text: string, icon?: IconId | null, sec?: number, who?: Who | null): void;
-  /** 地点名（进一个区域时上方淡出） */
+  /** 进账 / 代价：钱下面一行"图标 + 数字"，不写字（who = 跟谁有关：前面带他的小人头） */
+  gain(items: Gain[], who?: Who | null): void;
+  /** 地点名：画面上沿亮一下（第四轮起只在点日钟时；进图不出） */
   place(name: string): void;
   setDebug(on: boolean): void;
   /** 人物卡开着：这个人头顶一个草帽色的小箭头（卡讲的是画面里的谁）；null = 收起 */
@@ -374,6 +387,49 @@ function jobCanvas(id: MoodId): HTMLCanvasElement {
   return c;
 }
 
+/** 开局提示的手指（指尖朝上，奶油色，墨描边）：指尖在 (4, 1)（描边以后） */
+function fingerCanvas(): HTMLCanvasElement {
+  return spriteCanvas(
+    {
+      rows: [
+        '...W.....',
+        '..WWW....',
+        '..WWW....',
+        '..WWW....',
+        '..WWWWW..',
+        '..WWWWWWW',
+        'WWWWWWWWW',
+        'WWWWWWWWW',
+        '.WWWWWWWW',
+        '..WWWWWW.',
+        '...WWWWW.',
+        '...WWWWW.',
+      ],
+    },
+    'hint-finger',
+  );
+}
+
+/** 指尖点地的波纹：一个扁的椭圆环（地面上的透视），墨 + 奶油两圈，15 × 9 */
+function ringCanvas(): HTMLCanvasElement {
+  const w = 15;
+  const h = 9;
+  const c = document.createElement('canvas');
+  c.width = w;
+  c.height = h;
+  const g = c.getContext('2d') as CanvasRenderingContext2D;
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++) {
+      const d = Math.hypot((x - 7) / 7.2, (y - 4) / 4.2);
+      if (d > 1.02) continue;
+      if (d > 0.8) g.fillStyle = hex(INK);
+      else if (d > 0.58) g.fillStyle = hex(CREAM);
+      else continue;
+      g.fillRect(x, y, 1, 1);
+    }
+  return c;
+}
+
 export function mountPixelHud(o: PixelHudOpts): PixelHud {
   if (!document.getElementById('pxh-css')) {
     const st = document.createElement('style');
@@ -452,8 +508,10 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
   let jumpTo = 0;
   let jumpT0 = 0;
   root.appendChild(clockBtn);
-  // 点日钟："第 1 天"那一行换成星期几 1.5 秒再换回来（不另叠一行）；调试里 = 调时间面板
+  // 点日钟：几点那一行上面亮"第几天 星期几"、画面上沿亮现在的地名，1.6 秒；调试里 = 调时间面板。换天时"第几天"自己亮 3 秒
   let weekdayUntil = 0;
+  let dayShowUntil = 0;
+  let lastDayN = -1;
   const panel = day.panel;
   let debug = false;
   // 调试的入口：3 秒内连点日钟 5 下（玩家看不见、碰不到），或者 ?debug=1
@@ -473,8 +531,10 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
       placePanel();
       return;
     }
-    weekdayUntil = now + 1500;
+    weekdayUntil = now + 1600;
     dateKey = '';
+    const pn = o.placeName?.();
+    if (pn) place(pn, 1.6);
   });
   function placePanel() {
     if (!panel?.isOpen()) return;
@@ -499,11 +559,17 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
       clockCv.style.height = `${h * S}px`;
     }
     const dayN = Math.floor(day.total / 24) + 1;
-    const wdShow = performance.now() < weekdayUntil;
-    const ds = `${t('date', { wd: weekday(dayN), d: dayN })}|${S}|${wdShow}`;
+    const pnow = performance.now();
+    // 换天：第一次读到的那天不算（开局不亮），之后天数变了亮 3 秒
+    if (lastDayN >= 0 && dayN !== lastDayN) dayShowUntil = pnow + 3000;
+    lastDayN = dayN;
+    const wdShow = pnow < weekdayUntil;
+    const dayShow = wdShow || pnow < dayShowUntil;
+    const ds = `${t('date', { wd: weekday(dayN), d: dayN })}|${S}|${wdShow}|${dayShow}`;
     if (ds !== dateKey) {
       dateKey = ds;
-      dateTx.textContent = wdShow ? weekday(dayN) : t('dayN', { d: dayN });
+      dateTx.textContent = wdShow ? `${t('dayN', { d: dayN })} ${weekday(dayN)}` : t('dayN', { d: dayN });
+      dateTx.hidden = !dayShow;
       clockBtn.setAttribute('aria-label', `${t('clock')} · ${t('date', { d: dayN })}`);
     }
     // 几点：整 1 分钟走一格
@@ -536,11 +602,34 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
   root.appendChild(moneyEl);
   let moneyKey = '';
 
-  /** 进账：钱的数字正下方一行字（+35），右对齐，往上飘一点就消失（不再画第二枚金币：像充值按钮） */
+  /** 进账：钱的数字正下方一行"图标 + 数字"（金币 +5 · 小钟 3），右对齐，往上飘一点就消失 */
   const cpopEl = document.createElement('div');
   cpopEl.className = 'pxh-cpop gone';
   root.appendChild(cpopEl);
   let cpopT = 0;
+  const GAIN_ICON: Record<Gain['icon'], () => HTMLCanvasElement> = {
+    coin: () => icon('coin'),
+    clock: () => spriteCanvas(tame(GLYPH.clock), 'gain-clock', true, CREAM),
+    heart: () => spriteCanvas(tame(GLYPH.heart), 'gain-heart', true, CREAM),
+    heartOff: () => spriteCanvas(tame(GLYPH.heartOff), 'gain-heartOff', true, CREAM),
+  };
+  function gain(items: Gain[], who: Who | null = null) {
+    const kids: HTMLElement[] = [];
+    if (who) kids.push(view(spriteCanvas(headSprite(who), `head-${who.name}-${who.shirt}`), 1, 'pxh-head'));
+    for (const it of items) {
+      const cell = document.createElement('span');
+      cell.className = 'pxh-gcell';
+      cell.append(view(GAIN_ICON[it.icon]()), view(textCanvas(it.text, { color: CREAM })));
+      kids.push(cell);
+    }
+    cpopEl.replaceChildren(...kids);
+    cpopEl.setAttribute('aria-label', items.map((i) => i.text).join(' '));
+    cpopEl.classList.remove('gone', 'up');
+    void cpopEl.offsetWidth;
+    cpopEl.classList.add('up');
+    clearTimeout(cpopT);
+    cpopT = window.setTimeout(() => cpopEl.classList.add('gone'), 2600);
+  }
   function coinPop(text: string) {
     cpopEl.replaceChildren(label(text));
     cpopEl.classList.remove('gone', 'up');
@@ -683,8 +772,6 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
   );
   let pickLabel = '';
   press(pick.b, () => play.pick());
-  /** 见过的活：第一次出现时字亮 1.5 秒，之后只在长按时 */
-  const seen = new Set<string>();
 
   // ── 调试：?debug=1，或者连点日钟 5 下（见上）；玩家看不见入口 ──
   function setDebug(on: boolean) {
@@ -936,25 +1023,44 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
   const placeEl = document.createElement('div');
   placeEl.className = 'pxh-place';
   root.appendChild(placeEl);
-  function place(name: string) {
+  function place(name: string, sec = 1.6) {
     placeEl.replaceChildren(label(name));
+    placeEl.style.setProperty('--dur', `${sec}s`);
     placeEl.classList.remove('show');
     void placeEl.offsetWidth;
     placeEl.classList.add('show');
   }
 
-  // ── 开局的操作提示：5 秒，或者第一次碰画面就淡掉 ──
+  // ── 开局的操作提示：一只手指在总监前面点两下地面（每下一圈波纹），不写字；只第一次开局出（localStorage 记住），
+  //    碰一下画面就收。?hint=1 每次都出（截图），?hint=0 不出 ──
   const hintEl = document.createElement('div');
   hintEl.className = 'pxh-hint';
-  hintEl.appendChild(label(t('hint')));
+  hintEl.setAttribute('aria-label', t('hint'));
+  hintEl.hidden = true;
+  hintEl.append(view(ringCanvas(), 1, 'pxh-ripple'), view(fingerCanvas(), 1, 'pxh-finger'));
   root.appendChild(hintEl);
-  const hideHint = () => hintEl.classList.add('gone');
-  if (o.hint === false) hideHint();
-  const hintTimer = window.setTimeout(hideHint, 5000);
-  canvas.addEventListener('pointerdown', () => {
-    clearTimeout(hintTimer);
-    window.setTimeout(hideHint, 600);
-  });
+  const HINT_KEY = 'td.hint.finger';
+  let hintSeen = false;
+  try {
+    hintSeen = localStorage.getItem(HINT_KEY) === '1';
+  } catch {}
+  const hintOn = params.get('hint') === '1' || (o.hint !== false && params.get('hint') !== '0' && !hintSeen);
+  let hintUntil = 0;
+  const hideHint = () => {
+    hintEl.classList.add('gone');
+    hintUntil = 0;
+  };
+  if (hintOn) {
+    window.setTimeout(() => {
+      hintEl.hidden = false;
+      hintUntil = performance.now() + 4200;
+      try {
+        localStorage.setItem(HINT_KEY, '1');
+      } catch {}
+    }, 900);
+    window.setTimeout(hideHint, 5100);
+  }
+  canvas.addEventListener('pointerdown', () => window.setTimeout(hideHint, 300));
 
   // ── 转场 ──
   const dirV = new THREE.Vector3();
@@ -1000,15 +1106,13 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
     const n = /(\d+\s*\/\s*\d+)/.exec(text)?.[1]?.replace(/\s/g, '');
     a.key.hidden = !n;
     if (n) put(a.key, keyCanvas(n));
-    if (text && !seen.has(text)) {
-      seen.add(text);
-      showSign(text, 1500);
-    }
+    // 第四轮：活第一次出现也不亮名字（图标就是说明）；名字只在长按时
   };
   const hud: PixelHud = {
     root,
     iris,
     pop,
+    gain,
     place,
     setDebug,
     focus(a, dy = 2.2) {
@@ -1031,8 +1135,8 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
         toastEl.classList.remove('tap');
         return;
       }
-      peekV = { ...p, until: now + (p.sec ?? 2.6) * 1000 };
-      pop(p.line, null, p.sec ?? 2.6, p.who ?? { name: p.title, hair: INK, skin: CREAM, shirt: INK });
+      peekV = { ...p, until: now + (p.sec ?? 2) * 1000 };
+      pop(p.line, null, p.sec ?? 2, p.who ?? { name: p.title, hair: INK, skin: CREAM, shirt: INK });
     },
     frame() {
       // 转屏 / 改窗口：纹素倍数变了就重设所有像素图的大小、重画字
@@ -1084,6 +1188,14 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
         if (dot) dot.hidden = !(bd?.dot?.() || (b.dataset.id === 'roster' && seekAway));
       }
       seekFrame(canvas.clientWidth, canvas.clientHeight);
+      if (hintUntil) {
+        // 手指点在总监右下方 1.6 米的地面上（"点地面走过去"）
+        play.director.getWorldPosition(dirV);
+        dirV.x += 1.2;
+        dirV.z += 1.4;
+        const p = play.project(dirV, canvas.clientWidth, canvas.clientHeight);
+        hintEl.style.transform = `translate(${Math.round(p.x)}px, ${Math.round(p.y)}px)`;
+      }
       // 心情泡：分得出类的台词才出泡（"…"不出），画面里的、离总监近的最多 MOOD_MAX 个；点泡 = 那句话上方一行字
       const w = canvas.clientWidth;
       const h = canvas.clientHeight;
@@ -1142,7 +1254,7 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
         el.addEventListener('pointerdown', (e) => {
           e.stopPropagation();
           peekV = null;
-          pop(me.text, null, 2.4, me.who);
+          pop(me.text, null, 2, me.who);
           // 点过的泡：弹一下就收起（"已读"），这句话没换之前不再出
           read.add(`${me.key}|${me.text}`);
           me.el.classList.remove('pop');

@@ -36,6 +36,7 @@ import {
   visitWindows,
 } from '../clubsite/cast';
 import { hashOf, mulberry32 } from '../clubsite/cast/rng';
+import type { Gain, Who } from '../clubsite/hud';
 import {
   createMapLife,
   type LifeActor,
@@ -328,8 +329,10 @@ export interface VistaLifeOpts {
   clock(): { day: number; minute: number };
   state(): CastState;
   setState(s: CastState): void;
-  /** 反馈：上方一行字（带金币图标） */
-  pop(text: string, icon: 'coin' | null): void;
+  /** 反馈：钱下面一行"图标 + 数字"（金币 +5、小钟 8、心 +0.3），不写字；who = 跟谁有关（前面带他的小人头） */
+  gain(items: Gain[], who?: Who | null): void;
+  /** 演员表里的人（id）→ 小人头的颜色（进账那一行前面画他） */
+  who?(id: string): Who | null;
   /** 看台坐满 / 空场跟着比赛走（false = 调试里手动切，?crowd=） */
   autoCrowd?: boolean;
 }
@@ -340,6 +343,8 @@ export interface VistaLife {
   enter(): void;
   of(id: string): MapLife | undefined;
   debug(): unknown;
+  /** 量图工具用（lesstext.mjs）：在总监脚下当作干完一件活（钱进账、钟往前走、反馈照常） */
+  testReward(key: LifeTextKey, money: number, minutes?: number): void;
 }
 
 export function mountVistaLife(o: VistaLifeOpts): VistaLife {
@@ -426,8 +431,12 @@ export function mountVistaLife(o: VistaLifeOpts): VistaLife {
       s = setClock(s, Math.floor(abs / 1440) + 1, abs % 1440);
     }
     o.setState(s);
-    o.pop(lt(key, { n: money }) + (minutes ? lt('cost', { m: minutes }) : ''), 'coin');
-    play.say(at.clone(), `+$${money}`, 1.4, 0.5);
+    // 第四轮（让布局说话）：不写整句（"捡回一簇球 +$1 · 3 分钟"），只给 金币 +1 · 小钟 3；干的是什么活画面上看得见
+    o.gain([
+      { icon: 'coin', text: `+${money}` },
+      ...(minutes ? [{ icon: 'clock' as const, text: String(minutes) }] : []),
+    ]);
+    void at;
     count(key);
   }
   function favor(id: string, d: number) {
@@ -498,7 +507,7 @@ export function mountVistaLife(o: VistaLifeOpts): VistaLife {
         // 没人帮：自己拖走
         j.item.remove();
         j.a.hold = false;
-        o.pop(lt('luggageGone'), null);
+        // 客人自己把箱子拖走了：画面上看得见（不再写一句话）
         end();
       } else if (j.item.where === 'gone') end();
     });
@@ -611,8 +620,7 @@ export function mountVistaLife(o: VistaLifeOpts): VistaLife {
     lastMin = s0.minute;
     if (ex.missed.length) {
       o.setState(ex.state);
-      for (const k of ex.missed)
-        o.pop(lt('seekMissed', { name: CAST.get(k.id)?.nameZh ?? '', f: SEEK_MISS.toFixed(1) }), null);
+      for (const k of ex.missed) o.gain([{ icon: 'heartOff', text: `−${SEEK_MISS.toFixed(1)}` }], o.who?.(k.id));
     }
     let s = o.state();
     const now = seekersNow(CAST, s);
@@ -635,9 +643,13 @@ export function mountVistaLife(o: VistaLifeOpts): VistaLife {
           o.setState(r.state);
           const rw = SEEK_REWARD[k.kind];
           const name = CAST.get(k.id)?.nameZh ?? '';
-          o.pop(
-            lt(`seekDone_${k.kind}`, { name, f: rw.favor.toFixed(1) }) + (rw.money ? lt('money', { n: rw.money }) : ''),
-            rw.money ? 'coin' : null,
+          void name;
+          o.gain(
+            [
+              { icon: 'heart', text: `+${rw.favor.toFixed(1)}` },
+              ...(rw.money ? [{ icon: 'coin' as const, text: `+${rw.money}` }] : []),
+            ],
+            o.who?.(k.id),
           );
           count(`seek_${k.kind}`);
         }
@@ -767,6 +779,7 @@ export function mountVistaLife(o: VistaLifeOpts): VistaLife {
       stepCrowd();
     },
     of: (id) => lives.get(id),
+    testReward: (key, money, minutes = 0) => reward(key, money, o.director.position.clone(), minutes),
     debug: () => ({
       map: o.cur().def.id,
       done: { ...done },

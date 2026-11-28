@@ -112,6 +112,8 @@ export interface CastMount {
   money(): number;
   /** 场景里这个人（Object3D）是谁：名字 + 发色、肤色、衣服色（界面上方那行字前面的小人头）；不是演员表里的人 = null */
   whoOf(anchor: unknown): Who | null;
+  /** 演员表里的这个人（id）：名字 + 发色、肤色、衣服色；没有 = null */
+  whoById(id: string): Who | null;
 }
 
 /** 互动点：总监多近才给人注册（米） */
@@ -676,6 +678,10 @@ export function mountCast(o: MountCastOpts): CastMount {
     whoOf(anchor) {
       const b = binder.bound.find((x) => x.obj === anchor);
       const p = b ? CAST.get(b.id) : null;
+      return p ? whoOfPerson(p) : null;
+    },
+    whoById(id) {
+      const p = CAST.get(id);
       return p ? whoOfPerson(p) : null;
     },
     step(dt) {

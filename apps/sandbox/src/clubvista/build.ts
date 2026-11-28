@@ -8,6 +8,7 @@ import { rngFactory } from '../clubsite/render/noise';
 import { type Scheme, schemeMats, schemeOpts } from '../clubsite/render/palettes';
 import { createMats, type ToonOpts } from '../clubsite/render/toon';
 import type { AssetBuild, AssetCtx, SharedUniforms } from './ctx';
+import { exitProps } from './exit-gates';
 import type { Court, ElKey, MapDef, Plate, Prop, Stair, Strip, V2 } from './mapdef';
 import { NIGHT_PROPS } from './night-props';
 import { EL, GRADE_AS, PAL, type Pal, SUN_SKIP } from './palette';
@@ -328,7 +329,7 @@ export function buildMap(def: MapDef, ox: number, kit: Kit, params: URLSearchPar
   const blocked: Shape[] = [];
   const showPh = params.get('ph') !== '0';
   root.updateMatrixWorld(true);
-  for (const pr of [...def.props, ...(NIGHT_PROPS[def.id] ?? [])]) {
+  for (const pr of [...def.props, ...(NIGHT_PROPS[def.id] ?? []), ...exitProps(def)]) {
     const { obj, kind } = kit.makeAsset(pr.a, pr.v ?? 0);
     if (kind === 'placeholder' && !showPh) continue;
     counts[kind]++;
@@ -359,6 +360,13 @@ export function buildMap(def: MapDef, ox: number, kit: Kit, params: URLSearchPar
     placed.push({ prop: pr, obj, kind });
     const b = blockOf(pr, obj);
     if (b) blocked.push(b);
+    // 资产自己报的挡路圆（本地 x, z, r：出口门的两根柱子 —— 整个门的包围盒会把路堵上）
+    const own = obj.userData.blockers as [number, number, number][] | undefined;
+    if (own && pr.block !== false)
+      for (const [x, z, r] of own) {
+        const w = obj.localToWorld(new THREE.Vector3(x, 0, z));
+        blocked.push({ x: w.x, z: w.z, r });
+      }
   }
 
   // ── 导航：0.25 米的高度格子（本图坐标），NaN = 不能走 ──
@@ -417,6 +425,8 @@ const TRUNK: Record<string, number> = {
 };
 function blockOf(pr: Prop, obj: THREE.Object3D): Shape | null {
   if (pr.block === false) return null;
+  // 自己报挡路圆的资产（出口门）：不再按包围盒挡
+  if (pr.block === undefined && obj.userData.blockers) return null;
   const wx = obj.getWorldPosition(new THREE.Vector3());
   if (typeof pr.block === 'number') return { x: wx.x, z: wx.z, r: pr.block };
   const r = TRUNK[pr.a];

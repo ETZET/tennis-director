@@ -67,7 +67,8 @@ export const HUD_CSS = `
 .pxh-job { position: absolute; left: 0; top: 0; pointer-events: none; }
 .pxh-job .pxh-px { animation: pxh-bob 1.1s steps(2, end) infinite; }
 .pxh-edge-job { pointer-events: none; }
-/* 进账：金币右上那块下面浮一行（一枚小金币 + 字），往上飘 1 纹素 × 4 就消失 */
+/* 进账：金币右上那块下面浮一行"图标 + 数字"（金币 +5 · 小钟 3 · 心 +0.3），往上飘 1 纹素 × 4 就消失 */
+.pxh-gcell { display: flex; align-items: center; gap: calc(var(--s) * 1px); }
 .pxh-cpop { position: absolute; right: max(10px, env(safe-area-inset-right)); top: calc(max(10px, calc(env(safe-area-inset-top) + 4px)) + var(--s) * 15px); display: flex; align-items: center; gap: calc(var(--s) * 2px); transition: opacity 0.3s steps(3, end); }
 .pxh-cpop.up { animation: pxh-cup 2.6s steps(4, end) forwards; }
 .pxh-cpop.gone { opacity: 0; }
@@ -80,21 +81,27 @@ export const HUD_CSS = `
 .pxh-mood.pop .pxh-px { animation: pxh-pop 0.3s steps(3, end); transform-origin: 20% 100%; }
 @keyframes pxh-pop { 0% { transform: scale(0.4); } 60% { transform: scale(1.2); } 100% { transform: scale(1); } }
 /* 浮动的一行字（同参考：画面上方一行白字黑边，过一会儿消失）+ 弹出来的东西 */
-.pxh-toast { position: absolute; left: 50%; top: max(12%, calc(env(safe-area-inset-top) + 100px)); transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 6px; transition: opacity 0.4s steps(3, end); }
+.pxh-toast { position: absolute; left: 50%; top: calc(max(6px, env(safe-area-inset-top)) + 122px); transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 6px; transition: opacity 0.4s steps(3, end); }
 .pxh-toast.gone { opacity: 0; }
 .pxh-toast.tap { pointer-events: auto; cursor: pointer; }
 .pxh-line { display: flex; align-items: center; gap: 4px; max-width: calc(100vw - 24px); }
-.pxh-line .pxh-txt { white-space: normal; }
+.pxh-line .pxh-txt { white-space: nowrap; flex: none; }
+/* 说的那句话：一行，放不下就截断（第四轮：最多一行） */
+.pxh-line .pxh-txt:last-child { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .pxh-toast .pxh-item { animation: pxh-item 0.5s steps(5, end); }
 @keyframes pxh-item { 0% { transform: scale(0.2) translateY(30px); } 60% { transform: scale(1.15) translateY(-4px); } 100% { transform: scale(1); } }
 /* 地名：画面最上沿、日钟和金币之间（不压记分牌、不压总监）；不带底的奶油字（路牌是奶油纸牌，两样分得开） */
 .pxh-place { position: absolute; left: 50%; top: calc(max(6px, env(safe-area-inset-top)) + var(--s) * 4px); transform: translateX(-50%); opacity: 0; white-space: nowrap; }
-.pxh-place.show { animation: pxh-place 2.6s steps(12, end) forwards; }
+.pxh-place.show { animation: pxh-place var(--dur, 1.6s) steps(12, end) forwards; }
 @keyframes pxh-place { 0% { opacity: 0; } 12% { opacity: 1; } 70% { opacity: 1; } 100% { opacity: 0; } }
 
-/* 开局的操作提示（几秒后消失） */
-.pxh-hint { position: absolute; left: max(12px, env(safe-area-inset-left)); bottom: max(16px, calc(env(safe-area-inset-bottom) + 8px)); transition: opacity 0.8s steps(4, end); }
+/* 开局的操作提示：手指在总监前面点两下地面（第四轮：不写字，只出一次）。元素的原点 = 指尖点的地方 */
+.pxh-hint { position: absolute; left: 0; top: 0; width: 0; height: 0; transition: opacity 0.5s steps(3, end); }
 .pxh-hint.gone { opacity: 0; }
+.pxh-hint .pxh-finger { position: absolute; left: calc(var(--s) * -4px); top: calc(var(--s) * -1px); animation: pxh-tap 1.4s steps(1, end) infinite; }
+.pxh-hint .pxh-ripple { position: absolute; left: calc(var(--s) * -7px); top: calc(var(--s) * -4px); opacity: 0; animation: pxh-ripple 1.4s steps(4, end) infinite; }
+@keyframes pxh-tap { 0% { transform: translateY(calc(var(--s) * 5px)); } 35% { transform: translateY(0); } 70% { transform: translateY(calc(var(--s) * 5px)); } }
+@keyframes pxh-ripple { 0%, 34% { opacity: 0; transform: scale(0.4); } 36% { opacity: 1; transform: scale(0.5); } 70% { opacity: 0.9; transform: scale(1.3); } 100% { opacity: 0; transform: scale(1.6); } }
 
 /* 互动点头上的小箭头（像素图，两格一跳） */
 .pxh-mark { position: absolute; left: 0; top: 0; }

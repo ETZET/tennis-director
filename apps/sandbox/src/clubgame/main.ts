@@ -184,7 +184,7 @@ function mountGame() {
           clubPlace = `${gt('inner')} · ${n}`;
           return clubPlace;
         },
-        // 大门的小路牌：离大门 11 米以内，在大门那个方向的屏幕边上写"到达 · 前台 →"
+        // 大门的小箭头：离大门 11 米以内，大门那里冒一个往外指的小箭头（目的地名只给读屏）
         frame: () => {
           if (!walk || !clubWays) return;
           const p = walk.director.position;
@@ -209,12 +209,10 @@ function mountGame() {
     casts.club = win.__cast;
     clubWays = as('club', () => createWaySigns());
   }
-  /** 黑幕上写去哪（0.7 秒） */
-  async function blackNote(text: string) {
-    loading.textContent = text;
-    loading.hidden = false;
-    await new Promise((r) => setTimeout(r, 700));
+  /** 黑幕停一会儿（第四轮：不再写去哪） */
+  async function blackNote() {
     loading.hidden = true;
+    await new Promise((r) => setTimeout(r, 350));
   }
   /** 时刻、天气跟过去（两个世界各有一个 daylight） */
   function carryDay(from: { day: WalkApi['day'] }, to: { day: WalkApi['day'] }) {
@@ -239,12 +237,11 @@ function mountGame() {
       w.play.teleport(GATE_IN[0], GATE_IN[1], GATE_IN[2]);
       gateArmed = false;
       show('club');
-      if (withIris) await blackNote(mapName('club'));
+      if (withIris) await blackNote();
       else loading.hidden = true;
     };
     if (withIris) await iris.run(swap);
     else await swap();
-    (walk as WalkApi | null)?.hud?.place(mapName('club'));
     switching = false;
   }
   async function toVista() {
@@ -256,9 +253,8 @@ function mountGame() {
       carryDay(w, vista);
       show('vista');
       vista.enter('arrive', 'fromClub');
-      await blackNote(mapName('arrive'));
+      await blackNote();
     });
-    vista.announce();
     switching = false;
   }
 
