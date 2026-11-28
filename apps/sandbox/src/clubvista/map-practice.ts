@@ -594,8 +594,9 @@ export const practice: MapDef = {
     ],
   ],
   exits: [{ to: 'court', entry: 'fromPractice', at: [21.4, 59.4], r: 2 }],
-  entries: { fromCourt: { at: [23.4, 55.4], yaw: PI } },
-  start: { at: [23.4, 55.4], yaw: PI },
+  // 第四轮：入口挪到出口门（exit-gates.ts，门往图里挪了 9 米）的北边 —— 原来站在门外、正好在右下三个按钮底下
+  entries: { fromCourt: { at: [22.6, 47.6], yaw: PI } },
+  start: { at: [22.6, 47.6], yaw: PI },
   clouds: [[-8, 26, 5, 3]],
   shot: { port: [13, 26], land: [14, 28] },
   walks: [

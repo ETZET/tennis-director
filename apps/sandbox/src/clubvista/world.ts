@@ -201,7 +201,18 @@ export function mountVista(hooks: VistaHooks = {}) {
         ramps,
         stepUp: 0.32,
       },
-      camera: { lead: { portrait: 1.6, landscape: 0.6 }, view: viewOf(cur) },
+      camera: {
+        lead: { portrait: 1.6, landscape: 0.6 },
+        view: viewOf(cur),
+        // 第四轮（让布局说话）：竖屏一屏只有 17 米宽，站在图边（东西两头的入口）时镜头往这张图的焦点（MapDef.shot）横着偏
+        // 一点（离焦点的 40%，最多 4.5 米），进图第一眼就看得到这里是什么地方，不靠地名
+        // （第 3 轮：离焦点 50%、最多 6 米。试过"离东西出口 7 米以内改往出口偏"：评判说出口帧把焦点整个推出画面、三张图又像同一处，撤了）
+        lean: (x) => {
+          if (innerWidth >= innerHeight) return [0, 0];
+          const fx = (cur.def.shot?.port[0] ?? cur.def.W / 2) + cur.ox;
+          return [Math.max(-6, Math.min(6, (fx - x) * 0.5)), 0];
+        },
+      },
     });
   } else {
     director.position.set(start0[0] + cur.ox, groundAt(start0[0] + cur.ox, start0[1]), start0[1]);
@@ -229,42 +240,19 @@ export function mountVista(hooks: VistaHooks = {}) {
       return;
     }
     moving = true;
+    // 第四轮（让布局说话）：黑幕上不再写去哪、到了也不出地名 —— 新地方自己看得出来；要看地名点日钟或小地图
     if (hud)
       await hud.iris.run(async () => {
         swapTo(id, entry);
-        // 黑幕上写去哪（到了新地方的交代）
-        await blackNote(mapName(id));
+        await new Promise((r) => setTimeout(r, 350));
       });
     else swapTo(id, entry);
     moving = false;
-    announce();
     crowdLabel();
   }
-  /** 转场全黑的那一会儿，画面正中写目的地名（0.7 秒） */
-  async function blackNote(text: string) {
-    const el = document.createElement('div');
-    el.className = 'pxh-blacknote';
-    Object.assign(el.style, {
-      position: 'fixed',
-      left: '0',
-      right: '0',
-      top: '44%',
-      textAlign: 'center',
-      zIndex: '41',
-      pointerEvents: 'none',
-      color: '#fff0c4',
-      font: '700 17px/1.25 "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", system-ui, sans-serif',
-      letterSpacing: '2px',
-    });
-    el.textContent = text;
-    document.body.appendChild(el);
-    await new Promise((r) => setTimeout(r, 700));
-    el.remove();
-  }
-  /** 地点名：像素界面上方淡出的一行（中英文，text.ts） */
+  /** 地点名：像素界面上沿亮一下（点日钟时由界面自己调；这里留给外面要的时候） */
   function announce() {
     if (hud) hud.place(mapName(cur.def.id));
-    else play?.toast(mapName(cur.def.id), 2.2);
   }
   function swapTo(id: string, entry: string) {
     const to = byId(id);
@@ -289,25 +277,30 @@ export function mountVista(hooks: VistaHooks = {}) {
     }
     placeSun(wx, wz);
     armed = false;
+    landed = { x: wx, z: wz };
     life?.enter();
   }
-  // 出口的小路牌（clubsite/hud/waysign.ts）：离出口 9 米以内，在出口那个方向的屏幕边上写"目的地 + 箭头"；走开、换图就没有
+  // 出口的小箭头（clubsite/hud/waysign.ts）：离出口 9 米以内，出口那里冒一个往外指的小箭头（不写字）；走开、换图就没有
   const ways = params.get('ui') !== '0' ? createWaySigns() : null;
   const WAY_R = 9;
   const wayAt = new THREE.Vector3();
+  /** 刚进图站的地方：离开 3 米以前，身边那道（来的）门不出箭头（评判：一进图就亮"往回走"） */
+  let landed: { x: number; z: number } | null = { x: start0[0] + cur.ox, z: start0[1] };
   function placeWays() {
     if (!ways) return;
     const list: WaySign[] = [];
     if (play && !moving) {
       const s = play.state();
+      if (landed && Math.hypot(s.x - landed.x, s.z - landed.z) > 3) landed = null;
       for (const ex of cur.def.exits) {
         if (ex.to === 'club' ? !hooks.outer : !built.some((b) => b.def.id === ex.to)) continue;
         const wx = ex.at[0] + cur.ox;
         if (Math.hypot(s.x - wx, s.z - ex.at[1]) > ex.r + WAY_R) continue;
+        if (landed && Math.hypot(landed.x - wx, landed.z - ex.at[1]) < ex.r + WAY_R) continue;
         const h = cur.groundAt(ex.at[0], ex.at[1]);
         wayAt.set(wx, Number.isFinite(h) ? h : s.y, ex.at[1]);
         const p = screenOf(wayAt);
-        list.push({ x: p.x, y: p.y, text: mapName(ex.to) });
+        list.push({ x: p.x, y: p.y, text: mapName(ex.to), place: ex.to });
       }
     }
     ways.set(list);
@@ -466,6 +459,7 @@ export function mountVista(hooks: VistaHooks = {}) {
       day,
       params,
       money: cast ? () => cast.money() : undefined,
+      placeName: () => mapName(cur.def.id),
       who: cast ? (a) => cast.whoOf(a) : undefined,
       buttons: [
         ...(hooks.mapButton ? [{ id: 'map', icon: 'map' as const, label: 'map' as const, ...hooks.mapButton }] : []),
@@ -489,7 +483,8 @@ export function mountVista(hooks: VistaHooks = {}) {
           setState: (s) => {
             store.state = s;
           },
-          pop: (text, icon) => (hud ? hud.pop(text, icon, 2.4) : play?.toast(text, 2.4)),
+          gain: (items, who, at) => hud?.gain(items, who, at),
+          who: (id) => cast?.whoById(id) ?? null,
           autoCrowd: !params.has('crowd'),
         })
       : null;
@@ -638,7 +633,6 @@ export function mountVista(hooks: VistaHooks = {}) {
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
-  if (hud) setTimeout(announce, 600);
 
   Object.assign(window, {
     __vista: {

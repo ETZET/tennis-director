@@ -160,6 +160,8 @@ export interface CameraOpts {
   view?: Rect;
   /** 缩放范围（相对开局的 米/纹素 ÷ 像素级别） */
   zoom?: [number, number];
+  /** 镜头往哪偏（米，加在跟随的目标上；参数 = 总监的位置）：clubvista 竖屏在图边时往图中间偏，进图就看得到这张图是什么地方 */
+  lean?: (x: number, z: number) => [number, number];
 }
 
 export interface PlayOpts {
@@ -701,8 +703,9 @@ export function createPlay(opts: PlayOpts): Play {
       camLead.x += (lx - camLead.x) * a;
       camLead.z += (lz - camLead.z) * a;
     }
-    const wx = pos.x + camLead.x;
-    const wz = pos.z + leadZ() + camLead.z;
+    const ln = camOpts.lean?.(pos.x, pos.z) ?? [0, 0];
+    const wx = pos.x + camLead.x + ln[0];
+    const wz = pos.z + leadZ() + camLead.z + ln[1];
     const [DX, DZ] = drv ? [0, 0] : (camOpts.dead ?? [0.8, 0.6]);
     const gx = wx - cam.x > DX ? wx - DX : wx - cam.x < -DX ? wx + DX : cam.x;
     const gz = wz - cam.z > DZ ? wz - DZ : wz - cam.z < -DZ ? wz + DZ : cam.z;

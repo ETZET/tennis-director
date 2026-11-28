@@ -281,10 +281,11 @@ const frame: Prop[] = [
     [0, 0, 1],
     [3, 3.6, 0.75],
   ]),
+  // 第四轮：往南挪 3.5 米 —— 原来在 z 67，树冠在 45° 俯视下正好盖住西出口的路和站在门下的总监
   ...cluster(
     'fan-palm',
     -5.2,
-    67,
+    70.5,
     [
       [0, 0, 1.15],
       [-3, 2.4, 0.8],
@@ -555,10 +556,11 @@ export const street: MapDef = {
     { to: 'academy', entry: 'fromStreet', at: [14, -3], r: 2 },
   ],
   entries: {
-    fromPlaza: { at: [-8, EXIT_Z], yaw: PI / 2 },
+    // （第四轮：入口往图里挪 8 米 —— 竖屏站在 x = −8 时一屏全是图边的树，看不出到了哪）
+    fromPlaza: { at: [0, EXIT_Z], yaw: PI / 2 },
     fromAcademy: { at: [14, 1.2], yaw: 0 },
   },
-  start: { at: [-8, EXIT_Z], yaw: PI / 2 },
+  start: { at: [0, EXIT_Z], yaw: PI / 2 },
   clouds: [
     [-6, 28, 6, 3.4],
     [30, 46, 5, 3],

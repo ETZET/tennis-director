@@ -1,47 +1,125 @@
-// 出口的小路牌：总监走近一个出口（换图 / 换世界的地方）时，在出口那个方向的屏幕边上出一行"箭头 + 目的地名"；
-// 走开、换了图就没有。一块奶油色的小牌（墨字墨边，和人物卡同一张纸；地点名是不带底的白字，两样分得开），贴着出口那一边的屏幕边，
-// 箭头朝出口真的在的方向。只是提示，点不了。
-// 用法：const signs = createWaySigns(); 每帧 signs.set([{ x, y, text }, …])（x, y = 出口在屏幕上的位置，CSS 像素，可以在屏幕外）。
-import { CREAM, hex, INK } from './colors';
-import { ensurePixelFont, pxFont } from './pxfont';
+// 出口的小箭头：总监走近一个出口（换图 / 换世界的地方）时，出口那里冒一个奶油色的小箭头（墨描边、慢慢往出口那边一跳一跳），
+// 走开、换了图就没有。第四轮（2026-11-28，「让布局说话」）：不再写目的地的字 —— 出口靠布局讲（路一直通到画面外、出口有门柱 / 台阶 /
+// 拱门，远处露出下一张图的一角），这里只补一个"往这边走"；去哪看右下的小地图。
+// 第 3 轮：箭头旁边配目的地的剪影小图（places.ts，小地图上同一套：看台、喷泉、果岭小旗、候车亭……）—— 东西向出口门外的预告物件
+// 竖屏里常落在画面外，剪影兜底；还是不写字。
+// 箭头在出口在屏幕上的位置（在屏幕外就贴着那一边，让开四个角的界面），朝出口相对屏幕中心（总监差不多在那儿）的方向。只是提示，点不了。
+// 用法：const signs = createWaySigns(); 每帧 signs.set([{ x, y, text }, …])（x, y = 出口在屏幕上的位置，CSS 像素，可以在屏幕外；
+// text = 目的地名，只给读屏用）。
+import { CREAM, hex, INK, INK_SHADOW } from './colors';
 import { hudScale } from './scale';
+import { placeIcon } from './sheet';
 
 export interface WaySign {
   /** 出口在屏幕上的位置（CSS 像素；在屏幕外就贴到那一边） */
   x: number;
   y: number;
+  /** 目的地名（只给读屏：aria-label，不上屏） */
   text: string;
+  /** 目的地的地点 id（places.ts 的剪影，同小地图）；不给 = 只有箭头 */
+  place?: string;
 }
 export interface WaySigns {
   set(list: readonly WaySign[]): void;
   readonly el: HTMLElement;
 }
 
-const ARROW = { up: '↑', down: '↓', left: '←', right: '→' } as const;
+type Dir = 'up' | 'down' | 'left' | 'right';
+
+/** 朝上的箭头（9 × 8 纹素）：奶油实心、1 纹素墨边、底下 1 纹素深影；别的方向转出来 */
+const UP = ['....K....', '...KWK...', '..KWWWK..', '.KWWWWWK.', 'KKKWWWKKK', '..KWWWK..', '..KWWWK..', '..KKKKK..'];
+
+function arrowCanvas(dir: Dir): HTMLCanvasElement {
+  const n = UP.length;
+  const m = UP[0].length;
+  const vert = dir === 'up' || dir === 'down';
+  const c = document.createElement('canvas');
+  c.width = vert ? m : n + 1;
+  c.height = vert ? n + 1 : m + 1;
+  const g = c.getContext('2d') as CanvasRenderingContext2D;
+  const put = (x: number, y: number, col: number) => {
+    g.fillStyle = hex(col);
+    g.fillRect(x, y, 1, 1);
+  };
+  const at = (i: number, j: number): [number, number] =>
+    dir === 'up' ? [j, i] : dir === 'down' ? [j, n - 1 - i] : dir === 'left' ? [i, j] : [n - 1 - i, j];
+  // 深影：先把墨边的形状往下挪 1 纹素画一遍
+  for (let i = 0; i < n; i++)
+    for (let j = 0; j < m; j++) {
+      if (UP[i][j] === '.') continue;
+      const [x, y] = at(i, j);
+      put(x, y + 1, INK_SHADOW);
+    }
+  for (let i = 0; i < n; i++)
+    for (let j = 0; j < m; j++) {
+      const ch = UP[i][j];
+      if (ch === '.') continue;
+      const [x, y] = at(i, j);
+      put(x, y, ch === 'K' ? INK : CREAM);
+    }
+  return c;
+}
+
+/** 箭头 + 目的地剪影拼成一张：剪影在箭头的"后面"（往右的箭头 = [剪影][→]，往上的 = 箭头在上、剪影在下），中间空 2 纹素 */
+function withPlace(arrow: HTMLCanvasElement, dir: Dir, place?: string): HTMLCanvasElement {
+  if (!place) return arrow;
+  const ic = placeIcon(place, CREAM);
+  const gap = 2;
+  const horiz = dir === 'left' || dir === 'right';
+  const w = horiz ? arrow.width + gap + ic.width : Math.max(arrow.width, ic.width);
+  const h = horiz ? Math.max(arrow.height, ic.height) : arrow.height + gap + ic.height;
+  const c = document.createElement('canvas');
+  c.width = w;
+  c.height = h;
+  const g = c.getContext('2d') as CanvasRenderingContext2D;
+  const ay = (hh: number) => Math.floor((h - hh) / 2);
+  const ax = (ww: number) => Math.floor((w - ww) / 2);
+  if (dir === 'right') {
+    g.drawImage(ic, 0, ay(ic.height));
+    g.drawImage(arrow, ic.width + gap, ay(arrow.height));
+  } else if (dir === 'left') {
+    g.drawImage(arrow, 0, ay(arrow.height));
+    g.drawImage(ic, arrow.width + gap, ay(ic.height));
+  } else if (dir === 'up') {
+    g.drawImage(arrow, ax(arrow.width), 0);
+    g.drawImage(ic, ax(ic.width), arrow.height + gap);
+  } else {
+    g.drawImage(ic, ax(ic.width), 0);
+    g.drawImage(arrow, ax(arrow.width), ic.height + gap);
+  }
+  return c;
+}
+
+const CSS = `
+.pxh-way { position: absolute; left: 0; top: 0; image-rendering: pixelated; image-rendering: crisp-edges; }
+.pxh-way[data-dir='up'] { animation: pxh-way-u 0.9s steps(2, end) infinite; }
+.pxh-way[data-dir='down'] { animation: pxh-way-d 0.9s steps(2, end) infinite; }
+.pxh-way[data-dir='left'] { animation: pxh-way-l 0.9s steps(2, end) infinite; }
+.pxh-way[data-dir='right'] { animation: pxh-way-r 0.9s steps(2, end) infinite; }
+@keyframes pxh-way-u { 50% { translate: 0 calc(var(--ws) * -2px); } }
+@keyframes pxh-way-d { 50% { translate: 0 calc(var(--ws) * 2px); } }
+@keyframes pxh-way-l { 50% { translate: calc(var(--ws) * -2px) 0; } }
+@keyframes pxh-way-r { 50% { translate: calc(var(--ws) * 2px) 0; } }
+`;
 
 export function createWaySigns(): WaySigns {
-  ensurePixelFont();
+  if (!document.getElementById('pxh-way-css')) {
+    const st = document.createElement('style');
+    st.id = 'pxh-way-css';
+    st.textContent = CSS;
+    document.head.appendChild(st);
+  }
   const root = document.createElement('div');
   root.className = 'pxh-ways';
   Object.assign(root.style, { position: 'fixed', inset: '0', pointerEvents: 'none', zIndex: '6' });
   document.body.appendChild(root);
-  const ink = hex(INK);
-  const els: HTMLDivElement[] = [];
+  const els: { c: HTMLCanvasElement; key: string }[] = [];
   const make = () => {
-    const e = document.createElement('div');
-    Object.assign(e.style, {
-      position: 'absolute',
-      left: '0',
-      top: '0',
-      whiteSpace: 'nowrap',
-      color: ink,
-      background: hex(CREAM),
-      padding: `0 ${hudScale() * 2}px`,
-      font: pxFont(),
-      webkitFontSmoothing: 'none',
-      boxShadow: `2px 0 0 0 ${ink}, -2px 0 0 0 ${ink}, 0 2px 0 0 ${ink}, 0 -2px 0 0 ${ink}`,
-    });
-    root.appendChild(e);
+    const c = document.createElement('canvas');
+    c.className = 'pxh-way';
+    c.setAttribute('role', 'img');
+    root.appendChild(c);
+    const e = { c, key: '' };
     els.push(e);
     return e;
   };
@@ -50,32 +128,43 @@ export function createWaySigns(): WaySigns {
     set(list) {
       const W = innerWidth;
       const H = innerHeight;
-      // 四个角是界面的（日钟、金币、右下图标）：路牌让开
+      const S = hudScale();
+      root.style.setProperty('--ws', String(S));
+      // 四个角是界面的（日钟、金币、右下图标）：箭头让开
       const top = 118;
-      // 右下三键顶 ≈ 底边往上 (6 + 29) 纹素；牌的底边再离它 6 纹素
-      const bottom = H - hudScale() * (6 + 29 + 6) - 30;
-      const side = 10;
+      const bottom = H - S * (6 + 29 + 6) - 24;
+      const side = 12;
       for (let i = 0; i < Math.max(list.length, els.length); i++) {
         const e = els[i] ?? make();
         const s = list[i];
         if (!s) {
-          e.hidden = true;
+          e.c.hidden = true;
           continue;
         }
         const dx = s.x - W / 2;
         const dy = s.y - H / 2;
-        // 箭头：出口相对屏幕中心（总监差不多在那儿）的方向
-        const dir = Math.abs(dx) * (H / W) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : dy > 0 ? 'down' : 'up';
-        const text = dir === 'left' ? `${ARROW.left} ${s.text}` : `${s.text} ${ARROW[dir]}`;
-        const tx = text.replace(/\s*·\s*/g, '·');
-        if (e.textContent !== tx) e.textContent = tx;
-        e.hidden = false;
-        const w = e.offsetWidth || 80;
-        // 贴着出口那一边的屏幕边（不跟着出口的位置飘到画面中间）：左右的贴左右边，上下的贴上下的安全带
+        // 方向：出口相对屏幕中心（总监差不多在那儿）
+        const dir: Dir = Math.abs(dx) * (H / W) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : dy > 0 ? 'down' : 'up';
+        const key = `${dir}|${S}|${s.place ?? ''}`;
+        if (key !== e.key) {
+          e.key = key;
+          const src = withPlace(arrowCanvas(dir), dir, s.place);
+          e.c.width = src.width;
+          e.c.height = src.height;
+          (e.c.getContext('2d') as CanvasRenderingContext2D).drawImage(src, 0, 0);
+          e.c.style.width = `${src.width * S}px`;
+          e.c.style.height = `${src.height * S}px`;
+          e.c.dataset.dir = dir;
+        }
+        if (e.c.getAttribute('aria-label') !== s.text) e.c.setAttribute('aria-label', s.text);
+        e.c.hidden = false;
+        const w = e.c.width * S;
+        const h = e.c.height * S;
+        // 出口在屏幕里：箭头就在出口上方一点（地面上那个口子）；在屏幕外：贴着那一边
         const mid = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
-        const x = dir === 'right' ? W - side - w : dir === 'left' ? side : mid(s.x - w / 2, side, W - side - w - 110);
-        const y = dir === 'down' ? bottom : dir === 'up' ? top : mid(s.y - 34, top, bottom);
-        e.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px)`;
+        const x = mid(s.x - w / 2, side, W - side - w);
+        const y = mid(s.y - h - 6, top, bottom - h);
+        e.c.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px)`;
       }
     },
   };
