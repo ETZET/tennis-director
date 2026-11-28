@@ -77,9 +77,11 @@ export interface PixelHudOpts {
   placeName?: () => string;
 }
 
-/** 进账反馈的一格：小图标 + 数字（'+5'、'3'、'+0.3'、'−0.5'） */
+/**
+ * 进账反馈的一格：小图标 + 数字（'+5'、'3'、'+0.3'、'−0.5'）；text 空 = 只有图标（干的是哪件活：球、扫帚、水壶、杯子……，排在最前面）
+ */
 export interface Gain {
-  icon: 'coin' | 'clock' | 'heart' | 'heartOff';
+  icon: 'coin' | 'clock' | 'heart' | 'heartOff' | IconId | MoodId;
   text: string;
 }
 
@@ -111,8 +113,8 @@ export interface PixelHud {
   peek(p: Peek | null): void;
   /** 反馈：弹出来的东西（可选）+ 一行字 */
   pop(text: string, icon?: IconId | null, sec?: number, who?: Who | null): void;
-  /** 进账 / 代价：钱下面一行"图标 + 数字"，不写字（who = 跟谁有关：前面带他的小人头） */
-  gain(items: Gain[], who?: Who | null): void;
+  /** 进账 / 代价：钱下面一行"图标 + 数字"，不写字（who = 跟谁有关：前面带他的小人头）；at = 在哪儿挣的（那里冒一枚金币往上飘） */
+  gain(items: Gain[], who?: Who | null, at?: THREE.Vector3 | null): void;
   /** 地点名：画面上沿亮一下（第四轮起只在点日钟时；进图不出） */
   place(name: string): void;
   setDebug(on: boolean): void;
@@ -607,19 +609,45 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
   cpopEl.className = 'pxh-cpop gone';
   root.appendChild(cpopEl);
   let cpopT = 0;
-  const GAIN_ICON: Record<Gain['icon'], () => HTMLCanvasElement> = {
+  const GAIN_ICON: Partial<Record<Gain['icon'], () => HTMLCanvasElement>> = {
     coin: () => icon('coin'),
     clock: () => spriteCanvas(tame(GLYPH.clock), 'gain-clock', true, CREAM),
     heart: () => spriteCanvas(tame(GLYPH.heart), 'gain-heart', true, CREAM),
     heartOff: () => spriteCanvas(tame(GLYPH.heartOff), 'gain-heartOff', true, CREAM),
   };
-  function gain(items: Gain[], who: Who | null = null) {
+  const gainIcon = (id: Gain['icon']): HTMLCanvasElement =>
+    GAIN_ICON[id]?.() ??
+    (id in ICONS
+      ? icon(id as IconId)
+      : spriteCanvas(tame(MOODS[id as MoodId] ?? MOODS['!']), `gain-${id}`, true, CREAM));
+  /** 在哪儿挣的：那里冒一枚小金币，往上飘 1 秒就没（不写数） */
+  const burstEl = document.createElement('div');
+  burstEl.className = 'pxh-burst';
+  burstEl.hidden = true;
+  burstEl.appendChild(view(icon('coin')));
+  root.appendChild(burstEl);
+  let burstT = 0;
+  function gain(items: Gain[], who: Who | null = null, at: THREE.Vector3 | null = null) {
+    if (at) {
+      const p = play.project(at, canvas.clientWidth, canvas.clientHeight);
+      burstEl.style.left = `${Math.round(p.x)}px`;
+      burstEl.style.top = `${Math.round(p.y)}px`;
+      burstEl.hidden = false;
+      burstEl.classList.remove('up');
+      void burstEl.offsetWidth;
+      burstEl.classList.add('up');
+      clearTimeout(burstT);
+      burstT = window.setTimeout(() => {
+        burstEl.hidden = true;
+      }, 1100);
+    }
     const kids: HTMLElement[] = [];
     if (who) kids.push(view(spriteCanvas(headSprite(who), `head-${who.name}-${who.shirt}`), 1, 'pxh-head'));
     for (const it of items) {
       const cell = document.createElement('span');
       cell.className = 'pxh-gcell';
-      cell.append(view(GAIN_ICON[it.icon]()), view(textCanvas(it.text, { color: CREAM })));
+      cell.append(view(gainIcon(it.icon)));
+      if (it.text) cell.append(view(textCanvas(it.text, { color: CREAM })));
       kids.push(cell);
     }
     cpopEl.replaceChildren(...kids);
@@ -1188,6 +1216,14 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
         if (dot) dot.hidden = !(bd?.dot?.() || (b.dataset.id === 'roster' && seekAway));
       }
       seekFrame(canvas.clientWidth, canvas.clientHeight);
+      {
+        // 总监走到右下三个按钮底下：按钮淡到一半，看得见他和他脚下的门（第四轮：南边的出口门在画面最下面）
+        play.director.getWorldPosition(dirV);
+        dirV.y += 0.9;
+        const p = play.project(dirV, canvas.clientWidth, canvas.clientHeight);
+        const r = dock.getBoundingClientRect();
+        dock.classList.toggle('dim', p.x > r.left - 16 && p.y > r.top - 24);
+      }
       if (hintUntil) {
         // 手指点在总监右下方 1.6 米的地面上（"点地面走过去"）
         play.director.getWorldPosition(dirV);

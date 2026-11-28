@@ -555,10 +555,11 @@ export const street: MapDef = {
     { to: 'academy', entry: 'fromStreet', at: [14, -3], r: 2 },
   ],
   entries: {
-    fromPlaza: { at: [-8, EXIT_Z], yaw: PI / 2 },
+    // （第四轮：入口往图里挪 4 米 —— 竖屏站在 x = −8 时一屏全是图边的树，看不出到了哪）
+    fromPlaza: { at: [-4, EXIT_Z], yaw: PI / 2 },
     fromAcademy: { at: [14, 1.2], yaw: 0 },
   },
-  start: { at: [-8, EXIT_Z], yaw: PI / 2 },
+  start: { at: [-4, EXIT_Z], yaw: PI / 2 },
   clouds: [
     [-6, 28, 6, 3.4],
     [30, 46, 5, 3],

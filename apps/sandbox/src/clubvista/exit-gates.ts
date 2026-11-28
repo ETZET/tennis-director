@@ -17,6 +17,8 @@ interface Tease {
   z: number;
   r?: number;
   s?: number;
+  /** r 是图上的绝对朝向（不跟门转）：球场一角的挡风网永远在北边（画面上在场面后面） */
+  abs?: boolean;
 }
 
 interface Tune {
@@ -33,23 +35,43 @@ interface Tune {
   tease?: Tease[];
 }
 
-/** 下一张图的"一角"：按去哪张图挑（门外两侧，离路 ≥ 2.2 米，不挡路） */
+/**
+ * 下一张图的"一角"：按去哪张图挑，每张目的地一个全俱乐部独一份、一眼认得的东西（第 2 轮：灯柱、站牌这种本图里也有的不算），
+ * 摆在门外一侧（离路 ≥ 2.2 米，不挡路）。x 正 = 出门时的右手边。
+ */
 const TEASE: Record<string, Tease[]> = {
-  // 中心球场：球场的一角（蓝地、白线、绿挡风网）
-  court: [{ a: 'tease-court', x: 5, z: 3.6 }],
-  // 到达：公交站牌
-  arrive: [{ a: 'stop-pole', x: 2.5, z: 1.2 }],
-  // 喷泉广场：铁灯柱
-  plaza: [{ a: 'plaza-lamp', x: -2.5, z: 1.2 }],
-  // 球场街、青训场：同上
-  street: [{ a: 'tease-court', x: 5, z: 3.6 }],
-  academy: [{ a: 'tease-court', x: 5, z: 3.6 }],
-  // 果岭：插在洞里的小旗
-  golf: [{ a: 'golf-pin', x: 2.4, z: 1.2 }],
-  // 练习场：同上（练习场也是球场）
-  practice: [{ a: 'tease-court', x: 5, z: 3.6 }],
-  // 歇脚（泳池）：遮阳伞
-  oasis: [{ a: 'parasol', x: 2.5, z: 1.4 }],
+  // 中心球场：蓝色硬地一角 + 绿挡风网 + 看台顶上那种小旗
+  court: [
+    { a: 'tease-court', x: 6.2, z: 3.6, abs: true },
+    { a: 'flag', x: 4.4, z: 0.6 },
+  ],
+  // 到达：候车亭（路边的车站只有到达那张图有）
+  arrive: [{ a: 'bus-shelter', x: 5, z: 2.2, r: Math.PI / 2 }],
+  // 喷泉广场：缩小的棕榈喷泉（池沿 + 水柱）
+  plaza: [
+    { a: 'plaza:fountain', x: -4.2, z: 2.6, s: 0.42 },
+    { a: 'plaza:spray', x: -4.2, z: 2.6, s: 0.42 },
+  ],
+  // 球场街：红土场一角
+  street: [{ a: 'tease-clay', x: 6.2, z: 3.6, abs: true }],
+  // 青训场：硬地一角 + 场边的一筐球
+  academy: [
+    { a: 'tease-court', x: 6.2, z: 3.6, abs: true },
+    { a: 'ball-cart', x: 3.4, z: 1.8 },
+  ],
+  // 果岭：一小块短草 + 小旗
+  golf: [{ a: 'tease-green', x: 3.8, z: 2.2 }],
+  // 练习场：发球机
+  practice: [
+    { a: 'tease-court', x: 6.2, z: 3.6, abs: true },
+    { a: 'ball-machine', x: 3.4, z: 2 },
+  ],
+  // 歇脚（泳池）：两张泳池躺椅 + 遮阳伞
+  oasis: [
+    { a: 'lounger', x: 3.2, z: 1.6 },
+    { a: 'lounger', x: 4.2, z: 1.6 },
+    { a: 'parasol', x: 3.7, z: 0.2 },
+  ],
 };
 
 const TUNE: Record<string, Tune> = {
@@ -80,7 +102,9 @@ export function exitProps(def: MapDef): Prop[] {
     if (!best) continue;
     const ux = (best[0] - ex.at[0]) / bd;
     const uz = (best[1] - ex.at[1]) / bd;
-    const d = tune.d ?? ex.r + 1;
+    // 往南出画面的出口（门在画面最下面）：门往图里多挪 3.5 米，不让右下三个按钮压住；预告挪到左手边（按钮在右下）
+    const south = uz < -0.7;
+    const d = tune.d ?? ex.r + (south ? 4.5 : 1);
     const gx = ex.at[0] + ux * d + (tune.dx ?? 0);
     const gz = ex.at[1] + uz * d + (tune.dz ?? 0);
     // 本地 +z 朝图外（= −u）
@@ -91,15 +115,18 @@ export function exitProps(def: MapDef): Prop[] {
     // 本地 (x, z) → 本图：+z = (sin r, cos r)，+x = (cos r, −sin r)
     const c = Math.cos(r);
     const s = Math.sin(r);
-    for (const t of tune.tease ?? TEASE[ex.to] ?? [])
+    for (const t0 of tune.tease ?? TEASE[ex.to] ?? []) {
+      // 往南的出口 r ≈ 0：本地 +x = 画面右边（按钮那边）→ 换到左边；门往里挪了，预告也跟着离门远一点
+      const t = south && !tune.tease ? { ...t0, x: -t0.x, z: t0.z + 2.5 } : t0;
       out.push({
         a: t.a,
         x: gx + t.x * c + t.z * s,
         z: gz - t.x * s + t.z * c,
-        r: r + (t.r ?? 0),
+        r: t.abs ? (t.r ?? 0) : r + (t.r ?? 0),
         s: t.s,
         block: false,
       });
+    }
   }
   return out;
 }

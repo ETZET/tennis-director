@@ -56,6 +56,20 @@ import { CAST_SCENE } from './text';
 
 type V2 = [number, number];
 
+/** 干完的活 → 进账那一行最前面的图标（同动作键上的图标） */
+const DONE_ICON: Partial<Record<LifeTextKey, Gain['icon']>> = {
+  ballsDone: 'ball',
+  machineDone: 'ball',
+  hopperDone: 'ball',
+  netDone: 'wrench',
+  sweepDone: 'broom',
+  waterDone: 'can',
+  towelDone: 'box',
+  cupDone: 'cup',
+  luggageDone: 'box',
+  greetDone: 'talk',
+};
+
 /** 本地偏移按摆件的朝向转到图上（rotation.y = r：本地 +z → (sin r, cos r)） */
 function off(pr: Prop, dx: number, dz: number): V2 {
   const r = pr.r ?? 0;
@@ -330,7 +344,7 @@ export interface VistaLifeOpts {
   state(): CastState;
   setState(s: CastState): void;
   /** 反馈：钱下面一行"图标 + 数字"（金币 +5、小钟 8、心 +0.3），不写字；who = 跟谁有关（前面带他的小人头） */
-  gain(items: Gain[], who?: Who | null): void;
+  gain(items: Gain[], who?: Who | null, at?: THREE.Vector3 | null): void;
   /** 演员表里的人（id）→ 小人头的颜色（进账那一行前面画他） */
   who?(id: string): Who | null;
   /** 看台坐满 / 空场跟着比赛走（false = 调试里手动切，?crowd=） */
@@ -432,11 +446,16 @@ export function mountVistaLife(o: VistaLifeOpts): VistaLife {
     }
     o.setState(s);
     // 第四轮（让布局说话）：不写整句（"捡回一簇球 +$1 · 3 分钟"），只给 金币 +1 · 小钟 3；干的是什么活画面上看得见
-    o.gain([
-      { icon: 'coin', text: `+${money}` },
-      ...(minutes ? [{ icon: 'clock' as const, text: String(minutes) }] : []),
-    ]);
-    void at;
+    // 最前面是干的哪件活（球、扫帚、水壶……），干活的地方冒一枚金币
+    o.gain(
+      [
+        { icon: DONE_ICON[key] ?? 'hand', text: '' },
+        { icon: 'coin', text: `+${money}` },
+        ...(minutes ? [{ icon: 'clock' as const, text: String(minutes) }] : []),
+      ],
+      null,
+      at.clone().setY(at.y + 1),
+    );
     count(key);
   }
   function favor(id: string, d: number) {

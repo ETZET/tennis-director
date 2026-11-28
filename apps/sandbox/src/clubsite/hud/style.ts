@@ -69,6 +69,13 @@ export const HUD_CSS = `
 .pxh-edge-job { pointer-events: none; }
 /* 进账：金币右上那块下面浮一行"图标 + 数字"（金币 +5 · 小钟 3 · 心 +0.3），往上飘 1 纹素 × 4 就消失 */
 .pxh-gcell { display: flex; align-items: center; gap: calc(var(--s) * 1px); }
+/* 在哪儿挣的：那里一枚小金币往上飘 6 纹素、淡掉 */
+.pxh-burst { position: absolute; transform: translate(-50%, -100%); }
+.pxh-burst.up { animation: pxh-burst 1s steps(6, end) forwards; }
+@keyframes pxh-burst { 0% { transform: translate(-50%, -100%); opacity: 1; } 70% { opacity: 1; } 100% { transform: translate(-50%, calc(-100% - var(--s) * 12px)); opacity: 0; } }
+/* 总监在右下按钮底下：按钮淡到一半 */
+.pxh-dock { transition: opacity 0.25s steps(2, end); }
+.pxh-dock.dim { opacity: 0.45; }
 .pxh-cpop { position: absolute; right: max(10px, env(safe-area-inset-right)); top: calc(max(10px, calc(env(safe-area-inset-top) + 4px)) + var(--s) * 15px); display: flex; align-items: center; gap: calc(var(--s) * 2px); transition: opacity 0.3s steps(3, end); }
 .pxh-cpop.up { animation: pxh-cup 2.6s steps(4, end) forwards; }
 .pxh-cpop.gone { opacity: 0; }

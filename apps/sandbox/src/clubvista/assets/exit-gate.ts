@@ -35,7 +35,8 @@ export function buildExitGate(ctx: AssetCtx, clear = GATE_CLEAR, beam = true, de
   g.name = 'exit-gate';
   const wall = ctx.mat('adobe', { ...FACE, convex: 0.25, edge: 0.5 });
   const cap = ctx.mat('cap', { ...FACE, noShadowReceive: true, convex: 0.3, edge: 0.4 });
-  const wood = ctx.mat('timber', { ...FACE, noShadowReceive: true, convex: 0.3, edge: 0.4 });
+  // 晒旧的灰褐木（第 2 轮：染色木的橘和草帽撞色，总监站在门下就"吞"进去了）
+  const wood = ctx.mat('woodWeathered', { ...FACE, noShadowReceive: true, convex: 0.3, edge: 0.4 });
   const iron = ctx.mat('ironwork', { ...FACE, noShadowReceive: true, convex: 0.4, edge: 0.3 });
   const glassOff = ctx.mat('bulb', { lightUp: 0.8, bands: [-0.5, 0.2], noShadowReceive: true, convex: 0, edge: 0.3 });
   const glassOn = ctx.mat('flowerYellow', {
@@ -86,9 +87,9 @@ export function buildExitGate(ctx: AssetCtx, clear = GATE_CLEAR, beam = true, de
   const beams = merge(
     deep > 0
       ? [
-          // 木架廊：两根顺着路的长梁搁在柱顶，上面横着 5 根椽子（两头出挑）
+          // 木架廊：两根顺着路的长梁搁在柱顶，两头各横一根椽子（第 2 轮：中间的椽子去掉 —— 5 根在侧面看是一排竖格，读成笼子，还把草帽吞了）
           ...[-1, 1].map((sx) => box(3 * T, 3 * T, deep + PW + 8 * T, sx * px, y0 + 1.5 * T, 0)),
-          ...[-2, -1, 0, 1, 2].map((k) => box(span, 2 * T, 2 * T, 0, y0 + 4 * T, (k * (deep + PW)) / 4)),
+          ...[-1, 1].map((k) => box(span, 2 * T, 3 * T, 0, y0 + 4 * T, (k * (deep + PW)) / 2)),
         ]
       : [box(span, 3 * T, 3 * T, 0, y0 + 1.5 * T, 0), box(span - 6 * T, 2 * T, 2 * T, 0, y0 + 4 * T, 0)],
   );

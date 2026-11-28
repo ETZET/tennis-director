@@ -201,7 +201,17 @@ export function mountVista(hooks: VistaHooks = {}) {
         ramps,
         stepUp: 0.32,
       },
-      camera: { lead: { portrait: 1.6, landscape: 0.6 }, view: viewOf(cur) },
+      camera: {
+        lead: { portrait: 1.6, landscape: 0.6 },
+        view: viewOf(cur),
+        // 第四轮（让布局说话）：竖屏一屏只有 17 米宽，站在图边（东西两头的入口）时镜头往这张图的焦点（MapDef.shot）横着偏
+        // 一点（离焦点的 40%，最多 4.5 米），进图第一眼就看得到这里是什么地方，不靠地名
+        lean: (x) => {
+          if (innerWidth >= innerHeight) return [0, 0];
+          const fx = (cur.def.shot?.port[0] ?? cur.def.W / 2) + cur.ox;
+          return [Math.max(-4.5, Math.min(4.5, (fx - x) * 0.4)), 0];
+        },
+      },
     });
   } else {
     director.position.set(start0[0] + cur.ox, groundAt(start0[0] + cur.ox, start0[1]), start0[1]);
@@ -467,7 +477,7 @@ export function mountVista(hooks: VistaHooks = {}) {
           setState: (s) => {
             store.state = s;
           },
-          gain: (items, who) => hud?.gain(items, who),
+          gain: (items, who, at) => hud?.gain(items, who, at),
           who: (id) => cast?.whoById(id) ?? null,
           autoCrowd: !params.has('crowd'),
         })
