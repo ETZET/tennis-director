@@ -206,14 +206,9 @@ export function mountVista(hooks: VistaHooks = {}) {
         view: viewOf(cur),
         // 第四轮（让布局说话）：竖屏一屏只有 17 米宽，站在图边（东西两头的入口）时镜头往这张图的焦点（MapDef.shot）横着偏
         // 一点（离焦点的 40%，最多 4.5 米），进图第一眼就看得到这里是什么地方，不靠地名
-        // （第 3 轮：离焦点 50%、最多 6 米；走到离东西两头的出口 7 米以内时改成往出口那边偏，门外露出的"下一张图的一角"才在画面里）
-        lean: (x, z) => {
+        // （第 3 轮：离焦点 50%、最多 6 米。试过"离东西出口 7 米以内改往出口偏"：评判说出口帧把焦点整个推出画面、三张图又像同一处，撤了）
+        lean: (x) => {
           if (innerWidth >= innerHeight) return [0, 0];
-          for (const ex of cur.def.exits) {
-            const ex0 = ex.at[0] + cur.ox;
-            const side = ex.at[0] < 0 || ex.at[0] > cur.def.W;
-            if (side && Math.hypot(ex0 - x, ex.at[1] - z) < 7) return [Math.max(-4, Math.min(4, (ex0 - x) * 0.6)), 0];
-          }
           const fx = (cur.def.shot?.port[0] ?? cur.def.W / 2) + cur.ox;
           return [Math.max(-6, Math.min(6, (fx - x) * 0.5)), 0];
         },
@@ -282,21 +277,26 @@ export function mountVista(hooks: VistaHooks = {}) {
     }
     placeSun(wx, wz);
     armed = false;
+    landed = { x: wx, z: wz };
     life?.enter();
   }
   // 出口的小箭头（clubsite/hud/waysign.ts）：离出口 9 米以内，出口那里冒一个往外指的小箭头（不写字）；走开、换图就没有
   const ways = params.get('ui') !== '0' ? createWaySigns() : null;
   const WAY_R = 9;
   const wayAt = new THREE.Vector3();
+  /** 刚进图站的地方：离开 3 米以前，身边那道（来的）门不出箭头（评判：一进图就亮"往回走"） */
+  let landed: { x: number; z: number } | null = { x: start0[0] + cur.ox, z: start0[1] };
   function placeWays() {
     if (!ways) return;
     const list: WaySign[] = [];
     if (play && !moving) {
       const s = play.state();
+      if (landed && Math.hypot(s.x - landed.x, s.z - landed.z) > 3) landed = null;
       for (const ex of cur.def.exits) {
         if (ex.to === 'club' ? !hooks.outer : !built.some((b) => b.def.id === ex.to)) continue;
         const wx = ex.at[0] + cur.ox;
         if (Math.hypot(s.x - wx, s.z - ex.at[1]) > ex.r + WAY_R) continue;
+        if (landed && Math.hypot(landed.x - wx, landed.z - ex.at[1]) < ex.r + WAY_R) continue;
         const h = cur.groundAt(ex.at[0], ex.at[1]);
         wayAt.set(wx, Number.isFinite(h) ? h : s.y, ex.at[1]);
         const p = screenOf(wayAt);
