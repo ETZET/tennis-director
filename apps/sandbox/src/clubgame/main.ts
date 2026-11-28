@@ -192,7 +192,7 @@ function mountGame() {
           if (near) {
             head.set(GATE.x + 1, 0, 0);
             const s = walk.play.project(head, innerWidth, innerHeight);
-            clubWays.set([{ x: s.x, y: s.y, text: mapName('arrive') }]);
+            clubWays.set([{ x: s.x, y: s.y, text: mapName('arrive'), place: 'arrive' }]);
           } else clubWays.set([]);
         },
         ready: (api) => {

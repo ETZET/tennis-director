@@ -125,8 +125,13 @@ for (const id of MAPS) {
       const ex = b.def.exits[0];
       const ents = Object.values(b.def.entries);
       ents.sort((p, q) => Math.hypot(p.at[0] - ex.at[0], p.at[1] - ex.at[1]) - Math.hypot(q.at[0] - ex.at[0], q.at[1] - ex.at[1]));
+      // 站在出口里面 (半径 + 2.5) 米、朝最近的入口那边（入口可能离出口很远：喷泉广场的西入口在 12 米外）
       const e = ents[0];
-      v.play.teleport(e.at[0] + b.ox, e.at[1], e.yaw);
+      const dx = e.at[0] - ex.at[0];
+      const dz = e.at[1] - ex.at[1];
+      const L = Math.hypot(dx, dz) || 1;
+      const k = Math.min(1, (ex.r + 2.5) / L);
+      v.play.teleport(ex.at[0] + dx * k + b.ox, ex.at[1] + dz * k, e.yaw);
       v.step(0.3);
     });
     await page.waitForTimeout(700);
@@ -138,9 +143,13 @@ for (const id of MAPS) {
       const b = v.built.find((m) => m.def.id === v.cur());
       v.play.teleport(b.def.start.at[0] + b.ox, b.def.start.at[1], b.def.start.yaw);
       v.step(0.2);
-      v.life?.testReward?.('ballsDone', 1, 3);
     });
-    await page.waitForTimeout(500);
+    // 镜头跟过去以后再干活（金币冒在总监头上）
+    await page.waitForTimeout(1200);
+    // 每张图干一件它那儿的活（进账那一行最前面的图标跟着活变）
+    const CHORE = { arrive: 'luggageDone', court: 'sweepDone', oasis: 'waterDone', practice: 'ballsDone', plaza: 'cupDone', lobby: 'towelDone', street: 'netDone', academy: 'hopperDone', golf: 'greetDone' };
+    await page.evaluate((k) => window.__vista.life?.testReward?.(k, 2, 3), CHORE[id] ?? 'ballsDone');
+    await page.waitForTimeout(400);
     await snap(page, id, 'chore');
   }
   if (FRAMES.includes('peek')) {

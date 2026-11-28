@@ -1,11 +1,14 @@
 // 出口的小箭头：总监走近一个出口（换图 / 换世界的地方）时，出口那里冒一个奶油色的小箭头（墨描边、慢慢往出口那边一跳一跳），
 // 走开、换了图就没有。第四轮（2026-11-28，「让布局说话」）：不再写目的地的字 —— 出口靠布局讲（路一直通到画面外、出口有门柱 / 台阶 /
 // 拱门，远处露出下一张图的一角），这里只补一个"往这边走"；去哪看右下的小地图。
+// 第 3 轮：箭头旁边配目的地的剪影小图（places.ts，小地图上同一套：看台、喷泉、果岭小旗、候车亭……）—— 东西向出口门外的预告物件
+// 竖屏里常落在画面外，剪影兜底；还是不写字。
 // 箭头在出口在屏幕上的位置（在屏幕外就贴着那一边，让开四个角的界面），朝出口相对屏幕中心（总监差不多在那儿）的方向。只是提示，点不了。
 // 用法：const signs = createWaySigns(); 每帧 signs.set([{ x, y, text }, …])（x, y = 出口在屏幕上的位置，CSS 像素，可以在屏幕外；
 // text = 目的地名，只给读屏用）。
 import { CREAM, hex, INK, INK_SHADOW } from './colors';
 import { hudScale } from './scale';
+import { placeIcon } from './sheet';
 
 export interface WaySign {
   /** 出口在屏幕上的位置（CSS 像素；在屏幕外就贴到那一边） */
@@ -13,6 +16,8 @@ export interface WaySign {
   y: number;
   /** 目的地名（只给读屏：aria-label，不上屏） */
   text: string;
+  /** 目的地的地点 id（places.ts 的剪影，同小地图）；不给 = 只有箭头 */
+  place?: string;
 }
 export interface WaySigns {
   set(list: readonly WaySign[]): void;
@@ -52,6 +57,36 @@ function arrowCanvas(dir: Dir): HTMLCanvasElement {
       const [x, y] = at(i, j);
       put(x, y, ch === 'K' ? INK : CREAM);
     }
+  return c;
+}
+
+/** 箭头 + 目的地剪影拼成一张：剪影在箭头的"后面"（往右的箭头 = [剪影][→]，往上的 = 箭头在上、剪影在下），中间空 2 纹素 */
+function withPlace(arrow: HTMLCanvasElement, dir: Dir, place?: string): HTMLCanvasElement {
+  if (!place) return arrow;
+  const ic = placeIcon(place, CREAM);
+  const gap = 2;
+  const horiz = dir === 'left' || dir === 'right';
+  const w = horiz ? arrow.width + gap + ic.width : Math.max(arrow.width, ic.width);
+  const h = horiz ? Math.max(arrow.height, ic.height) : arrow.height + gap + ic.height;
+  const c = document.createElement('canvas');
+  c.width = w;
+  c.height = h;
+  const g = c.getContext('2d') as CanvasRenderingContext2D;
+  const ay = (hh: number) => Math.floor((h - hh) / 2);
+  const ax = (ww: number) => Math.floor((w - ww) / 2);
+  if (dir === 'right') {
+    g.drawImage(ic, 0, ay(ic.height));
+    g.drawImage(arrow, ic.width + gap, ay(arrow.height));
+  } else if (dir === 'left') {
+    g.drawImage(arrow, 0, ay(arrow.height));
+    g.drawImage(ic, arrow.width + gap, ay(ic.height));
+  } else if (dir === 'up') {
+    g.drawImage(arrow, ax(arrow.width), 0);
+    g.drawImage(ic, ax(ic.width), arrow.height + gap);
+  } else {
+    g.drawImage(ic, ax(ic.width), 0);
+    g.drawImage(arrow, ax(arrow.width), ic.height + gap);
+  }
   return c;
 }
 
@@ -110,10 +145,10 @@ export function createWaySigns(): WaySigns {
         const dy = s.y - H / 2;
         // 方向：出口相对屏幕中心（总监差不多在那儿）
         const dir: Dir = Math.abs(dx) * (H / W) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : dy > 0 ? 'down' : 'up';
-        const key = `${dir}|${S}`;
+        const key = `${dir}|${S}|${s.place ?? ''}`;
         if (key !== e.key) {
           e.key = key;
-          const src = arrowCanvas(dir);
+          const src = withPlace(arrowCanvas(dir), dir, s.place);
           e.c.width = src.width;
           e.c.height = src.height;
           (e.c.getContext('2d') as CanvasRenderingContext2D).drawImage(src, 0, 0);

@@ -206,10 +206,16 @@ export function mountVista(hooks: VistaHooks = {}) {
         view: viewOf(cur),
         // 第四轮（让布局说话）：竖屏一屏只有 17 米宽，站在图边（东西两头的入口）时镜头往这张图的焦点（MapDef.shot）横着偏
         // 一点（离焦点的 40%，最多 4.5 米），进图第一眼就看得到这里是什么地方，不靠地名
-        lean: (x) => {
+        // （第 3 轮：离焦点 50%、最多 6 米；走到离东西两头的出口 7 米以内时改成往出口那边偏，门外露出的"下一张图的一角"才在画面里）
+        lean: (x, z) => {
           if (innerWidth >= innerHeight) return [0, 0];
+          for (const ex of cur.def.exits) {
+            const ex0 = ex.at[0] + cur.ox;
+            const side = ex.at[0] < 0 || ex.at[0] > cur.def.W;
+            if (side && Math.hypot(ex0 - x, ex.at[1] - z) < 7) return [Math.max(-4, Math.min(4, (ex0 - x) * 0.6)), 0];
+          }
           const fx = (cur.def.shot?.port[0] ?? cur.def.W / 2) + cur.ox;
-          return [Math.max(-4.5, Math.min(4.5, (fx - x) * 0.4)), 0];
+          return [Math.max(-6, Math.min(6, (fx - x) * 0.5)), 0];
         },
       },
     });
@@ -294,7 +300,7 @@ export function mountVista(hooks: VistaHooks = {}) {
         const h = cur.groundAt(ex.at[0], ex.at[1]);
         wayAt.set(wx, Number.isFinite(h) ? h : s.y, ex.at[1]);
         const p = screenOf(wayAt);
-        list.push({ x: p.x, y: p.y, text: mapName(ex.to) });
+        list.push({ x: p.x, y: p.y, text: mapName(ex.to), place: ex.to });
       }
     }
     ways.set(list);

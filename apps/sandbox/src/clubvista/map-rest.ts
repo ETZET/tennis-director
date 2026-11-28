@@ -370,9 +370,9 @@ export const rest: MapDef = {
     // 更衣棚的门 → 会所大堂
     { to: 'lobby', entry: 'fromOasis', at: [14, 5.7], r: 0.9 },
   ],
-  // （第四轮：入口往图里挪 4 米 —— 竖屏站在 x = −8 时一屏全是图边的树，看不出到了哪）
-  entries: { fromCourt: { at: [-4, 42], yaw: PI / 2 }, fromLobby: { at: [14, 8.2], yaw: 0 } },
-  start: { at: [-4, 42], yaw: PI / 2 },
+  // （第四轮：入口往图里挪 8 米 —— 竖屏站在 x = −8 时一屏全是图边的树，看不出到了哪）
+  entries: { fromCourt: { at: [0, 42], yaw: PI / 2 }, fromLobby: { at: [14, 8.2], yaw: 0 } },
+  start: { at: [0, 42], yaw: PI / 2 },
   clouds: [],
   shot: { port: [14, 24], land: [14, 22] },
   spots: [

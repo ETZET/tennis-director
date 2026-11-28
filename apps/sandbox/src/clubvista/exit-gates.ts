@@ -75,6 +75,8 @@ const TEASE: Record<string, Tease[]> = {
 };
 
 const TUNE: Record<string, Tune> = {
+  // 练习场的南口在画面右下（右下三个按钮那儿）：门往图里多挪，落到按钮上面
+  'practice>court': { d: 9 },
   // 建筑的门：门本身就是出口（会所的拱门、更衣棚的门、大堂的两道门）
   'plaza>lobby': { kind: 'none' },
   'oasis>lobby': { kind: 'none' },
@@ -117,7 +119,7 @@ export function exitProps(def: MapDef): Prop[] {
     const s = Math.sin(r);
     for (const t0 of tune.tease ?? TEASE[ex.to] ?? []) {
       // 往南的出口 r ≈ 0：本地 +x = 画面右边（按钮那边）→ 换到左边；门往里挪了，预告也跟着离门远一点
-      const t = south && !tune.tease ? { ...t0, x: -t0.x, z: t0.z + 2.5 } : t0;
+      const t = south && !tune.tease ? { ...t0, x: -t0.x, z: Math.min(t0.z, 1.5) } : t0;
       out.push({
         a: t.a,
         x: gx + t.x * c + t.z * s,

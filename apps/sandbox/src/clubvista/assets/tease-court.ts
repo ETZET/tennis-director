@@ -9,7 +9,7 @@ import type { AssetCtx } from '../ctx';
 const T = 0.09;
 const W = 4.0;
 const D = 3.0;
-const FH = 2.0;
+const FH = 1.3;
 
 function box(w: number, h: number, d: number, x: number, y: number, z: number): THREE.BufferGeometry {
   return new THREE.BoxGeometry(w, h, d).translate(x, y, z);
@@ -23,7 +23,11 @@ function merge(list: THREE.BufferGeometry[]): THREE.BufferGeometry {
 const FACE = { lightUp: 0.5, bands: [-0.45, 0.3] as [number, number], noShadowReceive: true };
 
 /** surface = 场面的材质（硬地 courtIn；红土 streetClay） */
-export function buildTeaseCourt(ctx: AssetCtx, surface: 'courtIn' | 'streetClay' = 'courtIn'): THREE.Object3D {
+export function buildTeaseCourt(
+  ctx: AssetCtx,
+  surface: 'courtIn' | 'streetClay' = 'courtIn',
+  fence = true,
+): THREE.Object3D {
   const g = new THREE.Group();
   g.name = 'tease-court';
   const x0 = -W;
@@ -40,6 +44,7 @@ export function buildTeaseCourt(ctx: AssetCtx, surface: 'courtIn' | 'streetClay'
   ln.receiveShadow = true;
   g.add(ln);
   // 挡风网：北边一道、西边一道，1 纹素厚
+  if (!fence) return g;
   // 第 2 轮：只留北边一道（摆的时候不跟门转，永远在场面的后面）—— 两道 L 形在侧面 / 朝镜头时把场面整个挡成一块深色板
   const net = merge([box(W, FH - 0.3, T, x0 + W / 2, 0.3 + (FH - 0.3) / 2, z0)]);
   const nm = new THREE.Mesh(net, ctx.mat('windscreen', { ...FACE, convex: 0, edge: 0.4 }));

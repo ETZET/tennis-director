@@ -547,8 +547,9 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
   let dateKey = '';
   function drawClockNow() {
     const hour = ((day.total % 24) + 24) % 24;
-    const look = day.look;
     const weather = day.current;
+    // 室内图（day.override 固定的室内光，天是黑的）：日钟照样画外面这一刻的天（第四轮：大堂里正午画成夜空）
+    const look = day.override ? dayLook(hour, weather, { sky: { top: 0x58a8e6, horizon: 0xbfe2f2 } }) : day.look;
     // 6 游戏分钟画一次（外圈的进度一格 ≈ 一刻钟）
     const key = `${Math.floor(hour * 10)}|${weather}|${look.moon}|${look.skyTop}|${look.skyHorizon}|${S}`;
     if (key !== clockKey) {
@@ -1226,10 +1227,23 @@ export function mountPixelHud(o: PixelHudOpts): PixelHud {
       }
       if (hintUntil) {
         // 手指点在总监右下方 1.6 米的地面上（"点地面走过去"）
-        play.director.getWorldPosition(dirV);
-        dirV.x += 1.2;
-        dirV.z += 1.4;
-        const p = play.project(dirV, canvas.clientWidth, canvas.clientHeight);
+        // 落在右下按钮那块、或者太靠下：换到总监左下 / 左上 / 右上（第四轮第 3 轮：手指点在地图键上，读成"去点地图"）
+        const r = dock.getBoundingClientRect();
+        const W = canvas.clientWidth;
+        const H = canvas.clientHeight;
+        let p = { x: 0, y: 0 };
+        for (const [ox, oz] of [
+          [1.2, 1.4],
+          [-1.2, 1.4],
+          [-1.4, -1.2],
+          [1.4, -1.2],
+        ]) {
+          play.director.getWorldPosition(dirV);
+          dirV.x += ox;
+          dirV.z += oz;
+          p = play.project(dirV, W, H);
+          if (p.y < r.top - 40 && p.y > 140 && p.x > 30 && p.x < W - 30) break;
+        }
         hintEl.style.transform = `translate(${Math.round(p.x)}px, ${Math.round(p.y)}px)`;
       }
       // 心情泡：分得出类的台词才出泡（"…"不出），画面里的、离总监近的最多 MOOD_MAX 个；点泡 = 那句话上方一行字

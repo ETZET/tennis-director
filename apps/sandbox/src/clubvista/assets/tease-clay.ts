@@ -4,5 +4,6 @@ import type { AssetCtx } from '../ctx';
 import { buildTeaseCourt } from './tease-court';
 
 export function build(ctx: AssetCtx): THREE.Object3D {
-  return buildTeaseCourt(ctx, 'streetClay');
+  // 红土场不要挡风网（第 3 轮：深绿挡板压在橙色上读成长椅）
+  return buildTeaseCourt(ctx, 'streetClay', false);
 }

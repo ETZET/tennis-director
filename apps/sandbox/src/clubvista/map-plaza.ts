@@ -517,13 +517,13 @@ export const plaza: MapDef = {
     { to: 'golf', entry: 'fromPlaza', at: [14, 50.6], r: 2 },
   ],
   entries: {
-    // （第四轮：入口往图里挪 4 米 —— 竖屏站在 x = −8 时一屏全是图边的树，看不出到了哪）
-    fromArrive: { at: [-4, 30], yaw: PI / 2 },
+    // （第四轮：入口往图里挪 8 米 —— 竖屏站在 x = −8 时一屏全是图边的树，看不出到了哪）
+    fromArrive: { at: [0, 30], yaw: PI / 2 },
     fromLobby: { at: [FX, WALL_Z + 3.2], yaw: 0 },
     fromStreet: { at: [36, 26], yaw: -PI / 2 },
     fromGolf: { at: [14, 46.6], yaw: PI },
   },
-  start: { at: [-4, 30], yaw: PI / 2 },
+  start: { at: [0, 30], yaw: PI / 2 },
   clouds: [],
   shot: { port: [14, 24], land: [14, 24] },
   spots: [
